@@ -1,0 +1,24 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Local data (SQLite, runtime state)
+.data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+
+# Env
+.env
+.env.*
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
