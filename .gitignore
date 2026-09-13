@@ -3,6 +3,13 @@
 **/*.rs.bk
 *.pdb
 
+# Build outputs (cavy-style packaging)
+/dist/
+packaging/linux/pkg/
+packaging/linux/src/
+*.pkg.tar.*
+*.pkg.tar.zst
+
 # Local data (SQLite, runtime state)
 .data/
 *.db
@@ -22,3 +29,6 @@
 *~
 .DS_Store
 Thumbs.db
+
+# FVM Version Cache
+.fvm/

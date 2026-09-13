@@ -23,4 +23,3 @@ pub struct EventSummary {
     pub recorded_at: String,
     pub raw_text: String,
 }
-

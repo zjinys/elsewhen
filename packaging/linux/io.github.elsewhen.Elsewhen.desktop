@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Elsewhen
+Comment=Local-first personal event recorder with global hotkey capture
+Exec=elsewhen capture
+Icon=io.github.elsewhen.Elsewhen
+Terminal=false
+Categories=Utility;
+StartupNotify=true
+StartupWMClass=io.github.elsewhen.Elsewhen

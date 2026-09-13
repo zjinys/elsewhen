@@ -1,0 +1,18 @@
+Name: elsewhen
+Version: @VERSION@
+Release: 1%{?dist}
+Summary: Local-first personal event recorder with global hotkey capture
+License: MIT
+BuildArch: x86_64
+%description
+Elsewhen personal event recorder with global hotkey capture.
+%install
+mkdir -p %{buildroot}/usr/bin %{buildroot}/usr/share/applications %{buildroot}/usr/share/icons/hicolor/256x256/apps
+install -m 0755 @ROOT@/target/release/elsewhen %{buildroot}/usr/bin/elsewhen
+install -m 0644 @ROOT@/packaging/linux/io.github.elsewhen.Elsewhen.desktop %{buildroot}/usr/share/applications/
+if [ -f @ROOT@/assets/icons/elsewhen-256.png ]; then
+  install -m 0644 @ROOT@/assets/icons/elsewhen-256.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/io.github.elsewhen.Elsewhen.png
+fi
+%files
+/usr/bin/elsewhen
+/usr/share/applications/io.github.elsewhen.Elsewhen.desktop

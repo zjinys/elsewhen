@@ -1,0 +1,13 @@
+pkgname=elsewhen
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Local-first personal event recorder with global hotkey capture'
+arch=('x86_64')
+license=('MIT')
+package() {
+  install -Dm755 "$startdir/../../target/release/elsewhen" "$pkgdir/usr/bin/elsewhen"
+  install -Dm644 "$startdir/io.github.elsewhen.Elsewhen.desktop" "$pkgdir/usr/share/applications/io.github.elsewhen.Elsewhen.desktop"
+  if [ -f "$startdir/../../assets/icons/elsewhen-256.png" ]; then
+    install -Dm644 "$startdir/../../assets/icons/elsewhen-256.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/io.github.elsewhen.Elsewhen.png"
+  fi
+}

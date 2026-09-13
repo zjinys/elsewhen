@@ -2,12 +2,27 @@
 name = "elsewhen"
 version = "0.1.0"
 edition = "2021"
+description = "Local-first personal event recorder with global hotkey capture"
+license = "MIT"
+default-run = "elsewhen"
+
+[[bin]]
+name = "elsewhen"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 directories = "5"
+dotenvy = "0.15"
 rusqlite = { version = "0.32", features = ["bundled"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-iced = { version = "0.14", default-features = true }
-global-hotkey = "0.6"
+iced = { version = "0.14", default-features = true, features = ["svg"] }
+rdev = "0.5"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+strip = true
