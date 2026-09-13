@@ -43,8 +43,6 @@ dependencies:
 
   # Desktop integration
   window_manager: ^0.4.3
-  hotkey_manager: ^0.2.3
-
   # Icons
   cupertino_icons: ^1.0.8
   flutter_rust_bridge: ^2.13.0
@@ -59,6 +57,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  ffigen: ^22.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

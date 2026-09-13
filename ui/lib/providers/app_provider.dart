@@ -21,23 +21,27 @@ final appInitializationProvider = FutureProvider<bool>((ref) async {
   await windowService.initialize();
 
   // Initialize hotkey manager
-  final hotkeyService = ref.read(hotkeyServiceProvider);
-  await hotkeyService.initialize();
+  // TODO: Re-enable after hotkey_manager_linux plugin is fixed
+  // final hotkeyService = ref.read(hotkeyServiceProvider);
+  // await hotkeyService.initialize();
 
   // Initialize Rust bridge
   final rustBridge = ref.read(rustBridgeRepositoryProvider);
   await rustBridge.initialize();
 
   // Register capture hotkey (Ctrl+Space)
-  hotkeyService.onCaptureTriggered = () async {
-    // Switch to capture mode when hotkey is pressed
-    await windowService.switchToCaptureMode();
-  };
+  // TODO: Re-enable after hotkey_manager_linux plugin is fixed
+  // hotkeyService.onCaptureTriggered = () async {
+  //   // Switch to capture mode when hotkey is pressed
+  //   await windowService.switchToCaptureMode();
+  // };
+  //
+  // final registered = await hotkeyService.registerCaptureHotkey();
+  // if (registered) {
+  //   debugPrint('Global hotkey registered: ${hotkeyService.getHotkeyDescription()}');
+  // }
 
-  final registered = await hotkeyService.registerCaptureHotkey();
-  if (registered) {
-    debugPrint('Global hotkey registered: ${hotkeyService.getHotkeyDescription()}');
-  }
+  debugPrint('App initialized (hotkey disabled due to plugin issue)');
 
   return true;
 });
