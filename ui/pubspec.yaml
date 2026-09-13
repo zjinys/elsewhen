@@ -43,6 +43,7 @@ dependencies:
 
   # Desktop integration
   window_manager: ^0.4.3
+
   # Icons
   cupertino_icons: ^1.0.8
   flutter_rust_bridge: ^2.13.0
