@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
 import '../providers/event_provider.dart';
+import '../providers/app_provider.dart';
 
 class CaptureScreen extends ConsumerStatefulWidget {
   const CaptureScreen({super.key});
@@ -40,28 +41,37 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     try {
       final repo = ref.read(eventRepositoryProvider);
       await repo.createEvent(_controller.text);
-      _controller.clear();
+      ref.invalidate(eventsProvider);
 
       if (mounted) {
         // Show brief success feedback
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('事件已记录'),
-            duration: const Duration(seconds: 1),
+            duration: const Duration(milliseconds: 800),
             backgroundColor: AppTheme.success,
           ),
         );
+
+        // Wait for snackbar, then switch back to main mode
+        await Future.delayed(const Duration(milliseconds: 800));
+
+        // Switch back to main application mode
+        final windowService = ref.read(windowServiceProvider);
+        await windowService.switchToMainMode();
       }
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
+        _controller.clear();
       }
     }
   }
 
-  void _closeWindow() {
-    // TODO: Properly hide window instead of closing app
-    SystemNavigator.pop();
+  void _closeWindow() async {
+    // Switch back to main mode instead of closing
+    final windowService = ref.read(windowServiceProvider);
+    await windowService.switchToMainMode();
   }
 
   @override

@@ -7,6 +7,7 @@ import 'theme/app_theme.dart';
 import 'models/app_config.dart';
 import 'screens/main_screen.dart';
 import 'screens/capture_screen.dart';
+import 'providers/app_provider.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,7 +49,7 @@ void main(List<String> args) async {
   );
 }
 
-class ElsewhenApp extends StatelessWidget {
+class ElsewhenApp extends ConsumerStatefulWidget {
   final AppConfig config;
 
   const ElsewhenApp({
@@ -57,14 +58,94 @@ class ElsewhenApp extends StatelessWidget {
   });
 
   @override
+  ConsumerState<ElsewhenApp> createState() => _ElsewhenAppState();
+}
+
+class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Trigger initialization
+    Future.microtask(() {
+      ref.read(appInitializationProvider);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Watch initialization status
+    final initAsync = ref.watch(appInitializationProvider);
+
     return MaterialApp(
       title: 'Elsewhen',
       theme: AppTheme.darkTheme,
       debugShowCheckedModeBanner: false,
-      home: config.mode == AppMode.capture
-          ? const CaptureScreen()
-          : const MainScreen(),
+      home: initAsync.when(
+        data: (initialized) {
+          if (!initialized) {
+            return const Scaffold(
+              body: Center(
+                child: Text('Initialization failed'),
+              ),
+            );
+          }
+
+          return widget.config.mode == AppMode.capture
+              ? const CaptureScreen()
+              : const MainScreen();
+        },
+        loading: () => Scaffold(
+          backgroundColor: AppTheme.surface0,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  color: AppTheme.accentPrimary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Initializing Elsewhen...',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        error: (error, stack) => Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  color: AppTheme.error,
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Failed to initialize',
+                  style: TextStyle(
+                    color: AppTheme.error,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  error.toString(),
+                  style: TextStyle(
+                    color: AppTheme.textTertiary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,0 +1,20 @@
+# Flutter Rust Bridge Configuration
+
+# Rust input
+rust_input:
+  - src/api.rs
+
+# Dart output
+dart_output:
+  - ui/lib/bridge/generated.dart
+
+# C output for FFI
+c_output:
+  - ui/lib/bridge/generated.h
+
+# Rust output
+rust_output:
+  - src/bridge_generated.rs
+
+# Enable full code generation
+full_dep: true

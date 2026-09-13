@@ -1,4 +1,5 @@
 mod ai;
+mod api;
 mod capture;
 mod config;
 mod event;

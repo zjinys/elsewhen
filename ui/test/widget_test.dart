@@ -3,12 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:elsewhen_ui/main.dart';
 import 'package:elsewhen_ui/models/app_config.dart';
+import 'package:elsewhen_ui/providers/app_provider.dart';
 
 void main() {
   testWidgets('App launches successfully', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+    // Override initialization to skip platform-specific services
+    final container = ProviderContainer(
+      overrides: [
+        appInitializationProvider.overrideWith((ref) async => true),
+      ],
+    );
+
     await tester.pumpWidget(
-      ProviderScope(
+      UncontrolledProviderScope(
+        container: container,
         child: ElsewhenApp(
           config: AppConfig(
             mode: AppMode.main,
@@ -26,8 +34,16 @@ void main() {
   });
 
   testWidgets('Capture mode launches successfully', (WidgetTester tester) async {
+    // Override initialization to skip platform-specific services
+    final container = ProviderContainer(
+      overrides: [
+        appInitializationProvider.overrideWith((ref) async => true),
+      ],
+    );
+
     await tester.pumpWidget(
-      ProviderScope(
+      UncontrolledProviderScope(
+        container: container,
         child: ElsewhenApp(
           config: AppConfig(
             mode: AppMode.capture,

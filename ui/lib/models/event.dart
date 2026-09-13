@@ -3,6 +3,7 @@ class Event {
   final String rawText;
   final DateTime recordedAt;
   final String source;
+  final String? status;
   final Analysis? analysis;
 
   Event({
@@ -10,8 +11,20 @@ class Event {
     required this.rawText,
     required this.recordedAt,
     required this.source,
+    this.status,
     this.analysis,
   });
+
+  // Convert from Rust EventDto (will be used once bridge is generated)
+  factory Event.fromRust(dynamic rustEvent) {
+    return Event(
+      id: rustEvent.id as String,
+      rawText: rustEvent.rawText as String,
+      recordedAt: DateTime.parse(rustEvent.recordedAt as String),
+      source: rustEvent.source as String,
+      status: rustEvent.status as String?,
+    );
+  }
 
   factory Event.fromJson(Map<String, dynamic> json) {
     return Event(
@@ -19,6 +32,7 @@ class Event {
       rawText: json['raw_text'] as String,
       recordedAt: DateTime.parse(json['recorded_at'] as String),
       source: json['source'] as String,
+      status: json['status'] as String?,
       analysis: json['analysis'] != null
           ? Analysis.fromJson(json['analysis'] as Map<String, dynamic>)
           : null,
@@ -31,7 +45,8 @@ class Event {
       'raw_text': rawText,
       'recorded_at': recordedAt.toIso8601String(),
       'source': source,
-      'analysis': analysis?.toJson(),
+      if (status != null) 'status': status,
+      if (analysis != null) 'analysis': analysis!.toJson(),
     };
   }
 }
