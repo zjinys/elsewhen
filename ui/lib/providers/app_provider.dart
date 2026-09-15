@@ -23,7 +23,7 @@ final appInitializationProvider = FutureProvider<bool>((ref) async {
   await windowService.initialize();
 
   // Initialize Rust bridge
-  final rustBridge = ref.read(rustBridgeRepositoryProvider);
+  final rustBridge = ref.read(storageRepositoryProvider);
   await rustBridge.initialize();
 
   // Initialize hotkey service (stub mode)

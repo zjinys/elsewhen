@@ -67,7 +67,7 @@ class EventCard extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 timeFormat.format(event.recordedAt),
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.textTertiary,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -79,7 +79,7 @@ class EventCard extends StatelessWidget {
         const SizedBox(width: AppTheme.space2),
         Text(
           dateFormat.format(event.recordedAt),
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textTertiary,
             fontSize: 12,
           ),
@@ -132,7 +132,7 @@ class EventCard extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textTertiary,
               fontSize: 10,
               fontWeight: FontWeight.w500,
@@ -146,7 +146,7 @@ class EventCard extends StatelessWidget {
   Widget _buildContent() {
     return Text(
       event.rawText,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppTheme.textPrimary,
         fontSize: 15,
         height: 1.6,
@@ -191,7 +191,7 @@ class EventCard extends StatelessWidget {
           const SizedBox(height: AppTheme.space2),
           Text(
             analysis.summary,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
               height: 1.5,

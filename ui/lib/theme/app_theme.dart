@@ -1,27 +1,111 @@
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/settings.dart' show AppThemePreset;
+
+/// 一整套界面色板（浅 / 深两套）。应用在 `AppTheme.apply()` 时切换，
+/// 组件里继续写 `AppTheme.surface1` 就能自动跟随深浅模式。
+class AppThemePalette {
+  final Color surface0;
+  final Color surface1;
+  final Color surface2;
+  final Color surface3;
+  final Color surface4;
+  final Color accentPrimary;
+  final Color accentMuted;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textTertiary;
+  final Color success;
+  final Color warning;
+  final Color error;
+
+  const AppThemePalette({
+    required this.surface0,
+    required this.surface1,
+    required this.surface2,
+    required this.surface3,
+    required this.surface4,
+    required this.accentPrimary,
+    required this.accentMuted,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textTertiary,
+    required this.success,
+    required this.warning,
+    required this.error,
+  });
+
+  /// 深色：保留现有「深墨表面 + 暖橙强调」的视觉身份
+  static const dark = AppThemePalette(
+    surface0: Color(0xFF05070C),
+    surface1: Color(0xFF0A0D12),
+    surface2: Color(0xFF0F131C),
+    surface3: Color(0xFF161D2B),
+    surface4: Color(0xFF1E2636),
+    accentPrimary: Color(0xFFE9A568),
+    accentMuted: Color(0xFF7A5C3D),
+    textPrimary: Color(0xFFE8E9EC),
+    textSecondary: Color(0xFF9BA1AB),
+    textTertiary: Color(0xFF5F6570),
+    success: Color(0xFF6EE7B7),
+    warning: Color(0xFFFBBF24),
+    error: Color(0xFFEF4444),
+  );
+
+  /// 浅色：暖白纸面 + 深墨文字（accent 由所选 flex 色卡动态给到，见 AppTheme.apply）
+  static const light = AppThemePalette(
+    surface0: Color(0xFFF4F5F7),
+    surface1: Color(0xFFFFFFFF),
+    surface2: Color(0xFFEFF1F4),
+    surface3: Color(0xFFE1E4EA),
+    surface4: Color(0xFFD3D8E0),
+    accentPrimary: Color(0xFFB45309),
+    accentMuted: Color(0xFFD9A05F),
+    textPrimary: Color(0xFF1A1D21),
+    textSecondary: Color(0xFF5A6068),
+    textTertiary: Color(0xFF8A919B),
+    success: Color(0xFF047857),
+    warning: Color(0xFFB45309),
+    error: Color(0xFFDC2626),
+  );
+}
+
 class AppTheme {
-  // Design tokens - deep tonal surfaces
-  static const surface0 = Color(0xFF05070C);
-  static const surface1 = Color(0xFF0A0D12);
-  static const surface2 = Color(0xFF0F131C);
-  static const surface3 = Color(0xFF161D2B);
-  static const surface4 = Color(0xFF1E2636);
+  // 当前生效的色板 + 强调色（跟着 flex_color_scheme 的预设走）
+  static AppThemePalette _current = AppThemePalette.dark;
+  static Color _accent = AppThemePalette.dark.accentPrimary;
+  static Brightness _brightness = Brightness.dark;
 
-  // Accent colors - warm orange emphasis
-  static const accentPrimary = Color(0xFFE9A568);
-  static const accentMuted = Color(0xFF7A5C3D);
+  /// 切换全局色板。`accent` 传所选 flex 色卡的 primary，
+  /// 让自定义组件（头像描边、激活态、spinner 等）跟着主题 preset 换色。
+  static void apply(Brightness brightness, {Color? accent}) {
+    _brightness = brightness;
+    _current = brightness == Brightness.dark
+        ? AppThemePalette.dark
+        : AppThemePalette.light;
+    if (accent != null) _accent = accent;
+  }
 
-  // Text colors
-  static const textPrimary = Color(0xFFE8E9EC);
-  static const textSecondary = Color(0xFF9BA1AB);
-  static const textTertiary = Color(0xFF5F6570);
+  static Brightness get brightness => _brightness;
 
-  // Semantic colors
-  static const success = Color(0xFF6EE7B7);
-  static const warning = Color(0xFFFBBF24);
-  static const error = Color(0xFFEF4444);
+  static Color get surface0 => _current.surface0;
+  static Color get surface1 => _current.surface1;
+  static Color get surface2 => _current.surface2;
+  static Color get surface3 => _current.surface3;
+  static Color get surface4 => _current.surface4;
+
+  static Color get accentPrimary => _accent;
+  static Color get accentMuted => _current.accentMuted;
+
+  static Color get textPrimary => _current.textPrimary;
+  static Color get textSecondary => _current.textSecondary;
+  static Color get textTertiary => _current.textTertiary;
+
+  static Color get success => _current.success;
+  static Color get warning => _current.warning;
+  static Color get error => _current.error;
 
   // Spacing tokens
   static const space1 = 4.0;
@@ -38,50 +122,44 @@ class AppTheme {
   static const radiusLarge = 16.0;
   static const radiusFull = 999.0;
 
-  static ThemeData get darkTheme {
-    final textTheme = GoogleFonts.interTextTheme(
-      ThemeData.dark().textTheme,
-    );
+  /// flex_color_scheme 对应每套预设的色卡
+  static FlexScheme flexSchemeOf(AppThemePreset preset) {
+    return switch (preset) {
+      AppThemePreset.amber => FlexScheme.amber,
+      AppThemePreset.indigo => FlexScheme.indigo,
+      AppThemePreset.aqua => FlexScheme.aquaBlue,
+      AppThemePreset.violet => FlexScheme.deepPurple,
+    };
+  }
 
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: surface0,
-      colorScheme: ColorScheme.dark(
-        surface: surface1,
-        onSurface: textPrimary,
-        primary: accentPrimary,
-        secondary: accentMuted,
-        error: error,
-      ),
+  /// 用 flex_color_scheme 搭 Material 主题（浅 / 深都由设定色卡派生）
+  static ThemeData buildTheme(AppThemePreset preset, Brightness brightness) {
+    final scheme = flexSchemeOf(preset);
+    final flex = brightness == Brightness.dark
+        ? FlexThemeData.dark(
+            scheme: scheme,
+            useMaterial3: true,
+            surfaceMode: FlexSurfaceMode.highScaffoldLowSurface,
+            blendLevel: 22,
+          )
+        : FlexThemeData.light(
+            scheme: scheme,
+            useMaterial3: true,
+            surfaceMode: FlexSurfaceMode.highScaffoldLowSurface,
+            blendLevel: 12,
+          );
+
+    // 字体 + 行高微调（沿用现有 typography 习惯）
+    final textTheme = GoogleFonts.interTextTheme(flex.textTheme);
+    return flex.copyWith(
+      scaffoldBackgroundColor: _current.surface0,
       textTheme: textTheme.copyWith(
-        displayLarge: textTheme.displayLarge?.copyWith(
-          color: textPrimary,
-          letterSpacing: -0.02,
-        ),
-        displayMedium: textTheme.displayMedium?.copyWith(
-          color: textPrimary,
-          letterSpacing: -0.02,
-        ),
-        displaySmall: textTheme.displaySmall?.copyWith(
-          color: textPrimary,
-          letterSpacing: -0.01,
-        ),
-        bodyLarge: textTheme.bodyLarge?.copyWith(
-          color: textPrimary,
-          height: 1.6,
-        ),
-        bodyMedium: textTheme.bodyMedium?.copyWith(
-          color: textSecondary,
-          height: 1.6,
-        ),
-        bodySmall: textTheme.bodySmall?.copyWith(
-          color: textTertiary,
-          height: 1.5,
-        ),
+        bodyLarge: textTheme.bodyLarge?.copyWith(height: 1.6),
+        bodyMedium: textTheme.bodyMedium?.copyWith(height: 1.6),
+        bodySmall: textTheme.bodySmall?.copyWith(height: 1.5),
       ),
       cardTheme: CardThemeData(
-        color: surface2,
+        color: _current.surface2,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
@@ -89,7 +167,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surface2,
+        fillColor: _current.surface2,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
           borderSide: BorderSide.none,
@@ -98,4 +176,7 @@ class AppTheme {
       ),
     );
   }
+
+  /// 兼容引用（等价于默认预设的深色主题）
+  static ThemeData get darkTheme => buildTheme(AppThemePreset.amber, Brightness.dark);
 }

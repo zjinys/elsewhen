@@ -4,7 +4,7 @@ class Event {
   final DateTime recordedAt;
   final String source;
   final String? status;
-  final Analysis? analysis;
+  final EventAnalysis? analysis;
 
   Event({
     required this.id,
@@ -34,7 +34,7 @@ class Event {
       source: json['source'] as String,
       status: json['status'] as String?,
       analysis: json['analysis'] != null
-          ? Analysis.fromJson(json['analysis'] as Map<String, dynamic>)
+          ? EventAnalysis.fromJson(json['analysis'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -51,19 +51,19 @@ class Event {
   }
 }
 
-class Analysis {
+class EventAnalysis {
   final String summary;
   final List<String>? tags;
   final Map<String, dynamic>? metadata;
 
-  Analysis({
+  EventAnalysis({
     required this.summary,
     this.tags,
     this.metadata,
   });
 
-  factory Analysis.fromJson(Map<String, dynamic> json) {
-    return Analysis(
+  factory EventAnalysis.fromJson(Map<String, dynamic> json) {
+    return EventAnalysis(
       summary: json['summary'] as String,
       tags: (json['tags'] as List?)?.cast<String>(),
       metadata: json['metadata'] as Map<String, dynamic>?,
@@ -78,3 +78,4 @@ class Analysis {
     };
   }
 }
+

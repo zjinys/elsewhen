@@ -61,7 +61,7 @@ class _EventInputState extends State<EventInput> {
               focusNode: _focusNode,
               maxLines: null,
               textInputAction: TextInputAction.send,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 15,
                 height: 1.6,
@@ -99,7 +99,7 @@ class _EventInputState extends State<EventInput> {
               ),
             ),
             child: _isSubmitting
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(

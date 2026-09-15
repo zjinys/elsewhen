@@ -116,7 +116,7 @@ Or use scripts directly:
 
 ## Database Schema
 
-Three core tables in `events.db`:
+Three core tables in `elsewhen.db`:
 
 1. **events**: Immutable raw entries with trigger preventing mutation of `raw_text`, `recorded_at`, `source`
 2. **analysis_jobs**: Queue with status (`pending`/`running`/`retry`/`succeeded`/`failed`), exponential backoff via `available_at`

@@ -2,6 +2,7 @@
 class Conversation {
   final String id;
   final String? title; // null for untitled conversations
+  final String? tag; // category tag for organization
   final DateTime createdAt;
   final DateTime updatedAt;
   final int messageCount;
@@ -10,6 +11,7 @@ class Conversation {
   const Conversation({
     required this.id,
     this.title,
+    this.tag,
     required this.createdAt,
     required this.updatedAt,
     required this.messageCount,
@@ -20,6 +22,7 @@ class Conversation {
     return Conversation(
       id: dto['id'] as String,
       title: dto['title'] as String?,
+      tag: dto['tag'] as String?,
       createdAt: DateTime.parse(dto['created_at'] as String),
       updatedAt: DateTime.parse(dto['updated_at'] as String),
       messageCount: dto['message_count'] as int,
@@ -54,6 +57,7 @@ enum MessageRole {
 class Message {
   final String id;
   final String conversationId;
+  final String? parentMessageId;
   final MessageRole role;
   final String content;
   final DateTime createdAt;
@@ -62,6 +66,7 @@ class Message {
   const Message({
     required this.id,
     required this.conversationId,
+    this.parentMessageId,
     required this.role,
     required this.content,
     required this.createdAt,
@@ -72,6 +77,7 @@ class Message {
     return Message(
       id: dto['id'] as String,
       conversationId: dto['conversation_id'] as String,
+      parentMessageId: dto['parent_message_id'] as String?,
       role: MessageRole.fromString(dto['role'] as String),
       content: dto['content'] as String,
       createdAt: DateTime.parse(dto['created_at'] as String),
@@ -81,4 +87,7 @@ class Message {
 
   bool get isUser => role == MessageRole.user;
   bool get isAssistant => role == MessageRole.assistant;
+
+  /// Check if this message has a parent (is part of a branched conversation)
+  bool get hasParent => parentMessageId != null;
 }

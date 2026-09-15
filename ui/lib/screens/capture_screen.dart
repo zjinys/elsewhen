@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
-import '../providers/conversation_provider.dart';
+import '../bridge/rust_bridge_repository.dart';
+import '../providers/event_provider.dart';
 import '../providers/app_provider.dart';
 
 class CaptureScreen extends ConsumerStatefulWidget {
@@ -39,15 +40,12 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Get or create a conversation
-      final conversationId = ref.read(selectedConversationIdProvider);
-      final repo = ref.read(conversationRepositoryProvider);
+      // Record event via Rust bridge
+      final repo = ref.read(storageRepositoryProvider);
+      await repo.recordEvent(_controller.text.trim());
 
-      String targetConvId = conversationId ?? '1'; // Use first conversation as default
-
-      await repo.sendMessage(targetConvId, _controller.text);
-      ref.invalidate(messagesProvider);
-      ref.invalidate(conversationsProvider);
+      // Refresh events list
+      ref.invalidate(eventsProvider);
 
       if (mounted) {
         _controller.clear();
@@ -65,15 +63,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
   }
 
   void _closeWindow() async {
-    // Switch back to main mode
+    // Hide the capture window
     final windowService = ref.read(windowServiceProvider);
-    await windowService.switchToMainMode();
+    await windowService.hideWindow();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF1C1C1E),
       body: KeyboardListener(
         focusNode: FocusNode(),
         onKeyEvent: (event) {
@@ -89,8 +87,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
         },
         child: Center(
           child: Container(
-            width: 600,
-            padding: const EdgeInsets.all(16),
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

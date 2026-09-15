@@ -1,13 +1,5 @@
 fn main() {
-    // Configure code generation
-    flutter_rust_bridge_codegen::generate(
-        flutter_rust_bridge_codegen::Config::from_config_file(
-            "flutter_rust_bridge.yaml".into(),
-        )
-        .unwrap(),
-        flutter_rust_bridge_codegen::Opts {
-            skip_deps_check: true,
-            ..Default::default()
-        },
-    );
+    // Flutter Rust Bridge v2 doesn't need build.rs for generation
+    // Code generation is done via CLI: flutter_rust_bridge_codegen generate
+    println!("cargo:rerun-if-changed=src/api.rs");
 }

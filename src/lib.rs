@@ -1,7 +1,15 @@
+mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
+
+// Core modules
+pub mod ai;
+pub mod config;
+pub mod event;
+pub mod storage;
+pub mod wiki;
+
 // Bridge API module - exposes Rust core to Flutter
 pub mod api;
 
-// Re-export core modules for bridge usage
-pub use crate::config;
-pub use crate::event;
-pub use crate::storage;
+// Tests
+#[cfg(test)]
+mod storage_tests;

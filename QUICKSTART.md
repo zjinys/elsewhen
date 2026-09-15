@@ -96,9 +96,9 @@ fvm flutter build linux --release
 ## 📁 数据位置
 
 事件数据存储在：
-- **Linux**: `~/.local/share/elsewhen/events.db`
-- **macOS**: `~/Library/Application Support/elsewhen/events.db`
-- **Windows**: `%LOCALAPPDATA%\elsewhen\events.db`
+- **Linux**: `~/.local/share/elsewhen/elsewhen.db`
+- **macOS**: `~/Library/Application Support/elsewhen/elsewhen.db`
+- **Windows**: `%LOCALAPPDATA%\elsewhen\elsewhen.db`
 
 可以通过环境变量覆盖：
 ```bash
@@ -185,7 +185,7 @@ sudo apt install libkeybinder-3.0-dev  # Ubuntu
 
 删除数据库重新开始：
 ```bash
-rm ~/.local/share/elsewhen/events.db
+rm ~/.local/share/elsewhen/elsewhen.db
 ```
 
 ## 📚 更多文档

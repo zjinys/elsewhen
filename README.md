@@ -48,15 +48,10 @@ cargo run -- daemon
 事件保存时会在同一 SQLite 事务中创建分析任务。配置任意 OpenAI-compatible Provider 后可处理一个待分析事件：
 
 ```bash
-export ELSEWHEN_AI_API_KEY="..."
-export ELSEWHEN_AI_MODEL="gpt-4.1-mini"
-# 可选，默认 https://api.openai.com/v1
-export ELSEWHEN_AI_BASE_URL="https://api.openai.com/v1"
-
 cargo run -- analyze-once
 ```
 
-数据库尚无 Provider 时，Elsewhen 会从当前目录的 `.env` 首次导入 Base URL、模型和 API key。导入后数据库成为唯一配置源，后续不再由 `.env` 覆盖。
+AI Provider 配置保存在数据库 `ai_provider_configs` 表（唯一配置源），在应用内 **设置页** 填写 Base URL、模型和 API key，保存即生效。未配置 Provider 时，分析任务保留在重试队列中，不影响原始事件。
 
 Provider 不可用、超时或返回非法 JSON 时，Raw Event 不受影响，任务进入指数退避重试状态。
 
@@ -71,6 +66,47 @@ cargo run -- worker
 ```bash
 cargo run -- analyses
 ```
+
+## LLM Wiki 个人知识库与认知推微
+
+Elsewhen 内置一个 **LLM Wiki 个人知识库**（模式来自 Karpathy 的 [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 思路）：
+"编译一次，持续更新"——AI 把随手记录的事件消化成**关于你的、持久复利的知识页**，
+而不是每次查询时从原始记录重新推导。人类负责记录与提问，AI 负责整理与维护。
+
+三层结构：
+
+- **原始事件**（`events` 表，不可变）：你的日记，事实来源
+- **wiki 页面**（`wiki_pages` 表，AI 维护 + 核心确定性合并）：`recurring_cost` / `capability` / `asset` / `project` / `relationship` / `decision` / `habit` / `constraint` / `insight` 等页面，markdown 正文，带**事件溯源**与**证据计数**
+- **schema**（系统提示词 + Rust 合并规则）：约束 AI 成为"守纪律的维护者"，AI 只提议，核心决定入库
+
+常用命令：
+
+```bash
+# 消化：最近事件 → 提炼/合并 进 wiki 页（每次写回留 revision，追加操作日志）
+cargo run -- wiki digest [--days N] [--dry-run] [--force]
+
+# 认知推微：导航 wiki（知识）+ 最近事件 → 四透镜生成反常识认知，并归档回 wiki
+cargo run -- insight [--days N]
+
+# 知识库浏览 / 维护
+cargo run -- wiki list [kind]
+cargo run -- wiki show <slug>
+cargo run -- wiki log
+cargo run -- wiki lint
+cargo run -- wiki export <目录>    # 只读快照：物化 markdown 树（浏览/备份用，编辑不回写）
+
+# 历史洞察
+cargo run -- insights
+```
+
+核心机制：
+
+- **证据复利**：同一个事实被 N 条事件支持时 `evidence_count=N`，页面向"更懂你"累积；
+- **确定性合并**：AI 建议的页面变更由核心校验（kind/slug 枚举）后以事件 id **并集**合并，AI 不能改数字；
+- **好答案写回**：认知推微生成的洞察存为 `insight/*` 页并 `[[wikilink]]` 溯源来源页，探索也在知识库复利；
+- **原始事件永不被覆盖**，wiki 全部是 derived data，可随时重新消化重建。
+
+设计细节见 [`docs/llm-wiki.md`](docs/llm-wiki.md)。
 
 ## 构建
 

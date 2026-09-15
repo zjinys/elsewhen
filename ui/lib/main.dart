@@ -5,9 +5,11 @@ import 'dart:io';
 
 import 'theme/app_theme.dart';
 import 'models/app_config.dart';
+import 'models/settings.dart';
 import 'screens/main_screen.dart';
 import 'screens/capture_screen.dart';
 import 'providers/app_provider.dart';
+import 'providers/settings_provider.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,9 +22,9 @@ void main(List<String> args) async {
 
     WindowOptions windowOptions = config.mode == AppMode.capture
         ? WindowOptions(
-            size: const Size(500, 240),
+            size: const Size(650, 180),
             center: true,
-            backgroundColor: Colors.transparent,
+            backgroundColor: const Color(0xFF1C1C1E),
             skipTaskbar: false,
             titleBarStyle: TitleBarStyle.hidden,
             alwaysOnTop: true,
@@ -37,6 +39,11 @@ void main(List<String> args) async {
           );
 
     windowManager.waitUntilReadyToShow(windowOptions, () async {
+      // Intercept the window close button (X): hide the window instead of
+      // destroying it, so the app keeps running in the background.
+      // Without this, GTK destroys the window and the `onWindowClose` →
+      // `windowManager.hide()` path crashes with GTK critical assertions.
+      await windowManager.setPreventClose(true);
       await windowManager.show();
       await windowManager.focus();
     });
@@ -66,8 +73,15 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
   void initState() {
     super.initState();
     // Trigger initialization
-    Future.microtask(() {
-      ref.read(appInitializationProvider);
+    Future.microtask(() async {
+      try {
+        await ref.read(appInitializationProvider.future);
+        // 桥接初始化完成后再加载持久化的主题偏好（app_meta 里的 theme_mode / theme_preset），
+        // 避免与 RustLib.init() 竞态
+        ref.read(settingsProvider.notifier).loadThemeFromBridge();
+      } catch (e) {
+        debugPrint('loadThemeFromBridge skipped: $e');
+      }
     });
   }
 
@@ -75,10 +89,31 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
   Widget build(BuildContext context) {
     // Watch initialization status
     final initAsync = ref.watch(appInitializationProvider);
+    final settings = ref.watch(settingsProvider);
+
+    final brightness = switch (settings.themeMode) {
+      AppThemeMode.light => Brightness.light,
+      AppThemeMode.dark => Brightness.dark,
+      AppThemeMode.system => MediaQuery.platformBrightnessOf(context),
+    };
+    final lightTheme = AppTheme.buildTheme(settings.themePreset, Brightness.light);
+    final darkTheme = AppTheme.buildTheme(settings.themePreset, Brightness.dark);
+    final activeTheme = brightness == Brightness.dark ? darkTheme : lightTheme;
+    // 把当前色卡（含 accent）同步给自定义组件用的全局色板
+    AppTheme.apply(brightness, accent: activeTheme.colorScheme.primary);
+
+    // 深浅 / 配色变化时整棵子树重建，保证用 AppTheme.* 硬编码的自定义配色全部刷新
+    final themeKey = ValueKey('${settings.themeMode.name}-${settings.themePreset.name}');
 
     return MaterialApp(
       title: 'Elsewhen',
-      theme: AppTheme.darkTheme,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: switch (settings.themeMode) {
+        AppThemeMode.light => ThemeMode.light,
+        AppThemeMode.dark => ThemeMode.dark,
+        AppThemeMode.system => ThemeMode.system,
+      },
       debugShowCheckedModeBanner: false,
       home: initAsync.when(
         data: (initialized) {
@@ -90,9 +125,12 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
             );
           }
 
-          return widget.config.mode == AppMode.capture
-              ? const CaptureScreen()
-              : const MainScreen();
+          return KeyedSubtree(
+            key: themeKey,
+            child: widget.config.mode == AppMode.capture
+                ? const CaptureScreen()
+                : const MainScreen(),
+          );
         },
         loading: () => Scaffold(
           backgroundColor: AppTheme.surface0,

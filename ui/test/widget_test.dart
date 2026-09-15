@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -54,7 +55,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Verify capture screen
-    expect(find.text('快速记录'), findsOneWidget);
+    // Verify capture window: Alfred 式快速记录输入框（旧版 '快速记录' 按钮已移除）
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('记录此刻的想法...'), findsOneWidget);
   });
 }

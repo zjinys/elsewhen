@@ -9,8 +9,13 @@ rust_input: crate::api
 # Dart output
 dart_output: ui/lib/bridge/generated.dart
 
-# C output for FFI
-c_output: ui/lib/bridge/generated.h
-
 # Enable full code generation
 full_dep: true
+
+# Use dart command instead of flutter
+dart_root: ui
+
+# ⚠️ 重新生成桥接代码时，必须让 ffigen 找到 stdbool.h：
+#   CPATH=/usr/lib/clang/22/include flutter_rust_bridge_codegen generate
+# 否则 libclang 解析 C 头失败，会在 frb_generated.io.dart 里生成污染性的
+# `typedef bool = ffi.NativeFunction<...>`，导致全部 bool 类型编译报错。
