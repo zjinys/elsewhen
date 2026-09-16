@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1391138357;
+  int get rustContentHash => -2021311100;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -126,6 +126,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<AnalysisDto>> crateApiListAnalyses();
 
+  Future<List<ConversationDto>> crateApiListArchivedConversations();
+
   Future<List<ConversationDto>> crateApiListConversations();
 
   Future<List<EventDto>> crateApiListEvents();
@@ -137,6 +139,11 @@ abstract class RustLibApi extends BaseApi {
   Future<List<WikiPageDto>> crateApiListWikiPages({String? kind});
 
   Future<EventDto> crateApiRecordEvent({required String rawText});
+
+  Future<void> crateApiRenameConversation({
+    required String conversationId,
+    required String title,
+  });
 
   Future<WikiPageDto> crateApiSaveTweetPage({
     required String tweetId,
@@ -151,6 +158,11 @@ abstract class RustLibApi extends BaseApi {
     required String role,
     required String content,
     String? parentMessageId,
+  });
+
+  Future<void> crateApiSetConversationArchived({
+    required String conversationId,
+    required bool archived,
   });
 
   Future<String> crateApiTriggerAnalysis();
@@ -582,6 +594,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_analyses", argNames: []);
 
   @override
+  Future<List<ConversationDto>> crateApiListArchivedConversations() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__list_archived_conversations(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_conversation_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListArchivedConversationsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListArchivedConversationsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_archived_conversations",
+        argNames: [],
+      );
+
+  @override
   Future<List<ConversationDto>> crateApiListConversations() {
     return handler.executeNormal(
       NormalTask(
@@ -694,6 +730,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "record_event", argNames: ["rawText"]);
 
   @override
+  Future<void> crateApiRenameConversation({
+    required String conversationId,
+    required String title,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(title);
+          return wire.wire__crate__api__rename_conversation(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRenameConversationConstMeta,
+        argValues: [conversationId, title],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRenameConversationConstMeta => const TaskConstMeta(
+    debugName: "rename_conversation",
+    argNames: ["conversationId", "title"],
+  );
+
+  @override
   Future<WikiPageDto> crateApiSaveTweetPage({
     required String tweetId,
     required String text,
@@ -771,6 +835,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "send_message",
     argNames: ["conversationId", "role", "content", "parentMessageId"],
   );
+
+  @override
+  Future<void> crateApiSetConversationArchived({
+    required String conversationId,
+    required bool archived,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_bool(archived);
+          return wire.wire__crate__api__set_conversation_archived(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetConversationArchivedConstMeta,
+        argValues: [conversationId, archived],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetConversationArchivedConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_conversation_archived",
+        argNames: ["conversationId", "archived"],
+      );
 
   @override
   Future<String> crateApiTriggerAnalysis() {
@@ -923,6 +1020,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool dco_decode_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
   AiProviderConfigDto dco_decode_box_autoadd_ai_provider_config_dto(
     dynamic raw,
   ) {
@@ -964,8 +1067,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ConversationDto dco_decode_conversation_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return ConversationDto(
       id: dco_decode_String(arr[0]),
       title: dco_decode_opt_String(arr[1]),
@@ -974,6 +1077,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       updatedAt: dco_decode_String(arr[4]),
       messageCount: dco_decode_i_32(arr[5]),
       lastMessagePreview: dco_decode_opt_String(arr[6]),
+      archived: dco_decode_bool(arr[7]),
     );
   }
 
@@ -1249,6 +1353,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
   AiProviderConfigDto sse_decode_box_autoadd_ai_provider_config_dto(
     SseDeserializer deserializer,
   ) {
@@ -1298,6 +1408,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_updatedAt = sse_decode_String(deserializer);
     var var_messageCount = sse_decode_i_32(deserializer);
     var var_lastMessagePreview = sse_decode_opt_String(deserializer);
+    var var_archived = sse_decode_bool(deserializer);
     return ConversationDto(
       id: var_id,
       title: var_title,
@@ -1306,6 +1417,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       updatedAt: var_updatedAt,
       messageCount: var_messageCount,
       lastMessagePreview: var_lastMessagePreview,
+      archived: var_archived,
     );
   }
 
@@ -1636,9 +1748,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
+  bool cst_encode_bool(bool raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw;
   }
 
   @protected
@@ -1708,6 +1820,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
   void sse_encode_box_autoadd_ai_provider_config_dto(
     AiProviderConfigDto self,
     SseSerializer serializer,
@@ -1763,6 +1881,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.updatedAt, serializer);
     sse_encode_i_32(self.messageCount, serializer);
     sse_encode_opt_String(self.lastMessagePreview, serializer);
+    sse_encode_bool(self.archived, serializer);
   }
 
   @protected
@@ -2038,11 +2157,5 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.status, serializer);
     sse_encode_String(self.createdAt, serializer);
     sse_encode_String(self.updatedAt, serializer);
-  }
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
   }
 }

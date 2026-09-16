@@ -13,6 +13,11 @@ class ConversationRepository {
     return await _bridge.listConversations();
   }
 
+  /// Get archived conversations
+  Future<List<Conversation>> getArchivedConversations() async {
+    return await _bridge.listArchivedConversations();
+  }
+
   /// Get messages for a conversation
   Future<List<Message>> getMessages(String conversationId) async {
     return await _bridge.listMessages(conversationId);
@@ -21,6 +26,16 @@ class ConversationRepository {
   /// Create a new conversation
   Future<Conversation> createConversation() async {
     return await _bridge.createConversation();
+  }
+
+  /// Rename a conversation
+  Future<void> renameConversation(String conversationId, String title) async {
+    return await _bridge.renameConversation(conversationId, title);
+  }
+
+  /// Archive or unarchive a conversation
+  Future<void> setArchived(String conversationId, bool archived) async {
+    return await _bridge.setConversationArchived(conversationId, archived);
   }
 
   /// Send a message in a conversation
@@ -42,10 +57,14 @@ final conversationRepositoryProvider = Provider<ConversationRepository>((ref) {
   return ConversationRepository(bridge);
 });
 
-/// Conversations list provider
+/// Whether the sidebar is showing archived conversations (true) or active ones (false)
+final showArchivedProvider = StateProvider<bool>((ref) => false);
+
+/// Conversations list provider（跟随归档视图切换）
 final conversationsProvider = FutureProvider<List<Conversation>>((ref) async {
   final repo = ref.read(conversationRepositoryProvider);
-  return await repo.getConversations();
+  final showArchived = ref.watch(showArchivedProvider);
+  return showArchived ? await repo.getArchivedConversations() : await repo.getConversations();
 });
 
 /// Selected conversation ID provider

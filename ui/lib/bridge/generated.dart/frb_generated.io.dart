@@ -34,6 +34,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisDto dco_decode_analysis_dto(dynamic raw);
 
   @protected
+  bool dco_decode_bool(dynamic raw);
+
+  @protected
   AiProviderConfigDto dco_decode_box_autoadd_ai_provider_config_dto(
     dynamic raw,
   );
@@ -148,6 +151,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisDto sse_decode_analysis_dto(SseDeserializer deserializer);
+
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
   AiProviderConfigDto sse_decode_box_autoadd_ai_provider_config_dto(
@@ -266,9 +272,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto sse_decode_wiki_page_dto(SseDeserializer deserializer);
-
-  @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
   ffi.Pointer<wire_cst_list_prim_u_8_strict> cst_encode_AnyhowException(
@@ -537,6 +540,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.last_message_preview = cst_encode_opt_String(
       apiObj.lastMessagePreview,
     );
+    wireObj.archived = cst_encode_bool(apiObj.archived);
   }
 
   @protected
@@ -621,6 +625,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  bool cst_encode_bool(bool raw);
+
+  @protected
   double cst_encode_f_64(double raw);
 
   @protected
@@ -652,6 +659,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_analysis_dto(AnalysisDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_ai_provider_config_dto(
@@ -796,9 +806,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_wiki_page_dto(WikiPageDto self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class
@@ -1350,6 +1357,18 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__list_analyses =
       _wire__crate__api__list_analysesPtr.asFunction<void Function(int)>();
 
+  void wire__crate__api__list_archived_conversations(int port_) {
+    return _wire__crate__api__list_archived_conversations(port_);
+  }
+
+  late final _wire__crate__api__list_archived_conversationsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__list_archived_conversations',
+      );
+  late final _wire__crate__api__list_archived_conversations =
+      _wire__crate__api__list_archived_conversationsPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__list_conversations(int port_) {
     return _wire__crate__api__list_conversations(port_);
   }
@@ -1438,6 +1457,38 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__rename_conversation(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+  ) {
+    return _wire__crate__api__rename_conversation(
+      port_,
+      conversation_id,
+      title,
+    );
+  }
+
+  late final _wire__crate__api__rename_conversationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__rename_conversation');
+  late final _wire__crate__api__rename_conversation =
+      _wire__crate__api__rename_conversationPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__save_tweet_page(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> tweet_id,
@@ -1520,6 +1571,34 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
+          >();
+
+  void wire__crate__api__set_conversation_archived(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    bool archived,
+  ) {
+    return _wire__crate__api__set_conversation_archived(
+      port_,
+      conversation_id,
+      archived,
+    );
+  }
+
+  late final _wire__crate__api__set_conversation_archivedPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__set_conversation_archived');
+  late final _wire__crate__api__set_conversation_archived =
+      _wire__crate__api__set_conversation_archivedPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__trigger_analysis(int port_) {
@@ -1708,6 +1787,9 @@ final class wire_cst_conversation_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_message_preview;
 
+  @ffi.Bool()
+  external bool archived;
+
   static ffi.Pointer<wire_cst_conversation_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -1717,6 +1799,7 @@ final class wire_cst_conversation_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
     required int message_count,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_message_preview,
+    required bool archived,
   }) => $allocator<wire_cst_conversation_dto>()
     ..ref.id = id
     ..ref.title = title
@@ -1724,7 +1807,8 @@ final class wire_cst_conversation_dto extends ffi.Struct {
     ..ref.created_at = created_at
     ..ref.updated_at = updated_at
     ..ref.message_count = message_count
-    ..ref.last_message_preview = last_message_preview;
+    ..ref.last_message_preview = last_message_preview
+    ..ref.archived = archived;
 }
 
 final class wire_cst_daily_token_usage_dto extends ffi.Struct {

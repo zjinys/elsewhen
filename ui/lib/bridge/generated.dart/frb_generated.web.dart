@@ -36,6 +36,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisDto dco_decode_analysis_dto(dynamic raw);
 
   @protected
+  bool dco_decode_bool(dynamic raw);
+
+  @protected
   AiProviderConfigDto dco_decode_box_autoadd_ai_provider_config_dto(
     dynamic raw,
   );
@@ -150,6 +153,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisDto sse_decode_analysis_dto(SseDeserializer deserializer);
+
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
   AiProviderConfigDto sse_decode_box_autoadd_ai_provider_config_dto(
@@ -270,9 +276,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiPageDto sse_decode_wiki_page_dto(SseDeserializer deserializer);
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
-
-  @protected
   String cst_encode_AnyhowException(AnyhowException raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     throw UnimplementedError();
@@ -350,6 +353,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.updatedAt),
       cst_encode_i_32(raw.messageCount),
       cst_encode_opt_String(raw.lastMessagePreview),
+      cst_encode_bool(raw.archived),
     ].jsify()!;
   }
 
@@ -531,6 +535,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  bool cst_encode_bool(bool raw);
+
+  @protected
   double cst_encode_f_64(double raw);
 
   @protected
@@ -562,6 +569,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_analysis_dto(AnalysisDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_ai_provider_config_dto(
@@ -706,9 +716,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_wiki_page_dto(WikiPageDto self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class
@@ -797,6 +804,9 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__list_analyses(NativePortType port_) =>
       wasmModule.wire__crate__api__list_analyses(port_);
 
+  void wire__crate__api__list_archived_conversations(NativePortType port_) =>
+      wasmModule.wire__crate__api__list_archived_conversations(port_);
+
   void wire__crate__api__list_conversations(NativePortType port_) =>
       wasmModule.wire__crate__api__list_conversations(port_);
 
@@ -813,6 +823,16 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__record_event(NativePortType port_, String raw_text) =>
       wasmModule.wire__crate__api__record_event(port_, raw_text);
+
+  void wire__crate__api__rename_conversation(
+    NativePortType port_,
+    String conversation_id,
+    String title,
+  ) => wasmModule.wire__crate__api__rename_conversation(
+    port_,
+    conversation_id,
+    title,
+  );
 
   void wire__crate__api__save_tweet_page(
     NativePortType port_,
@@ -842,6 +862,16 @@ class RustLibWire implements BaseWire {
     role,
     content,
     parent_message_id,
+  );
+
+  void wire__crate__api__set_conversation_archived(
+    NativePortType port_,
+    String conversation_id,
+    bool archived,
+  ) => wasmModule.wire__crate__api__set_conversation_archived(
+    port_,
+    conversation_id,
+    archived,
   );
 
   void wire__crate__api__trigger_analysis(NativePortType port_) =>
@@ -944,6 +974,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__list_analyses(NativePortType port_);
 
+  external void wire__crate__api__list_archived_conversations(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__list_conversations(NativePortType port_);
 
   external void wire__crate__api__list_events(NativePortType port_);
@@ -963,6 +997,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String raw_text,
   );
 
+  external void wire__crate__api__rename_conversation(
+    NativePortType port_,
+    String conversation_id,
+    String title,
+  );
+
   external void wire__crate__api__save_tweet_page(
     NativePortType port_,
     String tweet_id,
@@ -978,6 +1018,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String role,
     String content,
     String? parent_message_id,
+  );
+
+  external void wire__crate__api__set_conversation_archived(
+    NativePortType port_,
+    String conversation_id,
+    bool archived,
   );
 
   external void wire__crate__api__trigger_analysis(NativePortType port_);

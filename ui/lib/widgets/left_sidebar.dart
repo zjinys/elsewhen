@@ -29,7 +29,6 @@ class LeftSidebar extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          _buildHeader(context, ref),
           _buildTabBar(ref, tab),
           Expanded(
             child: switch (tab) {
@@ -38,45 +37,6 @@ class LeftSidebar extends ConsumerWidget {
             },
           ),
           _buildFooter(context, ref),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, WidgetRef ref) {
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.space3),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: AppTheme.surface3,
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Text(
-            'Elsewhen',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            color: AppTheme.accentPrimary,
-            onPressed: () async {
-              final repo = ref.read(conversationRepositoryProvider);
-              final newConv = await repo.createConversation();
-              ref.read(sidebarTabProvider.notifier).state = SidebarTab.conversation;
-              ref.invalidate(conversationsProvider);
-              ref.read(selectedConversationIdProvider.notifier).state = newConv.id;
-            },
-            tooltip: '新建对话',
-          ),
         ],
       ),
     );
@@ -120,49 +80,163 @@ class LeftSidebar extends ConsumerWidget {
   Widget _buildConversationTab(BuildContext context, WidgetRef ref) {
     final conversationsAsync = ref.watch(conversationsProvider);
     final selectedId = ref.watch(selectedConversationIdProvider);
+    final showArchived = ref.watch(showArchivedProvider);
 
-    return conversationsAsync.when(
-      data: (conversations) {
-        if (conversations.isEmpty) {
-          return const _EmptyState(
-            icon: Icons.chat_bubble_outline,
-            message: '还没有对话',
-          );
-        }
+    return Column(
+      children: [
+        // 工具行：新建对话 + 归档视图切换
+        _buildConversationToolbar(ref, showArchived),
+        Expanded(
+          child: conversationsAsync.when(
+            data: (conversations) {
+              if (conversations.isEmpty) {
+                return _EmptyState(
+                  icon: showArchived ? Icons.archive_outlined : Icons.chat_bubble_outline,
+                  message: showArchived ? '没有归档对话' : '还没有对话\n\n点上方「新建对话」开始',
+                );
+              }
 
-        // Auto-select first conversation if none selected
-        if (selectedId == null && conversations.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(selectedConversationIdProvider.notifier).state =
-                conversations.first.id;
-          });
-        }
+              // Auto-select first conversation if none selected
+              if (selectedId == null && conversations.isNotEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  ref.read(selectedConversationIdProvider.notifier).state =
+                      conversations.first.id;
+                });
+              }
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
-          itemCount: conversations.length,
-          itemBuilder: (context, index) {
-            final conversation = conversations[index];
-            final isSelected = conversation.id == selectedId;
-            return _ConversationItem(
-              conversation: conversation,
-              isSelected: isSelected,
-              onTap: () {
-                ref.read(selectedConversationIdProvider.notifier).state =
-                    conversation.id;
-              },
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(
-        child: Text(
-          '加载失败',
-          style: TextStyle(color: AppTheme.textSecondary),
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
+                itemCount: conversations.length,
+                itemBuilder: (context, index) {
+                  final conversation = conversations[index];
+                  final isSelected = conversation.id == selectedId;
+                  return _ConversationItem(
+                    conversation: conversation,
+                    isSelected: isSelected,
+                    onTap: () {
+                      ref.read(selectedConversationIdProvider.notifier).state =
+                          conversation.id;
+                    },
+                    onRename: () => _renameConversation(context, ref, conversation),
+                    onArchive: () =>
+                        _setConversationArchived(ref, conversation, !showArchived),
+                  );
+                },
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Text(
+                '加载失败',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ),
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildConversationToolbar(WidgetRef ref, bool showArchived) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space3,
+        AppTheme.space2,
+        AppTheme.space3,
+        AppTheme.space1,
+      ),
+      child: Row(
+        children: [
+          _ToolbarAction(
+            icon: Icons.add_comment_outlined,
+            label: '新建对话',
+            onTap: () async {
+              final repo = ref.read(conversationRepositoryProvider);
+              final newConv = await repo.createConversation();
+              ref.read(showArchivedProvider.notifier).state = false;
+              ref.invalidate(conversationsProvider);
+              ref.read(selectedConversationIdProvider.notifier).state = newConv.id;
+            },
+          ),
+          const Spacer(),
+          _ToolbarAction(
+            icon: showArchived ? Icons.chat_bubble_outline : Icons.archive_outlined,
+            label: showArchived ? '活跃对话' : '已归档',
+            onTap: () {
+              ref.read(showArchivedProvider.notifier).state = !showArchived;
+              ref.read(selectedConversationIdProvider.notifier).state = null;
+            },
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _renameConversation(
+    BuildContext context,
+    WidgetRef ref,
+    Conversation conversation,
+  ) async {
+    final controller = TextEditingController(text: conversation.title ?? '');
+    final newTitle = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface1,
+        title: Text(
+          '重命名对话',
+          style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: TextStyle(color: AppTheme.textPrimary),
+          cursorColor: AppTheme.accentPrimary,
+          decoration: InputDecoration(
+            hintText: '输入新标题',
+            hintStyle: TextStyle(color: AppTheme.textTertiary),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: AppTheme.surface3),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: AppTheme.accentPrimary),
+            ),
+          ),
+          onSubmitted: (value) =>
+              Navigator.of(dialogContext).pop(value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.accentPrimary),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (newTitle != null && newTitle.isNotEmpty) {
+      final repo = ref.read(conversationRepositoryProvider);
+      await repo.renameConversation(conversation.id, newTitle);
+      ref.invalidate(conversationsProvider);
+    }
+  }
+
+  Future<void> _setConversationArchived(
+    WidgetRef ref,
+    Conversation conversation,
+    bool archived,
+  ) async {
+    final repo = ref.read(conversationRepositoryProvider);
+    await repo.setArchived(conversation.id, archived);
+    if (archived && ref.read(selectedConversationIdProvider) == conversation.id) {
+      ref.read(selectedConversationIdProvider.notifier).state = null;
+    }
+    ref.invalidate(conversationsProvider);
   }
 
   Widget _buildFooter(BuildContext context, WidgetRef ref) {
@@ -248,6 +322,52 @@ class _TabButton extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 对话 tab 顶部工具栏上的小操作按钮
+class _ToolbarAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ToolbarAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.space2,
+            vertical: 6,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: AppTheme.accentPrimary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.accentPrimary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -412,11 +532,15 @@ class _ConversationItem extends StatelessWidget {
   final Conversation conversation;
   final bool isSelected;
   final VoidCallback onTap;
+  final VoidCallback onRename;
+  final VoidCallback onArchive;
 
   const _ConversationItem({
     required this.conversation,
     required this.isSelected,
     required this.onTap,
+    required this.onRename,
+    required this.onArchive,
   });
 
   @override
@@ -445,7 +569,7 @@ class _ConversationItem extends StatelessWidget {
                     child: Text(
                       conversation.displayTitle,
                       style: TextStyle(
-                        color: AppTheme.textPrimary,
+                        color: isSelected ? AppTheme.textPrimary : AppTheme.textSecondary,
                         fontSize: 14,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                       ),
@@ -485,12 +609,71 @@ class _ConversationItem extends StatelessWidget {
               ],
 
               const SizedBox(height: AppTheme.space1),
-              Text(
-                '${conversation.messageCount} 条消息',
-                style: TextStyle(
-                  color: AppTheme.textTertiary,
-                  fontSize: 11,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${conversation.messageCount} 条消息',
+                      style: TextStyle(
+                        color: AppTheme.textTertiary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  // 更多操作：改名 / 归档
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    splashRadius: 16,
+                    icon: Icon(
+                      Icons.more_horiz,
+                      size: 16,
+                      color: AppTheme.textTertiary,
+                    ),
+                    color: AppTheme.surface2,
+                    onSelected: (action) {
+                      switch (action) {
+                        case 'rename':
+                          onRename();
+                        case 'archive':
+                          onArchive();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'rename',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined,
+                                size: 16, color: AppTheme.textSecondary),
+                            const SizedBox(width: AppTheme.space2),
+                            Text('改名',
+                                style: TextStyle(color: AppTheme.textPrimary)),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'archive',
+                        child: Row(
+                          children: [
+                            Icon(
+                              conversation.archived
+                                  ? Icons.unarchive_outlined
+                                  : Icons.archive_outlined,
+                              size: 16,
+                              color: AppTheme.textSecondary,
+                            ),
+                            const SizedBox(width: AppTheme.space2),
+                            Text(
+                              conversation.archived ? '取消归档' : '归档',
+                              style: TextStyle(color: AppTheme.textPrimary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),

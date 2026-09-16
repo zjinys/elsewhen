@@ -52,9 +52,31 @@ Future<String> triggerAnalysis() =>
 Future<ConversationDto> createConversation({String? title, String? tag}) =>
     RustLib.instance.api.crateApiCreateConversation(title: title, tag: tag);
 
-/// List all conversations
+/// List all non-archived conversations
 Future<List<ConversationDto>> listConversations() =>
     RustLib.instance.api.crateApiListConversations();
+
+/// List archived conversations
+Future<List<ConversationDto>> listArchivedConversations() =>
+    RustLib.instance.api.crateApiListArchivedConversations();
+
+/// Rename a conversation
+Future<void> renameConversation({
+  required String conversationId,
+  required String title,
+}) => RustLib.instance.api.crateApiRenameConversation(
+  conversationId: conversationId,
+  title: title,
+);
+
+/// Archive or unarchive a conversation
+Future<void> setConversationArchived({
+  required String conversationId,
+  required bool archived,
+}) => RustLib.instance.api.crateApiSetConversationArchived(
+  conversationId: conversationId,
+  archived: archived,
+);
 
 /// Get a specific conversation
 Future<ConversationDto?> getConversation({required String conversationId}) =>
@@ -256,6 +278,7 @@ class ConversationDto {
   final String updatedAt;
   final int messageCount;
   final String? lastMessagePreview;
+  final bool archived;
 
   const ConversationDto({
     required this.id,
@@ -265,6 +288,7 @@ class ConversationDto {
     required this.updatedAt,
     required this.messageCount,
     this.lastMessagePreview,
+    required this.archived,
   });
 
   @override
@@ -275,7 +299,8 @@ class ConversationDto {
       createdAt.hashCode ^
       updatedAt.hashCode ^
       messageCount.hashCode ^
-      lastMessagePreview.hashCode;
+      lastMessagePreview.hashCode ^
+      archived.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -288,7 +313,8 @@ class ConversationDto {
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
           messageCount == other.messageCount &&
-          lastMessagePreview == other.lastMessagePreview;
+          lastMessagePreview == other.lastMessagePreview &&
+          archived == other.archived;
 }
 
 /// Daily token usage DTO for Flutter（每日 token 使用统计）

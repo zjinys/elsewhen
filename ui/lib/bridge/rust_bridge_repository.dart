@@ -78,8 +78,29 @@ class RustBridgeRepository implements StorageRepository {
       updatedAt: DateTime.parse(dto.updatedAt),
       messageCount: dto.messageCount,
       lastMessagePreview: dto.lastMessagePreview,
+      archived: dto.archived,
     )).toList();
   }
+
+  Future<List<Conversation>> listArchivedConversations() async {
+    final dtos = await api.listArchivedConversations();
+    return dtos.map((dto) => Conversation(
+      id: dto.id,
+      title: dto.title,
+      tag: dto.tag,
+      createdAt: DateTime.parse(dto.createdAt),
+      updatedAt: DateTime.parse(dto.updatedAt),
+      messageCount: dto.messageCount,
+      lastMessagePreview: dto.lastMessagePreview,
+      archived: dto.archived,
+    )).toList();
+  }
+
+  Future<void> renameConversation(String conversationId, String title) =>
+      api.renameConversation(conversationId: conversationId, title: title);
+
+  Future<void> setConversationArchived(String conversationId, bool archived) =>
+      api.setConversationArchived(conversationId: conversationId, archived: archived);
 
   Future<Conversation> createConversation({String? title, String? tag}) async {
     final dto = await api.createConversation(title: title, tag: tag);
@@ -91,6 +112,7 @@ class RustBridgeRepository implements StorageRepository {
       updatedAt: DateTime.parse(dto.updatedAt),
       messageCount: dto.messageCount,
       lastMessagePreview: dto.lastMessagePreview,
+      archived: dto.archived,
     );
   }
 

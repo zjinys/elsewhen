@@ -30,8 +30,10 @@ void main() {
     // Wait for async operations to complete
     await tester.pumpAndSettle();
 
-    // Verify that the app starts with the event list view
-    expect(find.text('Elsewhen'), findsOneWidget);
+    // Verify that the app starts with the conversation view
+    // （旧的 header「Elsewhen」已移除，改为验证对话 tab 工具栏的新建入口）
+    expect(find.text('新建对话'), findsOneWidget);
+    expect(find.text('知识库'), findsOneWidget);
   });
 
   testWidgets('Capture mode launches successfully', (WidgetTester tester) async {

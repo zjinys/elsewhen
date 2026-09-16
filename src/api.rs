@@ -158,6 +158,7 @@ pub struct ConversationDto {
     pub updated_at: String,
     pub message_count: i32,
     pub last_message_preview: Option<String>,
+    pub archived: bool,
 }
 
 /// Message DTO for Flutter
@@ -192,10 +193,11 @@ pub fn create_conversation(title: Option<String>, tag: Option<String>) -> Result
         updated_at: conversation.updated_at,
         message_count: conversation.message_count,
         last_message_preview: conversation.last_message_preview,
+        archived: conversation.archived,
     })
 }
 
-/// List all conversations
+/// List all non-archived conversations
 pub fn list_conversations() -> Result<Vec<ConversationDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
@@ -212,8 +214,45 @@ pub fn list_conversations() -> Result<Vec<ConversationDto>> {
             updated_at: c.updated_at,
             message_count: c.message_count,
             last_message_preview: c.last_message_preview,
+            archived: c.archived,
         })
         .collect())
+}
+
+/// List archived conversations
+pub fn list_archived_conversations() -> Result<Vec<ConversationDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+
+    let conversations = store.list_archived_conversations()?;
+
+    Ok(conversations
+        .into_iter()
+        .map(|c| ConversationDto {
+            id: c.id,
+            title: c.title,
+            tag: c.tag,
+            created_at: c.created_at,
+            updated_at: c.updated_at,
+            message_count: c.message_count,
+            last_message_preview: c.last_message_preview,
+            archived: c.archived,
+        })
+        .collect())
+}
+
+/// Rename a conversation
+pub fn rename_conversation(conversation_id: String, title: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.rename_conversation(&conversation_id, &title)
+}
+
+/// Archive or unarchive a conversation
+pub fn set_conversation_archived(conversation_id: String, archived: bool) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.set_conversation_archived(&conversation_id, archived)
 }
 
 /// Get a specific conversation
@@ -230,6 +269,7 @@ pub fn get_conversation(conversation_id: String) -> Result<Option<ConversationDt
             updated_at: conversation.updated_at,
             message_count: conversation.message_count,
             last_message_preview: conversation.last_message_preview,
+            archived: conversation.archived,
         }))
     } else {
         Ok(None)

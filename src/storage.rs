@@ -18,6 +18,7 @@ pub struct ConversationSummary {
     pub updated_at: String,
     pub message_count: i32,
     pub last_message_preview: Option<String>,
+    pub archived: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -322,6 +323,25 @@ impl Store {
         // CREATE TABLE, for old DBs after the ALTER TABLE above.
         connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_message_id)",
+            [],
+        )?;
+        // Add archived column to conversations if it doesn't exist
+        let has_archived = {
+            let mut statement = connection.prepare("PRAGMA table_info(conversations)")?;
+            let columns = statement
+                .query_map([], |row| row.get::<_, String>(1))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            columns.iter().any(|name| name == "archived")
+        };
+        if !has_archived {
+            connection.execute(
+                "ALTER TABLE conversations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1))",
+                [],
+            )?;
+        }
+        connection.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (8, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
             [],
         )?;
         #[cfg(unix)]
@@ -768,13 +788,14 @@ impl Store {
 
     pub fn list_conversations(&self) -> Result<Vec<ConversationSummary>> {
         let mut statement = self.connection.prepare(
-            "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at,
+            "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
                     COUNT(m.id) as message_count,
                     (SELECT m2.content FROM messages m2
                      WHERE m2.conversation_id = c.id
                      ORDER BY m2.created_at DESC LIMIT 1) as last_message
              FROM conversations c
              LEFT JOIN messages m ON m.conversation_id = c.id
+             WHERE c.archived = 0
              GROUP BY c.id
              ORDER BY c.updated_at DESC",
         )?;
@@ -785,18 +806,67 @@ impl Store {
                 tag: row.get(2)?,
                 created_at: row.get(3)?,
                 updated_at: row.get(4)?,
-                message_count: row.get(5)?,
-                last_message_preview: row.get(6)?,
+                message_count: row.get(6)?,
+                last_message_preview: row.get(7)?,
+                archived: row.get(5)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
     }
 
+    /// Archived conversations, newest first.
+    pub fn list_archived_conversations(&self) -> Result<Vec<ConversationSummary>> {
+        let mut statement = self.connection.prepare(
+            "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
+                    COUNT(m.id) as message_count,
+                    (SELECT m2.content FROM messages m2
+                     WHERE m2.conversation_id = c.id
+                     ORDER BY m2.created_at DESC LIMIT 1) as last_message
+             FROM conversations c
+             LEFT JOIN messages m ON m.conversation_id = c.id
+             WHERE c.archived = 1
+             GROUP BY c.id
+             ORDER BY c.updated_at DESC",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(ConversationSummary {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                tag: row.get(2)?,
+                created_at: row.get(3)?,
+                updated_at: row.get(4)?,
+                message_count: row.get(6)?,
+                last_message_preview: row.get(7)?,
+                archived: row.get(5)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    pub fn rename_conversation(&self, conversation_id: &str, title: &str) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "UPDATE conversations SET title = ?1, updated_at = ?2 WHERE id = ?3",
+            params![title, now, conversation_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_conversation_archived(&self, conversation_id: &str, archived: bool) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "UPDATE conversations SET archived = ?1, updated_at = ?2 WHERE id = ?3",
+            params![archived as i64, now, conversation_id],
+        )?;
+        Ok(())
+    }
+
     pub fn get_conversation(&self, conversation_id: &str) -> Result<Option<ConversationSummary>> {
         self.connection
             .query_row(
-                "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at,
+                "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
                         COUNT(m.id) as message_count,
                         (SELECT m2.content FROM messages m2
                          WHERE m2.conversation_id = c.id
@@ -813,8 +883,9 @@ impl Store {
                         tag: row.get(2)?,
                         created_at: row.get(3)?,
                         updated_at: row.get(4)?,
-                        message_count: row.get(5)?,
-                        last_message_preview: row.get(6)?,
+                        message_count: row.get(6)?,
+                        last_message_preview: row.get(7)?,
+                        archived: row.get(5)?,
                     })
                 },
             )

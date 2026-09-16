@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1391138357;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2021311100;
 
 // Section: executor
 
@@ -413,6 +413,27 @@ fn wire__crate__api__list_analyses_impl(port_: flutter_rust_bridge::for_generate
         },
     )
 }
+fn wire__crate__api__list_archived_conversations_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_archived_conversations",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::list_archived_conversations()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__list_conversations_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -522,6 +543,32 @@ fn wire__crate__api__record_event_impl(
         },
     )
 }
+fn wire__crate__api__rename_conversation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    conversation_id: impl CstDecode<String>,
+    title: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "rename_conversation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_conversation_id = conversation_id.cst_decode();
+            let api_title = title.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::rename_conversation(api_conversation_id, api_title)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__save_tweet_page_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     tweet_id: impl CstDecode<String>,
@@ -585,6 +632,34 @@ fn wire__crate__api__send_message_impl(
                             api_role,
                             api_content,
                             api_parent_message_id,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__set_conversation_archived_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    conversation_id: impl CstDecode<String>,
+    archived: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_conversation_archived",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_conversation_id = conversation_id.cst_decode();
+            let api_archived = archived.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::set_conversation_archived(
+                            api_conversation_id,
+                            api_archived,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -694,6 +769,12 @@ fn wire__crate__api__update_tweet_fetch_service_impl(
 
 // Section: dart2rust
 
+impl CstDecode<bool> for bool {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> bool {
+        self
+    }
+}
 impl CstDecode<f64> for f64 {
     // Codec=Cst (C-struct based), see doc to use other codecs
     fn cst_decode(self) -> f64 {
@@ -772,6 +853,13 @@ impl SseDecode for crate::api::AnalysisDto {
     }
 }
 
+impl SseDecode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
 impl SseDecode for crate::api::ContentChatMessageDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -794,6 +882,7 @@ impl SseDecode for crate::api::ConversationDto {
         let mut var_updatedAt = <String>::sse_decode(deserializer);
         let mut var_messageCount = <i32>::sse_decode(deserializer);
         let mut var_lastMessagePreview = <Option<String>>::sse_decode(deserializer);
+        let mut var_archived = <bool>::sse_decode(deserializer);
         return crate::api::ConversationDto {
             id: var_id,
             title: var_title,
@@ -802,6 +891,7 @@ impl SseDecode for crate::api::ConversationDto {
             updated_at: var_updatedAt,
             message_count: var_messageCount,
             last_message_preview: var_lastMessagePreview,
+            archived: var_archived,
         };
     }
 }
@@ -1137,13 +1227,6 @@ impl SseDecode for crate::api::WikiPageDto {
     }
 }
 
-impl SseDecode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_u8().unwrap() != 0
-    }
-}
-
 fn pde_ffi_dispatcher_primary_impl(
     func_id: i32,
     port: flutter_rust_bridge::for_generated::MessagePort,
@@ -1244,6 +1327,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::ConversationDto {
             self.updated_at.into_into_dart().into_dart(),
             self.message_count.into_into_dart().into_dart(),
             self.last_message_preview.into_into_dart().into_dart(),
+            self.archived.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1419,6 +1503,13 @@ impl SseEncode for crate::api::AnalysisDto {
     }
 }
 
+impl SseEncode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u8(self as _).unwrap();
+    }
+}
+
 impl SseEncode for crate::api::ContentChatMessageDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1437,6 +1528,7 @@ impl SseEncode for crate::api::ConversationDto {
         <String>::sse_encode(self.updated_at, serializer);
         <i32>::sse_encode(self.message_count, serializer);
         <Option<String>>::sse_encode(self.last_message_preview, serializer);
+        <bool>::sse_encode(self.archived, serializer);
     }
 }
 
@@ -1695,13 +1787,6 @@ impl SseEncode for crate::api::WikiPageDto {
     }
 }
 
-impl SseEncode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_u8(self as _).unwrap();
-    }
-}
-
 #[cfg(not(target_family = "wasm"))]
 mod io {
     // This file is automatically generated, so please do not edit it.
@@ -1806,6 +1891,7 @@ mod io {
                 updated_at: self.updated_at.cst_decode(),
                 message_count: self.message_count.cst_decode(),
                 last_message_preview: self.last_message_preview.cst_decode(),
+                archived: self.archived.cst_decode(),
             }
         }
     }
@@ -2034,6 +2120,7 @@ mod io {
                 updated_at: core::ptr::null_mut(),
                 message_count: Default::default(),
                 last_message_preview: core::ptr::null_mut(),
+                archived: Default::default(),
             }
         }
     }
@@ -2273,6 +2360,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_archived_conversations(port_: i64) {
+        wire__crate__api__list_archived_conversations_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_conversations(port_: i64) {
         wire__crate__api__list_conversations_impl(port_)
     }
@@ -2304,6 +2396,15 @@ mod io {
         raw_text: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__record_event_impl(port_, raw_text)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rename_conversation(
+        port_: i64,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__rename_conversation_impl(port_, conversation_id, title)
     }
 
     #[unsafe(no_mangle)]
@@ -2340,6 +2441,15 @@ mod io {
             content,
             parent_message_id,
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__set_conversation_archived(
+        port_: i64,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+        archived: bool,
+    ) {
+        wire__crate__api__set_conversation_archived_impl(port_, conversation_id, archived)
     }
 
     #[unsafe(no_mangle)]
@@ -2558,6 +2668,7 @@ mod io {
         updated_at: *mut wire_cst_list_prim_u_8_strict,
         message_count: i32,
         last_message_preview: *mut wire_cst_list_prim_u_8_strict,
+        archived: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -2789,8 +2900,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                7,
-                "Expected 7 elements, got {}",
+                8,
+                "Expected 8 elements, got {}",
                 self_.length()
             );
             crate::api::ConversationDto {
@@ -2801,6 +2912,7 @@ mod web {
                 updated_at: self_.get(4).cst_decode(),
                 message_count: self_.get(5).cst_decode(),
                 last_message_preview: self_.get(6).cst_decode(),
+                archived: self_.get(7).cst_decode(),
             }
         }
     }
@@ -3069,6 +3181,12 @@ mod web {
             self.as_string().expect("non-UTF-8 string, or not a string")
         }
     }
+    impl CstDecode<bool> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> bool {
+            self.is_truthy()
+        }
+    }
     impl CstDecode<f64> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> f64 {
@@ -3241,6 +3359,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__list_archived_conversations(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__list_archived_conversations_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__list_conversations(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -3277,6 +3402,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__rename_conversation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        conversation_id: String,
+        title: String,
+    ) {
+        wire__crate__api__rename_conversation_impl(port_, conversation_id, title)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__save_tweet_page(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         tweet_id: String,
@@ -3310,6 +3444,15 @@ mod web {
             content,
             parent_message_id,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__set_conversation_archived(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        conversation_id: String,
+        archived: bool,
+    ) {
+        wire__crate__api__set_conversation_archived_impl(port_, conversation_id, archived)
     }
 
     #[wasm_bindgen]

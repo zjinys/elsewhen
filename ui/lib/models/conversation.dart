@@ -7,6 +7,7 @@ class Conversation {
   final DateTime updatedAt;
   final int messageCount;
   final String? lastMessagePreview;
+  final bool archived;
 
   const Conversation({
     required this.id,
@@ -16,6 +17,7 @@ class Conversation {
     required this.updatedAt,
     required this.messageCount,
     this.lastMessagePreview,
+    this.archived = false,
   });
 
   factory Conversation.fromRust(Map<String, dynamic> dto) {
@@ -27,6 +29,7 @@ class Conversation {
       updatedAt: DateTime.parse(dto['updated_at'] as String),
       messageCount: dto['message_count'] as int,
       lastMessagePreview: dto['last_message_preview'] as String?,
+      archived: dto['archived'] as bool? ?? false,
     );
   }
 
