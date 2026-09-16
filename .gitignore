@@ -21,6 +21,12 @@ packaging/linux/src/
 .env
 .env.*
 
+# 不提交的素材文件（下载的视频/音频/图片/转录稿等）
+# 目录与 README 提交，里面的内容一律不提交
+/materials/*
+!/materials/
+!/materials/README.md
+
 # IDE / OS
 .idea/
 .vscode/
