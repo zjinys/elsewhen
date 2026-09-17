@@ -67,7 +67,7 @@ class _EventInputState extends State<EventInput> {
                 height: 1.6,
               ),
               decoration: InputDecoration(
-                hintText: '记录此刻发生的事情...',
+                hintText: '记录此刻发生的事情…（可用 @人名 标注人物、#事情 标注项目）',
                 hintStyle: TextStyle(
                   color: AppTheme.textTertiary,
                   fontSize: 15,

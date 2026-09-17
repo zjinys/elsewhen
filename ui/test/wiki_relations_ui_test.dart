@@ -25,8 +25,8 @@ void main() {
     final person = await repo.saveTextPage(text: '简介', title: personTitle);
     final project = await repo.saveTextPage(text: '说明', title: projectTitle);
     final rel = await repo.addRelation(
-      fromSlug: person!.slug,
-      toSlug: project!.slug,
+      fromSlug: person.slug,
+      toSlug: project.slug,
       relation: '参与',
       note: '测试',
     );

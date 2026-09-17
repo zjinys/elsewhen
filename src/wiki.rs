@@ -11,6 +11,7 @@
 
 use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
+use crate::event::{AnnotationSet, EventSummary};
 use crate::storage::{EventRecord, RelationDraft, Store, WikiPage, WikiPageDraft};
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -88,6 +89,24 @@ pub fn slugify(s: &str) -> String {
         out = "page".to_string();
     }
     out
+}
+
+/// 生成不冲突的 slug：若 `{base}` 已被「不同标题」的页面占用（同名 slug 撞车，
+/// 如历史页标题不同但 slugify 后相同），则追加 -2、-3… 后缀避让。
+/// 同名同人走 find_wiki_page_by_title 合并，这里只兜底冲突。
+fn unique_slug(store: &Store, base: &str, title: &str) -> Result<String> {
+    let mut slug = base.to_string();
+    let mut n = 2usize;
+    loop {
+        match store.get_wiki_page(&slug)? {
+            None => return Ok(slug),
+            Some(page) if page.title.trim() == title => return Ok(slug),
+            Some(_) => {
+                slug = format!("{base}-{n}");
+                n += 1;
+            }
+        }
+    }
 }
 
 fn kind_dir(kind: &str) -> String {
@@ -555,7 +574,7 @@ pub fn apply_people_relations(
             person_entries.push((name, page.slug.clone(), page.kind.clone()));
             continue;
         }
-        let slug = format!("person/{}", slugify(&name));
+        let slug = unique_slug(store, &format!("person/{}", slugify(&name)), &name)?;
         let note = p.role_note.trim().to_string();
         let summary = if note.is_empty() {
             format!("{name}（对话中出现的人物）")
@@ -593,7 +612,7 @@ pub fn apply_people_relations(
         let (slug, kind) = match store.find_wiki_page_by_title(&target)? {
             Some(page) => (page.slug, page.kind),
             None => {
-                let slug = format!("topic/{}", slugify(&target));
+                let slug = unique_slug(store, &format!("topic/{}", slugify(&target)), &target)?;
                 let draft = WikiPageDraft {
                     slug: slug.clone(),
                     kind: "topic".to_string(),
@@ -668,6 +687,153 @@ pub fn apply_people_relations(
         out.push_str("（没有落地的关系）");
     }
     Ok(out)
+}
+
+// ── 批量提取：历史事件 → 人物/关系草拟（@/# 标注为权威，AI 补全） ──────────
+
+/// 单次批量提取最多喂给 LLM 的事件条数（提示词体积可控）
+const BATCH_EXTRACT_MAX_EVENTS: usize = 120;
+/// 单条事件进入提示词的最大字符数
+const BATCH_EXTRACT_EVENT_CHARS: usize = 220;
+
+/// 批量提取：扫描事件库，`@人名` / `#事情` 标注视为权威实体，再让 LLM 根据事件上下文
+/// 补全人物 role_note 与「人物 ↔ 事情/项目」关系。
+/// 只产草拟、不落库，返回可直接进入待确认动作的：
+/// `{ "people": [{name,role_note}], "relations": [{person,target,relation,note}] }`
+/// （落库仍走 execute_pending_action → apply_people_relations，用户确认后才写）。
+pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json::Value> {
+    use crate::event::{parse_annotations_many, AnnotationSet};
+
+    let events = store.list_events()?;
+    if events.is_empty() {
+        anyhow::bail!("事件库为空，没有可提取的内容");
+    }
+
+    // @/# 标注：用户在事件里明确写死的实体，权威且必须全部纳入
+    let annotations: AnnotationSet =
+        parse_annotations_many(events.iter().map(|e| e.raw_text.as_str()));
+
+    let total = events.len();
+    let sampled: Vec<&EventSummary> = events.iter().take(BATCH_EXTRACT_MAX_EVENTS).collect();
+    let mut event_lines = String::new();
+    for (idx, e) in sampled.iter().enumerate() {
+        let text: String = e
+            .raw_text
+            .chars()
+            .take(BATCH_EXTRACT_EVENT_CHARS)
+            .collect();
+        event_lines.push_str(&format!("{}| {}\n", idx + 1, text.trim()));
+    }
+    let mut annotated = String::new();
+    if !annotations.people.is_empty() {
+        annotated.push_str(&format!("人物标注：{}\n", annotations.people.join("、")));
+    }
+    if !annotations.targets.is_empty() {
+        annotated.push_str(&format!(
+            "事情/项目标注：{}",
+            annotations.targets.join("、")
+        ));
+    }
+
+    let system = r#"你是 elsewhen 个人知识库的「人物关系」批量提取器。任务：阅读用户的事件，输出「人物 + 人物↔事情/项目关系」。
+
+抽取规则：
+- 事件里用 @人名 标注的一定是人、#事情 标注的一定是事情/项目（如「@张伟 负责 #双链路付款」）。已标注实体必须全部纳入 people / relations；同名但备注不同（「张伟（市场部）」「张伟（设计）」）是不同的人，不能合并。
+- 未标注的人物：只提取信息具体、对用户重要的人（有称呼、有身份或参与的明确事情），不为随口一提的名字建条目。
+- relations 的 person/target 必须来自 people 或已标注实体；relation 用 负责/参与/合作/对接/跟进/顾问 等 2~4 字动词。
+- role_note 一句话身份/背景，来自事件上下文；没有可写信息就留空字符串。
+- 宁缺毋滥：没有把握的关系不要编造。
+
+严格输出 JSON（不要代码块围栏、不要其他任何文字）：
+{"people":[{"name":"姓名","role_note":"身份备注"}],"relations":[{"person":"姓名","target":"事情/项目","relation":"负责","note":"补充说明"}]}"#;
+    let user = format!(
+        "共 {total} 条事件（展示最近 {} 条）：\n\n{event_lines}\n{annotated}",
+        sampled.len()
+    );
+
+    let reply = call_provider(store, system, &user, 4000)?;
+    let parsed = parse_json_value(&reply).map_err(|_| {
+        anyhow::anyhow!(
+            "批量提取失败：AI 返回无法解析——{}…",
+            reply.chars().take(200).collect::<String>()
+        )
+    })?;
+    Ok(normalize_extraction(&parsed, &annotations))
+}
+
+/// 把 LLM 返回的提取结果归一化：
+/// - 确保所有 @/# 标注实体都出现在 people（LLM 漏掉也兜底补上，role_note 留空）；
+/// - relations 里的 person/target 若不在实体集里则跳过（LLM 幻觉过滤）。
+pub fn normalize_extraction(parsed: &serde_json::Value, ann: &AnnotationSet) -> serde_json::Value {
+    let mut people: Vec<serde_json::Value> = parsed
+        .get("people")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for p in &ann.people {
+        let known = people.iter().any(|v| {
+            v.get("name")
+                .and_then(|n| n.as_str())
+                .map(|s| s.trim() == p.as_str())
+                .unwrap_or(false)
+        });
+        if !known {
+            people.push(serde_json::json!({ "name": p, "role_note": "" }));
+        }
+    }
+    let mut relations: Vec<serde_json::Value> = parsed
+        .get("relations")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    relations.retain(|r| {
+        let person = r
+            .get("person")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .unwrap_or("");
+        let target = r
+            .get("target")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .unwrap_or("");
+        !person.is_empty()
+            && !target.is_empty()
+            && people.iter().any(|v| {
+                v.get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|s| s.trim() == person)
+                    .unwrap_or(false)
+            })
+    });
+    serde_json::json!({ "people": people, "relations": relations })
+}
+
+/// 宽容解析 LLM 返回的 JSON 对象：容忍 ``` 围栏与前后杂质文字。
+fn parse_json_value(reply: &str) -> Result<serde_json::Value> {
+    let trimmed = reply.trim();
+    let inner = if trimmed.starts_with("```") {
+        trimmed
+            .lines()
+            .filter(|l| !l.starts_with("```"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            .trim()
+            .to_string()
+    } else {
+        trimmed.to_string()
+    };
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&inner) {
+        return Ok(v);
+    }
+    if let Some(start) = inner.find('{') {
+        if let Some(end) = inner.rfind('}') {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&inner[start..=end]) {
+                return Ok(v);
+            }
+        }
+    }
+    anyhow::bail!("无法解析 AI 返回的 JSON")
 }
 
 const DIGEST_SYSTEM_PROMPT: &str = r#"你是 elsewhen 个人知识库的 wiki 维护者。任务：读新事件，把它们承载的"持久事实"提炼并写进 wiki 页面。
@@ -1007,6 +1173,83 @@ mod tests {
         assert_eq!(slugify("  顺风车 2.0  计划  "), "顺风车-2-0-计划");
         assert_eq!(slugify("您/好 世界"), "您-好-世界");
         assert_eq!(slugify("!!!#"), "page"); // 全符号 → fallback
+    }
+
+    #[test]
+    fn normalize_extraction_backfills_annotations_and_filters_hallucinations() {
+        use crate::event::AnnotationSet;
+
+        let parsed = serde_json::json!({
+            "people": [
+                {"name": "张伟", "role_note": "对接付款流程"},
+                {"name": "项目负责人"}
+            ],
+            "relations": [
+                {"person": "张伟", "target": "双链路付款", "relation": "负责", "note": ""},
+                {"person": "不存在的人", "target": "幻想的项目", "relation": "负责", "note": ""}
+            ]
+        });
+        let ann = AnnotationSet {
+            people: vec!["张伟".into(), "李婷（客户）".into()],
+            targets: vec!["双链路付款".into()],
+        };
+        let out = normalize_extraction(&parsed, &ann);
+        let people = out["people"].as_array().unwrap();
+        let names: Vec<&str> = people
+            .iter()
+            .map(|p| p["name"].as_str().unwrap())
+            .collect();
+        // LLM 漏掉的标注实体兜底补进 people
+        assert!(names.contains(&"李婷（客户）"));
+        assert_eq!(people[people.len() - 1]["role_note"].as_str().unwrap(), "");
+        // 幻觉关系被过滤（person 不在实体集里）
+        let relations = out["relations"].as_array().unwrap();
+        assert_eq!(relations.len(), 1);
+        assert_eq!(relations[0]["person"], "张伟");
+        assert_eq!(relations[0]["target"], "双链路付款");
+    }
+
+    #[test]
+    fn unique_slug_avoids_different_title_collision_but_reuses_same_title() {
+        let path = std::env::temp_dir().join(format!(
+            "elsewhen-wiki-unique-slug-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = Store::open(&path).unwrap();
+        // 先用不同标题占住 person/zhang-wei 这个 slug
+        store
+            .upsert_wiki_page(&WikiPageDraft {
+                slug: "person/zhang-wei".into(),
+                kind: "person".into(),
+                title: "Zhang Wei".into(),
+                summary: String::new(),
+                content_md: String::new(),
+                tags: vec![],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "test".into(),
+                source_url: None,
+            })
+            .unwrap();
+        // 不同标题 → 后缀避让
+        assert_eq!(
+            unique_slug(&store, "person/zhang-wei", "张伟").unwrap(),
+            "person/zhang-wei-2"
+        );
+        // 同名 slug 但标题相同 → 直接复用
+        assert_eq!(
+            unique_slug(&store, "person/zhang-wei", "Zhang Wei").unwrap(),
+            "person/zhang-wei"
+        );
+        // 空闲 slug 直接用
+        assert_eq!(
+            unique_slug(&store, "topic/shuang-lian-lu", "双链路").unwrap(),
+            "topic/shuang-lian-lu"
+        );
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]

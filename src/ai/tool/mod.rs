@@ -122,6 +122,7 @@ impl Default for ToolRegistry {
             Box::new(ListTodosTool),
             Box::new(CreateTodoTool),
             Box::new(ProposePeopleRelationsTool),
+            Box::new(BatchExtractPeopleRelationsTool),
             Box::new(ImportUrlToWikiTool),
             Box::new(SaveWikiRevisionTool),
         ];
@@ -730,7 +731,7 @@ impl Tool for ProposePeopleRelationsTool {
         "propose_people_relations"
     }
     fn description(&self) -> &'static str {
-        "把对话中出现的对用户重要的人物，以及「人物 ↔ 事情/项目」的关系草拟下来。调用后进入待确认状态，用户确认后才建档保存。"
+        "把对话中出现的对用户重要的人物，以及「人物 ↔ 事情/项目」的关系草拟下来。调用后进入待确认状态，用户确认后才建档保存。事件/对话中用户用 @人名 标注的一定是人、#事情/项目 标注的一定是事情，优先纳入草拟。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -814,6 +815,74 @@ impl Tool for ProposePeopleRelationsTool {
         }
         Ok(format!(
             "已为你草拟人物与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
+            lines.join("\n")
+        ))
+    }
+}
+
+// ── 任意 URL 导入工具 ─────────────────────────────────────────
+
+/// 批量提取：扫描全部事件 → `@人名` / `#事情` 标注 + AI 补全 → 人物/关系草拟（待确认）
+struct BatchExtractPeopleRelationsTool;
+impl Tool for BatchExtractPeopleRelationsTool {
+    fn name(&self) -> &'static str {
+        "batch_extract_people_relations"
+    }
+    fn description(&self) -> &'static str {
+        "扫描知识库里全部已保存事件，批量提取人物与「人物 ↔ 事情/项目」关系。事件里 @人名 标注的一定是人、#事情/项目 标注的一定是事情（权威实体，必须纳入）；AI 再根据事件上下文补全角色与关系。只产草拟，用户确认后才保存。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+        })
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, _args: &Value, ctx: &ToolContext) -> Result<String> {
+        let action_args = crate::wiki::propose_people_relations_from_events(ctx.store)?;
+        let people: Vec<Value> = action_args
+            .get("people")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let relations: Vec<Value> = action_args
+            .get("relations")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        if people.is_empty() && relations.is_empty() {
+            anyhow::bail!("扫描事件后没有提取到人物或关系");
+        }
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "propose_people_relations",
+            &action_args,
+        )?;
+        let mut lines = Vec::new();
+        for p in &people {
+            let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let note = p.get("role_note").and_then(|v| v.as_str()).unwrap_or("");
+            lines.push(format!(
+                "人物：{name}{}",
+                if note.is_empty() { String::new() } else { format!("（{note}）") }
+            ));
+        }
+        for r in &relations {
+            let person = r.get("person").and_then(|v| v.as_str()).unwrap_or("");
+            let target = r.get("target").and_then(|v| v.as_str()).unwrap_or("");
+            let rel = r
+                .get("relation")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or("参与");
+            lines.push(format!("{person} —— {rel} —— {target}"));
+        }
+        Ok(format!(
+            "已从事件批量草拟人物与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
             lines.join("\n")
         ))
     }
@@ -1132,6 +1201,7 @@ mod tests {
             "list_todos",
             "create_todo",
             "propose_people_relations",
+            "batch_extract_people_relations",
             "import_url_to_wiki",
             "save_wiki_revision",
         ] {
