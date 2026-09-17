@@ -23,3 +23,12 @@
    - 阅读栏限宽居中、标题下摘要、kind 彩色分组与条目徽标、来源 chip、页脚溯源 + AI 面板。
 6. ✅ 待办
    - AI 从对话/事件分析出跟进事项由用户确认后创建；「待办」tab 提供视图（进行中/已完成分组、优先级、截止、关联知识页）；支持编辑（标题/说明/优先级/截止）。
+
+7. ✅ 对话识别人物 + 人物↔事情/项目关系（2026-09-17）
+   - 新增 wiki kind `person`（人物）：slug 用确定性 `person/<名>`，建档前按标题精确查重（`find_wiki_page_by_title`），与 digest 建的页自动合并、不重复建档。
+   - 新增关系表 `relations`（迁移 v17）：方向性 from（人物）→ to（事情/项目），关系类型如 负责/参与/合作/对接/跟进；UNIQUE(from,to,relation)，note/confidence/source_conversation_id/last_seen_at 溯源，双向索引。
+   - AI 工具 `propose_people_relations`（沿用草拟确认制）：识别重要人物与「人 ↔ 事」关系 → 登记待确认动作 → 用户回「好」→ 建档人物页 + 补建缺失目标页（kind=topic）+ 写入关系；目标页已存在则复用。
+   - 系统提示词约束：只对重要且信息具体的人物草拟，已存过不重复提议；digest 提示词 kind 枚举加入 person。
+   - UI：知识库详情页头部 tags 下方新增「人物关系」区块（出向 → / 入向 ← 双向 chip，点按跳转对端页面）；kind 徽标/分组/中文标签支持 person（人物，暖红色）。
+   - 桥接 API：`list_relations_for_page` / `list_relations` / `add_relation`（手动补录）/ `delete_relation`（修正误识别）。
+   - 测试：Rust 71→…→88 全绿（含存储/编排/工具三层的 4 个新测试）；Flutter 33→37 全绿（桥接往返 + 详情页关系区块渲染，自种数据可自清理）。

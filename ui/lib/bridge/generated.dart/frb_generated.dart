@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1403263869;
+  int get rustContentHash => -328337155;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -79,6 +79,13 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<RelationDto> crateApiAddRelation({
+    required String fromSlug,
+    required String toSlug,
+    required String relation,
+    String? note,
+  });
+
   Future<String> crateApiAddRule({required String content});
 
   Future<void> crateApiArchiveWikiPageChat({required String pageSlug});
@@ -97,6 +104,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiDeleteAiProviderConfig({required String id});
+
+  Future<bool> crateApiDeleteRelation({required String id});
 
   Future<void> crateApiDeleteRule({required String ruleId});
 
@@ -162,6 +171,12 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<MessageDto>> crateApiListMessages({
     required String conversationId,
+  });
+
+  Future<List<RelationDto>> crateApiListRelations();
+
+  Future<List<RelationDto>> crateApiListRelationsForPage({
+    required String slug,
   });
 
   Future<List<RuleDto>> crateApiListRules();
@@ -258,6 +273,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required super.generalizedFrbRustBinding,
     required super.portManager,
   });
+
+  @override
+  Future<RelationDto> crateApiAddRelation({
+    required String fromSlug,
+    required String toSlug,
+    required String relation,
+    String? note,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(fromSlug);
+          var arg1 = cst_encode_String(toSlug);
+          var arg2 = cst_encode_String(relation);
+          var arg3 = cst_encode_opt_String(note);
+          return wire.wire__crate__api__add_relation(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_relation_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiAddRelationConstMeta,
+        argValues: [fromSlug, toSlug, relation, note],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAddRelationConstMeta => const TaskConstMeta(
+    debugName: "add_relation",
+    argNames: ["fromSlug", "toSlug", "relation", "note"],
+  );
 
   @override
   Future<String> crateApiAddRule({required String content}) {
@@ -399,6 +452,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "delete_ai_provider_config",
         argNames: ["id"],
       );
+
+  @override
+  Future<bool> crateApiDeleteRelation({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__delete_relation(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDeleteRelationConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDeleteRelationConstMeta =>
+      const TaskConstMeta(debugName: "delete_relation", argNames: ["id"]);
 
   @override
   Future<void> crateApiDeleteRule({required String ruleId}) {
@@ -1002,6 +1077,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "list_messages",
     argNames: ["conversationId"],
   );
+
+  @override
+  Future<List<RelationDto>> crateApiListRelations() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__list_relations(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_relation_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListRelationsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListRelationsConstMeta =>
+      const TaskConstMeta(debugName: "list_relations", argNames: []);
+
+  @override
+  Future<List<RelationDto>> crateApiListRelationsForPage({
+    required String slug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          return wire.wire__crate__api__list_relations_for_page(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_relation_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListRelationsForPageConstMeta,
+        argValues: [slug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListRelationsForPageConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_relations_for_page",
+        argNames: ["slug"],
+      );
 
   @override
   Future<List<RuleDto>> crateApiListRules() {
@@ -1802,6 +1925,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RelationDto> dco_decode_list_relation_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_relation_dto).toList();
+  }
+
+  @protected
   List<RuleDto> dco_decode_list_rule_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_rule_dto).toList();
@@ -1873,6 +2002,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  RelationDto dco_decode_relation_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return RelationDto(
+      id: dco_decode_String(arr[0]),
+      fromSlug: dco_decode_String(arr[1]),
+      fromKind: dco_decode_String(arr[2]),
+      toSlug: dco_decode_String(arr[3]),
+      toKind: dco_decode_String(arr[4]),
+      relation: dco_decode_String(arr[5]),
+      note: dco_decode_opt_String(arr[6]),
+      confidence: dco_decode_i_64(arr[7]),
+      createdAt: dco_decode_String(arr[8]),
+      lastSeenAt: dco_decode_String(arr[9]),
+    );
   }
 
   @protected
@@ -2302,6 +2451,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RelationDto> sse_decode_list_relation_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RelationDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_relation_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<RuleDto> sse_decode_list_rule_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2428,6 +2589,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  RelationDto sse_decode_relation_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_fromSlug = sse_decode_String(deserializer);
+    var var_fromKind = sse_decode_String(deserializer);
+    var var_toSlug = sse_decode_String(deserializer);
+    var var_toKind = sse_decode_String(deserializer);
+    var var_relation = sse_decode_String(deserializer);
+    var var_note = sse_decode_opt_String(deserializer);
+    var var_confidence = sse_decode_i_64(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_lastSeenAt = sse_decode_String(deserializer);
+    return RelationDto(
+      id: var_id,
+      fromSlug: var_fromSlug,
+      fromKind: var_fromKind,
+      toSlug: var_toSlug,
+      toKind: var_toKind,
+      relation: var_relation,
+      note: var_note,
+      confidence: var_confidence,
+      createdAt: var_createdAt,
+      lastSeenAt: var_lastSeenAt,
+    );
   }
 
   @protected
@@ -2863,6 +3051,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_relation_dto(
+    List<RelationDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_relation_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_rule_dto(List<RuleDto> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
@@ -2973,6 +3173,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_wiki_page_dto(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_relation_dto(RelationDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.fromSlug, serializer);
+    sse_encode_String(self.fromKind, serializer);
+    sse_encode_String(self.toSlug, serializer);
+    sse_encode_String(self.toKind, serializer);
+    sse_encode_String(self.relation, serializer);
+    sse_encode_opt_String(self.note, serializer);
+    sse_encode_i_64(self.confidence, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.lastSeenAt, serializer);
   }
 
   @protected

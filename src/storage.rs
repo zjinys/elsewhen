@@ -232,6 +232,33 @@ pub struct WikiUpsertOutcome {
     pub page: WikiPage,
 }
 
+/// 一条人物关系：`from`（一般是人物页）↔ `to`（事情/项目页等），带关系类型
+#[derive(Debug, Clone)]
+pub struct Relation {
+    pub id: String,
+    pub from_slug: String,
+    pub from_kind: String,
+    pub to_slug: String,
+    pub to_kind: String,
+    pub relation: String,
+    pub note: Option<String>,
+    pub confidence: i64,
+    pub created_at: String,
+    pub last_seen_at: String,
+}
+
+/// 新建/更新一条人物关系的输入
+pub struct RelationDraft {
+    pub from_slug: String,
+    pub from_kind: String,
+    pub to_slug: String,
+    pub to_kind: String,
+    pub relation: String,
+    pub note: Option<String>,
+    pub confidence: i64,
+    pub source_conversation_id: Option<String>,
+}
+
 /// 带 id 的事件记录（digest 需要把事件 id 写进 wiki 页作为溯源）
 #[derive(Debug, Clone)]
 pub struct EventRecord {
@@ -646,6 +673,27 @@ impl Store {
                 )?;
             }
         }
+        // 版本 17：人物关系（AI 从对话识别「人 ↔ 事情/项目」，用户确认后保存）
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS relations (
+               id TEXT PRIMARY KEY,
+               from_slug TEXT NOT NULL,
+               from_kind TEXT NOT NULL,
+               to_slug TEXT NOT NULL,
+               to_kind TEXT NOT NULL,
+               relation TEXT NOT NULL,
+               note TEXT,
+               confidence INTEGER NOT NULL DEFAULT 3,
+               source_conversation_id TEXT,
+               created_at TEXT NOT NULL,
+               last_seen_at TEXT NOT NULL,
+               UNIQUE(from_slug, to_slug, relation)
+             );
+             CREATE INDEX IF NOT EXISTS idx_relations_from ON relations(from_slug);
+             CREATE INDEX IF NOT EXISTS idx_relations_to ON relations(to_slug);
+             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (17, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )?;
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at)
              VALUES (8, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
@@ -1042,6 +1090,21 @@ impl Store {
         )?;
         let page = statement
             .query_row(params![source_url], |row| map_wiki_page(row))
+            .optional()?;
+        Ok(page)
+    }
+
+    /// 按标题精确查已存在页面（标题去重用；先于确定性 slug 判断，避免同名页重复建档）
+    pub fn find_wiki_page_by_title(&self, title: &str) -> Result<Option<WikiPage>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
+                    evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+                    source_url
+             FROM wiki_pages WHERE lower(trim(title)) = lower(trim(?1))
+             ORDER BY updated_at DESC LIMIT 1",
+        )?;
+        let page = statement
+            .query_row(params![title], |row| map_wiki_page(row))
             .optional()?;
         Ok(page)
     }
@@ -1489,6 +1552,108 @@ impl Store {
         let n = self
             .connection
             .execute("DELETE FROM todos WHERE id=?1", [id])?;
+        Ok(n > 0)
+    }
+
+    // ── 人物关系 ────────────────────────────────────────────────────────
+
+    /// 新建或刷新一条人物关系（(from, to, relation) 唯一，重复则更新 note / 时间戳）。
+    pub fn upsert_relation(&self, draft: &RelationDraft) -> Result<Relation> {
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "INSERT INTO relations
+               (id, from_slug, from_kind, to_slug, to_kind, relation, note, confidence,
+                source_conversation_id, created_at, last_seen_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)
+             ON CONFLICT(from_slug, to_slug, relation) DO UPDATE SET
+               note = ?7, confidence = ?8, last_seen_at = ?10",
+            params![
+                Uuid::new_v4().to_string(),
+                draft.from_slug,
+                draft.from_kind,
+                draft.to_slug,
+                draft.to_kind,
+                draft.relation,
+                draft.note,
+                draft.confidence,
+                draft.source_conversation_id,
+                now.clone(),
+            ],
+        )?;
+        // 读回真实行（拿到真实 id）
+        let mut statement = self.connection.prepare(
+            "SELECT id, from_slug, from_kind, to_slug, to_kind, relation, note, confidence,
+                    created_at, last_seen_at
+             FROM relations
+             WHERE from_slug = ?1 AND to_slug = ?2 AND relation = ?3",
+        )?;
+        let rel = statement
+            .query_row(
+                params![draft.from_slug, draft.to_slug, draft.relation],
+                Self::map_relation,
+            )
+            .optional()?
+            .unwrap_or(Relation {
+                id: String::new(),
+                from_slug: draft.from_slug.clone(),
+                from_kind: draft.from_kind.clone(),
+                to_slug: draft.to_slug.clone(),
+                to_kind: draft.to_kind.clone(),
+                relation: draft.relation.clone(),
+                note: draft.note.clone(),
+                confidence: draft.confidence,
+                created_at: now.clone(),
+                last_seen_at: now,
+            });
+        Ok(rel)
+    }
+
+    fn map_relation(row: &rusqlite::Row) -> rusqlite::Result<Relation> {
+        Ok(Relation {
+            id: row.get(0)?,
+            from_slug: row.get(1)?,
+            from_kind: row.get(2)?,
+            to_slug: row.get(3)?,
+            to_kind: row.get(4)?,
+            relation: row.get(5)?,
+            note: row.get(6)?,
+            confidence: row.get(7)?,
+            created_at: row.get(8)?,
+            last_seen_at: row.get(9)?,
+        })
+    }
+
+    /// 与某页相关的关系（双向：作为人物方或作为事情/项目方）
+    pub fn list_relations_for_page(&self, slug: &str) -> Result<Vec<Relation>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, from_slug, from_kind, to_slug, to_kind, relation, note, confidence,
+                    created_at, last_seen_at
+             FROM relations WHERE from_slug = ?1 OR to_slug = ?1
+             ORDER BY last_seen_at DESC",
+        )?;
+        let rows = statement
+            .query_map(params![slug], Self::map_relation)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// 全部人物关系（备用：未来人物视图用）
+    pub fn list_relations(&self) -> Result<Vec<Relation>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, from_slug, from_kind, to_slug, to_kind, relation, note, confidence,
+                    created_at, last_seen_at
+             FROM relations ORDER BY last_seen_at DESC",
+        )?;
+        let rows = statement
+            .query_map([], Self::map_relation)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    pub fn delete_relation(&self, id: &str) -> Result<bool> {
+        let n = self
+            .connection
+            .execute("DELETE FROM relations WHERE id=?1", [id])?;
         Ok(n > 0)
     }
 
@@ -2110,6 +2275,60 @@ mod tests {
 
         // 空标题拒绝
         assert!(store.update_todo(&todo.id, "   ", None, None, None).is_err());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn relations_upsert_dedupe_and_list_both_directions() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let rel = RelationDraft {
+            from_slug: "person/张三".to_string(),
+            from_kind: "person".to_string(),
+            to_slug: "kb-双链路付款".to_string(),
+            to_kind: "project".to_string(),
+            relation: "负责".to_string(),
+            note: Some("主导该项目".to_string()),
+            confidence: 3,
+            source_conversation_id: Some("conv-1".to_string()),
+        };
+        store.upsert_relation(&rel).unwrap();
+        // 同一条重复写入：去重为 1 条，指向同一页双向都能查到
+        store.upsert_relation(&rel).unwrap();
+        let from_person = store.list_relations_for_page("person/张三").unwrap();
+        let from_project = store.list_relations_for_page("kb-双链路付款").unwrap();
+        assert_eq!(from_person.len(), 1);
+        assert_eq!(from_project.len(), 1);
+        assert_eq!(from_person[0].relation, "负责");
+        assert_eq!(from_person[0].to_slug, "kb-双链路付款");
+        assert_eq!(store.list_relations().unwrap().len(), 1);
+
+        // 删除
+        assert!(store.delete_relation(&from_person[0].id).unwrap());
+        assert!(store.list_relations().unwrap().is_empty());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn find_wiki_page_by_title_matches_exact_ignoring_case_and_trim() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store
+            .upsert_wiki_page(&WikiPageDraft {
+                slug: "person/张伟".to_string(),
+                kind: "person".to_string(),
+                title: "张伟".to_string(),
+                summary: "简介".to_string(),
+                content_md: "内容".to_string(),
+                tags: vec![],
+                source_event_ids: vec![],
+                status: "active".to_string(),
+                reason: "test".to_string(),
+                source_url: None,
+            })
+            .unwrap();
+        assert!(store.find_wiki_page_by_title(" 张伟 ").unwrap().is_some());
+        assert!(store.find_wiki_page_by_title("不存在的人").unwrap().is_none());
         let _ = std::fs::remove_file(path);
     }
 }

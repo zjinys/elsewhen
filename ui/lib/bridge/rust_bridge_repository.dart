@@ -9,6 +9,7 @@ import '../models/import_fetch.dart';
 import '../models/token_usage.dart';
 import '../models/tweet_fetch.dart';
 import '../models/rule.dart';
+import '../models/relation.dart';
 import 'generated.dart/api.dart' as api;
 import 'generated.dart/frb_generated.dart';
 
@@ -223,6 +224,39 @@ class RustBridgeRepository implements StorageRepository {
     final dto = await api.updateWikiTags(slug: slug, tags: tags);
     return WikiPage.fromDto(dto);
   }
+
+  // ── 人物关系 ──
+
+  /// 与某页相关的人物关系（双向：作为人物方或作为事情/项目方）
+  Future<List<Relation>> listRelationsForPage(String slug) async {
+    final dtos = await api.listRelationsForPage(slug: slug);
+    return dtos.map(Relation.fromDto).toList();
+  }
+
+  /// 全部人物关系（备用：未来人物视图）
+  Future<List<Relation>> listRelations() async {
+    final dtos = await api.listRelations();
+    return dtos.map(Relation.fromDto).toList();
+  }
+
+  /// 手动添加/刷新一条人物关系（两侧页面必须已存在）。返回落库后的关系。
+  Future<Relation> addRelation({
+    required String fromSlug,
+    required String toSlug,
+    required String relation,
+    String? note,
+  }) async {
+    final dto = await api.addRelation(
+      fromSlug: fromSlug,
+      toSlug: toSlug,
+      relation: relation,
+      note: note,
+    );
+    return Relation.fromDto(dto);
+  }
+
+  /// 删除一条人物关系（修正误识别时用）。返回是否真的删掉了。
+  Future<bool> deleteRelation(String id) => api.deleteRelation(id: id);
 
   /// 从 x.com / twitter.com 推文链接抓取长文（解析 json，不写库）
   Future<TweetFetch> fetchTweet(String url) async {

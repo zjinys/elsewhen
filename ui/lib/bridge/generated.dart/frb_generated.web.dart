@@ -109,6 +109,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<RelationDto> dco_decode_list_relation_dto(dynamic raw);
+
+  @protected
   List<RuleDto> dco_decode_list_rule_dto(dynamic raw);
 
   @protected
@@ -139,6 +142,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
+
+  @protected
+  RelationDto dco_decode_relation_dto(dynamic raw);
 
   @protected
   RuleDto dco_decode_rule_dto(dynamic raw);
@@ -266,6 +272,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<RelationDto> sse_decode_list_relation_dto(SseDeserializer deserializer);
+
+  @protected
   List<RuleDto> sse_decode_list_rule_dto(SseDeserializer deserializer);
 
   @protected
@@ -300,6 +309,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiPageDto? sse_decode_opt_box_autoadd_wiki_page_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  RelationDto sse_decode_relation_dto(SseDeserializer deserializer);
 
   @protected
   RuleDto sse_decode_rule_dto(SseDeserializer deserializer);
@@ -521,6 +533,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_relation_dto(List<RelationDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_relation_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_rule_dto(List<RuleDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_rule_dto).toList().jsify()!;
@@ -589,6 +607,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_wiki_page_dto(WikiPageDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_relation_dto(RelationDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.fromSlug),
+      cst_encode_String(raw.fromKind),
+      cst_encode_String(raw.toSlug),
+      cst_encode_String(raw.toKind),
+      cst_encode_String(raw.relation),
+      cst_encode_opt_String(raw.note),
+      cst_encode_i_64(raw.confidence),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.lastSeenAt),
+    ].jsify()!;
   }
 
   @protected
@@ -811,6 +846,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_relation_dto(
+    List<RelationDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_rule_dto(List<RuleDto> self, SseSerializer serializer);
 
   @protected
@@ -856,6 +897,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_relation_dto(RelationDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_rule_dto(RuleDto self, SseSerializer serializer);
 
   @protected
@@ -884,6 +928,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
+
+  void wire__crate__api__add_relation(
+    NativePortType port_,
+    String from_slug,
+    String to_slug,
+    String relation,
+    String? note,
+  ) => wasmModule.wire__crate__api__add_relation(
+    port_,
+    from_slug,
+    to_slug,
+    relation,
+    note,
+  );
 
   void wire__crate__api__add_rule(NativePortType port_, String content) =>
       wasmModule.wire__crate__api__add_rule(port_, content);
@@ -919,6 +977,9 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String id,
   ) => wasmModule.wire__crate__api__delete_ai_provider_config(port_, id);
+
+  void wire__crate__api__delete_relation(NativePortType port_, String id) =>
+      wasmModule.wire__crate__api__delete_relation(port_, id);
 
   void wire__crate__api__delete_rule(NativePortType port_, String rule_id) =>
       wasmModule.wire__crate__api__delete_rule(port_, rule_id);
@@ -1028,6 +1089,14 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String conversation_id,
   ) => wasmModule.wire__crate__api__list_messages(port_, conversation_id);
+
+  void wire__crate__api__list_relations(NativePortType port_) =>
+      wasmModule.wire__crate__api__list_relations(port_);
+
+  void wire__crate__api__list_relations_for_page(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__list_relations_for_page(port_, slug);
 
   void wire__crate__api__list_rules(NativePortType port_) =>
       wasmModule.wire__crate__api__list_rules(port_);
@@ -1185,6 +1254,14 @@ external RustLibWasmModule get wasmModule;
 @JS()
 @anonymous
 extension type RustLibWasmModule._(JSObject _) implements JSObject {
+  external void wire__crate__api__add_relation(
+    NativePortType port_,
+    String from_slug,
+    String to_slug,
+    String relation,
+    String? note,
+  );
+
   external void wire__crate__api__add_rule(
     NativePortType port_,
     String content,
@@ -1211,6 +1288,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__delete_ai_provider_config(
+    NativePortType port_,
+    String id,
+  );
+
+  external void wire__crate__api__delete_relation(
     NativePortType port_,
     String id,
   );
@@ -1313,6 +1395,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__list_messages(
     NativePortType port_,
     String conversation_id,
+  );
+
+  external void wire__crate__api__list_relations(NativePortType port_);
+
+  external void wire__crate__api__list_relations_for_page(
+    NativePortType port_,
+    String slug,
   );
 
   external void wire__crate__api__list_rules(NativePortType port_);

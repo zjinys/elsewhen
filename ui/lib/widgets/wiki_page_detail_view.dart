@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../bridge/rust_bridge_repository.dart';
+import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
 import '../models/wiki_page.dart';
@@ -768,6 +769,8 @@ class _WikiPageBody extends ConsumerWidget {
                 ),
               const SizedBox(height: AppTheme.space3),
               _buildTagRow(context, ref),
+              const SizedBox(height: AppTheme.space3),
+              _buildRelationsRow(context, ref),
             ],
           ),
         ),
@@ -857,6 +860,36 @@ class _WikiPageBody extends ConsumerWidget {
     );
   }
 
+  /// 人物关系区块：AI 从对话识别、用户确认后保存的「人物 ↔ 事情/项目」。
+  /// 双侧方向都以当前页为中心展示（出→ 人·事；入← 人·事）。
+  Widget _buildRelationsRow(BuildContext context, WidgetRef ref) {
+    final relationsAsync = ref.watch(pageRelationsProvider(page.slug));
+    final relations = relationsAsync.valueOrNull ?? const [];
+    if (relations.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '人物关系',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textTertiary,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space2),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final r in relations) _RelationChip(relation: r, pageSlug: page.slug),
+          ],
+        ),
+      ],
+    );
+  }
+
   /// 编辑标签：空格 / 逗号分隔，留空即清空。保存后刷新页面与列表。
   Future<void> _editTags(BuildContext context, WidgetRef ref) async {
     final controller = TextEditingController(text: page.tags.join(' '));
@@ -922,6 +955,7 @@ class _WikiPageBody extends ConsumerWidget {
       await repo.updateWikiTags(slug: page.slug, tags: tags);
       if (!context.mounted) return;
       ref.invalidate(wikiPageProvider(page.slug));
+      ref.invalidate(pageRelationsProvider(page.slug));
       ref.invalidate(wikiPagesProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -998,6 +1032,81 @@ class _SourceChip extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Icon(Icons.copy, size: 10, color: AppTheme.textTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 人物关系 chip：以当前页为中心展示一条关系（出→ / 入←），点击跳到对端页面。
+/// 对端标题从 wikiPageProvider 读取（避开仅 slug 的冷展示）。
+class _RelationChip extends ConsumerWidget {
+  final Relation relation;
+  final String pageSlug;
+
+  const _RelationChip({required this.relation, required this.pageSlug});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final outbound = relation.fromSlug == pageSlug;
+    final otherSlug = outbound ? relation.toSlug : relation.fromSlug;
+    final otherAsync = ref.watch(wikiPageProvider(otherSlug));
+    final other = otherAsync.valueOrNull;
+    final otherTitle = other?.title ?? otherSlug;
+    final arrow = outbound ? '→' : '←';
+
+    return InkWell(
+      onTap: () {
+        final slug = otherSlug;
+        final title = other?.title ?? slug;
+        openWikiTab(ref, PageTabEntry(slug: slug, title: title));
+      },
+      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppTheme.surface2,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          border: Border.all(color: AppTheme.surface3),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              arrow,
+              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+            ),
+            const SizedBox(width: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 200),
+              child: Text(
+                otherTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              ),
+              child: Text(
+                relation.relation,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.accentPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -1116,6 +1225,7 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
       _scrollToBottom();
       // 页面内容可能被修订：让页面详情 provider 失效以刷新
       ref.invalidate(wikiPageProvider(widget.slug));
+      ref.invalidate(pageRelationsProvider(widget.slug));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -1689,6 +1799,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
       // 本次『重新抓取+保存』更新的是同一 slug 的旧页：使页面内容 provider 失效，
       // 否则已缓存的旧内容会一直显示（比如旧版本存的纯链接）。
       ref.invalidate(wikiPageProvider(page.slug));
+      ref.invalidate(pageRelationsProvider(page.slug));
       // 直接打开已保存的页面，立即看到最新内容，避免再点左侧列表却读到缓存旧页
       openWikiPageTab(ref, page);
       ScaffoldMessenger.of(context).showSnackBar(

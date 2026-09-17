@@ -11,7 +11,7 @@
 
 use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
-use crate::storage::{EventRecord, Store, WikiPage, WikiPageDraft};
+use crate::storage::{EventRecord, RelationDraft, Store, WikiPage, WikiPageDraft};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::Path;
@@ -21,6 +21,7 @@ pub const WIKI_PROMPT_VERSION: &str = "wiki-digest-v1";
 /// 允许的页面类型
 pub const WIKI_KINDS: &[&str] = &[
     "profile",
+    "person",
     "recurring_cost",
     "capability",
     "asset",
@@ -497,12 +498,183 @@ pub fn save_text_page(
     Ok(outcome.page)
 }
 
-// ── digest（ingest）：事件 → wiki 写回 ────────────────────────────────────
+// ── 人物关系（AI 从对话识别「人 ↔ 事情/项目」，用户确认后落地） ───────────
+
+/// 执行「人物 + 关系」草拟（用户已确认）。
+/// 输入 args：`{ "people": [{"name","role_note"}], "relations": [{"person","target","relation","note"}] }`
+/// - 每个新人物建 kind=person 页（slug `person/<名>`，标题查重，不重复建档）
+/// - 每个关联目标按标题查重，不存在则建 kind=topic 页（slug `topic/<名>`）
+/// - 再写入结构化关系（(from,to,relation) 唯一）
+/// 返回执行摘要。
+pub fn apply_people_relations(
+    args: &serde_json::Value,
+    store: &Store,
+    conversation_id: &str,
+) -> Result<String> {
+    #[derive(Deserialize)]
+    struct PersonDraft {
+        name: String,
+        #[serde(default)]
+        role_note: String,
+    }
+    #[derive(Deserialize)]
+    struct RelationDraftArg {
+        #[serde(default)]
+        person: String,
+        #[serde(default)]
+        target: String,
+        #[serde(default)]
+        relation: String,
+        #[serde(default)]
+        note: String,
+    }
+    #[derive(Deserialize)]
+    struct PeopleRelationsArgs {
+        #[serde(default)]
+        people: Vec<PersonDraft>,
+        #[serde(default)]
+        relations: Vec<RelationDraftArg>,
+    }
+
+    let parsed: PeopleRelationsArgs = serde_json::from_value(args.clone())?;
+    if parsed.people.is_empty() && parsed.relations.is_empty() {
+        anyhow::bail!("没有需要保存的人物或关系");
+    }
+
+    // 1) 人物建档：标题精确查重 → 不存在才建 person 页
+    let mut person_entries: Vec<(String, String, String)> = Vec::new(); // (name, slug, kind)
+    for p in &parsed.people {
+        let name = p.name.trim().to_string();
+        if name.is_empty() {
+            continue;
+        }
+        if person_entries.iter().any(|(n, _, _)| *n == name) {
+            continue;
+        }
+        if let Some(page) = store.find_wiki_page_by_title(&name)? {
+            person_entries.push((name, page.slug.clone(), page.kind.clone()));
+            continue;
+        }
+        let slug = format!("person/{}", slugify(&name));
+        let note = p.role_note.trim().to_string();
+        let summary = if note.is_empty() {
+            format!("{name}（对话中出现的人物）")
+        } else {
+            note.clone()
+        };
+        let content_md = if note.is_empty() {
+            format!("{name} 是对话中出现的人物。")
+        } else {
+            format!("# {name}\n\n{note}\n\n---\n由 AI 从对话中识别，用户确认后建档。")
+        };
+        let draft = WikiPageDraft {
+            slug: slug.clone(),
+            kind: "person".to_string(),
+            title: name.clone(),
+            summary,
+            content_md,
+            tags: vec![name.clone()],
+            source_event_ids: vec![],
+            status: "active".to_string(),
+            reason: "AI 从对话识别人物，用户确认".to_string(),
+            source_url: None,
+        };
+        store.upsert_wiki_page(&draft)?;
+        person_entries.push((name, slug, "person".to_string()));
+    }
+
+    // 2) 关联目标：标题查重 → 不存在建 topic 页
+    let mut target_entries: Vec<(String, String, String)> = Vec::new(); // (target, slug, kind)
+    for r in &parsed.relations {
+        let target = r.target.trim().to_string();
+        if target.is_empty() || target_entries.iter().any(|(t, _, _)| *t == target) {
+            continue;
+        }
+        let (slug, kind) = match store.find_wiki_page_by_title(&target)? {
+            Some(page) => (page.slug, page.kind),
+            None => {
+                let slug = format!("topic/{}", slugify(&target));
+                let draft = WikiPageDraft {
+                    slug: slug.clone(),
+                    kind: "topic".to_string(),
+                    title: target.clone(),
+                    summary: format!("{target}（由人物关系确认时自动建档）"),
+                    content_md: format!("# {target}\n\n（由人物关系确认时自动创建，待补充内容。）"),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: "AI 人物关系确认时自动建档".to_string(),
+                    source_url: None,
+                };
+                store.upsert_wiki_page(&draft)?;
+                (slug, "topic".to_string())
+            }
+        };
+        target_entries.push((target, slug, kind));
+    }
+
+    // 3) 写关系
+    let mut saved = 0usize;
+    let mut relation_lines: Vec<String> = Vec::new();
+    for r in &parsed.relations {
+        let person = r.person.trim().to_string();
+        let target = r.target.trim().to_string();
+        let Some((_, from_slug, from_kind)) = person_entries.iter().find(|(n, _, _)| *n == person)
+        else {
+            continue;
+        };
+        let Some((_, to_slug, to_kind)) = target_entries.iter().find(|(t, _, _)| *t == target)
+        else {
+            continue;
+        };
+        let relation = if r.relation.trim().is_empty() {
+            "参与".to_string()
+        } else {
+            r.relation.trim().to_string()
+        };
+        let note = if r.note.trim().is_empty() {
+            None
+        } else {
+            Some(r.note.trim().to_string())
+        };
+        store.upsert_relation(&RelationDraft {
+            from_slug: from_slug.clone(),
+            from_kind: from_kind.clone(),
+            to_slug: to_slug.clone(),
+            to_kind: to_kind.clone(),
+            relation: relation.clone(),
+            note,
+            confidence: 3,
+            source_conversation_id: Some(conversation_id.to_string()),
+        })?;
+        saved += 1;
+        relation_lines.push(format!(
+            "{person} —— {relation} —— {target}"
+        ));
+    }
+
+    let mut out = String::new();
+    if !person_entries.is_empty() {
+        let names = person_entries
+            .iter()
+            .map(|(n, _, _)| n.clone())
+            .collect::<Vec<_>>()
+            .join("、");
+        out.push_str(&format!("人物 {}：{names}\n", person_entries.len()));
+    }
+    if saved > 0 {
+        out.push_str(&format!("关系 {} 条：\n{}", saved, relation_lines.join("\n")));
+    } else {
+        out.push_str("（没有落地的关系）");
+    }
+    Ok(out)
+}
 
 const DIGEST_SYSTEM_PROMPT: &str = r#"你是 elsewhen 个人知识库的 wiki 维护者。任务：读新事件，把它们承载的"持久事实"提炼并写进 wiki 页面。
 
 页面 kind 枚举（必须严格使用其一）：
 - profile：关于用户身份、背景、状态的基本事实
+- person：对话/事件中出现的重要人物（姓名、身份、TA 参与或负责的事情/项目），一人一页，跨事件合并，不重复建档
 - recurring_cost：反复出现的固定支出或反复动作（通勤、固定费用、例行事务）
 - capability：用户掌握的技能/能力（含正在学习的）
 - asset：用户拥有但可能闲置/未充分利用的资产（设备、空间、时间块、关系）
@@ -944,6 +1116,80 @@ mod tests {
         assert!(!page.tags.iter().any(|t| t.is_empty()), "不应有空标签: {:?}", page.tags);
         // 空文本拒绝
         assert!(save_text_page("   ", Some("x"), &[], &store).is_err());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn apply_people_relations_builds_pages_and_relations() {
+        let path = std::env::temp_dir().join(format!(
+            "elsewhen-wiki-relations-test-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = Store::open(&path).unwrap();
+
+        // 预置一个已存在的目标页（模拟 digest 已建档的项目）
+        store
+            .upsert_wiki_page(&WikiPageDraft {
+                slug: "project/shuanglian".into(),
+                kind: "project".into(),
+                title: "双链路付款".into(),
+                summary: "项目简介".into(),
+                content_md: "正文".into(),
+                tags: vec![],
+                source_event_ids: vec!["evt-1".into()],
+                status: "active".into(),
+                reason: "digest".into(),
+                source_url: None,
+            })
+            .unwrap();
+
+        let args = serde_json::json!({
+            "people": [
+                {"name": "张玮", "role_note": "双链路付款项目的产研负责人"},
+                {"name": "李婷", "role_note": "客户对接人"}
+            ],
+            "relations": [
+                {"person": "张玮", "target": "双链路付款", "relation": "负责", "note": "主导项目推进"},
+                {"person": "李婷", "target": "双链路付款", "relation": "参与", "note": ""}
+            ]
+        });
+        let summary = apply_people_relations(&args, &store, "conv-1").unwrap();
+        assert!(summary.contains("张玮"), "{summary}");
+        assert!(summary.contains("负责"), "{summary}");
+
+        // 人物页建档且分别是 person / topic 目标复用已有 project 页
+        let zhangwei = store.get_wiki_page("person/张玮").unwrap().unwrap();
+        assert_eq!(zhangwei.kind, "person");
+        assert!(zhangwei.content_md.contains("产研负责人"));
+        let liting = store.get_wiki_page("person/李婷").unwrap().unwrap();
+        assert_eq!(liting.kind, "person");
+
+        // 目标页：已存在的 project 页被复用，没有自动建 topic 页
+        assert!(store.get_wiki_page("topic/双链路付款").unwrap().is_none());
+        assert_eq!(store.find_wiki_page_by_title("双链路付款").unwrap().unwrap().kind, "project");
+
+        // 关系双向可见
+        let rels = store.list_relations_for_page("person/张玮").unwrap();
+        assert_eq!(rels.len(), 1);
+        assert_eq!(rels[0].relation, "负责");
+        assert_eq!(rels[0].to_slug, "project/shuanglian");
+        assert_eq!(store.list_relations_for_page("project/shuanglian").unwrap().len(), 2);
+
+        // 再次提交同样的人物 → 不重复建档
+        let again = apply_people_relations(
+            &serde_json::json!({"people": [{"name": "张玮", "role_note": "产研负责人"}]}),
+            &store,
+            "conv-1",
+        )
+        .unwrap();
+        assert!(again.contains("张玮"));
+        assert_eq!(store.list_wiki_pages(Some("person")).unwrap().len(), 2, "不应重复建档");
+
+        // 空草拟拒绝
+        assert!(apply_people_relations(&serde_json::json!({}), &store, "conv-1").is_err());
         let _ = std::fs::remove_file(path);
     }
 

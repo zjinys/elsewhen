@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/wiki_page.dart';
+import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
 import '../bridge/rust_bridge_repository.dart';
@@ -13,6 +14,13 @@ final sidebarTabProvider = StateProvider<SidebarTab>((ref) => SidebarTab.convers
 final wikiPagesProvider = FutureProvider<List<WikiPage>>((ref) async {
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
   return await bridge.listWikiPages();
+});
+
+/// 与某页相关的人物关系（双向；页面详情头部的人物关系区块用）
+final pageRelationsProvider =
+    FutureProvider.family<List<Relation>, String>((ref, slug) async {
+  final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+  return await bridge.listRelationsForPage(slug);
 });
 
 /// 单独查询某页详情（tab 内容用，不依赖“单页选中”）
@@ -138,6 +146,7 @@ void openWikiTab(WidgetRef ref, WikiTabEntry entry) {
 void openWikiPageTab(WidgetRef ref, WikiPage page) {
   ref.read(selectedWikiSlugProvider.notifier).state = page.slug;
   ref.invalidate(wikiPageProvider(page.slug));
+  ref.invalidate(pageRelationsProvider(page.slug));
   openWikiTab(ref, PageTabEntry(slug: page.slug, title: page.title));
 }
 

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1403263869;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -328337155;
 
 // Section: executor
 
@@ -47,6 +47,40 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
+fn wire__crate__api__add_relation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    from_slug: impl CstDecode<String>,
+    to_slug: impl CstDecode<String>,
+    relation: impl CstDecode<String>,
+    note: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "add_relation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_from_slug = from_slug.cst_decode();
+            let api_to_slug = to_slug.cst_decode();
+            let api_relation = relation.cst_decode();
+            let api_note = note.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::add_relation(
+                            api_from_slug,
+                            api_to_slug,
+                            api_relation,
+                            api_note,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__add_rule_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     content: impl CstDecode<String>,
@@ -171,6 +205,29 @@ fn wire__crate__api__delete_ai_provider_config_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::delete_ai_provider_config(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__delete_relation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "delete_relation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::delete_relation(api_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -732,6 +789,48 @@ fn wire__crate__api__list_messages_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::list_messages(api_conversation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__list_relations_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_relations",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::list_relations()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__list_relations_for_page_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_relations_for_page",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::list_relations_for_page(api_slug)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1580,6 +1679,18 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Vec<crate::api::RelationDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::RelationDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::RuleDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1699,6 +1810,34 @@ impl SseDecode for Option<crate::api::WikiPageDto> {
         } else {
             return None;
         }
+    }
+}
+
+impl SseDecode for crate::api::RelationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_fromSlug = <String>::sse_decode(deserializer);
+        let mut var_fromKind = <String>::sse_decode(deserializer);
+        let mut var_toSlug = <String>::sse_decode(deserializer);
+        let mut var_toKind = <String>::sse_decode(deserializer);
+        let mut var_relation = <String>::sse_decode(deserializer);
+        let mut var_note = <Option<String>>::sse_decode(deserializer);
+        let mut var_confidence = <i64>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_lastSeenAt = <String>::sse_decode(deserializer);
+        return crate::api::RelationDto {
+            id: var_id,
+            from_slug: var_fromSlug,
+            from_kind: var_fromKind,
+            to_slug: var_toSlug,
+            to_kind: var_toKind,
+            relation: var_relation,
+            note: var_note,
+            confidence: var_confidence,
+            created_at: var_createdAt,
+            last_seen_at: var_lastSeenAt,
+        };
     }
 }
 
@@ -2040,6 +2179,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::MessageDto> for crate::api::M
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::RelationDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.from_slug.into_into_dart().into_dart(),
+            self.from_kind.into_into_dart().into_dart(),
+            self.to_slug.into_into_dart().into_dart(),
+            self.to_kind.into_into_dart().into_dart(),
+            self.relation.into_into_dart().into_dart(),
+            self.note.into_into_dart().into_dart(),
+            self.confidence.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.last_seen_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::RelationDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::RelationDto> for crate::api::RelationDto {
+    fn into_into_dart(self) -> crate::api::RelationDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::RuleDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2363,6 +2526,16 @@ impl SseEncode for Vec<u8> {
     }
 }
 
+impl SseEncode for Vec<crate::api::RelationDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::RelationDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::RuleDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2462,6 +2635,22 @@ impl SseEncode for Option<crate::api::WikiPageDto> {
         if let Some(value) = self {
             <crate::api::WikiPageDto>::sse_encode(value, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::RelationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.from_slug, serializer);
+        <String>::sse_encode(self.from_kind, serializer);
+        <String>::sse_encode(self.to_slug, serializer);
+        <String>::sse_encode(self.to_kind, serializer);
+        <String>::sse_encode(self.relation, serializer);
+        <Option<String>>::sse_encode(self.note, serializer);
+        <i64>::sse_encode(self.confidence, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+        <String>::sse_encode(self.last_seen_at, serializer);
     }
 }
 
@@ -2801,6 +2990,16 @@ mod io {
             }
         }
     }
+    impl CstDecode<Vec<crate::api::RelationDto>> for *mut wire_cst_list_relation_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::RelationDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::RuleDto>> for *mut wire_cst_list_rule_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::RuleDto> {
@@ -2841,6 +3040,23 @@ mod io {
                 role: self.role.cst_decode(),
                 content: self.content.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::RelationDto> for wire_cst_relation_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::RelationDto {
+            crate::api::RelationDto {
+                id: self.id.cst_decode(),
+                from_slug: self.from_slug.cst_decode(),
+                from_kind: self.from_kind.cst_decode(),
+                to_slug: self.to_slug.cst_decode(),
+                to_kind: self.to_kind.cst_decode(),
+                relation: self.relation.cst_decode(),
+                note: self.note.cst_decode(),
+                confidence: self.confidence.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+                last_seen_at: self.last_seen_at.cst_decode(),
             }
         }
     }
@@ -3052,6 +3268,27 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_relation_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                from_slug: core::ptr::null_mut(),
+                from_kind: core::ptr::null_mut(),
+                to_slug: core::ptr::null_mut(),
+                to_kind: core::ptr::null_mut(),
+                relation: core::ptr::null_mut(),
+                note: core::ptr::null_mut(),
+                confidence: Default::default(),
+                created_at: core::ptr::null_mut(),
+                last_seen_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_relation_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_rule_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -3146,6 +3383,17 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__add_relation(
+        port_: i64,
+        from_slug: *mut wire_cst_list_prim_u_8_strict,
+        to_slug: *mut wire_cst_list_prim_u_8_strict,
+        relation: *mut wire_cst_list_prim_u_8_strict,
+        note: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__add_relation_impl(port_, from_slug, to_slug, relation, note)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__add_rule(
         port_: i64,
         content: *mut wire_cst_list_prim_u_8_strict,
@@ -3188,6 +3436,14 @@ mod io {
         id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__delete_ai_provider_config_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__delete_relation(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__delete_relation_impl(port_, id)
     }
 
     #[unsafe(no_mangle)]
@@ -3371,6 +3627,19 @@ mod io {
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__list_messages_impl(port_, conversation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_relations(port_: i64) {
+        wire__crate__api__list_relations_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_relations_for_page(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__list_relations_for_page_impl(port_, slug)
     }
 
     #[unsafe(no_mangle)]
@@ -3721,6 +3990,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_relation_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_relation_dto {
+        let wrap = wire_cst_list_relation_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_relation_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_rule_dto(
         len: i32,
     ) -> *mut wire_cst_list_rule_dto {
@@ -3888,6 +4171,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_relation_dto {
+        ptr: *mut wire_cst_relation_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_rule_dto {
         ptr: *mut wire_cst_rule_dto,
         len: i32,
@@ -3913,6 +4202,20 @@ mod io {
         role: *mut wire_cst_list_prim_u_8_strict,
         content: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_relation_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        from_slug: *mut wire_cst_list_prim_u_8_strict,
+        from_kind: *mut wire_cst_list_prim_u_8_strict,
+        to_slug: *mut wire_cst_list_prim_u_8_strict,
+        to_kind: *mut wire_cst_list_prim_u_8_strict,
+        relation: *mut wire_cst_list_prim_u_8_strict,
+        note: *mut wire_cst_list_prim_u_8_strict,
+        confidence: i64,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+        last_seen_at: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -4276,6 +4579,18 @@ mod web {
             self.into_vec()
         }
     }
+    impl CstDecode<Vec<crate::api::RelationDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::RelationDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::RuleDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -4340,6 +4655,34 @@ mod web {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Option<String> {
             self.map(CstDecode::cst_decode)
+        }
+    }
+    impl CstDecode<crate::api::RelationDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::RelationDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                10,
+                "Expected 10 elements, got {}",
+                self_.length()
+            );
+            crate::api::RelationDto {
+                id: self_.get(0).cst_decode(),
+                from_slug: self_.get(1).cst_decode(),
+                from_kind: self_.get(2).cst_decode(),
+                to_slug: self_.get(3).cst_decode(),
+                to_kind: self_.get(4).cst_decode(),
+                relation: self_.get(5).cst_decode(),
+                note: self_.get(6).cst_decode(),
+                confidence: self_.get(7).cst_decode(),
+                created_at: self_.get(8).cst_decode(),
+                last_seen_at: self_.get(9).cst_decode(),
+            }
         }
     }
     impl CstDecode<crate::api::RuleDto> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
@@ -4525,6 +4868,17 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__add_relation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        from_slug: String,
+        to_slug: String,
+        relation: String,
+        note: Option<String>,
+    ) {
+        wire__crate__api__add_relation_impl(port_, from_slug, to_slug, relation, note)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__add_rule(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         content: String,
@@ -4567,6 +4921,14 @@ mod web {
         id: String,
     ) {
         wire__crate__api__delete_ai_provider_config_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__delete_relation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__delete_relation_impl(port_, id)
     }
 
     #[wasm_bindgen]
@@ -4764,6 +5126,21 @@ mod web {
         conversation_id: String,
     ) {
         wire__crate__api__list_messages_impl(port_, conversation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__list_relations(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__list_relations_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__list_relations_for_page(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+    ) {
+        wire__crate__api__list_relations_for_page_impl(port_, slug)
     }
 
     #[wasm_bindgen]

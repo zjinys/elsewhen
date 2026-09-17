@@ -60,6 +60,7 @@ class WikiPage {
   String get kindLabel {
     const labels = {
       'profile': '档案',
+      'person': '人物',
       'recurring_cost': '固定成本',
       'capability': '能力',
       'asset': '资产',

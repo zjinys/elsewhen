@@ -121,6 +121,7 @@ impl Default for ToolRegistry {
             Box::new(SaveKnowledgeDraftTool),
             Box::new(ListTodosTool),
             Box::new(CreateTodoTool),
+            Box::new(ProposePeopleRelationsTool),
             Box::new(ImportUrlToWikiTool),
             Box::new(SaveWikiRevisionTool),
         ];
@@ -720,6 +721,104 @@ impl Tool for CreateTodoTool {
     }
 }
 
+// ── 人物关系工具 ───────────────────────────────────────────────
+
+/// 把对话里识别出的「人物 + 人↔事情/项目」关系草拟下来（确认后才建档存关系）
+struct ProposePeopleRelationsTool;
+impl Tool for ProposePeopleRelationsTool {
+    fn name(&self) -> &'static str {
+        "propose_people_relations"
+    }
+    fn description(&self) -> &'static str {
+        "把对话中出现的对用户重要的人物，以及「人物 ↔ 事情/项目」的关系草拟下来。调用后进入待确认状态，用户确认后才建档保存。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type":"object",
+            "properties":{
+                "people":{
+                    "type":"array",
+                    "description":"本次要建档的人物（可不填，只补关系时省略）",
+                    "items":{
+                        "type":"object",
+                        "properties":{
+                            "name":{"type":"string","description":"人物姓名，必填"},
+                            "role_note":{"type":"string","description":"身份/角色/背景一句话，可选"}
+                        },
+                        "required":["name"],
+                        "additionalProperties":false
+                    }
+                },
+                "relations":{
+                    "type":"array",
+                    "description":"人物与事情/项目的关系（可不填，只建档人物时省略）",
+                    "items":{
+                        "type":"object",
+                        "properties":{
+                            "person":{"type":"string","description":"人物姓名（与 people 中的 name 对应，或知识库已有的人物页）"},
+                            "target":{"type":"string","description":"事情/项目名称"},
+                            "relation":{"type":"string","description":"关系类型：负责/参与/合作/对接/跟进/顾问 等，可选，默认参与"},
+                            "note":{"type":"string","description":"补充说明，可选"}
+                        },
+                        "required":["person","target"],
+                        "additionalProperties":false
+                    }
+                }
+            },
+            "additionalProperties":false
+        })
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        // 把 people/relations 原样转成待确认动作参数
+        let people: Vec<Value> = args
+            .get("people")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let relations: Vec<Value> = args
+            .get("relations")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        if people.is_empty() && relations.is_empty() {
+            anyhow::bail!("请至少提供一位人物或一条关系");
+        }
+        let action_args = json!({ "people": people, "relations": relations });
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "propose_people_relations",
+            &action_args,
+        )?;
+        let mut lines = Vec::new();
+        for p in &people {
+            let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let note = p.get("role_note").and_then(|v| v.as_str()).unwrap_or("");
+            lines.push(format!(
+                "人物：{name}{}",
+                if note.is_empty() { String::new() } else { format!("（{note}）") }
+            ));
+        }
+        for r in &relations {
+            let person = r.get("person").and_then(|v| v.as_str()).unwrap_or("");
+            let target = r.get("target").and_then(|v| v.as_str()).unwrap_or("");
+            let rel = r
+                .get("relation")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or("参与");
+            lines.push(format!("{person} —— {rel} —— {target}"));
+        }
+        Ok(format!(
+            "已为你草拟人物与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
+            lines.join("\n")
+        ))
+    }
+}
+
 // ── 任意 URL 导入工具 ─────────────────────────────────────────
 
 /// 把任意网址的内容导入知识库（推文走 fxtwitter，其他走网页文本提取）
@@ -894,6 +993,9 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             let due = due_at.map(|d| format!("，截止 {d}")).unwrap_or_default();
             Ok(format!("已创建待办「{}」{due}。", t.title))
         }
+        "propose_people_relations" => {
+            crate::wiki::apply_people_relations(&args, store, &pa.conversation_id)
+        }
         "import_url_to_wiki" => {
             let source_url = arg_str(&args, "source_url")?;
             let source_kind = arg_str(&args, "source_kind")?;
@@ -1029,6 +1131,7 @@ mod tests {
             "save_knowledge_draft",
             "list_todos",
             "create_todo",
+            "propose_people_relations",
             "import_url_to_wiki",
             "save_wiki_revision",
         ] {
@@ -1118,6 +1221,51 @@ mod tests {
         let pages = store.list_wiki_pages(None).unwrap();
         assert_eq!(pages.len(), 1);
         assert_eq!(pages[0].kind, "principle");
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn propose_people_relations_is_confirm_gated_then_saves() {
+        let (store, path) = temp_db();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let registry = ToolRegistry::default();
+
+        // 1) 调用工具：只登记待确认动作，断言尚未写任何页面
+        let call = ToolCall::new(
+            "propose_people_relations",
+            json!({
+                "people": [
+                    {"name": "张玮", "role_note": "双链路付款项目产研负责人"},
+                    {"name": "和太极", "role_note": "外部合作方"}
+                ],
+                "relations": [
+                    {"person": "张玮", "target": "双链路付款", "relation": "负责"},
+                    {"person": "和太极", "target": "双链路付款", "relation": "合作"}
+                ]
+            }),
+        );
+        let result = dispatch(&call, &registry, &store, &conv);
+        assert!(result.content.contains("待确认"), "{}", result.content);
+        assert!(store.list_wiki_pages(None).unwrap().is_empty(), "确认前不应建档");
+        let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+        assert_eq!(pendings.len(), 1);
+
+        // 2) 确认后执行：人物页 + 目标页 + 关系落地
+        let summary = execute_pending_action(&store, &pendings[0]).unwrap();
+        assert!(summary.contains("张玮"), "{summary}");
+        assert!(summary.contains("和太极"), "{summary}");
+        assert!(summary.contains("负责"), "{summary}");
+        assert_eq!(store.list_wiki_pages(Some("person")).unwrap().len(), 2);
+        assert_eq!(
+            store.list_relations_for_page("person/张玮").unwrap().len(),
+            1
+        );
+        assert_eq!(
+            store.list_relations_for_page("topic/双链路付款").unwrap().len(),
+            2,
+            "目标页自动建档，且两边关系都能查到"
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }

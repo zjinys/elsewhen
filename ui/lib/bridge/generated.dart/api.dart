@@ -8,7 +8,7 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `dto_from_active`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -167,6 +167,32 @@ Future<WikiPageDto> updateWikiTags({
   required String slug,
   required List<String> tags,
 }) => RustLib.instance.api.crateApiUpdateWikiTags(slug: slug, tags: tags);
+
+/// 与某页相关的人物关系（双向：作为人物方或作为事情/项目方）
+Future<List<RelationDto>> listRelationsForPage({required String slug}) =>
+    RustLib.instance.api.crateApiListRelationsForPage(slug: slug);
+
+/// 全部人物关系（备用：未来人物视图）
+Future<List<RelationDto>> listRelations() =>
+    RustLib.instance.api.crateApiListRelations();
+
+/// 手动添加/刷新一条人物关系（应用内修复合用；一般由 AI 草拟、用户确认后生成）。
+/// 两侧页面必须已存在；返回落库后的关系（含真实 id）。
+Future<RelationDto> addRelation({
+  required String fromSlug,
+  required String toSlug,
+  required String relation,
+  String? note,
+}) => RustLib.instance.api.crateApiAddRelation(
+  fromSlug: fromSlug,
+  toSlug: toSlug,
+  relation: relation,
+  note: note,
+);
+
+/// 删除一条人物关系（修正误识别时用）。返回是否真的删掉了。
+Future<bool> deleteRelation({required String id}) =>
+    RustLib.instance.api.crateApiDeleteRelation(id: id);
 
 /// 从 x.com / twitter.com 推文链接抓取长文（只解析 json，不写库）。
 /// 是否入库由后续「保存」动作决定。
@@ -627,6 +653,62 @@ class MessageDto {
           role == other.role &&
           content == other.content &&
           createdAt == other.createdAt;
+}
+
+/// 一条人物关系 DTO（AI 从对话识别「人 ↔ 事情/项目」，用户确认后保存）
+class RelationDto {
+  final String id;
+  final String fromSlug;
+  final String fromKind;
+  final String toSlug;
+  final String toKind;
+  final String relation;
+  final String? note;
+  final PlatformInt64 confidence;
+  final String createdAt;
+  final String lastSeenAt;
+
+  const RelationDto({
+    required this.id,
+    required this.fromSlug,
+    required this.fromKind,
+    required this.toSlug,
+    required this.toKind,
+    required this.relation,
+    this.note,
+    required this.confidence,
+    required this.createdAt,
+    required this.lastSeenAt,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      fromSlug.hashCode ^
+      fromKind.hashCode ^
+      toSlug.hashCode ^
+      toKind.hashCode ^
+      relation.hashCode ^
+      note.hashCode ^
+      confidence.hashCode ^
+      createdAt.hashCode ^
+      lastSeenAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RelationDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          fromSlug == other.fromSlug &&
+          fromKind == other.fromKind &&
+          toSlug == other.toSlug &&
+          toKind == other.toKind &&
+          relation == other.relation &&
+          note == other.note &&
+          confidence == other.confidence &&
+          createdAt == other.createdAt &&
+          lastSeenAt == other.lastSeenAt;
 }
 
 /// Create a new conversation
