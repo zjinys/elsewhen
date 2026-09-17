@@ -94,7 +94,7 @@ pub fn slugify(s: &str) -> String {
 /// 生成不冲突的 slug：若 `{base}` 已被「不同标题」的页面占用（同名 slug 撞车，
 /// 如历史页标题不同但 slugify 后相同），则追加 -2、-3… 后缀避让。
 /// 同名同人走 find_wiki_page_by_title 合并，这里只兜底冲突。
-fn unique_slug(store: &Store, base: &str, title: &str) -> Result<String> {
+pub(crate) fn unique_slug(store: &Store, base: &str, title: &str) -> Result<String> {
     let mut slug = base.to_string();
     let mut n = 2usize;
     loop {

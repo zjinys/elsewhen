@@ -125,6 +125,7 @@ impl Default for ToolRegistry {
             Box::new(BatchExtractPeopleRelationsTool),
             Box::new(ListEventsByDateTool),
             Box::new(ArchiveConversationsByTitleTool),
+            Box::new(RenameWikiPageTool),
             Box::new(ImportUrlToWikiTool),
             Box::new(SaveWikiRevisionTool),
         ];
@@ -1022,6 +1023,88 @@ impl Tool for ArchiveConversationsByTitleTool {
     }
 }
 
+// ── 知识页重命名工具 ──────────────────────────────────────────
+
+/// 重命名知识页（草拟确认制）：标题 + 页面标识一起改，关系引用与页内聊天会话自动迁移
+struct RenameWikiPageTool;
+impl Tool for RenameWikiPageTool {
+    fn name(&self) -> &'static str {
+        "rename_wiki_page"
+    }
+    fn description(&self) -> &'static str {
+        "重命名一个知识页（改标题；person/项目 等带前缀的页面会把唯一标识 slug 一起换成新名字，相关的人物关系引用与页内聊天会话自动迁移）。用户说「把 X 改名为 Y」「这个项目不叫 X，实际叫 Y」时使用。草拟确认制：调用后用户确认才真正改名。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type":"object",
+            "properties":{
+                "slug":{"type":"string","description":"当前页面的 slug（唯一标识，如 person/谭俊、topic/付款流程），必填"},
+                "new_title":{"type":"string","description":"新的页面标题/名字，必填"},
+                "reason":{"type":"string","description":"改名原因说明，可选，会写进修订历史"}
+            },
+            "required":["slug","new_title"],
+            "additionalProperties":false
+        })
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let slug = arg_str(args, "slug")?;
+        let new_title = arg_str(args, "new_title")?;
+        if new_title.trim().is_empty() {
+            anyhow::bail!("新标题不能为空");
+        }
+        let reason = arg_str_opt(args, "reason").unwrap_or_default();
+        let existing = ctx.store.get_wiki_page(&slug)?.with_context(|| {
+            format!("知识库没有 slug={slug} 的页面")
+        })?;
+        if existing.title.trim() == new_title.trim() {
+            anyhow::bail!(
+                "「{}」本来就是这个标题，不需要改名",
+                existing.title
+            );
+        }
+        // 只读预告：将被迁移的关系数 / 页内会话
+        let relations_moved = ctx
+            .store
+            .list_relations()?
+            .iter()
+            .filter(|r| r.from_slug == slug || r.to_slug == slug)
+            .count();
+        let has_chat = ctx
+            .store
+            .find_wiki_chat_conversation(&slug)?
+            .is_some();
+        let action_args = json!({
+            "slug": slug,
+            "new_title": new_title,
+            "reason": reason,
+        });
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "rename_wiki_page",
+            &action_args,
+        )?;
+        let mut lines = vec![format!(
+            "将知识页「{}」（{}）重命名为「{}」",
+            existing.title, slug, new_title
+        )];
+        if relations_moved > 0 {
+            lines.push(format!("· 同步迁移 {relations_moved} 条人物关系引用"));
+        }
+        if has_chat {
+            lines.push("· 页内聊天会话一并迁移到新名字下".to_string());
+        }
+        if !reason.is_empty() {
+            lines.push(format!("· 原因：{reason}"));
+        }
+        lines.push("—— 回复「好」即生效。".to_string());
+        Ok(lines.join("\n"))
+    }
+}
+
 // ── 任意 URL 导入工具 ─────────────────────────────────────────
 
 /// 把任意网址的内容导入知识库（推文走 fxtwitter，其他走网页文本提取）
@@ -1230,6 +1313,29 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 titles.join("、")
             ))
         }
+        "rename_wiki_page" => {
+            let slug = arg_str(&args, "slug")?;
+            let new_title = arg_str(&args, "new_title")?;
+            let reason = arg_str_opt(&args, "reason")
+                .filter(|s| !s.trim().is_empty())
+                .map(|s| format!("重命名：{s}"))
+                .unwrap_or_else(|| "重命名：名称更正".to_string());
+            let outcome = store.rename_wiki_page(&slug, &new_title, &reason)?;
+            if !outcome.changed {
+                anyhow::bail!("「{}」本来就是这个标题，未做改动", outcome.old_title);
+            }
+            let mut parts = vec![format!(
+                "知识页已重命名：「{}」→「{}」（slug: {} → {}）",
+                outcome.old_title, outcome.new_title, outcome.old_slug, outcome.new_slug
+            )];
+            if outcome.relations_moved > 0 {
+                parts.push(format!("迁移了 {} 条关系引用", outcome.relations_moved));
+            }
+            if outcome.chats_moved > 0 {
+                parts.push(format!("迁移了 {} 个页内聊天会话", outcome.chats_moved));
+            }
+            Ok(parts.join("；"))
+        }
         "import_url_to_wiki" => {
             let source_url = arg_str(&args, "source_url")?;
             let source_kind = arg_str(&args, "source_kind")?;
@@ -1369,6 +1475,7 @@ mod tests {
             "batch_extract_people_relations",
             "list_events_by_date",
             "archive_conversations_by_title",
+            "rename_wiki_page",
             "import_url_to_wiki",
             "save_wiki_revision",
         ] {
@@ -1631,6 +1738,85 @@ mod tests {
         assert!(store.get_conversation(
             &store.find_wiki_chat_conversation("person/x").unwrap().unwrap()
         ).unwrap().unwrap().archived == false);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn rename_wiki_page_is_confirm_gated_then_renames() {
+        let (store, path) = temp_db();
+        let registry = ToolRegistry::default();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        store
+            .upsert_wiki_page(&crate::storage::WikiPageDraft {
+                slug: "topic/付款流程".to_string(),
+                kind: "topic".to_string(),
+                title: "付款流程".to_string(),
+                summary: "付款流程（自动建档）".to_string(),
+                content_md: "# 付款流程".to_string(),
+                tags: vec![],
+                source_event_ids: vec![],
+                status: "active".to_string(),
+                reason: "test".to_string(),
+                source_url: None,
+            })
+            .unwrap();
+        store
+            .upsert_relation(&crate::storage::RelationDraft {
+                from_slug: "person/谭俊".to_string(),
+                from_kind: "person".to_string(),
+                to_slug: "topic/付款流程".to_string(),
+                to_kind: "topic".to_string(),
+                relation: "跟进".to_string(),
+                note: None,
+                confidence: 3,
+                source_conversation_id: Some(conv.clone()),
+            })
+            .unwrap();
+
+        // 1) 草拟：确认前不动任何数据
+        let call = ToolCall::new(
+            "rename_wiki_page",
+            json!({"slug": "topic/付款流程", "new_title": "fpso111 尾款", "reason": "项目真名更正"}),
+        );
+        let result = dispatch(&call, &registry, &store, &conv);
+        assert!(result.content.contains("重命名为"), "{}", result.content);
+        assert!(result.content.contains("1 条人物关系"), "{}", result.content);
+        let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+        assert_eq!(pendings.len(), 1);
+        assert!(
+            store.get_wiki_page("topic/付款流程").unwrap().is_some(),
+            "确认前不应改名"
+        );
+
+        // 2) 确认执行：改名 + 关系引用迁移
+        let summary = execute_pending_action(&store, &pendings[0]).unwrap();
+        assert!(summary.contains("fpso111 尾款"), "{summary}");
+        assert!(summary.contains("迁移了 1 条关系引用"), "{summary}");
+        assert!(store.get_wiki_page("topic/付款流程").unwrap().is_none());
+        assert_eq!(
+            store.get_wiki_page("topic/fpso111-尾款").unwrap().unwrap().title,
+            "fpso111 尾款"
+        );
+        assert_eq!(
+            store.list_relations().unwrap()[0].to_slug,
+            "topic/fpso111-尾款"
+        );
+
+        // 3) 不存在 / 标题没变：友好错误，不登记 pending
+        let call = ToolCall::new(
+            "rename_wiki_page",
+            json!({"slug": "topic/不存在", "new_title": "x"}),
+        );
+        let result = dispatch(&call, &registry, &store, &conv);
+        assert!(result.content.contains("没有 slug=topic/不存在 的页面"), "{}", result.content);
+        let call = ToolCall::new(
+            "rename_wiki_page",
+            json!({"slug": "topic/fpso111-尾款", "new_title": "fpso111 尾款"}),
+        );
+        let result = dispatch(&call, &registry, &store, &conv);
+        assert!(result.content.contains("本来就是这个标题"), "{}", result.content);
+        assert_eq!(store.pending_actions_for_conversation(&conv).unwrap().len(), 1);
         drop(store);
         let _ = std::fs::remove_file(path);
     }

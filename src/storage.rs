@@ -232,6 +232,21 @@ pub struct WikiUpsertOutcome {
     pub page: WikiPage,
 }
 
+/// 重命名知识页的结果
+#[derive(Debug, Clone)]
+pub struct RenameWikiOutcome {
+    pub old_slug: String,
+    pub new_slug: String,
+    pub old_title: String,
+    pub new_title: String,
+    /// 是否真正改名（标题没变时为 false，什么都不做）
+    pub changed: bool,
+    /// 随名迁移的关系条数（from_slug / to_slug 命中旧 slug 的）
+    pub relations_moved: usize,
+    /// 随名迁移的页内聊天会话数
+    pub chats_moved: usize,
+}
+
 /// 一条人物关系：`from`（一般是人物页）↔ `to`（事情/项目页等），带关系类型
 #[derive(Debug, Clone)]
 pub struct Relation {
@@ -1273,6 +1288,96 @@ impl Store {
         };
         self.record_wiki_revision(&page.id, &page.content_md, &reason, None)?;
         self.get_wiki_page(slug)?.context("标签更新后读取失败")
+    }
+
+    /// 重命名知识页：标题 + slug 一起换，事务内原子迁移关系引用与页内聊天会话，并追加一条修订记录。
+    ///
+    /// - 带前缀的 slug（`person/…`、`topic/…` 等）按前缀 + 新标题重算新 slug（撞名自动避让）；
+    /// - 无前缀的 slug（`tweet-…`、`kb-…` 等）保留原 slug，只改标题（源资料引用不能断）；
+    /// - 标题未变时直接返回 `changed=false`，不做任何写操作。
+    pub fn rename_wiki_page(&self, slug: &str, new_title: &str, reason: &str) -> Result<RenameWikiOutcome> {
+        let page = self
+            .get_wiki_page(slug)?
+            .with_context(|| format!("知识页不存在: {slug}"))?;
+        let new_title = new_title.trim().to_string();
+        if new_title.is_empty() {
+            anyhow::bail!("新标题不能为空");
+        }
+        let old_title = page.title.clone();
+        let changed = new_title != old_title;
+        if !changed {
+            return Ok(RenameWikiOutcome {
+                old_slug: slug.to_string(),
+                new_slug: slug.to_string(),
+                old_title,
+                new_title,
+                changed: false,
+                relations_moved: 0,
+                chats_moved: 0,
+            });
+        }
+        // 计算新 slug：带前缀的页面重算（撞名避让），无前缀的保留原 slug
+        let new_slug = match slug.rsplit_once('/') {
+            Some((prefix, _)) => crate::wiki::unique_slug(self, &format!("{prefix}/{}", crate::wiki::slugify(&new_title)), &new_title)?,
+            None => slug.to_string(),
+        };
+        let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.connection.unchecked_transaction()?;
+        // 1) 页面本体：换 slug + 标题，summary 里的旧名同步替换
+        let new_summary = if old_title.is_empty() {
+            page.summary.clone()
+        } else {
+            page.summary.replace(&old_title, &new_title)
+        };
+        tx.execute(
+            "UPDATE wiki_pages SET slug=?1, title=?2, summary=?3, updated_at=?4 WHERE id=?5",
+            params![new_slug, new_title, new_summary, now, page.id],
+        )?;
+        // 2) 关系引用迁移
+        let mut relations_moved = 0usize;
+        if new_slug != slug {
+            relations_moved += tx
+                .execute("UPDATE relations SET from_slug=?1 WHERE from_slug=?2", params![new_slug, slug])?
+                as usize;
+            relations_moved += tx
+                .execute("UPDATE relations SET to_slug=?1 WHERE to_slug=?2", params![new_slug, slug])?
+                as usize;
+        }
+        // 3) 页内聊天会话迁移
+        let chats_moved = if new_slug != slug {
+            tx.execute(
+                "UPDATE conversations SET wiki_page_slug=?1 WHERE wiki_page_slug=?2",
+                params![new_slug, slug],
+            )? as usize
+        } else {
+            0
+        };
+        // 4) 审计修订记录
+        tx.execute(
+            "INSERT INTO wiki_revisions (id, page_id, content_md, reason, source_event_id, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                Uuid::new_v4().to_string(),
+                page.id,
+                page.content_md,
+                reason,
+                Option::<String>::None,
+                now,
+            ],
+        )?;
+        tx.commit()?;
+        self.append_wiki_log(&format!(
+            "知识页重命名：{old_title}（{slug}）→ {new_title}（{new_slug}）"
+        ))?;
+        Ok(RenameWikiOutcome {
+            old_slug: slug.to_string(),
+            new_slug,
+            old_title,
+            new_title,
+            changed: true,
+            relations_moved,
+            chats_moved,
+        })
     }
 
     fn record_wiki_revision(
@@ -2374,6 +2479,101 @@ mod tests {
         // 删除
         assert!(store.delete_relation(&from_person[0].id).unwrap());
         assert!(store.list_relations().unwrap().is_empty());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn rename_wiki_page_moves_slug_relations_and_chat() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let draft = WikiPageDraft {
+            slug: "topic/付款流程".to_string(),
+            kind: "topic".to_string(),
+            title: "付款流程".to_string(),
+            summary: "付款流程（由人物关系确认时自动建档）".to_string(),
+            content_md: "# 付款流程\n\n跟进付款相关事宜。".to_string(),
+            tags: vec!["付款".to_string()],
+            source_event_ids: vec![],
+            status: "active".to_string(),
+            reason: "test".to_string(),
+            source_url: None,
+        };
+        store.upsert_wiki_page(&draft).unwrap();
+        store
+            .upsert_relation(&RelationDraft {
+                from_slug: "person/谭俊".to_string(),
+                from_kind: "person".to_string(),
+                to_slug: "topic/付款流程".to_string(),
+                to_kind: "topic".to_string(),
+                relation: "跟进".to_string(),
+                note: Some("处理付款事宜".to_string()),
+                confidence: 3,
+                source_conversation_id: Some("conv-1".to_string()),
+            })
+            .unwrap();
+        store
+            .create_wiki_chat_conversation("topic/付款流程", "[知识页] 付款流程")
+            .unwrap();
+        let before_revisions = store.list_wiki_revisions("topic/付款流程").unwrap().len();
+
+        // 改名：标题 + slug 一起换，关系与会话迁移
+        let outcome = store
+            .rename_wiki_page("topic/付款流程", "fpso111 尾款", "项目真名更正")
+            .unwrap();
+        assert!(outcome.changed);
+        assert_eq!(outcome.new_slug, "topic/fpso111-尾款");
+        assert_eq!(outcome.relations_moved, 1);
+        assert_eq!(outcome.chats_moved, 1);
+        assert!(store.get_wiki_page("topic/付款流程").unwrap().is_none());
+        let renamed = store.get_wiki_page("topic/fpso111-尾款").unwrap().unwrap();
+        assert_eq!(renamed.title, "fpso111 尾款");
+        assert!(
+            renamed.summary.contains("fpso111 尾款"),
+            "summary 里的旧名应被替换: {}",
+            renamed.summary
+        );
+        // 关系引用已指向新 slug
+        let rels = store.list_relations().unwrap();
+        assert_eq!(rels.len(), 1);
+        assert_eq!(rels[0].to_slug, "topic/fpso111-尾款");
+        // 页内聊天会话已迁移
+        assert!(
+            store.find_wiki_chat_conversation("topic/fpso111-尾款").unwrap().is_some()
+        );
+        assert!(store.find_wiki_chat_conversation("topic/付款流程").unwrap().is_none());
+        // 修订历史多了一条重命名记录
+        assert_eq!(
+            store.list_wiki_revisions("topic/fpso111-尾款").unwrap().len(),
+            before_revisions + 1
+        );
+
+        // 标题没变：changed=false，零写操作
+        let outcome = store
+            .rename_wiki_page("topic/fpso111-尾款", "fpso111 尾款", "x")
+            .unwrap();
+        assert!(!outcome.changed);
+
+        // 无前缀页（如来源页）：只改标题，slug 不动
+        let src_draft = WikiPageDraft {
+            slug: "tweet-123".to_string(),
+            kind: "source".to_string(),
+            title: "旧标题".to_string(),
+            summary: "s".to_string(),
+            content_md: "c".to_string(),
+            tags: vec![],
+            source_event_ids: vec![],
+            status: "active".to_string(),
+            reason: "test".to_string(),
+            source_url: None,
+        };
+        store.upsert_wiki_page(&src_draft).unwrap();
+        let outcome = store.rename_wiki_page("tweet-123", "新标题", "更正").unwrap();
+        assert!(outcome.changed);
+        assert_eq!(outcome.new_slug, "tweet-123", "来源页 slug 应保持不变");
+        assert_eq!(
+            store.get_wiki_page("tweet-123").unwrap().unwrap().title,
+            "新标题"
+        );
         let _ = std::fs::remove_file(path);
     }
 
