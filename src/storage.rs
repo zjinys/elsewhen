@@ -1296,9 +1296,11 @@ impl Store {
     /// - 无前缀的 slug（`tweet-…`、`kb-…` 等）保留原 slug，只改标题（源资料引用不能断）；
     /// - 标题未变时直接返回 `changed=false`，不做任何写操作。
     pub fn rename_wiki_page(&self, slug: &str, new_title: &str, reason: &str) -> Result<RenameWikiOutcome> {
-        let page = self
-            .get_wiki_page(slug)?
-            .with_context(|| format!("知识页不存在: {slug}"))?;
+        let page = self.get_wiki_page(slug)?.with_context(|| {
+            format!(
+                "知识页不存在：{slug}（可能已被改名或删除——如果刚改过名，请用新名字操作，可在对话里列出知识库确认当前名称）"
+            )
+        })?;
         let new_title = new_title.trim().to_string();
         if new_title.is_empty() {
             anyhow::bail!("新标题不能为空");
@@ -2552,6 +2554,12 @@ mod tests {
             .rename_wiki_page("topic/fpso111-尾款", "fpso111 尾款", "x")
             .unwrap();
         assert!(!outcome.changed);
+
+        // 页面不存在：报错并提示可能已改名
+        let err = store
+            .rename_wiki_page("topic/付款流程", "x", "y")
+            .unwrap_err();
+        assert!(err.to_string().contains("知识页不存在"), "{err}");
 
         // 无前缀页（如来源页）：只改标题，slug 不动
         let src_draft = WikiPageDraft {

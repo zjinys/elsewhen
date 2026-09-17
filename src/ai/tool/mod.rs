@@ -1201,6 +1201,12 @@ impl Tool for SaveWikiRevisionTool {
         let title = arg_str(args, "title")?;
         let content_md = arg_str(args, "content_md")?;
         let change_note = arg_str(args, "change_note")?;
+        // 草拟前先确认页面还在：改名/删除后旧 slug 会变成幽灵目标
+        if ctx.store.get_wiki_page(&slug)?.is_none() {
+            anyhow::bail!(
+                "知识库没有 slug={slug} 的页面。如果这个页面刚改过名，请用新名字操作；不确定 slug 时先在对话里列一下知识库页面（slug 形如 person/xx、topic/xx）。"
+            );
+        }
         let action_args = json!({
             "slug": slug,
             "title": title.clone(),
@@ -1395,12 +1401,14 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 .to_string();
             // 保留原页面的 kind、source_url 与 tags
             let existing = store.get_wiki_page(&slug)?;
-            let kind = existing
-                .as_ref()
-                .map(|p| p.kind.clone())
-                .unwrap_or_else(|| "topic".to_string());
-            let source_url = existing.as_ref().and_then(|p| p.source_url.clone());
-            let tags = existing.as_ref().map(|p| p.tags.clone()).unwrap_or_default();
+            let existing = existing.with_context(|| {
+                format!(
+                    "知识页不存在：{slug}（可能已被改名或删除，不能对旧名做修订；若需新建请用 save_knowledge_draft）"
+                )
+            })?;
+            let kind = existing.kind.clone();
+            let source_url = existing.source_url.clone();
+            let tags = existing.tags.clone();
             let draft = crate::storage::WikiPageDraft {
                 slug,
                 kind,
@@ -1817,6 +1825,48 @@ mod tests {
         let result = dispatch(&call, &registry, &store, &conv);
         assert!(result.content.contains("本来就是这个标题"), "{}", result.content);
         assert_eq!(store.pending_actions_for_conversation(&conv).unwrap().len(), 1);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn save_wiki_revision_rejects_missing_slug_and_never_creates_ghost_page() {
+        let (store, path) = temp_db();
+        let registry = ToolRegistry::default();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        // 页不存在（如改名后的旧 slug）：草拟阶段直接报错，不登记 pending
+        let call = ToolCall::new(
+            "save_wiki_revision",
+            json!({
+                "slug": "topic/fpso111整船项目",
+                "title": "FPSO111整船项目",
+                "content_md": "# x",
+                "change_note": "补充内容"
+            }),
+        );
+        let result = dispatch(&call, &registry, &store, &conv);
+        assert!(result.content.contains("没有 slug=topic/fpso111整船项目 的页面"), "{}", result.content);
+        assert!(store.pending_actions_for_conversation(&conv).unwrap().is_empty());
+        assert!(store.get_wiki_page("topic/fpso111整船项目").unwrap().is_none(), "不能新建幽灵页");
+
+        // 绕过草拟直接登记 pending + 执行：页面不存在时必须报错而非 upsert 新建
+        store
+            .create_pending_action(
+                &conv,
+                "save_wiki_revision",
+                &json!({
+                    "slug": "topic/fpso111整船项目",
+                    "title": "FPSO111整船项目",
+                    "content_md": "# x",
+                    "change_note": "补充内容"
+                })
+                .to_string(),
+            )
+            .unwrap();
+        let pa = store.pending_actions_for_conversation(&conv).unwrap();
+        let err = execute_pending_action(&store, &pa[0]).unwrap_err();
+        assert!(err.to_string().contains("知识页不存在"), "{err}");
+        assert!(store.get_wiki_page("topic/fpso111整船项目").unwrap().is_none());
         drop(store);
         let _ = std::fs::remove_file(path);
     }
