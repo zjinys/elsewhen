@@ -123,6 +123,8 @@ impl Default for ToolRegistry {
             Box::new(CreateTodoTool),
             Box::new(ProposePeopleRelationsTool),
             Box::new(BatchExtractPeopleRelationsTool),
+            Box::new(ListEventsByDateTool),
+            Box::new(ArchiveConversationsByTitleTool),
             Box::new(ImportUrlToWikiTool),
             Box::new(SaveWikiRevisionTool),
         ];
@@ -820,7 +822,7 @@ impl Tool for ProposePeopleRelationsTool {
     }
 }
 
-// ── 任意 URL 导入工具 ─────────────────────────────────────────
+// ── 批量提取：事件 → 人物/关系（草拟确认） ─────────────────────
 
 /// 批量提取：扫描全部事件 → `@人名` / `#事情` 标注 + AI 补全 → 人物/关系草拟（待确认）
 struct BatchExtractPeopleRelationsTool;
@@ -884,6 +886,138 @@ impl Tool for BatchExtractPeopleRelationsTool {
         Ok(format!(
             "已从事件批量草拟人物与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
             lines.join("\n")
+        ))
+    }
+}
+
+// ── 查询 / 会话管理工具 ────────────────────────────────────────
+
+/// 查看某一天记录的事件（只读）
+struct ListEventsByDateTool;
+impl Tool for ListEventsByDateTool {
+    fn name(&self) -> &'static str {
+        "list_events_by_date"
+    }
+    fn description(&self) -> &'static str {
+        "查看某一天记录的事件清单（只读）。date 必须解析成 YYYY-MM-DD：用户说「今天/昨天/前天」按当前日期推算，「6月20日」这类自然日期补当年份，「2026-06-20」直接用。返回当天每条事件的时刻与内容。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type":"object",
+            "properties":{
+                "date":{"type":"string","description":"日期，YYYY-MM-DD，必填"}
+            },
+            "required":["date"],
+            "additionalProperties":false
+        })
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::Read
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let date_str = arg_str(args, "date")?;
+        let date = chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map_err(|_| {
+            anyhow::anyhow!("日期格式应为 YYYY-MM-DD（如 2026-06-20），收到：{date_str}")
+        })?;
+        let events = ctx.store.events_on_date(date)?;
+        if events.is_empty() {
+            return Ok(format!("{date_str} 这天没有事件记录。"));
+        }
+        let mut lines = Vec::new();
+        for e in &events {
+            let time = chrono::DateTime::parse_from_rfc3339(&e.recorded_at)
+                .map(|t| t.with_timezone(&chrono::Local).format("%H:%M").to_string())
+                .unwrap_or_else(|_| "??:??".to_string());
+            lines.push(format!("{time} {}", e.raw_text));
+        }
+        Ok(format!(
+            "{date_str} 共有 {} 条事件：\n{}",
+            lines.len(),
+            lines.join("\n")
+        ))
+    }
+}
+
+/// 按标题归档对话（草拟确认制）
+struct ArchiveConversationsByTitleTool;
+impl Tool for ArchiveConversationsByTitleTool {
+    fn name(&self) -> &'static str {
+        "archive_conversations_by_title"
+    }
+    fn description(&self) -> &'static str {
+        "按标题归档对话（只归档主对话列表里的对话，不含知识页内聊天）。「把所有标题为 X 的对话归档」→ title=X 精确匹配；「把所有标题包含 X 的对话归档」→ contains=X 子串匹配（大小写不敏感）。标题为空（界面显示为「新对话」）的会话按标题「新对话」参与匹配。草拟确认制：调用后用户确认才真正归档。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type":"object",
+            "properties":{
+                "title":{"type":"string","description":"标题精确匹配（与 contains 至少提供一个）"},
+                "contains":{"type":"string","description":"标题包含的子串匹配（与 title 至少提供一个）"}
+            },
+            "additionalProperties":false
+        })
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let title = arg_str_opt(args, "title")
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let contains = arg_str_opt(args, "contains")
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        if title.is_none() && contains.is_none() {
+            anyhow::bail!("请提供 title（标题精确匹配）或 contains（标题包含匹配）");
+        }
+        let conversations = ctx.store.list_conversations()?; // 已排除知识页内聊天
+        let effective = |c: &crate::storage::ConversationSummary| -> String {
+            c.title
+                .as_deref()
+                .filter(|t| !t.trim().is_empty())
+                .unwrap_or("新对话")
+                .to_string()
+        };
+        let matches: Vec<crate::storage::ConversationSummary> = conversations
+            .iter()
+            .filter(|c| {
+                let et = effective(c);
+                let hit_exact = title
+                    .as_ref()
+                    .map(|t| et.eq_ignore_ascii_case(t))
+                    .unwrap_or(false);
+                let hit_contains = contains
+                    .as_ref()
+                    .map(|n| et.to_lowercase().contains(&n.to_lowercase()))
+                    .unwrap_or(false);
+                hit_exact || hit_contains
+            })
+            .cloned()
+            .collect();
+        if matches.is_empty() {
+            let sample: Vec<String> = conversations.iter().take(15).map(effective).collect();
+            anyhow::bail!(
+                "没有找到标题匹配的对话。当前主对话标题有：{}",
+                sample.join("、")
+            );
+        }
+        let ids: Vec<String> = matches.iter().map(|c| c.id.clone()).collect();
+        let titles: Vec<String> = matches.iter().map(effective).collect();
+        let action_args = json!({ "ids": ids, "titles": titles });
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "archive_conversations_by_title",
+            &action_args,
+        )?;
+        Ok(format!(
+            "找到 {} 个匹配的对话，将归档：\n{}\n—— 回复「好」即归档。",
+            matches.len(),
+            titles
+                .iter()
+                .map(|t| format!("  · {t}"))
+                .collect::<Vec<_>>()
+                .join("\n")
         ))
     }
 }
@@ -1065,6 +1199,37 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
         "propose_people_relations" => {
             crate::wiki::apply_people_relations(&args, store, &pa.conversation_id)
         }
+        "archive_conversations_by_title" => {
+            let ids: Vec<String> = args
+                .get("ids")
+                .and_then(|v| v.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let titles: Vec<String> = args
+                .get("titles")
+                .and_then(|v| v.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let mut archived = 0usize;
+            for id in &ids {
+                if store.get_conversation(id)?.is_some() {
+                    store.set_conversation_archived(id, true)?;
+                    archived += 1;
+                }
+            }
+            Ok(format!(
+                "已归档 {archived} 个对话：{}",
+                titles.join("、")
+            ))
+        }
         "import_url_to_wiki" => {
             let source_url = arg_str(&args, "source_url")?;
             let source_kind = arg_str(&args, "source_kind")?;
@@ -1202,6 +1367,8 @@ mod tests {
             "create_todo",
             "propose_people_relations",
             "batch_extract_people_relations",
+            "list_events_by_date",
+            "archive_conversations_by_title",
             "import_url_to_wiki",
             "save_wiki_revision",
         ] {
@@ -1336,6 +1503,134 @@ mod tests {
             2,
             "目标页自动建档，且两边关系都能查到"
         );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn list_events_by_date_returns_days_events() {
+        let (store, path) = temp_db();
+        let registry = ToolRegistry::default();
+        let today = chrono::Local::now().date_naive();
+        let yesterday = today - chrono::Duration::days(1);
+        store
+            .insert_event(crate::event::NewEvent {
+                raw_text: "今天的事件",
+                occurred_at: chrono::Utc::now(),
+                recorded_at: chrono::Utc::now(),
+                source: "test",
+            })
+            .unwrap();
+        store
+            .insert_event(crate::event::NewEvent {
+                raw_text: "昨天的事件",
+                occurred_at: chrono::Utc::now() - chrono::Duration::days(1),
+                recorded_at: chrono::Utc::now() - chrono::Duration::days(1),
+                source: "test",
+            })
+            .unwrap();
+
+        let call = ToolCall::new(
+            "list_events_by_date",
+            json!({"date": today.format("%Y-%m-%d").to_string()}),
+        );
+        let result = dispatch(&call, &registry, &store, "conv-1");
+        assert!(result.content.contains("今天的事件"), "{}", result.content);
+        assert!(!result.content.contains("昨天的事件"), "{}", result.content);
+        assert!(result.content.contains("条事件"), "{}", result.content);
+
+        let call = ToolCall::new(
+            "list_events_by_date",
+            json!({"date": yesterday.format("%Y-%m-%d").to_string()}),
+        );
+        let result = dispatch(&call, &registry, &store, "conv-1");
+        assert!(result.content.contains("昨天的事件"), "{}", result.content);
+
+        // 坏格式与空结果都友好返回
+        let call = ToolCall::new("list_events_by_date", json!({"date": "2026/06/20"}));
+        let result = dispatch(&call, &registry, &store, "conv-1");
+        assert!(result.content.contains("YYYY-MM-DD"), "{}", result.content);
+        let call = ToolCall::new(
+            "list_events_by_date",
+            json!({"date": "2030-01-01"}),
+        );
+        let result = dispatch(&call, &registry, &store, "conv-1");
+        assert!(result.content.contains("没有事件记录"), "{}", result.content);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn archive_conversations_by_title_is_confirm_gated_then_archives() {
+        let (store, path) = temp_db();
+        let registry = ToolRegistry::default();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        // 主对话：空标题（显示为「新对话」）、Hello 两个、其他
+        store.create_conversation(None, None).unwrap(); // 显示「新对话」
+        store.create_conversation(Some("Hello World"), None).unwrap();
+        store.create_conversation(Some("Phase Hello 2"), None).unwrap();
+        store.create_conversation(Some("其他"), None).unwrap();
+        // 知识页内聊天：不应被匹配
+        store
+            .create_wiki_chat_conversation("person/x", "页内对话")
+            .unwrap();
+
+        // 1) 包含匹配：草拟两个 Hello，未确认前不归档
+        let call = ToolCall::new("archive_conversations_by_title", json!({"contains": "hello"}));
+        let result = dispatch(&call, &registry, &store, &conv);
+        assert!(result.content.contains("2 个匹配"), "{}", result.content);
+        assert!(result.content.contains("Hello World"), "{}", result.content);
+        let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+        assert_eq!(pendings.len(), 1);
+        assert_eq!(store.list_conversations().unwrap().len(), 5, "确认前不归档");
+
+        // 2) 确认执行：归档 2 个（执行不删 pending，手动删以模拟确认流）
+        let summary = execute_pending_action(&store, &pendings[0]).unwrap();
+        assert!(summary.contains("已归档 2 个对话"), "{summary}");
+        store.delete_pending_action(&pendings[0].id).unwrap();
+        let remaining_titles: Vec<String> = store
+            .list_conversations()
+            .unwrap()
+            .iter()
+            .map(|c| {
+                c.title
+                    .as_deref()
+                    .unwrap_or("新对话")
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(remaining_titles.len(), 3);
+        for t in ["t", "新对话", "其他"] {
+            assert!(remaining_titles.iter().any(|x| x == t), "缺 {t}: {remaining_titles:?}");
+        }
+
+        // 3) 精确匹配「新对话」= 空标题会话
+        let call = ToolCall::new("archive_conversations_by_title", json!({"title": "新对话"}));
+        let result = dispatch(&call, &registry, &store, &conv);
+        assert!(result.content.contains("1 个匹配"), "{}", result.content);
+        let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+        assert_eq!(pendings.len(), 1);
+        execute_pending_action(&store, &pendings[0]).unwrap();
+        store.delete_pending_action(&pendings[0].id).unwrap();
+        let remaining_titles: Vec<String> = store
+            .list_conversations()
+            .unwrap()
+            .iter()
+            .map(|c| c.title.as_deref().unwrap_or("新对话").to_string())
+            .collect();
+        assert_eq!(remaining_titles.len(), 2);
+        assert!(!remaining_titles.iter().any(|x| x == "新对话"), "{remaining_titles:?}");
+
+        // 4) 无匹配：友好错误，不登记
+        let call = ToolCall::new("archive_conversations_by_title", json!({"contains": "不存在的"}));
+        let result = dispatch(&call, &registry, &store, &conv);
+        assert!(result.content.contains("没有找到"), "{}", result.content);
+        assert!(store.pending_actions_for_conversation(&conv).unwrap().is_empty());
+
+        // 5) 知识页聊天始终未被动过
+        assert!(store.get_conversation(
+            &store.find_wiki_chat_conversation("person/x").unwrap().unwrap()
+        ).unwrap().unwrap().archived == false);
         drop(store);
         let _ = std::fs::remove_file(path);
     }

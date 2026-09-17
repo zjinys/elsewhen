@@ -968,6 +968,39 @@ impl Store {
             .map_err(Into::into)
     }
 
+    /// 查某个「本地日历日」记录的事件（按 recorded_at，本地时区日界 → UTC 区间，倒序）。
+    /// 用户说「6月20日有哪些事件」→ 用本地日界解释，跨时区也正确。
+    pub fn events_on_date(&self, date: chrono::NaiveDate) -> Result<Vec<EventSummary>> {
+        use chrono::{Local, TimeZone};
+        let day_edges = |d: chrono::NaiveDate| {
+            let naive_local = d.and_hms_opt(0, 0, 0).expect("midnight is valid");
+            match Local
+                .from_local_datetime(&naive_local)
+                .single()
+                .or_else(|| Local.from_local_datetime(&naive_local).earliest())
+            {
+                Some(dt) => dt.with_timezone(&chrono::Utc).to_rfc3339(),
+                // DST 空洞等罕见情形：按 UTC 同名时刻兜底，避免 panic
+                None => naive_local.and_utc().to_rfc3339(),
+            }
+        };
+        let start_utc = day_edges(date);
+        let end_utc = day_edges(date + chrono::Duration::days(1));
+        let mut statement = self.connection.prepare(
+            "SELECT recorded_at, raw_text FROM events
+             WHERE recorded_at >= ?1 AND recorded_at < ?2
+             ORDER BY recorded_at DESC",
+        )?;
+        let rows = statement.query_map(params![start_utc, end_utc], |row| {
+            Ok(EventSummary {
+                recorded_at: row.get(0)?,
+                raw_text: row.get(1)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     /// 最近 N 天内的最多 limit 条事件（按记录时间倒序）
     pub fn recent_events(&self, days: i64, limit: usize) -> Result<Vec<EventSummary>> {
         let since = (chrono::Utc::now() - chrono::Duration::days(days)).to_rfc3339();
@@ -2154,6 +2187,41 @@ mod tests {
         let events = store.list_events().unwrap();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].raw_text, "完成最小 MVP");
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn events_on_date_uses_local_day_boundaries() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let today = chrono::Local::now().date_naive();
+        let yesterday = today - chrono::Duration::days(1);
+        let now = chrono::Utc::now();
+        store
+            .insert_event(NewEvent {
+                raw_text: "今天的事件",
+                occurred_at: now,
+                recorded_at: now,
+                source: "test",
+            })
+            .unwrap();
+        store
+            .insert_event(NewEvent {
+                raw_text: "昨天的事件",
+                occurred_at: now - chrono::Duration::days(1),
+                recorded_at: now - chrono::Duration::days(1),
+                source: "test",
+            })
+            .unwrap();
+        let today_events = store.events_on_date(today).unwrap();
+        assert_eq!(today_events.len(), 1);
+        assert_eq!(today_events[0].raw_text, "今天的事件");
+        let yesterday_events = store.events_on_date(yesterday).unwrap();
+        assert_eq!(yesterday_events.len(), 1);
+        assert_eq!(yesterday_events[0].raw_text, "昨天的事件");
+        assert!(
+            store.events_on_date(today - chrono::Duration::days(10)).unwrap().is_empty()
+        );
         let _ = std::fs::remove_file(path);
     }
 
