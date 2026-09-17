@@ -76,16 +76,6 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     // 主题偏好并行加载，不阻塞 AI 配置读取链路（main.dart 启动时也单独调用过）
     unawaited(loadThemeFromBridge());
   }
-
-  /// 把设置页的 AI provider 写入 Rust 数据库（upsert 'default' 配置）
-  Future<void> saveSettings() async {
-    final ai = state.aiProvider;
-    await _repo.updateAiProviderConfig(
-      baseUrl: ai.baseUrl,
-      model: ai.model,
-      apiKey: ai.apiKey,
-    );
-  }
 }
 
 /// Global settings provider

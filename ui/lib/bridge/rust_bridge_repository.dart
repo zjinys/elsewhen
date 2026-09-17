@@ -4,8 +4,11 @@ import '../models/event.dart';
 import '../models/analysis.dart';
 import '../models/conversation.dart';
 import '../models/wiki_page.dart';
+import '../models/todo.dart';
+import '../models/import_fetch.dart';
 import '../models/token_usage.dart';
 import '../models/tweet_fetch.dart';
+import '../models/rule.dart';
 import 'generated.dart/api.dart' as api;
 import 'generated.dart/frb_generated.dart';
 
@@ -27,7 +30,7 @@ class RustBridgeRepository implements StorageRepository {
     return Event(
       id: dto.id,
       rawText: dto.rawText,
-      recordedAt: DateTime.parse(dto.recordedAt),
+      recordedAt: DateTime.parse(dto.recordedAt).toLocal(),
       source: dto.source,
       status: dto.status,
     );
@@ -39,7 +42,7 @@ class RustBridgeRepository implements StorageRepository {
     return dtos.map((dto) => Event(
       id: dto.id,
       rawText: dto.rawText,
-      recordedAt: DateTime.parse(dto.recordedAt),
+      recordedAt: DateTime.parse(dto.recordedAt).toLocal(),
       source: dto.source,
       status: dto.status,
     )).toList();
@@ -70,30 +73,26 @@ class RustBridgeRepository implements StorageRepository {
 
   Future<List<Conversation>> listConversations() async {
     final dtos = await api.listConversations();
-    return dtos.map((dto) => Conversation(
-      id: dto.id,
-      title: dto.title,
-      tag: dto.tag,
-      createdAt: DateTime.parse(dto.createdAt),
-      updatedAt: DateTime.parse(dto.updatedAt),
-      messageCount: dto.messageCount,
-      lastMessagePreview: dto.lastMessagePreview,
-      archived: dto.archived,
-    )).toList();
+    return dtos.map(_fromConversationDto).toList();
   }
 
   Future<List<Conversation>> listArchivedConversations() async {
     final dtos = await api.listArchivedConversations();
-    return dtos.map((dto) => Conversation(
+    return dtos.map(_fromConversationDto).toList();
+  }
+
+  Conversation _fromConversationDto(api.ConversationDto dto) {
+    return Conversation(
       id: dto.id,
       title: dto.title,
       tag: dto.tag,
-      createdAt: DateTime.parse(dto.createdAt),
-      updatedAt: DateTime.parse(dto.updatedAt),
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
+      updatedAt: DateTime.parse(dto.updatedAt).toLocal(),
       messageCount: dto.messageCount,
       lastMessagePreview: dto.lastMessagePreview,
       archived: dto.archived,
-    )).toList();
+      wikiPageSlug: dto.wikiPageSlug,
+    );
   }
 
   Future<void> renameConversation(String conversationId, String title) =>
@@ -102,18 +101,26 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> setConversationArchived(String conversationId, bool archived) =>
       api.setConversationArchived(conversationId: conversationId, archived: archived);
 
+  // ── 个人经验规则库 ──
+
+  Future<List<Rule>> listRules() async {
+    final dtos = await api.listRules();
+    return dtos.map((dto) => Rule(
+      id: dto.id,
+      content: dto.content,
+      status: dto.status,
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
+    )).toList();
+  }
+
+  Future<String> addRule(String content) => api.addRule(content: content);
+
+  Future<void> deleteRule(String ruleId) =>
+      api.deleteRule(ruleId: ruleId);
+
   Future<Conversation> createConversation({String? title, String? tag}) async {
     final dto = await api.createConversation(title: title, tag: tag);
-    return Conversation(
-      id: dto.id,
-      title: dto.title,
-      tag: dto.tag,
-      createdAt: DateTime.parse(dto.createdAt),
-      updatedAt: DateTime.parse(dto.updatedAt),
-      messageCount: dto.messageCount,
-      lastMessagePreview: dto.lastMessagePreview,
-      archived: dto.archived,
-    );
+    return _fromConversationDto(dto);
   }
 
   Future<List<Message>> listMessages(String conversationId) async {
@@ -124,7 +131,7 @@ class RustBridgeRepository implements StorageRepository {
       parentMessageId: dto.parentMessageId,
       role: MessageRole.fromString(dto.role),
       content: dto.content,
-      createdAt: DateTime.parse(dto.createdAt),
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
     )).toList();
   }
 
@@ -136,7 +143,7 @@ class RustBridgeRepository implements StorageRepository {
       parentMessageId: dto.parentMessageId,
       role: MessageRole.fromString(dto.role),
       content: dto.content,
-      createdAt: DateTime.parse(dto.createdAt),
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
     )).toList();
   }
 
@@ -148,7 +155,7 @@ class RustBridgeRepository implements StorageRepository {
       parentMessageId: dto.parentMessageId,
       role: MessageRole.fromString(dto.role),
       content: dto.content,
-      createdAt: DateTime.parse(dto.createdAt),
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
     )).toList();
   }
 
@@ -170,7 +177,7 @@ class RustBridgeRepository implements StorageRepository {
       parentMessageId: dto.parentMessageId,
       role: MessageRole.fromString(dto.role),
       content: dto.content,
-      createdAt: DateTime.parse(dto.createdAt),
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
     );
   }
 
@@ -208,6 +215,15 @@ class RustBridgeRepository implements StorageRepository {
     return dto == null ? null : WikiPage.fromDto(dto);
   }
 
+  /// 更新知识页标签（应用内整理元数据；传空列表即清空）。返回更新后的页面。
+  Future<WikiPage> updateWikiTags({
+    required String slug,
+    required List<String> tags,
+  }) async {
+    final dto = await api.updateWikiTags(slug: slug, tags: tags);
+    return WikiPage.fromDto(dto);
+  }
+
   /// 从 x.com / twitter.com 推文链接抓取长文（解析 json，不写库）
   Future<TweetFetch> fetchTweet(String url) async {
     final dto = await api.fetchTweet(url: url);
@@ -238,6 +254,25 @@ class RustBridgeRepository implements StorageRepository {
     );
     return WikiPage.fromDto(dto);
   }
+
+  /// 把用户粘贴的纯文本保存为知识库页面（kind=topic）。
+  /// 文本会完整写入（content_md 不截断），标题/摘要自动生成；tags 可选。
+  Future<WikiPage> saveTextPage({
+    required String text,
+    String? title,
+    List<String> tags = const [],
+  }) async {
+    final dto = await api.saveTextPage(
+      text: text,
+      title: title,
+      tags: tags,
+    );
+    return WikiPage.fromDto(dto);
+  }
+
+  /// 判断一个网址需要走哪种抓取方式（"tweet" → fxtwitter 专用 API，"web" → 普通网页提取）。
+  /// 统一由 Rust 侧分类，避免前端各自猜测。
+  Future<String> guessImportKind(String url) => api.guessImportKind(url: url);
 
   /// 针对一段抓取内容做一次性对话回复（不写库，供保存前与 AI 讨论内容）
   Future<String> generateContentChat({
@@ -279,6 +314,109 @@ class RustBridgeRepository implements StorageRepository {
         model: model,
         apiKey: apiKey,
       );
+
+  // ---- 多配置 + 单激活 ----
+
+  /// 全部 AI provider 配置（含激活标记）
+  Future<List<api.AiProviderConfigDto>> listAiProviderConfigs() =>
+      api.listAiProviderConfigs();
+
+  /// 新增 / 编辑配置；返回配置 id
+  Future<String> saveAiProviderConfig(api.AiProviderConfigDto provider) =>
+      api.saveAiProviderConfig(provider: provider);
+
+  /// 设为激活（唯一激活项）
+  Future<void> setActiveAiProviderConfig(String id) =>
+      api.setActiveAiProviderConfig(id: id);
+
+  /// 删除配置（删除激活项时剩余第一个自动接管激活）
+  Future<void> deleteAiProviderConfig(String id) =>
+      api.deleteAiProviderConfig(id: id);
+
+  // ── 个人待办 ──
+
+  /// 列出待办；status 为 null 时返回 open+done
+  Future<List<Todo>> listTodos({String? status}) async {
+    final dtos = await api.listTodos(status: status);
+    return dtos.map(Todo.fromDto).toList();
+  }
+
+  /// 新建待办（手动创建，直接生效）
+  Future<Todo> createTodo({
+    required String title,
+    String? dueAt,
+    String? priority,
+    String? relatedWikiSlug,
+    String? note,
+  }) async {
+    final dto = await api.createTodo(
+      title: title,
+      dueAt: dueAt,
+      priority: priority,
+      relatedWikiSlug: relatedWikiSlug,
+      note: note,
+    );
+    return Todo.fromDto(dto);
+  }
+
+  Future<void> updateTodoStatus(String id, String status) =>
+      api.updateTodoStatus(id: id, status: status);
+
+  /// 编辑待办（标题必填；note/dueAt 传 null 表示清除，priority 传 null 回落为 normal）
+  Future<void> updateTodo({
+    required String id,
+    required String title,
+    String? note,
+    String? priority,
+    String? dueAt,
+  }) =>
+      api.updateTodo(
+        id: id,
+        title: title,
+        note: note,
+        priority: priority,
+        dueAt: dueAt,
+      );
+
+  Future<bool> deleteTodo(String id) => api.deleteTodo(id: id);
+
+  // ── 任意 URL 导入 ──
+
+  /// 抓取任意 URL 内容（推文走 fxtwitter，普通页面走 HTML 文本提取），只解析不入库
+  Future<ImportFetch> fetchImportUrl(String url) async {
+    final dto = await api.fetchImportUrl(url: url);
+    return ImportFetch.fromDto(dto);
+  }
+
+  /// 把抓取到的 URL 内容保存为知识库页面（kind=source，带 source_url）
+  Future<WikiPage> saveImportedPage({
+    required String title,
+    required String contentMd,
+    required String sourceUrl,
+    required String sourceKind,
+    required List<String> tags,
+  }) async {
+    final dto = await api.saveImportedPage(
+      title: title,
+      contentMd: contentMd,
+      sourceUrl: sourceUrl,
+      sourceKind: sourceKind,
+      tags: tags,
+    );
+    return WikiPage.fromDto(dto);
+  }
+
+  // ── 知识页内 AI 处理会话 ──
+
+  /// 获取（不存在则创建）知识页处理会话；页内 AI 聊天走该会话
+  Future<Conversation> ensureWikiPageChat(String pageSlug) async {
+    final dto = await api.ensureWikiPageChat(pageSlug: pageSlug);
+    return _fromConversationDto(dto);
+  }
+
+  /// 归档知识页处理会话（如页面删除时）
+  Future<void> archiveWikiPageChat(String pageSlug) =>
+      api.archiveWikiPageChat(pageSlug: pageSlug);
 }
 
 /// Storage repository provider

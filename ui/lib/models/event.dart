@@ -20,7 +20,7 @@ class Event {
     return Event(
       id: rustEvent.id as String,
       rawText: rustEvent.rawText as String,
-      recordedAt: DateTime.parse(rustEvent.recordedAt as String),
+      recordedAt: DateTime.parse(rustEvent.recordedAt as String).toLocal(),
       source: rustEvent.source as String,
       status: rustEvent.status as String?,
     );
@@ -30,7 +30,7 @@ class Event {
     return Event(
       id: json['id'] as String,
       rawText: json['raw_text'] as String,
-      recordedAt: DateTime.parse(json['recorded_at'] as String),
+      recordedAt: DateTime.parse(json['recorded_at'] as String).toLocal(),
       source: json['source'] as String,
       status: json['status'] as String?,
       analysis: json['analysis'] != null
@@ -43,7 +43,7 @@ class Event {
     return {
       'id': id,
       'raw_text': rawText,
-      'recorded_at': recordedAt.toIso8601String(),
+      'recorded_at': recordedAt.toUtc().toIso8601String(),
       'source': source,
       if (status != null) 'status': status,
       if (analysis != null) 'analysis': analysis!.toJson(),

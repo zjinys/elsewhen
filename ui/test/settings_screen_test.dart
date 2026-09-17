@@ -15,6 +15,8 @@ void main() {
     // 真实桥接读取当前生效的 provider（demo 副本里有 hub.oaifree.com / gpt-4o）
     final expected = await tester.runAsync(() => repo.getAiProviderConfig());
     expect(expected, isNotNull, reason: '测试库副本应含 provider 配置');
+    final expectedUrl = expected!.baseUrl;
+    final expectedModel = expected.model;
 
     await tester.pumpWidget(
       ProviderScope(
@@ -25,23 +27,38 @@ void main() {
       ),
     );
 
-    // 等 post-frame 的 _loadFromBridge 跑完真实 FFI
+    // 等 post-frame 的 _loadProviders 跑完真实 FFI
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 400)),
     );
     await tester.pump();
 
-    // 模型 tab（默认）：表单前两个字段应被真实配置覆写，而非硬编码默认值（openai.com / gpt-3.5-turbo）
-    final fields = tester.widgetList<TextField>(find.byType(TextField)).toList();
-    expect(fields.length, 6, reason: '模型 tab：AI provider 5 项 + memory 1 项');
-    expect(fields[0].controller!.text, isNot('https://api.openai.com/v1'),
-        reason: 'baseUrl 应预填真实配置而非默认值');
-    expect(fields[1].controller!.text, isNot('gpt-3.5-turbo'),
-        reason: 'model 应预填真实配置而非默认值');
-    expect(fields[2].controller!.text, isNotEmpty,
-        reason: 'apiKey 应预填真实配置');
+    // 模型 tab（默认）：AI provider 是卡片列表（多配置 + 单激活），
+    // 活跃卡片应展示库中的真实配置，而非硬编码默认值（openai.com / gpt-3.5-turbo）。
+    expect(find.text('添加配置'), findsOneWidget, reason: '多 provider 入口按钮');
+    expect(find.text('激活中'), findsOneWidget, reason: '库中配置应处于激活状态');
+    // 卡片上展示真实 baseUrl / model
+    expect(
+      find.textContaining(expectedUrl),
+      findsWidgets,
+      reason: 'baseUrl 应预填真实配置而非默认值',
+    );
+    expect(
+      find.textContaining(expectedModel),
+      findsWidgets,
+      reason: 'model 应预填真实配置而非默认值',
+    );
+    expect(find.textContaining('api.openai.com/v1'), findsNothing,
+        reason: '不应出现硬编码默认 baseUrl');
+    expect(find.textContaining('gpt-3.5-turbo'), findsNothing,
+        reason: '不应出现硬编码默认 model');
 
-    // 设置页按 tab 组织：切到「数据」tab 应看到每日 Token 使用区块（纯展示，不依赖是否有记录）
+    // 记忆策略默认「简单记忆」：模型 tab 仅有 1 个文本输入（最大消息数），
+    // AI provider 字段移入「编辑」对话框，不直接铺在页面上。
+    expect(tester.widgetList<TextField>(find.byType(TextField)).length, 1,
+        reason: '模型 tab：provider 为卡片布局，仅记忆策略有文本输入');
+
+    // 切到「数据」tab 应看到每日 Token 使用区块（纯展示，不依赖是否有记录）
     await tester.tap(find.text('数据'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

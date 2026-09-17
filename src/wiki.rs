@@ -159,14 +159,8 @@ fn call_provider(store: &Store, system: &str, user: &str, max_tokens: u32) -> Re
     let provider = OpenAiCompatibleProvider::new(provider_config)?;
     provider
         .generate_reply(vec![
-            ContextMessage {
-                role: "system".to_string(),
-                content: system.to_string(),
-            },
-            ContextMessage {
-                role: "user".to_string(),
-                content: user.to_string(),
-            },
+            ContextMessage::new("system", system.to_string()),
+            ContextMessage::new("user", user.to_string()),
         ])
         .map(|r| r.content)
 }
@@ -216,6 +210,88 @@ struct FxArticleBlock {
 struct FxAuthor {
     name: Option<String>,
     screen_name: Option<String>,
+}
+
+/// 通用 URL 抓取结果（推文或普通页面）
+#[derive(Debug, Clone)]
+pub struct ImportedContent {
+    pub source_url: String,
+    pub source_kind: String, // "tweet" | "webpage"
+    pub title: Option<String>,
+    pub content_md: String,
+    pub author_name: Option<String>,
+    pub screen_name: Option<String>,
+}
+
+/// 判断是否推文 URL（x.com / twitter.com 含 status）
+pub fn is_tweet_url(url: &str) -> bool {
+    let lower = url.to_lowercase();
+    (lower.contains("x.com/") || lower.contains("twitter.com/"))
+        && (lower.contains("/status/") || lower.contains("/i/status/"))
+}
+
+/// 抓取任意 URL：推文走 fxtwitter，其他走 HTML 纯文本提取
+pub fn fetch_import_url(url: &str) -> Result<ImportedContent> {
+    if is_tweet_url(url) {
+        let t = fetch_tweet_text(url)?;
+        Ok(ImportedContent {
+            source_url: url.to_string(),
+            source_kind: "tweet".to_string(),
+            title: t.title.clone(),
+            content_md: t.text.clone(),
+            author_name: t.author_name.clone(),
+            screen_name: t.screen_name.clone(),
+        })
+    } else {
+        // 普通网页
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(20))
+            .build()
+            .context("创建 HTTP 客户端失败")?;
+        let resp = client
+            .get(url)
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            )
+            .send()
+            .context("抓取页面失败")?;
+        if !resp.status().is_success() {
+            anyhow::bail!("页面返回 HTTP {}", resp.status());
+        }
+        let html = resp.text().context("读取页面内容失败")?;
+        let title = extract_title(&html);
+        let text = crate::ai::tool::html_to_text(&html);
+        let text = text.trim().to_string();
+        if text.is_empty() {
+            anyhow::bail!("页面没有可读文本内容");
+        }
+        Ok(ImportedContent {
+            source_url: url.to_string(),
+            source_kind: "webpage".to_string(),
+            title,
+            content_md: text,
+            author_name: None,
+            screen_name: None,
+        })
+    }
+}
+
+/// 从 HTML 抽取 <title> 文本（不做 DOM 解析，简单正则）
+fn extract_title(html: &str) -> Option<String> {
+    let lower = html.to_lowercase();
+    let start = lower.find("<title")? + 6;
+    // 跳过 <title> 标签（可能含属性后跟 >）
+    let rest = &html[start..];
+    let gt = rest.find('>')?;
+    let inner = &rest[gt + 1..];
+    let end = inner.find("</title>").or_else(|| inner.find("</TITLE>"))?;
+    let title = inner[..end].trim().to_string();
+    if title.is_empty() {
+        None
+    } else {
+        Some(title)
+    }
 }
 
 /// 抓取到的推文内容（纯数据，尚未入库；只有点击保存才写库）
@@ -327,7 +403,11 @@ pub fn fetch_tweet_text(url: &str) -> Result<TweetText> {
 
 /// 把已抓取的推文内容保存为知识库页面（kind=source）。
 /// 同一推文重复保存 = 更新同一页（upsert）。
-pub fn save_tweet_page(t: &TweetText, store: &Store) -> Result<WikiPage> {
+pub fn save_tweet_page(
+    t: &TweetText,
+    source_url: Option<&str>,
+    store: &Store,
+) -> Result<WikiPage> {
     let author_label = match (&t.author_name, &t.screen_name) {
         (Some(name), _) => name.clone(),
         (None, Some(handle)) => format!("@{handle}"),
@@ -351,6 +431,67 @@ pub fn save_tweet_page(t: &TweetText, store: &Store) -> Result<WikiPage> {
         source_event_ids: vec![],
         status: "active".to_string(),
         reason: format!("从 x.com 导入推文 {}", t.tweet_id),
+        source_url: source_url.map(|s| s.to_string()),
+    };
+    let outcome = store.upsert_wiki_page(&draft)?;
+    Ok(outcome.page)
+}
+
+/// 把用户粘贴的纯文本保存为知识库页面（kind=topic）。
+/// content_md 保留全文、绝不截断，仅 summary（索引摘要）截断。
+/// 把用户粘贴的纯文本保存为知识库页面（kind=topic）。
+/// content_md 保留全文、绝不截断，仅 summary（索引摘要）截断。
+pub fn save_text_page(
+    text: &str,
+    title: Option<&str>,
+    tags: &[String],
+    store: &Store,
+) -> Result<WikiPage> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("文本为空，无法保存");
+    }
+    // 标题：优先用显式传入的，否则取第一行非空内容的前 60 字
+    let title = match title {
+        Some(t) if !t.trim().is_empty() => t.trim().to_string(),
+        _ => {
+            let first = trimmed
+                .lines()
+                .find(|l| !l.trim().is_empty())
+                .unwrap_or("")
+                .trim();
+            if first.is_empty() {
+                "未命名笔记".to_string()
+            } else {
+                first.chars().take(60).collect()
+            }
+        }
+    };
+    // 摘要只用于索引展示，截断无妨
+    let summary: String = trimmed.chars().take(120).collect();
+    let slug = format!("note-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+
+    // 去掉空白项并去重；始终保留「note」锚点标签
+    let mut all_tags: Vec<String> = tags
+        .iter()
+        .map(|t| t.trim().trim_start_matches('#').to_string())
+        .filter(|t| !t.is_empty())
+        .collect();
+    all_tags.push("note".to_string());
+    all_tags.sort();
+    all_tags.dedup();
+
+    let draft = WikiPageDraft {
+        slug,
+        kind: "topic".to_string(),
+        title,
+        summary,
+        content_md: trimmed.to_string(),
+        tags: all_tags,
+        source_event_ids: vec![],
+        status: "active".to_string(),
+        reason: "用户粘贴文本导入".to_string(),
+        source_url: None,
     };
     let outcome = store.upsert_wiki_page(&draft)?;
     Ok(outcome.page)
@@ -559,6 +700,7 @@ pub fn generate_digest(store: &Store, opts: &DigestOptions) -> Result<DigestResu
                 .reason
                 .clone()
                 .unwrap_or_else(|| "digest 消化新事件".to_string()),
+            source_url: None,
         };
         let outcome = store.upsert_wiki_page(&draft)?;
         if outcome.created {
@@ -713,6 +855,7 @@ mod tests {
                 status: "active".into(),
                 created_at: String::new(),
                 updated_at: String::new(),
+                source_url: None,
             },
             WikiPage {
                 id: "2".into(),
@@ -729,12 +872,79 @@ mod tests {
                 status: "active".into(),
                 created_at: String::new(),
                 updated_at: String::new(),
+                source_url: None,
             },
         ];
         let md = build_index_md(&pages);
         assert!(md.contains("### recurring_cost"));
         assert!(md.contains("3 条事件支持"));
         assert!(md.contains("### capability"));
+    }
+
+    #[test]
+    fn update_wiki_tags_normalizes_and_persists() {
+        let path = std::env::temp_dir().join(format!(
+            "elsewhen-wiki-tags-test-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = Store::open(&path).unwrap();
+        let draft = WikiPageDraft {
+            slug: "topic/tag-test".into(),
+            kind: "topic".into(),
+            title: "标签测试".into(),
+            summary: "s".into(),
+            content_md: "正文".into(),
+            tags: vec!["旧".into()],
+            source_event_ids: vec![],
+            status: "active".into(),
+            reason: "t".into(),
+            source_url: None,
+        };
+        store.upsert_wiki_page(&draft).unwrap();
+
+        // 去 #、去空白、去重、忽略空串，保持顺序
+        let updated = store
+            .update_wiki_tags(
+                "topic/tag-test",
+                &[" #工作 ".into(), "工作".into(), "  ".into(), "Rust".into()],
+            )
+            .unwrap();
+        assert_eq!(updated.tags, vec!["工作".to_string(), "Rust".to_string()]);
+        // 重新读取应持久化
+        let reread = store.get_wiki_page("topic/tag-test").unwrap().unwrap();
+        assert_eq!(reread.tags, vec!["工作".to_string(), "Rust".to_string()]);
+
+        // 清空标签
+        let cleared = store.update_wiki_tags("topic/tag-test", &[]).unwrap();
+        assert!(cleared.tags.is_empty());
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn save_text_page_keeps_tags_and_note_anchor() {
+        let path = std::env::temp_dir().join(format!(
+            "elsewhen-wiki-text-tags-test-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = Store::open(&path).unwrap();
+        let tags = vec![" #工作 ".to_string(), "Rust".to_string(), "".to_string()];
+        let page = save_text_page("这是一段要保存的笔记正文", Some("我的笔记"), &tags, &store).unwrap();
+        assert_eq!(page.kind, "topic");
+        assert_eq!(page.title, "我的笔记");
+        assert!(page.tags.contains(&"工作".to_string()), "{:?}", page.tags);
+        assert!(page.tags.contains(&"Rust".to_string()), "{:?}", page.tags);
+        assert!(page.tags.contains(&"note".to_string()), "应保留 note 锚点标签: {:?}", page.tags);
+        assert!(!page.tags.iter().any(|t| t.is_empty()), "不应有空标签: {:?}", page.tags);
+        // 空文本拒绝
+        assert!(save_text_page("   ", Some("x"), &[], &store).is_err());
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]

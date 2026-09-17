@@ -6,6 +6,67 @@ import '../models/conversation.dart';
 import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
 
+/// 触发一次 AI 生成（发送后自动触发，或失败气泡上的「重新生成」点击）。
+/// 首次发送与重试走完全相同的路径：成功刷新消息/会话列表、失败追加
+/// 「会话内错误气泡」（带重新生成入口），结束统一清除「生成中」状态。
+/// [isMounted]：组件可能已卸载（如生成期间切走 tab），回调返回 false 时
+/// 跳过依赖 ref 的界面刷新（成功入库后的 invalidate 由下次加载兜底）。
+Future<void> runAiGeneration(
+  WidgetRef ref,
+  String conversationId, {
+  bool Function()? isMounted,
+  VoidCallback? onError,
+}) async {
+  final generatingNotifier = ref.read(aiGeneratingProvider.notifier);
+  try {
+    setAiGenerating(ref, conversationId, true);
+    final repo = ref.read(conversationRepositoryProvider);
+    await repo.generateReply(conversationId);
+    if (isMounted == null || isMounted()) {
+      ref.invalidate(messagesProvider);
+      ref.invalidate(conversationsProvider);
+    }
+  } catch (e) {
+    addConversationNotice(ref, conversationId, aiFailureNotice(e));
+    ref.read(scrollRequestProvider.notifier).state++;
+    if (isMounted == null || isMounted()) onError?.call();
+  } finally {
+    final next = {...generatingNotifier.state}..remove(conversationId);
+    generatingNotifier.state = next;
+  }
+}
+
+/// 把 AI 生成失败整理成**一行可读文案**，不展示 Anyhow 的 Caused by 调用链。
+/// - 未配置 provider：直接给引导文案
+/// - 其余：取调用链上的根因（最后一级 cause）；没有链则取首行
+String aiFailureNotice(Object e) {
+  final raw = e.toString();
+  if (raw.contains('No active AI provider')) {
+    return '尚未配置 AI Provider，请到设置页填写后重试';
+  }
+
+  var detail = raw;
+  final causedBy = 'Caused by:';
+  if (raw.contains(causedBy)) {
+    final causes = raw
+        .substring(raw.indexOf(causedBy) + causedBy.length)
+        .split(RegExp(r'\n\s*\d+:\s*'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (causes.isNotEmpty) detail = causes.last;
+  } else {
+    detail = raw.split('\n').first.trim();
+  }
+  // 去掉 AnyhowException(...) 外壳与其多出的收尾括号（wrapper 恰好多一个）
+  const prefix = 'AnyhowException(';
+  if (detail.startsWith(prefix)) detail = detail.substring(prefix.length);
+  if (detail.endsWith(')')) {
+    detail = detail.substring(0, detail.length - 1).trimRight();
+  }
+  return 'AI 回复失败：$detail';
+}
+
 class MessageArea extends ConsumerStatefulWidget {
   const MessageArea({super.key});
 
@@ -44,6 +105,11 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(messagesProvider);
     final selectedId = ref.watch(selectedConversationIdProvider);
+    // 会话临时提示（AI 回复失败等，仅内存，不写库）
+    final notices =
+        ref.watch(conversationNoticeProvider)[selectedId] ?? const <String>[];
+    // 正在生成 AI 回复的会话（发送后反馈「AI 生成中」占位气泡）
+    final generatingIds = ref.watch(aiGeneratingProvider);
 
     // 侦听必须在 build 中注册（riverpod 2.x 约束）。
     // 切换会话：重置窗口，数据到达后回到最新消息
@@ -55,23 +121,27 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
       _pendingScrollToBottom = true;
       if (mounted) setState(() {});
     });
-    // 新消息（用户发送或 AI 回复）：若停在底部则跟随滚动；
-    // 或会话刚切换（pending），数据到达后滚到最新
+    // 当前会话进入「AI 生成中」→ 滚到底部展示生成中占位气泡
+    ref.listen(aiGeneratingProvider, (prev, next) {
+      final id = ref.read(selectedConversationIdProvider);
+      if (id == null) return;
+      final started = next.contains(id) && !(prev?.contains(id) ?? false);
+      if (started) _scheduleScrollToBottom();
+    });
+    // 新消息（用户发送或 AI 回复）：若停在底部则跟随滚动。
+    // 「会话切换/初次加载的滚到最新」不在这里消费 —— loading 阶段触发会把
+    // _pendingScrollToBottom 消耗掉却滚不动（列表未挂载）；改由数据分支在
+    // 渲染完成后兜底滚到底部。
     ref.listen(messagesProvider, (prev, next) {
       final nextLen = next.value?.length ?? 0;
       final prevLen = prev?.value?.length ?? 0;
-      if (_pendingScrollToBottom || (nextLen > prevLen && _nearBottom)) {
-        _pendingScrollToBottom = false;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            _scrollController.animateTo(
-              _scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-            );
-          }
-        });
+      if (nextLen > prevLen && _nearBottom) {
+        _scheduleScrollToBottom();
       }
+    });
+    // 会话临时提示追加（错误气泡等）→ 滚到底部展示
+    ref.listen(scrollRequestProvider, (prev, next) {
+      if (next != prev) _scheduleScrollToBottom();
     });
 
     if (selectedId == null) {
@@ -92,8 +162,19 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         Expanded(
           child: messagesAsync.when(
             data: (messages) {
-              if (messages.isEmpty) {
+              // 当前会话是否正在生成 AI 回复（渲染尾部占位气泡）
+              final isAiTyping = generatingIds.contains(selectedId);
+
+              if (messages.isEmpty && notices.isEmpty && !isAiTyping) {
                 return _buildNoMessages();
+              }
+
+              // 会话刚切换 / 初次加载：数据渲染完成后滚到最新消息。
+              // 放在渲染分支内保证 postFrame 时列表已挂载（hasClients 为真），
+              // 无论上游是 loading 空跑还是数据缓存的路径，都能稳定滚到底。
+              if (_pendingScrollToBottom) {
+                _pendingScrollToBottom = false;
+                _scheduleScrollToBottom();
               }
 
               // 默认只看最近 N 条，点「显示更早」逐页展开
@@ -103,17 +184,35 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                   : (total > _windowSize ? total - _windowSize : 0);
               final hasMore = shownSince > 0;
               final visibleCount = total - shownSince;
+              final tailCount = notices.length + (isAiTyping ? 1 : 0);
 
               return ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(AppTheme.space4),
-                itemCount: visibleCount + (hasMore ? 1 : 0),
+                itemCount: visibleCount + (hasMore ? 1 : 0) + tailCount,
                 itemBuilder: (context, index) {
                   if (hasMore && index == 0) {
                     return _buildLoadMoreButton(total);
                   }
-                  final message = messages[shownSince + index - (hasMore ? 1 : 0)];
-                  return _MessageBubble(message: message);
+                  final libIndex = index - (hasMore ? 1 : 0);
+                  if (libIndex < visibleCount) {
+                    final message = messages[shownSince + libIndex];
+                    // 「重新生成」只出现在最后一条消息上：它必须是用户消息
+                    // （即后面没有 AI 回复 —— 生成失败、或还没生成），
+                    // 且当前不在生成中（生成期间以「AI 正在思考…」占位反馈）。
+                    final isLast = shownSince + libIndex == total - 1;
+                    final needsReply = isLast && message.isUser && !isAiTyping;
+                    return _MessageBubble(
+                      message: message,
+                      showRetry: needsReply,
+                      onRetry: () => _retryAiGeneration(selectedId),
+                    );
+                  }
+                  final tailIndex = libIndex - visibleCount;
+                  if (tailIndex < notices.length) {
+                    return _NoticeBubble(text: notices[tailIndex]);
+                  }
+                  return const _AiTypingBubble();
                 },
               );
             },
@@ -131,6 +230,37 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         _MessageInput(),
       ],
     );
+  }
+
+  /// 消息列表滚到底部（新消息 / 临时提示 / 会话切换时）。
+  /// 懒加载 ListView 滚动中会 build 出新条目、extent 变大，单次滚动目标
+  /// 会落后；因此跳到当前底部后在下一帧复查，extent 还有增长就继续跳，
+  /// 迭代至固定点 —— 保证真正停在最新消息位置。
+  void _scheduleScrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
+  }
+
+  void _jumpToBottom() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final pos = _scrollController.position;
+      if (pos.pixels < pos.maxScrollExtent - 1) {
+        _jumpToBottom();
+      }
+    });
+  }
+
+  /// 错误气泡上的「重新生成」：清掉本次失败提示后，
+  /// 按与首次发送完全相同的路径重启 AI 生成。
+  /// 重试期间以「AI 正在思考…」占位反馈；若再次失败，
+  /// runAiGeneration 会追加新的错误气泡（仍可继续重试）。
+  void _retryAiGeneration(String conversationId) {
+    if (ref.read(aiGeneratingProvider).contains(conversationId)) return;
+    clearConversationNotices(ref, conversationId);
+    if (mounted) setState(() {});
+    runAiGeneration(ref, conversationId, isMounted: () => mounted);
   }
 
   /// 加载更早消息：窗口向前扩展一页，然后回到顶部看旧内容
@@ -255,10 +385,113 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
   }
 }
 
+/// 会话内临时提示气泡（AI 回复失败等）。仅内存态——不写库，
+/// 不进入对话历史 / 记忆注入 / AI 上下文；发送下一条消息后即清除。
+/// 只承载失败原因文案；「重新生成」入口在最后一条用户消息上。
+class _NoticeBubble extends StatelessWidget {
+  final String text;
+
+  const _NoticeBubble({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    const danger = Color(0xFFB91C1C);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space4, right: 48),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildAvatar(isUser: false),
+          const SizedBox(width: AppTheme.space3),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: AppTheme.space2,
+                    right: AppTheme.space2,
+                    bottom: AppTheme.space1,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.error_outline_rounded,
+                        size: 13,
+                        color: danger.withValues(alpha: 0.85),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '系统提示',
+                        style: TextStyle(
+                          color: danger.withValues(alpha: 0.85),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.space3,
+                    vertical: AppTheme.space3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: danger.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    border: Border.all(
+                      color: danger.withValues(alpha: 0.4),
+                      width: 1,
+                    ),
+                  ),
+                  child: SelectableText(
+                    text,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar({required bool isUser}) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: const Color(0xFFB91C1C).withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.error_outline_rounded,
+        size: 16,
+        color: const Color(0xFFB91C1C).withValues(alpha: 0.85),
+      ),
+    );
+  }
+}
+
 class _MessageBubble extends StatelessWidget {
   final Message message;
 
-  const _MessageBubble({required this.message});
+  /// 是否显示「重新生成」：仅最后一条用户消息（且无 AI 回复）时为真
+  final bool showRetry;
+  final VoidCallback? onRetry;
+
+  const _MessageBubble({
+    required this.message,
+    this.showRetry = false,
+    this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -347,6 +580,26 @@ class _MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // 生成失败/未生成：最后一条用户消息上提供「重新生成」入口
+                if (showRetry && onRetry != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppTheme.space1),
+                    child: TextButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded, size: 15),
+                      label: const Text('重新生成'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.accentPrimary,
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.space2,
+                          vertical: 2,
+                        ),
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -386,6 +639,72 @@ class _MessageBubble extends StatelessWidget {
     } else {
       return DateFormat('MM-dd HH:mm').format(time);
     }
+  }
+}
+
+/// AI 回复生成中的占位气泡：用户发送后、回复入库前，让界面明确告知
+/// 「后台正在执行」，避免发送后长时间无反馈的错觉。
+class _AiTypingBubble extends StatelessWidget {
+  const _AiTypingBubble();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppTheme.surface3,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.smart_toy,
+              size: 18,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(width: AppTheme.space3),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.space3,
+                vertical: AppTheme.space3,
+              ),
+              decoration: BoxDecoration(
+                color: AppTheme.surface2,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(color: AppTheme.surface3, width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.accentPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.space2),
+                  Text(
+                    'AI 正在思考…',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -444,6 +763,9 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       _showError('请先选择一个会话');
       return;
     }
+    // AI 正在生成本会话回复：暂不提交新消息，
+    // 避免并发生成互相覆盖上下文（用户可继续打字，生成完后再发送）。
+    if (ref.read(aiGeneratingProvider).contains(conversationId)) return;
 
     setState(() => _isSubmitting = true);
 
@@ -452,11 +774,15 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       // 先把用户消息写入库（不依赖 AI）
       await repo.sendMessage(conversationId, text);
 
+      // 新消息发出，清掉该会话之前的临时错误提示
+      clearConversationNotices(ref, conversationId);
+      if (mounted) setState(() {});
+
       _controller.clear();
       ref.invalidate(messagesProvider);
       ref.invalidate(conversationsProvider);
     } catch (e) {
-      // 写库失败：明确反馈
+      // 写库失败：明确反馈（文字仍保留在输入框，可手动重发）
       _showError('发送失败：$e');
       return;
     } finally {
@@ -467,29 +793,33 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     }
 
     if (!mounted) return;
-    // 接着触发 AI 分析生成回复（不阻塞输入，出错单独反馈）
+    // 接着触发 AI 分析生成回复（不阻塞输入，出错单独反馈）。
+    // 「生成中」状态由 _generateAiReply 内部设置，确保 invalidate
+    // 时列表仍在 data 分支（可渲染 notice），而非 AsyncLoading（空跑）。
     await _generateAiReply(conversationId);
   }
 
   Future<void> _generateAiReply(String conversationId) async {
-    try {
-      final repo = ref.read(conversationRepositoryProvider);
-      await repo.generateReply(conversationId);
-      if (!mounted) return;
-      ref.invalidate(messagesProvider);
-      ref.invalidate(conversationsProvider);
-    } catch (e) {
-      final message = e.toString();
-      if (message.contains('No active AI provider')) {
-        _showError('尚未配置 AI Provider，请到设置页填写后重试');
-      } else {
-        _showError('AI 回复失败：$e');
-      }
-    }
+    // 生成逻辑集中在顶部 runAiGeneration：重试（错误气泡按钮）与首次发送
+    // 走同一路径，保证成功/失败/收尾行为一致。
+    await runAiGeneration(
+      ref,
+      conversationId,
+      isMounted: () => mounted,
+      onError: () {
+        if (mounted) setState(() {});
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final selectedId = ref.watch(selectedConversationIdProvider);
+    final isGenerating =
+        selectedId != null && ref.watch(aiGeneratingProvider).contains(selectedId);
+    // 三态：写库中（_isSubmitting）或 AI 生成中 → 忙碌
+    final busy = _isSubmitting || isGenerating;
+
     return Container(
       padding: const EdgeInsets.all(AppTheme.space4),
       decoration: BoxDecoration(
@@ -502,7 +832,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: TextField(
@@ -516,7 +846,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                 fontSize: 14,
               ),
               decoration: InputDecoration(
-                hintText: '输入消息...',
+                hintText: isGenerating ? 'AI 正在思考，您可以先输入下一条消息…' : '输入消息...',
                 hintStyle: TextStyle(color: AppTheme.textTertiary),
                 filled: true,
                 fillColor: AppTheme.surface2,
@@ -542,8 +872,8 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
           ),
           const SizedBox(width: AppTheme.space3),
           IconButton(
-            onPressed: _isSubmitting ? null : _handleSubmit,
-            icon: _isSubmitting
+            onPressed: busy ? null : _handleSubmit,
+            icon: busy
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -552,7 +882,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                 : const Icon(Icons.send),
             color: AppTheme.accentPrimary,
             iconSize: 24,
-            tooltip: '发送',
+            tooltip: isGenerating ? 'AI 正在思考…' : '发送',
           ),
         ],
       ),

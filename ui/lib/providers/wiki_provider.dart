@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/wiki_page.dart';
 import '../models/tweet_fetch.dart';
+import '../models/import_fetch.dart';
 import '../bridge/rust_bridge_repository.dart';
 
-/// 侧栏 Tab：对话 / 知识库
-enum SidebarTab { conversation, wiki }
+/// 侧栏 Tab：对话 / 知识库 / 待办
+enum SidebarTab { conversation, wiki, todo }
 
 final sidebarTabProvider = StateProvider<SidebarTab>((ref) => SidebarTab.conversation);
 
@@ -44,7 +45,7 @@ sealed class WikiTabEntry {
   bool get closable => true;
 }
 
-/// Tab 1（固定）：推文导入（粘贴链接 → 抓取）。缺省只有这一个，不可关闭。
+/// Tab 1（固定）：导入（粘贴链接抓取或直接文本保存）。缺省只有这一个，不可关闭。
 class ImportTabEntry extends WikiTabEntry {
   const ImportTabEntry();
 
@@ -52,7 +53,7 @@ class ImportTabEntry extends WikiTabEntry {
   String get id => 'import';
 
   @override
-  String get title => '推文导入';
+  String get title => '导入';
 
   @override
   bool get closable => false;
@@ -83,6 +84,22 @@ class TweetTabEntry extends WikiTabEntry {
 
   @override
   String get title => '推文 ${fetch.tweetId}';
+}
+
+/// 已抓取任意网址的预览 tab（网页/推文通用；内含保存按钮，点保存才入库）
+class ImportFetchTabEntry extends WikiTabEntry {
+  final ImportFetch fetch;
+
+  const ImportFetchTabEntry({required this.fetch});
+
+  @override
+  String get id => 'import-${fetch.sourceUrl.hashCode}';
+
+  @override
+  String get title {
+    final t = fetch.displayTitle;
+    return t.length > 12 ? '${t.substring(0, 12)}…' : t;
+  }
 }
 
 /// 已打开的 tab 列表（第一个固定为导入 tab）
@@ -127,6 +144,11 @@ void openWikiPageTab(WidgetRef ref, WikiPage page) {
 /// 打开一个已抓取推文的预览 tab
 void openWikiTweetTab(WidgetRef ref, TweetFetch fetch) {
   openWikiTab(ref, TweetTabEntry(fetch: fetch));
+}
+
+/// 打开一个已抓取任意网址内容的预览 tab（网页/推文通用）
+void openWikiImportFetchTab(WidgetRef ref, ImportFetch fetch) {
+  openWikiTab(ref, ImportFetchTabEntry(fetch: fetch));
 }
 
 /// 关闭一个 tab（导入 tab 不可关闭）

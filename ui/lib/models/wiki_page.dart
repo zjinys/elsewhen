@@ -16,6 +16,7 @@ class WikiPage {
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? sourceUrl;
 
   const WikiPage({
     required this.id,
@@ -32,6 +33,7 @@ class WikiPage {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.sourceUrl,
   });
 
   factory WikiPage.fromDto(api.WikiPageDto dto) {
@@ -45,11 +47,12 @@ class WikiPage {
       tags: dto.tags,
       sourceEventIds: dto.sourceEventIds,
       evidenceCount: dto.evidenceCount.toInt(),
-      firstSeenAt: DateTime.parse(dto.firstSeenAt),
-      lastSeenAt: DateTime.parse(dto.lastSeenAt),
+      firstSeenAt: DateTime.parse(dto.firstSeenAt).toLocal(),
+      lastSeenAt: DateTime.parse(dto.lastSeenAt).toLocal(),
       status: dto.status,
-      createdAt: DateTime.parse(dto.createdAt),
-      updatedAt: DateTime.parse(dto.updatedAt),
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
+      updatedAt: DateTime.parse(dto.updatedAt).toLocal(),
+      sourceUrl: dto.sourceUrl,
     );
   }
 

@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import '../models/conversation.dart';
 import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
+import '../providers/todo_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
+import 'todo_view.dart';
 
 /// 主界面左侧栏：对话 / 知识库 双 Tab + 底部设置入口
 class LeftSidebar extends ConsumerWidget {
@@ -15,6 +17,18 @@ class LeftSidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(sidebarTabProvider);
+
+    // 切到知识库 / 待办 tab 时强制刷新列表：
+    // 对话里 AI 可能刚导入过页面 / 建过待办（含用户确认后落库），
+    // 若沿用缓存，切换到对应 tab 会看不到最新数据。
+    ref.listen(sidebarTabProvider, (prev, next) {
+      if (prev == next) return;
+      if (next == SidebarTab.wiki) {
+        ref.invalidate(wikiPagesProvider);
+      } else if (next == SidebarTab.todo) {
+        ref.invalidate(todosProvider);
+      }
+    });
 
     return Container(
       width: 280,
@@ -34,6 +48,7 @@ class LeftSidebar extends ConsumerWidget {
             child: switch (tab) {
               SidebarTab.conversation => _buildConversationTab(context, ref),
               SidebarTab.wiki => const _WikiTab(),
+              SidebarTab.todo => const _TodoTab(),
             },
           ),
           _buildFooter(context, ref),
@@ -70,6 +85,15 @@ class LeftSidebar extends ConsumerWidget {
             selected: tab == SidebarTab.wiki,
             onTap: () {
               ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+            },
+          ),
+          const SizedBox(width: AppTheme.space2),
+          _TabButton(
+            label: '待办',
+            icon: Icons.fact_check_outlined,
+            selected: tab == SidebarTab.todo,
+            onTap: () {
+              ref.read(sidebarTabProvider.notifier).state = SidebarTab.todo;
             },
           ),
         ],
@@ -375,69 +399,490 @@ class _ToolbarAction extends StatelessWidget {
   }
 }
 
-/// 知识库 Tab：按 kind 分组展示 wiki 页面
-class _WikiTab extends ConsumerWidget {
+/// 知识库 Tab：搜索 + kind 过滤 + 按 kind 分组展示 wiki 页面
+class _WikiTab extends ConsumerStatefulWidget {
   const _WikiTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_WikiTab> createState() => _WikiTabState();
+}
+
+/// 知识库列表排序方式
+enum _WikiSort { updated, evidence, title }
+
+class _WikiTabState extends ConsumerState<_WikiTab> {
+  String _query = '';
+  // null = 全部
+  String? _kindFilter;
+  // null = 全部标签
+  String? _tagFilter;
+  _WikiSort _sort = _WikiSort.updated;
+
+  /// 按当前排序方式就地排序
+  void _sortPages(List<WikiPage> pages) {
+    pages.sort((a, b) => switch (_sort) {
+          _WikiSort.updated => b.updatedAt.compareTo(a.updatedAt),
+          _WikiSort.evidence => b.evidenceCount.compareTo(a.evidenceCount),
+          _WikiSort.title => a.title.compareTo(b.title),
+        });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final pagesAsync = ref.watch(wikiPagesProvider);
     final selectedSlug = ref.watch(selectedWikiSlugProvider);
 
-    return pagesAsync.when(
-      data: (pages) {
-        if (pages.isEmpty) {
-          return const _EmptyState(
-            icon: Icons.menu_book_outlined,
-            message: '知识库还没有页面\n\n用命令行跑一次：\nelsewhen wiki digest',
-          );
-        }
-
-        // 按 kind 分组，保持首次出现顺序
-        final grouped = <String, List<WikiPage>>{};
-        for (final page in pages) {
-          grouped.putIfAbsent(page.kindLabel, () => []).add(page);
-        }
-
-        return ListView(
-          padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
-          children: [
-            for (final entry in grouped.entries) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppTheme.space3,
-                  AppTheme.space3,
-                  AppTheme.space3,
-                  AppTheme.space1,
-                ),
-                child: Text(
-                  entry.key,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                    color: AppTheme.accentMuted,
-                  ),
+    return Column(
+      children: [
+        // 搜索框
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.space3,
+            AppTheme.space2,
+            AppTheme.space3,
+            AppTheme.space1,
+          ),
+          child: TextField(
+            onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+            decoration: InputDecoration(
+              hintText: '搜索知识库…',
+              hintStyle: TextStyle(fontSize: 12.5, color: AppTheme.textTertiary),
+              prefixIcon: const Icon(Icons.search, size: 16),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 32,
+                minHeight: 32,
+              ),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+              filled: true,
+              fillColor: AppTheme.surface2,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                borderSide: BorderSide(color: AppTheme.surface3),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                borderSide: BorderSide(color: AppTheme.surface3),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                borderSide: BorderSide(
+                  color: AppTheme.accentPrimary,
+                  width: 1.5,
                 ),
               ),
-              for (final page in entry.value)
-                _WikiPageItem(
-                  page: page,
-                  isSelected: page.slug == selectedSlug,
-                  onTap: () {
-                    // 点击页面 → 新开（或激活）一个页面详情 tab
-                    openWikiPageTab(ref, page);
-                  },
+            ),
+          ),
+        ),
+        Expanded(
+          child: pagesAsync.when(
+            data: (pages) {
+              if (pages.isEmpty) {
+                return const _EmptyState(
+                  icon: Icons.menu_book_outlined,
+                  message: '知识库还没有页面\n\n去「导入」tab 粘贴网址或文本，\n或在对话里说「导入 xxx 到知识库」',
+                );
+              }
+
+              // 汇总 kind 与标签，供过滤 chip 使用
+              final kinds = <String>[];
+              final tagCounts = <String, int>{};
+              for (final p in pages) {
+                if (!kinds.contains(p.kindLabel)) kinds.add(p.kindLabel);
+                for (final t in p.tags) {
+                  tagCounts[t] = (tagCounts[t] ?? 0) + 1;
+                }
+              }
+              final allTags = tagCounts.keys.toList()..sort();
+
+              // kind + 标签 + 搜索
+              final filtered = pages.where((page) {
+                if (_kindFilter != null && page.kindLabel != _kindFilter) {
+                  return false;
+                }
+                if (_tagFilter != null && !page.tags.contains(_tagFilter)) {
+                  return false;
+                }
+                if (_query.isNotEmpty) {
+                  final hay = (page.title + page.summary + page.contentMd)
+                      .toLowerCase();
+                  final tagHay = page.tags.join(' ').toLowerCase();
+                  if (!hay.contains(_query) && !tagHay.contains(_query)) {
+                    return false;
+                  }
+                }
+                return true;
+              }).toList();
+
+              if (filtered.isEmpty) {
+                return const _EmptyState(
+                  icon: Icons.search_off,
+                  message: '没有匹配的页面',
+                );
+              }
+
+              _sortPages(filtered);
+
+              // 按 kind 分组（组的先后 = 排序后首次出现的顺序）
+              final grouped = <String, List<WikiPage>>{};
+              for (final page in filtered) {
+                grouped.putIfAbsent(page.kindLabel, () => []).add(page);
+              }
+
+              return Column(
+                children: [
+                  // 结果数 + 排序
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppTheme.space3,
+                      0,
+                      AppTheme.space2,
+                      0,
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${filtered.length} 条',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textTertiary,
+                          ),
+                        ),
+                        const Spacer(),
+                        _SortMenu(
+                          value: _sort,
+                          onChanged: (v) => setState(() => _sort = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // kind 过滤 chips（水平滚动）
+                  SizedBox(
+                    height: 34,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.space3,
+                      ),
+                      children: [
+                        _FilterChip(
+                          label: '全部',
+                          count: pages.length,
+                          selected: _kindFilter == null,
+                          onTap: () => setState(() => _kindFilter = null),
+                        ),
+                        for (final kind in kinds)
+                          _FilterChip(
+                            label: kind,
+                            count: pages.where((p) => p.kindLabel == kind).length,
+                            selected: _kindFilter == kind,
+                            onTap: () => setState(() {
+                              _kindFilter =
+                                  _kindFilter == kind ? null : kind;
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // 标签过滤 chips（有标签才显示）
+                  if (allTags.isNotEmpty)
+                    SizedBox(
+                      height: 34,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.space3,
+                        ),
+                        children: [
+                          _TagChip(
+                            label: '全部标签',
+                            selected: _tagFilter == null,
+                            onTap: () => setState(() => _tagFilter = null),
+                          ),
+                          for (final tag in allTags)
+                            _TagChip(
+                              label: '#$tag ${tagCounts[tag]}',
+                              selected: _tagFilter == tag,
+                              onTap: () => setState(() {
+                                _tagFilter = _tagFilter == tag ? null : tag;
+                              }),
+                            ),
+                        ],
+                      ),
+                    ),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.only(bottom: AppTheme.space1),
+                      children: [
+                        for (final entry in grouped.entries) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppTheme.space3,
+                              AppTheme.space3,
+                              AppTheme.space3,
+                              AppTheme.space1,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: _kindColor(entry.value.first.kind),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${entry.key}（${entry.value.length}）',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                    color: _kindColor(entry.value.first.kind),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          for (final page in entry.value)
+                            _WikiPageItem(
+                              page: page,
+                              isSelected: page.slug == selectedSlug,
+                              onTap: () {
+                                openWikiPageTab(ref, page);
+                              },
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Text(
+                '加载失败',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// kind 过滤 chip
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Material(
+        color: selected ? AppTheme.accentPrimary : AppTheme.surface2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$label $count',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    color: selected
+                        ? Colors.black
+                        : AppTheme.textSecondary,
+                  ),
                 ),
-            ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 标签过滤 chip
+class _TagChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TagChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Material(
+        color: selected ? AppTheme.accentMuted : AppTheme.surface2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected ? Colors.white : AppTheme.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 排序选择器：最近更新 / 证据数 / 标题
+class _SortMenu extends StatelessWidget {
+  final _WikiSort value;
+  final ValueChanged<_WikiSort> onChanged;
+
+  const _SortMenu({required this.value, required this.onChanged});
+
+  static const _labels = {
+    _WikiSort.updated: '最近更新',
+    _WikiSort.evidence: '证据数',
+    _WikiSort.title: '标题',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_WikiSort>(
+      tooltip: '排序',
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      color: AppTheme.surface2,
+      onSelected: onChanged,
+      itemBuilder: (context) => [
+        for (final entry in _labels.entries)
+          PopupMenuItem(
+            value: entry.key,
+            child: Row(
+              children: [
+                Icon(
+                  entry.key == value ? Icons.check : Icons.sort,
+                  size: 15,
+                  color: entry.key == value
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textTertiary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  entry.value,
+                  style: TextStyle(
+                    color: entry.key == value
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.swap_vert, size: 14, color: AppTheme.textTertiary),
+            const SizedBox(width: 3),
+            Text(
+              _labels[value]!,
+              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            ),
           ],
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(
-        child: Text(
-          '加载失败',
-          style: TextStyle(color: AppTheme.textSecondary),
+        ),
+      ),
+    );
+  }
+}
+
+/// 相对时间（列表元数据用）
+String _formatRelative(DateTime time) {
+  final diff = DateTime.now().difference(time);
+  if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
+  if (diff.inHours < 24) return '${diff.inHours}小时前';
+  if (diff.inDays < 7) return '${diff.inDays}天前';
+  return DateFormat('MM-dd').format(time);
+}
+
+/// 每种 kind 一个主题色：让「分组 + 条目」的颜色形成双重视觉索引
+Color _kindColor(String kind) {
+  const map = <String, Color>{
+    'profile': Color(0xFF7AA2F7), // 蓝
+    'recurring_cost': Color(0xFFF7768E), // 红
+    'capability': Color(0xFF9ECE6A), // 绿
+    'asset': Color(0xFFE0AF68), // 黄
+    'project': Color(0xFFBB9AF7), // 紫
+    'relationship': Color(0xFFF7768E),
+    'decision': Color(0xFF7DCFFF), // 青
+    'habit': Color(0xFF9ECE6A),
+    'constraint': Color(0xFFA9B1D6),
+    'insight': Color(0xFFE0AF68),
+    'topic': Color(0xFFA9B1D6), // 灰蓝
+    'method': Color(0xFF9ECE6A),
+    'case': Color(0xFF7DCFFF),
+    'principle': Color(0xFFBB9AF7),
+    'series': Color(0xFFE0AF68),
+    'source': Color(0xFF7AA2F7),
+  };
+  return map[kind] ?? AppTheme.accentMuted;
+}
+
+/// kind 色点 + 首字徽标：与分组标题同色的条目级视觉锚点
+class _KindBadge extends StatelessWidget {
+  final String kind;
+  final String label;
+
+  const _KindBadge({required this.kind, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _kindColor(kind);
+    return Container(
+      width: 20,
+      height: 20,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        label.characters.first,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
         ),
       ),
     );
@@ -476,6 +921,11 @@ class _WikiPageItem extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  // kind 色点徽标：与分组标题同色，形成双重视觉索引
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppTheme.space2),
+                    child: _KindBadge(kind: page.kind, label: page.kindLabel),
+                  ),
                   Expanded(
                     child: Text(
                       page.title,
@@ -489,6 +939,15 @@ class _WikiPageItem extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppTheme.space2),
+                  if (page.sourceUrl != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(
+                        Icons.link,
+                        size: 12,
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
@@ -520,6 +979,44 @@ class _WikiPageItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
+              const SizedBox(height: AppTheme.space1),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 2,
+                      children: [
+                        for (final tag in page.tags.take(3))
+                          Text(
+                            '#$tag',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: AppTheme.accentMuted,
+                            ),
+                          ),
+                        if (page.tags.length > 3)
+                          Text(
+                            '+${page.tags.length - 3}',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: AppTheme.textTertiary,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.space2),
+                  Text(
+                    _formatRelative(page.updatedAt),
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -734,5 +1231,15 @@ class _EmptyState extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// 待办 tab：手写待办视图（列表按进行中/已完成分组）
+class _TodoTab extends StatelessWidget {
+  const _TodoTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const TodoListView();
   }
 }

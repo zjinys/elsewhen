@@ -1,5 +1,5 @@
 use crate::event::NewEvent;
-use crate::storage::Store;
+use crate::storage::{RuleStatus, Store};
 use anyhow::Result;
 
 /// Event data transfer object for Flutter
@@ -107,10 +107,32 @@ pub fn get_ai_provider() -> Result<Option<String>> {
 /// AI provider config DTO for Flutter settings page
 #[derive(Clone, Debug)]
 pub struct AiProviderConfigDto {
+    pub id: String,
+    pub name: String,
     pub provider_type: String,
     pub base_url: String,
     pub model: String,
+    pub api_key_source: String,
+    /// 明文密钥只在保存时上行；读取时不回传（用 api_key_source 判断是否已配置）
     pub api_key: String,
+    pub is_active: bool,
+    pub temperature: f64,
+    pub max_tokens: Option<i64>,
+}
+
+fn dto_from_active(p: crate::storage::AiProviderConfig) -> AiProviderConfigDto {
+    AiProviderConfigDto {
+        id: p.id,
+        name: p.name,
+        provider_type: p.provider_type,
+        base_url: p.base_url,
+        model: p.model,
+        api_key_source: p.api_key_source,
+        api_key: String::new(),
+        is_active: p.is_active,
+        temperature: p.temperature,
+        max_tokens: p.max_tokens,
+    }
 }
 
 /// Get the active AI provider full config (for settings page prefill)
@@ -118,12 +140,80 @@ pub fn get_ai_provider_config() -> Result<Option<AiProviderConfigDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
 
-    Ok(store.active_ai_provider_config()?.map(|p| AiProviderConfigDto {
-        provider_type: p.provider_type,
-        base_url: p.base_url,
-        model: p.model,
-        api_key: p.api_key,
-    }))
+    Ok(store
+        .active_ai_provider_config()?
+        .map(dto_from_active))
+}
+
+/// 列出全部 AI provider 配置（多配置，仅一个 is_active=true）
+pub fn list_ai_provider_configs() -> Result<Vec<AiProviderConfigDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+
+    Ok(store
+        .list_ai_provider_configs()?
+        .into_iter()
+        .map(|r| AiProviderConfigDto {
+            id: r.id,
+            name: r.name,
+            provider_type: r.provider_type,
+            base_url: r.base_url,
+            model: r.model,
+            api_key_source: r.api_key_source,
+            api_key: String::new(),
+            is_active: r.is_active,
+            temperature: r.temperature,
+            max_tokens: r.max_tokens,
+        })
+        .collect())
+}
+
+/// 新增或编辑 AI provider 配置；返回配置 id。
+/// provider.id 为空表示新建；api_key 传空串表示保留原 key 不变（新建则必填）。
+pub fn save_ai_provider_config(provider: AiProviderConfigDto) -> Result<String> {
+    if provider.name.trim().is_empty() {
+        anyhow::bail!("配置名称不能为空");
+    }
+    if provider.base_url.trim().is_empty() || provider.model.trim().is_empty() {
+        anyhow::bail!("base_url 和 model 均不能为空");
+    }
+    if provider.id.trim().is_empty() && provider.api_key.trim().is_empty() {
+        anyhow::bail!("新建配置时必须填写 API Key");
+    }
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+
+    let id = if provider.id.trim().is_empty() {
+        None
+    } else {
+        Some(provider.id.trim())
+    };
+    store.save_ai_provider_config(
+        id,
+        provider.name.trim(),
+        &provider.provider_type,
+        provider.base_url.trim(),
+        provider.model.trim(),
+        provider.api_key.trim(),
+        provider.temperature,
+        provider.max_tokens,
+    )
+}
+
+/// 将指定配置设为激活（唯一激活项）
+pub fn set_active_ai_provider_config(id: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.set_active_ai_provider_config(&id)?;
+    Ok(())
+}
+
+/// 删除一个 AI provider 配置；若删除的是激活项，剩余第一条自动激活
+pub fn delete_ai_provider_config(id: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.delete_ai_provider_config(&id)?;
+    Ok(())
 }
 
 /// Upsert the active AI provider config (settings page save)
@@ -159,6 +249,7 @@ pub struct ConversationDto {
     pub message_count: i32,
     pub last_message_preview: Option<String>,
     pub archived: bool,
+    pub wiki_page_slug: Option<String>,
 }
 
 /// Message DTO for Flutter
@@ -173,6 +264,49 @@ pub struct MessageDto {
 }
 
 /// Create a new conversation
+/// 个人经验规则 DTO
+#[derive(Clone, Debug)]
+pub struct RuleDto {
+    pub id: String,
+    pub content: String,
+    pub status: String,
+    pub created_at: String,
+}
+
+/// 列出规则库（含已生效与待确认）
+pub fn list_rules() -> Result<Vec<RuleDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+
+    let rules = store.list_rules(None, None)?;
+    Ok(rules
+        .into_iter()
+        .map(|r| RuleDto {
+            id: r.id,
+            content: r.content,
+            status: r.status.as_str().to_string(),
+            created_at: r.created_at,
+        })
+        .collect())
+}
+
+/// 新增一条规则（手动添加，直接生效）
+pub fn add_rule(content: String) -> Result<String> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+
+    store.add_rule(&content, RuleStatus::Active, None)
+}
+
+/// 删除一条规则
+pub fn delete_rule(rule_id: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+
+    store.delete_rule(&rule_id)?;
+    Ok(())
+}
+
 pub fn create_conversation(title: Option<String>, tag: Option<String>) -> Result<ConversationDto> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
@@ -194,6 +328,7 @@ pub fn create_conversation(title: Option<String>, tag: Option<String>) -> Result
         message_count: conversation.message_count,
         last_message_preview: conversation.last_message_preview,
         archived: conversation.archived,
+        wiki_page_slug: conversation.wiki_page_slug,
     })
 }
 
@@ -215,6 +350,7 @@ pub fn list_conversations() -> Result<Vec<ConversationDto>> {
             message_count: c.message_count,
             last_message_preview: c.last_message_preview,
             archived: c.archived,
+            wiki_page_slug: c.wiki_page_slug,
         })
         .collect())
 }
@@ -237,6 +373,7 @@ pub fn list_archived_conversations() -> Result<Vec<ConversationDto>> {
             message_count: c.message_count,
             last_message_preview: c.last_message_preview,
             archived: c.archived,
+            wiki_page_slug: c.wiki_page_slug,
         })
         .collect())
 }
@@ -270,6 +407,7 @@ pub fn get_conversation(conversation_id: String) -> Result<Option<ConversationDt
             message_count: conversation.message_count,
             last_message_preview: conversation.last_message_preview,
             archived: conversation.archived,
+            wiki_page_slug: conversation.wiki_page_slug,
         }))
     } else {
         Ok(None)
@@ -283,6 +421,19 @@ pub fn send_message(conversation_id: String, role: String, content: String, pare
 
     let parent_ref = parent_message_id.as_deref();
     let message_id = store.send_message(&conversation_id, &role, &content, parent_ref)?;
+
+    // 首条用户消息到达时自动生成对话标题，避免列表里一屏「新对话」
+    if role == "user" {
+        if let Some(title) = crate::storage::derive_conversation_title(&content) {
+            let untitled = store
+                .get_conversation(&conversation_id)?
+                .and_then(|c| c.title)
+                .map_or(true, |t| t.trim().is_empty());
+            if untitled {
+                store.rename_conversation(&conversation_id, &title)?;
+            }
+        }
+    }
 
     let messages = store.list_messages(&conversation_id)?;
     let message = messages
@@ -439,6 +590,7 @@ pub struct WikiPageDto {
     pub status: String,
     pub created_at: String,
     pub updated_at: String,
+    pub source_url: Option<String>,
 }
 
 impl From<crate::storage::WikiPage> for WikiPageDto {
@@ -458,6 +610,7 @@ impl From<crate::storage::WikiPage> for WikiPageDto {
             status: p.status,
             created_at: p.created_at,
             updated_at: p.updated_at,
+            source_url: p.source_url,
         }
     }
 }
@@ -476,6 +629,14 @@ pub fn get_wiki_page(slug: String) -> Result<Option<WikiPageDto>> {
     let store = Store::open(&config.database_path)?;
     let page = store.get_wiki_page(&slug)?;
     Ok(page.map(WikiPageDto::from))
+}
+
+/// 更新知识页标签（应用内整理元数据用；传空数组即清空）。返回更新后的页面。
+pub fn update_wiki_tags(slug: String, tags: Vec<String>) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let page = store.update_wiki_tags(&slug, &tags)?;
+    Ok(WikiPageDto::from(page))
 }
 
 /// 抓取的推文内容 DTO（只解析，不入库）
@@ -534,8 +695,40 @@ pub fn save_tweet_page(
         author_name,
         screen_name,
     };
-    let page = crate::wiki::save_tweet_page(&t, &store)?;
+    let page = crate::wiki::save_tweet_page(
+        &t,
+        Some(&format!("https://x.com/i/status/{}", t.tweet_id)),
+        &store,
+    )?;
     Ok(WikiPageDto::from(page))
+}
+
+/// 把用户粘贴的纯文本保存为知识库页面（kind=topic），返回该页。
+/// content_md 保留全文，不截断；tags 可选（页面保留「note」锚点标签）。
+pub fn save_text_page(
+    text: String,
+    title: Option<String>,
+    tags: Vec<String>,
+) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+
+    let page = crate::wiki::save_text_page(&text, title.as_deref(), &tags, &store)?;
+    Ok(WikiPageDto::from(page))
+}
+
+/// 判断一个网址是否需要走专用抓取 API（当前：x.com/twitter.com 推文 → fxtwitter）。
+/// 返回 "tweet" 或 "web"，供导入入口统一分发，避免前端各自猜测。
+pub fn guess_import_kind(url: String) -> Result<String> {
+    let trimmed = url.trim();
+    if !trimmed.starts_with("http://") && !trimmed.starts_with("https://") {
+        anyhow::bail!("仅支持 http/https 链接");
+    }
+    Ok(if crate::wiki::is_tweet_url(trimmed) {
+        "tweet".to_string()
+    } else {
+        "web".to_string()
+    })
 }
 
 /// 内容对话消息 DTO（临时讨论的一条消息）
@@ -621,4 +814,244 @@ pub fn update_theme_prefs(mode: String, preset: String) -> Result<()> {
     let store = Store::open(&config.database_path)?;
     store.set_meta("theme_mode", &mode)?;
     store.set_meta("theme_preset", &preset)
+}
+
+// ── 个人待办（todo） ──────────────────────────────────────────────────
+
+/// 待办 DTO
+#[derive(Clone, Debug)]
+pub struct TodoDto {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub priority: String,
+    pub due_at: Option<String>,
+    pub related_event_id: Option<String>,
+    pub related_wiki_slug: Option<String>,
+    pub note: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl From<crate::storage::Todo> for TodoDto {
+    fn from(t: crate::storage::Todo) -> Self {
+        Self {
+            id: t.id,
+            title: t.title,
+            status: t.status.as_str().to_string(),
+            priority: t.priority,
+            due_at: t.due_at,
+            related_event_id: t.related_event_id,
+            related_wiki_slug: t.related_wiki_slug,
+            note: t.note,
+            created_at: t.created_at,
+            updated_at: t.updated_at,
+        }
+    }
+}
+
+/// 列出待办（status 过滤：open/done/archived；None 时列出 open+done）
+pub fn list_todos(status: Option<String>) -> Result<Vec<TodoDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let todos = store.list_todos(status.as_deref())?;
+    Ok(todos.into_iter().map(TodoDto::from).collect())
+}
+
+/// 新建待办（用户手动创建，直接生效）
+pub fn create_todo(
+    title: String,
+    due_at: Option<String>,
+    priority: Option<String>,
+    related_wiki_slug: Option<String>,
+    note: Option<String>,
+) -> Result<TodoDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    if title.trim().is_empty() {
+        anyhow::bail!("待办内容不能为空");
+    }
+    let t = store.create_todo(
+        title.trim(),
+        priority.as_deref().unwrap_or("normal"),
+        due_at.as_deref(),
+        None,
+        related_wiki_slug.as_deref(),
+        note.as_deref(),
+    )?;
+    Ok(TodoDto::from(t))
+}
+
+/// 更新待办状态（open/done/archived）
+pub fn update_todo_status(id: String, status: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.update_todo_status(&id, crate::storage::TodoStatus::parse(&status))
+}
+
+/// 更新待办的可编辑字段（标题 / 补充 / 优先级 / 截止时间）。
+/// 可选字段传 None 表示清除（如结束拖延、去掉截止时间）。
+pub fn update_todo(
+    id: String,
+    title: String,
+    note: Option<String>,
+    priority: Option<String>,
+    due_at: Option<String>,
+) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.update_todo(
+        &id,
+        &title,
+        note.as_deref(),
+        priority.as_deref(),
+        due_at.as_deref(),
+    )
+}
+
+/// 删除一条待办
+pub fn delete_todo(id: String) -> Result<bool> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.delete_todo(&id)
+}
+
+// ── 任意 URL 导入 ──────────────────────────────────────────────────────
+
+/// 任意 URL 抓取结果 DTO（推文或普通页面，只解析不入库）
+#[derive(Clone, Debug)]
+pub struct ImportUrlDto {
+    pub source_url: String,
+    /// "tweet" | "webpage"
+    pub source_kind: String,
+    pub title: Option<String>,
+    pub content_md: String,
+    pub author_name: Option<String>,
+    pub screen_name: Option<String>,
+}
+
+/// 抓取任意 URL 的内容（推文走 fxtwitter，普通页面走 HTML 文本提取）。
+/// 只解析不写库，由后续「保存」动作决定。
+pub fn fetch_import_url(url: String) -> Result<ImportUrlDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        anyhow::bail!("仅支持 http/https 链接");
+    }
+    let service = store
+        .get_meta("tweet_fetch_service")?
+        .unwrap_or_else(|| "fxtwitter".to_string());
+    if service != "fxtwitter" && crate::wiki::is_tweet_url(&url) {
+        anyhow::bail!("暂不支持的推文抓取服务: {service}");
+    }
+    let c = crate::wiki::fetch_import_url(&url)?;
+    Ok(ImportUrlDto {
+        source_url: c.source_url,
+        source_kind: c.source_kind,
+        title: c.title,
+        content_md: c.content_md,
+        author_name: c.author_name,
+        screen_name: c.screen_name,
+    })
+}
+
+/// 把抓取到的 URL 内容保存为知识库页面（kind=source，带 source_url 溯源）。
+/// 用户点击「保存」才走这里入库。
+pub fn save_imported_page(
+    title: String,
+    content_md: String,
+    source_url: String,
+    source_kind: String,
+    tags: Vec<String>,
+) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let trimmed = content_md.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("内容为空，无法保存");
+    }
+    let title = if title.trim().is_empty() {
+        "未命名导入".to_string()
+    } else {
+        title.trim().to_string()
+    };
+    let summary: String = trimmed.chars().take(120).collect();
+    // URL 去重：同一条 source_url 已导入过 → 走更新而不是复制新页
+    let existing_slug = store
+        .find_wiki_page_by_source_url(&source_url)?
+        .map(|p| p.slug);
+    let slug = match existing_slug {
+        Some(slug) => slug,
+        None => format!(
+            "{}-{}",
+            if source_kind == "tweet" { "tweet" } else { "import" },
+            &uuid::Uuid::new_v4().to_string()[..8]
+        ),
+    };
+    let mut all_tags = tags;
+    all_tags.push("import".to_string());
+    if source_kind == "webpage" {
+        all_tags.push("web".to_string());
+    } else {
+        all_tags.push("tweet".to_string());
+    }
+    all_tags.sort();
+    all_tags.dedup();
+    let draft = crate::storage::WikiPageDraft {
+        slug,
+        kind: "source".to_string(),
+        title,
+        summary,
+        content_md: trimmed.to_string(),
+        tags: all_tags,
+        source_event_ids: vec![],
+        status: "active".to_string(),
+        reason: format!("从 {source_url} 导入"),
+        source_url: Some(source_url),
+    };
+    let outcome = store.upsert_wiki_page(&draft)?;
+    Ok(WikiPageDto::from(outcome.page))
+}
+
+// ── 知识页内 AI 处理会话 ──────────────────────────────────────────────
+
+/// 获取（不存在则创建）某个知识页的处理会话，返回会话 DTO。
+/// 页内 AI 聊天通过该会话进行；生成时自动注入页面内容。
+pub fn ensure_wiki_page_chat(page_slug: String) -> Result<ConversationDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let Some(page) = store.get_wiki_page(&page_slug)? else {
+        anyhow::bail!("知识页不存在: {page_slug}");
+    };
+    let conversation_id = match store.find_wiki_chat_conversation(&page_slug)? {
+        Some(id) => id,
+        None => store.create_wiki_chat_conversation(
+            &page_slug,
+            &format!("[知识页] {}", page.title),
+        )?,
+    };
+    let conversation = store
+        .get_conversation(&conversation_id)?
+        .ok_or_else(|| anyhow::anyhow!("会话创建失败"))?;
+    Ok(ConversationDto {
+        id: conversation.id,
+        title: conversation.title,
+        tag: conversation.tag,
+        created_at: conversation.created_at,
+        updated_at: conversation.updated_at,
+        message_count: conversation.message_count,
+        last_message_preview: conversation.last_message_preview,
+        archived: conversation.archived,
+        wiki_page_slug: conversation.wiki_page_slug,
+    })
+}
+
+/// 删除一个知识页的处理会话（重建时用）
+pub fn archive_wiki_page_chat(page_slug: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let Some(conversation_id) = store.find_wiki_chat_conversation(&page_slug)? else {
+        return Ok(());
+    };
+    store.set_conversation_archived(&conversation_id, true)
 }

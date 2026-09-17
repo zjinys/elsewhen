@@ -6,7 +6,9 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBe
 use std::path::Path;
 use uuid::Uuid;
 
-pub use adapter::{AnalysisJob, AnalysisSummary, AiProviderConfig, StorageAdapter};
+pub use adapter::{
+    AiProviderConfigRow, AnalysisJob, AnalysisSummary, AiProviderConfig, StorageAdapter,
+};
 
 // Conversation and Message summary structs
 #[derive(Debug, Clone)]
@@ -19,6 +21,8 @@ pub struct ConversationSummary {
     pub message_count: i32,
     pub last_message_preview: Option<String>,
     pub archived: bool,
+    /// 关联的知识页 slug（页内 AI 处理会话）；None 为普通对话
+    pub wiki_page_slug: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -29,6 +33,135 @@ pub struct MessageSummary {
     pub role: String,
     pub content: String,
     pub created_at: String,
+}
+
+/// 用首条用户消息自动生成对话标题：取第一行 → 折叠连续空白 → 截断到 24 字（超出加省略号）。
+pub(crate) fn derive_conversation_title(content: &str) -> Option<String> {
+    const MAX_CHARS: usize = 24;
+    let first_line = content.lines().next().unwrap_or("").trim();
+    if first_line.is_empty() {
+        return None;
+    }
+    let mut cleaned = String::with_capacity(first_line.len());
+    let mut prev_space = false;
+    for ch in first_line.chars() {
+        if ch.is_whitespace() {
+            if !prev_space {
+                cleaned.push(' ');
+            }
+            prev_space = true;
+        } else {
+            cleaned.push(ch);
+            prev_space = false;
+        }
+    }
+    let cleaned = cleaned.trim();
+    if cleaned.is_empty() {
+        return None;
+    }
+    let mut chars: Vec<char> = cleaned.chars().collect();
+    let truncated = chars.len() > MAX_CHARS;
+    if truncated {
+        chars.truncate(MAX_CHARS);
+    }
+    let mut title: String = chars.into_iter().collect();
+    if truncated {
+        title.push('…');
+    }
+    Some(title)
+}
+
+/// 个人经验规则的状态
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuleStatus {
+    /// 已生效，注入到 AI 回复的上下文中
+    Active,
+    /// AI 刚从对话中提议、等待用户确认
+    Pending,
+}
+
+impl RuleStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RuleStatus::Active => "active",
+            RuleStatus::Pending => "pending",
+        }
+    }
+}
+
+/// 个人经验规则库的一条规则
+#[derive(Debug, Clone)]
+pub struct RuleSummary {
+    pub id: String,
+    pub content: String,
+    pub status: RuleStatus,
+    pub created_at: String,
+}
+
+/// 待办状态
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TodoStatus {
+    Open,
+    Done,
+    Archived,
+}
+
+impl TodoStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TodoStatus::Open => "open",
+            TodoStatus::Done => "done",
+            TodoStatus::Archived => "archived",
+        }
+    }
+
+    pub fn parse(s: &str) -> TodoStatus {
+        match s {
+            "done" => TodoStatus::Done,
+            "archived" => TodoStatus::Archived,
+            _ => TodoStatus::Open,
+        }
+    }
+}
+
+/// 一条个人待办（AI 提议确认后创建，或手动创建）
+#[derive(Debug, Clone)]
+pub struct Todo {
+    pub id: String,
+    pub title: String,
+    pub status: TodoStatus,
+    pub priority: String, // high / normal / low
+    pub due_at: Option<String>,
+    pub related_event_id: Option<String>,
+    pub related_wiki_slug: Option<String>,
+    pub note: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// 一条最近的历史用户消息（跨对话，供 AI 回忆近期事件）
+#[derive(Debug, Clone)]
+pub struct RecentUserMessage {
+    pub conversation_id: String,
+    pub content: String,
+}
+
+/// 一条待确认动作（AI 写类工具草拟，用户确认后才执行）
+#[derive(Debug, Clone)]
+pub struct PendingAction {
+    pub id: String,
+    pub conversation_id: String,
+    pub action: String,
+    pub args_json: String,
+    pub created_at: String,
+}
+
+/// 一条知识库/事件搜索命中
+#[derive(Debug, Clone)]
+pub struct KnowledgeHit {
+    pub kind: String,
+    pub title: String,
+    pub snippet: String,
 }
 
 /// 按天聚合的 token 用量统计
@@ -73,6 +206,8 @@ pub struct WikiPage {
     pub status: String,
     pub created_at: String,
     pub updated_at: String,
+    /// 来源 URL（URL 导入页记录出处）；None 表示匿名导入/本地生成
+    pub source_url: Option<String>,
 }
 
 /// 一次写回（创建或更新）的输入草案
@@ -86,6 +221,8 @@ pub struct WikiPageDraft {
     pub source_event_ids: Vec<String>,
     pub status: String,
     pub reason: String,
+    /// 来源 URL（URL 导入页记录出处）
+    pub source_url: Option<String>,
 }
 
 /// upsert 结果
@@ -121,6 +258,7 @@ fn map_wiki_page(row: &rusqlite::Row) -> rusqlite::Result<WikiPage> {
         status: row.get(11)?,
         created_at: row.get(12)?,
         updated_at: row.get(13)?,
+        source_url: row.get(14)?,
     })
 }
 
@@ -339,6 +477,175 @@ impl Store {
                 [],
             )?;
         }
+        // 版本 9：为历史无标题对话回填「首条用户消息」生成的标题
+        let v9_pending = {
+            let mut statement =
+                connection.prepare("SELECT COUNT(*) FROM schema_migrations WHERE version = 9")?;
+            statement.query_row([], |row| row.get::<_, i64>(0))?
+        };
+        if v9_pending == 0 {
+            let untitled_ids = {
+                let mut statement = connection.prepare(
+                    "SELECT c.id FROM conversations c
+                     WHERE (c.title IS NULL OR trim(c.title) = '')
+                       AND EXISTS (SELECT 1 FROM messages m
+                                   WHERE m.conversation_id = c.id AND m.role = 'user')",
+                )?;
+                let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+                rows.collect::<rusqlite::Result<Vec<_>>>()?
+            };
+            for id in &untitled_ids {
+                let first_user: Option<String> = connection
+                    .query_row(
+                        "SELECT m.content FROM messages m
+                         WHERE m.conversation_id = ?1 AND m.role = 'user'
+                         ORDER BY m.created_at ASC LIMIT 1",
+                        [id],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
+                if let Some(content) = first_user {
+                    if let Some(title) = derive_conversation_title(&content) {
+                        connection.execute(
+                            "UPDATE conversations SET title = ?1 WHERE id = ?2",
+                            params![title, id],
+                        )?;
+                    }
+                }
+            }
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                 VALUES (9, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+                [],
+            )?;
+        }
+        // 版本 10：个人经验规则库（rules 表）
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS rules (
+               id TEXT PRIMARY KEY,
+               content TEXT NOT NULL CHECK (length(trim(content)) > 0),
+               status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','pending')),
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL
+             );
+             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (10, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )?;
+        // 版本 11：待确认动作（AI 写类工具的确认门：草拟 → 用户确认 → 执行）
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS pending_actions (
+               id TEXT PRIMARY KEY,
+               conversation_id TEXT NOT NULL,
+               action TEXT NOT NULL,
+               args_json TEXT NOT NULL,
+               status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','done','declined')),
+               created_at TEXT NOT NULL,
+               FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+             );
+             CREATE INDEX IF NOT EXISTS idx_pending_actions_conv
+               ON pending_actions(conversation_id, status, created_at);
+             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (11, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )?;
+        // 版本 12：AI provider 多配置 + 单激活。
+        // is_active 为唯一激活标记（partial unique index 强制最多一条=1）；
+        // temperature / max_tokens 随配置保存，对话生成时读取。
+        {
+            let has_active = {
+                let mut statement =
+                    connection.prepare("PRAGMA table_info(ai_provider_configs)")?;
+                let columns = statement
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                columns.iter().any(|name| name == "is_active")
+            };
+            if !has_active {
+                connection.execute_batch(
+                    "ALTER TABLE ai_provider_configs ADD COLUMN is_active INTEGER NOT NULL DEFAULT 0;
+                     ALTER TABLE ai_provider_configs ADD COLUMN temperature REAL NOT NULL DEFAULT 0.7;
+                     ALTER TABLE ai_provider_configs ADD COLUMN max_tokens INTEGER;
+                     CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_provider_configs_single_active
+                       ON ai_provider_configs(is_active) WHERE is_active=1;
+                     UPDATE ai_provider_configs SET is_active=1
+                       WHERE id=(SELECT id FROM ai_provider_configs
+                                 ORDER BY updated_at DESC, created_at DESC LIMIT 1)
+                         AND NOT EXISTS (SELECT 1 FROM ai_provider_configs WHERE is_active=1);
+                     INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                     VALUES (12, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+                )?;
+            }
+        }
+        // 版本 13：规则关联提出它的会话。
+        // 确认门按会话隔离——「好」只转正本会话的待确认规则，
+        // 中间穿插其他消息也可能误删，后续确认逻辑据此按会话处理。
+        {
+            let has_conv = {
+                let mut statement = connection.prepare("PRAGMA table_info(rules)")?;
+                let columns = statement
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                columns.iter().any(|name| name == "conversation_id")
+            };
+            if !has_conv {
+                connection.execute_batch(
+                    "ALTER TABLE rules ADD COLUMN conversation_id TEXT;
+                     INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                     VALUES (13, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+                )?;
+            }
+        }
+        // 版本 14：个人待办（AI 提议 + 用户确认后创建，也可手动建）。
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS todos (
+               id TEXT PRIMARY KEY,
+               title TEXT NOT NULL CHECK(length(trim(title)) > 0),
+               status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','done','archived')),
+               priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('high','normal','low')),
+               due_at TEXT,
+               related_event_id TEXT,
+               related_wiki_slug TEXT,
+               note TEXT,
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL
+             );
+             CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status, created_at);
+             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (14, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )?;
+        // 版本 15：知识页来源链接（URL 导入页记录出处）
+        {
+            let has_src = {
+                let mut statement = connection.prepare("PRAGMA table_info(wiki_pages)")?;
+                let columns = statement
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                columns.iter().any(|name| name == "source_url")
+            };
+            if !has_src {
+                connection.execute_batch(
+                    "ALTER TABLE wiki_pages ADD COLUMN source_url TEXT;
+                     INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                     VALUES (15, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+                )?;
+            }
+        }
+        // 版本 16：对话可选关联一个知识页（页内 AI 处理会话）
+        {
+            let has_wiki = {
+                let mut statement = connection.prepare("PRAGMA table_info(conversations)")?;
+                let columns = statement
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                columns.iter().any(|name| name == "wiki_page_slug")
+            };
+            if !has_wiki {
+                connection.execute_batch(
+                    "ALTER TABLE conversations ADD COLUMN wiki_page_slug TEXT;
+                     INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                     VALUES (16, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+                )?;
+            }
+        }
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at)
              VALUES (8, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
@@ -431,32 +738,167 @@ impl Store {
         model: &str,
         api_key: &str,
     ) -> Result<()> {
-        let now = chrono::Utc::now().to_rfc3339();
-        self.connection.execute(
-            "INSERT INTO ai_provider_configs
-             (id,name,provider_type,base_url,model,api_key_source,api_key,enabled,created_at,updated_at)
-             VALUES (?1,'default','openai-compatible',?2,?3,'database',?4,1,?5,?5)
-             ON CONFLICT(name) DO UPDATE SET base_url=excluded.base_url, model=excluded.model,
-             provider_type=excluded.provider_type, api_key_source=excluded.api_key_source, api_key=excluded.api_key,
-             enabled=1, updated_at=excluded.updated_at",
-            params![Uuid::new_v4().to_string(), base_url, model, api_key, now],
+        // 兼容旧接口：以固定名 'default' 保存（若库中无激活配置则该条会自动激活）
+        self.save_ai_provider_config(
+            None,
+            "default",
+            "openai-compatible",
+            base_url,
+            model,
+            api_key,
+            0.7,
+            None,
         )?;
+        Ok(())
+    }
+
+    /// 列出全部 AI provider 配置（支持多配置，仅一个 is_active=1）
+    pub fn list_ai_provider_configs(&self) -> Result<Vec<AiProviderConfigRow>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id,name,provider_type,base_url,model,api_key_source,is_active,temperature,max_tokens
+             FROM ai_provider_configs ORDER BY created_at ASC, id ASC",
+        )?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(AiProviderConfigRow {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    provider_type: row.get(2)?,
+                    base_url: row.get(3)?,
+                    model: row.get(4)?,
+                    api_key_source: row.get(5)?,
+                    is_active: row.get::<_, i64>(6)? != 0,
+                    temperature: row.get(7)?,
+                    max_tokens: row.get(8)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// 新增 / 编辑 AI provider 配置。id 为空则新建；
+    /// 新建且当前无激活配置时自动激活。api_key 传空串表示保留已有 key 不变。
+    pub fn save_ai_provider_config(
+        &self,
+        id: Option<&str>,
+        name: &str,
+        provider_type: &str,
+        base_url: &str,
+        model: &str,
+        api_key: &str,
+        temperature: f64,
+        max_tokens: Option<i64>,
+    ) -> Result<String> {
+        let now = chrono::Utc::now().to_rfc3339();
+        if let Some(pid) = id {
+            if !pid.is_empty() {
+                let changed = self.connection.execute(
+                    "UPDATE ai_provider_configs SET
+                       name=?1, provider_type=?2, base_url=?3, model=?4,
+                       api_key_source='database',
+                       api_key=CASE WHEN ?5='' THEN api_key ELSE ?5 END,
+                       temperature=?6, max_tokens=?7, updated_at=?8
+                     WHERE id=?9",
+                    params![name, provider_type, base_url, model, api_key, temperature, max_tokens, now, pid],
+                )?;
+                if changed == 0 {
+                    anyhow::bail!("未找到要更新的配置（id={pid}）");
+                }
+                return Ok(pid.to_string());
+            }
+        }
+        // 新建：若库中尚无激活配置，则自动激活（保证始终存在激活项）
+        let has_active: i64 = self.connection.query_row(
+            "SELECT COUNT(*) FROM ai_provider_configs WHERE is_active=1",
+            [],
+            |r| r.get(0),
+        )?;
+        let new_id = Uuid::new_v4().to_string();
+        let new_active = if has_active == 0 { 1 } else { 0 };
+        self.connection
+            .execute(
+                "INSERT INTO ai_provider_configs
+                 (id,name,provider_type,base_url,model,api_key_source,api_key,is_active,temperature,max_tokens,created_at,updated_at)
+                 VALUES (?1,?2,?3,?4,?5,'database',?6,?7,?8,?9,?10,?10)",
+                params![new_id, name, provider_type, base_url, model, api_key, new_active, temperature, max_tokens, now],
+            )
+            .map_err(|e| {
+                if e.to_string()
+                    .contains("UNIQUE constraint failed: ai_provider_configs.name")
+                {
+                    anyhow::anyhow!("配置名「{name}」已存在，请换一个名称")
+                } else {
+                    anyhow::anyhow!("{e}")
+                }
+            })?;
+        Ok(new_id)
+    }
+
+    /// 把指定配置设为激活（其余全部取消激活），保证有且仅有一个激活项
+    pub fn set_active_ai_provider_config(&self, id: &str) -> Result<()> {
+        let transaction = self.connection.unchecked_transaction()?;
+        transaction.execute(
+            "UPDATE ai_provider_configs SET is_active=0, updated_at=?1",
+            params![chrono::Utc::now().to_rfc3339()],
+        )?;
+        let changed = transaction.execute(
+            "UPDATE ai_provider_configs SET is_active=1, updated_at=?1 WHERE id=?2",
+            params![chrono::Utc::now().to_rfc3339(), id],
+        )?;
+        if changed == 0 {
+            transaction.rollback()?;
+            anyhow::bail!("未找到要激活的配置（id={id}）");
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
+    /// 删除一条配置；若删除的恰是激活项，则自动把剩余第一条配置激活
+    pub fn delete_ai_provider_config(&self, id: &str) -> Result<()> {
+        let transaction = self.connection.unchecked_transaction()?;
+        let was_active: i64 = transaction.query_row(
+            "SELECT COUNT(*) FROM ai_provider_configs WHERE id=?1 AND is_active=1",
+            params![id],
+            |r| r.get(0),
+        )?;
+        let deleted = transaction.execute(
+            "DELETE FROM ai_provider_configs WHERE id=?1",
+            params![id],
+        )?;
+        if deleted == 0 {
+            transaction.rollback()?;
+            anyhow::bail!("未找到要删除的配置（id={id}）");
+        }
+        if was_active > 0 {
+            transaction.execute(
+                "UPDATE ai_provider_configs SET is_active=1, updated_at=?1
+                 WHERE id=(SELECT id FROM ai_provider_configs ORDER BY created_at ASC, id ASC LIMIT 1)",
+                params![chrono::Utc::now().to_rfc3339()],
+            )?;
+        }
+        transaction.commit()?;
         Ok(())
     }
 
     pub fn active_ai_provider_config(&self) -> Result<Option<AiProviderConfig>> {
         self.connection
             .query_row(
-            "SELECT provider_type,base_url,model,api_key_source,api_key FROM ai_provider_configs
-             WHERE enabled=1 AND api_key IS NOT NULL ORDER BY updated_at DESC LIMIT 1",
+                "SELECT id,name,provider_type,base_url,model,api_key_source,api_key,is_active,temperature,max_tokens
+                 FROM ai_provider_configs
+                 WHERE is_active=1 AND api_key IS NOT NULL LIMIT 1",
                 [],
                 |row| {
                     Ok(AiProviderConfig {
-                        provider_type: row.get(0)?,
-                        base_url: row.get(1)?,
-                        model: row.get(2)?,
-                    api_key_source: row.get(3)?,
-                    api_key: row.get(4)?,
+                        id: row.get(0)?,
+                        name: row.get(1)?,
+                        provider_type: row.get(2)?,
+                        base_url: row.get(3)?,
+                        model: row.get(4)?,
+                        api_key_source: row.get(5)?,
+                        api_key: row.get(6)?,
+                        is_active: row.get::<_, i64>(7)? != 0,
+                        temperature: row.get(8)?,
+                        max_tokens: row.get(9)?,
                     })
                 },
             )
@@ -579,7 +1021,8 @@ impl Store {
     pub fn get_wiki_page(&self, slug: &str) -> Result<Option<WikiPage>> {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
-                    evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at
+                    evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+                    source_url
              FROM wiki_pages WHERE slug = ?1",
         )?;
         let page = statement
@@ -588,17 +1031,34 @@ impl Store {
         Ok(page)
     }
 
+    /// 按来源 URL 查已导入页面（URL 去重用）
+    pub fn find_wiki_page_by_source_url(&self, source_url: &str) -> Result<Option<WikiPage>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
+                    evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+                    source_url
+             FROM wiki_pages WHERE source_url = ?1
+             ORDER BY updated_at DESC LIMIT 1",
+        )?;
+        let page = statement
+            .query_row(params![source_url], |row| map_wiki_page(row))
+            .optional()?;
+        Ok(page)
+    }
+
     pub fn list_wiki_pages(&self, kind: Option<&str>) -> Result<Vec<WikiPage>> {
         let mut statement = match kind {
             Some(_) => self.connection.prepare(
                 "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
-                        evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at
+                        evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+                        source_url
                  FROM wiki_pages WHERE kind = ?1 ORDER BY last_seen_at DESC",
             )?,
             None => self.connection.prepare(
                 "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
-                        evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at
-                 FROM wiki_pages ORDER BY kind ASC, last_seen_at DESC",
+                        evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+                        source_url
+                 FROM wiki_pages ORDER BY source_url IS NULL, last_seen_at DESC",
             )?,
         };
         let rows = match kind {
@@ -630,7 +1090,8 @@ impl Store {
             self.connection.execute(
                 "UPDATE wiki_pages
                  SET title=?1, summary=?2, content_md=?3, tags=?4, source_event_ids=?5,
-                     evidence_count=?6, last_seen_at=?7, status=?8, updated_at=?7
+                     evidence_count=?6, last_seen_at=?7, status=?8, updated_at=?7,
+                     source_url=COALESCE(?10, source_url)
                  WHERE id=?9",
                 params![
                     draft.title,
@@ -642,6 +1103,7 @@ impl Store {
                     now,
                     draft.status,
                     page.id,
+                    draft.source_url,
                 ],
             )?;
             self.record_wiki_revision(&page.id, &draft.content_md, &draft.reason, None)?;
@@ -657,8 +1119,9 @@ impl Store {
             self.connection.execute(
                 "INSERT INTO wiki_pages
                  (id, slug, kind, title, summary, content_md, tags, source_event_ids,
-                  evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11, ?10, ?10)",
+                  evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+                  source_url)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11, ?10, ?10, ?12)",
                 params![
                     id,
                     draft.slug,
@@ -671,6 +1134,7 @@ impl Store {
                     evidence_count,
                     now,
                     draft.status,
+                    draft.source_url,
                 ],
             )?;
             self.record_wiki_revision(&id, &draft.content_md, &draft.reason, None)?;
@@ -679,6 +1143,40 @@ impl Store {
                 page: self.get_wiki_page(&draft.slug)?.unwrap(),
             })
         }
+    }
+
+    /// 用户手动重写一页的标签（元数据组织用）。
+    /// 规范化：去 `#` 前缀、去首尾空白、去重、保序，最多保留 24 个。
+    /// 标签变更会更新 `updated_at` 并追加一条 revision（正文不变，便于审计）。
+    pub fn update_wiki_tags(&self, slug: &str, tags: &[String]) -> Result<WikiPage> {
+        let page = self
+            .get_wiki_page(slug)?
+            .with_context(|| format!("知识页不存在: {slug}"))?;
+        let mut cleaned: Vec<String> = Vec::new();
+        for raw in tags {
+            let t = raw.trim().trim_start_matches('#').trim().to_string();
+            if t.is_empty() || cleaned.contains(&t) {
+                continue;
+            }
+            cleaned.push(t);
+            if cleaned.len() >= 24 {
+                break;
+            }
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        let tags_raw = serde_json::to_string(&cleaned)?;
+        self.connection.execute(
+            "UPDATE wiki_pages SET tags = ?1, updated_at = ?2 WHERE id = ?3",
+            params![tags_raw, now, page.id],
+        )?;
+        // 审计：标签变更也留一条 revision（正文沿用当前内容，reason 记录本次动作）
+        let reason = if cleaned.is_empty() {
+            "标签更新：（清空）".to_string()
+        } else {
+            format!("标签更新：{}", cleaned.join(", "))
+        };
+        self.record_wiki_revision(&page.id, &page.content_md, &reason, None)?;
+        self.get_wiki_page(slug)?.context("标签更新后读取失败")
     }
 
     fn record_wiki_revision(
@@ -775,7 +1273,339 @@ impl Store {
             .map_err(Into::into)
     }
 
+    // Rules（个人经验规则库）
+
+    /// 列出规则；status 为 None 时返回全部（active + pending）。
+    /// conversation_id 为 None 时列出全局；为 Some 时只列该会话提出的 pending
+    /// （v13 前遗留 conversation_id IS NULL 的规则始终包含，保证兼容）。
+    pub fn list_rules(
+        &self,
+        status: Option<RuleStatus>,
+        conversation_id: Option<&str>,
+    ) -> Result<Vec<RuleSummary>> {
+        let mut sql = "SELECT id, content, status, created_at FROM rules".to_string();
+        let mut conditions: Vec<String> = Vec::new();
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+        if let Some(s) = status {
+            conditions.push("status = ?".to_string());
+            params.push(Box::new(s.as_str().to_string()));
+        }
+        if let Some(cid) = conversation_id {
+            conditions.push("(conversation_id = ? OR conversation_id IS NULL)".to_string());
+            params.push(Box::new(cid.to_string()));
+        }
+        if !conditions.is_empty() {
+            sql.push_str(" WHERE ");
+            sql.push_str(&conditions.join(" AND "));
+        }
+        sql.push_str(" ORDER BY created_at ASC");
+        let mut statement = self.connection.prepare(&sql)?;
+        let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|b| b.as_ref()).collect();
+        let rows = statement
+            .query_map(rusqlite::params_from_iter(param_refs), |row| {
+                let status_str: String = row.get(2)?;
+                Ok(RuleSummary {
+                    id: row.get(0)?,
+                    content: row.get(1)?,
+                    status: if status_str == "pending" {
+                        RuleStatus::Pending
+                    } else {
+                        RuleStatus::Active
+                    },
+                    created_at: row.get(3)?,
+                })
+            })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// 已生效的规则（注入 AI 回复上下文用）
+    pub fn list_active_rules(&self) -> Result<Vec<RuleSummary>> {
+        self.list_rules(Some(RuleStatus::Active), None)
+    }
+
+    /// 新增一条规则。
+    /// conversation_id：来源于哪个会话（pending 确认门按会话隔离用）；None 表示不归属
+    pub fn add_rule(
+        &self,
+        content: &str,
+        status: RuleStatus,
+        conversation_id: Option<&str>,
+    ) -> Result<String> {
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "INSERT INTO rules (id, content, status, conversation_id, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+            params![id, content, status.as_str(), conversation_id, now],
+        )?;
+        Ok(id)
+    }
+
+    /// 把本会话的待确认规则升级为生效（含 v13 前遗留的无归属规则）
+    pub fn promote_pending_rules(&self, conversation_id: &str) -> Result<usize> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let affected = self.connection.execute(
+            "UPDATE rules SET status = 'active', updated_at = ?1
+             WHERE status = 'pending'
+               AND (conversation_id = ?2 OR conversation_id IS NULL)",
+            params![now, conversation_id],
+        )?;
+        Ok(affected)
+    }
+
+    /// 丢弃本会话的待确认规则（用户明确拒绝；含 v13 前遗留的无归属规则）
+    pub fn discard_pending_rules(&self, conversation_id: &str) -> Result<usize> {
+        let affected = self.connection.execute(
+            "DELETE FROM rules
+             WHERE status = 'pending'
+               AND (conversation_id = ?1 OR conversation_id IS NULL)",
+            params![conversation_id],
+        )?;
+        Ok(affected)
+    }
+
+    /// 删除一条规则；返回是否存在并删除。
+    pub fn delete_rule(&self, id: &str) -> Result<bool> {
+        let affected = self
+            .connection
+            .execute("DELETE FROM rules WHERE id = ?1", [id])?;
+        Ok(affected > 0)
+    }
+
+    /// 新增一条待确认动作（写类工具的草拟阶段）
+    pub fn create_pending_action(
+        &self,
+        conversation_id: &str,
+        action: &str,
+        args_json: &str,
+    ) -> Result<String> {
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "INSERT INTO pending_actions (id, conversation_id, action, args_json, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![id, conversation_id, action, args_json, now],
+        )?;
+        Ok(id)
+    }
+
+    // ── 个人待办 ────────────────────────────────────────────────────────
+
+    pub fn create_todo(
+        &self,
+        title: &str,
+        priority: &str,
+        due_at: Option<&str>,
+        related_event_id: Option<&str>,
+        related_wiki_slug: Option<&str>,
+        note: Option<&str>,
+    ) -> Result<Todo> {
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "INSERT INTO todos (id, title, status, priority, due_at, related_event_id, related_wiki_slug, note, created_at, updated_at)
+             VALUES (?1, ?2, 'open', ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+            params![id, title, priority, due_at, related_event_id, related_wiki_slug, note, now],
+        )?;
+        Ok(Todo {
+            id,
+            title: title.to_string(),
+            status: TodoStatus::Open,
+            priority: priority.to_string(),
+            due_at: due_at.map(|s| s.to_string()),
+            related_event_id: related_event_id.map(|s| s.to_string()),
+            related_wiki_slug: related_wiki_slug.map(|s| s.to_string()),
+            note: note.map(|s| s.to_string()),
+            created_at: now.clone(),
+            updated_at: now,
+        })
+    }
+
+    pub fn list_todos(&self, status_filter: Option<&str>) -> Result<Vec<Todo>> {
+        let sql = match status_filter {
+            Some(_) => "SELECT id, title, status, priority, due_at, related_event_id, related_wiki_slug, note, created_at, updated_at
+                        FROM todos WHERE status = ?1 ORDER BY created_at DESC",
+            None => "SELECT id, title, status, priority, due_at, related_event_id, related_wiki_slug, note, created_at, updated_at
+                    FROM todos WHERE status != 'archived' ORDER BY status, created_at DESC",
+        };
+        let mut statement = self.connection.prepare(sql)?;
+        let mapper = |row: &rusqlite::Row| -> rusqlite::Result<Todo> {
+            Ok(Todo {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                status: TodoStatus::parse(&row.get::<_, String>(2)?),
+                priority: row.get(3)?,
+                due_at: row.get(4)?,
+                related_event_id: row.get(5)?,
+                related_wiki_slug: row.get(6)?,
+                note: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        };
+        let rows = match status_filter {
+            Some(s) => statement.query_map(params![s], mapper)?,
+            None => statement.query_map([], mapper)?,
+        };
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    pub fn update_todo_status(&self, id: &str, status: TodoStatus) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "UPDATE todos SET status=?1, updated_at=?2 WHERE id=?3",
+            params![status.as_str(), now, id],
+        )?;
+        Ok(())
+    }
+
+    /// 更新待办的可编辑字段（标题 / 补充 / 优先级 / 截止时间）。
+    /// 状态与关联字段保持不变；note/due_at 传 None 表示清除；
+    /// priority 传 None 时回落到默认值 "normal"（列 NOT NULL）。
+    pub fn update_todo(
+        &self,
+        id: &str,
+        title: &str,
+        note: Option<&str>,
+        priority: Option<&str>,
+        due_at: Option<&str>,
+    ) -> Result<()> {
+        let title = title.trim();
+        if title.is_empty() {
+            anyhow::bail!("待办内容不能为空");
+        }
+        let priority = priority.unwrap_or("normal");
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "UPDATE todos SET title=?1, note=?2, priority=?3, due_at=?4, updated_at=?5 WHERE id=?6",
+            params![title, note, priority, due_at, now, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_todo(&self, id: &str) -> Result<bool> {
+        let n = self
+            .connection
+            .execute("DELETE FROM todos WHERE id=?1", [id])?;
+        Ok(n > 0)
+    }
+
+    // ── pending actions (continued) ─────────────────────────────────────
+    /// 列出某个对话里待确认的动作（按时间先后）
+    pub fn pending_actions_for_conversation(
+        &self,
+        conversation_id: &str,
+    ) -> Result<Vec<PendingAction>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, conversation_id, action, args_json, created_at
+             FROM pending_actions
+             WHERE conversation_id = ?1 AND status = 'pending'
+             ORDER BY created_at ASC",
+        )?;
+        let rows = statement
+            .query_map(params![conversation_id], |row| {
+                Ok(PendingAction {
+                    id: row.get(0)?,
+                    conversation_id: row.get(1)?,
+                    action: row.get(2)?,
+                    args_json: row.get(3)?,
+                    created_at: row.get(4)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// 删除一条待确认动作（执行完或用户拒绝后清理）
+    pub fn delete_pending_action(&self, id: &str) -> Result<()> {
+        self.connection
+            .execute("DELETE FROM pending_actions WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
+    /// 清空某个对话的全部待确认动作，返回删除条数
+    pub fn delete_pending_actions_for_conversation(&self, conversation_id: &str) -> Result<usize> {
+        let affected = self.connection.execute(
+            "DELETE FROM pending_actions WHERE conversation_id = ?1",
+            params![conversation_id],
+        )?;
+        Ok(affected)
+    }
+
+    /// 在知识库页面与个人事件记录中按关键词搜索
+    pub fn search_knowledge_base(&self, query: &str, limit: usize) -> Result<Vec<KnowledgeHit>> {
+        let like = format!("%{}%", query);
+        let mut hits: Vec<KnowledgeHit> = Vec::new();
+
+        let mut wiki_stmt = self.connection.prepare(
+            "SELECT kind, title, substr(content_md, 1, 160)
+             FROM wiki_pages
+             WHERE status = 'active' AND (title LIKE ?1 OR content_md LIKE ?1 OR tags LIKE ?1)
+             ORDER BY updated_at DESC
+             LIMIT ?2",
+        )?;
+        let wiki_rows = wiki_stmt.query_map(params![like, limit as i64], |row| {
+            Ok(KnowledgeHit {
+                kind: format!("知识页:{}", row.get::<_, String>(0)?),
+                title: row.get(1)?,
+                snippet: row.get(2)?,
+            })
+        })?;
+        for hit in wiki_rows {
+            hits.push(hit?);
+        }
+
+        if hits.len() < limit {
+            let remaining = (limit - hits.len()) as i64;
+            let mut event_stmt = self.connection.prepare(
+                "SELECT substr(raw_text, 1, 160)
+                 FROM events
+                 WHERE raw_text LIKE ?1
+                 ORDER BY recorded_at DESC
+                 LIMIT ?2",
+            )?;
+            let event_rows = event_stmt.query_map(params![like, remaining], |row| {
+                Ok(KnowledgeHit {
+                    kind: "事件".to_string(),
+                    title: row.get::<_, String>(0)?.chars().take(24).collect(),
+                    snippet: row.get(0)?,
+                })
+            })?;
+            for hit in event_rows {
+                hits.push(hit?);
+            }
+        }
+
+        Ok(hits)
+    }
+
+    /// 最近的历史用户消息（跨对话，按时间倒序取 limit 条，每条截断 max_chars）。
+    /// 用于给 AI 注入「近期发生过的事」，弥补单对话上下文的记忆断层。
+    pub fn recent_user_messages(
+        &self,
+        limit: usize,
+        max_chars: usize,
+    ) -> Result<Vec<RecentUserMessage>> {
+        let mut statement = self.connection.prepare(
+            "SELECT conversation_id, substr(content, 1, ?2) FROM messages
+             WHERE role = 'user'
+             ORDER BY created_at DESC
+             LIMIT ?1",
+        )?;
+        let rows = statement.query_map(params![limit as i64, max_chars as i64], |row| {
+            Ok(RecentUserMessage {
+                conversation_id: row.get(0)?,
+                content: row.get(1)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     // Conversation management
+
     pub fn create_conversation(&self, title: Option<&str>, tag: Option<&str>) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
@@ -786,9 +1616,39 @@ impl Store {
         Ok(id)
     }
 
+    /// 查询某个知识页是否已有处理会话（页内 AI 聊天），返回会话 id
+    pub fn find_wiki_chat_conversation(&self, wiki_page_slug: &str) -> Result<Option<String>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id FROM conversations
+             WHERE wiki_page_slug = ?1 AND archived = 0
+             ORDER BY updated_at DESC LIMIT 1",
+        )?;
+        let id = statement
+            .query_row(params![wiki_page_slug], |row| row.get::<_, String>(0))
+            .optional()?;
+        Ok(id)
+    }
+
+    /// 为知识页创建处理会话（带 wiki_page_slug 关联）
+    pub fn create_wiki_chat_conversation(
+        &self,
+        wiki_page_slug: &str,
+        title: &str,
+    ) -> Result<String> {
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "INSERT INTO conversations (id, title, tag, wiki_page_slug, created_at, updated_at)
+             VALUES (?1, ?2, 'idea', ?3, ?4, ?4)",
+            params![id, title, wiki_page_slug, now],
+        )?;
+        Ok(id)
+    }
+
     pub fn list_conversations(&self) -> Result<Vec<ConversationSummary>> {
         let mut statement = self.connection.prepare(
             "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
+                    c.wiki_page_slug,
                     COUNT(m.id) as message_count,
                     (SELECT m2.content FROM messages m2
                      WHERE m2.conversation_id = c.id
@@ -806,9 +1666,10 @@ impl Store {
                 tag: row.get(2)?,
                 created_at: row.get(3)?,
                 updated_at: row.get(4)?,
-                message_count: row.get(6)?,
-                last_message_preview: row.get(7)?,
+                message_count: row.get(7)?,
+                last_message_preview: row.get(8)?,
                 archived: row.get(5)?,
+                wiki_page_slug: row.get(6)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -819,6 +1680,7 @@ impl Store {
     pub fn list_archived_conversations(&self) -> Result<Vec<ConversationSummary>> {
         let mut statement = self.connection.prepare(
             "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
+                    c.wiki_page_slug,
                     COUNT(m.id) as message_count,
                     (SELECT m2.content FROM messages m2
                      WHERE m2.conversation_id = c.id
@@ -836,9 +1698,10 @@ impl Store {
                 tag: row.get(2)?,
                 created_at: row.get(3)?,
                 updated_at: row.get(4)?,
-                message_count: row.get(6)?,
-                last_message_preview: row.get(7)?,
+                message_count: row.get(7)?,
+                last_message_preview: row.get(8)?,
                 archived: row.get(5)?,
+                wiki_page_slug: row.get(6)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -867,6 +1730,7 @@ impl Store {
         self.connection
             .query_row(
                 "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
+                        c.wiki_page_slug,
                         COUNT(m.id) as message_count,
                         (SELECT m2.content FROM messages m2
                          WHERE m2.conversation_id = c.id
@@ -883,9 +1747,10 @@ impl Store {
                         tag: row.get(2)?,
                         created_at: row.get(3)?,
                         updated_at: row.get(4)?,
-                        message_count: row.get(6)?,
-                        last_message_preview: row.get(7)?,
+                        message_count: row.get(7)?,
+                        last_message_preview: row.get(8)?,
                         archived: row.get(5)?,
+                        wiki_page_slug: row.get(6)?,
                     })
                 },
             )
@@ -1073,6 +1938,32 @@ impl StorageAdapter for Store {
     fn upsert_ai_provider_config(&self, base_url: &str, model: &str, api_key: &str) -> Result<()> {
         Store::upsert_ai_provider_config(self, base_url, model, api_key)
     }
+
+    fn list_ai_provider_configs(&self) -> Result<Vec<AiProviderConfigRow>> {
+        Store::list_ai_provider_configs(self)
+    }
+
+    fn save_ai_provider_config(
+        &self,
+        id: Option<&str>,
+        name: &str,
+        provider_type: &str,
+        base_url: &str,
+        model: &str,
+        api_key: &str,
+        temperature: f64,
+        max_tokens: Option<i64>,
+    ) -> Result<String> {
+        Store::save_ai_provider_config(self, id, name, provider_type, base_url, model, api_key, temperature, max_tokens)
+    }
+
+    fn set_active_ai_provider_config(&self, id: &str) -> Result<()> {
+        Store::set_active_ai_provider_config(self, id)
+    }
+
+    fn delete_ai_provider_config(&self, id: &str) -> Result<()> {
+        Store::delete_ai_provider_config(self, id)
+    }
 }
 
 #[cfg(test)]
@@ -1185,6 +2076,40 @@ mod tests {
             handle.join().unwrap();
         }
         assert_eq!(store.list_events().unwrap().len(), 8);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn update_todo_edits_fields_and_clears_optionals() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let todo = store
+            .create_todo("跟进付款", "normal", Some("2026-09-20"), None, None, Some("原始说明"))
+            .unwrap();
+
+        // 编辑：标题/说明/优先级/截止都改
+        store
+            .update_todo(&todo.id, "跟进双链路付款", Some("已和张玮对齐时间"), Some("high"), Some("2026-09-18"))
+            .unwrap();
+        let updated = store.list_todos(None).unwrap();
+        assert_eq!(updated.len(), 1);
+        assert_eq!(updated[0].title, "跟进双链路付款");
+        assert_eq!(updated[0].note.as_deref(), Some("已和张玮对齐时间"));
+        assert_eq!(updated[0].priority, "high");
+        assert_eq!(updated[0].due_at.as_deref(), Some("2026-09-18"));
+        assert_eq!(updated[0].status, TodoStatus::Open, "编辑不改状态");
+
+        // 清除可选字段：传 None
+        store
+            .update_todo(&todo.id, "跟进双链路付款", None, None, None)
+            .unwrap();
+        let cleared = store.list_todos(None).unwrap();
+        assert!(cleared[0].note.is_none());
+        assert!(cleared[0].due_at.is_none());
+        assert_eq!(cleared[0].priority, "normal");
+
+        // 空标题拒绝
+        assert!(store.update_todo(&todo.id, "   ", None, None, None).is_err());
         let _ = std::fs::remove_file(path);
     }
 }

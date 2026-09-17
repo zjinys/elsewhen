@@ -7,7 +7,8 @@ import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These functions are ignored because they are not marked as `pub`: `dto_from_active`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -32,6 +33,23 @@ Future<String?> getAiProvider() => RustLib.instance.api.crateApiGetAiProvider();
 Future<AiProviderConfigDto?> getAiProviderConfig() =>
     RustLib.instance.api.crateApiGetAiProviderConfig();
 
+/// 列出全部 AI provider 配置（多配置，仅一个 is_active=true）
+Future<List<AiProviderConfigDto>> listAiProviderConfigs() =>
+    RustLib.instance.api.crateApiListAiProviderConfigs();
+
+/// 新增或编辑 AI provider 配置；返回配置 id。
+/// provider.id 为空表示新建；api_key 传空串表示保留原 key 不变（新建则必填）。
+Future<String> saveAiProviderConfig({required AiProviderConfigDto provider}) =>
+    RustLib.instance.api.crateApiSaveAiProviderConfig(provider: provider);
+
+/// 将指定配置设为激活（唯一激活项）
+Future<void> setActiveAiProviderConfig({required String id}) =>
+    RustLib.instance.api.crateApiSetActiveAiProviderConfig(id: id);
+
+/// 删除一个 AI provider 配置；若删除的是激活项，剩余第一条自动激活
+Future<void> deleteAiProviderConfig({required String id}) =>
+    RustLib.instance.api.crateApiDeleteAiProviderConfig(id: id);
+
 /// Upsert the active AI provider config (settings page save)
 Future<void> updateAiProviderConfig({
   required String baseUrl,
@@ -48,7 +66,17 @@ Future<void> updateAiProviderConfig({
 Future<String> triggerAnalysis() =>
     RustLib.instance.api.crateApiTriggerAnalysis();
 
-/// Create a new conversation
+/// 列出规则库（含已生效与待确认）
+Future<List<RuleDto>> listRules() => RustLib.instance.api.crateApiListRules();
+
+/// 新增一条规则（手动添加，直接生效）
+Future<String> addRule({required String content}) =>
+    RustLib.instance.api.crateApiAddRule(content: content);
+
+/// 删除一条规则
+Future<void> deleteRule({required String ruleId}) =>
+    RustLib.instance.api.crateApiDeleteRule(ruleId: ruleId);
+
 Future<ConversationDto> createConversation({String? title, String? tag}) =>
     RustLib.instance.api.crateApiCreateConversation(title: title, tag: tag);
 
@@ -134,6 +162,12 @@ Future<List<WikiPageDto>> listWikiPages({String? kind}) =>
 Future<WikiPageDto?> getWikiPage({required String slug}) =>
     RustLib.instance.api.crateApiGetWikiPage(slug: slug);
 
+/// 更新知识页标签（应用内整理元数据用；传空数组即清空）。返回更新后的页面。
+Future<WikiPageDto> updateWikiTags({
+  required String slug,
+  required List<String> tags,
+}) => RustLib.instance.api.crateApiUpdateWikiTags(slug: slug, tags: tags);
+
 /// 从 x.com / twitter.com 推文链接抓取长文（只解析 json，不写库）。
 /// 是否入库由后续「保存」动作决定。
 Future<TweetFetchDto> fetchTweet({required String url}) =>
@@ -154,6 +188,23 @@ Future<WikiPageDto> saveTweetPage({
   authorName: authorName,
   screenName: screenName,
 );
+
+/// 把用户粘贴的纯文本保存为知识库页面（kind=topic），返回该页。
+/// content_md 保留全文，不截断；tags 可选（页面保留「note」锚点标签）。
+Future<WikiPageDto> saveTextPage({
+  required String text,
+  String? title,
+  required List<String> tags,
+}) => RustLib.instance.api.crateApiSaveTextPage(
+  text: text,
+  title: title,
+  tags: tags,
+);
+
+/// 判断一个网址是否需要走专用抓取 API（当前：x.com/twitter.com 推文 → fxtwitter）。
+/// 返回 "tweet" 或 "web"，供导入入口统一分发，避免前端各自猜测。
+Future<String> guessImportKind({required String url}) =>
+    RustLib.instance.api.crateApiGuessImportKind(url: url);
 
 /// 针对一段抓取内容做一次性对话回复（不写库，供保存前与 AI 讨论内容）
 Future<String> generateContentChat({
@@ -186,36 +237,135 @@ Future<ThemePrefsDto> getThemePrefs() =>
 Future<void> updateThemePrefs({required String mode, required String preset}) =>
     RustLib.instance.api.crateApiUpdateThemePrefs(mode: mode, preset: preset);
 
+/// 列出待办（status 过滤：open/done/archived；None 时列出 open+done）
+Future<List<TodoDto>> listTodos({String? status}) =>
+    RustLib.instance.api.crateApiListTodos(status: status);
+
+/// 新建待办（用户手动创建，直接生效）
+Future<TodoDto> createTodo({
+  required String title,
+  String? dueAt,
+  String? priority,
+  String? relatedWikiSlug,
+  String? note,
+}) => RustLib.instance.api.crateApiCreateTodo(
+  title: title,
+  dueAt: dueAt,
+  priority: priority,
+  relatedWikiSlug: relatedWikiSlug,
+  note: note,
+);
+
+/// 更新待办状态（open/done/archived）
+Future<void> updateTodoStatus({required String id, required String status}) =>
+    RustLib.instance.api.crateApiUpdateTodoStatus(id: id, status: status);
+
+/// 更新待办的可编辑字段（标题 / 补充 / 优先级 / 截止时间）。
+/// 可选字段传 None 表示清除（如结束拖延、去掉截止时间）。
+Future<void> updateTodo({
+  required String id,
+  required String title,
+  String? note,
+  String? priority,
+  String? dueAt,
+}) => RustLib.instance.api.crateApiUpdateTodo(
+  id: id,
+  title: title,
+  note: note,
+  priority: priority,
+  dueAt: dueAt,
+);
+
+/// 删除一条待办
+Future<bool> deleteTodo({required String id}) =>
+    RustLib.instance.api.crateApiDeleteTodo(id: id);
+
+/// 抓取任意 URL 的内容（推文走 fxtwitter，普通页面走 HTML 文本提取）。
+/// 只解析不写库，由后续「保存」动作决定。
+Future<ImportUrlDto> fetchImportUrl({required String url}) =>
+    RustLib.instance.api.crateApiFetchImportUrl(url: url);
+
+/// 把抓取到的 URL 内容保存为知识库页面（kind=source，带 source_url 溯源）。
+/// 用户点击「保存」才走这里入库。
+Future<WikiPageDto> saveImportedPage({
+  required String title,
+  required String contentMd,
+  required String sourceUrl,
+  required String sourceKind,
+  required List<String> tags,
+}) => RustLib.instance.api.crateApiSaveImportedPage(
+  title: title,
+  contentMd: contentMd,
+  sourceUrl: sourceUrl,
+  sourceKind: sourceKind,
+  tags: tags,
+);
+
+/// 获取（不存在则创建）某个知识页的处理会话，返回会话 DTO。
+/// 页内 AI 聊天通过该会话进行；生成时自动注入页面内容。
+Future<ConversationDto> ensureWikiPageChat({required String pageSlug}) =>
+    RustLib.instance.api.crateApiEnsureWikiPageChat(pageSlug: pageSlug);
+
+/// 删除一个知识页的处理会话（重建时用）
+Future<void> archiveWikiPageChat({required String pageSlug}) =>
+    RustLib.instance.api.crateApiArchiveWikiPageChat(pageSlug: pageSlug);
+
 /// AI provider config DTO for Flutter settings page
 class AiProviderConfigDto {
+  final String id;
+  final String name;
   final String providerType;
   final String baseUrl;
   final String model;
+  final String apiKeySource;
+
+  /// 明文密钥只在保存时上行；读取时不回传（用 api_key_source 判断是否已配置）
   final String apiKey;
+  final bool isActive;
+  final double temperature;
+  final PlatformInt64? maxTokens;
 
   const AiProviderConfigDto({
+    required this.id,
+    required this.name,
     required this.providerType,
     required this.baseUrl,
     required this.model,
+    required this.apiKeySource,
     required this.apiKey,
+    required this.isActive,
+    required this.temperature,
+    this.maxTokens,
   });
 
   @override
   int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
       providerType.hashCode ^
       baseUrl.hashCode ^
       model.hashCode ^
-      apiKey.hashCode;
+      apiKeySource.hashCode ^
+      apiKey.hashCode ^
+      isActive.hashCode ^
+      temperature.hashCode ^
+      maxTokens.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is AiProviderConfigDto &&
           runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
           providerType == other.providerType &&
           baseUrl == other.baseUrl &&
           model == other.model &&
-          apiKey == other.apiKey;
+          apiKeySource == other.apiKeySource &&
+          apiKey == other.apiKey &&
+          isActive == other.isActive &&
+          temperature == other.temperature &&
+          maxTokens == other.maxTokens;
 }
 
 /// Analysis result DTO
@@ -279,6 +429,7 @@ class ConversationDto {
   final int messageCount;
   final String? lastMessagePreview;
   final bool archived;
+  final String? wikiPageSlug;
 
   const ConversationDto({
     required this.id,
@@ -289,6 +440,7 @@ class ConversationDto {
     required this.messageCount,
     this.lastMessagePreview,
     required this.archived,
+    this.wikiPageSlug,
   });
 
   @override
@@ -300,7 +452,8 @@ class ConversationDto {
       updatedAt.hashCode ^
       messageCount.hashCode ^
       lastMessagePreview.hashCode ^
-      archived.hashCode;
+      archived.hashCode ^
+      wikiPageSlug.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -314,7 +467,8 @@ class ConversationDto {
           updatedAt == other.updatedAt &&
           messageCount == other.messageCount &&
           lastMessagePreview == other.lastMessagePreview &&
-          archived == other.archived;
+          archived == other.archived &&
+          wikiPageSlug == other.wikiPageSlug;
 }
 
 /// Daily token usage DTO for Flutter（每日 token 使用统计）
@@ -393,6 +547,48 @@ class EventDto {
           status == other.status;
 }
 
+/// 任意 URL 抓取结果 DTO（推文或普通页面，只解析不入库）
+class ImportUrlDto {
+  final String sourceUrl;
+
+  /// "tweet" | "webpage"
+  final String sourceKind;
+  final String? title;
+  final String contentMd;
+  final String? authorName;
+  final String? screenName;
+
+  const ImportUrlDto({
+    required this.sourceUrl,
+    required this.sourceKind,
+    this.title,
+    required this.contentMd,
+    this.authorName,
+    this.screenName,
+  });
+
+  @override
+  int get hashCode =>
+      sourceUrl.hashCode ^
+      sourceKind.hashCode ^
+      title.hashCode ^
+      contentMd.hashCode ^
+      authorName.hashCode ^
+      screenName.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportUrlDto &&
+          runtimeType == other.runtimeType &&
+          sourceUrl == other.sourceUrl &&
+          sourceKind == other.sourceKind &&
+          title == other.title &&
+          contentMd == other.contentMd &&
+          authorName == other.authorName &&
+          screenName == other.screenName;
+}
+
 /// Message DTO for Flutter
 class MessageDto {
   final String id;
@@ -433,6 +629,36 @@ class MessageDto {
           createdAt == other.createdAt;
 }
 
+/// Create a new conversation
+/// 个人经验规则 DTO
+class RuleDto {
+  final String id;
+  final String content;
+  final String status;
+  final String createdAt;
+
+  const RuleDto({
+    required this.id,
+    required this.content,
+    required this.status,
+    required this.createdAt,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ content.hashCode ^ status.hashCode ^ createdAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RuleDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          content == other.content &&
+          status == other.status &&
+          createdAt == other.createdAt;
+}
+
 /// 主题偏好 DTO（设置页「外观」：模式 + 预设；存 app_meta）
 class ThemePrefsDto {
   /// "light" | "dark" | "system"
@@ -453,6 +679,62 @@ class ThemePrefsDto {
           runtimeType == other.runtimeType &&
           mode == other.mode &&
           preset == other.preset;
+}
+
+/// 待办 DTO
+class TodoDto {
+  final String id;
+  final String title;
+  final String status;
+  final String priority;
+  final String? dueAt;
+  final String? relatedEventId;
+  final String? relatedWikiSlug;
+  final String? note;
+  final String createdAt;
+  final String updatedAt;
+
+  const TodoDto({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.priority,
+    this.dueAt,
+    this.relatedEventId,
+    this.relatedWikiSlug,
+    this.note,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      status.hashCode ^
+      priority.hashCode ^
+      dueAt.hashCode ^
+      relatedEventId.hashCode ^
+      relatedWikiSlug.hashCode ^
+      note.hashCode ^
+      createdAt.hashCode ^
+      updatedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TodoDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          status == other.status &&
+          priority == other.priority &&
+          dueAt == other.dueAt &&
+          relatedEventId == other.relatedEventId &&
+          relatedWikiSlug == other.relatedWikiSlug &&
+          note == other.note &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt;
 }
 
 /// 抓取的推文内容 DTO（只解析，不入库）
@@ -513,6 +795,7 @@ class WikiPageDto {
   final String status;
   final String createdAt;
   final String updatedAt;
+  final String? sourceUrl;
 
   const WikiPageDto({
     required this.id,
@@ -529,6 +812,7 @@ class WikiPageDto {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.sourceUrl,
   });
 
   @override
@@ -546,7 +830,8 @@ class WikiPageDto {
       lastSeenAt.hashCode ^
       status.hashCode ^
       createdAt.hashCode ^
-      updatedAt.hashCode;
+      updatedAt.hashCode ^
+      sourceUrl.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -566,5 +851,6 @@ class WikiPageDto {
           lastSeenAt == other.lastSeenAt &&
           status == other.status &&
           createdAt == other.createdAt &&
-          updatedAt == other.updatedAt;
+          updatedAt == other.updatedAt &&
+          sourceUrl == other.sourceUrl;
 }

@@ -47,6 +47,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -74,7 +77,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  ImportUrlDto dco_decode_import_url_dto(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<AiProviderConfigDto> dco_decode_list_ai_provider_config_dto(dynamic raw);
 
   @protected
   List<AnalysisDto> dco_decode_list_analysis_dto(dynamic raw);
@@ -100,6 +109,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<RuleDto> dco_decode_list_rule_dto(dynamic raw);
+
+  @protected
+  List<TodoDto> dco_decode_list_todo_dto(dynamic raw);
+
+  @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
 
   @protected
@@ -117,13 +132,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
 
   @protected
+  RuleDto dco_decode_rule_dto(dynamic raw);
+
+  @protected
   ThemePrefsDto dco_decode_theme_prefs_dto(dynamic raw);
+
+  @protected
+  TodoDto dco_decode_todo_dto(dynamic raw);
 
   @protected
   TweetFetchDto dco_decode_tweet_fetch_dto(dynamic raw);
@@ -168,6 +192,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -201,7 +228,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  ImportUrlDto sse_decode_import_url_dto(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<AiProviderConfigDto> sse_decode_list_ai_provider_config_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<AnalysisDto> sse_decode_list_analysis_dto(SseDeserializer deserializer);
@@ -231,6 +266,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<RuleDto> sse_decode_list_rule_dto(SseDeserializer deserializer);
+
+  @protected
+  List<TodoDto> sse_decode_list_todo_dto(SseDeserializer deserializer);
+
+  @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
 
   @protected
@@ -250,6 +291,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -258,7 +302,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RuleDto sse_decode_rule_dto(SseDeserializer deserializer);
+
+  @protected
   ThemePrefsDto sse_decode_theme_prefs_dto(SseDeserializer deserializer);
+
+  @protected
+  TodoDto sse_decode_todo_dto(SseDeserializer deserializer);
 
   @protected
   TweetFetchDto sse_decode_tweet_fetch_dto(SseDeserializer deserializer);
@@ -291,10 +341,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_ai_provider_config_dto(AiProviderConfigDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.name),
       cst_encode_String(raw.providerType),
       cst_encode_String(raw.baseUrl),
       cst_encode_String(raw.model),
+      cst_encode_String(raw.apiKeySource),
       cst_encode_String(raw.apiKey),
+      cst_encode_bool(raw.isActive),
+      cst_encode_f_64(raw.temperature),
+      cst_encode_opt_box_autoadd_i_64(raw.maxTokens),
     ].jsify()!;
   }
 
@@ -319,6 +375,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_conversation_dto(ConversationDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_conversation_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_i_64(PlatformInt64 raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_64(raw);
   }
 
   @protected
@@ -354,6 +416,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_32(raw.messageCount),
       cst_encode_opt_String(raw.lastMessagePreview),
       cst_encode_bool(raw.archived),
+      cst_encode_opt_String(raw.wikiPageSlug),
     ].jsify()!;
   }
 
@@ -389,9 +452,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_import_url_dto(ImportUrlDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.sourceUrl),
+      cst_encode_String(raw.sourceKind),
+      cst_encode_opt_String(raw.title),
+      cst_encode_String(raw.contentMd),
+      cst_encode_opt_String(raw.authorName),
+      cst_encode_opt_String(raw.screenName),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_String(List<String> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_String).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_ai_provider_config_dto(List<AiProviderConfigDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_ai_provider_config_dto).toList().jsify()!;
   }
 
   @protected
@@ -439,6 +521,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_rule_dto(List<RuleDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_rule_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_todo_dto(List<TodoDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_todo_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_wiki_page_dto(List<WikiPageDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_wiki_page_dto).toList().jsify()!;
@@ -480,6 +574,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny? cst_encode_opt_box_autoadd_i_64(PlatformInt64? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_i_64(raw);
+  }
+
+  @protected
   int? cst_encode_opt_box_autoadd_u_32(int? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_u_32(raw);
@@ -492,11 +592,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_rule_dto(RuleDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.content),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_theme_prefs_dto(ThemePrefsDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
       cst_encode_String(raw.mode),
       cst_encode_String(raw.preset),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_todo_dto(TodoDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.priority),
+      cst_encode_opt_String(raw.dueAt),
+      cst_encode_opt_String(raw.relatedEventId),
+      cst_encode_opt_String(raw.relatedWikiSlug),
+      cst_encode_opt_String(raw.note),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
     ].jsify()!;
   }
 
@@ -531,6 +659,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.status),
       cst_encode_String(raw.createdAt),
       cst_encode_String(raw.updatedAt),
+      cst_encode_opt_String(raw.sourceUrl),
     ].jsify()!;
   }
 
@@ -586,6 +715,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -625,7 +760,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_import_url_dto(ImportUrlDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_ai_provider_config_dto(
+    List<AiProviderConfigDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_analysis_dto(
@@ -667,6 +811,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_rule_dto(List<RuleDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_todo_dto(List<TodoDto> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_wiki_page_dto(
     List<WikiPageDto> self,
     SseSerializer serializer,
@@ -691,6 +841,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
@@ -700,7 +856,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_rule_dto(RuleDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_theme_prefs_dto(ThemePrefsDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_todo_dto(TodoDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_tweet_fetch_dto(TweetFetchDto self, SseSerializer serializer);
@@ -723,11 +885,54 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
 
+  void wire__crate__api__add_rule(NativePortType port_, String content) =>
+      wasmModule.wire__crate__api__add_rule(port_, content);
+
+  void wire__crate__api__archive_wiki_page_chat(
+    NativePortType port_,
+    String page_slug,
+  ) => wasmModule.wire__crate__api__archive_wiki_page_chat(port_, page_slug);
+
   void wire__crate__api__create_conversation(
     NativePortType port_,
     String? title,
     String? tag,
   ) => wasmModule.wire__crate__api__create_conversation(port_, title, tag);
+
+  void wire__crate__api__create_todo(
+    NativePortType port_,
+    String title,
+    String? due_at,
+    String? priority,
+    String? related_wiki_slug,
+    String? note,
+  ) => wasmModule.wire__crate__api__create_todo(
+    port_,
+    title,
+    due_at,
+    priority,
+    related_wiki_slug,
+    note,
+  );
+
+  void wire__crate__api__delete_ai_provider_config(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__delete_ai_provider_config(port_, id);
+
+  void wire__crate__api__delete_rule(NativePortType port_, String rule_id) =>
+      wasmModule.wire__crate__api__delete_rule(port_, rule_id);
+
+  void wire__crate__api__delete_todo(NativePortType port_, String id) =>
+      wasmModule.wire__crate__api__delete_todo(port_, id);
+
+  void wire__crate__api__ensure_wiki_page_chat(
+    NativePortType port_,
+    String page_slug,
+  ) => wasmModule.wire__crate__api__ensure_wiki_page_chat(port_, page_slug);
+
+  void wire__crate__api__fetch_import_url(NativePortType port_, String url) =>
+      wasmModule.wire__crate__api__fetch_import_url(port_, url);
 
   void wire__crate__api__fetch_tweet(NativePortType port_, String url) =>
       wasmModule.wire__crate__api__fetch_tweet(port_, url);
@@ -796,10 +1001,16 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__get_wiki_page(NativePortType port_, String slug) =>
       wasmModule.wire__crate__api__get_wiki_page(port_, slug);
 
+  void wire__crate__api__guess_import_kind(NativePortType port_, String url) =>
+      wasmModule.wire__crate__api__guess_import_kind(port_, url);
+
   void wire__crate__api__init_bridge(
     NativePortType port_,
     String? database_path,
   ) => wasmModule.wire__crate__api__init_bridge(port_, database_path);
+
+  void wire__crate__api__list_ai_provider_configs(NativePortType port_) =>
+      wasmModule.wire__crate__api__list_ai_provider_configs(port_);
 
   void wire__crate__api__list_analyses(NativePortType port_) =>
       wasmModule.wire__crate__api__list_analyses(port_);
@@ -818,6 +1029,12 @@ class RustLibWire implements BaseWire {
     String conversation_id,
   ) => wasmModule.wire__crate__api__list_messages(port_, conversation_id);
 
+  void wire__crate__api__list_rules(NativePortType port_) =>
+      wasmModule.wire__crate__api__list_rules(port_);
+
+  void wire__crate__api__list_todos(NativePortType port_, String? status) =>
+      wasmModule.wire__crate__api__list_todos(port_, status);
+
   void wire__crate__api__list_wiki_pages(NativePortType port_, String? kind) =>
       wasmModule.wire__crate__api__list_wiki_pages(port_, kind);
 
@@ -833,6 +1050,34 @@ class RustLibWire implements BaseWire {
     conversation_id,
     title,
   );
+
+  void wire__crate__api__save_ai_provider_config(
+    NativePortType port_,
+    JSAny provider,
+  ) => wasmModule.wire__crate__api__save_ai_provider_config(port_, provider);
+
+  void wire__crate__api__save_imported_page(
+    NativePortType port_,
+    String title,
+    String content_md,
+    String source_url,
+    String source_kind,
+    JSAny tags,
+  ) => wasmModule.wire__crate__api__save_imported_page(
+    port_,
+    title,
+    content_md,
+    source_url,
+    source_kind,
+    tags,
+  );
+
+  void wire__crate__api__save_text_page(
+    NativePortType port_,
+    String text,
+    String? title,
+    JSAny tags,
+  ) => wasmModule.wire__crate__api__save_text_page(port_, text, title, tags);
 
   void wire__crate__api__save_tweet_page(
     NativePortType port_,
@@ -863,6 +1108,11 @@ class RustLibWire implements BaseWire {
     content,
     parent_message_id,
   );
+
+  void wire__crate__api__set_active_ai_provider_config(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__set_active_ai_provider_config(port_, id);
 
   void wire__crate__api__set_conversation_archived(
     NativePortType port_,
@@ -895,10 +1145,38 @@ class RustLibWire implements BaseWire {
     String preset,
   ) => wasmModule.wire__crate__api__update_theme_prefs(port_, mode, preset);
 
+  void wire__crate__api__update_todo(
+    NativePortType port_,
+    String id,
+    String title,
+    String? note,
+    String? priority,
+    String? due_at,
+  ) => wasmModule.wire__crate__api__update_todo(
+    port_,
+    id,
+    title,
+    note,
+    priority,
+    due_at,
+  );
+
+  void wire__crate__api__update_todo_status(
+    NativePortType port_,
+    String id,
+    String status,
+  ) => wasmModule.wire__crate__api__update_todo_status(port_, id, status);
+
   void wire__crate__api__update_tweet_fetch_service(
     NativePortType port_,
     String service,
   ) => wasmModule.wire__crate__api__update_tweet_fetch_service(port_, service);
+
+  void wire__crate__api__update_wiki_tags(
+    NativePortType port_,
+    String slug,
+    JSAny tags,
+  ) => wasmModule.wire__crate__api__update_wiki_tags(port_, slug, tags);
 }
 
 @JS('wasm_bindgen')
@@ -907,10 +1185,51 @@ external RustLibWasmModule get wasmModule;
 @JS()
 @anonymous
 extension type RustLibWasmModule._(JSObject _) implements JSObject {
+  external void wire__crate__api__add_rule(
+    NativePortType port_,
+    String content,
+  );
+
+  external void wire__crate__api__archive_wiki_page_chat(
+    NativePortType port_,
+    String page_slug,
+  );
+
   external void wire__crate__api__create_conversation(
     NativePortType port_,
     String? title,
     String? tag,
+  );
+
+  external void wire__crate__api__create_todo(
+    NativePortType port_,
+    String title,
+    String? due_at,
+    String? priority,
+    String? related_wiki_slug,
+    String? note,
+  );
+
+  external void wire__crate__api__delete_ai_provider_config(
+    NativePortType port_,
+    String id,
+  );
+
+  external void wire__crate__api__delete_rule(
+    NativePortType port_,
+    String rule_id,
+  );
+
+  external void wire__crate__api__delete_todo(NativePortType port_, String id);
+
+  external void wire__crate__api__ensure_wiki_page_chat(
+    NativePortType port_,
+    String page_slug,
+  );
+
+  external void wire__crate__api__fetch_import_url(
+    NativePortType port_,
+    String url,
   );
 
   external void wire__crate__api__fetch_tweet(NativePortType port_, String url);
@@ -967,9 +1286,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
+  external void wire__crate__api__guess_import_kind(
+    NativePortType port_,
+    String url,
+  );
+
   external void wire__crate__api__init_bridge(
     NativePortType port_,
     String? database_path,
+  );
+
+  external void wire__crate__api__list_ai_provider_configs(
+    NativePortType port_,
   );
 
   external void wire__crate__api__list_analyses(NativePortType port_);
@@ -985,6 +1313,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__list_messages(
     NativePortType port_,
     String conversation_id,
+  );
+
+  external void wire__crate__api__list_rules(NativePortType port_);
+
+  external void wire__crate__api__list_todos(
+    NativePortType port_,
+    String? status,
   );
 
   external void wire__crate__api__list_wiki_pages(
@@ -1003,6 +1338,27 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String title,
   );
 
+  external void wire__crate__api__save_ai_provider_config(
+    NativePortType port_,
+    JSAny provider,
+  );
+
+  external void wire__crate__api__save_imported_page(
+    NativePortType port_,
+    String title,
+    String content_md,
+    String source_url,
+    String source_kind,
+    JSAny tags,
+  );
+
+  external void wire__crate__api__save_text_page(
+    NativePortType port_,
+    String text,
+    String? title,
+    JSAny tags,
+  );
+
   external void wire__crate__api__save_tweet_page(
     NativePortType port_,
     String tweet_id,
@@ -1018,6 +1374,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String role,
     String content,
     String? parent_message_id,
+  );
+
+  external void wire__crate__api__set_active_ai_provider_config(
+    NativePortType port_,
+    String id,
   );
 
   external void wire__crate__api__set_conversation_archived(
@@ -1041,8 +1402,29 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String preset,
   );
 
+  external void wire__crate__api__update_todo(
+    NativePortType port_,
+    String id,
+    String title,
+    String? note,
+    String? priority,
+    String? due_at,
+  );
+
+  external void wire__crate__api__update_todo_status(
+    NativePortType port_,
+    String id,
+    String status,
+  );
+
   external void wire__crate__api__update_tweet_fetch_service(
     NativePortType port_,
     String service,
+  );
+
+  external void wire__crate__api__update_wiki_tags(
+    NativePortType port_,
+    String slug,
+    JSAny tags,
   );
 }

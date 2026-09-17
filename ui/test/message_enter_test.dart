@@ -71,7 +71,13 @@ void main() {
     expect(repo.sentContents, ['ok-ai-fail'], reason: 'Shift+Enter 不应触发提交');
     expect(tester.widget<TextField>(input).controller!.text, '第二行');
     expect(find.textContaining('发送失败'), findsNothing);
-    expect(find.textContaining('AI 回复失败'), findsNothing);
+    // AI 失败提示是「会话内气泡」：选中的会话内持久展示，
+    // 仅在下次发送成功 / 切换会话时清除 —— Shift+Enter 未提交自然不清除。
+    expect(
+      find.textContaining('AI 回复失败'),
+      findsOneWidget,
+      reason: 'AI 失败提示为会话内气泡，未发送成功前保留（便于用户看到失败原因）',
+    );
   });
 }
 

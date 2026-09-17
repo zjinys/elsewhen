@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/settings_provider.dart';
 import '../models/settings.dart';
 import '../models/token_usage.dart';
+import '../models/rule.dart';
 import '../bridge/rust_bridge_repository.dart';
+import '../bridge/generated.dart/api.dart' as api;
 import '../widgets/custom_title_bar.dart';
 import '../theme/app_theme.dart';
 
@@ -20,15 +22,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   late final TabController _tabController;
 
-  late TextEditingController _baseUrlController;
-  late TextEditingController _modelController;
-  late TextEditingController _apiKeyController;
-  late TextEditingController _temperatureController;
-  late TextEditingController _maxTokensController;
   late TextEditingController _maxMessagesController;
 
   List<DailyTokenUsage> _dailyUsage = [];
   bool _usageLoading = true;
+
+  // 个人经验规则库
+  List<Rule> _rules = [];
+  bool _rulesLoading = true;
+
+  // AI provider 多配置（仅一个激活）
+  List<api.AiProviderConfigDto> _providers = [];
+  bool _providersLoading = true;
 
   // 推文抓取服务（当前仅支持 fxtwitter）
   String _tweetService = 'fxtwitter';
@@ -39,40 +44,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     _tabController = TabController(length: 5, vsync: this);
     final settings = ref.read(settingsProvider);
 
-    _baseUrlController = TextEditingController(text: settings.aiProvider.baseUrl);
-    _modelController = TextEditingController(text: settings.aiProvider.model);
-    _apiKeyController = TextEditingController(text: settings.aiProvider.apiKey);
-    _temperatureController = TextEditingController(
-      text: settings.aiProvider.temperature.toString(),
-    );
-    _maxTokensController = TextEditingController(
-      text: settings.aiProvider.maxTokens?.toString() ?? '',
-    );
     _maxMessagesController = TextEditingController(
       text: settings.memory.maxMessages?.toString() ?? '20',
     );
 
-    // 从 Rust 侧读取当前生效的 AI provider（.env 导入的那份），覆写表单；
-    // 同时拉取每日 token 用量统计
+    // 从 Rust 侧读取各区块数据（AI provider 多配置 / token 用量 / 推文服务 / 规则库）
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadFromBridge();
+      _loadProviders();
       _loadTokenUsage();
       _loadTweetService();
+      _loadRules();
     });
   }
 
-  Future<void> _loadFromBridge() async {
+  Future<void> _loadProviders() async {
     try {
-      final notifier = ref.read(settingsProvider.notifier);
-      await notifier.loadSettings();
-      final ai = ref.read(settingsProvider).aiProvider;
-      _baseUrlController.text = ai.baseUrl;
-      _modelController.text = ai.model;
-      _apiKeyController.text = ai.apiKey;
-      if (mounted) setState(() {});
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final list = await repo.listAiProviderConfigs();
+      if (!mounted) return;
+      setState(() {
+        _providers = list;
+        _providersLoading = false;
+      });
     } catch (e) {
-      // 读取失败不阻塞表单，用户仍可手动填写
-      debugPrint('loadSettings failed: $e');
+      if (!mounted) return;
+      setState(() => _providersLoading = false);
+      debugPrint('listAiProviderConfigs failed: $e');
     }
   }
 
@@ -103,14 +100,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  Future<void> _loadRules() async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final all = await repo.listRules();
+      if (!mounted) return;
+      setState(() {
+        _rules = all.where((r) => r.isActive).toList();
+        _rulesLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _rulesLoading = false);
+      debugPrint('loadRules failed: $e');
+    }
+  }
+
+  Future<void> _deleteRule(Rule rule) async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.deleteRule(rule.id);
+      if (!mounted) return;
+      setState(() => _rules.removeWhere((r) => r.id == rule.id));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('删除失败：$e')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
-    _baseUrlController.dispose();
-    _modelController.dispose();
-    _apiKeyController.dispose();
-    _temperatureController.dispose();
-    _maxTokensController.dispose();
     _maxMessagesController.dispose();
     super.dispose();
   }
@@ -157,9 +179,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               child: SafeArea(
                 child: Form(
                   key: _formKey,
-                  child: Column(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildTabBar(),
+                      _buildVerticalTabBar(),
                       Expanded(
                         child: TabBarView(
                           controller: _tabController,
@@ -183,25 +206,67 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildVerticalTabBar() {
     return Container(
-      height: 44,
-      color: AppTheme.surface1,
-      child: TabBar(
-        controller: _tabController,
-        tabs: const [
-          Tab(text: '模型'),
-          Tab(text: '外观'),
-          Tab(text: '服务'),
-          Tab(text: '存储'),
-          Tab(text: '数据'),
-        ],
-        labelColor: AppTheme.accentPrimary,
-        unselectedLabelColor: AppTheme.textTertiary,
-        indicatorColor: AppTheme.accentPrimary,
-        indicatorSize: TabBarIndicatorSize.label,
-        dividerColor: Colors.transparent,
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      width: 176,
+      padding: const EdgeInsets.all(AppTheme.space2),
+      decoration: BoxDecoration(
+        color: AppTheme.surface1,
+        border: Border(
+          right: BorderSide(color: AppTheme.surface3, width: 1),
+        ),
+      ),
+      child: AnimatedBuilder(
+        animation: _tabController,
+        builder: (context, _) => ListView(
+          children: [
+            _buildSettingsTabItem(0, '模型', Icons.smart_toy_outlined),
+            const SizedBox(height: AppTheme.space1),
+            _buildSettingsTabItem(1, '外观', Icons.palette_outlined),
+            const SizedBox(height: AppTheme.space1),
+            _buildSettingsTabItem(2, '服务', Icons.cloud_outlined),
+            const SizedBox(height: AppTheme.space1),
+            _buildSettingsTabItem(3, '存储', Icons.storage_outlined),
+            const SizedBox(height: AppTheme.space1),
+            _buildSettingsTabItem(4, '数据', Icons.dataset_outlined),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTabItem(int index, String label, IconData icon) {
+    final selected = _tabController.index == index;
+    return Material(
+      color: selected ? AppTheme.surface2 : Colors.transparent,
+      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      child: InkWell(
+        onTap: () => _tabController.animateTo(index),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.space3,
+            vertical: 10,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? AppTheme.accentPrimary : AppTheme.textTertiary,
+              ),
+              const SizedBox(width: AppTheme.space2 + 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected ? AppTheme.textPrimary : AppTheme.textTertiary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -287,8 +352,68 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: Icons.analytics_outlined,
             child: _buildTokenUsageContent(),
           ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '个人规则库',
+            icon: Icons.rule_outlined,
+            child: _buildRulesContent(),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRulesContent() {
+    if (_rulesLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    if (_rules.isEmpty) {
+      return Text(
+        '还没有规则。在对话里分享踩坑或心得时，AI 会建议把其中的经验沉淀成规则，你回复「好」确认后就会出现在这里，以后遇到类似情况 AI 会主动引用并提醒你。',
+        style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.6),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < _rules.length; i++) ...[
+          if (i > 0) Divider(height: 1, color: AppTheme.surface3),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 14),
+                child: Icon(Icons.check_circle_outline, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    _rules[i].content,
+                    style: TextStyle(color: AppTheme.textPrimary, fontSize: 13, height: 1.5),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 18),
+                color: AppTheme.textTertiary,
+                tooltip: '删除规则',
+                onPressed: () => _deleteRule(_rules[i]),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -341,64 +466,355 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildDropdownField(
-          label: '提供商类型',
-          value: settings.aiProvider.providerType,
-          items: const [
-            DropdownMenuItem(value: 'openai-compatible', child: Text('OpenAI 兼容')),
-            DropdownMenuItem(value: 'ollama', child: Text('Ollama')),
-          ],
-          onChanged: (value) {
-            if (value != null) {
-              ref.read(settingsProvider.notifier).updateAiProvider(
-                settings.aiProvider.copyWith(providerType: value),
-              );
-            }
-          },
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(
-          label: 'Base URL',
-          controller: _baseUrlController,
-          hint: 'https://api.openai.com/v1',
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(
-          label: '模型',
-          controller: _modelController,
-          hint: 'gpt-3.5-turbo',
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(
-          label: 'API Key',
-          controller: _apiKeyController,
-          obscure: true,
-          hint: '输入你的 API Key',
-        ),
-        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
-              child: _buildTextField(
-                label: 'Temperature',
-                controller: _temperatureController,
-                hint: '0.7',
-                keyboardType: TextInputType.number,
+              child: Text(
+                '可配置多个 AI Provider，仅一个处于激活状态，对话使用激活项。',
+                style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildTextField(
-                label: 'Max Tokens',
-                controller: _maxTokensController,
-                hint: '可选',
-                keyboardType: TextInputType.number,
+            FilledButton.icon(
+              onPressed: () => _openProviderEditor(null),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('添加配置'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.accentPrimary,
+                foregroundColor: Colors.white,
               ),
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        if (_providersLoading)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_providers.isEmpty)
+          _buildEmptyProviders()
+        else
+          ..._providers.map(_buildProviderCard),
       ],
     );
+  }
+
+  Widget _buildEmptyProviders() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.surface2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppTheme.surface3),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.cloud_off_rounded, color: AppTheme.textTertiary, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            '尚未配置任何 AI Provider，点击右上角「添加配置」开始。',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _providerTypeLabel(String type) {
+    switch (type) {
+      case 'openai-compatible':
+        return 'OpenAI 兼容';
+      case 'ollama':
+        return 'Ollama';
+      default:
+        return type;
+    }
+  }
+
+  Widget _buildProviderCard(api.AiProviderConfigDto p) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppTheme.space3),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: p.isActive
+            ? AppTheme.accentPrimary.withValues(alpha: 0.08)
+            : AppTheme.surface2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: p.isActive
+              ? AppTheme.accentPrimary.withValues(alpha: 0.5)
+              : AppTheme.surface3,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        p.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (p.isActive) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '激活中',
+                          style: TextStyle(
+                            color: AppTheme.accentPrimary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_providerTypeLabel(p.providerType)} · ${p.model}',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  p.baseUrl,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          if (!p.isActive)
+            TextButton(
+              onPressed: () => _activateProvider(p),
+              child: const Text('设为激活'),
+            ),
+          IconButton(
+            tooltip: '编辑',
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            color: AppTheme.textSecondary,
+            onPressed: () => _openProviderEditor(p),
+          ),
+          IconButton(
+            tooltip: '删除',
+            icon: const Icon(Icons.delete_outline, size: 18),
+            color: AppTheme.error,
+            onPressed: () => _deleteProvider(p),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _activateProvider(api.AiProviderConfigDto p) async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.setActiveAiProviderConfig(p.id);
+      await _loadProviders();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('切换激活失败：$e')),
+      );
+    }
+  }
+
+  Future<void> _deleteProvider(api.AiProviderConfigDto p) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除配置'),
+        content: Text(
+          '确定删除 Provider「${p.name}」吗？'
+          '${p.isActive ? '该配置正处于激活状态，删除后剩余第一个配置将自动激活。' : ''}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.deleteAiProviderConfig(p.id);
+      await _loadProviders();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('删除失败：$e')),
+      );
+    }
+  }
+
+  Future<void> _openProviderEditor(api.AiProviderConfigDto? existing) async {
+    final isNew = existing == null;
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final baseUrlCtrl = TextEditingController(text: existing?.baseUrl ?? '');
+    final modelCtrl = TextEditingController(text: existing?.model ?? '');
+    // 密钥不回填明文：留空即保留原 key（新建则必填）
+    final apiKeyCtrl = TextEditingController(text: '');
+    final temperatureCtrl = TextEditingController(
+      text: (existing?.temperature ?? 0.7).toString(),
+    );
+    final maxTokensCtrl = TextEditingController(
+      text: existing?.maxTokens?.toString() ?? '',
+    );
+    var providerType = existing?.providerType ?? 'openai-compatible';
+
+    final saved = await showDialog<_ProviderDraft>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(isNew ? '添加 AI Provider' : '编辑 Provider'),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 440,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTextField(
+                    label: '配置名称 *',
+                    hint: '如：主用 GPT',
+                    controller: nameCtrl,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDropdownField<String>(
+                    label: '提供商类型',
+                    value: providerType,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'openai-compatible',
+                        child: Text('OpenAI 兼容'),
+                      ),
+                      DropdownMenuItem(value: 'ollama', child: Text('Ollama')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => providerType = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    label: 'Base URL *',
+                    hint: 'https://api.openai.com/v1',
+                    controller: baseUrlCtrl,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    label: '模型 *',
+                    hint: 'gpt-4o',
+                    controller: modelCtrl,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    label: isNew ? 'API Key *' : 'API Key',
+                    hint: isNew ? '输入你的 API Key' : '留空表示保持不变',
+                    obscure: true,
+                    controller: apiKeyCtrl,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          label: 'Temperature',
+                          hint: '0.7',
+                          keyboardType: TextInputType.number,
+                          controller: temperatureCtrl,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildTextField(
+                          label: 'Max Tokens',
+                          hint: '可选',
+                          keyboardType: TextInputType.number,
+                          controller: maxTokensCtrl,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                ctx,
+                _ProviderDraft(
+                  name: nameCtrl.text.trim(),
+                  providerType: providerType,
+                  baseUrl: baseUrlCtrl.text.trim(),
+                  model: modelCtrl.text.trim(),
+                  apiKey: apiKeyCtrl.text.trim(),
+                  temperature: double.tryParse(temperatureCtrl.text) ?? 0.7,
+                  maxTokens: int.tryParse(maxTokensCtrl.text),
+                ),
+              ),
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved == null || !mounted) return;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.saveAiProviderConfig(
+        api.AiProviderConfigDto(
+          id: existing?.id ?? '',
+          name: saved.name,
+          providerType: saved.providerType,
+          baseUrl: saved.baseUrl,
+          model: saved.model,
+          apiKeySource: existing?.apiKeySource ?? '',
+          apiKey: saved.apiKey,
+          isActive: existing?.isActive ?? false,
+          temperature: saved.temperature,
+          maxTokens: saved.maxTokens,
+        ),
+      );
+      await _loadProviders();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('保存失败：$e')),
+      );
+    }
   }
 
   Widget _buildMemorySettings(AppSettings settings) {
@@ -821,48 +1237,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (_formKey.currentState?.validate() ?? false) {
       final currentSettings = ref.read(settingsProvider);
 
-      ref.read(settingsProvider.notifier).updateAiProvider(
-        currentSettings.aiProvider.copyWith(
-          baseUrl: _baseUrlController.text,
-          model: _modelController.text,
-          apiKey: _apiKeyController.text,
-          temperature: double.tryParse(_temperatureController.text) ?? 0.7,
-          maxTokens: int.tryParse(_maxTokensController.text),
-        ),
-      );
-
+      // AI Provider 为多配置列表，单独即时保存，不在此处处理
       ref.read(settingsProvider.notifier).updateMemory(
         currentSettings.memory.copyWith(
           maxMessages: int.tryParse(_maxMessagesController.text),
         ),
       );
 
-      try {
-        await ref.read(settingsProvider.notifier).saveSettings();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('设置已保存'),
-            backgroundColor: AppTheme.accentPrimary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(999)),
-            ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('设置已保存'),
+          backgroundColor: AppTheme.accentPrimary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(999)),
           ),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存失败：$e'),
-            backgroundColor: AppTheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(999)),
-            ),
-          ),
-        );
-      }
+        ),
+      );
     }
   }
+}
+
+/// AI Provider 编辑对话框的草稿数据
+class _ProviderDraft {
+  final String name;
+  final String providerType;
+  final String baseUrl;
+  final String model;
+  final String apiKey;
+  final double temperature;
+  final int? maxTokens;
+
+  _ProviderDraft({
+    required this.name,
+    required this.providerType,
+    required this.baseUrl,
+    required this.model,
+    required this.apiKey,
+    required this.temperature,
+    required this.maxTokens,
+  });
 }

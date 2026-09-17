@@ -17,7 +17,7 @@ class WindowService with WindowListener {
   WindowMode get currentMode => _currentMode;
 
   // Window configurations
-  static const Size mainWindowSize = Size(1000, 700);
+  static const Size mainWindowSize = Size(1920, 1080);
   static const Size mainWindowMinSize = Size(800, 600);
   static const Size captureWindowSize = Size(500, 240);
 
@@ -41,7 +41,7 @@ class WindowService with WindowListener {
     await windowManager.setSize(mainWindowSize);
     await windowManager.setMinimumSize(mainWindowMinSize);
     await windowManager.setAlwaysOnTop(false);
-    await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+    await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     await windowManager.setTitle('Elsewhen');
     await windowManager.center();
     await windowManager.show();

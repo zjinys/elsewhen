@@ -8,6 +8,7 @@ class Conversation {
   final int messageCount;
   final String? lastMessagePreview;
   final bool archived;
+  final String? wikiPageSlug;
 
   const Conversation({
     required this.id,
@@ -18,6 +19,7 @@ class Conversation {
     required this.messageCount,
     this.lastMessagePreview,
     this.archived = false,
+    this.wikiPageSlug,
   });
 
   factory Conversation.fromRust(Map<String, dynamic> dto) {
@@ -25,8 +27,8 @@ class Conversation {
       id: dto['id'] as String,
       title: dto['title'] as String?,
       tag: dto['tag'] as String?,
-      createdAt: DateTime.parse(dto['created_at'] as String),
-      updatedAt: DateTime.parse(dto['updated_at'] as String),
+      createdAt: DateTime.parse(dto['created_at'] as String).toLocal(),
+      updatedAt: DateTime.parse(dto['updated_at'] as String).toLocal(),
       messageCount: dto['message_count'] as int,
       lastMessagePreview: dto['last_message_preview'] as String?,
       archived: dto['archived'] as bool? ?? false,
@@ -34,6 +36,9 @@ class Conversation {
   }
 
   String get displayTitle => title ?? '新对话';
+
+  /// 是否为知识页处理会话（关联了知识页）
+  bool get isWikiChat => wikiPageSlug != null;
 }
 
 /// Message role enum
@@ -83,7 +88,7 @@ class Message {
       parentMessageId: dto['parent_message_id'] as String?,
       role: MessageRole.fromString(dto['role'] as String),
       content: dto['content'] as String,
-      createdAt: DateTime.parse(dto['created_at'] as String),
+      createdAt: DateTime.parse(dto['created_at'] as String).toLocal(),
       metadata: dto['metadata'] as Map<String, dynamic>?,
     );
   }

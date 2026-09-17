@@ -22,11 +22,30 @@ pub struct AnalysisSummary {
 /// AI provider configuration
 #[derive(Clone, Debug)]
 pub struct AiProviderConfig {
+    pub id: String,
+    pub name: String,
     pub provider_type: String,
     pub base_url: String,
     pub model: String,
     pub api_key_source: String,
     pub api_key: String,
+    pub is_active: bool,
+    pub temperature: f64,
+    pub max_tokens: Option<i64>,
+}
+
+/// AI provider 配置行（管理列表用：多配置 + 单激活）
+#[derive(Clone, Debug)]
+pub struct AiProviderConfigRow {
+    pub id: String,
+    pub name: String,
+    pub provider_type: String,
+    pub base_url: String,
+    pub model: String,
+    pub api_key_source: String,
+    pub is_active: bool,
+    pub temperature: f64,
+    pub max_tokens: Option<i64>,
 }
 
 /// Storage adapter trait - allows switching storage implementations
@@ -47,4 +66,18 @@ pub trait StorageAdapter {
     // AI provider operations
     fn active_ai_provider_config(&self) -> Result<Option<AiProviderConfig>>;
     fn upsert_ai_provider_config(&self, base_url: &str, model: &str, api_key: &str) -> Result<()>;
+    fn list_ai_provider_configs(&self) -> Result<Vec<AiProviderConfigRow>>;
+    fn save_ai_provider_config(
+        &self,
+        id: Option<&str>,
+        name: &str,
+        provider_type: &str,
+        base_url: &str,
+        model: &str,
+        api_key: &str,
+        temperature: f64,
+        max_tokens: Option<i64>,
+    ) -> Result<String>;
+    fn set_active_ai_provider_config(&self, id: &str) -> Result<()>;
+    fn delete_ai_provider_config(&self, id: &str) -> Result<()>;
 }

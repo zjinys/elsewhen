@@ -153,6 +153,7 @@ fn file_back_insights(store: &Store, insights: &[Insight]) -> Result<()> {
             source_event_ids: Vec::new(),
             status: "active".to_string(),
             reason: "认知推微归档：好答案写回知识库".to_string(),
+            source_url: None,
         };
         store.upsert_wiki_page(&draft)?;
     }
@@ -197,14 +198,8 @@ pub fn generate_insights(store: &Store, options: &InsightOptions) -> Result<Vec<
     };
     let provider = OpenAiCompatibleProvider::new(provider_config)?;
     let messages = vec![
-        super::memory::ContextMessage {
-            role: "system".to_string(),
-            content: SYSTEM_PROMPT.to_string(),
-        },
-        super::memory::ContextMessage {
-            role: "user".to_string(),
-            content: user,
-        },
+        super::memory::ContextMessage::new("system", SYSTEM_PROMPT.to_string()),
+        super::memory::ContextMessage::new("user", user),
     ];
     let reply = provider
         .generate_reply(messages)

@@ -35,8 +35,8 @@ void main() {
     );
     await tester.pump();
 
-    // tab 条：推文导入 + 推文 20
-    expect(find.text('推文导入'), findsOneWidget);
+    // tab 条：导入 + 推文 20
+    expect(find.text('导入'), findsOneWidget);
     expect(find.text('推文 20'), findsOneWidget);
 
     // 内容区：作者标题 + 原文卡片 + 原文文本 + 保存按钮

@@ -5,11 +5,19 @@ import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/screens/main_screen.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
 
-/// Headless UI verification of the new left sidebar (对话 / 知识库 tabs + 设置入口)
-/// and the wiki browsing flow, driven by the REAL Rust bridge against the demo DB.
+/// Headless UI verification of the left sidebar（对话 / 知识库 / 待办 tabs + 设置入口）
+/// and the wiki browsing flow, driven by the REAL Rust bridge.
+/// 只读：不依赖外部 demo 数据，从活动知识库里选真实页面验证。
 /// Run with: ELSEWHEN_DATA_DIR=/tmp/opencode/frb-wiki-test flutter test test/wiki_ui_test.dart
 void main() {
-  testWidgets('left sidebar tabs + wiki browsing with real bridge', (tester) async {
+  testWidgets('left sidebar tabs + wiki browsing with real bridge',
+      (tester) async {
+    // 接近真实主窗口（1920×1080）的测试画布，避免小屏导致 ListView 懒渲染
+    // 把详情正文挤出视口
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     final repo = RustBridgeRepository();
     await tester.runAsync(() => repo.initialize());
 
@@ -21,54 +29,62 @@ void main() {
     );
     await tester.pump();
 
-    // 1. 左侧栏结构：双 Tab + 底部设置入口
+    // 1. 左侧栏结构：三个 Tab + 底部设置入口
     expect(find.text('对话'), findsOneWidget, reason: '对话 tab 应在左侧栏');
     expect(find.text('知识库'), findsOneWidget, reason: '知识库 tab 应在左侧栏');
+    expect(find.text('待办'), findsOneWidget, reason: '待办 tab 应在左侧栏');
     expect(find.text('设置'), findsOneWidget, reason: '设置入口应在左侧栏底部');
 
     // 2. 初始为对话 Tab：右侧是 MessageArea
     expect(find.byType(MessageArea), findsOneWidget, reason: '对话 Tab 右侧应为消息区');
-    expect(find.text('知识库'), findsOneWidget);
 
     // 3. 切到知识库 Tab，等待桥接数据加载
     await tester.tap(find.text('知识库'));
     await tester.pump();
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 500)));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 500)));
     await tester.pump();
 
-    // 分组列表应显示 demo 库的 wiki 页面（列表懒加载，靠下分组先滚动到可见）
-    expect(find.text('闲置的旧笔记本电脑'), findsOneWidget, reason: 'demo 库 asset 页应列出');
-    expect(find.text('Rust 和 Flutter 语言能力'), findsOneWidget, reason: 'demo 库 capability 页应列出');
+    // 新 UI：搜索框 + kind 过滤 chips + 分组列表
+    expect(find.text('搜索知识库…'), findsOneWidget, reason: '知识库 tab 应有搜索框');
+    expect(find.textContaining('全部'), findsWidgets, reason: '应有「全部」过滤 chip');
 
-    // 手动滚动 sidebar ListView 至底部，验证靠下的分组
-    Future<void> reveal(String text) async {
-      final sidebarList = find.byWidgetPredicate(
-        (w) => w is ListView && w.scrollDirection == Axis.vertical,
-      ).first;
-      for (var i = 0; i < 6; i++) {
-        if (find.text(text).evaluate().isNotEmpty) return;
-        await tester.drag(sidebarList, const Offset(0, -250));
-        await tester.pump();
-      }
-      expect(find.text(text), findsOneWidget, reason: '滚动后应能看到 $text');
+    // 4. 用真实桥接读取页面列表，取列表里真实存在的一页做浏览验证
+    final pages =
+        await tester.runAsync(() => repo.listWikiPages());
+    expect(pages, isNotNull);
+    final all = pages ?? [];
+    expect(all, isNotEmpty, reason: '知识库应至少有一页');
+
+    final page = all.first;
+    final title = page.title;
+
+    // 手动滚动 sidebar ListView（可能被搜索框/chips 顶到屏外）直到目标可见
+    final sidebarList = find
+        .byWidgetPredicate(
+          (w) => w is ListView && w.scrollDirection == Axis.vertical,
+        )
+        .first;
+    for (var i = 0; i < 10; i++) {
+      if (find.text(title).evaluate().isNotEmpty) break;
+      await tester.drag(sidebarList, const Offset(0, -250));
+      await tester.pump();
     }
+    expect(find.text(title), findsWidgets, reason: '滚动后应能看到列表页 $title');
 
-    await reveal('东莞往返惠州的交通费用');
-    expect(find.text('东莞往返惠州的交通费用'), findsOneWidget, reason: 'demo 库 recurring_cost 页应列出');
+    // 4b. 列表项应展示 tags/证据等元数据
+    expect(find.textContaining('证据'), findsWidgets, reason: '列表项应显示证据徽章');
 
-    await reveal('顺风车分摊通勤成本');
-    // 该 insight 页标题与摘要相同，列表项渲染两处 → 用 findsWidgets
-    expect(find.text('顺风车分摊通勤成本').evaluate().length, greaterThanOrEqualTo(2),
-        reason: 'demo 库 insight 页应列出');
-
-    // 4. 点击一页查看详情（当前可见项）
-    await tester.tap(find.text('东莞往返惠州的交通费用'));
+    // 5. 点击该页查看详情
+    await tester.tap(find.text(title).first);
     await tester.pump();
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)));
     await tester.pump();
 
-    // 详情视图：标题 + 证据徽章 + 正文 + 溯源说明
-    expect(find.text('闲置的旧笔记本电脑'), findsWidgets, reason: '详情头应包含标题');
+    // 详情视图：标题（在头部重复出现）+ 证据 + AI 处理面板标题
+    expect(find.text(title), findsWidgets, reason: '详情头应包含标题');
     expect(find.textContaining('证据'), findsWidgets, reason: '应显示证据徽章');
+    expect(find.text('AI 处理本页'), findsWidgets, reason: '页面应有 AI 处理面板');
   });
 }

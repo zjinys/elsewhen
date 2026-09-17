@@ -30,12 +30,13 @@ void main(List<String> args) async {
             alwaysOnTop: true,
           )
         : WindowOptions(
-            size: const Size(1000, 700),
+            size: const Size(1920, 1080),
             minimumSize: const Size(800, 600),
             center: true,
             backgroundColor: Colors.transparent,
             skipTaskbar: false,
             title: 'Elsewhen',
+            titleBarStyle: TitleBarStyle.hidden,
           );
 
     windowManager.waitUntilReadyToShow(windowOptions, () async {
@@ -45,6 +46,7 @@ void main(List<String> args) async {
       // `windowManager.hide()` path crashes with GTK critical assertions.
       await windowManager.setPreventClose(true);
       await windowManager.show();
+      await windowManager.center(animate: true);
       await windowManager.focus();
     });
   }
