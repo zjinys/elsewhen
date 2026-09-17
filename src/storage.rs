@@ -1820,7 +1820,7 @@ impl Store {
                      ORDER BY m2.created_at DESC LIMIT 1) as last_message
              FROM conversations c
              LEFT JOIN messages m ON m.conversation_id = c.id
-             WHERE c.archived = 0
+             WHERE c.archived = 0 AND c.wiki_page_slug IS NULL
              GROUP BY c.id
              ORDER BY c.updated_at DESC",
         )?;
@@ -1852,7 +1852,7 @@ impl Store {
                      ORDER BY m2.created_at DESC LIMIT 1) as last_message
              FROM conversations c
              LEFT JOIN messages m ON m.conversation_id = c.id
-             WHERE c.archived = 1
+             WHERE c.archived = 1 AND c.wiki_page_slug IS NULL
              GROUP BY c.id
              ORDER BY c.updated_at DESC",
         )?;
@@ -2329,6 +2329,31 @@ mod tests {
             .unwrap();
         assert!(store.find_wiki_page_by_title(" 张伟 ").unwrap().is_some());
         assert!(store.find_wiki_page_by_title("不存在的人").unwrap().is_none());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn list_conversations_excludes_wiki_page_chats() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let normal = store.create_conversation(Some("普通对话"), None).unwrap();
+        let wiki_chat = store
+            .create_wiki_chat_conversation("person/张伟", "处理本页")
+            .unwrap();
+        // 知识页聊天有 wiki_page_slug 关联
+        let conv = store.get_conversation(&wiki_chat).unwrap().unwrap();
+        assert_eq!(conv.wiki_page_slug.as_deref(), Some("person/张伟"));
+
+        let listed = store.list_conversations().unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, normal);
+        assert!(listed.iter().all(|c| c.wiki_page_slug.is_none()));
+
+        // 归档列表同样不出现知识页聊天
+        store.set_conversation_archived(&normal, true).unwrap();
+        let archived = store.list_archived_conversations().unwrap();
+        assert!(archived.iter().all(|c| c.wiki_page_slug.is_none()));
+        assert_eq!(archived.len(), 1);
         let _ = std::fs::remove_file(path);
     }
 }
