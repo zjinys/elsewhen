@@ -21,9 +21,7 @@ void main() {
           selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
           messagesProvider.overrideWith((ref) async => <Message>[]),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: MessageArea()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: MessageArea())),
       ),
     );
     await tester.pump();
@@ -34,13 +32,12 @@ void main() {
     // ① 回车提交，写库失败 → 错误 SnackBar + 文本保留可重试
     await tester.enterText(input, 'fail-send');
     await tester._pressEnter();
+    expect(find.textContaining('发送失败'), findsOneWidget, reason: '写库失败应弹出明确反馈');
     expect(
-      find.textContaining('发送失败'),
-      findsOneWidget,
-      reason: '写库失败应弹出明确反馈',
+      tester.widget<TextField>(input).controller!.text,
+      'fail-send',
+      reason: '失败时保留文本便于重试',
     );
-    expect(tester.widget<TextField>(input).controller!.text, 'fail-send',
-        reason: '失败时保留文本便于重试');
 
     // 清掉 SnackBar（分段推进时钟，SnackBar 时长 Timer 才触发）
     await tester._clearSnackBars();
@@ -50,8 +47,11 @@ void main() {
     await tester.enterText(input, 'ok-ai-fail');
     await tester._pressEnter();
     expect(repo.sentContents, ['ok-ai-fail'], reason: '消息应已写库');
-    expect(tester.widget<TextField>(input).controller!.text, isEmpty,
-        reason: '写库成功后输入框清空');
+    expect(
+      tester.widget<TextField>(input).controller!.text,
+      isEmpty,
+      reason: '写库成功后输入框清空',
+    );
     expect(
       find.textContaining('AI 回复失败'),
       findsOneWidget,
@@ -88,7 +88,11 @@ class _FakeConversationRepo extends ConversationRepository {
   int aiCalls = 0;
 
   @override
-  Future<Message> sendMessage(String conversationId, String content) async {
+  Future<Message> sendMessage(
+    String conversationId,
+    String content, {
+    String? idempotencyKey,
+  }) async {
     if (content == 'fail-send') {
       throw Exception('写库失败(模拟)');
     }

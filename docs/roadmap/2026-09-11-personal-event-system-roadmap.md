@@ -1,5 +1,9 @@
 # Elsewhen Personal Event System Roadmap
 
+> 历史路线图：记录项目早期 MVP 分阶段设想。2026-09-17 起，产品实施顺序由
+> [个人认知主循环 Roadmap](2026-09-17-personal-cognition-main-loop-roadmap.md) 接管；
+> 本文定义的本地优先、Raw Event 不可变、AI 失败不阻塞记录等约束继续有效。
+
 ## Goal
 
 验证“随手记录 → AI 理解 → 规则提醒 → 每日回顾”的核心价值闭环，并保持本地、轻量、可恢复。

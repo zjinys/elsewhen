@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::event::{EventSummary, NewEvent};
+use anyhow::Result;
 
 /// Analysis job from the queue
 #[derive(Clone, Debug)]
@@ -60,7 +60,12 @@ pub trait StorageAdapter {
     // Analysis operations
     fn list_analyses(&self) -> Result<Vec<AnalysisSummary>>;
     fn claim_analysis_job(&self) -> Result<Option<AnalysisJob>>;
-    fn complete_analysis(&self, job: &AnalysisJob, prompt_version: &str, result_json: &str) -> Result<()>;
+    fn complete_analysis(
+        &self,
+        job: &AnalysisJob,
+        prompt_version: &str,
+        result_json: &str,
+    ) -> Result<()>;
     fn fail_analysis(&self, job: &AnalysisJob, error: &str) -> Result<()>;
 
     // AI provider operations

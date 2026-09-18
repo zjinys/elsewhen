@@ -17,6 +17,9 @@ class WikiPage {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? sourceUrl;
+  final String area;
+  final String? basedOn;
+  final String? contentType;
 
   const WikiPage({
     required this.id,
@@ -34,6 +37,9 @@ class WikiPage {
     required this.createdAt,
     required this.updatedAt,
     this.sourceUrl,
+    required this.area,
+    this.basedOn,
+    this.contentType,
   });
 
   factory WikiPage.fromDto(api.WikiPageDto dto) {
@@ -53,6 +59,9 @@ class WikiPage {
       createdAt: DateTime.parse(dto.createdAt).toLocal(),
       updatedAt: DateTime.parse(dto.updatedAt).toLocal(),
       sourceUrl: dto.sourceUrl,
+      area: dto.area,
+      basedOn: dto.basedOn,
+      contentType: dto.contentType,
     );
   }
 
@@ -78,5 +87,24 @@ class WikiPage {
       'source': '来源',
     };
     return labels[kind] ?? kind;
+  }
+
+  /// 来源/用途分区的中文名
+  String get areaLabel {
+    const labels = {
+      'imported': '素材库',
+      'network': '人物/项目',
+      'insight': '知识沉淀',
+      'derivative': '派生产物',
+    };
+    return labels[area] ?? area;
+  }
+
+  /// 素材来源标识：tweet- 前缀推文、带网址的网页、其余（粘贴文本）→ 素材
+  String? get sourceKind {
+    if (area != 'imported') return null;
+    if (slug.startsWith('tweet-')) return 'tweet';
+    if (sourceUrl != null) return 'web';
+    return 'text';
   }
 }

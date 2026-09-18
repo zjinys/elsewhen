@@ -29,6 +29,13 @@ final wikiPageProvider = FutureProvider.family<WikiPage?, String>((ref, slug) as
   return await bridge.getWikiPage(slug);
 });
 
+/// 某页的派生产物列表（AI 加工成果，挂在详情页「派生产物」区块）
+final wikiDerivativesProvider =
+    FutureProvider.family<List<WikiPage>, String>((ref, slug) async {
+  final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+  return await bridge.listWikiPageDerivatives(slug);
+});
+
 /// 当前选中查看的 wiki 页 slug（保留：左侧列表高亮 + 兼容引用）
 final selectedWikiSlugProvider = StateProvider<String?>((ref) => null);
 

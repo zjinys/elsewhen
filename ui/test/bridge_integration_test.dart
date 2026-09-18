@@ -1,15 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
+import 'package:intl/intl.dart';
+
+import 'support/isolated_bridge.dart';
 
 void main() {
   test('Rust bridge integration', () async {
     print('Testing Flutter-Rust bridge...\n');
 
-    final repo = RustBridgeRepository();
-
-    // Initialize
+    // Initialize against a fresh temporary database.
     print('1. Initializing bridge...');
-    await repo.initialize();
+    final repo = await createIsolatedBridge();
     print('   ✓ Bridge initialized\n');
 
     // List events
@@ -36,7 +36,42 @@ void main() {
     final updatedEvents = await repo.listEvents();
     print('   ✓ Total events now: ${updatedEvents.length}\n');
 
-    expect(updatedEvents.length, greaterThan(events.length));
+    expect(events, isEmpty);
+    expect(updatedEvents, hasLength(1));
+
+    final submitted = await repo.submitInput(
+      '统一输入桥接测试',
+      idempotencyKey: 'bridge-submit-1',
+    );
+    final repeated = await repo.submitInput(
+      '不应重复创建',
+      idempotencyKey: 'bridge-submit-1',
+    );
+    expect(repeated.id, submitted.id);
+    expect(submitted.routeStatus, 'routed');
+    expect(submitted.eventId, isNotNull);
+    expect(await repo.listEvents(), hasLength(2));
+    await repo.recordUnifiedInput('Capture 统一输入测试');
+    expect(await repo.listEvents(), hasLength(3));
+    expect(await repo.triggerAnalysis(), 'no_provider');
+    expect((await repo.getAnalysisJobStats()).pending, 3);
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final daily = await repo.listDailyEntries(today);
+    expect(daily, hasLength(3));
+    expect(daily.where((entry) => entry.inputId != null), hasLength(2));
+    expect(daily.where((entry) => entry.messageId != null), isEmpty);
+
+    final urlInput = await repo.beginUrlInput('https://example.com/article');
+    expect(urlInput.source, 'url_import');
+    expect(urlInput.routeStatus, 'needs_confirmation');
+    expect(urlInput.eventId, isNull);
+    final linkedUrlInput = await repo.finishUrlInput(
+      urlInput.id,
+      wikiPageSlug: 'import-test-page',
+    );
+    expect(linkedUrlInput.routeStatus, 'routed');
+    expect(linkedUrlInput.wikiPageSlug, 'import-test-page');
+    expect(await repo.listEvents(), hasLength(3));
     print('Bridge test complete! 🎉');
   });
 }

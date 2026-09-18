@@ -1,16 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 
-/// Rust bridge wiki 集成测试：只读，不依赖外部 demo 数据。
-/// 对活动数据目录里的知识库做真实桥接调用（list/get/kind 过滤）。
+import 'support/isolated_bridge.dart';
+
+/// Rust bridge wiki 集成测试：在隔离库里自种数据后验证 list/get/kind 过滤。
 void main() {
   test('Rust bridge wiki integration', () async {
-    final repo = RustBridgeRepository();
-    await repo.initialize();
+    final repo = await createIsolatedBridge();
+    final seeded = await repo.saveTextPage(
+      text: '用于验证真实 Rust bridge 的隔离测试页面。',
+      title: 'Bridge 隔离测试',
+      tags: const ['test'],
+    );
 
     // 1. List wiki pages (all kinds)
     final pages = await repo.listWikiPages();
-    expect(pages.length, greaterThan(0), reason: '知识库应至少有一页');
+    expect(pages, hasLength(1), reason: '隔离库应只包含自种页面');
+    expect(pages.single.slug, seeded.slug);
     print('   ✓ Found ${pages.length} wiki pages');
 
     for (final page in pages.take(10)) {
@@ -34,8 +39,7 @@ void main() {
       expect(filtered, isNotEmpty, reason: 'kind=$kind 过滤应有结果');
       final slugs = pages.map((p) => p.slug).toSet();
       for (final p in filtered) {
-        expect(slugs.contains(p.slug), isTrue,
-            reason: '过滤结果应为全量子集 ($kind)');
+        expect(slugs.contains(p.slug), isTrue, reason: '过滤结果应为全量子集 ($kind)');
       }
     }
 

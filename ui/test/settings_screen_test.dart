@@ -2,27 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
+import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
 import 'package:elsewhen_ui/screens/settings_screen.dart';
 
-/// 设置页预填验证：进入设置页应从 Rust DB 加载真实 AI provider（.env 导入的那份），
-/// 而不是硬编码默认值。需要一份带 provider 配置的库副本。
-/// 运行：ELSEWHEN_DATA_DIR=/tmp/opencode/frb-settings-widget flutter test test/settings_screen_test.dart
+import 'support/isolated_bridge.dart';
+
+/// 设置页预填验证：在隔离数据库写入 provider 后，页面应从 Rust DB 加载，
+/// 而不是使用硬编码默认值。
 void main() {
-  testWidgets('settings screen prefills real provider from bridge', (tester) async {
-    final repo = RustBridgeRepository();
-    await tester.runAsync(() => repo.initialize());
+  testWidgets('settings screen prefills real provider from bridge', (
+    tester,
+  ) async {
+    final repo = await tester.runAsync(createIsolatedBridge);
+    final bridge = repo!;
+    await tester.runAsync(
+      () => bridge.saveAiProviderConfig(
+        api.AiProviderConfigDto(
+          id: '',
+          name: '隔离测试 Provider',
+          providerType: 'openai-compatible',
+          baseUrl: 'https://isolated.example.com/v1',
+          model: 'isolated-test-model',
+          apiKeySource: '',
+          apiKey: 'sk-isolated-test',
+          isActive: true,
+          temperature: 0.7,
+          maxTokens: null,
+        ),
+      ),
+    );
 
     // 真实桥接读取当前生效的 provider（demo 副本里有 hub.oaifree.com / gpt-4o）
-    final expected = await tester.runAsync(() => repo.getAiProviderConfig());
+    final expected = await tester.runAsync(() => bridge.getAiProviderConfig());
     expect(expected, isNotNull, reason: '测试库副本应含 provider 配置');
     final expectedUrl = expected!.baseUrl;
     final expectedModel = expected.model;
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          storageRepositoryProvider.overrideWithValue(repo),
-        ],
+        overrides: [storageRepositoryProvider.overrideWithValue(bridge)],
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
@@ -48,20 +66,32 @@ void main() {
       findsWidgets,
       reason: 'model 应预填真实配置而非默认值',
     );
-    expect(find.textContaining('api.openai.com/v1'), findsNothing,
-        reason: '不应出现硬编码默认 baseUrl');
-    expect(find.textContaining('gpt-3.5-turbo'), findsNothing,
-        reason: '不应出现硬编码默认 model');
+    expect(
+      find.textContaining('api.openai.com/v1'),
+      findsNothing,
+      reason: '不应出现硬编码默认 baseUrl',
+    );
+    expect(
+      find.textContaining('gpt-3.5-turbo'),
+      findsNothing,
+      reason: '不应出现硬编码默认 model',
+    );
 
     // 记忆策略默认「简单记忆」：模型 tab 仅有 1 个文本输入（最大消息数），
     // AI provider 字段移入「编辑」对话框，不直接铺在页面上。
-    expect(tester.widgetList<TextField>(find.byType(TextField)).length, 1,
-        reason: '模型 tab：provider 为卡片布局，仅记忆策略有文本输入');
+    expect(
+      tester.widgetList<TextField>(find.byType(TextField)).length,
+      1,
+      reason: '模型 tab：provider 为卡片布局，仅记忆策略有文本输入',
+    );
 
     // 切到「数据」tab 应看到每日 Token 使用区块（纯展示，不依赖是否有记录）
     await tester.tap(find.text('数据'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('每日 Token 使用'), findsOneWidget);
+    expect(find.text('事件分析队列'), findsOneWidget);
+    expect(find.text('待处理'), findsOneWidget);
+    expect(find.text('等待重试'), findsOneWidget);
   });
 }

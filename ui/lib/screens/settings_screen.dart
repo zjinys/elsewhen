@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../providers/settings_provider.dart';
 import '../models/settings.dart';
 import '../models/token_usage.dart';
@@ -26,6 +27,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   List<DailyTokenUsage> _dailyUsage = [];
   bool _usageLoading = true;
+  api.AnalysisJobStatsDto? _analysisJobStats;
+  bool _analysisJobStatsLoading = true;
 
   // 个人经验规则库
   List<Rule> _rules = [];
@@ -52,6 +55,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProviders();
       _loadTokenUsage();
+      _loadAnalysisJobStats();
       _loadTweetService();
       _loadRules();
     });
@@ -86,6 +90,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (!mounted) return;
       setState(() => _usageLoading = false);
       debugPrint('loadTokenUsage failed: $e');
+    }
+  }
+
+  Future<void> _loadAnalysisJobStats() async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final stats = await repo.getAnalysisJobStats();
+      if (!mounted) return;
+      setState(() {
+        _analysisJobStats = stats;
+        _analysisJobStatsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _analysisJobStatsLoading = false);
+      debugPrint('loadAnalysisJobStats failed: $e');
     }
   }
 
@@ -124,9 +144,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       setState(() => _rules.removeWhere((r) => r.id == rule.id));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('删除失败：$e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('删除失败：$e')));
     }
   }
 
@@ -212,9 +231,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       padding: const EdgeInsets.all(AppTheme.space2),
       decoration: BoxDecoration(
         color: AppTheme.surface1,
-        border: Border(
-          right: BorderSide(color: AppTheme.surface3, width: 1),
-        ),
+        border: Border(right: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: AnimatedBuilder(
         animation: _tabController,
@@ -253,7 +270,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               Icon(
                 icon,
                 size: 16,
-                color: selected ? AppTheme.accentPrimary : AppTheme.textTertiary,
+                color: selected
+                    ? AppTheme.accentPrimary
+                    : AppTheme.textTertiary,
               ),
               const SizedBox(width: AppTheme.space2 + 4),
               Text(
@@ -261,7 +280,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? AppTheme.textPrimary : AppTheme.textTertiary,
+                  color: selected
+                      ? AppTheme.textPrimary
+                      : AppTheme.textTertiary,
                 ),
               ),
             ],
@@ -290,6 +311,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAnalysisJobStatsContent() {
+    if (_analysisJobStatsLoading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    final stats = _analysisJobStats;
+    if (stats == null) {
+      return Text(
+        '分析队列状态读取失败',
+        style: TextStyle(color: AppTheme.textSecondary),
+      );
+    }
+
+    final waiting = stats.pending + stats.running + stats.retry;
+    return Wrap(
+      spacing: AppTheme.space4,
+      runSpacing: AppTheme.space3,
+      children: [
+        _buildUsageMetric(label: '待处理', value: '$waiting'),
+        _buildUsageMetric(label: '处理中', value: '${stats.running}'),
+        _buildUsageMetric(label: '等待重试', value: '${stats.retry}'),
+        _buildUsageMetric(label: '已完成', value: '${stats.succeeded}'),
+        _buildUsageMetric(label: '失败', value: '${stats.failed}'),
+      ],
     );
   }
 
@@ -348,6 +395,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
+            title: '事件分析队列',
+            icon: Icons.sync_outlined,
+            child: _buildAnalysisJobStatsContent(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
             title: '每日 Token 使用',
             icon: Icons.analytics_outlined,
             child: _buildTokenUsageContent(),
@@ -379,7 +432,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (_rules.isEmpty) {
       return Text(
         '还没有规则。在对话里分享踩坑或心得时，AI 会建议把其中的经验沉淀成规则，你回复「好」确认后就会出现在这里，以后遇到类似情况 AI 会主动引用并提醒你。',
-        style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.6),
+        style: TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 13,
+          height: 1.6,
+        ),
       );
     }
     return Column(
@@ -400,7 +457,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text(
                     _rules[i].content,
-                    style: TextStyle(color: AppTheme.textPrimary, fontSize: 13, height: 1.5),
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
                   ),
                 ),
               ),
@@ -632,9 +693,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('切换激活失败：$e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('切换激活失败：$e')));
     }
   }
 
@@ -667,9 +727,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('删除失败：$e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('删除失败：$e')));
     }
   }
 
@@ -811,9 +870,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('保存失败：$e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('保存失败：$e')));
     }
   }
 
@@ -826,13 +884,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           value: settings.memory.strategyType,
           items: const [
             DropdownMenuItem(value: 'simple', child: Text('简单记忆 (最近 N 条)')),
-            DropdownMenuItem(value: 'sliding-window', child: Text('滑动窗口 (Token 限制)')),
+            DropdownMenuItem(
+              value: 'sliding-window',
+              child: Text('滑动窗口 (Token 限制)'),
+            ),
           ],
           onChanged: (value) {
             if (value != null) {
-              ref.read(settingsProvider.notifier).updateMemory(
-                settings.memory.copyWith(strategyType: value),
-              );
+              ref
+                  .read(settingsProvider.notifier)
+                  .updateMemory(settings.memory.copyWith(strategyType: value));
             }
           },
         ),
@@ -869,9 +930,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ],
           onChanged: (value) {
             if (value != null) {
-              ref.read(settingsProvider.notifier).updateStorage(
-                settings.storage.copyWith(adapterType: value),
-              );
+              ref
+                  .read(settingsProvider.notifier)
+                  .updateStorage(settings.storage.copyWith(adapterType: value));
             }
           },
         ),
@@ -903,7 +964,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (_dailyUsage.isEmpty) {
       return Text(
         '暂无 AI 调用记录。发起对话并生成 AI 回复后，这里会按天统计 token 用量。',
-        style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.6),
+        style: TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 13,
+          height: 1.6,
+        ),
       );
     }
 
@@ -917,11 +982,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         Row(
           children: [
             Expanded(
-              child: _buildUsageMetric(label: '近 7 天 Total', value: _fmtInt(totalTokens)),
+              child: _buildUsageMetric(
+                label: '近 7 天 Total',
+                value: _fmtInt(totalTokens),
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildUsageMetric(label: '累计调用', value: '${_fmtInt(totalCalls)} 次'),
+              child: _buildUsageMetric(
+                label: '累计调用',
+                value: '${_fmtInt(totalCalls)} 次',
+              ),
             ),
           ],
         ),
@@ -930,49 +1001,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           children: [
             SizedBox(
               width: 96,
-              child: Text('日期', style: TextStyle(fontSize: 12, color: AppTheme.textTertiary)),
+              child: Text(
+                '日期',
+                style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+              ),
             ),
             Expanded(
-              child: Text('Total', style: TextStyle(fontSize: 12, color: AppTheme.textTertiary)),
+              child: Text(
+                'Total',
+                style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+              ),
             ),
             Expanded(
-              child: Text('调用', textAlign: TextAlign.right, style: TextStyle(fontSize: 12, color: AppTheme.textTertiary)),
+              child: Text(
+                '调用',
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+              ),
             ),
           ],
         ),
-        ..._dailyUsage.take(7).map(
-          (d) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 96,
-                  child: Text(
-                    d.date == today ? '今天（${d.date.substring(5)}）' : d.date.substring(5),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textPrimary,
+        ..._dailyUsage
+            .take(7)
+            .map(
+              (d) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 96,
+                      child: Text(
+                        d.date == today
+                            ? '今天（${d.date.substring(5)}）'
+                            : d.date.substring(5),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
                     ),
-                  ),
+                    Expanded(
+                      child: Text(
+                        '${_fmtInt(d.totalTokens)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '${_fmtInt(d.callCount)} 次',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: Text(
-                    '${_fmtInt(d.totalTokens)}',
-                    style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    '${_fmtInt(d.callCount)} 次',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
       ],
     );
   }
@@ -1087,7 +1178,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           }).toList(),
           onChanged: (value) {
             if (value != null) {
-              final mode = AppThemeMode.values.firstWhere((m) => m.name == value);
+              final mode = AppThemeMode.values.firstWhere(
+                (m) => m.name == value,
+              );
               notifier
                 ..updateTheme(mode)
                 ..saveTheme();
@@ -1162,10 +1255,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: AppTheme.accentPrimary,
-                width: 2,
-              ),
+              borderSide: BorderSide(color: AppTheme.accentPrimary, width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
@@ -1218,10 +1308,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: AppTheme.accentPrimary,
-                width: 2,
-              ),
+              borderSide: BorderSide(color: AppTheme.accentPrimary, width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
@@ -1238,11 +1325,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       final currentSettings = ref.read(settingsProvider);
 
       // AI Provider 为多配置列表，单独即时保存，不在此处处理
-      ref.read(settingsProvider.notifier).updateMemory(
-        currentSettings.memory.copyWith(
-          maxMessages: int.tryParse(_maxMessagesController.text),
-        ),
-      );
+      ref
+          .read(settingsProvider.notifier)
+          .updateMemory(
+            currentSettings.memory.copyWith(
+              maxMessages: int.tryParse(_maxMessagesController.text),
+            ),
+          );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -10,6 +10,15 @@ abstract class StorageRepository {
   /// 记录新事件
   Future<Event> recordEvent(String rawText);
 
+  /// Unified capture path. Implementations without input-record support fall
+  /// back to the legacy event API, keeping tests and adapters compatible.
+  Future<void> recordUnifiedInput(
+    String rawText, {
+    String source = 'capture',
+  }) async {
+    await recordEvent(rawText);
+  }
+
   /// 列出所有事件
   Future<List<Event>> listEvents();
 

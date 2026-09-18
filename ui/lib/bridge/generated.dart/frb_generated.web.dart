@@ -36,6 +36,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisDto dco_decode_analysis_dto(dynamic raw);
 
   @protected
+  AnalysisJobStatsDto dco_decode_analysis_job_stats_dto(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -62,6 +65,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ConversationDto dco_decode_conversation_dto(dynamic raw);
 
   @protected
+  DailyEntryDto dco_decode_daily_entry_dto(dynamic raw);
+
+  @protected
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
 
   @protected
@@ -80,6 +86,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ImportUrlDto dco_decode_import_url_dto(dynamic raw);
 
   @protected
+  InputRecordDto dco_decode_input_record_dto(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -95,6 +104,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ConversationDto> dco_decode_list_conversation_dto(dynamic raw);
+
+  @protected
+  List<DailyEntryDto> dco_decode_list_daily_entry_dto(dynamic raw);
 
   @protected
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw);
@@ -185,6 +197,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisDto sse_decode_analysis_dto(SseDeserializer deserializer);
 
   @protected
+  AnalysisJobStatsDto sse_decode_analysis_job_stats_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -217,6 +234,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ConversationDto sse_decode_conversation_dto(SseDeserializer deserializer);
 
   @protected
+  DailyEntryDto sse_decode_daily_entry_dto(SseDeserializer deserializer);
+
+  @protected
   DailyTokenUsageDto sse_decode_daily_token_usage_dto(
     SseDeserializer deserializer,
   );
@@ -237,6 +257,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ImportUrlDto sse_decode_import_url_dto(SseDeserializer deserializer);
 
   @protected
+  InputRecordDto sse_decode_input_record_dto(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -254,6 +277,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ConversationDto> sse_decode_list_conversation_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DailyEntryDto> sse_decode_list_daily_entry_dto(
     SseDeserializer deserializer,
   );
 
@@ -378,6 +406,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_analysis_job_stats_dto(AnalysisJobStatsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.pending),
+      cst_encode_i_64(raw.running),
+      cst_encode_i_64(raw.retry),
+      cst_encode_i_64(raw.succeeded),
+      cst_encode_i_64(raw.failed),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_box_autoadd_ai_provider_config_dto(AiProviderConfigDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_ai_provider_config_dto(raw);
@@ -433,6 +473,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_daily_entry_dto(DailyEntryDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.eventId),
+      cst_encode_opt_String(raw.inputId),
+      cst_encode_opt_String(raw.messageId),
+      cst_encode_String(raw.rawText),
+      cst_encode_String(raw.source),
+      cst_encode_String(raw.eventStatus),
+      cst_encode_String(raw.recordedAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_daily_token_usage_dto(DailyTokenUsageDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -477,6 +531,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_input_record_dto(InputRecordDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.rawText),
+      cst_encode_String(raw.source),
+      cst_encode_String(raw.routeStatus),
+      cst_encode_opt_String(raw.idempotencyKey),
+      cst_encode_opt_String(raw.eventId),
+      cst_encode_opt_String(raw.messageId),
+      cst_encode_opt_String(raw.wikiPageSlug),
+      cst_encode_opt_String(raw.todoId),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_String(List<String> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_String).toList().jsify()!;
@@ -506,6 +578,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_conversation_dto(List<ConversationDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_conversation_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_daily_entry_dto(List<DailyEntryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_daily_entry_dto).toList().jsify()!;
   }
 
   @protected
@@ -695,6 +773,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.createdAt),
       cst_encode_String(raw.updatedAt),
       cst_encode_opt_String(raw.sourceUrl),
+      cst_encode_String(raw.area),
+      cst_encode_opt_String(raw.basedOn),
+      cst_encode_opt_String(raw.contentType),
     ].jsify()!;
   }
 
@@ -733,6 +814,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_analysis_dto(AnalysisDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_analysis_job_stats_dto(
+    AnalysisJobStatsDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -777,6 +864,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_daily_entry_dto(DailyEntryDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_daily_token_usage_dto(
     DailyTokenUsageDto self,
     SseSerializer serializer,
@@ -796,6 +886,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_import_url_dto(ImportUrlDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_input_record_dto(
+    InputRecordDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -821,6 +917,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_conversation_dto(
     List<ConversationDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_daily_entry_dto(
+    List<DailyEntryDto> self,
     SseSerializer serializer,
   );
 
@@ -951,6 +1053,16 @@ class RustLibWire implements BaseWire {
     String page_slug,
   ) => wasmModule.wire__crate__api__archive_wiki_page_chat(port_, page_slug);
 
+  void wire__crate__api__begin_url_input(
+    NativePortType port_,
+    String raw_text,
+    String? idempotency_key,
+  ) => wasmModule.wire__crate__api__begin_url_input(
+    port_,
+    raw_text,
+    idempotency_key,
+  );
+
   void wire__crate__api__create_conversation(
     NativePortType port_,
     String? title,
@@ -1003,6 +1115,18 @@ class RustLibWire implements BaseWire {
     String url,
   ) => wasmModule.wire__crate__api__find_tweet_source_page(port_, url);
 
+  void wire__crate__api__finish_url_input(
+    NativePortType port_,
+    String input_id,
+    String? wiki_page_slug,
+    bool failed,
+  ) => wasmModule.wire__crate__api__finish_url_input(
+    port_,
+    input_id,
+    wiki_page_slug,
+    failed,
+  );
+
   void wire__crate__api__generate_content_chat(
     NativePortType port_,
     String content,
@@ -1032,6 +1156,9 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__get_ai_provider_config(NativePortType port_) =>
       wasmModule.wire__crate__api__get_ai_provider_config(port_);
+
+  void wire__crate__api__get_analysis_job_stats(NativePortType port_) =>
+      wasmModule.wire__crate__api__get_analysis_job_stats(port_);
 
   void wire__crate__api__get_child_messages(
     NativePortType port_,
@@ -1082,6 +1209,11 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__list_conversations(NativePortType port_) =>
       wasmModule.wire__crate__api__list_conversations(port_);
 
+  void wire__crate__api__list_daily_entries(
+    NativePortType port_,
+    String date,
+  ) => wasmModule.wire__crate__api__list_daily_entries(port_, date);
+
   void wire__crate__api__list_events(NativePortType port_) =>
       wasmModule.wire__crate__api__list_events(port_);
 
@@ -1104,8 +1236,16 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__list_todos(NativePortType port_, String? status) =>
       wasmModule.wire__crate__api__list_todos(port_, status);
 
-  void wire__crate__api__list_wiki_pages(NativePortType port_, String? kind) =>
-      wasmModule.wire__crate__api__list_wiki_pages(port_, kind);
+  void wire__crate__api__list_wiki_page_derivatives(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__list_wiki_page_derivatives(port_, slug);
+
+  void wire__crate__api__list_wiki_pages(
+    NativePortType port_,
+    String? kind,
+    String? area,
+  ) => wasmModule.wire__crate__api__list_wiki_pages(port_, kind, area);
 
   void wire__crate__api__record_event(NativePortType port_, String raw_text) =>
       wasmModule.wire__crate__api__record_event(port_, raw_text);
@@ -1193,6 +1333,30 @@ class RustLibWire implements BaseWire {
     archived,
   );
 
+  void wire__crate__api__submit_conversation_input(
+    NativePortType port_,
+    String conversation_id,
+    String raw_text,
+    String? idempotency_key,
+  ) => wasmModule.wire__crate__api__submit_conversation_input(
+    port_,
+    conversation_id,
+    raw_text,
+    idempotency_key,
+  );
+
+  void wire__crate__api__submit_input(
+    NativePortType port_,
+    String raw_text,
+    String source,
+    String? idempotency_key,
+  ) => wasmModule.wire__crate__api__submit_input(
+    port_,
+    raw_text,
+    source,
+    idempotency_key,
+  );
+
   void wire__crate__api__trigger_analysis(NativePortType port_) =>
       wasmModule.wire__crate__api__trigger_analysis(port_);
 
@@ -1272,6 +1436,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String page_slug,
   );
 
+  external void wire__crate__api__begin_url_input(
+    NativePortType port_,
+    String raw_text,
+    String? idempotency_key,
+  );
+
   external void wire__crate__api__create_conversation(
     NativePortType port_,
     String? title,
@@ -1321,6 +1491,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String url,
   );
 
+  external void wire__crate__api__finish_url_input(
+    NativePortType port_,
+    String input_id,
+    String? wiki_page_slug,
+    bool failed,
+  );
+
   external void wire__crate__api__generate_content_chat(
     NativePortType port_,
     String content,
@@ -1338,6 +1515,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__get_ai_provider(NativePortType port_);
 
   external void wire__crate__api__get_ai_provider_config(NativePortType port_);
+
+  external void wire__crate__api__get_analysis_job_stats(NativePortType port_);
 
   external void wire__crate__api__get_child_messages(
     NativePortType port_,
@@ -1390,6 +1569,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__list_conversations(NativePortType port_);
 
+  external void wire__crate__api__list_daily_entries(
+    NativePortType port_,
+    String date,
+  );
+
   external void wire__crate__api__list_events(NativePortType port_);
 
   external void wire__crate__api__list_messages(
@@ -1411,9 +1595,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? status,
   );
 
+  external void wire__crate__api__list_wiki_page_derivatives(
+    NativePortType port_,
+    String slug,
+  );
+
   external void wire__crate__api__list_wiki_pages(
     NativePortType port_,
     String? kind,
+    String? area,
   );
 
   external void wire__crate__api__record_event(
@@ -1474,6 +1664,20 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String conversation_id,
     bool archived,
+  );
+
+  external void wire__crate__api__submit_conversation_input(
+    NativePortType port_,
+    String conversation_id,
+    String raw_text,
+    String? idempotency_key,
+  );
+
+  external void wire__crate__api__submit_input(
+    NativePortType port_,
+    String raw_text,
+    String source,
+    String? idempotency_key,
   );
 
   external void wire__crate__api__trigger_analysis(NativePortType port_);

@@ -8,7 +8,7 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `dto_from_active`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -18,6 +18,54 @@ Future<String> initBridge({String? databasePath}) =>
 Future<EventDto> recordEvent({required String rawText}) =>
     RustLib.instance.api.crateApiRecordEvent(rawText: rawText);
 
+/// Save a plain personal input without waiting for AI/network.
+/// Reusing an idempotency key returns the original routed result.
+Future<InputRecordDto> submitInput({
+  required String rawText,
+  required String source,
+  String? idempotencyKey,
+}) => RustLib.instance.api.crateApiSubmitInput(
+  rawText: rawText,
+  source: source,
+  idempotencyKey: idempotencyKey,
+);
+
+/// Start routing a URL input without creating a personal event. The raw URL is
+/// durable before any network fetch begins and remains awaiting confirmation
+/// until the preview is explicitly saved.
+Future<InputRecordDto> beginUrlInput({
+  required String rawText,
+  String? idempotencyKey,
+}) => RustLib.instance.api.crateApiBeginUrlInput(
+  rawText: rawText,
+  idempotencyKey: idempotencyKey,
+);
+
+/// Complete or fail the URL preview route while preserving the original input.
+Future<InputRecordDto> finishUrlInput({
+  required String inputId,
+  String? wikiPageSlug,
+  required bool failed,
+}) => RustLib.instance.api.crateApiFinishUrlInput(
+  inputId: inputId,
+  wikiPageSlug: wikiPageSlug,
+  failed: failed,
+);
+
+Future<InputRecordDto> submitConversationInput({
+  required String conversationId,
+  required String rawText,
+  String? idempotencyKey,
+}) => RustLib.instance.api.crateApiSubmitConversationInput(
+  conversationId: conversationId,
+  rawText: rawText,
+  idempotencyKey: idempotencyKey,
+);
+
+/// List one local calendar day's complete personal record stream.
+Future<List<DailyEntryDto>> listDailyEntries({required String date}) =>
+    RustLib.instance.api.crateApiListDailyEntries(date: date);
+
 /// List all events
 Future<List<EventDto>> listEvents() =>
     RustLib.instance.api.crateApiListEvents();
@@ -25,6 +73,9 @@ Future<List<EventDto>> listEvents() =>
 /// List completed analyses
 Future<List<AnalysisDto>> listAnalyses() =>
     RustLib.instance.api.crateApiListAnalyses();
+
+Future<AnalysisJobStatsDto> getAnalysisJobStats() =>
+    RustLib.instance.api.crateApiGetAnalysisJobStats();
 
 /// Get active AI provider info
 Future<String?> getAiProvider() => RustLib.instance.api.crateApiGetAiProvider();
@@ -154,9 +205,14 @@ Future<String> generateReply({
 Future<List<DailyTokenUsageDto>> getDailyTokenUsage({required int days}) =>
     RustLib.instance.api.crateApiGetDailyTokenUsage(days: days);
 
-/// List wiki pages（可过滤 kind）；kind 为 None 时列出全部
-Future<List<WikiPageDto>> listWikiPages({String? kind}) =>
-    RustLib.instance.api.crateApiListWikiPages(kind: kind);
+/// List wiki pages（主列表）。kind/area 均为 None 时列出全部（不含派生产物）。
+/// area：imported（素材库）/ network（人物项目）/ insight（知识沉淀）。
+Future<List<WikiPageDto>> listWikiPages({String? kind, String? area}) =>
+    RustLib.instance.api.crateApiListWikiPages(kind: kind, area: area);
+
+/// 某页的派生产物列表（AI 加工成果，挂在该页详情下，不进主列表）。
+Future<List<WikiPageDto>> listWikiPageDerivatives({required String slug}) =>
+    RustLib.instance.api.crateApiListWikiPageDerivatives(slug: slug);
 
 /// Get a single wiki page by slug
 Future<WikiPageDto?> getWikiPage({required String slug}) =>
@@ -426,6 +482,42 @@ class AnalysisDto {
           clarifications == other.clarifications;
 }
 
+/// Durable event-analysis queue counts for operational visibility.
+class AnalysisJobStatsDto {
+  final PlatformInt64 pending;
+  final PlatformInt64 running;
+  final PlatformInt64 retry;
+  final PlatformInt64 succeeded;
+  final PlatformInt64 failed;
+
+  const AnalysisJobStatsDto({
+    required this.pending,
+    required this.running,
+    required this.retry,
+    required this.succeeded,
+    required this.failed,
+  });
+
+  @override
+  int get hashCode =>
+      pending.hashCode ^
+      running.hashCode ^
+      retry.hashCode ^
+      succeeded.hashCode ^
+      failed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AnalysisJobStatsDto &&
+          runtimeType == other.runtimeType &&
+          pending == other.pending &&
+          running == other.running &&
+          retry == other.retry &&
+          succeeded == other.succeeded &&
+          failed == other.failed;
+}
+
 /// 内容对话消息 DTO（临时讨论的一条消息）
 class ContentChatMessageDto {
   final String role;
@@ -495,6 +587,49 @@ class ConversationDto {
           lastMessagePreview == other.lastMessagePreview &&
           archived == other.archived &&
           wikiPageSlug == other.wikiPageSlug;
+}
+
+class DailyEntryDto {
+  final String eventId;
+  final String? inputId;
+  final String? messageId;
+  final String rawText;
+  final String source;
+  final String eventStatus;
+  final String recordedAt;
+
+  const DailyEntryDto({
+    required this.eventId,
+    this.inputId,
+    this.messageId,
+    required this.rawText,
+    required this.source,
+    required this.eventStatus,
+    required this.recordedAt,
+  });
+
+  @override
+  int get hashCode =>
+      eventId.hashCode ^
+      inputId.hashCode ^
+      messageId.hashCode ^
+      rawText.hashCode ^
+      source.hashCode ^
+      eventStatus.hashCode ^
+      recordedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DailyEntryDto &&
+          runtimeType == other.runtimeType &&
+          eventId == other.eventId &&
+          inputId == other.inputId &&
+          messageId == other.messageId &&
+          rawText == other.rawText &&
+          source == other.source &&
+          eventStatus == other.eventStatus &&
+          recordedAt == other.recordedAt;
 }
 
 /// Daily token usage DTO for Flutter（每日 token 使用统计）
@@ -613,6 +748,65 @@ class ImportUrlDto {
           contentMd == other.contentMd &&
           authorName == other.authorName &&
           screenName == other.screenName;
+}
+
+class InputRecordDto {
+  final String id;
+  final String rawText;
+  final String source;
+  final String routeStatus;
+  final String? idempotencyKey;
+  final String? eventId;
+  final String? messageId;
+  final String? wikiPageSlug;
+  final String? todoId;
+  final String createdAt;
+  final String updatedAt;
+
+  const InputRecordDto({
+    required this.id,
+    required this.rawText,
+    required this.source,
+    required this.routeStatus,
+    this.idempotencyKey,
+    this.eventId,
+    this.messageId,
+    this.wikiPageSlug,
+    this.todoId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      rawText.hashCode ^
+      source.hashCode ^
+      routeStatus.hashCode ^
+      idempotencyKey.hashCode ^
+      eventId.hashCode ^
+      messageId.hashCode ^
+      wikiPageSlug.hashCode ^
+      todoId.hashCode ^
+      createdAt.hashCode ^
+      updatedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InputRecordDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          rawText == other.rawText &&
+          source == other.source &&
+          routeStatus == other.routeStatus &&
+          idempotencyKey == other.idempotencyKey &&
+          eventId == other.eventId &&
+          messageId == other.messageId &&
+          wikiPageSlug == other.wikiPageSlug &&
+          todoId == other.todoId &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt;
 }
 
 /// Message DTO for Flutter
@@ -879,6 +1073,15 @@ class WikiPageDto {
   final String updatedAt;
   final String? sourceUrl;
 
+  /// 来源/用途分区：imported（素材库）/ network（人物项目）/ insight（知识沉淀）/ derivative（派生产物）
+  final String area;
+
+  /// 派生产物指向的原页面 slug（仅 derivative 有值）
+  final String? basedOn;
+
+  /// 派生产物的加工类型（总结/提炼观点/抖音文案…，仅 derivative 有值）
+  final String? contentType;
+
   const WikiPageDto({
     required this.id,
     required this.slug,
@@ -895,6 +1098,9 @@ class WikiPageDto {
     required this.createdAt,
     required this.updatedAt,
     this.sourceUrl,
+    required this.area,
+    this.basedOn,
+    this.contentType,
   });
 
   @override
@@ -913,7 +1119,10 @@ class WikiPageDto {
       status.hashCode ^
       createdAt.hashCode ^
       updatedAt.hashCode ^
-      sourceUrl.hashCode;
+      sourceUrl.hashCode ^
+      area.hashCode ^
+      basedOn.hashCode ^
+      contentType.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -934,5 +1143,8 @@ class WikiPageDto {
           status == other.status &&
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
-          sourceUrl == other.sourceUrl;
+          sourceUrl == other.sourceUrl &&
+          area == other.area &&
+          basedOn == other.basedOn &&
+          contentType == other.contentType;
 }

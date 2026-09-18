@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../data/storage_repository.dart';
 import '../models/event.dart';
 import '../models/analysis.dart';
@@ -15,13 +16,20 @@ import 'generated.dart/frb_generated.dart';
 
 /// Rust bridge implementation of storage repository
 class RustBridgeRepository implements StorageRepository {
+  final String? databasePath;
   bool _initialized = false;
+
+  RustBridgeRepository({this.databasePath});
 
   @override
   Future<void> initialize() async {
     if (_initialized) return;
 
     await RustLib.init();
+    final initializedPath = await api.initBridge(databasePath: databasePath);
+    if (initializedPath.startsWith('Error loading config:')) {
+      throw StateError(initializedPath);
+    }
     _initialized = true;
   }
 
@@ -37,28 +45,93 @@ class RustBridgeRepository implements StorageRepository {
     );
   }
 
+  Future<api.InputRecordDto> submitInput(
+    String rawText, {
+    String source = 'main_input',
+    String? idempotencyKey,
+  }) => api.submitInput(
+    rawText: rawText,
+    source: source,
+    idempotencyKey: idempotencyKey,
+  );
+
+  Future<api.InputRecordDto> beginUrlInput(
+    String url, {
+    String? idempotencyKey,
+  }) => api.beginUrlInput(rawText: url, idempotencyKey: idempotencyKey);
+
+  Future<api.InputRecordDto> finishUrlInput(
+    String inputId, {
+    String? wikiPageSlug,
+    bool failed = false,
+  }) => api.finishUrlInput(
+    inputId: inputId,
+    wikiPageSlug: wikiPageSlug,
+    failed: failed,
+  );
+
+  @override
+  Future<void> recordUnifiedInput(
+    String rawText, {
+    String source = 'capture',
+  }) async {
+    await submitInput(rawText, source: source);
+  }
+
+  Future<Message> submitConversationInput(
+    String conversationId,
+    String content, {
+    String? idempotencyKey,
+  }) async {
+    final input = await api.submitConversationInput(
+      conversationId: conversationId,
+      rawText: content,
+      idempotencyKey: idempotencyKey,
+    );
+    final messageId = input.messageId;
+    if (messageId == null) {
+      throw StateError('统一输入没有关联 message');
+    }
+    final messages = await listMessages(conversationId);
+    return messages.firstWhere((message) => message.id == messageId);
+  }
+
+  Future<List<api.DailyEntryDto>> listDailyEntries(String date) =>
+      api.listDailyEntries(date: date);
+
   @override
   Future<List<Event>> listEvents() async {
     final dtos = await api.listEvents();
-    return dtos.map((dto) => Event(
-      id: dto.id,
-      rawText: dto.rawText,
-      recordedAt: DateTime.parse(dto.recordedAt).toLocal(),
-      source: dto.source,
-      status: dto.status,
-    )).toList();
+    return dtos
+        .map(
+          (dto) => Event(
+            id: dto.id,
+            rawText: dto.rawText,
+            recordedAt: DateTime.parse(dto.recordedAt).toLocal(),
+            source: dto.source,
+            status: dto.status,
+          ),
+        )
+        .toList();
   }
 
   @override
   Future<List<Analysis>> listAnalyses() async {
     final dtos = await api.listAnalyses();
-    return dtos.map((dto) => Analysis(
-      eventType: dto.eventType,
-      confidence: dto.confidence,
-      summary: dto.summary,
-      clarifications: dto.clarifications,
-    )).toList();
+    return dtos
+        .map(
+          (dto) => Analysis(
+            eventType: dto.eventType,
+            confidence: dto.confidence,
+            summary: dto.summary,
+            clarifications: dto.clarifications,
+          ),
+        )
+        .toList();
   }
+
+  Future<api.AnalysisJobStatsDto> getAnalysisJobStats() =>
+      api.getAnalysisJobStats();
 
   @override
   Future<String?> getAiProvider() async {
@@ -100,24 +173,30 @@ class RustBridgeRepository implements StorageRepository {
       api.renameConversation(conversationId: conversationId, title: title);
 
   Future<void> setConversationArchived(String conversationId, bool archived) =>
-      api.setConversationArchived(conversationId: conversationId, archived: archived);
+      api.setConversationArchived(
+        conversationId: conversationId,
+        archived: archived,
+      );
 
   // ── 个人经验规则库 ──
 
   Future<List<Rule>> listRules() async {
     final dtos = await api.listRules();
-    return dtos.map((dto) => Rule(
-      id: dto.id,
-      content: dto.content,
-      status: dto.status,
-      createdAt: DateTime.parse(dto.createdAt).toLocal(),
-    )).toList();
+    return dtos
+        .map(
+          (dto) => Rule(
+            id: dto.id,
+            content: dto.content,
+            status: dto.status,
+            createdAt: DateTime.parse(dto.createdAt).toLocal(),
+          ),
+        )
+        .toList();
   }
 
   Future<String> addRule(String content) => api.addRule(content: content);
 
-  Future<void> deleteRule(String ruleId) =>
-      api.deleteRule(ruleId: ruleId);
+  Future<void> deleteRule(String ruleId) => api.deleteRule(ruleId: ruleId);
 
   Future<Conversation> createConversation({String? title, String? tag}) async {
     final dto = await api.createConversation(title: title, tag: tag);
@@ -126,38 +205,50 @@ class RustBridgeRepository implements StorageRepository {
 
   Future<List<Message>> listMessages(String conversationId) async {
     final dtos = await api.listMessages(conversationId: conversationId);
-    return dtos.map((dto) => Message(
-      id: dto.id,
-      conversationId: dto.conversationId,
-      parentMessageId: dto.parentMessageId,
-      role: MessageRole.fromString(dto.role),
-      content: dto.content,
-      createdAt: DateTime.parse(dto.createdAt).toLocal(),
-    )).toList();
+    return dtos
+        .map(
+          (dto) => Message(
+            id: dto.id,
+            conversationId: dto.conversationId,
+            parentMessageId: dto.parentMessageId,
+            role: MessageRole.fromString(dto.role),
+            content: dto.content,
+            createdAt: DateTime.parse(dto.createdAt).toLocal(),
+          ),
+        )
+        .toList();
   }
 
   Future<List<Message>> getChildMessages(String parentId) async {
     final dtos = await api.getChildMessages(parentId: parentId);
-    return dtos.map((dto) => Message(
-      id: dto.id,
-      conversationId: dto.conversationId,
-      parentMessageId: dto.parentMessageId,
-      role: MessageRole.fromString(dto.role),
-      content: dto.content,
-      createdAt: DateTime.parse(dto.createdAt).toLocal(),
-    )).toList();
+    return dtos
+        .map(
+          (dto) => Message(
+            id: dto.id,
+            conversationId: dto.conversationId,
+            parentMessageId: dto.parentMessageId,
+            role: MessageRole.fromString(dto.role),
+            content: dto.content,
+            createdAt: DateTime.parse(dto.createdAt).toLocal(),
+          ),
+        )
+        .toList();
   }
 
   Future<List<Message>> getMessageChain(String messageId) async {
     final dtos = await api.getMessageChain(messageId: messageId);
-    return dtos.map((dto) => Message(
-      id: dto.id,
-      conversationId: dto.conversationId,
-      parentMessageId: dto.parentMessageId,
-      role: MessageRole.fromString(dto.role),
-      content: dto.content,
-      createdAt: DateTime.parse(dto.createdAt).toLocal(),
-    )).toList();
+    return dtos
+        .map(
+          (dto) => Message(
+            id: dto.id,
+            conversationId: dto.conversationId,
+            parentMessageId: dto.parentMessageId,
+            role: MessageRole.fromString(dto.role),
+            content: dto.content,
+            createdAt: DateTime.parse(dto.createdAt).toLocal(),
+          ),
+        )
+        .toList();
   }
 
   Future<Message> sendMessage(
@@ -204,9 +295,16 @@ class RustBridgeRepository implements StorageRepository {
 
   // Wiki methods
 
-  /// 列出知识库页面（kind 为空时列出全部）
-  Future<List<WikiPage>> listWikiPages({String? kind}) async {
-    final dtos = await api.listWikiPages(kind: kind);
+  /// 列出知识库页面（主列表，不含派生产物）。
+  /// kind/area 为空时列出全部；area 取值：imported（素材库）/ network（人物项目）/ insight（知识沉淀）。
+  Future<List<WikiPage>> listWikiPages({String? kind, String? area}) async {
+    final dtos = await api.listWikiPages(kind: kind, area: area);
+    return dtos.map(WikiPage.fromDto).toList();
+  }
+
+  /// 某页的派生产物列表（AI 加工成果：总结/提炼/文案…）
+  Future<List<WikiPage>> listWikiPageDerivatives(String slug) async {
+    final dtos = await api.listWikiPageDerivatives(slug: slug);
     return dtos.map(WikiPage.fromDto).toList();
   }
 
@@ -296,11 +394,7 @@ class RustBridgeRepository implements StorageRepository {
     String? title,
     List<String> tags = const [],
   }) async {
-    final dto = await api.saveTextPage(
-      text: text,
-      title: title,
-      tags: tags,
-    );
+    final dto = await api.saveTextPage(text: text, title: title, tags: tags);
     return WikiPage.fromDto(dto);
   }
 
@@ -332,22 +426,21 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> updateThemePrefs({
     required String mode,
     required String preset,
-  }) =>
-      api.updateThemePrefs(mode: mode, preset: preset);
+  }) => api.updateThemePrefs(mode: mode, preset: preset);
 
   /// AI provider 配置（设置页预填/保存用，直连 Rust DB 的 ai_provider_configs）
-  Future<api.AiProviderConfigDto?> getAiProviderConfig() => api.getAiProviderConfig();
+  Future<api.AiProviderConfigDto?> getAiProviderConfig() =>
+      api.getAiProviderConfig();
 
   Future<void> updateAiProviderConfig({
     required String baseUrl,
     required String model,
     required String apiKey,
-  }) =>
-      api.updateAiProviderConfig(
-        baseUrl: baseUrl,
-        model: model,
-        apiKey: apiKey,
-      );
+  }) => api.updateAiProviderConfig(
+    baseUrl: baseUrl,
+    model: model,
+    apiKey: apiKey,
+  );
 
   // ---- 多配置 + 单激活 ----
 
@@ -403,14 +496,13 @@ class RustBridgeRepository implements StorageRepository {
     String? note,
     String? priority,
     String? dueAt,
-  }) =>
-      api.updateTodo(
-        id: id,
-        title: title,
-        note: note,
-        priority: priority,
-        dueAt: dueAt,
-      );
+  }) => api.updateTodo(
+    id: id,
+    title: title,
+    note: note,
+    priority: priority,
+    dueAt: dueAt,
+  );
 
   Future<bool> deleteTodo(String id) => api.deleteTodo(id: id);
 

@@ -1,6 +1,9 @@
+use crate::ai::memory::ContextMessage;
+use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
 use crate::event::NewEvent;
 use crate::storage::{RelationDraft, RuleStatus, Store};
 use anyhow::Result;
+use serde_json::Value;
 
 /// Event data transfer object for Flutter
 #[derive(Clone, Debug)]
@@ -22,18 +25,75 @@ pub struct AnalysisDto {
     pub clarifications: Vec<String>,
 }
 
+/// Durable event-analysis queue counts for operational visibility.
+#[derive(Clone, Debug)]
+pub struct AnalysisJobStatsDto {
+    pub pending: i64,
+    pub running: i64,
+    pub retry: i64,
+    pub succeeded: i64,
+    pub failed: i64,
+}
+
+#[derive(Clone, Debug)]
+pub struct InputRecordDto {
+    pub id: String,
+    pub raw_text: String,
+    pub source: String,
+    pub route_status: String,
+    pub idempotency_key: Option<String>,
+    pub event_id: Option<String>,
+    pub message_id: Option<String>,
+    pub wiki_page_slug: Option<String>,
+    pub todo_id: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct DailyEntryDto {
+    pub event_id: String,
+    pub input_id: Option<String>,
+    pub message_id: Option<String>,
+    pub raw_text: String,
+    pub source: String,
+    pub event_status: String,
+    pub recorded_at: String,
+}
+
+impl From<crate::storage::InputRecord> for InputRecordDto {
+    fn from(record: crate::storage::InputRecord) -> Self {
+        Self {
+            id: record.id,
+            raw_text: record.raw_text,
+            source: record.source,
+            route_status: record.route_status,
+            idempotency_key: record.idempotency_key,
+            event_id: record.event_id,
+            message_id: record.message_id,
+            wiki_page_slug: record.wiki_page_slug,
+            todo_id: record.todo_id,
+            created_at: record.created_at,
+            updated_at: record.updated_at,
+        }
+    }
+}
+
 /// Initialize the bridge with database path
 pub fn init_bridge(database_path: Option<String>) -> String {
+    // Bridge API calls independently open Store instances through AppConfig.
+    // Persist an explicit override in the process environment so every later
+    // call uses the same database selected at initialization. This is also the
+    // isolation boundary used by Flutter integration tests.
+    if let Some(path) = database_path.as_deref() {
+        std::env::set_var("ELSEWHEN_DATA_DIR", path);
+    }
+
     let config = match crate::config::AppConfig::load() {
         Ok(c) => c,
         Err(e) => return format!("Error loading config: {}", e),
     };
-
-    let db_path = database_path
-        .map(|p| std::path::PathBuf::from(p))
-        .unwrap_or(config.database_path);
-
-    db_path.display().to_string()
+    config.database_path.display().to_string()
 }
 
 /// Record a new event
@@ -46,7 +106,8 @@ pub fn record_event(raw_text: String) -> Result<EventDto> {
 
     // Query back the created event
     let events = store.list_events()?;
-    let event = events.into_iter()
+    let event = events
+        .into_iter()
         .find(|e| e.raw_text == raw_text)
         .ok_or_else(|| anyhow::anyhow!("Event not found after insert"))?;
 
@@ -60,6 +121,105 @@ pub fn record_event(raw_text: String) -> Result<EventDto> {
     })
 }
 
+/// Save a plain personal input without waiting for AI/network.
+/// Reusing an idempotency key returns the original routed result.
+pub fn submit_input(
+    raw_text: String,
+    source: String,
+    idempotency_key: Option<String>,
+) -> Result<InputRecordDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store
+        .submit_input_as_event(&raw_text, &source, idempotency_key.as_deref())?
+        .into())
+}
+
+/// Start routing a URL input without creating a personal event. The raw URL is
+/// durable before any network fetch begins and remains awaiting confirmation
+/// until the preview is explicitly saved.
+pub fn begin_url_input(
+    raw_text: String,
+    idempotency_key: Option<String>,
+) -> Result<InputRecordDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let record = store.create_input_record(&raw_text, "url_import", idempotency_key.as_deref())?;
+    if record.route_status != "pending" {
+        return Ok(record.into());
+    }
+    Ok(store
+        .update_input_route(&record.id, "needs_confirmation", None, None, None, None)?
+        .into())
+}
+
+/// Complete or fail the URL preview route while preserving the original input.
+pub fn finish_url_input(
+    input_id: String,
+    wiki_page_slug: Option<String>,
+    failed: bool,
+) -> Result<InputRecordDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let status = if failed { "failed" } else { "routed" };
+    if !failed && wiki_page_slug.as_deref().map_or(true, str::is_empty) {
+        anyhow::bail!("完成 URL 输入路由时必须提供 wiki_page_slug");
+    }
+    Ok(store
+        .update_input_route(
+            &input_id,
+            status,
+            None,
+            None,
+            wiki_page_slug.as_deref(),
+            None,
+        )?
+        .into())
+}
+
+pub fn submit_conversation_input(
+    conversation_id: String,
+    raw_text: String,
+    idempotency_key: Option<String>,
+) -> Result<InputRecordDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let record =
+        store.submit_conversation_input(&conversation_id, &raw_text, idempotency_key.as_deref())?;
+
+    if let Some(title) = crate::storage::derive_conversation_title(&raw_text) {
+        let untitled = store
+            .get_conversation(&conversation_id)?
+            .and_then(|conversation| conversation.title)
+            .map_or(true, |current| current.trim().is_empty());
+        if untitled {
+            store.rename_conversation(&conversation_id, &title)?;
+        }
+    }
+    Ok(record.into())
+}
+
+/// List one local calendar day's complete personal record stream.
+pub fn list_daily_entries(date: String) -> Result<Vec<DailyEntryDto>> {
+    let date = chrono::NaiveDate::parse_from_str(date.trim(), "%Y-%m-%d")
+        .map_err(|_| anyhow::anyhow!("日期必须是 YYYY-MM-DD"))?;
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store
+        .daily_entries(date)?
+        .into_iter()
+        .map(|entry| DailyEntryDto {
+            event_id: entry.event_id,
+            input_id: entry.input_id,
+            message_id: entry.message_id,
+            raw_text: entry.raw_text,
+            source: entry.source,
+            event_status: entry.event_status,
+            recorded_at: entry.recorded_at,
+        })
+        .collect())
+}
+
 /// List all events
 pub fn list_events() -> Result<Vec<EventDto>> {
     let config = crate::config::AppConfig::load()?;
@@ -67,14 +227,17 @@ pub fn list_events() -> Result<Vec<EventDto>> {
 
     let events = store.list_events()?;
 
-    Ok(events.into_iter().map(|e| EventDto {
-        id: uuid::Uuid::new_v4().to_string(), // TODO: Store should return ID
-        raw_text: e.raw_text,
-        recorded_at: e.recorded_at.clone(),
-        occurred_at: e.recorded_at,
-        source: "unknown".to_string(),
-        status: "completed".to_string(),
-    }).collect())
+    Ok(events
+        .into_iter()
+        .map(|e| EventDto {
+            id: uuid::Uuid::new_v4().to_string(), // TODO: Store should return ID
+            raw_text: e.raw_text,
+            recorded_at: e.recorded_at.clone(),
+            occurred_at: e.recorded_at,
+            source: "unknown".to_string(),
+            status: "completed".to_string(),
+        })
+        .collect())
 }
 
 /// List completed analyses
@@ -84,12 +247,28 @@ pub fn list_analyses() -> Result<Vec<AnalysisDto>> {
 
     let analyses = store.list_analyses()?;
 
-    Ok(analyses.into_iter().map(|a| AnalysisDto {
-        event_type: a.event_type,
-        confidence: a.confidence,
-        summary: a.raw_text,
-        clarifications: serde_json::from_str(&a.clarifications).unwrap_or_default(),
-    }).collect())
+    Ok(analyses
+        .into_iter()
+        .map(|a| AnalysisDto {
+            event_type: a.event_type,
+            confidence: a.confidence,
+            summary: a.raw_text,
+            clarifications: serde_json::from_str(&a.clarifications).unwrap_or_default(),
+        })
+        .collect())
+}
+
+pub fn get_analysis_job_stats() -> Result<AnalysisJobStatsDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let stats = store.analysis_job_stats()?;
+    Ok(AnalysisJobStatsDto {
+        pending: stats.pending,
+        running: stats.running,
+        retry: stats.retry,
+        succeeded: stats.succeeded,
+        failed: stats.failed,
+    })
 }
 
 /// Get active AI provider info
@@ -140,9 +319,7 @@ pub fn get_ai_provider_config() -> Result<Option<AiProviderConfigDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
 
-    Ok(store
-        .active_ai_provider_config()?
-        .map(dto_from_active))
+    Ok(store.active_ai_provider_config()?.map(dto_from_active))
 }
 
 /// 列出全部 AI provider 配置（多配置，仅一个 is_active=true）
@@ -217,11 +394,7 @@ pub fn delete_ai_provider_config(id: String) -> Result<()> {
 }
 
 /// Upsert the active AI provider config (settings page save)
-pub fn update_ai_provider_config(
-    base_url: String,
-    model: String,
-    api_key: String,
-) -> Result<()> {
+pub fn update_ai_provider_config(base_url: String, model: String, api_key: String) -> Result<()> {
     if base_url.trim().is_empty() || model.trim().is_empty() || api_key.trim().is_empty() {
         anyhow::bail!("base_url、model 和 api_key 均不能为空");
     }
@@ -232,10 +405,118 @@ pub fn update_ai_provider_config(
 }
 
 /// Trigger AI analysis for pending events
-/// Returns "success" or "error: <message>"
+/// Returns "no_provider" or "processed:<successful count>".
 pub fn trigger_analysis() -> Result<String> {
-    // TODO: Implement when AI analysis is needed
-    Ok("success".to_string())
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let provider_config = store.active_ai_provider_config()?;
+    let Some(provider_config) = provider_config else {
+        return Ok("no_provider".to_string());
+    };
+    let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
+        base_url: provider_config.base_url,
+        api_key: provider_config.api_key,
+        model: provider_config.model,
+        temperature: provider_config.temperature as f32,
+        max_tokens: provider_config.max_tokens.map(|v| v as u32),
+    })?;
+    process_analysis_queue(&store, &provider)
+}
+
+fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<String> {
+    let mut processed = 0;
+    // Bound each invocation even when producers keep adding work or retries
+    // become available while a slow provider is processing other records.
+    let stats = store.analysis_job_stats()?;
+    for _ in 0..(stats.pending + stats.retry).min(50) {
+        let Some(job) = store.claim_analysis_job()? else { break };
+        let prompt = format!(
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown。字段必须包含 event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、follow_ups(array of strings)。\n记录：{}",
+            job.raw_text
+        );
+        match provider.generate_reply(vec![ContextMessage::new("user", prompt)]) {
+            Ok(reply) => {
+                let parsed = serde_json::from_str::<Value>(&reply.content)
+                    .ok()
+                    .and_then(|v| if v.is_object() { Some(v) } else { None });
+                match parsed {
+                    Some(value) => {
+                        store.complete_analysis(&job, "event-analysis-v1", &value.to_string())?;
+                        processed += 1;
+                    }
+                    None => store.fail_analysis(&job, "AI 返回不是合法 JSON 对象")?,
+                }
+            }
+            Err(error) => store.fail_analysis(&job, &error.to_string())?,
+        }
+    }
+    Ok(format!("processed:{processed}"))
+}
+
+#[cfg(test)]
+mod analysis_tests {
+    use super::*;
+    use crate::ai::{provider::AiReply, tool::ToolSpec};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temporary_database() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "elsewhen-api-test-{}.db",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    struct StubProvider(Option<&'static str>);
+
+    impl AiProvider for StubProvider {
+        fn generate_reply_with_tools(
+            &self,
+            _: Vec<ContextMessage>,
+            tools: Option<&[ToolSpec]>,
+        ) -> Result<AiReply> {
+            assert!(tools.is_none());
+            match self.0 {
+                Some(content) => Ok(AiReply::text(content)),
+                None => anyhow::bail!("simulated timeout"),
+            }
+        }
+    }
+
+    #[test]
+    fn queue_persists_multiple_results_without_reprocessing() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store.insert_event(NewEvent::now("first")).unwrap();
+        store.insert_event(NewEvent::now("second")).unwrap();
+        let provider = StubProvider(Some(r#"{"event_type":"note","summary":"test"}"#));
+        assert_eq!(process_analysis_queue(&store, &provider).unwrap(), "processed:2");
+        assert_eq!(store.analysis_job_stats().unwrap().succeeded, 2);
+        assert_eq!(store.list_analyses().unwrap().len(), 2);
+        assert_eq!(process_analysis_queue(&store, &provider).unwrap(), "processed:0");
+        assert_eq!(store.list_analyses().unwrap().len(), 2);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn invalid_json_and_provider_failure_preserve_records_for_retry() {
+        for reply in [Some("invalid"), Some("[]"), None] {
+            let path = temporary_database();
+            let store = Store::open(&path).unwrap();
+            store.insert_event(NewEvent::now("original")).unwrap();
+            assert_eq!(process_analysis_queue(&store, &StubProvider(reply)).unwrap(), "processed:0");
+            let stats = store.analysis_job_stats().unwrap();
+            assert_eq!(stats.retry, 1);
+            assert_eq!(stats.running, 0);
+            assert!(store.list_analyses().unwrap().is_empty());
+            assert_eq!(store.list_events().unwrap()[0].raw_text, "original");
+            drop(store);
+            let _ = std::fs::remove_file(path);
+        }
+    }
 }
 
 /// Conversation DTO for Flutter
@@ -415,7 +696,12 @@ pub fn get_conversation(conversation_id: String) -> Result<Option<ConversationDt
 }
 
 /// Send a message in a conversation
-pub fn send_message(conversation_id: String, role: String, content: String, parent_message_id: Option<String>) -> Result<MessageDto> {
+pub fn send_message(
+    conversation_id: String,
+    role: String,
+    content: String,
+    parent_message_id: Option<String>,
+) -> Result<MessageDto> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
 
@@ -591,6 +877,12 @@ pub struct WikiPageDto {
     pub created_at: String,
     pub updated_at: String,
     pub source_url: Option<String>,
+    /// 来源/用途分区：imported（素材库）/ network（人物项目）/ insight（知识沉淀）/ derivative（派生产物）
+    pub area: String,
+    /// 派生产物指向的原页面 slug（仅 derivative 有值）
+    pub based_on: Option<String>,
+    /// 派生产物的加工类型（总结/提炼观点/抖音文案…，仅 derivative 有值）
+    pub content_type: Option<String>,
 }
 
 impl From<crate::storage::WikiPage> for WikiPageDto {
@@ -611,15 +903,27 @@ impl From<crate::storage::WikiPage> for WikiPageDto {
             created_at: p.created_at,
             updated_at: p.updated_at,
             source_url: p.source_url,
+            area: p.area,
+            based_on: p.based_on,
+            content_type: p.content_type,
         }
     }
 }
 
-/// List wiki pages（可过滤 kind）；kind 为 None 时列出全部
-pub fn list_wiki_pages(kind: Option<String>) -> Result<Vec<WikiPageDto>> {
+/// List wiki pages（主列表）。kind/area 均为 None 时列出全部（不含派生产物）。
+/// area：imported（素材库）/ network（人物项目）/ insight（知识沉淀）。
+pub fn list_wiki_pages(kind: Option<String>, area: Option<String>) -> Result<Vec<WikiPageDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
-    let pages = store.list_wiki_pages(kind.as_deref())?;
+    let pages = store.list_wiki_pages(kind.as_deref(), area.as_deref())?;
+    Ok(pages.into_iter().map(WikiPageDto::from).collect())
+}
+
+/// 某页的派生产物列表（AI 加工成果，挂在该页详情下，不进主列表）。
+pub fn list_wiki_page_derivatives(slug: String) -> Result<Vec<WikiPageDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let pages = store.list_derivatives(&slug)?;
     Ok(pages.into_iter().map(WikiPageDto::from).collect())
 }
 
@@ -1068,7 +1372,11 @@ pub fn save_imported_page(
         Some(slug) => slug,
         None => format!(
             "{}-{}",
-            if source_kind == "tweet" { "tweet" } else { "import" },
+            if source_kind == "tweet" {
+                "tweet"
+            } else {
+                "import"
+            },
             &uuid::Uuid::new_v4().to_string()[..8]
         ),
     };
@@ -1109,10 +1417,9 @@ pub fn ensure_wiki_page_chat(page_slug: String) -> Result<ConversationDto> {
     };
     let conversation_id = match store.find_wiki_chat_conversation(&page_slug)? {
         Some(id) => id,
-        None => store.create_wiki_chat_conversation(
-            &page_slug,
-            &format!("[知识页] {}", page.title),
-        )?,
+        None => {
+            store.create_wiki_chat_conversation(&page_slug, &format!("[知识页] {}", page.title))?
+        }
     };
     let conversation = store
         .get_conversation(&conversation_id)?

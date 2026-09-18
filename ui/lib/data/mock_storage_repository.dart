@@ -32,6 +32,14 @@ class MockStorageRepository implements StorageRepository {
   }
 
   @override
+  Future<void> recordUnifiedInput(
+    String rawText, {
+    String source = 'capture',
+  }) async {
+    await recordEvent(rawText);
+  }
+
+  @override
   Future<List<Event>> listEvents() async {
     if (!_initialized) await initialize();
     return List.from(_events);

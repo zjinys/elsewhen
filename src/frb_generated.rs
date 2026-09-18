@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -328337155;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 44984859;
 
 // Section: executor
 
@@ -120,6 +120,32 @@ fn wire__crate__api__archive_wiki_page_chat_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::archive_wiki_page_chat(api_page_slug)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__begin_url_input_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    raw_text: impl CstDecode<String>,
+    idempotency_key: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "begin_url_input",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_raw_text = raw_text.cst_decode();
+            let api_idempotency_key = idempotency_key.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::begin_url_input(api_raw_text, api_idempotency_key)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -373,6 +399,37 @@ fn wire__crate__api__find_tweet_source_page_impl(
         },
     )
 }
+fn wire__crate__api__finish_url_input_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    input_id: impl CstDecode<String>,
+    wiki_page_slug: impl CstDecode<Option<String>>,
+    failed: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "finish_url_input",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_input_id = input_id.cst_decode();
+            let api_wiki_page_slug = wiki_page_slug.cst_decode();
+            let api_failed = failed.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::finish_url_input(
+                            api_input_id,
+                            api_wiki_page_slug,
+                            api_failed,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__generate_content_chat_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     content: impl CstDecode<String>,
@@ -466,6 +523,27 @@ fn wire__crate__api__get_ai_provider_config_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::get_ai_provider_config()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__get_analysis_job_stats_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_analysis_job_stats",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::get_analysis_job_stats()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -754,6 +832,29 @@ fn wire__crate__api__list_conversations_impl(
         },
     )
 }
+fn wire__crate__api__list_daily_entries_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    date: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_daily_entries",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_date = date.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::list_daily_entries(api_date)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__list_events_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -880,9 +981,33 @@ fn wire__crate__api__list_todos_impl(
         },
     )
 }
+fn wire__crate__api__list_wiki_page_derivatives_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_wiki_page_derivatives",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::list_wiki_page_derivatives(api_slug)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__list_wiki_pages_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     kind: impl CstDecode<Option<String>>,
+    area: impl CstDecode<Option<String>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -892,10 +1017,11 @@ fn wire__crate__api__list_wiki_pages_impl(
         },
         move || {
             let api_kind = kind.cst_decode();
+            let api_area = area.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::list_wiki_pages(api_kind)?;
+                        let output_ok = crate::api::list_wiki_pages(api_kind, api_area)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1153,6 +1279,68 @@ fn wire__crate__api__set_conversation_archived_impl(
                         let output_ok = crate::api::set_conversation_archived(
                             api_conversation_id,
                             api_archived,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__submit_conversation_input_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    conversation_id: impl CstDecode<String>,
+    raw_text: impl CstDecode<String>,
+    idempotency_key: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "submit_conversation_input",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_conversation_id = conversation_id.cst_decode();
+            let api_raw_text = raw_text.cst_decode();
+            let api_idempotency_key = idempotency_key.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::submit_conversation_input(
+                            api_conversation_id,
+                            api_raw_text,
+                            api_idempotency_key,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__submit_input_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    raw_text: impl CstDecode<String>,
+    source: impl CstDecode<String>,
+    idempotency_key: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "submit_input",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_raw_text = raw_text.cst_decode();
+            let api_source = source.cst_decode();
+            let api_idempotency_key = idempotency_key.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::submit_input(
+                            api_raw_text,
+                            api_source,
+                            api_idempotency_key,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -1445,6 +1633,24 @@ impl SseDecode for crate::api::AnalysisDto {
     }
 }
 
+impl SseDecode for crate::api::AnalysisJobStatsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_pending = <i64>::sse_decode(deserializer);
+        let mut var_running = <i64>::sse_decode(deserializer);
+        let mut var_retry = <i64>::sse_decode(deserializer);
+        let mut var_succeeded = <i64>::sse_decode(deserializer);
+        let mut var_failed = <i64>::sse_decode(deserializer);
+        return crate::api::AnalysisJobStatsDto {
+            pending: var_pending,
+            running: var_running,
+            retry: var_retry,
+            succeeded: var_succeeded,
+            failed: var_failed,
+        };
+    }
+}
+
 impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1486,6 +1692,28 @@ impl SseDecode for crate::api::ConversationDto {
             last_message_preview: var_lastMessagePreview,
             archived: var_archived,
             wiki_page_slug: var_wikiPageSlug,
+        };
+    }
+}
+
+impl SseDecode for crate::api::DailyEntryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_eventId = <String>::sse_decode(deserializer);
+        let mut var_inputId = <Option<String>>::sse_decode(deserializer);
+        let mut var_messageId = <Option<String>>::sse_decode(deserializer);
+        let mut var_rawText = <String>::sse_decode(deserializer);
+        let mut var_source = <String>::sse_decode(deserializer);
+        let mut var_eventStatus = <String>::sse_decode(deserializer);
+        let mut var_recordedAt = <String>::sse_decode(deserializer);
+        return crate::api::DailyEntryDto {
+            event_id: var_eventId,
+            input_id: var_inputId,
+            message_id: var_messageId,
+            raw_text: var_rawText,
+            source: var_source,
+            event_status: var_eventStatus,
+            recorded_at: var_recordedAt,
         };
     }
 }
@@ -1569,6 +1797,36 @@ impl SseDecode for crate::api::ImportUrlDto {
     }
 }
 
+impl SseDecode for crate::api::InputRecordDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_rawText = <String>::sse_decode(deserializer);
+        let mut var_source = <String>::sse_decode(deserializer);
+        let mut var_routeStatus = <String>::sse_decode(deserializer);
+        let mut var_idempotencyKey = <Option<String>>::sse_decode(deserializer);
+        let mut var_eventId = <Option<String>>::sse_decode(deserializer);
+        let mut var_messageId = <Option<String>>::sse_decode(deserializer);
+        let mut var_wikiPageSlug = <Option<String>>::sse_decode(deserializer);
+        let mut var_todoId = <Option<String>>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_updatedAt = <String>::sse_decode(deserializer);
+        return crate::api::InputRecordDto {
+            id: var_id,
+            raw_text: var_rawText,
+            source: var_source,
+            route_status: var_routeStatus,
+            idempotency_key: var_idempotencyKey,
+            event_id: var_eventId,
+            message_id: var_messageId,
+            wiki_page_slug: var_wikiPageSlug,
+            todo_id: var_todoId,
+            created_at: var_createdAt,
+            updated_at: var_updatedAt,
+        };
+    }
+}
+
 impl SseDecode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1626,6 +1884,18 @@ impl SseDecode for Vec<crate::api::ConversationDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::ConversationDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::DailyEntryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::DailyEntryDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -1954,6 +2224,9 @@ impl SseDecode for crate::api::WikiPageDto {
         let mut var_createdAt = <String>::sse_decode(deserializer);
         let mut var_updatedAt = <String>::sse_decode(deserializer);
         let mut var_sourceUrl = <Option<String>>::sse_decode(deserializer);
+        let mut var_area = <String>::sse_decode(deserializer);
+        let mut var_basedOn = <Option<String>>::sse_decode(deserializer);
+        let mut var_contentType = <Option<String>>::sse_decode(deserializer);
         return crate::api::WikiPageDto {
             id: var_id,
             slug: var_slug,
@@ -1970,6 +2243,9 @@ impl SseDecode for crate::api::WikiPageDto {
             created_at: var_createdAt,
             updated_at: var_updatedAt,
             source_url: var_sourceUrl,
+            area: var_area,
+            based_on: var_basedOn,
+            content_type: var_contentType,
         };
     }
 }
@@ -2049,6 +2325,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::AnalysisDto> for crate::api::
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::AnalysisJobStatsDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.pending.into_into_dart().into_dart(),
+            self.running.into_into_dart().into_dart(),
+            self.retry.into_into_dart().into_dart(),
+            self.succeeded.into_into_dart().into_dart(),
+            self.failed.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::AnalysisJobStatsDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::AnalysisJobStatsDto>
+    for crate::api::AnalysisJobStatsDto
+{
+    fn into_into_dart(self) -> crate::api::AnalysisJobStatsDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::ContentChatMessageDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2091,6 +2391,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::ConversationDto>
     for crate::api::ConversationDto
 {
     fn into_into_dart(self) -> crate::api::ConversationDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::DailyEntryDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.event_id.into_into_dart().into_dart(),
+            self.input_id.into_into_dart().into_dart(),
+            self.message_id.into_into_dart().into_dart(),
+            self.raw_text.into_into_dart().into_dart(),
+            self.source.into_into_dart().into_dart(),
+            self.event_status.into_into_dart().into_dart(),
+            self.recorded_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::DailyEntryDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::DailyEntryDto> for crate::api::DailyEntryDto {
+    fn into_into_dart(self) -> crate::api::DailyEntryDto {
         self
     }
 }
@@ -2155,6 +2476,31 @@ impl flutter_rust_bridge::IntoDart for crate::api::ImportUrlDto {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ImportUrlDto {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::ImportUrlDto> for crate::api::ImportUrlDto {
     fn into_into_dart(self) -> crate::api::ImportUrlDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::InputRecordDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.raw_text.into_into_dart().into_dart(),
+            self.source.into_into_dart().into_dart(),
+            self.route_status.into_into_dart().into_dart(),
+            self.idempotency_key.into_into_dart().into_dart(),
+            self.event_id.into_into_dart().into_dart(),
+            self.message_id.into_into_dart().into_dart(),
+            self.wiki_page_slug.into_into_dart().into_dart(),
+            self.todo_id.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.updated_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::InputRecordDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::InputRecordDto> for crate::api::InputRecordDto {
+    fn into_into_dart(self) -> crate::api::InputRecordDto {
         self
     }
 }
@@ -2299,6 +2645,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::WikiPageDto {
             self.created_at.into_into_dart().into_dart(),
             self.updated_at.into_into_dart().into_dart(),
             self.source_url.into_into_dart().into_dart(),
+            self.area.into_into_dart().into_dart(),
+            self.based_on.into_into_dart().into_dart(),
+            self.content_type.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2350,6 +2699,17 @@ impl SseEncode for crate::api::AnalysisDto {
     }
 }
 
+impl SseEncode for crate::api::AnalysisJobStatsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i64>::sse_encode(self.pending, serializer);
+        <i64>::sse_encode(self.running, serializer);
+        <i64>::sse_encode(self.retry, serializer);
+        <i64>::sse_encode(self.succeeded, serializer);
+        <i64>::sse_encode(self.failed, serializer);
+    }
+}
+
 impl SseEncode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2377,6 +2737,19 @@ impl SseEncode for crate::api::ConversationDto {
         <Option<String>>::sse_encode(self.last_message_preview, serializer);
         <bool>::sse_encode(self.archived, serializer);
         <Option<String>>::sse_encode(self.wiki_page_slug, serializer);
+    }
+}
+
+impl SseEncode for crate::api::DailyEntryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.event_id, serializer);
+        <Option<String>>::sse_encode(self.input_id, serializer);
+        <Option<String>>::sse_encode(self.message_id, serializer);
+        <String>::sse_encode(self.raw_text, serializer);
+        <String>::sse_encode(self.source, serializer);
+        <String>::sse_encode(self.event_status, serializer);
+        <String>::sse_encode(self.recorded_at, serializer);
     }
 }
 
@@ -2436,6 +2809,23 @@ impl SseEncode for crate::api::ImportUrlDto {
     }
 }
 
+impl SseEncode for crate::api::InputRecordDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.raw_text, serializer);
+        <String>::sse_encode(self.source, serializer);
+        <String>::sse_encode(self.route_status, serializer);
+        <Option<String>>::sse_encode(self.idempotency_key, serializer);
+        <Option<String>>::sse_encode(self.event_id, serializer);
+        <Option<String>>::sse_encode(self.message_id, serializer);
+        <Option<String>>::sse_encode(self.wiki_page_slug, serializer);
+        <Option<String>>::sse_encode(self.todo_id, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+        <String>::sse_encode(self.updated_at, serializer);
+    }
+}
+
 impl SseEncode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2482,6 +2872,16 @@ impl SseEncode for Vec<crate::api::ConversationDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::ConversationDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::DailyEntryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::DailyEntryDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -2737,6 +3137,9 @@ impl SseEncode for crate::api::WikiPageDto {
         <String>::sse_encode(self.created_at, serializer);
         <String>::sse_encode(self.updated_at, serializer);
         <Option<String>>::sse_encode(self.source_url, serializer);
+        <String>::sse_encode(self.area, serializer);
+        <Option<String>>::sse_encode(self.based_on, serializer);
+        <Option<String>>::sse_encode(self.content_type, serializer);
     }
 }
 
@@ -2803,6 +3206,18 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::AnalysisJobStatsDto> for wire_cst_analysis_job_stats_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::AnalysisJobStatsDto {
+            crate::api::AnalysisJobStatsDto {
+                pending: self.pending.cst_decode(),
+                running: self.running.cst_decode(),
+                retry: self.retry.cst_decode(),
+                succeeded: self.succeeded.cst_decode(),
+                failed: self.failed.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::AiProviderConfigDto> for *mut wire_cst_ai_provider_config_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::AiProviderConfigDto {
@@ -2861,6 +3276,20 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::DailyEntryDto> for wire_cst_daily_entry_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::DailyEntryDto {
+            crate::api::DailyEntryDto {
+                event_id: self.event_id.cst_decode(),
+                input_id: self.input_id.cst_decode(),
+                message_id: self.message_id.cst_decode(),
+                raw_text: self.raw_text.cst_decode(),
+                source: self.source.cst_decode(),
+                event_status: self.event_status.cst_decode(),
+                recorded_at: self.recorded_at.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::DailyTokenUsageDto> for wire_cst_daily_token_usage_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::DailyTokenUsageDto {
@@ -2896,6 +3325,24 @@ mod io {
                 content_md: self.content_md.cst_decode(),
                 author_name: self.author_name.cst_decode(),
                 screen_name: self.screen_name.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::InputRecordDto> for wire_cst_input_record_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::InputRecordDto {
+            crate::api::InputRecordDto {
+                id: self.id.cst_decode(),
+                raw_text: self.raw_text.cst_decode(),
+                source: self.source.cst_decode(),
+                route_status: self.route_status.cst_decode(),
+                idempotency_key: self.idempotency_key.cst_decode(),
+                event_id: self.event_id.cst_decode(),
+                message_id: self.message_id.cst_decode(),
+                wiki_page_slug: self.wiki_page_slug.cst_decode(),
+                todo_id: self.todo_id.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+                updated_at: self.updated_at.cst_decode(),
             }
         }
     }
@@ -2944,6 +3391,16 @@ mod io {
     impl CstDecode<Vec<crate::api::ConversationDto>> for *mut wire_cst_list_conversation_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::ConversationDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::DailyEntryDto>> for *mut wire_cst_list_daily_entry_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::DailyEntryDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -3129,6 +3586,9 @@ mod io {
                 created_at: self.created_at.cst_decode(),
                 updated_at: self.updated_at.cst_decode(),
                 source_url: self.source_url.cst_decode(),
+                area: self.area.cst_decode(),
+                based_on: self.based_on.cst_decode(),
+                content_type: self.content_type.cst_decode(),
             }
         }
     }
@@ -3168,6 +3628,22 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_analysis_job_stats_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                pending: Default::default(),
+                running: Default::default(),
+                retry: Default::default(),
+                succeeded: Default::default(),
+                failed: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_analysis_job_stats_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_content_chat_message_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -3197,6 +3673,24 @@ mod io {
         }
     }
     impl Default for wire_cst_conversation_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_daily_entry_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                event_id: core::ptr::null_mut(),
+                input_id: core::ptr::null_mut(),
+                message_id: core::ptr::null_mut(),
+                raw_text: core::ptr::null_mut(),
+                source: core::ptr::null_mut(),
+                event_status: core::ptr::null_mut(),
+                recorded_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_daily_entry_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -3247,6 +3741,28 @@ mod io {
         }
     }
     impl Default for wire_cst_import_url_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_input_record_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                raw_text: core::ptr::null_mut(),
+                source: core::ptr::null_mut(),
+                route_status: core::ptr::null_mut(),
+                idempotency_key: core::ptr::null_mut(),
+                event_id: core::ptr::null_mut(),
+                message_id: core::ptr::null_mut(),
+                wiki_page_slug: core::ptr::null_mut(),
+                todo_id: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+                updated_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_input_record_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -3373,6 +3889,9 @@ mod io {
                 created_at: core::ptr::null_mut(),
                 updated_at: core::ptr::null_mut(),
                 source_url: core::ptr::null_mut(),
+                area: core::ptr::null_mut(),
+                based_on: core::ptr::null_mut(),
+                content_type: core::ptr::null_mut(),
             }
         }
     }
@@ -3407,6 +3926,15 @@ mod io {
         page_slug: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__archive_wiki_page_chat_impl(port_, page_slug)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__begin_url_input(
+        port_: i64,
+        raw_text: *mut wire_cst_list_prim_u_8_strict,
+        idempotency_key: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__begin_url_input_impl(port_, raw_text, idempotency_key)
     }
 
     #[unsafe(no_mangle)]
@@ -3495,6 +4023,16 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__finish_url_input(
+        port_: i64,
+        input_id: *mut wire_cst_list_prim_u_8_strict,
+        wiki_page_slug: *mut wire_cst_list_prim_u_8_strict,
+        failed: bool,
+    ) {
+        wire__crate__api__finish_url_input_impl(port_, input_id, wiki_page_slug, failed)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__generate_content_chat(
         port_: i64,
         content: *mut wire_cst_list_prim_u_8_strict,
@@ -3528,6 +4066,11 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_ai_provider_config(port_: i64) {
         wire__crate__api__get_ai_provider_config_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_analysis_job_stats(port_: i64) {
+        wire__crate__api__get_analysis_job_stats_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -3617,6 +4160,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_daily_entries(
+        port_: i64,
+        date: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__list_daily_entries_impl(port_, date)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_events(port_: i64) {
         wire__crate__api__list_events_impl(port_)
     }
@@ -3656,11 +4207,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_wiki_page_derivatives(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__list_wiki_page_derivatives_impl(port_, slug)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_wiki_pages(
         port_: i64,
         kind: *mut wire_cst_list_prim_u_8_strict,
+        area: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__list_wiki_pages_impl(port_, kind)
+        wire__crate__api__list_wiki_pages_impl(port_, kind, area)
     }
 
     #[unsafe(no_mangle)]
@@ -3768,6 +4328,31 @@ mod io {
         archived: bool,
     ) {
         wire__crate__api__set_conversation_archived_impl(port_, conversation_id, archived)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__submit_conversation_input(
+        port_: i64,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+        raw_text: *mut wire_cst_list_prim_u_8_strict,
+        idempotency_key: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__submit_conversation_input_impl(
+            port_,
+            conversation_id,
+            raw_text,
+            idempotency_key,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__submit_input(
+        port_: i64,
+        raw_text: *mut wire_cst_list_prim_u_8_strict,
+        source: *mut wire_cst_list_prim_u_8_strict,
+        idempotency_key: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__submit_input_impl(port_, raw_text, source, idempotency_key)
     }
 
     #[unsafe(no_mangle)]
@@ -3937,6 +4522,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_daily_entry_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_daily_entry_dto {
+        let wrap = wire_cst_list_daily_entry_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_daily_entry_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_daily_token_usage_dto(
         len: i32,
     ) -> *mut wire_cst_list_daily_token_usage_dto {
@@ -4069,6 +4668,15 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_analysis_job_stats_dto {
+        pending: i64,
+        running: i64,
+        retry: i64,
+        succeeded: i64,
+        failed: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_content_chat_message_dto {
         role: *mut wire_cst_list_prim_u_8_strict,
         content: *mut wire_cst_list_prim_u_8_strict,
@@ -4085,6 +4693,17 @@ mod io {
         last_message_preview: *mut wire_cst_list_prim_u_8_strict,
         archived: bool,
         wiki_page_slug: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_daily_entry_dto {
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+        input_id: *mut wire_cst_list_prim_u_8_strict,
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+        raw_text: *mut wire_cst_list_prim_u_8_strict,
+        source: *mut wire_cst_list_prim_u_8_strict,
+        event_status: *mut wire_cst_list_prim_u_8_strict,
+        recorded_at: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -4117,6 +4736,21 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_input_record_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        raw_text: *mut wire_cst_list_prim_u_8_strict,
+        source: *mut wire_cst_list_prim_u_8_strict,
+        route_status: *mut wire_cst_list_prim_u_8_strict,
+        idempotency_key: *mut wire_cst_list_prim_u_8_strict,
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+        wiki_page_slug: *mut wire_cst_list_prim_u_8_strict,
+        todo_id: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+        updated_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_String {
         ptr: *mut *mut wire_cst_list_prim_u_8_strict,
         len: i32,
@@ -4143,6 +4777,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_conversation_dto {
         ptr: *mut wire_cst_conversation_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_daily_entry_dto {
+        ptr: *mut wire_cst_daily_entry_dto,
         len: i32,
     }
     #[repr(C)]
@@ -4273,6 +4913,9 @@ mod io {
         created_at: *mut wire_cst_list_prim_u_8_strict,
         updated_at: *mut wire_cst_list_prim_u_8_strict,
         source_url: *mut wire_cst_list_prim_u_8_strict,
+        area: *mut wire_cst_list_prim_u_8_strict,
+        based_on: *mut wire_cst_list_prim_u_8_strict,
+        content_type: *mut wire_cst_list_prim_u_8_strict,
     }
 }
 #[cfg(not(target_family = "wasm"))]
@@ -4363,6 +5006,29 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::AnalysisJobStatsDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::AnalysisJobStatsDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::AnalysisJobStatsDto {
+                pending: self_.get(0).cst_decode(),
+                running: self_.get(1).cst_decode(),
+                retry: self_.get(2).cst_decode(),
+                succeeded: self_.get(3).cst_decode(),
+                failed: self_.get(4).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::ContentChatMessageDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -4407,6 +5073,31 @@ mod web {
                 last_message_preview: self_.get(6).cst_decode(),
                 archived: self_.get(7).cst_decode(),
                 wiki_page_slug: self_.get(8).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::DailyEntryDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::DailyEntryDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                7,
+                "Expected 7 elements, got {}",
+                self_.length()
+            );
+            crate::api::DailyEntryDto {
+                event_id: self_.get(0).cst_decode(),
+                input_id: self_.get(1).cst_decode(),
+                message_id: self_.get(2).cst_decode(),
+                raw_text: self_.get(3).cst_decode(),
+                source: self_.get(4).cst_decode(),
+                event_status: self_.get(5).cst_decode(),
+                recorded_at: self_.get(6).cst_decode(),
             }
         }
     }
@@ -4479,6 +5170,35 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::InputRecordDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::InputRecordDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                11,
+                "Expected 11 elements, got {}",
+                self_.length()
+            );
+            crate::api::InputRecordDto {
+                id: self_.get(0).cst_decode(),
+                raw_text: self_.get(1).cst_decode(),
+                source: self_.get(2).cst_decode(),
+                route_status: self_.get(3).cst_decode(),
+                idempotency_key: self_.get(4).cst_decode(),
+                event_id: self_.get(5).cst_decode(),
+                message_id: self_.get(6).cst_decode(),
+                wiki_page_slug: self_.get(7).cst_decode(),
+                todo_id: self_.get(8).cst_decode(),
+                created_at: self_.get(9).cst_decode(),
+                updated_at: self_.get(10).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<Vec<String>> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<String> {
@@ -4530,6 +5250,18 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::ConversationDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::DailyEntryDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::DailyEntryDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -4785,8 +5517,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                15,
-                "Expected 15 elements, got {}",
+                18,
+                "Expected 18 elements, got {}",
                 self_.length()
             );
             crate::api::WikiPageDto {
@@ -4805,6 +5537,9 @@ mod web {
                 created_at: self_.get(12).cst_decode(),
                 updated_at: self_.get(13).cst_decode(),
                 source_url: self_.get(14).cst_decode(),
+                area: self_.get(15).cst_decode(),
+                based_on: self_.get(16).cst_decode(),
+                content_type: self_.get(17).cst_decode(),
             }
         }
     }
@@ -4895,6 +5630,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__begin_url_input(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        raw_text: String,
+        idempotency_key: Option<String>,
+    ) {
+        wire__crate__api__begin_url_input_impl(port_, raw_text, idempotency_key)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__create_conversation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         title: Option<String>,
@@ -4980,6 +5724,16 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__finish_url_input(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        input_id: String,
+        wiki_page_slug: Option<String>,
+        failed: bool,
+    ) {
+        wire__crate__api__finish_url_input_impl(port_, input_id, wiki_page_slug, failed)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__generate_content_chat(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         content: String,
@@ -5017,6 +5771,13 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__get_ai_provider_config_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__get_analysis_job_stats(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__get_analysis_job_stats_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -5116,6 +5877,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__list_daily_entries(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        date: String,
+    ) {
+        wire__crate__api__list_daily_entries_impl(port_, date)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__list_events(port_: flutter_rust_bridge::for_generated::MessagePort) {
         wire__crate__api__list_events_impl(port_)
     }
@@ -5157,11 +5926,20 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__list_wiki_page_derivatives(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+    ) {
+        wire__crate__api__list_wiki_page_derivatives_impl(port_, slug)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__list_wiki_pages(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         kind: Option<String>,
+        area: Option<String>,
     ) {
-        wire__crate__api__list_wiki_pages_impl(port_, kind)
+        wire__crate__api__list_wiki_pages_impl(port_, kind, area)
     }
 
     #[wasm_bindgen]
@@ -5269,6 +6047,31 @@ mod web {
         archived: bool,
     ) {
         wire__crate__api__set_conversation_archived_impl(port_, conversation_id, archived)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__submit_conversation_input(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        conversation_id: String,
+        raw_text: String,
+        idempotency_key: Option<String>,
+    ) {
+        wire__crate__api__submit_conversation_input_impl(
+            port_,
+            conversation_id,
+            raw_text,
+            idempotency_key,
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__submit_input(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        raw_text: String,
+        source: String,
+        idempotency_key: Option<String>,
+    ) {
+        wire__crate__api__submit_input_impl(port_, raw_text, source, idempotency_key)
     }
 
     #[wasm_bindgen]

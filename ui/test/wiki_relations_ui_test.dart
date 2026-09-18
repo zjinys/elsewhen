@@ -4,17 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/screens/main_screen.dart';
 
+import 'support/isolated_bridge.dart';
+
 /// 人物关系功能测试（真实 Rust 桥接）：
 /// 1) 桥接往返：addRelation → listRelationsForPage（双向可见）→ deleteRelation；
 /// 2) UI：自种「人物 + 项目」两个页面并加一条关系，在知识库详情页头部应出现
 ///    「人物关系」区块与关系 chip。
-/// Run with: ELSEWHEN_DATA_DIR=/tmp/opencode/frb-wiki-test flutter test test/wiki_relations_ui_test.dart
 void main() {
   late RustBridgeRepository repo;
 
   setUpAll(() async {
-    repo = RustBridgeRepository();
-    await repo.initialize();
+    repo = await createIsolatedBridge();
   });
 
   String stamp() => DateTime.now().microsecondsSinceEpoch.toString();
@@ -51,7 +51,9 @@ void main() {
     }
   });
 
-  testWidgets('wiki detail page shows people relations section', (tester) async {
+  testWidgets('wiki detail page shows people relations section', (
+    tester,
+  ) async {
     // 接近真实主窗口的测试画布，避免小屏把详情正文挤出视口
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1.0;
@@ -61,15 +63,19 @@ void main() {
     final personTitle = 'UI人物${stamp()}';
     final projectTitle = 'UI项目${stamp()}';
     final person = await tester.runAsync(
-        () => repo.saveTextPage(text: '$personTitle 的简介', title: personTitle));
-    final project = await tester.runAsync(() =>
-        repo.saveTextPage(text: '$projectTitle 的说明', title: projectTitle));
-    final relation = await tester.runAsync(() => repo.addRelation(
-          fromSlug: person!.slug,
-          toSlug: project!.slug,
-          relation: '负责',
-          note: '测试关系',
-        ));
+      () => repo.saveTextPage(text: '$personTitle 的简介', title: personTitle),
+    );
+    final project = await tester.runAsync(
+      () => repo.saveTextPage(text: '$projectTitle 的说明', title: projectTitle),
+    );
+    final relation = await tester.runAsync(
+      () => repo.addRelation(
+        fromSlug: person!.slug,
+        toSlug: project!.slug,
+        relation: '负责',
+        note: '测试关系',
+      ),
+    );
     addTearDown(() async {
       await tester.runAsync(() async {
         await repo.deleteRelation(relation!.id);
@@ -88,7 +94,8 @@ void main() {
     await tester.tap(find.text('知识库'));
     await tester.pump();
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 500)));
+      () => Future<void>.delayed(const Duration(milliseconds: 500)),
+    );
     await tester.pump();
 
     // 滚动左侧列表直到「人物」页可见（列表按 kind 分组，新页在 topic 组附近）
@@ -102,7 +109,11 @@ void main() {
       await tester.drag(sidebarList, const Offset(0, -250));
       await tester.pump();
     }
-    expect(find.text(personTitle), findsWidgets, reason: '滚动后应能看到人物页 $personTitle');
+    expect(
+      find.text(personTitle),
+      findsWidgets,
+      reason: '滚动后应能看到人物页 $personTitle',
+    );
 
     // 打开人物页详情
     await tester.tap(find.text(personTitle).first);
@@ -110,7 +121,8 @@ void main() {
     // 多轮「真实异步窗口 + pump」：页面 provider 与关系 provider 都依赖真实桥接往返
     for (var i = 0; i < 3; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 300)));
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
       await tester.pump();
     }
 

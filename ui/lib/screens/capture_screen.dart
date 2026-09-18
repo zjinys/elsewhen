@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../theme/app_theme.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../providers/event_provider.dart';
@@ -40,9 +41,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Record event via Rust bridge
+      // Save through the unified input layer; this remains local-only and does
+      // not wait for AI/network before the capture window closes.
       final repo = ref.read(storageRepositoryProvider);
-      await repo.recordEvent(_controller.text.trim());
+      await repo.recordUnifiedInput(_controller.text.trim(), source: 'capture');
 
       // Refresh events list
       ref.invalidate(eventsProvider);
@@ -130,13 +132,17 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
                                   end: Alignment.bottomRight,
                                   colors: [
                                     AppTheme.accentPrimary,
-                                    AppTheme.accentPrimary.withValues(alpha: 0.7),
+                                    AppTheme.accentPrimary.withValues(
+                                      alpha: 0.7,
+                                    ),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                                    color: AppTheme.accentPrimary.withValues(
+                                      alpha: 0.3,
+                                    ),
                                     blurRadius: 12,
                                     spreadRadius: 0,
                                   ),
@@ -240,10 +246,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 4,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(4),

@@ -12,6 +12,7 @@ class TweetFetch {
   final String? title;
   final String? authorName;
   final String? screenName;
+  final String? inputRecordId;
 
   const TweetFetch({
     required this.tweetId,
@@ -20,6 +21,7 @@ class TweetFetch {
     this.title,
     this.authorName,
     this.screenName,
+    this.inputRecordId,
   });
 
   factory TweetFetch.fromDto(api.TweetFetchDto dto) {
@@ -32,6 +34,16 @@ class TweetFetch {
       screenName: dto.screenName,
     );
   }
+
+  TweetFetch withInputRecord(String id) => TweetFetch(
+    tweetId: tweetId,
+    url: url,
+    text: text,
+    title: title,
+    authorName: authorName,
+    screenName: screenName,
+    inputRecordId: id,
+  );
 
   /// 给 AI 的完整内容（文章型推文带上标题，增强上下文）
   String get fullContent {
@@ -47,8 +59,6 @@ class ContentChatMessage {
 
   const ContentChatMessage({required this.role, required this.content});
 
-  api.ContentChatMessageDto get toDto => api.ContentChatMessageDto(
-        role: role,
-        content: content,
-      );
+  api.ContentChatMessageDto get toDto =>
+      api.ContentChatMessageDto(role: role, content: content);
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../bridge/rust_bridge_repository.dart';
 import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
@@ -10,6 +11,7 @@ import '../models/conversation.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
 import 'markdown_view.dart';
+import 'wiki_derivatives.dart';
 
 /// 右侧知识库面板：多 tab。
 /// - 固定 Tab 1：导入（粘贴链接抓取或直接文本保存）
@@ -63,9 +65,7 @@ class _WikiTabBar extends ConsumerWidget {
       ),
       decoration: BoxDecoration(
         color: AppTheme.surface1,
-        border: Border(
-          bottom: BorderSide(color: AppTheme.surface3, width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
@@ -122,7 +122,9 @@ class _WikiTabChip extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                    color: active ? AppTheme.textPrimary : AppTheme.textSecondary,
+                    color: active
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
                   ),
                 ),
               ),
@@ -144,11 +146,7 @@ class _WikiTabChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
       child: Padding(
         padding: EdgeInsets.all(4),
-        child: Icon(
-          Icons.close,
-          size: 13,
-          color: AppTheme.textTertiary,
-        ),
+        child: Icon(Icons.close, size: 13, color: AppTheme.textTertiary),
       ),
     );
   }
@@ -212,9 +210,8 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
         if (existing != null) {
           _urlController.clear();
           openWikiPageTab(ref, existing);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('知识库中已保存过该推文，已直接打开')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('知识库中已保存过该推文，已直接打开')));
           return;
         }
         final fetch = await repo.fetchTweet(url);
@@ -286,11 +283,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
           // 模式切换
           _buildModeSwitch(),
           const SizedBox(height: AppTheme.space4),
-          if (_isUrlMode) ...[
-            _buildUrlInput(),
-          ] else ...[
-            _buildTextInput(),
-          ],
+          if (_isUrlMode) ...[_buildUrlInput()] else ...[_buildTextInput()],
           if (_error != null) ...[
             const SizedBox(height: AppTheme.space2),
             Text(
@@ -407,7 +400,11 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
           ),
           child: Row(
             children: [
-              Icon(Icons.lightbulb_outline, size: 14, color: AppTheme.accentPrimary),
+              Icon(
+                Icons.lightbulb_outline,
+                size: 14,
+                color: AppTheme.accentPrimary,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -449,10 +446,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(
-                color: AppTheme.accentPrimary,
-                width: 1.5,
-              ),
+              borderSide: BorderSide(color: AppTheme.accentPrimary, width: 1.5),
             ),
           ),
         ),
@@ -487,10 +481,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(
-                color: AppTheme.accentPrimary,
-                width: 1.5,
-              ),
+              borderSide: BorderSide(color: AppTheme.accentPrimary, width: 1.5),
             ),
           ),
         ),
@@ -651,7 +642,16 @@ class _WikiPageBody extends ConsumerWidget {
                 child: SelectableRegion(
                   focusNode: FocusNode(),
                   selectionControls: materialTextSelectionControls,
-                  child: MarkdownView(markdown: page.contentMd),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (page.basedOn != null)
+                        WikiSourceLink(slug: page.basedOn!),
+                      MarkdownView(markdown: page.contentMd),
+                      const SizedBox(height: AppTheme.space6),
+                      WikiDerivatives(slug: page.slug),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -674,9 +674,7 @@ class _WikiPageBody extends ConsumerWidget {
         AppTheme.space4,
       ),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppTheme.surface3, width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: Center(
         child: ConstrainedBox(
@@ -717,7 +715,9 @@ class _WikiPageBody extends ConsumerWidget {
                       ),
                       decoration: BoxDecoration(
                         color: AppTheme.surface3,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusFull,
+                        ),
                       ),
                       child: Text(
                         page.slug,
@@ -788,9 +788,7 @@ class _WikiPageBody extends ConsumerWidget {
         AppTheme.space3,
       ),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppTheme.surface3, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: Center(
         child: ConstrainedBox(
@@ -800,10 +798,7 @@ class _WikiPageBody extends ConsumerWidget {
             children: [
               Text(
                 '源于 ${page.sourceEventIds.isEmpty ? "尚无事件溯源" : "${page.sourceEventIds.length} 条事件"}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textTertiary,
-                ),
+                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
               ),
               const SizedBox(height: AppTheme.space2),
               _PageAiChatPanel(slug: page.slug),
@@ -883,7 +878,8 @@ class _WikiPageBody extends ConsumerWidget {
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (final r in relations) _RelationChip(relation: r, pageSlug: page.slug),
+            for (final r in relations)
+              _RelationChip(relation: r, pageSlug: page.slug),
           ],
         ),
       ],
@@ -935,7 +931,9 @@ class _WikiPageBody extends ConsumerWidget {
             child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.accentPrimary),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.accentPrimary,
+            ),
             onPressed: () => Navigator.of(dialogContext).pop(controller.text),
             child: const Text('保存'),
           ),
@@ -967,7 +965,9 @@ class _WikiPageBody extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('标签更新失败：${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(
+            '标签更新失败：${e.toString().replaceFirst('Exception: ', '')}',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1024,10 +1024,7 @@ class _SourceChip extends StatelessWidget {
                 host,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textSecondary,
-                ),
+                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
               ),
             ),
             const SizedBox(width: 4),
@@ -1185,7 +1182,9 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = '消息加载失败：${e.toString().replaceFirst('Exception: ', '')}');
+      setState(
+        () => _error = '消息加载失败：${e.toString().replaceFirst('Exception: ', '')}',
+      );
     }
   }
 
@@ -1194,13 +1193,15 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
     final id = _conversationId;
     if (text.isEmpty || id == null || _busy) return;
     setState(() {
-      _messages.add(Message(
-        id: 'local-${DateTime.now().microsecondsSinceEpoch}',
-        conversationId: id,
-        role: MessageRole.user,
-        content: text,
-        createdAt: DateTime.now(),
-      ));
+      _messages.add(
+        Message(
+          id: 'local-${DateTime.now().microsecondsSinceEpoch}',
+          conversationId: id,
+          role: MessageRole.user,
+          content: text,
+          createdAt: DateTime.now(),
+        ),
+      );
       _busy = true;
       _error = null;
     });
@@ -1213,19 +1214,23 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
       final reply = await repo.generateReply(id);
       if (!mounted) return;
       setState(() {
-        _messages.add(Message(
-          id: 'ai-${DateTime.now().microsecondsSinceEpoch}',
-          conversationId: id,
-          role: MessageRole.assistant,
-          content: reply,
-          createdAt: DateTime.now(),
-        ));
+        _messages.add(
+          Message(
+            id: 'ai-${DateTime.now().microsecondsSinceEpoch}',
+            conversationId: id,
+            role: MessageRole.assistant,
+            content: reply,
+            createdAt: DateTime.now(),
+          ),
+        );
         _busy = false;
       });
       _scrollToBottom();
       // 页面内容可能被修订：让页面详情 provider 失效以刷新
       ref.invalidate(wikiPageProvider(widget.slug));
       ref.invalidate(pageRelationsProvider(widget.slug));
+      ref.invalidate(wikiDerivativesProvider(widget.slug));
+      ref.invalidate(wikiPagesProvider);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -1269,7 +1274,11 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
             ),
             child: Row(
               children: [
-                Icon(Icons.auto_awesome, size: 14, color: AppTheme.accentPrimary),
+                Icon(
+                  Icons.auto_awesome,
+                  size: 14,
+                  color: AppTheme.accentPrimary,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'AI 处理本页',
@@ -1328,7 +1337,10 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
                 ),
                 for (final m in _messages)
                   _ChatBubble(
-                    message: ContentChatMessage(role: m.role.name, content: m.content),
+                    message: ContentChatMessage(
+                      role: m.role.name,
+                      content: m.content,
+                    ),
                   ),
                 if (_busy) const _ChatBubble.pending(),
                 if (_error != null)
@@ -1373,15 +1385,21 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
                       filled: true,
                       fillColor: AppTheme.surface2,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                         borderSide: BorderSide(color: AppTheme.surface3),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                         borderSide: BorderSide(color: AppTheme.surface3),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                         borderSide: BorderSide(
                           color: AppTheme.accentPrimary,
                           width: 1.5,
@@ -1482,7 +1500,8 @@ class _ImportFetchTabBody extends ConsumerStatefulWidget {
   const _ImportFetchTabBody({required this.fetch});
 
   @override
-  ConsumerState<_ImportFetchTabBody> createState() => _ImportFetchTabBodyState();
+  ConsumerState<_ImportFetchTabBody> createState() =>
+      _ImportFetchTabBodyState();
 }
 
 class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
@@ -1519,6 +1538,10 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
         sourceKind: widget.fetch.sourceKind,
         tags: _parsedTags(),
       );
+      final inputRecordId = widget.fetch.inputRecordId;
+      if (inputRecordId != null) {
+        await repo.finishUrlInput(inputRecordId, wikiPageSlug: page.slug);
+      }
       if (!mounted) return;
       setState(() => _saved = true);
       ref.invalidate(wikiPagesProvider);
@@ -1665,11 +1688,17 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
                       ),
                       decoration: BoxDecoration(
                         color: AppTheme.accentPrimary.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.check, size: 14, color: AppTheme.accentPrimary),
+                          Icon(
+                            Icons.check,
+                            size: 14,
+                            color: AppTheme.accentPrimary,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '已保存到知识库',
@@ -1789,6 +1818,10 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
         authorName: widget.fetch.authorName,
         screenName: widget.fetch.screenName,
       );
+      final inputRecordId = widget.fetch.inputRecordId;
+      if (inputRecordId != null) {
+        await repo.finishUrlInput(inputRecordId, wikiPageSlug: page.slug);
+      }
       if (!mounted) return;
       setState(() {
         _saving = false;
@@ -1938,7 +1971,8 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
 
   Widget _buildHeader() {
     final fetch = widget.fetch;
-    final author = fetch.authorName ??
+    final author =
+        fetch.authorName ??
         (fetch.screenName != null ? '@${fetch.screenName}' : '未知作者');
     // 文章型推文用文章标题，普通推文用「{作者} 的推文」
     final mainTitle = (fetch.title?.trim().isNotEmpty ?? false)
@@ -1970,10 +2004,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
                 const SizedBox(height: 2),
                 Text(
                   '@${fetch.screenName ?? '—'} · 推文 ${fetch.tweetId}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                 ),
               ],
             ),
@@ -2098,9 +2129,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
       ),
       decoration: BoxDecoration(
         color: AppTheme.surface1,
-        border: Border(
-          top: BorderSide(color: AppTheme.surface3, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -2126,16 +2155,25 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
                   vertical: 10,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(AppTheme.radiusMedium)),
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(AppTheme.radiusMedium),
+                  ),
                   borderSide: BorderSide(color: AppTheme.surface3),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(AppTheme.radiusMedium)),
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(AppTheme.radiusMedium),
+                  ),
                   borderSide: BorderSide(color: AppTheme.surface3),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(AppTheme.radiusMedium)),
-                  borderSide: BorderSide(color: AppTheme.accentPrimary, width: 1.5),
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(AppTheme.radiusMedium),
+                  ),
+                  borderSide: BorderSide(
+                    color: AppTheme.accentPrimary,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -2164,8 +2202,8 @@ class _ChatBubble extends StatelessWidget {
   const _ChatBubble({required this.message}) : pending = false;
 
   const _ChatBubble.pending()
-      : message = const ContentChatMessage(role: 'assistant', content: ''),
-        pending = true;
+    : message = const ContentChatMessage(role: 'assistant', content: ''),
+      pending = true;
 
   @override
   Widget build(BuildContext context) {
@@ -2173,8 +2211,9 @@ class _ChatBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space3),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isUser) ...[

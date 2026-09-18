@@ -1,5 +1,5 @@
-use elsewhen::storage::{Store, StorageAdapter};
 use elsewhen::event::NewEvent;
+use elsewhen::storage::{StorageAdapter, Store};
 
 fn main() -> anyhow::Result<()> {
     let db_path = std::env::var("HOME").unwrap() + "/.local/share/elsewhen/elsewhen.db";

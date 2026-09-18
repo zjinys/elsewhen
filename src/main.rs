@@ -99,10 +99,7 @@ fn main() -> Result<()> {
                 println!("暂无洞察。运行 `elsewhen insight` 基于最近事件生成。");
             }
             for ins in list {
-                println!(
-                    "[{}] 透镜{} | {}",
-                    ins.created_at, ins.lens, ins.title
-                );
+                println!("[{}] 透镜{} | {}", ins.created_at, ins.lens, ins.title);
             }
         }
         Some("wiki") => {
@@ -110,9 +107,11 @@ fn main() -> Result<()> {
             match args.first().map(String::as_str) {
                 Some("list") => {
                     let kind = args.get(1).map(String::as_str);
-                    let pages = store.list_wiki_pages(kind)?;
+                    let pages = store.list_wiki_pages(kind, None)?;
                     if pages.is_empty() {
-                        println!("wiki 还没有页面。运行 `elsewhen wiki digest` 把事件消化进知识库。");
+                        println!(
+                            "wiki 还没有页面。运行 `elsewhen wiki digest` 把事件消化进知识库。"
+                        );
                     }
                     for p in pages {
                         println!(
@@ -188,9 +187,7 @@ fn main() -> Result<()> {
                     let dir = args.get(1).context("usage: elsewhen wiki export <目录>")?;
                     let report = wiki::export_wiki(&store, std::path::Path::new(dir))?;
                     println!("已导出 {} 个文件到 {}", report.files.len(), report.dir);
-                    println!(
-                        "注意：这是只读快照，真源在数据库；在快照里的修改不会被写回。"
-                    );
+                    println!("注意：这是只读快照，真源在数据库；在快照里的修改不会被写回。");
                     for f in &report.files {
                         println!("  {}", f);
                     }

@@ -7,7 +7,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 pub use adapter::{
-    AiProviderConfigRow, AnalysisJob, AnalysisSummary, AiProviderConfig, StorageAdapter,
+    AiProviderConfig, AiProviderConfigRow, AnalysisJob, AnalysisSummary, StorageAdapter,
 };
 
 // Conversation and Message summary structs
@@ -174,6 +174,15 @@ pub struct DailyTokenUsage {
     pub call_count: i64,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct AnalysisJobStats {
+    pub pending: i64,
+    pub running: i64,
+    pub retry: i64,
+    pub succeeded: i64,
+    pub failed: i64,
+}
+
 /// 一条已生成的认知洞察（derived data）
 #[derive(Debug, Clone)]
 pub struct InsightSummary {
@@ -208,6 +217,12 @@ pub struct WikiPage {
     pub updated_at: String,
     /// 来源 URL（URL 导入页记录出处）；None 表示匿名导入/本地生成
     pub source_url: Option<String>,
+    /// 来源/用途分区：imported（素材库）/ network（人物项目）/ insight（知识沉淀）/ derivative（派生产物）
+    pub area: String,
+    /// 派生产物指向的原页面 slug（仅 area=derivative 有值）
+    pub based_on: Option<String>,
+    /// 派生产物的加工类型（总结/提炼观点/抖音文案…自由字符串，仅 area=derivative 有值）
+    pub content_type: Option<String>,
 }
 
 /// 一次写回（创建或更新）的输入草案
@@ -282,6 +297,50 @@ pub struct EventRecord {
     pub raw_text: String,
 }
 
+/// 一次用户原始提交及其路由结果。它只负责关联，不取代 event/message/wiki/todo
+/// 各自的权威数据；raw_text 保存提交时的原文，后续路由不得覆盖。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InputRecord {
+    pub id: String,
+    pub raw_text: String,
+    pub source: String,
+    pub route_status: String,
+    pub idempotency_key: Option<String>,
+    pub event_id: Option<String>,
+    pub message_id: Option<String>,
+    pub wiki_page_slug: Option<String>,
+    pub todo_id: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DailyEntry {
+    pub event_id: String,
+    pub input_id: Option<String>,
+    pub message_id: Option<String>,
+    pub raw_text: String,
+    pub source: String,
+    pub event_status: String,
+    pub recorded_at: String,
+}
+
+fn map_input_record(row: &rusqlite::Row) -> rusqlite::Result<InputRecord> {
+    Ok(InputRecord {
+        id: row.get(0)?,
+        raw_text: row.get(1)?,
+        source: row.get(2)?,
+        route_status: row.get(3)?,
+        idempotency_key: row.get(4)?,
+        event_id: row.get(5)?,
+        message_id: row.get(6)?,
+        wiki_page_slug: row.get(7)?,
+        todo_id: row.get(8)?,
+        created_at: row.get(9)?,
+        updated_at: row.get(10)?,
+    })
+}
+
 fn map_wiki_page(row: &rusqlite::Row) -> rusqlite::Result<WikiPage> {
     let tags_raw: String = row.get(6)?;
     let sources_raw: String = row.get(7)?;
@@ -301,8 +360,17 @@ fn map_wiki_page(row: &rusqlite::Row) -> rusqlite::Result<WikiPage> {
         created_at: row.get(12)?,
         updated_at: row.get(13)?,
         source_url: row.get(14)?,
+        area: row.get(15)?,
+        based_on: row.get(16)?,
+        content_type: row.get(17)?,
     })
 }
+
+/// wiki_pages 行 → WikiPage 的公共列清单。
+/// 顺序必须与 `map_wiki_page` 的按位取值（0..=17）严格一致。
+const WIKI_PAGE_COLS: &str = "id, slug, kind, title, summary, content_md, tags, source_event_ids, \
+     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at, source_url, \
+     COALESCE(area, 'insight'), based_on, content_type";
 
 pub struct Store {
     connection: Connection,
@@ -594,8 +662,7 @@ impl Store {
         // temperature / max_tokens 随配置保存，对话生成时读取。
         {
             let has_active = {
-                let mut statement =
-                    connection.prepare("PRAGMA table_info(ai_provider_configs)")?;
+                let mut statement = connection.prepare("PRAGMA table_info(ai_provider_configs)")?;
                 let columns = statement
                     .query_map([], |row| row.get::<_, String>(1))?
                     .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -709,6 +776,63 @@ impl Store {
              INSERT OR IGNORE INTO schema_migrations(version, applied_at)
              VALUES (17, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
         )?;
+        // 版本 18：知识页按「来源/用途」分区（area）。
+        // imported=素材库（推文/网页/粘贴文本，原文锁定）、network=人物/项目关系网、
+        // insight=知识沉淀（对话提炼的结论/规则）、derivative=对某页加工出的派生产物（不进主列表）。
+        // 历史数据按 slug 前缀 / kind / 来源回填。
+        {
+            let has_area = {
+                let mut statement = connection.prepare("PRAGMA table_info(wiki_pages)")?;
+                let columns = statement
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                columns.iter().any(|name| name == "area")
+            };
+            if !has_area {
+                let tx = connection.unchecked_transaction()?;
+                tx.execute_batch(
+                    "ALTER TABLE wiki_pages ADD COLUMN area TEXT;
+                     ALTER TABLE wiki_pages ADD COLUMN based_on TEXT;
+                     ALTER TABLE wiki_pages ADD COLUMN content_type TEXT;
+                     UPDATE wiki_pages SET area = CASE
+                       WHEN slug LIKE 'person/%' OR slug LIKE 'topic/%' THEN 'network'
+                       WHEN kind = 'source' OR slug LIKE 'tweet-%' OR slug LIKE 'note-%'
+                            OR slug LIKE 'import-%' OR source_url IS NOT NULL THEN 'imported'
+                       ELSE 'insight' END
+                     WHERE area IS NULL;
+                     INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                     VALUES (18, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+                )?;
+                tx.commit()?;
+            }
+        }
+        // 版本 19：统一输入关联层。原始提交先落盘，再异步路由到已有权威对象。
+        // 表只记录关联，不复制这些对象的业务状态。
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS input_records (
+               id TEXT PRIMARY KEY,
+               raw_text TEXT NOT NULL CHECK(length(trim(raw_text)) > 0),
+               source TEXT NOT NULL,
+               route_status TEXT NOT NULL DEFAULT 'pending'
+                 CHECK(route_status IN ('pending','routed','needs_confirmation','failed')),
+               idempotency_key TEXT,
+               event_id TEXT,
+               message_id TEXT,
+               wiki_page_slug TEXT,
+               todo_id TEXT,
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL,
+               FOREIGN KEY(event_id) REFERENCES events(id),
+               FOREIGN KEY(message_id) REFERENCES messages(id),
+               FOREIGN KEY(todo_id) REFERENCES todos(id)
+             );
+             CREATE UNIQUE INDEX IF NOT EXISTS idx_input_records_idempotency
+               ON input_records(idempotency_key) WHERE idempotency_key IS NOT NULL;
+             CREATE INDEX IF NOT EXISTS idx_input_records_created_at
+               ON input_records(created_at);
+             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (19, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )?;
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at)
              VALUES (8, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
@@ -749,6 +873,209 @@ impl Store {
         )?;
         transaction.commit()?;
         Ok(id)
+    }
+
+    pub fn create_input_record(
+        &self,
+        raw_text: &str,
+        source: &str,
+        idempotency_key: Option<&str>,
+    ) -> Result<InputRecord> {
+        let raw_text = raw_text.trim();
+        let source = source.trim();
+        if raw_text.is_empty() {
+            anyhow::bail!("input raw_text 不能为空");
+        }
+        if source.is_empty() {
+            anyhow::bail!("input source 不能为空");
+        }
+        let key = idempotency_key.map(str::trim).filter(|key| !key.is_empty());
+        if let Some(key) = key {
+            if let Some(existing) = self.get_input_record_by_idempotency_key(key)? {
+                return Ok(existing);
+            }
+        }
+
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "INSERT INTO input_records
+             (id,raw_text,source,route_status,idempotency_key,created_at,updated_at)
+             VALUES (?1,?2,?3,'pending',?4,?5,?5)",
+            params![id, raw_text, source, key, now],
+        )?;
+        self.get_input_record(&id)?
+            .context("input record 创建后读取失败")
+    }
+
+    /// 普通个人输入的最小统一提交路径：input record、不可变 event 与分析任务
+    /// 在同一事务内提交。网络和 AI 均不参与此路径。
+    pub fn submit_input_as_event(
+        &self,
+        raw_text: &str,
+        source: &str,
+        idempotency_key: Option<&str>,
+    ) -> Result<InputRecord> {
+        let raw_text = raw_text.trim();
+        let source = source.trim();
+        if raw_text.is_empty() || source.is_empty() {
+            anyhow::bail!("input raw_text 和 source 不能为空");
+        }
+        let key = idempotency_key.map(str::trim).filter(|key| !key.is_empty());
+        if let Some(key) = key {
+            if let Some(existing) = self.get_input_record_by_idempotency_key(key)? {
+                return Ok(existing);
+            }
+        }
+
+        let input_id = Uuid::new_v4().to_string();
+        let event_id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now();
+        let now_text = now.to_rfc3339();
+        let transaction = self.connection.unchecked_transaction()?;
+        transaction.execute(
+            "INSERT INTO events
+             (id,occurred_at,recorded_at,raw_text,source,status,created_at,updated_at)
+             VALUES (?1,?2,?2,?3,?4,'pending',?2,?2)",
+            params![event_id, now_text, raw_text, source],
+        )?;
+        transaction.execute(
+            "INSERT INTO analysis_jobs
+             (id,event_id,status,attempts,available_at,created_at,updated_at)
+             VALUES (?1,?2,'pending',0,?3,?3,?3)",
+            params![Uuid::new_v4().to_string(), event_id, now_text],
+        )?;
+        transaction.execute(
+            "INSERT INTO input_records
+             (id,raw_text,source,route_status,idempotency_key,event_id,created_at,updated_at)
+             VALUES (?1,?2,?3,'routed',?4,?5,?6,?6)",
+            params![input_id, raw_text, source, key, event_id, now_text],
+        )?;
+        transaction.commit()?;
+        self.get_input_record(&input_id)?
+            .context("统一输入提交后读取失败")
+    }
+
+    /// 主对话输入：同一事务保存用户消息与个人事件，并用 input record 关联。
+    pub fn submit_conversation_input(
+        &self,
+        conversation_id: &str,
+        raw_text: &str,
+        idempotency_key: Option<&str>,
+    ) -> Result<InputRecord> {
+        let raw_text = raw_text.trim();
+        if raw_text.is_empty() {
+            anyhow::bail!("input raw_text 不能为空");
+        }
+        let key = idempotency_key.map(str::trim).filter(|key| !key.is_empty());
+        if let Some(key) = key {
+            if let Some(existing) = self.get_input_record_by_idempotency_key(key)? {
+                return Ok(existing);
+            }
+        }
+        if self.get_conversation(conversation_id)?.is_none() {
+            anyhow::bail!("Conversation not found: {conversation_id}");
+        }
+
+        let input_id = Uuid::new_v4().to_string();
+        let event_id = Uuid::new_v4().to_string();
+        let message_id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        let transaction = self.connection.unchecked_transaction()?;
+        transaction.execute(
+            "INSERT INTO events
+             (id,occurred_at,recorded_at,raw_text,source,status,created_at,updated_at)
+             VALUES (?1,?2,?2,?3,'conversation','pending',?2,?2)",
+            params![event_id, now, raw_text],
+        )?;
+        transaction.execute(
+            "INSERT INTO analysis_jobs
+             (id,event_id,status,attempts,available_at,created_at,updated_at)
+             VALUES (?1,?2,'pending',0,?3,?3,?3)",
+            params![Uuid::new_v4().to_string(), event_id, now],
+        )?;
+        transaction.execute(
+            "INSERT INTO messages (id,conversation_id,role,content,created_at)
+             VALUES (?1,?2,'user',?3,?4)",
+            params![message_id, conversation_id, raw_text, now],
+        )?;
+        transaction.execute(
+            "UPDATE conversations SET updated_at=?1 WHERE id=?2",
+            params![now, conversation_id],
+        )?;
+        transaction.execute(
+            "INSERT INTO input_records
+             (id,raw_text,source,route_status,idempotency_key,event_id,message_id,created_at,updated_at)
+             VALUES (?1,?2,'conversation','routed',?3,?4,?5,?6,?6)",
+            params![input_id, raw_text, key, event_id, message_id, now],
+        )?;
+        transaction.commit()?;
+        self.get_input_record(&input_id)?
+            .context("对话统一输入提交后读取失败")
+    }
+
+    pub fn get_input_record(&self, id: &str) -> Result<Option<InputRecord>> {
+        self.connection
+            .query_row(
+                "SELECT id,raw_text,source,route_status,idempotency_key,event_id,message_id,
+                        wiki_page_slug,todo_id,created_at,updated_at
+                 FROM input_records WHERE id=?1",
+                [id],
+                map_input_record,
+            )
+            .optional()
+            .context("read input record")
+    }
+
+    fn get_input_record_by_idempotency_key(&self, key: &str) -> Result<Option<InputRecord>> {
+        self.connection
+            .query_row(
+                "SELECT id,raw_text,source,route_status,idempotency_key,event_id,message_id,
+                        wiki_page_slug,todo_id,created_at,updated_at
+                 FROM input_records WHERE idempotency_key=?1",
+                [key],
+                map_input_record,
+            )
+            .optional()
+            .context("read input record by idempotency key")
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_input_route(
+        &self,
+        id: &str,
+        route_status: &str,
+        event_id: Option<&str>,
+        message_id: Option<&str>,
+        wiki_page_slug: Option<&str>,
+        todo_id: Option<&str>,
+    ) -> Result<InputRecord> {
+        if !matches!(
+            route_status,
+            "pending" | "routed" | "needs_confirmation" | "failed"
+        ) {
+            anyhow::bail!("非法 input route_status: {route_status}");
+        }
+        let changed = self.connection.execute(
+            "UPDATE input_records
+             SET route_status=?2,event_id=COALESCE(?3,event_id),message_id=COALESCE(?4,message_id),
+                 wiki_page_slug=COALESCE(?5,wiki_page_slug),todo_id=COALESCE(?6,todo_id),
+                 updated_at=?7 WHERE id=?1",
+            params![
+                id,
+                route_status,
+                event_id,
+                message_id,
+                wiki_page_slug,
+                todo_id,
+                chrono::Utc::now().to_rfc3339()
+            ],
+        )?;
+        if changed == 0 {
+            anyhow::bail!("input record 不存在: {id}");
+        }
+        self.get_input_record(id)?
+            .context("input route 更新后读取失败")
     }
 
     pub fn claim_analysis_job(&self) -> Result<Option<AnalysisJob>> {
@@ -793,6 +1120,32 @@ impl Store {
         let available = chrono::Utc::now() + chrono::Duration::seconds(delay);
         self.connection.execute("UPDATE analysis_jobs SET status=CASE WHEN attempts >= 5 THEN 'failed' ELSE 'retry' END, last_error=?2, available_at=?3, updated_at=?4 WHERE id=?1", params![job.id, error, available.to_rfc3339(), chrono::Utc::now().to_rfc3339()])?;
         Ok(())
+    }
+
+    /// Aggregate the durable analysis queue by its complete status vocabulary.
+    /// Missing statuses are returned as zero so callers can render a stable UI.
+    pub fn analysis_job_stats(&self) -> Result<AnalysisJobStats> {
+        self.connection
+            .query_row(
+                "SELECT
+                    COALESCE(SUM(status = 'pending'), 0),
+                    COALESCE(SUM(status = 'running'), 0),
+                    COALESCE(SUM(status = 'retry'), 0),
+                    COALESCE(SUM(status = 'succeeded'), 0),
+                    COALESCE(SUM(status = 'failed'), 0)
+                 FROM analysis_jobs",
+                [],
+                |row| {
+                    Ok(AnalysisJobStats {
+                        pending: row.get(0)?,
+                        running: row.get(1)?,
+                        retry: row.get(2)?,
+                        succeeded: row.get(3)?,
+                        failed: row.get(4)?,
+                    })
+                },
+            )
+            .context("aggregate analysis job stats")
     }
 
     pub fn upsert_ai_provider_config(
@@ -862,7 +1215,17 @@ impl Store {
                        api_key=CASE WHEN ?5='' THEN api_key ELSE ?5 END,
                        temperature=?6, max_tokens=?7, updated_at=?8
                      WHERE id=?9",
-                    params![name, provider_type, base_url, model, api_key, temperature, max_tokens, now, pid],
+                    params![
+                        name,
+                        provider_type,
+                        base_url,
+                        model,
+                        api_key,
+                        temperature,
+                        max_tokens,
+                        now,
+                        pid
+                    ],
                 )?;
                 if changed == 0 {
                     anyhow::bail!("未找到要更新的配置（id={pid}）");
@@ -924,10 +1287,8 @@ impl Store {
             params![id],
             |r| r.get(0),
         )?;
-        let deleted = transaction.execute(
-            "DELETE FROM ai_provider_configs WHERE id=?1",
-            params![id],
-        )?;
+        let deleted =
+            transaction.execute("DELETE FROM ai_provider_configs WHERE id=?1", params![id])?;
         if deleted == 0 {
             transaction.rollback()?;
             anyhow::bail!("未找到要删除的配置（id={id}）");
@@ -1010,6 +1371,42 @@ impl Store {
             Ok(EventSummary {
                 recorded_at: row.get(0)?,
                 raw_text: row.get(1)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// 统一日流：events 是权威全集；input_records 仅补充新流程的关联信息。
+    /// 因此历史事件与新 Capture/对话输入都会出现，且每个 event 只返回一次。
+    pub fn daily_entries(&self, date: chrono::NaiveDate) -> Result<Vec<DailyEntry>> {
+        use chrono::{Local, TimeZone};
+        let edge = |day: chrono::NaiveDate| {
+            let local_midnight = day.and_hms_opt(0, 0, 0).expect("midnight is valid");
+            Local
+                .from_local_datetime(&local_midnight)
+                .single()
+                .or_else(|| Local.from_local_datetime(&local_midnight).earliest())
+                .map(|value| value.with_timezone(&chrono::Utc).to_rfc3339())
+                .unwrap_or_else(|| local_midnight.and_utc().to_rfc3339())
+        };
+        let start = edge(date);
+        let end = edge(date + chrono::Duration::days(1));
+        let mut statement = self.connection.prepare(
+            "SELECT e.id,i.id,i.message_id,e.raw_text,e.source,e.status,e.recorded_at
+             FROM events e LEFT JOIN input_records i ON i.event_id=e.id
+             WHERE e.recorded_at>=?1 AND e.recorded_at<?2
+             ORDER BY e.recorded_at DESC,e.id DESC",
+        )?;
+        let rows = statement.query_map(params![start, end], |row| {
+            Ok(DailyEntry {
+                event_id: row.get(0)?,
+                input_id: row.get(1)?,
+                message_id: row.get(2)?,
+                raw_text: row.get(3)?,
+                source: row.get(4)?,
+                event_status: row.get(5)?,
+                recorded_at: row.get(6)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -1118,7 +1515,7 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
                     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                    source_url
+                    source_url, COALESCE(area, 'insight'), based_on, content_type
              FROM wiki_pages WHERE slug = ?1",
         )?;
         let page = statement
@@ -1132,7 +1529,7 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
                     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                    source_url
+                    source_url, COALESCE(area, 'insight'), based_on, content_type
              FROM wiki_pages WHERE source_url = ?1
              ORDER BY updated_at DESC LIMIT 1",
         )?;
@@ -1147,7 +1544,7 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
                     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                    source_url
+                    source_url, COALESCE(area, 'insight'), based_on, content_type
              FROM wiki_pages WHERE lower(trim(title)) = lower(trim(?1))
              ORDER BY updated_at DESC LIMIT 1",
         )?;
@@ -1157,27 +1554,121 @@ impl Store {
         Ok(page)
     }
 
-    pub fn list_wiki_pages(&self, kind: Option<&str>) -> Result<Vec<WikiPage>> {
-        let mut statement = match kind {
-            Some(_) => self.connection.prepare(
-                "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
-                        evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                        source_url
-                 FROM wiki_pages WHERE kind = ?1 ORDER BY last_seen_at DESC",
-            )?,
-            None => self.connection.prepare(
-                "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
-                        evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                        source_url
-                 FROM wiki_pages ORDER BY source_url IS NULL, last_seen_at DESC",
-            )?,
-        };
-        let rows = match kind {
-            Some(k) => statement.query_map(params![k], map_wiki_page)?,
-            None => statement.query_map([], map_wiki_page)?,
-        };
+    /// 列出知识库页面（主列表）。
+    /// - `kind`：按内容类型过滤；`area`：按来源/用途分区过滤（imported/network/insight）。
+    /// - 默认排除派生产物（area=derivative，它们只经 `list_derivatives` 按原文展开读取）。
+    /// - 顺序：有来源 URL 的（素材）在前，其余按最近更新时间倒序。
+    pub fn list_wiki_pages(&self, kind: Option<&str>, area: Option<&str>) -> Result<Vec<WikiPage>> {
+        let mut sql = String::from("SELECT ");
+        sql.push_str(WIKI_PAGE_COLS);
+        sql.push_str(" FROM wiki_pages WHERE 1=1");
+        let mut owned: Vec<String> = Vec::new();
+        match area {
+            Some(a) => {
+                owned.push(a.to_string());
+                sql.push_str(" AND COALESCE(area, 'insight') = ?");
+            }
+            None => sql.push_str(" AND COALESCE(area, 'insight') != 'derivative'"),
+        }
+        if let Some(k) = kind {
+            owned.push(k.to_string());
+            sql.push_str(" AND kind = ?");
+        }
+        sql.push_str(" ORDER BY source_url IS NULL, last_seen_at DESC");
+        let arg_refs: Vec<&dyn rusqlite::ToSql> =
+            owned.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
+        let mut statement = self.connection.prepare(&sql)?;
+        let rows = statement.query_map(arg_refs.as_slice(), map_wiki_page)?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
+    }
+
+    /// 某页的派生产物列表（AI 加工成果：总结/提炼/文案…），按创建时间倒序。
+    pub fn list_derivatives(&self, based_on: &str) -> Result<Vec<WikiPage>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
+                    evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+                    source_url, COALESCE(area, 'insight'), based_on, content_type
+             FROM wiki_pages WHERE based_on = ?1 AND area = 'derivative'
+             ORDER BY created_at DESC",
+        )?;
+        let rows = statement.query_map(params![based_on], map_wiki_page)?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// 创建一个「派生产物」页：对某页加工（总结/提炼观点/文案…）的成果。
+    /// 挂靠原文（based_on + content_type），area=derivative，不进主列表；
+    /// 不修改原文页的任何内容。
+    pub fn create_derivative(
+        &self,
+        based_on_slug: &str,
+        content_type: &str,
+        title: &str,
+        content_md: &str,
+        reason: &str,
+    ) -> Result<WikiPage> {
+        let base = self.get_wiki_page(based_on_slug)?.with_context(|| {
+            format!("知识页不存在：{based_on_slug}（不能对不存在的页面创建派生产物）")
+        })?;
+        let content_md = content_md.trim().to_string();
+        if content_md.is_empty() {
+            anyhow::bail!("派生产物正文为空，无法保存");
+        }
+        let id = Uuid::new_v4().to_string();
+        let slug = format!("der-{}", &id[..8]);
+        let summary: String = content_md
+            .chars()
+            .take(120)
+            .collect::<String>()
+            .trim_end()
+            .to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        let tags_raw = serde_json::to_string(&vec!["派生产物".to_string()])?;
+        self.connection.execute(
+            "INSERT INTO wiki_pages
+             (id, slug, kind, title, summary, content_md, tags, source_event_ids,
+              evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+              source_url, area, based_on, content_type)
+             VALUES (?1, ?2, 'derivative', ?3, ?4, ?5, ?6, '[]', 1,
+                     ?7, ?7, 'active', ?7, ?7, NULL, 'derivative', ?8, ?9)",
+            params![
+                id,
+                slug,
+                title.trim(),
+                summary,
+                content_md,
+                tags_raw,
+                now,
+                base.slug,
+                content_type.trim(),
+            ],
+        )?;
+        self.record_wiki_revision(&id, &content_md, reason, None)?;
+        self.get_wiki_page(&slug)?.context("派生产物创建后读取失败")
+    }
+
+    /// 新建 wiki 页时按 kind / slug / 来源自动推导「来源/用途」分区。
+    /// - `network`：人物（person）、事情/项目（topic/ 前缀）——关系网实体；
+    /// - `imported`：外部素材（kind=source 或有来源 URL，以及 tweet-/note-/import- 前缀的导入页）；
+    /// - `derivative`：派生产物（不经过 draft 新建，但兜底）；
+    /// - 其余（AI 对话沉淀的知识、规则等）→ `insight`。
+    fn derive_wiki_area(kind: &str, slug: &str, source_url: Option<&str>) -> String {
+        if kind == "derivative" {
+            return "derivative".to_string();
+        }
+        if kind == "person" || slug.starts_with("person/") || slug.starts_with("topic/") {
+            return "network".to_string();
+        }
+        if kind == "source"
+            || source_url.is_some()
+            || slug.starts_with("tweet-")
+            || slug.starts_with("note-")
+            || slug.starts_with("import-")
+        {
+            return "imported".to_string();
+        }
+        "insight".to_string()
     }
 
     /// 创建或更新一个 wiki 页面。核心做确定性合并：
@@ -1227,12 +1718,15 @@ impl Store {
             let id = Uuid::new_v4().to_string();
             let sources_raw = serde_json::to_string(&draft.source_event_ids)?;
             let evidence_count = draft.source_event_ids.len().max(1) as i64;
+            // 新建页自动推导分区（旧页保留原分区，见上方 UPDATE 分支）
+            let area =
+                Self::derive_wiki_area(&draft.kind, &draft.slug, draft.source_url.as_deref());
             self.connection.execute(
                 "INSERT INTO wiki_pages
                  (id, slug, kind, title, summary, content_md, tags, source_event_ids,
                   evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                  source_url)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11, ?10, ?10, ?12)",
+                  source_url, area)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11, ?10, ?10, ?12, ?13)",
                 params![
                     id,
                     draft.slug,
@@ -1246,6 +1740,7 @@ impl Store {
                     now,
                     draft.status,
                     draft.source_url,
+                    area,
                 ],
             )?;
             self.record_wiki_revision(&id, &draft.content_md, &draft.reason, None)?;
@@ -1295,7 +1790,12 @@ impl Store {
     /// - 带前缀的 slug（`person/…`、`topic/…` 等）按前缀 + 新标题重算新 slug（撞名自动避让）；
     /// - 无前缀的 slug（`tweet-…`、`kb-…` 等）保留原 slug，只改标题（源资料引用不能断）；
     /// - 标题未变时直接返回 `changed=false`，不做任何写操作。
-    pub fn rename_wiki_page(&self, slug: &str, new_title: &str, reason: &str) -> Result<RenameWikiOutcome> {
+    pub fn rename_wiki_page(
+        &self,
+        slug: &str,
+        new_title: &str,
+        reason: &str,
+    ) -> Result<RenameWikiOutcome> {
         let page = self.get_wiki_page(slug)?.with_context(|| {
             format!(
                 "知识页不存在：{slug}（可能已被改名或删除——如果刚改过名，请用新名字操作，可在对话里列出知识库确认当前名称）"
@@ -1320,7 +1820,11 @@ impl Store {
         }
         // 计算新 slug：带前缀的页面重算（撞名避让），无前缀的保留原 slug
         let new_slug = match slug.rsplit_once('/') {
-            Some((prefix, _)) => crate::wiki::unique_slug(self, &format!("{prefix}/{}", crate::wiki::slugify(&new_title)), &new_title)?,
+            Some((prefix, _)) => crate::wiki::unique_slug(
+                self,
+                &format!("{prefix}/{}", crate::wiki::slugify(&new_title)),
+                &new_title,
+            )?,
             None => slug.to_string(),
         };
         let now = chrono::Utc::now().to_rfc3339();
@@ -1338,12 +1842,14 @@ impl Store {
         // 2) 关系引用迁移
         let mut relations_moved = 0usize;
         if new_slug != slug {
-            relations_moved += tx
-                .execute("UPDATE relations SET from_slug=?1 WHERE from_slug=?2", params![new_slug, slug])?
-                as usize;
-            relations_moved += tx
-                .execute("UPDATE relations SET to_slug=?1 WHERE to_slug=?2", params![new_slug, slug])?
-                as usize;
+            relations_moved += tx.execute(
+                "UPDATE relations SET from_slug=?1 WHERE from_slug=?2",
+                params![new_slug, slug],
+            )? as usize;
+            relations_moved += tx.execute(
+                "UPDATE relations SET to_slug=?1 WHERE to_slug=?2",
+                params![new_slug, slug],
+            )? as usize;
         }
         // 3) 页内聊天会话迁移
         let chats_moved = if new_slug != slug {
@@ -1504,20 +2010,19 @@ impl Store {
         sql.push_str(" ORDER BY created_at ASC");
         let mut statement = self.connection.prepare(&sql)?;
         let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|b| b.as_ref()).collect();
-        let rows = statement
-            .query_map(rusqlite::params_from_iter(param_refs), |row| {
-                let status_str: String = row.get(2)?;
-                Ok(RuleSummary {
-                    id: row.get(0)?,
-                    content: row.get(1)?,
-                    status: if status_str == "pending" {
-                        RuleStatus::Pending
-                    } else {
-                        RuleStatus::Active
-                    },
-                    created_at: row.get(3)?,
-                })
-            })?;
+        let rows = statement.query_map(rusqlite::params_from_iter(param_refs), |row| {
+            let status_str: String = row.get(2)?;
+            Ok(RuleSummary {
+                id: row.get(0)?,
+                content: row.get(1)?,
+                status: if status_str == "pending" {
+                    RuleStatus::Pending
+                } else {
+                    RuleStatus::Active
+                },
+                created_at: row.get(3)?,
+            })
+        })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
     }
@@ -1847,7 +2352,8 @@ impl Store {
         let mut wiki_stmt = self.connection.prepare(
             "SELECT kind, title, substr(content_md, 1, 160)
              FROM wiki_pages
-             WHERE status = 'active' AND (title LIKE ?1 OR content_md LIKE ?1 OR tags LIKE ?1)
+             WHERE status = 'active' AND COALESCE(area, 'insight') != 'derivative'
+               AND (title LIKE ?1 OR content_md LIKE ?1 OR tags LIKE ?1)
              ORDER BY updated_at DESC
              LIMIT ?2",
         )?;
@@ -2064,7 +2570,13 @@ impl Store {
     }
 
     // Message management
-    pub fn send_message(&self, conversation_id: &str, role: &str, content: &str, parent_message_id: Option<&str>) -> Result<String> {
+    pub fn send_message(
+        &self,
+        conversation_id: &str,
+        role: &str,
+        content: &str,
+        parent_message_id: Option<&str>,
+    ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
 
@@ -2228,7 +2740,12 @@ impl StorageAdapter for Store {
         Store::claim_analysis_job(self)
     }
 
-    fn complete_analysis(&self, job: &AnalysisJob, prompt_version: &str, result_json: &str) -> Result<()> {
+    fn complete_analysis(
+        &self,
+        job: &AnalysisJob,
+        prompt_version: &str,
+        result_json: &str,
+    ) -> Result<()> {
         Store::complete_analysis(self, job, prompt_version, result_json)
     }
 
@@ -2259,7 +2776,17 @@ impl StorageAdapter for Store {
         temperature: f64,
         max_tokens: Option<i64>,
     ) -> Result<String> {
-        Store::save_ai_provider_config(self, id, name, provider_type, base_url, model, api_key, temperature, max_tokens)
+        Store::save_ai_provider_config(
+            self,
+            id,
+            name,
+            provider_type,
+            base_url,
+            model,
+            api_key,
+            temperature,
+            max_tokens,
+        )
     }
 
     fn set_active_ai_provider_config(&self, id: &str) -> Result<()> {
@@ -2298,6 +2825,156 @@ mod tests {
     }
 
     #[test]
+    fn analysis_job_stats_cover_every_queue_status() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        assert_eq!(
+            store.analysis_job_stats().unwrap(),
+            AnalysisJobStats::default()
+        );
+
+        for (index, status) in ["pending", "running", "retry", "succeeded", "failed"]
+            .into_iter()
+            .enumerate()
+        {
+            let event_id = store
+                .insert_event(NewEvent::now(&format!("queue status {index}")))
+                .unwrap();
+            store
+                .connection
+                .execute(
+                    "UPDATE analysis_jobs SET status = ?1 WHERE event_id = ?2",
+                    params![status, event_id],
+                )
+                .unwrap();
+        }
+
+        assert_eq!(
+            store.analysis_job_stats().unwrap(),
+            AnalysisJobStats {
+                pending: 1,
+                running: 1,
+                retry: 1,
+                succeeded: 1,
+                failed: 1,
+            }
+        );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn input_record_is_idempotent_and_links_routed_objects() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let first = store
+            .create_input_record(" 今天完成了支付模块 ", "main_input", Some("request-1"))
+            .unwrap();
+        let repeated = store
+            .create_input_record("不同文本也不能重复创建", "main_input", Some("request-1"))
+            .unwrap();
+        assert_eq!(first.id, repeated.id);
+        assert_eq!(repeated.raw_text, "今天完成了支付模块");
+        assert_eq!(repeated.route_status, "pending");
+
+        let event_id = store.insert_event(NewEvent::now(&first.raw_text)).unwrap();
+        let routed = store
+            .update_input_route(&first.id, "routed", Some(&event_id), None, None, None)
+            .unwrap();
+        assert_eq!(routed.event_id.as_deref(), Some(event_id.as_str()));
+        assert_eq!(routed.route_status, "routed");
+        assert!(store
+            .update_input_route(&first.id, "unknown", None, None, None, None)
+            .is_err());
+
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn submit_input_as_event_is_atomic_and_idempotent() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let first = store
+            .submit_input_as_event("今天完成统一输入", "main_input", Some("submit-1"))
+            .unwrap();
+        let repeated = store
+            .submit_input_as_event("不会产生第二条", "main_input", Some("submit-1"))
+            .unwrap();
+        assert_eq!(first.id, repeated.id);
+        assert_eq!(first.route_status, "routed");
+        assert!(first.event_id.is_some());
+        assert_eq!(store.list_events().unwrap().len(), 1);
+        assert_eq!(store.analysis_job_stats().unwrap().pending, 1);
+
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn submit_conversation_input_links_one_message_and_one_event() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let conversation_id = store.create_conversation(None, None).unwrap();
+        let first = store
+            .submit_conversation_input(
+                &conversation_id,
+                "今天完成主循环接线",
+                Some("conv-submit-1"),
+            )
+            .unwrap();
+        let repeated = store
+            .submit_conversation_input(&conversation_id, "重复", Some("conv-submit-1"))
+            .unwrap();
+        assert_eq!(first.id, repeated.id);
+        assert!(first.event_id.is_some());
+        assert!(first.message_id.is_some());
+        assert_eq!(store.list_events().unwrap().len(), 1);
+        assert_eq!(store.list_messages(&conversation_id).unwrap().len(), 1);
+        assert_eq!(store.analysis_job_stats().unwrap().pending, 1);
+
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn daily_entries_unify_legacy_capture_and_conversation_events() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store.insert_event(NewEvent::now("历史事件")).unwrap();
+        store
+            .submit_input_as_event("Capture 事件", "capture", None)
+            .unwrap();
+        let conversation_id = store.create_conversation(None, None).unwrap();
+        store
+            .submit_conversation_input(&conversation_id, "对话事件", None)
+            .unwrap();
+
+        let entries = store
+            .daily_entries(chrono::Local::now().date_naive())
+            .unwrap();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(
+            entries
+                .iter()
+                .filter(|entry| entry.input_id.is_some())
+                .count(),
+            2
+        );
+        assert_eq!(
+            entries
+                .iter()
+                .filter(|entry| entry.message_id.is_some())
+                .count(),
+            1
+        );
+        assert!(entries.iter().any(|entry| entry.raw_text == "历史事件"));
+
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn events_on_date_uses_local_day_boundaries() {
         let path = temporary_database();
         let store = Store::open(&path).unwrap();
@@ -2326,9 +3003,10 @@ mod tests {
         let yesterday_events = store.events_on_date(yesterday).unwrap();
         assert_eq!(yesterday_events.len(), 1);
         assert_eq!(yesterday_events[0].raw_text, "昨天的事件");
-        assert!(
-            store.events_on_date(today - chrono::Duration::days(10)).unwrap().is_empty()
-        );
+        assert!(store
+            .events_on_date(today - chrono::Duration::days(10))
+            .unwrap()
+            .is_empty());
         let _ = std::fs::remove_file(path);
     }
 
@@ -2424,12 +3102,25 @@ mod tests {
         let path = temporary_database();
         let store = Store::open(&path).unwrap();
         let todo = store
-            .create_todo("跟进付款", "normal", Some("2026-09-20"), None, None, Some("原始说明"))
+            .create_todo(
+                "跟进付款",
+                "normal",
+                Some("2026-09-20"),
+                None,
+                None,
+                Some("原始说明"),
+            )
             .unwrap();
 
         // 编辑：标题/说明/优先级/截止都改
         store
-            .update_todo(&todo.id, "跟进双链路付款", Some("已和张玮对齐时间"), Some("high"), Some("2026-09-18"))
+            .update_todo(
+                &todo.id,
+                "跟进双链路付款",
+                Some("已和张玮对齐时间"),
+                Some("high"),
+                Some("2026-09-18"),
+            )
             .unwrap();
         let updated = store.list_todos(None).unwrap();
         assert_eq!(updated.len(), 1);
@@ -2449,7 +3140,9 @@ mod tests {
         assert_eq!(cleared[0].priority, "normal");
 
         // 空标题拒绝
-        assert!(store.update_todo(&todo.id, "   ", None, None, None).is_err());
+        assert!(store
+            .update_todo(&todo.id, "   ", None, None, None)
+            .is_err());
         let _ = std::fs::remove_file(path);
     }
 
@@ -2539,13 +3232,20 @@ mod tests {
         assert_eq!(rels.len(), 1);
         assert_eq!(rels[0].to_slug, "topic/fpso111-尾款");
         // 页内聊天会话已迁移
-        assert!(
-            store.find_wiki_chat_conversation("topic/fpso111-尾款").unwrap().is_some()
-        );
-        assert!(store.find_wiki_chat_conversation("topic/付款流程").unwrap().is_none());
+        assert!(store
+            .find_wiki_chat_conversation("topic/fpso111-尾款")
+            .unwrap()
+            .is_some());
+        assert!(store
+            .find_wiki_chat_conversation("topic/付款流程")
+            .unwrap()
+            .is_none());
         // 修订历史多了一条重命名记录
         assert_eq!(
-            store.list_wiki_revisions("topic/fpso111-尾款").unwrap().len(),
+            store
+                .list_wiki_revisions("topic/fpso111-尾款")
+                .unwrap()
+                .len(),
             before_revisions + 1
         );
 
@@ -2575,7 +3275,9 @@ mod tests {
             source_url: None,
         };
         store.upsert_wiki_page(&src_draft).unwrap();
-        let outcome = store.rename_wiki_page("tweet-123", "新标题", "更正").unwrap();
+        let outcome = store
+            .rename_wiki_page("tweet-123", "新标题", "更正")
+            .unwrap();
         assert!(outcome.changed);
         assert_eq!(outcome.new_slug, "tweet-123", "来源页 slug 应保持不变");
         assert_eq!(
@@ -2604,7 +3306,10 @@ mod tests {
             })
             .unwrap();
         assert!(store.find_wiki_page_by_title(" 张伟 ").unwrap().is_some());
-        assert!(store.find_wiki_page_by_title("不存在的人").unwrap().is_none());
+        assert!(store
+            .find_wiki_page_by_title("不存在的人")
+            .unwrap()
+            .is_none());
         let _ = std::fs::remove_file(path);
     }
 

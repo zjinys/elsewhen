@@ -2,10 +2,21 @@
 
 Personal Event System 的 Rust 本地核心 + Flutter 跨平台 GUI。
 
+项目当前正从“事件、对话、知识库、待办的功能集合”收敛为个人认知主循环：
+
+```text
+随手记录 → AI 理解 → 人物 / 项目 / 认识沉淀 → 每日回顾 / 后续行动
+保存内容 → 阅读理解 → 观点 / 灵感 / 创作素材 → 采用或归档
+```
+
+实施进度见 [`docs/roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md`](docs/roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md)。
+
 ## 架构
 
 - **Rust 核心** (项目根目录)：事件存储、AI 分析、SQLite 数据库、传统 Iced GUI
 - **Flutter UI** (`ui/` 目录)：现代化跨平台 GUI，支持 Linux/macOS/Windows 桌面和 Android/iOS 移动端
+
+目前 Flutter UI 已包含对话、知识库、待办、Capture、AI Provider 设置、网页/文本导入、人物关系和知识页 AI 加工。知识页支持标签、来源分区和派生产物关联。
 
 ## Flutter GUI (推荐)
 
@@ -66,6 +77,8 @@ cargo run -- worker
 ```bash
 cargo run -- analyses
 ```
+
+分析队列的 pending / running / retry / succeeded / failed 数量也可在 Flutter **设置 → 数据 → 事件分析队列** 查看。
 
 ## LLM Wiki 个人知识库与认知推微
 
@@ -165,6 +178,8 @@ cargo test                     # 运行测试
 cargo build --release          # 构建 release
 cargo run -- record "事件"     # CLI 记录事件
 ```
+
+Rust API 发生变化后运行根目录的 `./regen.sh`，它会重新生成 Flutter-Rust Bridge 代码并重建 release 动态库。真实 Bridge 测试使用独立临时数据库，测试代码不得依赖个人数据目录已有内容。
 
 ## 文档
 

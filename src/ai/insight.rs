@@ -65,7 +65,11 @@ const SYSTEM_PROMPT: &str = r#"你是"认知推微"引擎。输入有两部分�
 输出：严格 JSON 数组，不要输出任何其他文字或代码块标记。
 [{"lens":"1|2|3|4","title":"一句话标题，反常识、让人眼前一亮","observation":"详细认知拆解，引用具体事实","source_slugs":["<引用的wiki页slug>"],"related_events":["事件原文片段"],"action":"具体、可执行的第一步行动建议，可为空字符串"}]"#;
 
-fn build_user_prompt(events: &[EventSummary], pages: &[crate::storage::WikiPage], past: &[crate::storage::InsightSummary]) -> String {
+fn build_user_prompt(
+    events: &[EventSummary],
+    pages: &[crate::storage::WikiPage],
+    past: &[crate::storage::InsightSummary],
+) -> String {
     let mut out = String::from("这是用户最近的事件记录（时间 | 内容）：\n");
     for e in events {
         out.push_str(&format!("- {} | {}\n", e.recorded_at, e.raw_text));
@@ -180,7 +184,7 @@ pub fn generate_insights(store: &Store, options: &InsightOptions) -> Result<Vec<
     }
 
     // 导航知识库
-    let all_pages = store.list_wiki_pages(None)?;
+    let all_pages = store.list_wiki_pages(None, None)?;
     let pages = wiki::select_context_pages(all_pages, INSIGHT_KINDS, 6000);
     let past = store.list_insights()?;
 

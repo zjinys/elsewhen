@@ -410,6 +410,16 @@ class _WikiTab extends ConsumerStatefulWidget {
 /// 知识库列表排序方式
 enum _WikiSort { updated, evidence, title }
 
+/// 知识库按「来源/用途」分区
+enum _WikiArea { all, imported, network, insight }
+
+String _areaLabel(_WikiArea area) => switch (area) {
+      _WikiArea.all => '全部',
+      _WikiArea.imported => '素材库',
+      _WikiArea.network => '人物/项目',
+      _WikiArea.insight => '知识沉淀',
+    };
+
 class _WikiTabState extends ConsumerState<_WikiTab> {
   String _query = '';
   // null = 全部
@@ -417,6 +427,7 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
   // null = 全部标签
   String? _tagFilter;
   _WikiSort _sort = _WikiSort.updated;
+  _WikiArea _area = _WikiArea.all;
 
   /// 按当前排序方式就地排序
   void _sortPages(List<WikiPage> pages) {
@@ -495,8 +506,13 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
               }
               final allTags = tagCounts.keys.toList()..sort();
 
-              // kind + 标签 + 搜索
+              // 分区 + kind + 标签 + 搜索
+              final areaFilter =
+                  _area == _WikiArea.all ? null : _area.name;
               final filtered = pages.where((page) {
+                if (areaFilter != null && page.area != areaFilter) {
+                  return false;
+                }
                 if (_kindFilter != null && page.kindLabel != _kindFilter) {
                   return false;
                 }
@@ -513,13 +529,6 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                 }
                 return true;
               }).toList();
-
-              if (filtered.isEmpty) {
-                return const _EmptyState(
-                  icon: Icons.search_off,
-                  message: '没有匹配的页面',
-                );
-              }
 
               _sortPages(filtered);
 
@@ -553,6 +562,31 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                           value: _sort,
                           onChanged: (v) => setState(() => _sort = v),
                         ),
+                      ],
+                    ),
+                  ),
+                  // 分区过滤 chips（来源/用途：素材库 / 人物项目 / 知识沉淀）
+                  SizedBox(
+                    height: 34,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.space3,
+                      ),
+                      children: [
+                        for (final area in _WikiArea.values)
+                          _FilterChip(
+                            label: _areaLabel(area),
+                            count: area == _WikiArea.all
+                                ? pages.length
+                                : pages.where((p) => p.area == area.name).length,
+                            selected: _area == area,
+                            onTap: () => setState(() {
+                              _area = area;
+                              _kindFilter = null;
+                              _tagFilter = null;
+                            }),
+                          ),
                       ],
                     ),
                   ),

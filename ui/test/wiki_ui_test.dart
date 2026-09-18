@@ -5,25 +5,33 @@ import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/screens/main_screen.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
 
+import 'support/isolated_bridge.dart';
+
 /// Headless UI verification of the left sidebar（对话 / 知识库 / 待办 tabs + 设置入口）
-/// and the wiki browsing flow, driven by the REAL Rust bridge.
-/// 只读：不依赖外部 demo 数据，从活动知识库里选真实页面验证。
-/// Run with: ELSEWHEN_DATA_DIR=/tmp/opencode/frb-wiki-test flutter test test/wiki_ui_test.dart
+/// and the wiki browsing flow, driven by the REAL Rust bridge and an isolated DB.
 void main() {
-  testWidgets('left sidebar tabs + wiki browsing with real bridge',
-      (tester) async {
+  testWidgets('left sidebar tabs + wiki browsing with real bridge', (
+    tester,
+  ) async {
     // 接近真实主窗口（1920×1080）的测试画布，避免小屏导致 ListView 懒渲染
     // 把详情正文挤出视口
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final repo = RustBridgeRepository();
-    await tester.runAsync(() => repo.initialize());
+    final repo = await tester.runAsync(createIsolatedBridge);
+    final bridge = repo!;
+    await tester.runAsync(
+      () => bridge.saveTextPage(
+        text: '用于验证知识库浏览 UI 的测试内容。',
+        title: '隔离知识页',
+        tags: const ['test'],
+      ),
+    );
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [storageRepositoryProvider.overrideWithValue(repo)],
+        overrides: [storageRepositoryProvider.overrideWithValue(bridge)],
         child: const MaterialApp(home: MainScreen()),
       ),
     );
@@ -42,7 +50,8 @@ void main() {
     await tester.tap(find.text('知识库'));
     await tester.pump();
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 500)));
+      () => Future<void>.delayed(const Duration(milliseconds: 500)),
+    );
     await tester.pump();
 
     // 新 UI：搜索框 + kind 过滤 chips + 分组列表
@@ -50,8 +59,7 @@ void main() {
     expect(find.textContaining('全部'), findsWidgets, reason: '应有「全部」过滤 chip');
 
     // 4. 用真实桥接读取页面列表，取列表里真实存在的一页做浏览验证
-    final pages =
-        await tester.runAsync(() => repo.listWikiPages());
+    final pages = await tester.runAsync(() => bridge.listWikiPages());
     expect(pages, isNotNull);
     final all = pages ?? [];
     expect(all, isNotEmpty, reason: '知识库应至少有一页');
@@ -79,7 +87,8 @@ void main() {
     await tester.tap(find.text(title).first);
     await tester.pump();
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 300)));
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
     await tester.pump();
 
     // 详情视图：标题（在头部重复出现）+ 证据 + AI 处理面板标题

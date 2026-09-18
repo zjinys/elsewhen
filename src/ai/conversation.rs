@@ -1,9 +1,11 @@
+use super::memory::{
+    estimate_tokens, ContextMessage, MemoryProvider, SimpleMemory, SlidingWindowMemory,
+};
+use super::provider::{AiProvider, OllamaProvider, OpenAiCompatibleProvider, TokenUsage};
+use super::tool::{dispatch, execute_pending_action, ToolCall, ToolRegistry};
 use crate::storage::{RuleStatus, Store};
 use anyhow::{Context, Result};
 use serde_json::Value;
-use super::memory::{estimate_tokens, ContextMessage, MemoryProvider, SimpleMemory, SlidingWindowMemory};
-use super::provider::{AiProvider, OpenAiCompatibleProvider, OllamaProvider, TokenUsage};
-use super::tool::{dispatch, execute_pending_action, ToolCall, ToolRegistry};
 
 /// Configuration for AI conversation
 pub struct ConversationConfig {
@@ -156,7 +158,13 @@ pub fn generate_conversation_reply(
 
     // 4) Agent 循环（可调工具）
     let registry = ToolRegistry::default();
-    let outcome = run_agent_loop(&*ai_provider, &mut context, &registry, store, conversation_id)?;
+    let outcome = run_agent_loop(
+        &*ai_provider,
+        &mut context,
+        &registry,
+        store,
+        conversation_id,
+    )?;
     let raw = outcome.content;
 
     // 5) 解析规则提议：若 AI 在末尾提交了一条规则，剥离标记转为友好提示展示，
@@ -178,10 +186,21 @@ pub fn generate_conversation_reply(
     }
 
     // 6) 记录 token 用量：优先 provider 返回的 usage（累计），缺失则本地估算
-    let prompt_est: u64 = context.iter().map(|m| estimate_tokens(&m.content) as u64).sum();
+    let prompt_est: u64 = context
+        .iter()
+        .map(|m| estimate_tokens(&m.content) as u64)
+        .sum();
     let completion_est = estimate_tokens(&content) as u64;
-    let prompt = if outcome.prompt_tokens > 0 { outcome.prompt_tokens } else { prompt_est };
-    let completion = if outcome.completion_tokens > 0 { outcome.completion_tokens } else { completion_est };
+    let prompt = if outcome.prompt_tokens > 0 {
+        outcome.prompt_tokens
+    } else {
+        prompt_est
+    };
+    let completion = if outcome.completion_tokens > 0 {
+        outcome.completion_tokens
+    } else {
+        completion_est
+    };
     store.record_token_usage(
         Some(conversation_id),
         prompt as i64,
@@ -337,7 +356,9 @@ fn run_agent_loop(
         // 原生 tool-calls：回传 assistant(tool_calls) + 工具结果
         if !reply.tool_calls.is_empty() {
             protocol = Some(ToolProtocol::Native);
-            context.push(ContextMessage::assistant_with_tool_calls(reply.tool_calls.clone()));
+            context.push(ContextMessage::assistant_with_tool_calls(
+                reply.tool_calls.clone(),
+            ));
             for call in &reply.tool_calls {
                 let result = dispatch(call, registry, store, conversation_id);
                 eprintln!(
@@ -437,10 +458,7 @@ fn extract_one_tool_call(content: &str) -> Option<(String, ToolCall)> {
     let call = ToolCall::from_json(&parsed)?;
 
     // 移除标记所在整行
-    let line_start = content[..idx]
-        .rfind('\n')
-        .map(|i| i + 1)
-        .unwrap_or(0);
+    let line_start = content[..idx].rfind('\n').map(|i| i + 1).unwrap_or(0);
     let line_end_full = content[idx..]
         .find('\n')
         .map(|i| idx + i + 1)
@@ -531,17 +549,45 @@ fn is_confirmation(text: &str) -> bool {
         return false;
     }
     const WORDS: [&str; 31] = [
-        "好", "好的", "好呀", "好啊", "好嘞", "好哒", "嗯", "嗯嗯", "可以", "可以啊",
-        "行", "行吧", "行啊", "没问题", "同意", "当然", "当然可以", "记下", "记下来",
-        "记", "加上", "加", "ok", "是", "是的", "就这么办", "就这样", "确认",
-        "确认了", "保存", "存",
+        "好",
+        "好的",
+        "好呀",
+        "好啊",
+        "好嘞",
+        "好哒",
+        "嗯",
+        "嗯嗯",
+        "可以",
+        "可以啊",
+        "行",
+        "行吧",
+        "行啊",
+        "没问题",
+        "同意",
+        "当然",
+        "当然可以",
+        "记下",
+        "记下来",
+        "记",
+        "加上",
+        "加",
+        "ok",
+        "是",
+        "是的",
+        "就这么办",
+        "就这样",
+        "确认",
+        "确认了",
+        "保存",
+        "存",
     ];
     if WORDS.contains(&t.as_str()) {
         return true;
     }
     // 语气尾字：允许确认词后跟≤2个语气字（如「好」「好的」「好的呀」）
     const TAIL: [char; 16] = [
-        '了', '吧', '啊', '呀', '哦', '噢', '嘛', '哈', '哒', '嘞', '嗯', '啦', '哟', '呗', '的', '好',
+        '了', '吧', '啊', '呀', '哦', '噢', '嘛', '哈', '哒', '嘞', '嗯', '啦', '哟', '呗', '的',
+        '好',
     ];
     for w in WORDS {
         if let Some(rest) = t.strip_prefix(w) {
@@ -555,7 +601,10 @@ fn is_confirmation(text: &str) -> bool {
         }
     }
     // 兼容「确认一下」「记下来吧」这类短确认句式（确认词≥2 字 + 整体很短）
-    t.chars().count() <= 6 && WORDS.iter().any(|w| w.chars().count() >= 2 && t.starts_with(w))
+    t.chars().count() <= 6
+        && WORDS
+            .iter()
+            .any(|w| w.chars().count() >= 2 && t.starts_with(w))
 }
 
 /// 明确的拒绝/否定词：用于丢弃待确认项。
@@ -566,16 +615,38 @@ fn is_declination(text: &str) -> bool {
         return false;
     }
     const WORDS: [&str; 23] = [
-        "不", "不用", "不用了", "算了", "算了吧", "不了", "不需要", "不需要了",
-        "不要", "不要了", "没必要", "先不用", "先不", "先别", "暂不", "放着",
-        "先放着", "以后再说", "不存", "取消", "不行", "不弄", "删掉",
+        "不",
+        "不用",
+        "不用了",
+        "算了",
+        "算了吧",
+        "不了",
+        "不需要",
+        "不需要了",
+        "不要",
+        "不要了",
+        "没必要",
+        "先不用",
+        "先不",
+        "先别",
+        "暂不",
+        "放着",
+        "先放着",
+        "以后再说",
+        "不存",
+        "取消",
+        "不行",
+        "不弄",
+        "删掉",
     ];
     if WORDS.contains(&t.as_str()) {
         return true;
     }
     // 整体很短 + 以否定词开头 → 视为拒绝（如「不用记」「先别存」）
     t.chars().count() <= 6
-        && WORDS.iter().any(|w| w.chars().count() >= 2 && t.starts_with(w))
+        && WORDS
+            .iter()
+            .any(|w| w.chars().count() >= 2 && t.starts_with(w))
 }
 
 /// 处理本会话的规则提议：确认则转正生效并返回规则文本（供注入 AI 上下文）；
@@ -615,7 +686,10 @@ fn handle_rule_proposal_confirmation(
 /// 处理本会话的待确认写动作：确认则执行（写真源），明确拒绝则丢弃；
 /// 其他消息保留待确认（之后回「好」仍可生效）。
 /// 返回执行成功后的摘要（供下一轮回复确认用）。
-fn handle_pending_action_confirmation(store: &Store, conversation_id: &str) -> Result<Option<String>> {
+fn handle_pending_action_confirmation(
+    store: &Store,
+    conversation_id: &str,
+) -> Result<Option<String>> {
     let pendings = store.pending_actions_for_conversation(conversation_id)?;
     if pendings.is_empty() {
         return Ok(None);
@@ -662,10 +736,7 @@ fn parse_rule_proposal(content: &str) -> (String, Option<String>) {
         return (content.to_string(), None);
     }
     // 从消息中移除提议所在行
-    let line_start = content[..idx]
-        .rfind('\n')
-        .map(|i| i + 1)
-        .unwrap_or(0);
+    let line_start = content[..idx].rfind('\n').map(|i| i + 1).unwrap_or(0);
     let line_end = content[idx..]
         .find('\n')
         .map(|i| i + idx + 1)
@@ -695,7 +766,10 @@ mod tests {
     fn temporary_database() -> (Store, std::path::PathBuf) {
         let path = std::env::temp_dir().join(format!(
             "elsewhen-conversation-loop-test-{}.db",
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         let store = Store::open(&path).unwrap();
         (store, path)
@@ -751,19 +825,61 @@ mod tests {
     #[test]
     fn confirmation_words() {
         for yes in [
-            "好", "好的", "好呀", "嗯嗯", "可以", "没问题", "行吧", "记下", "ok", "OK", "好的！", "就这么办", "确认",
-            "确认一下", "记下来吧", "好，", "好。", "「好」", "“好”", "好的呀", "好嘞", "嗯！",
+            "好",
+            "好的",
+            "好呀",
+            "嗯嗯",
+            "可以",
+            "没问题",
+            "行吧",
+            "记下",
+            "ok",
+            "OK",
+            "好的！",
+            "就这么办",
+            "确认",
+            "确认一下",
+            "记下来吧",
+            "好，",
+            "好。",
+            "「好」",
+            "“好”",
+            "好的呀",
+            "好嘞",
+            "嗯！",
         ] {
             assert!(is_confirmation(yes), "应识别为确认: {yes}");
         }
-        for no in ["不好", "再看看", "这条规则不太好", "好烦啊", "讲到另外一件事了", "不用", "先别记", "不行就打电话", "好的句子咋写啊"] {
+        for no in [
+            "不好",
+            "再看看",
+            "这条规则不太好",
+            "好烦啊",
+            "讲到另外一件事了",
+            "不用",
+            "先别记",
+            "不行就打电话",
+            "好的句子咋写啊",
+        ] {
             assert!(!is_confirmation(no), "不应识别为确认: {no}");
         }
     }
 
     #[test]
     fn declination_words() {
-        for yes in ["不用", "不用了", "算了", "不要", "不存", "先不用", "以后再说", "不用记了", "暂不", "取消", "先放着"] {
+        for yes in [
+            "不用",
+            "不用了",
+            "算了",
+            "不要",
+            "不存",
+            "先不用",
+            "以后再说",
+            "不用记了",
+            "暂不",
+            "取消",
+            "先放着",
+        ] {
             assert!(is_declination(yes), "应识别为拒绝: {yes}");
         }
         for no in ["好", "好的", "不行就再打电话", "我先看看", "明天再说吧"] {
@@ -778,7 +894,10 @@ mod tests {
         let rule = rule.expect("应有提议规则");
         assert!(rule.starts_with("和大型企业的人沟通"), "规则文本: {rule}");
         assert!(!shown.contains("[规则提议]"), "展示文本不应含原始标记");
-        assert!(shown.contains("建议沉淀成一条个人规则"), "展示文本应含友好提示: {shown}");
+        assert!(
+            shown.contains("建议沉淀成一条个人规则"),
+            "展示文本应含友好提示: {shown}"
+        );
     }
 
     #[test]
@@ -796,7 +915,10 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].name, "list_rules");
         assert!(!clean.contains("[工具调用]"), "信封应被剥离: {clean}");
-        assert!(clean.contains("我帮你查一下规则库"), "其余文本应保留: {clean}");
+        assert!(
+            clean.contains("我帮你查一下规则库"),
+            "其余文本应保留: {clean}"
+        );
     }
 
     #[test]
@@ -835,16 +957,25 @@ mod tests {
 
         let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv).unwrap();
         assert_eq!(outcome.content, "规则库查好了。");
-        assert!(provider.saw_tools_on_first_call(), "首轮应携带原生 tools 清单");
+        assert!(
+            provider.saw_tools_on_first_call(),
+            "首轮应携带原生 tools 清单"
+        );
 
         // 上下文里应有 assistant(tool_calls) 回传 + tool 结果
-        let tool_result = context.iter().find(|m| m.role == "tool").expect("应有 tool 结果消息");
+        let tool_result = context
+            .iter()
+            .find(|m| m.role == "tool")
+            .expect("应有 tool 结果消息");
         assert!(
             !tool_result.tool_call_id.as_deref().unwrap_or("").is_empty(),
             "tool 消息应带 tool_call_id"
         );
 
-        let assistant_echo = context.iter().find(|m| m.tool_calls.is_some()).expect("应有 assistant 回传");
+        let assistant_echo = context
+            .iter()
+            .find(|m| m.tool_calls.is_some())
+            .expect("应有 assistant 回传");
         assert_eq!(assistant_echo.tool_calls.as_ref().unwrap().len(), 1);
 
         let _ = &provider;
@@ -860,7 +991,9 @@ mod tests {
         let registry = ToolRegistry::default();
 
         let provider = ScriptedProvider::new(vec![
-            Ok(AiReply::text("[工具调用]{\"name\":\"get_daily_token_usage\",\"arguments\":{}}")),
+            Ok(AiReply::text(
+                "[工具调用]{\"name\":\"get_daily_token_usage\",\"arguments\":{}}",
+            )),
             Ok(AiReply::text("最近没有 AI 调用记录。")),
         ]);
 
@@ -872,7 +1005,11 @@ mod tests {
             .iter()
             .find(|m| m.role == "system" && m.content.contains("工具「get_daily_token_usage」"))
             .expect("应有工具结果 system 消息");
-        assert!(result_msg.content.contains("没有 AI 调用记录"), "{}", result_msg.content);
+        assert!(
+            result_msg.content.contains("没有 AI 调用记录"),
+            "{}",
+            result_msg.content
+        );
 
         drop(store);
         let _ = std::fs::remove_file(path);
@@ -931,7 +1068,10 @@ mod tests {
         assert!(summary.contains("已保存事件"), "{summary}");
         // 真源已写入，pending 已清空
         assert_eq!(store.list_events().unwrap().len(), 1);
-        assert!(store.pending_actions_for_conversation(&conv).unwrap().is_empty());
+        assert!(store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty());
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -948,7 +1088,9 @@ mod tests {
             )
             .unwrap();
         // 用户夹了一条普通消息，草稿不应被误删
-        store.send_message(&conv, "user", "看看我今天都做了什么", None).unwrap();
+        store
+            .send_message(&conv, "user", "看看我今天都做了什么", None)
+            .unwrap();
 
         let summary = handle_pending_action_confirmation(&store, &conv).unwrap();
         assert!(summary.is_none(), "未确认不应执行");
@@ -975,14 +1117,19 @@ mod tests {
                 &json!({"raw_text": "等对方回电如果当天没回复第二天发消息跟进"}).to_string(),
             )
             .unwrap();
-        store.send_message(&conv, "user", "中间插了一句别的事情", None).unwrap();
+        store
+            .send_message(&conv, "user", "中间插了一句别的事情", None)
+            .unwrap();
         store.send_message(&conv, "user", "好", None).unwrap();
 
         let summary = handle_pending_action_confirmation(&store, &conv).unwrap();
         let summary = summary.expect("确认后应执行");
         assert!(summary.contains("已保存事件"), "{summary}");
         assert_eq!(store.list_events().unwrap().len(), 1);
-        assert!(store.pending_actions_for_conversation(&conv).unwrap().is_empty());
+        assert!(store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty());
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -998,12 +1145,23 @@ mod tests {
                 &json!({"raw_text": "草拟的事件"}).to_string(),
             )
             .unwrap();
-        store.send_message(&conv, "user", "不用了，先放着", None).unwrap();
+        store
+            .send_message(&conv, "user", "不用了，先放着", None)
+            .unwrap();
 
         let summary = handle_pending_action_confirmation(&store, &conv).unwrap();
         assert!(summary.is_none());
-        assert!(store.list_events().unwrap().is_empty(), "拒绝后不应写入真源");
-        assert!(store.pending_actions_for_conversation(&conv).unwrap().is_empty(), "拒绝应清掉草稿");
+        assert!(
+            store.list_events().unwrap().is_empty(),
+            "拒绝后不应写入真源"
+        );
+        assert!(
+            store
+                .pending_actions_for_conversation(&conv)
+                .unwrap()
+                .is_empty(),
+            "拒绝应清掉草稿"
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1014,17 +1172,28 @@ mod tests {
         let conv_a = store.create_conversation(Some("a"), None).unwrap();
         let conv_b = store.create_conversation(Some("b"), None).unwrap();
         store
-            .add_rule("A 会话的规则", crate::storage::RuleStatus::Pending, Some(&conv_a))
+            .add_rule(
+                "A 会话的规则",
+                crate::storage::RuleStatus::Pending,
+                Some(&conv_a),
+            )
             .unwrap();
         store
-            .add_rule("B 会话的规则", crate::storage::RuleStatus::Pending, Some(&conv_b))
+            .add_rule(
+                "B 会话的规则",
+                crate::storage::RuleStatus::Pending,
+                Some(&conv_b),
+            )
             .unwrap();
         store.send_message(&conv_a, "user", "好", None).unwrap();
 
         let promoted = handle_rule_proposal_confirmation(&store, &conv_a).unwrap();
         let promoted = promoted.expect("A 会话确认应转正规则");
         assert!(promoted.contains("A 会话的规则"), "{promoted}");
-        assert!(!promoted.contains("B 会话的规则"), "不应包含别会话的规则: {promoted}");
+        assert!(
+            !promoted.contains("B 会话的规则"),
+            "不应包含别会话的规则: {promoted}"
+        );
 
         let still_pending = store
             .list_rules(Some(crate::storage::RuleStatus::Pending), None)
@@ -1041,14 +1210,23 @@ mod tests {
         let (store, path) = temporary_database();
         let conv = store.create_conversation(Some("t"), None).unwrap();
         store
-            .add_rule("暂存待确认的规则", crate::storage::RuleStatus::Pending, Some(&conv))
+            .add_rule(
+                "暂存待确认的规则",
+                crate::storage::RuleStatus::Pending,
+                Some(&conv),
+            )
             .unwrap();
-        store.send_message(&conv, "user", "我看看今天的安排", None).unwrap();
+        store
+            .send_message(&conv, "user", "我看看今天的安排", None)
+            .unwrap();
 
         let promoted = handle_rule_proposal_confirmation(&store, &conv).unwrap();
         assert!(promoted.is_none(), "普通消息不应触发转正");
         assert_eq!(
-            store.list_rules(Some(crate::storage::RuleStatus::Pending), Some(&conv)).unwrap().len(),
+            store
+                .list_rules(Some(crate::storage::RuleStatus::Pending), Some(&conv))
+                .unwrap()
+                .len(),
             1,
             "穿插消息不应误删待确认规则"
         );
@@ -1056,7 +1234,10 @@ mod tests {
         store.send_message(&conv, "user", "好", None).unwrap();
         let promoted = handle_rule_proposal_confirmation(&store, &conv).unwrap();
         assert!(promoted.is_some(), "之后回「好」仍应转正");
-        assert!(store.list_rules(Some(crate::storage::RuleStatus::Pending), Some(&conv)).unwrap().is_empty());
+        assert!(store
+            .list_rules(Some(crate::storage::RuleStatus::Pending), Some(&conv))
+            .unwrap()
+            .is_empty());
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1078,7 +1259,11 @@ mod tests {
     fn direct_query_matches_rules_question() {
         let (store, path) = temporary_database();
         store
-            .add_rule("和大型企业的人沟通重要事项必须留痕", crate::storage::RuleStatus::Active, None)
+            .add_rule(
+                "和大型企业的人沟通重要事项必须留痕",
+                crate::storage::RuleStatus::Active,
+                None,
+            )
             .unwrap();
         let hit = direct_query(&store, "我的规则库里现在有哪些规则？").expect("应命中规则直查");
         assert_eq!(hit.0, "个人规则库");
@@ -1090,7 +1275,11 @@ mod tests {
     #[test]
     fn direct_query_ignores_normal_questions() {
         let (store, path) = temporary_database();
-        for q in ["张玮有和太极沟通吗", "帮我记录一下今天的事", "把这条存进知识库"] {
+        for q in [
+            "张玮有和太极沟通吗",
+            "帮我记录一下今天的事",
+            "把这条存进知识库",
+        ] {
             assert!(direct_query(&store, q).is_none(), "不应命中: {q}");
         }
         drop(store);

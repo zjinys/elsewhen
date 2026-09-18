@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/conversation.dart';
 import '../bridge/rust_bridge_repository.dart';
 
@@ -39,8 +40,16 @@ class ConversationRepository {
   }
 
   /// Send a message in a conversation
-  Future<Message> sendMessage(String conversationId, String content) async {
-    return await _bridge.sendMessage(conversationId, 'user', content);
+  Future<Message> sendMessage(
+    String conversationId,
+    String content, {
+    String? idempotencyKey,
+  }) async {
+    return await _bridge.submitConversationInput(
+      conversationId,
+      content,
+      idempotencyKey: idempotencyKey,
+    );
   }
 
   /// Trigger AI generation of an assistant reply for the conversation
@@ -64,7 +73,9 @@ final showArchivedProvider = StateProvider<bool>((ref) => false);
 final conversationsProvider = FutureProvider<List<Conversation>>((ref) async {
   final repo = ref.read(conversationRepositoryProvider);
   final showArchived = ref.watch(showArchivedProvider);
-  return showArchived ? await repo.getArchivedConversations() : await repo.getConversations();
+  return showArchived
+      ? await repo.getArchivedConversations()
+      : await repo.getConversations();
 });
 
 /// Selected conversation ID provider
@@ -73,15 +84,12 @@ final selectedConversationIdProvider = StateProvider<String?>((ref) => null);
 /// 会话内的临时提示气泡（如 AI 回复失败）。
 /// 仅存在于内存、不写库 —— 不会进入对话历史、记忆注入或后续 AI 上下文。
 /// key 为 conversationId；发送新消息或切库刷新后即可清空。
-final conversationNoticeProvider =
-    StateProvider<Map<String, List<String>>>((ref) => const {});
+final conversationNoticeProvider = StateProvider<Map<String, List<String>>>(
+  (ref) => const {},
+);
 
 /// 追加一条会话临时提示（需在 widget 内调用，传入可选 ref 直接取 notifier）
-void addConversationNotice(
-  WidgetRef ref,
-  String conversationId,
-  String text,
-) {
+void addConversationNotice(WidgetRef ref, String conversationId, String text) {
   final notifier = ref.read(conversationNoticeProvider.notifier);
   final current = notifier.state;
   notifier.state = {

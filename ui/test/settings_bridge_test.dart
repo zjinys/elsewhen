@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
 
+import 'support/isolated_bridge.dart';
+
 /// 设置页接线验证（真实 FFI）：
 /// ① 多配置 AI provider 保存/读取往返（api_key 安全设计：明文只上行、不回传，
 ///    用 api_key_source 标记「已配置」）
@@ -12,8 +14,7 @@ void main() {
   late RustBridgeRepository repo;
 
   setUpAll(() async {
-    repo = RustBridgeRepository();
-    await repo.initialize();
+    repo = await createIsolatedBridge();
   });
 
   test('AI provider config save/list roundtrip (api_key 不回传)', () async {
@@ -23,18 +24,20 @@ void main() {
     const upKey = 'sk-test-123';
 
     // 新建配置：id 传空串表示新建，api_key 传明文（保存时上行）
-    final id = await repo.saveAiProviderConfig(api.AiProviderConfigDto(
-      id: '',
-      name: testName,
-      providerType: 'openai-compatible',
-      baseUrl: upUrl,
-      model: upModel,
-      apiKeySource: '',
-      apiKey: upKey,
-      isActive: false,
-      temperature: 0.7,
-      maxTokens: null,
-    ));
+    final id = await repo.saveAiProviderConfig(
+      api.AiProviderConfigDto(
+        id: '',
+        name: testName,
+        providerType: 'openai-compatible',
+        baseUrl: upUrl,
+        model: upModel,
+        apiKeySource: '',
+        apiKey: upKey,
+        isActive: false,
+        temperature: 0.7,
+        maxTokens: null,
+      ),
+    );
     expect(id, isNotEmpty, reason: '保存应返回新配置 id');
 
     try {
@@ -44,9 +47,14 @@ void main() {
       expect(created.model, upModel);
       // 安全设计：明文 key 只在保存时上行，读取回传空串
       expect(created.apiKey, isEmpty, reason: 'api_key 出于安全不回传');
-      expect(created.apiKeySource, 'database',
-          reason: 'apiKeySource 应标注为已配置（数据库来源）');
-      print('✓ AI provider config roundtrip OK: ${created.name} @ ${created.baseUrl}');
+      expect(
+        created.apiKeySource,
+        'database',
+        reason: 'apiKeySource 应标注为已配置（数据库来源）',
+      );
+      print(
+        '✓ AI provider config roundtrip OK: ${created.name} @ ${created.baseUrl}',
+      );
     } finally {
       // 清理测试配置，避免污染共享测试库
       await repo.deleteAiProviderConfig(id);
@@ -63,5 +71,22 @@ void main() {
       expect(day.totalTokens, greaterThanOrEqualTo(0));
       expect(day.callCount, greaterThanOrEqualTo(0));
     }
+  });
+
+  test('analysis job stats expose durable queue statuses', () async {
+    final before = await repo.getAnalysisJobStats();
+    expect(before.pending, 0);
+    expect(before.running, 0);
+    expect(before.retry, 0);
+    expect(before.succeeded, 0);
+    expect(before.failed, 0);
+
+    await repo.recordEvent('需要进入分析队列的隔离测试事件');
+    final after = await repo.getAnalysisJobStats();
+    expect(after.pending, 1);
+    expect(after.running, 0);
+    expect(after.retry, 0);
+    expect(after.succeeded, 0);
+    expect(after.failed, 0);
   });
 }

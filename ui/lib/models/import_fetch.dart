@@ -3,12 +3,14 @@ import '../bridge/generated.dart/api.dart' as api;
 /// 任意 URL 抓取结果（推文或普通网页；尚未入库）
 class ImportFetch {
   final String sourceUrl;
+
   /// "tweet" | "webpage"
   final String sourceKind;
   final String? title;
   final String contentMd;
   final String? authorName;
   final String? screenName;
+  final String? inputRecordId;
 
   const ImportFetch({
     required this.sourceUrl,
@@ -17,6 +19,7 @@ class ImportFetch {
     required this.contentMd,
     this.authorName,
     this.screenName,
+    this.inputRecordId,
   });
 
   factory ImportFetch.fromDto(api.ImportUrlDto dto) {
@@ -29,6 +32,16 @@ class ImportFetch {
       screenName: dto.screenName,
     );
   }
+
+  ImportFetch withInputRecord(String id) => ImportFetch(
+    sourceUrl: sourceUrl,
+    sourceKind: sourceKind,
+    title: title,
+    contentMd: contentMd,
+    authorName: authorName,
+    screenName: screenName,
+    inputRecordId: id,
+  );
 
   bool get isTweet => sourceKind == 'tweet';
 

@@ -141,7 +141,11 @@ pub fn build_index_md(pages: &[WikiPage]) -> String {
 }
 
 /// 选取用于 prompt 上下文的页面（数量与字符上限）
-pub fn select_context_pages(pages: Vec<WikiPage>, kinds: &[&str], max_chars: usize) -> Vec<WikiPage> {
+pub fn select_context_pages(
+    pages: Vec<WikiPage>,
+    kinds: &[&str],
+    max_chars: usize,
+) -> Vec<WikiPage> {
     let mut picked: Vec<WikiPage> = pages
         .into_iter()
         .filter(|p| p.status != "archived" && kinds.contains(&p.kind.as_str()))
@@ -339,7 +343,9 @@ struct FxTweetContent {
 pub fn extract_tweet_id(url: &str) -> Option<String> {
     let base = url.split(['?', '#']).next()?;
     let segments: Vec<&str> = base.split('/').collect();
-    let pos = segments.iter().position(|s| s.eq_ignore_ascii_case("status"))?;
+    let pos = segments
+        .iter()
+        .position(|s| s.eq_ignore_ascii_case("status"))?;
     let id = segments.get(pos + 1)?;
     if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
         return None;
@@ -399,7 +405,10 @@ fn fetch_tweet(tweet_id: &str) -> Result<FxTweetContent> {
     let url = format!("https://api.fxtwitter.com/status/{tweet_id}?long_mode=true");
     let resp = client
         .get(&url)
-        .header("User-Agent", "elsewhen/0.1 (local-first personal knowledge base)")
+        .header(
+            "User-Agent",
+            "elsewhen/0.1 (local-first personal knowledge base)",
+        )
         .send()
         .context("请求 fxtwitter 失败")?;
     let parsed: FxTwitterResponse = resp.json().context("解析 fxtwitter 响应失败")?;
@@ -423,11 +432,7 @@ pub fn fetch_tweet_text(url: &str) -> Result<TweetText> {
 
 /// 把已抓取的推文内容保存为知识库页面（kind=source）。
 /// 同一推文重复保存 = 更新同一页（upsert）。
-pub fn save_tweet_page(
-    t: &TweetText,
-    source_url: Option<&str>,
-    store: &Store,
-) -> Result<WikiPage> {
+pub fn save_tweet_page(t: &TweetText, source_url: Option<&str>, store: &Store) -> Result<WikiPage> {
     let author_label = match (&t.author_name, &t.screen_name) {
         (Some(name), _) => name.clone(),
         (None, Some(handle)) => format!("@{handle}"),
@@ -667,9 +672,7 @@ pub fn apply_people_relations(
             source_conversation_id: Some(conversation_id.to_string()),
         })?;
         saved += 1;
-        relation_lines.push(format!(
-            "{person} —— {relation} —— {target}"
-        ));
+        relation_lines.push(format!("{person} —— {relation} —— {target}"));
     }
 
     let mut out = String::new();
@@ -682,7 +685,11 @@ pub fn apply_people_relations(
         out.push_str(&format!("人物 {}：{names}\n", person_entries.len()));
     }
     if saved > 0 {
-        out.push_str(&format!("关系 {} 条：\n{}", saved, relation_lines.join("\n")));
+        out.push_str(&format!(
+            "关系 {} 条：\n{}",
+            saved,
+            relation_lines.join("\n")
+        ));
     } else {
         out.push_str("（没有落地的关系）");
     }
@@ -717,11 +724,7 @@ pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json:
     let sampled: Vec<&EventSummary> = events.iter().take(BATCH_EXTRACT_MAX_EVENTS).collect();
     let mut event_lines = String::new();
     for (idx, e) in sampled.iter().enumerate() {
-        let text: String = e
-            .raw_text
-            .chars()
-            .take(BATCH_EXTRACT_EVENT_CHARS)
-            .collect();
+        let text: String = e.raw_text.chars().take(BATCH_EXTRACT_EVENT_CHARS).collect();
         event_lines.push_str(&format!("{}| {}\n", idx + 1, text.trim()));
     }
     let mut annotated = String::new();
@@ -902,13 +905,17 @@ impl Default for DigestOptions {
     }
 }
 
-fn build_digest_user_prompt(events: &[EventRecord], store: &Store, max_chars: usize) -> Result<String> {
+fn build_digest_user_prompt(
+    events: &[EventRecord],
+    store: &Store,
+    max_chars: usize,
+) -> Result<String> {
     let mut out = String::from("这是等待消化的新事件（[编号] 时间 | 内容）：\n");
     for (i, e) in events.iter().enumerate() {
         out.push_str(&format!("[{}] {} | {}\n", i + 1, e.recorded_at, e.raw_text));
     }
 
-    let pages = store.list_wiki_pages(None)?;
+    let pages = store.list_wiki_pages(None, None)?;
     let index = build_index_md(&pages);
     out.push_str("\n当前 wiki 索引：\n");
     out.push_str(&index);
@@ -1004,7 +1011,9 @@ pub fn generate_digest(store: &Store, opts: &DigestOptions) -> Result<DigestResu
                 true => "OK",
                 false => "SKIP(非法 kind/slug)",
             };
-            result.skipped.push(format!("[{}] {} {} {}", label, p.op, p.slug, p.title));
+            result
+                .skipped
+                .push(format!("[{}] {} {} {}", label, p.op, p.slug, p.title));
         }
         return Ok(result);
     }
@@ -1020,7 +1029,12 @@ pub fn generate_digest(store: &Store, opts: &DigestOptions) -> Result<DigestResu
         let ids: Vec<String> = p
             .source_event_ids
             .iter()
-            .filter_map(|idx| idx.trim().parse::<usize>().ok().and_then(|i| i.checked_sub(1)))
+            .filter_map(|idx| {
+                idx.trim()
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|i| i.checked_sub(1))
+            })
             .filter_map(|i| fresh.get(i))
             .map(|e| e.id.clone())
             .collect();
@@ -1052,7 +1066,10 @@ pub fn generate_digest(store: &Store, opts: &DigestOptions) -> Result<DigestResu
         let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
         let created = result.created.join(", ");
         let updated = result.updated.join(", ");
-        let mut entry = format!("## [{}] digest | created: {}; updated: {}", date, created, updated);
+        let mut entry = format!(
+            "## [{}] digest | created: {}; updated: {}",
+            date, created, updated
+        );
         if updated.is_empty() {
             entry = format!("## [{}] digest | created: {}", date, created);
         }
@@ -1072,10 +1089,9 @@ pub struct ExportReport {
 
 /// 把 wiki 物化为 markdown 目录：index.md + log.md + <kind>/<slug>.md
 pub fn export_wiki(store: &Store, dir: &Path) -> Result<ExportReport> {
-    std::fs::create_dir_all(dir)
-        .with_context(|| format!("创建导出目录 {}", dir.display()))?;
+    std::fs::create_dir_all(dir).with_context(|| format!("创建导出目录 {}", dir.display()))?;
 
-    let pages = store.list_wiki_pages(None)?;
+    let pages = store.list_wiki_pages(None, None)?;
     let mut files = Vec::new();
 
     let index = build_index_md(&pages);
@@ -1130,7 +1146,7 @@ pub fn export_wiki(store: &Store, dir: &Path) -> Result<ExportReport> {
 /// 确定性检查：孤儿页、无溯源页。返回问题描述列表。
 /// insight 页是综合产物（依据是 wiki 页而非事件），天然无事件溯源，跳过。
 pub fn lint_wiki(store: &Store) -> Result<Vec<String>> {
-    let pages = store.list_wiki_pages(None)?;
+    let pages = store.list_wiki_pages(None, None)?;
     let mut issues = Vec::new();
 
     for p in &pages {
@@ -1169,7 +1185,10 @@ mod tests {
     #[test]
     fn slugify_works() {
         assert_eq!(slugify("副业不是加法是乘法"), "副业不是加法是乘法");
-        assert_eq!(slugify("Dongguan-Huizhou Commute"), "dongguan-huizhou-commute");
+        assert_eq!(
+            slugify("Dongguan-Huizhou Commute"),
+            "dongguan-huizhou-commute"
+        );
         assert_eq!(slugify("  顺风车 2.0  计划  "), "顺风车-2-0-计划");
         assert_eq!(slugify("您/好 世界"), "您-好-世界");
         assert_eq!(slugify("!!!#"), "page"); // 全符号 → fallback
@@ -1195,10 +1214,7 @@ mod tests {
         };
         let out = normalize_extraction(&parsed, &ann);
         let people = out["people"].as_array().unwrap();
-        let names: Vec<&str> = people
-            .iter()
-            .map(|p| p["name"].as_str().unwrap())
-            .collect();
+        let names: Vec<&str> = people.iter().map(|p| p["name"].as_str().unwrap()).collect();
         // LLM 漏掉的标注实体兜底补进 people
         assert!(names.contains(&"李婷（客户）"));
         assert_eq!(people[people.len() - 1]["role_note"].as_str().unwrap(), "");
@@ -1271,6 +1287,9 @@ mod tests {
                 created_at: String::new(),
                 updated_at: String::new(),
                 source_url: None,
+                area: "insight".into(),
+                based_on: None,
+                content_type: None,
             },
             WikiPage {
                 id: "2".into(),
@@ -1288,6 +1307,9 @@ mod tests {
                 created_at: String::new(),
                 updated_at: String::new(),
                 source_url: None,
+                area: "insight".into(),
+                based_on: None,
+                content_type: None,
             },
         ];
         let md = build_index_md(&pages);
@@ -1350,13 +1372,22 @@ mod tests {
         ));
         let store = Store::open(&path).unwrap();
         let tags = vec![" #工作 ".to_string(), "Rust".to_string(), "".to_string()];
-        let page = save_text_page("这是一段要保存的笔记正文", Some("我的笔记"), &tags, &store).unwrap();
+        let page =
+            save_text_page("这是一段要保存的笔记正文", Some("我的笔记"), &tags, &store).unwrap();
         assert_eq!(page.kind, "topic");
         assert_eq!(page.title, "我的笔记");
         assert!(page.tags.contains(&"工作".to_string()), "{:?}", page.tags);
         assert!(page.tags.contains(&"Rust".to_string()), "{:?}", page.tags);
-        assert!(page.tags.contains(&"note".to_string()), "应保留 note 锚点标签: {:?}", page.tags);
-        assert!(!page.tags.iter().any(|t| t.is_empty()), "不应有空标签: {:?}", page.tags);
+        assert!(
+            page.tags.contains(&"note".to_string()),
+            "应保留 note 锚点标签: {:?}",
+            page.tags
+        );
+        assert!(
+            !page.tags.iter().any(|t| t.is_empty()),
+            "不应有空标签: {:?}",
+            page.tags
+        );
         // 空文本拒绝
         assert!(save_text_page("   ", Some("x"), &[], &store).is_err());
         let _ = std::fs::remove_file(path);
@@ -1412,14 +1443,27 @@ mod tests {
 
         // 目标页：已存在的 project 页被复用，没有自动建 topic 页
         assert!(store.get_wiki_page("topic/双链路付款").unwrap().is_none());
-        assert_eq!(store.find_wiki_page_by_title("双链路付款").unwrap().unwrap().kind, "project");
+        assert_eq!(
+            store
+                .find_wiki_page_by_title("双链路付款")
+                .unwrap()
+                .unwrap()
+                .kind,
+            "project"
+        );
 
         // 关系双向可见
         let rels = store.list_relations_for_page("person/张玮").unwrap();
         assert_eq!(rels.len(), 1);
         assert_eq!(rels[0].relation, "负责");
         assert_eq!(rels[0].to_slug, "project/shuanglian");
-        assert_eq!(store.list_relations_for_page("project/shuanglian").unwrap().len(), 2);
+        assert_eq!(
+            store
+                .list_relations_for_page("project/shuanglian")
+                .unwrap()
+                .len(),
+            2
+        );
 
         // 再次提交同样的人物 → 不重复建档
         let again = apply_people_relations(
@@ -1429,7 +1473,11 @@ mod tests {
         )
         .unwrap();
         assert!(again.contains("张玮"));
-        assert_eq!(store.list_wiki_pages(Some("person")).unwrap().len(), 2, "不应重复建档");
+        assert_eq!(
+            store.list_wiki_pages(Some("person"), None).unwrap().len(),
+            2,
+            "不应重复建档"
+        );
 
         // 空草拟拒绝
         assert!(apply_people_relations(&serde_json::json!({}), &store, "conv-1").is_err());
@@ -1497,7 +1545,10 @@ mod tests {
         }"#;
         let parsed: FxTwitterResponse = serde_json::from_str(json).unwrap();
         let out = parse_tweet_content(parsed).unwrap();
-        assert_eq!(out.title.as_deref(), Some("为什么你手握 Codex、Claude，依然赚不到钱？"));
+        assert_eq!(
+            out.title.as_deref(),
+            Some("为什么你手握 Codex、Claude，依然赚不到钱？")
+        );
         assert_eq!(out.text, "过去，一个人赚不到钱，往往还能找到很多具体的理由。\n\n这些理由过去确实成立，因为技术本身就是门槛。");
         assert_eq!(out.author_name.as_deref(), Some("伟大"));
         assert_eq!(out.screen_name.as_deref(), Some("Huouo908070"));

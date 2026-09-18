@@ -26,9 +26,7 @@ void main() {
           selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
           messagesProvider.overrideWith((ref) async => repo.messages),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: MessageArea()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: MessageArea())),
       ),
     );
     await tester.pump();
@@ -42,10 +40,16 @@ void main() {
     await tester.pump();
     expect(repo.aiCalls, 1, reason: '发送后应触发一次 AI 生成');
     expect(repo.messages.length, 1, reason: '用户消息应已入库');
-    expect(find.textContaining('AI 回复失败'), findsOneWidget,
-        reason: '失败原因仍以会话内气泡呈现');
-    expect(find.text('重新生成'), findsOneWidget,
-        reason: '最后一条用户消息（无 AI 回复）应显示重新生成');
+    expect(
+      find.textContaining('AI 回复失败'),
+      findsOneWidget,
+      reason: '失败原因仍以会话内气泡呈现',
+    );
+    expect(
+      find.text('重新生成'),
+      findsOneWidget,
+      reason: '最后一条用户消息（无 AI 回复）应显示重新生成',
+    );
 
     // ② 点「重新生成」再次失败 → 按钮保留，可继续重试
     repo.failNext = true;
@@ -63,21 +67,17 @@ void main() {
     await tester.tap(find.text('重新生成'));
     await tester.pump();
     expect(repo.aiCalls, 3);
-    expect(find.text('AI 正在思考…'), findsOneWidget,
-        reason: '重试进行中应显示占位气泡');
-    expect(find.text('重新生成'), findsNothing,
-        reason: '生成中不显示重新生成按钮');
+    expect(find.text('AI 正在思考…'), findsOneWidget, reason: '重试进行中应显示占位气泡');
+    expect(find.text('重新生成'), findsNothing, reason: '生成中不显示重新生成按钮');
 
     gate.complete('收到！');
     await tester.pump(); // generateReply 返回 + 追加 AI 消息 + invalidate
     await tester.pump(); // 重建
     expect(repo.messages.length, 2, reason: 'AI 回复应已入库');
     expect(find.text('AI 正在思考…'), findsNothing);
-    expect(find.text('重新生成'), findsNothing,
-        reason: '最后一条已是 AI 回复，无需重新生成');
+    expect(find.text('重新生成'), findsNothing, reason: '最后一条已是 AI 回复，无需重新生成');
     expect(find.textContaining('AI 回复失败'), findsNothing);
-    expect(find.byIcon(Icons.send), findsOneWidget,
-        reason: '生成结束后发送按钮恢复');
+    expect(find.byIcon(Icons.send), findsOneWidget, reason: '生成结束后发送按钮恢复');
   });
 }
 
@@ -94,7 +94,11 @@ class _FakeConversationRepo extends ConversationRepository {
   Completer<String>? gate;
 
   @override
-  Future<Message> sendMessage(String conversationId, String content) async {
+  Future<Message> sendMessage(
+    String conversationId,
+    String content, {
+    String? idempotencyKey,
+  }) async {
     final msg = Message(
       id: 'm${messages.length + 1}',
       conversationId: conversationId,
@@ -115,14 +119,16 @@ class _FakeConversationRepo extends ConversationRepository {
       throw Exception('AI 调用失败(模拟)');
     }
     final reply = await (gate?.future ?? Future.value('收到！'));
-    messages.add(Message(
-      id: 'ai$aiCalls',
-      conversationId: conversationId,
-      parentMessageId: null,
-      role: MessageRole.assistant,
-      content: reply,
-      createdAt: DateTime.now(),
-    ));
+    messages.add(
+      Message(
+        id: 'ai$aiCalls',
+        conversationId: conversationId,
+        parentMessageId: null,
+        role: MessageRole.assistant,
+        content: reply,
+        createdAt: DateTime.now(),
+      ),
+    );
     return reply;
   }
 }

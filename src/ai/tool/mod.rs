@@ -135,7 +135,10 @@ impl Default for ToolRegistry {
 
 impl ToolRegistry {
     pub fn get(&self, name: &str) -> Option<&dyn Tool> {
-        self.tools.iter().find(|t| t.name() == name).map(|b| b.as_ref())
+        self.tools
+            .iter()
+            .find(|t| t.name() == name)
+            .map(|b| b.as_ref())
     }
 
     pub fn names(&self) -> Vec<&str> {
@@ -196,13 +199,13 @@ fn arg_str(args: &Value, key: &str) -> Result<String> {
 }
 
 fn arg_str_opt(args: &Value, key: &str) -> Option<String> {
-    args.get(key).and_then(|v| v.as_str()).map(|s| s.to_string())
+    args.get(key)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
 }
 
 fn arg_i64(args: &Value, key: &str, default: i64) -> i64 {
-    args.get(key)
-        .and_then(|v| v.as_i64())
-        .unwrap_or(default)
+    args.get(key).and_then(|v| v.as_i64()).unwrap_or(default)
 }
 
 // ── 只读工具 ────────────────────────────────────────────────────
@@ -253,16 +256,23 @@ impl Tool for ListWikiPagesTool {
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
         let kind = arg_str_opt(args, "kind");
         let pages = match kind {
-            Some(k) => ctx.store.list_wiki_pages(Some(&k))?,
-            None => ctx.store.list_wiki_pages(None)?,
+            Some(k) => ctx.store.list_wiki_pages(Some(&k), None)?,
+            None => ctx.store.list_wiki_pages(None, None)?,
         };
         if pages.is_empty() {
             return Ok("知识库暂无页面".to_string());
         }
         let mut out = format!("知识库共 {} 页：\n", pages.len());
         for p in pages {
-            let status = if p.status == "active" { "" } else { "（非 active）" };
-            out.push_str(&format!("- {}（{}）{status}：{}\n", p.title, p.kind, p.summary));
+            let status = if p.status == "active" {
+                ""
+            } else {
+                "（非 active）"
+            };
+            out.push_str(&format!(
+                "- {}（{}）{status}：{}\n",
+                p.title, p.kind, p.summary
+            ));
         }
         Ok(out)
     }
@@ -505,9 +515,16 @@ pub(crate) fn strip_blocks(s: &str, open: &str) -> String {
                 let after = &rest[idx..];
                 let close = after.find("</").and_then(|i| {
                     let tag_end = &after[i + 2..];
-                    let name: String = tag_end.chars().take_while(|c| c.is_ascii_alphanumeric()).collect();
-                    Some(after.find(&format!("</{name}>")).map(|c| c + name.len() + 3))
-                        .flatten()
+                    let name: String = tag_end
+                        .chars()
+                        .take_while(|c| c.is_ascii_alphanumeric())
+                        .collect();
+                    Some(
+                        after
+                            .find(&format!("</{name}>"))
+                            .map(|c| c + name.len() + 3),
+                    )
+                    .flatten()
                 });
                 match close {
                     Some(end) => rest = &after[end..],
@@ -615,7 +632,12 @@ impl Tool for SaveKnowledgeDraftTool {
             "kind": kind,
             "tags": tags,
         });
-        store_create_pending(ctx.store, ctx.conversation_id, "save_knowledge_draft", &action_args)?;
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "save_knowledge_draft",
+            &action_args,
+        )?;
         Ok(format!(
             "已为你草拟一篇知识库页面（待确认，尚未保存）：\n标题：{title}\n---\n{content}\n---\n—— 等你确认后才会真正保存，回复「好」即可。",
             content = {
@@ -803,7 +825,11 @@ impl Tool for ProposePeopleRelationsTool {
             let note = p.get("role_note").and_then(|v| v.as_str()).unwrap_or("");
             lines.push(format!(
                 "人物：{name}{}",
-                if note.is_empty() { String::new() } else { format!("（{note}）") }
+                if note.is_empty() {
+                    String::new()
+                } else {
+                    format!("（{note}）")
+                }
             ));
         }
         for r in &relations {
@@ -871,7 +897,11 @@ impl Tool for BatchExtractPeopleRelationsTool {
             let note = p.get("role_note").and_then(|v| v.as_str()).unwrap_or("");
             lines.push(format!(
                 "人物：{name}{}",
-                if note.is_empty() { String::new() } else { format!("（{note}）") }
+                if note.is_empty() {
+                    String::new()
+                } else {
+                    format!("（{note}）")
+                }
             ));
         }
         for r in &relations {
@@ -1056,14 +1086,12 @@ impl Tool for RenameWikiPageTool {
             anyhow::bail!("新标题不能为空");
         }
         let reason = arg_str_opt(args, "reason").unwrap_or_default();
-        let existing = ctx.store.get_wiki_page(&slug)?.with_context(|| {
-            format!("知识库没有 slug={slug} 的页面")
-        })?;
+        let existing = ctx
+            .store
+            .get_wiki_page(&slug)?
+            .with_context(|| format!("知识库没有 slug={slug} 的页面"))?;
         if existing.title.trim() == new_title.trim() {
-            anyhow::bail!(
-                "「{}」本来就是这个标题，不需要改名",
-                existing.title
-            );
+            anyhow::bail!("「{}」本来就是这个标题，不需要改名", existing.title);
         }
         // 只读预告：将被迁移的关系数 / 页内会话
         let relations_moved = ctx
@@ -1072,10 +1100,7 @@ impl Tool for RenameWikiPageTool {
             .iter()
             .filter(|r| r.from_slug == slug || r.to_slug == slug)
             .count();
-        let has_chat = ctx
-            .store
-            .find_wiki_chat_conversation(&slug)?
-            .is_some();
+        let has_chat = ctx.store.find_wiki_chat_conversation(&slug)?.is_some();
         let action_args = json!({
             "slug": slug,
             "new_title": new_title,
@@ -1152,7 +1177,12 @@ impl Tool for ImportUrlToWikiTool {
             "content_md": c.content_md,
             "tags": tags,
         });
-        store_create_pending(ctx.store, ctx.conversation_id, "import_url_to_wiki", &action_args)?;
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "import_url_to_wiki",
+            &action_args,
+        )?;
         // 预览：标题 + 正文开头
         let title = c.title.unwrap_or_else(|| "未命名".to_string());
         let preview: String = c
@@ -1164,7 +1194,11 @@ impl Tool for ImportUrlToWikiTool {
             .to_string();
         Ok(format!(
             "已抓取「{title}」并草拟保存（待确认）：\n{preview}{}\n—— 回复「好」即导入知识库。",
-            if c.content_md.chars().count() > 160 { "…" } else { "" }
+            if c.content_md.chars().count() > 160 {
+                "…"
+            } else {
+                ""
+            }
         ))
     }
 }
@@ -1178,16 +1212,18 @@ impl Tool for SaveWikiRevisionTool {
         "save_wiki_revision"
     }
     fn description(&self) -> &'static str {
-        "把处理当前知识页得出的新版本（总结/补充/改写）写回知识库。调用后进入待确认状态，确认后才保存。"
+        "把处理当前知识页得出的新版本保存到知识库。生成类加工（总结/提炼观点/写文案/翻译等）默认保存为**派生产物**（挂在该页下的新页，不改动当前页）；明确要修改页面本身内容时才用 save_as=revision。调用后进入待确认状态，确认后才保存。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
             "type":"object",
             "properties":{
                 "slug":{"type":"string","description":"页面 slug（保持当前页面不变），必填"},
-                "title":{"type":"string","description":"页面标题，必填"},
-                "content_md":{"type":"string","description":"页面新正文（Markdown，在旧内容基础上修订，不丢失旧事实），必填"},
-                "change_note":{"type":"string","description":"本次修改说明，必填"}
+                "title":{"type":"string","description":"保存后的标题；派生产物建议用便于区分的标题（如「{原标题}·总结」），必填"},
+                "content_md":{"type":"string","description":"新内容正文（Markdown，生成的总结/文案就是成品；若是修订则保留旧事实），必填"},
+                "change_note":{"type":"string","description":"本次操作说明（如：生成总结 / 写抖音文案 / 补充要点），必填"},
+                "save_as":{"type":"string","enum":["derivative","revision"],"description":"derivative=保存为派生产物（默认，推荐：总结/提炼/写文案/翻译等生成类操作）；revision=直接修订当前页正文（仅当用户明确要改这页本身、且该页不是素材原文时）"},
+                "content_type":{"type":"string","description":"产物类型标签（save_as=derivative 时必填，如：总结/提炼观点/抖音文案/翻译/学习笔记）"}
             },
             "required":["slug","title","content_md","change_note"],
             "additionalProperties":false
@@ -1201,6 +1237,11 @@ impl Tool for SaveWikiRevisionTool {
         let title = arg_str(args, "title")?;
         let content_md = arg_str(args, "content_md")?;
         let change_note = arg_str(args, "change_note")?;
+        let save_as = arg_str_opt(args, "save_as").unwrap_or_else(|| "derivative".to_string());
+        if !matches!(save_as.as_str(), "derivative" | "revision") {
+            anyhow::bail!("save_as 仅支持 derivative 或 revision");
+        }
+        let content_type = arg_str_opt(args, "content_type").filter(|s| !s.trim().is_empty());
         // 草拟前先确认页面还在：改名/删除后旧 slug 会变成幽灵目标
         if ctx.store.get_wiki_page(&slug)?.is_none() {
             anyhow::bail!(
@@ -1212,10 +1253,25 @@ impl Tool for SaveWikiRevisionTool {
             "title": title.clone(),
             "content_md": content_md,
             "change_note": change_note,
+            "save_as": save_as,
+            "content_type": content_type.clone(),
         });
-        store_create_pending(ctx.store, ctx.conversation_id, "save_wiki_revision", &action_args)?;
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "save_wiki_revision",
+            &action_args,
+        )?;
+        let mode = if save_as == "derivative" {
+            let ct = content_type
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| "内容".to_string());
+            format!("作为「{ct}」派生产物（原页不改动）")
+        } else {
+            "直接修订当前页".to_string()
+        };
         Ok(format!(
-            "已草拟知识页「{title}」的新版本（待确认）：\n修改说明：{change_note}\n—— 回复「好」即保存。"
+            "已草拟（{mode}）：{change_note}\n—— 回复「好」即保存。"
         ))
     }
 }
@@ -1264,7 +1320,11 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             Ok(format!(
                 "已保存知识页「{}」（{}，slug={}）",
                 title,
-                if outcome.created { "新创建" } else { "已更新" },
+                if outcome.created {
+                    "新创建"
+                } else {
+                    "已更新"
+                },
                 outcome.page.slug
             ))
         }
@@ -1314,10 +1374,7 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     archived += 1;
                 }
             }
-            Ok(format!(
-                "已归档 {archived} 个对话：{}",
-                titles.join("、")
-            ))
+            Ok(format!("已归档 {archived} 个对话：{}", titles.join("、")))
         }
         "rename_wiki_page" => {
             let slug = arg_str(&args, "slug")?;
@@ -1365,7 +1422,14 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             let slug = kb_slug(&title);
             let mut all_tags = tags;
             all_tags.push("import".to_string());
-            all_tags.push(if source_kind == "tweet" { "tweet" } else { "web" }.to_string());
+            all_tags.push(
+                if source_kind == "tweet" {
+                    "tweet"
+                } else {
+                    "web"
+                }
+                .to_string(),
+            );
             all_tags.sort();
             all_tags.dedup();
             let draft = crate::storage::WikiPageDraft {
@@ -1384,7 +1448,11 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             Ok(format!(
                 "已导入知识库：{}（{}，slug={}）",
                 title,
-                if outcome.created { "新页面" } else { "已更新" },
+                if outcome.created {
+                    "新页面"
+                } else {
+                    "已更新"
+                },
                 outcome.page.slug
             ))
         }
@@ -1393,39 +1461,67 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             let title = arg_str(&args, "title")?;
             let content_md = arg_str(&args, "content_md")?;
             let change_note = arg_str(&args, "change_note")?;
-            let summary: String = content_md
-                .chars()
-                .take(80)
-                .collect::<String>()
-                .trim_end()
-                .to_string();
-            // 保留原页面的 kind、source_url 与 tags
+            let save_as = arg_str_opt(&args, "save_as").unwrap_or_else(|| "derivative".to_string());
+            let content_type = arg_str_opt(&args, "content_type").filter(|s| !s.trim().is_empty());
             let existing = store.get_wiki_page(&slug)?;
             let existing = existing.with_context(|| {
                 format!(
                     "知识页不存在：{slug}（可能已被改名或删除，不能对旧名做修订；若需新建请用 save_knowledge_draft）"
                 )
             })?;
-            let kind = existing.kind.clone();
-            let source_url = existing.source_url.clone();
-            let tags = existing.tags.clone();
-            let draft = crate::storage::WikiPageDraft {
-                slug,
-                kind,
-                title: title.clone(),
-                summary,
-                content_md,
-                tags,
-                source_event_ids: vec![],
-                status: "active".to_string(),
-                reason: format!("AI 页内修订：{change_note}"),
-                source_url,
-            };
-            let outcome = store.upsert_wiki_page(&draft)?;
-            Ok(format!(
-                "知识页「{}」修订已保存：{change_note}",
-                outcome.page.title
-            ))
+            // 素材原文锁定：对素材库 / 派生产物区域的页面，一律保存为派生产物，绝不覆盖原文。
+            let force_derivative = matches!(existing.area.as_str(), "imported" | "derivative");
+            if force_derivative && save_as != "derivative" {
+                anyhow::bail!(
+                    "「{}」是素材库原文（或派生产物），不能直接覆盖；请改用 save_as=derivative 把加工成果保存为派生产物。",
+                    existing.title
+                );
+            }
+            if save_as == "derivative" {
+                let ct = content_type
+                    .clone()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or_else(|| "AI 加工".to_string());
+                let page = store.create_derivative(
+                    &slug,
+                    &ct,
+                    &title,
+                    &content_md,
+                    &format!("AI 加工派生：{change_note}"),
+                )?;
+                Ok(format!(
+                    "已保存「{}」的派生产物（{ct}）：{change_note}。原文未改动。",
+                    page.title
+                ))
+            } else {
+                let summary: String = content_md
+                    .chars()
+                    .take(80)
+                    .collect::<String>()
+                    .trim_end()
+                    .to_string();
+                // 保留原页面的 kind、source_url、area 与 tags
+                let kind = existing.kind.clone();
+                let source_url = existing.source_url.clone();
+                let tags = existing.tags.clone();
+                let draft = crate::storage::WikiPageDraft {
+                    slug,
+                    kind,
+                    title: title.clone(),
+                    summary,
+                    content_md,
+                    tags,
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: format!("AI 页内修订：{change_note}"),
+                    source_url,
+                };
+                let outcome = store.upsert_wiki_page(&draft)?;
+                Ok(format!(
+                    "知识页「{}」修订已保存：{change_note}",
+                    outcome.page.title
+                ))
+            }
         }
         other => anyhow::bail!("未知待执行动作：{other}"),
     }
@@ -1442,7 +1538,11 @@ fn kb_slug(title: &str) -> String {
         }
     }
     let base: String = base.trim_matches('-').chars().take(40).collect();
-    let base = if base.is_empty() { "knowledge".to_string() } else { base };
+    let base = if base.is_empty() {
+        "knowledge".to_string()
+    } else {
+        base
+    };
     format!("kb-{}-{}", base, &uuid::Uuid::new_v4().to_string()[..8])
 }
 
@@ -1507,7 +1607,11 @@ mod tests {
     fn list_rules_read_tool_works() {
         let (store, path) = temp_db();
         store
-            .add_rule("和大型企业的人沟通重要事项必须留痕", crate::storage::RuleStatus::Active, None)
+            .add_rule(
+                "和大型企业的人沟通重要事项必须留痕",
+                crate::storage::RuleStatus::Active,
+                None,
+            )
             .unwrap();
         let registry = ToolRegistry::default();
         let call = ToolCall::new("list_rules", json!({}));
@@ -1531,7 +1635,10 @@ mod tests {
         // 直接写入了 events 真源
         assert_eq!(store.list_events().unwrap().len(), 1);
         // 不产生待确认动作
-        assert!(store.pending_actions_for_conversation(&conv).unwrap().is_empty());
+        assert!(store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty());
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1570,7 +1677,7 @@ mod tests {
         let pa = store.pending_actions_for_conversation(&conv).unwrap();
         let summary = execute_pending_action(&store, &pa[0]).unwrap();
         assert!(summary.contains("已保存"), "{summary}");
-        let pages = store.list_wiki_pages(None).unwrap();
+        let pages = store.list_wiki_pages(None, None).unwrap();
         assert_eq!(pages.len(), 1);
         assert_eq!(pages[0].kind, "principle");
         drop(store);
@@ -1599,7 +1706,10 @@ mod tests {
         );
         let result = dispatch(&call, &registry, &store, &conv);
         assert!(result.content.contains("待确认"), "{}", result.content);
-        assert!(store.list_wiki_pages(None).unwrap().is_empty(), "确认前不应建档");
+        assert!(
+            store.list_wiki_pages(None, None).unwrap().is_empty(),
+            "确认前不应建档"
+        );
         let pendings = store.pending_actions_for_conversation(&conv).unwrap();
         assert_eq!(pendings.len(), 1);
 
@@ -1608,13 +1718,19 @@ mod tests {
         assert!(summary.contains("张玮"), "{summary}");
         assert!(summary.contains("和太极"), "{summary}");
         assert!(summary.contains("负责"), "{summary}");
-        assert_eq!(store.list_wiki_pages(Some("person")).unwrap().len(), 2);
+        assert_eq!(
+            store.list_wiki_pages(Some("person"), None).unwrap().len(),
+            2
+        );
         assert_eq!(
             store.list_relations_for_page("person/张玮").unwrap().len(),
             1
         );
         assert_eq!(
-            store.list_relations_for_page("topic/双链路付款").unwrap().len(),
+            store
+                .list_relations_for_page("topic/双链路付款")
+                .unwrap()
+                .len(),
             2,
             "目标页自动建档，且两边关系都能查到"
         );
@@ -1665,12 +1781,13 @@ mod tests {
         let call = ToolCall::new("list_events_by_date", json!({"date": "2026/06/20"}));
         let result = dispatch(&call, &registry, &store, "conv-1");
         assert!(result.content.contains("YYYY-MM-DD"), "{}", result.content);
-        let call = ToolCall::new(
-            "list_events_by_date",
-            json!({"date": "2030-01-01"}),
-        );
+        let call = ToolCall::new("list_events_by_date", json!({"date": "2030-01-01"}));
         let result = dispatch(&call, &registry, &store, "conv-1");
-        assert!(result.content.contains("没有事件记录"), "{}", result.content);
+        assert!(
+            result.content.contains("没有事件记录"),
+            "{}",
+            result.content
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1682,8 +1799,12 @@ mod tests {
         let conv = store.create_conversation(Some("t"), None).unwrap();
         // 主对话：空标题（显示为「新对话」）、Hello 两个、其他
         store.create_conversation(None, None).unwrap(); // 显示「新对话」
-        store.create_conversation(Some("Hello World"), None).unwrap();
-        store.create_conversation(Some("Phase Hello 2"), None).unwrap();
+        store
+            .create_conversation(Some("Hello World"), None)
+            .unwrap();
+        store
+            .create_conversation(Some("Phase Hello 2"), None)
+            .unwrap();
         store.create_conversation(Some("其他"), None).unwrap();
         // 知识页内聊天：不应被匹配
         store
@@ -1691,7 +1812,10 @@ mod tests {
             .unwrap();
 
         // 1) 包含匹配：草拟两个 Hello，未确认前不归档
-        let call = ToolCall::new("archive_conversations_by_title", json!({"contains": "hello"}));
+        let call = ToolCall::new(
+            "archive_conversations_by_title",
+            json!({"contains": "hello"}),
+        );
         let result = dispatch(&call, &registry, &store, &conv);
         assert!(result.content.contains("2 个匹配"), "{}", result.content);
         assert!(result.content.contains("Hello World"), "{}", result.content);
@@ -1707,16 +1831,14 @@ mod tests {
             .list_conversations()
             .unwrap()
             .iter()
-            .map(|c| {
-                c.title
-                    .as_deref()
-                    .unwrap_or("新对话")
-                    .to_string()
-            })
+            .map(|c| c.title.as_deref().unwrap_or("新对话").to_string())
             .collect();
         assert_eq!(remaining_titles.len(), 3);
         for t in ["t", "新对话", "其他"] {
-            assert!(remaining_titles.iter().any(|x| x == t), "缺 {t}: {remaining_titles:?}");
+            assert!(
+                remaining_titles.iter().any(|x| x == t),
+                "缺 {t}: {remaining_titles:?}"
+            );
         }
 
         // 3) 精确匹配「新对话」= 空标题会话
@@ -1734,18 +1856,37 @@ mod tests {
             .map(|c| c.title.as_deref().unwrap_or("新对话").to_string())
             .collect();
         assert_eq!(remaining_titles.len(), 2);
-        assert!(!remaining_titles.iter().any(|x| x == "新对话"), "{remaining_titles:?}");
+        assert!(
+            !remaining_titles.iter().any(|x| x == "新对话"),
+            "{remaining_titles:?}"
+        );
 
         // 4) 无匹配：友好错误，不登记
-        let call = ToolCall::new("archive_conversations_by_title", json!({"contains": "不存在的"}));
+        let call = ToolCall::new(
+            "archive_conversations_by_title",
+            json!({"contains": "不存在的"}),
+        );
         let result = dispatch(&call, &registry, &store, &conv);
         assert!(result.content.contains("没有找到"), "{}", result.content);
-        assert!(store.pending_actions_for_conversation(&conv).unwrap().is_empty());
+        assert!(store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty());
 
         // 5) 知识页聊天始终未被动过
-        assert!(store.get_conversation(
-            &store.find_wiki_chat_conversation("person/x").unwrap().unwrap()
-        ).unwrap().unwrap().archived == false);
+        assert!(
+            store
+                .get_conversation(
+                    &store
+                        .find_wiki_chat_conversation("person/x")
+                        .unwrap()
+                        .unwrap()
+                )
+                .unwrap()
+                .unwrap()
+                .archived
+                == false
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1789,7 +1930,11 @@ mod tests {
         );
         let result = dispatch(&call, &registry, &store, &conv);
         assert!(result.content.contains("重命名为"), "{}", result.content);
-        assert!(result.content.contains("1 条人物关系"), "{}", result.content);
+        assert!(
+            result.content.contains("1 条人物关系"),
+            "{}",
+            result.content
+        );
         let pendings = store.pending_actions_for_conversation(&conv).unwrap();
         assert_eq!(pendings.len(), 1);
         assert!(
@@ -1803,7 +1948,11 @@ mod tests {
         assert!(summary.contains("迁移了 1 条关系引用"), "{summary}");
         assert!(store.get_wiki_page("topic/付款流程").unwrap().is_none());
         assert_eq!(
-            store.get_wiki_page("topic/fpso111-尾款").unwrap().unwrap().title,
+            store
+                .get_wiki_page("topic/fpso111-尾款")
+                .unwrap()
+                .unwrap()
+                .title,
             "fpso111 尾款"
         );
         assert_eq!(
@@ -1817,14 +1966,25 @@ mod tests {
             json!({"slug": "topic/不存在", "new_title": "x"}),
         );
         let result = dispatch(&call, &registry, &store, &conv);
-        assert!(result.content.contains("没有 slug=topic/不存在 的页面"), "{}", result.content);
+        assert!(
+            result.content.contains("没有 slug=topic/不存在 的页面"),
+            "{}",
+            result.content
+        );
         let call = ToolCall::new(
             "rename_wiki_page",
             json!({"slug": "topic/fpso111-尾款", "new_title": "fpso111 尾款"}),
         );
         let result = dispatch(&call, &registry, &store, &conv);
-        assert!(result.content.contains("本来就是这个标题"), "{}", result.content);
-        assert_eq!(store.pending_actions_for_conversation(&conv).unwrap().len(), 1);
+        assert!(
+            result.content.contains("本来就是这个标题"),
+            "{}",
+            result.content
+        );
+        assert_eq!(
+            store.pending_actions_for_conversation(&conv).unwrap().len(),
+            1
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1845,9 +2005,24 @@ mod tests {
             }),
         );
         let result = dispatch(&call, &registry, &store, &conv);
-        assert!(result.content.contains("没有 slug=topic/fpso111整船项目 的页面"), "{}", result.content);
-        assert!(store.pending_actions_for_conversation(&conv).unwrap().is_empty());
-        assert!(store.get_wiki_page("topic/fpso111整船项目").unwrap().is_none(), "不能新建幽灵页");
+        assert!(
+            result
+                .content
+                .contains("没有 slug=topic/fpso111整船项目 的页面"),
+            "{}",
+            result.content
+        );
+        assert!(store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty());
+        assert!(
+            store
+                .get_wiki_page("topic/fpso111整船项目")
+                .unwrap()
+                .is_none(),
+            "不能新建幽灵页"
+        );
 
         // 绕过草拟直接登记 pending + 执行：页面不存在时必须报错而非 upsert 新建
         store
@@ -1866,7 +2041,10 @@ mod tests {
         let pa = store.pending_actions_for_conversation(&conv).unwrap();
         let err = execute_pending_action(&store, &pa[0]).unwrap_err();
         assert!(err.to_string().contains("知识页不存在"), "{err}");
-        assert!(store.get_wiki_page("topic/fpso111整船项目").unwrap().is_none());
+        assert!(store
+            .get_wiki_page("topic/fpso111整船项目")
+            .unwrap()
+            .is_none());
         drop(store);
         let _ = std::fs::remove_file(path);
     }

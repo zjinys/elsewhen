@@ -264,7 +264,8 @@ impl AiProvider for OpenAiCompatibleProvider {
 
         let url = format!("{}/chat/completions", self.config.base_url);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.config.api_key))
             .header("Content-Type", "application/json")
@@ -298,9 +299,9 @@ impl AiProvider for OpenAiCompatibleProvider {
         let usage = ai_response.usage.map(|u| TokenUsage {
             prompt_tokens: u.prompt_tokens.unwrap_or(0),
             completion_tokens: u.completion_tokens.unwrap_or(0),
-            total_tokens: u.total_tokens.unwrap_or_else(|| {
-                u.prompt_tokens.unwrap_or(0) + u.completion_tokens.unwrap_or(0)
-            }),
+            total_tokens: u
+                .total_tokens
+                .unwrap_or_else(|| u.prompt_tokens.unwrap_or(0) + u.completion_tokens.unwrap_or(0)),
         });
 
         Ok(AiReply {
@@ -488,7 +489,8 @@ impl AiProvider for OllamaProvider {
 
         let url = format!("{}/api/chat", self.config.base_url);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Content-Type", "application/json")
             .json(&request)
@@ -501,11 +503,13 @@ impl AiProvider for OllamaProvider {
             anyhow::bail!("Ollama returned error {}: {}", status, body);
         }
 
-        let ollama_response: OllamaResponse = response
-            .json()
-            .context("Failed to parse Ollama response")?;
+        let ollama_response: OllamaResponse =
+            response.json().context("Failed to parse Ollama response")?;
 
-        let usage = match (ollama_response.prompt_eval_count, ollama_response.eval_count) {
+        let usage = match (
+            ollama_response.prompt_eval_count,
+            ollama_response.eval_count,
+        ) {
             (None, None) => None,
             (prompt, completion) => {
                 let prompt_tokens = prompt.unwrap_or(0);

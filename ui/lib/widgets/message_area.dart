@@ -1,9 +1,14 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../models/conversation.dart';
 import '../providers/conversation_provider.dart';
+import '../providers/wiki_provider.dart';
+import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
 
 /// 触发一次 AI 生成（发送后自动触发，或失败气泡上的「重新生成」点击）。
@@ -266,8 +271,9 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
   /// 加载更早消息：窗口向前扩展一页，然后回到顶部看旧内容
   void _loadMore(int total) {
     // 当前有效窗口：未展开时为「只看最近 N 条」的起点
-    final currentShown =
-        _expanded ? _shownSince : (total > _windowSize ? total - _windowSize : 0);
+    final currentShown = _expanded
+        ? _shownSince
+        : (total > _windowSize ? total - _windowSize : 0);
     setState(() {
       _expanded = true;
       _shownSince = (currentShown - _pageSize).clamp(0, total);
@@ -335,18 +341,11 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.forum_outlined,
-            size: 64,
-            color: AppTheme.textTertiary,
-          ),
+          Icon(Icons.forum_outlined, size: 64, color: AppTheme.textTertiary),
           const SizedBox(height: AppTheme.space4),
           Text(
             '选择一个对话开始聊天',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 16,
-            ),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
           ),
         ],
       ),
@@ -366,18 +365,12 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           const SizedBox(height: AppTheme.space3),
           Text(
             '还没有消息',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: AppTheme.space2),
           Text(
             '在下方输入框开始对话',
-            style: TextStyle(
-              color: AppTheme.textTertiary,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
           ),
         ],
       ),
@@ -501,7 +494,9 @@ class _MessageBubble extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppTheme.space4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           if (!isUser) ...[
             _buildAvatar(isUser: false),
@@ -510,7 +505,9 @@ class _MessageBubble extends StatelessWidget {
 
           Flexible(
             child: Column(
-              crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isUser
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 // Role and time + 复制按钮
                 Padding(
@@ -544,11 +541,8 @@ class _MessageBubble extends StatelessWidget {
                           minWidth: 24,
                           minHeight: 20,
                         ),
-                        onPressed: () => _copyToClipboard(
-                          context,
-                          message.content,
-                          '消息',
-                        ),
+                        onPressed: () =>
+                            _copyToClipboard(context, message.content, '消息'),
                       ),
                     ],
                   ),
@@ -561,7 +555,9 @@ class _MessageBubble extends StatelessWidget {
                     vertical: AppTheme.space3,
                   ),
                   decoration: BoxDecoration(
-                    color: isUser ? AppTheme.accentPrimary.withValues(alpha: 0.15) : AppTheme.surface2,
+                    color: isUser
+                        ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                        : AppTheme.surface2,
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                     border: Border.all(
                       color: isUser
@@ -618,7 +614,9 @@ class _MessageBubble extends StatelessWidget {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: isUser ? AppTheme.accentPrimary.withValues(alpha: 0.2) : AppTheme.surface3,
+        color: isUser
+            ? AppTheme.accentPrimary.withValues(alpha: 0.2)
+            : AppTheme.surface3,
         shape: BoxShape.circle,
       ),
       child: Icon(
@@ -717,6 +715,21 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   bool _isSubmitting = false;
+  String? _pendingSubmissionText;
+  String? _pendingSubmissionKey;
+
+  String _submissionKeyFor(String text) {
+    if (_pendingSubmissionText == text && _pendingSubmissionKey != null) {
+      return _pendingSubmissionKey!;
+    }
+    final random = Random.secure();
+    final key =
+        'ui-${DateTime.now().microsecondsSinceEpoch}-'
+        '${random.nextInt(1 << 32).toRadixString(16)}';
+    _pendingSubmissionText = text;
+    _pendingSubmissionKey = key;
+    return key;
+  }
 
   @override
   void initState() {
@@ -768,17 +781,37 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     if (ref.read(aiGeneratingProvider).contains(conversationId)) return;
 
     setState(() => _isSubmitting = true);
+    final submissionKey = _submissionKeyFor(text);
 
     try {
+      final uri = Uri.tryParse(text);
+      final isUrl =
+          uri != null &&
+          (uri.scheme == 'http' || uri.scheme == 'https') &&
+          uri.host.isNotEmpty &&
+          !text.contains(RegExp(r'\s'));
+      if (isUrl) {
+        await _routeUrlToImportPreview(text, submissionKey);
+        _controller.clear();
+        _pendingSubmissionText = null;
+        _pendingSubmissionKey = null;
+        return;
+      }
       final repo = ref.read(conversationRepositoryProvider);
       // 先把用户消息写入库（不依赖 AI）
-      await repo.sendMessage(conversationId, text);
+      await repo.sendMessage(
+        conversationId,
+        text,
+        idempotencyKey: submissionKey,
+      );
 
       // 新消息发出，清掉该会话之前的临时错误提示
       clearConversationNotices(ref, conversationId);
       if (mounted) setState(() {});
 
       _controller.clear();
+      _pendingSubmissionText = null;
+      _pendingSubmissionKey = null;
       ref.invalidate(messagesProvider);
       ref.invalidate(conversationsProvider);
     } catch (e) {
@@ -799,6 +832,40 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     await _generateAiReply(conversationId);
   }
 
+  Future<void> _routeUrlToImportPreview(
+    String url,
+    String idempotencyKey,
+  ) async {
+    final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    final input = await bridge.beginUrlInput(
+      url,
+      idempotencyKey: idempotencyKey,
+    );
+    try {
+      final kind = await bridge.guessImportKind(url);
+      if (kind == 'tweet') {
+        final existing = await bridge.findTweetSourcePage(url);
+        if (existing != null) {
+          await bridge.finishUrlInput(input.id, wikiPageSlug: existing.slug);
+          ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+          openWikiPageTab(ref, existing);
+          return;
+        }
+        final fetch = (await bridge.fetchTweet(url)).withInputRecord(input.id);
+        ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+        openWikiTweetTab(ref, fetch);
+      } else {
+        final fetch = (await bridge.fetchImportUrl(url))
+            .withInputRecord(input.id);
+        ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+        openWikiImportFetchTab(ref, fetch);
+      }
+    } catch (_) {
+      await bridge.finishUrlInput(input.id, failed: true);
+      rethrow;
+    }
+  }
+
   Future<void> _generateAiReply(String conversationId) async {
     // 生成逻辑集中在顶部 runAiGeneration：重试（错误气泡按钮）与首次发送
     // 走同一路径，保证成功/失败/收尾行为一致。
@@ -816,7 +883,8 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
   Widget build(BuildContext context) {
     final selectedId = ref.watch(selectedConversationIdProvider);
     final isGenerating =
-        selectedId != null && ref.watch(aiGeneratingProvider).contains(selectedId);
+        selectedId != null &&
+        ref.watch(aiGeneratingProvider).contains(selectedId);
     // 三态：写库中（_isSubmitting）或 AI 生成中 → 忙碌
     final busy = _isSubmitting || isGenerating;
 
@@ -824,12 +892,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       padding: const EdgeInsets.all(AppTheme.space4),
       decoration: BoxDecoration(
         color: AppTheme.surface1,
-        border: Border(
-          top: BorderSide(
-            color: AppTheme.surface3,
-            width: 1,
-          ),
-        ),
+        border: Border(top: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -841,10 +904,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
               maxLines: 4,
               minLines: 1,
               enabled: !_isSubmitting,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
               decoration: InputDecoration(
                 hintText: isGenerating ? 'AI 正在思考，您可以先输入下一条消息…' : '输入消息...',
                 hintStyle: TextStyle(color: AppTheme.textTertiary),
@@ -860,7 +920,10 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  borderSide: BorderSide(color: AppTheme.accentPrimary, width: 2),
+                  borderSide: BorderSide(
+                    color: AppTheme.accentPrimary,
+                    width: 2,
+                  ),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: AppTheme.space3,
@@ -891,7 +954,11 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
 }
 
 /// 写入系统剪贴板并给出轻量反馈
-Future<void> _copyToClipboard(BuildContext context, String text, String label) async {
+Future<void> _copyToClipboard(
+  BuildContext context,
+  String text,
+  String label,
+) async {
   await Clipboard.setData(ClipboardData(text: text));
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(

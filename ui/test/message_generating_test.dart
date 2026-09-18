@@ -27,9 +27,7 @@ void main() {
           selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
           messagesProvider.overrideWith((ref) async => <Message>[]),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: MessageArea()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: MessageArea())),
       ),
     );
     await tester.pump();
@@ -42,10 +40,8 @@ void main() {
     await tester._pressEnter();
 
     // ① 生成中反馈：占位气泡 + 发送按钮转菊花 + 输入框提示变化
-    expect(find.text('AI 正在思考…'), findsOneWidget,
-        reason: '发送后应立即出现「生成中」占位气泡');
-    expect(find.byIcon(Icons.send), findsNothing,
-        reason: '生成中发送按钮应转菊花（禁用）');
+    expect(find.text('AI 正在思考…'), findsOneWidget, reason: '发送后应立即出现「生成中」占位气泡');
+    expect(find.byIcon(Icons.send), findsNothing, reason: '生成中发送按钮应转菊花（禁用）');
     final hint = tester.widget<TextField>(input).decoration?.hintText;
     expect(hint, 'AI 正在思考，您可以先输入下一条消息…');
 
@@ -53,10 +49,8 @@ void main() {
     replyGate.complete('ok');
     await tester.pump(); // generateReply 返回 + invalidate + 清除生成状态
     await tester.pump(); // 重建
-    expect(find.text('AI 正在思考…'), findsNothing,
-        reason: 'AI 回复到位后占位气泡应消失');
-    expect(find.byIcon(Icons.send), findsOneWidget,
-        reason: '生成完成后发送按钮恢复');
+    expect(find.text('AI 正在思考…'), findsNothing, reason: 'AI 回复到位后占位气泡应消失');
+    expect(find.byIcon(Icons.send), findsOneWidget, reason: '生成完成后发送按钮恢复');
     expect(tester.widget<TextField>(input).decoration?.hintText, '输入消息...');
   });
 }
@@ -68,7 +62,11 @@ class _FakeConversationRepo extends ConversationRepository {
   Completer<String>? replyCompleter;
 
   @override
-  Future<Message> sendMessage(String conversationId, String content) async {
+  Future<Message> sendMessage(
+    String conversationId,
+    String content, {
+    String? idempotencyKey,
+  }) async {
     return Message(
       id: 'm1',
       conversationId: conversationId,

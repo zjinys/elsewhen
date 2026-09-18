@@ -42,7 +42,7 @@ Elsewhen is a local-first personal event system with a **Rust core** and **Flutt
 #### Build and test
 ```bash
 cargo build --release          # Release binary → target/release/elsewhen
-cargo test                      # Run all tests (9 unit tests across modules)
+cargo test                      # Run all Rust unit/integration targets
 cargo test --test <name>        # Run specific test
 ```
 
@@ -171,20 +171,27 @@ fvm flutter run -d linux        # Run on Linux desktop
 ```
 
 ### Flutter-Rust Bridge
-The Flutter GUI communicates with Rust core via `flutter_rust_bridge`. The bridge exposes business-facing APIs (not raw SQLite access):
+The Flutter GUI communicates with Rust core via `flutter_rust_bridge`. The bridge exposes business-facing APIs (not raw SQLite access), including:
 - `record_event(raw_text)`
 - `list_events()`
 - `create_conversation()` / `list_conversations()` / `list_messages()`
 - `send_message(conversation_id, text)`
 - `set_capture_mode(enabled)`
+- wiki import, tags, relations, derivatives, todos, rules, provider settings, and analysis queue status
 
-Bridge code generation and integration instructions will be added as the Flutter project is initialized.
+After changing a public Rust API, run `./regen.sh` from the repository root. It regenerates Dart/Rust bindings and rebuilds `target/release/libelsewhen.so` so content hashes stay synchronized.
+
+Real Flutter bridge tests must initialize `RustBridgeRepository` through `ui/test/support/isolated_bridge.dart`. Never let a test use the default platform data directory or assume personal events/wiki/provider data already exist.
 
 ### GUI Architecture
-- **Main app mode**: IM-like continuous conversation with session list, message area, and input
+- **Main app mode**: conversation, wiki/material processing, and todo views; the current roadmap is adding a unified daily record flow
 - **Capture mode**: Compact mode in the same Flutter app window (not a separate native window)
 - Modes are mutually exclusive; platform layer handles window size, focus, and topmost state
 - Capture submission must not wait for network or AI response
+
+## Current Product Direction
+
+The active implementation plan is `docs/roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md`. It supersedes the old phase ordering while retaining the local-first invariants. Every completed roadmap step must immediately update its checkbox and completion evidence in that file.
 
 ## CI
 

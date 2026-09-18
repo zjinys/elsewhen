@@ -1,6 +1,6 @@
+use super::tool::ToolCall;
 use crate::storage::Store;
 use anyhow::Result;
-use super::tool::ToolCall;
 
 /// Message for AI context
 #[derive(Debug, Clone)]
@@ -71,6 +71,12 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 - 查看某天的事件：用户说「XX（日期）有哪些事件 / 看看那天记录了什么」等 → 用 list_events_by_date 查当天事件（把自然日期解析成 YYYY-MM-DD，「昨天/前天」按当前日期推算），只读、可直接把结果念给用户。
 - 归档对话：用户说「把XX对话归档」→ 用 archive_conversations_by_title（title=精确标题 或 contains=标题包含；标题显示为「新对话」的空标题会话按「新对话」匹配）；仅归档主对话列表，不动知识页内聊天；草拟出匹配清单，用户确认后才归档。
 - 知识页改名：用户说「把 X 改名为 Y」「这个项目不叫 X 实际叫 Y」→ 用 rename_wiki_page（slug=当前页标识、new_title=新名字）；改名会连可唯一标识一起换、自动迁移人物关系引用和页内聊天会话；草拟确认制。只改正文不改名用 save_wiki_revision。
+- 知识库按「来源/用途」分区（area），写库时要对号入座：
+  - **素材库**（imported）：从外部导入的推文/网页/粘贴文本，带来源 URL。**素材原文锁定**：绝不用 save_wiki_revision 覆盖素材原文。
+  - **人物/项目**（network）：person/、topic/ 前缀的关系网实体，由人物关系提取自动建档。
+  - **知识沉淀**（insight）：AI 从对话提炼保存的知识页（save_knowledge_draft 建的页）。
+  - **派生产物**（derivative）：对某页加工出的成果（总结/提炼观点/抖音文案/翻译等），挂在该页详情下，不进主列表。
+- 对某一页做加工（总结、提炼要点、写抖音文案、翻译、扩写观点等「生成新内容」）→ 用 save_wiki_revision 且 **save_as=derivative + content_type**（如 总结/提炼观点/抖音文案），保存为派生产物、不改动原页；**不要覆盖素材原文**。只有当用户明确要求修改页面本身的内容（如「把这段改一下」「补充这点进去」）且该页不是素材原文时，才用 save_as=revision 直接修订正文。
 - 人物关系（propose_people_relations）：当对话里出现**新的、或信息有实质更新**的重要人物及其参与/负责的事情/项目时草拟。要求：只针对对用户重要、且信息具体的人物（有称呼/身份/参与的具体事情），不要为随口一提、没有可用信息的名字草拟；同一人同一件事若已建档存过（先用 list_wiki_pages / search_knowledge_base 查一下），不要重复提议；不确定的地方在 note 里标注「待确认」。
 - 规范标注 @ / #：用户可以（在事件或对话里）用 @人名 明确标注「这是人」、用 #事情/项目 明确标注「这是事情」，如「@张伟 负责 #双链路付款」。这些标注是用户写死的权威实体——草拟人物/关系时必须全部纳入；同名但在名字里带了括号备注（如「张伟（市场部）」「张伟（设计）」）的是不同的人，不能合并。未标注时再按上下文识别。批量提取用 batch_extract_people_relations（扫描全部事件，同一待确认机制）。
 - 用户确认之后不要再重复提议同一条规则或同一个写操作；相关工作已生效，只需告知结果。
@@ -133,7 +139,9 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
     // 注入跨对话的近期用户消息，弥补单对话上下文断裂：让 AI 回忆起最近聊过的人与事
     let recent = store.recent_user_messages(6, 160)?;
     if !recent.is_empty() {
-        prompt.push_str("\n\n你最近和用户聊到过的事（跨对话要点，供回忆；回复时自然带入，不必逐条复述）：\n");
+        prompt.push_str(
+            "\n\n你最近和用户聊到过的事（跨对话要点，供回忆；回复时自然带入，不必逐条复述）：\n",
+        );
         for msg in recent {
             prompt.push_str("- ");
             prompt.push_str(&msg.content);
@@ -251,17 +259,26 @@ mod tests {
     fn temporary_database() -> std::path::PathBuf {
         std::env::temp_dir().join(format!(
             "elsewhen-memory-test-{}.db",
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ))
     }
 
     fn setup_store() -> (Store, String, std::path::PathBuf) {
         let path = temporary_database();
         let store = Store::open(&path).unwrap();
-        let conversation_id =
-            store.create_conversation(Some("今日记录"), Some("discussion")).unwrap();
+        let conversation_id = store
+            .create_conversation(Some("今日记录"), Some("discussion"))
+            .unwrap();
         store
-            .send_message(&conversation_id, "user", "今天用 opencode2 讨论了一些需求", None)
+            .send_message(
+                &conversation_id,
+                "user",
+                "今天用 opencode2 讨论了一些需求",
+                None,
+            )
             .unwrap();
         (store, conversation_id, path)
     }
@@ -354,7 +371,12 @@ mod tests {
             .create_conversation(Some("另一个对话"), Some("general"))
             .unwrap();
         store
-            .send_message(&other_id, "user", "昨天给海油服的张玮沟通了双链路付款的事情，必须留痕", None)
+            .send_message(
+                &other_id,
+                "user",
+                "昨天给海油服的张玮沟通了双链路付款的事情，必须留痕",
+                None,
+            )
             .unwrap();
 
         let context = SimpleMemory::new(10)
@@ -367,10 +389,7 @@ mod tests {
             "跨对话近期消息应被注入 system 提示，实际: {}",
             system
         );
-        assert!(
-            system.contains("留痕"),
-            "近期消息内容应整体可见"
-        );
+        assert!(system.contains("留痕"), "近期消息内容应整体可见");
 
         let _ = std::fs::remove_file(path);
     }
