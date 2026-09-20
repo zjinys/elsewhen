@@ -674,6 +674,20 @@ pub fn delete_entity_fact(id: String) -> Result<bool> {
     store.delete_entity_fact(id.trim())
 }
 
+pub fn list_entity_aliases(entity_kind: String, entity_slug: String) -> Result<Vec<String>> {
+    let config = crate::config::AppConfig::load()?;
+    Store::open(&config.database_path)?.list_entity_aliases(entity_kind.trim(), entity_slug.trim())
+}
+
+pub fn add_entity_alias(entity_kind: String, entity_slug: String, alias: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    Store::open(&config.database_path)?.add_entity_alias(
+        entity_kind.trim(),
+        entity_slug.trim(),
+        alias.trim(),
+    )
+}
+
 /// List all events
 pub fn list_events() -> Result<Vec<EventDto>> {
     let config = crate::config::AppConfig::load()?;

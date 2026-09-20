@@ -770,6 +770,7 @@ class _WikiPageBody extends ConsumerWidget {
                 ),
               const SizedBox(height: AppTheme.space3),
               _buildTagRow(context, ref),
+              _EntityAliases(slug: page.slug),
               const SizedBox(height: AppTheme.space3),
               _buildRelationsRow(context, ref),
             ],
@@ -984,6 +985,39 @@ class _WikiPageBody extends ConsumerWidget {
     final s = page.summary.trim();
     if (s.isEmpty) return false;
     return page.title.trim() != s;
+  }
+}
+
+class _EntityAliases extends ConsumerStatefulWidget {
+  final String slug;
+  const _EntityAliases({required this.slug});
+  @override
+  ConsumerState<_EntityAliases> createState() => _EntityAliasesState();
+}
+
+class _EntityAliasesState extends ConsumerState<_EntityAliases> {
+  Future<void> _addAlias() async {
+    final controller = TextEditingController();
+    final value = await showDialog<String>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('添加别名'),
+      content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(hintText: '例如：项目简称、常用称呼')),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('取消')), FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: const Text('添加'))],
+    ));
+    controller.dispose();
+    if (value == null || value.trim().isEmpty || !mounted) return;
+    final kind = widget.slug.split('/').first;
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    await repo.addEntityAlias(kind, widget.slug, value.trim());
+    ref.invalidate(entityAliasesProvider(widget.slug));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final aliases = ref.watch(entityAliasesProvider(widget.slug)).valueOrNull ?? const [];
+    return Padding(padding: const EdgeInsets.only(top: 8), child: Wrap(spacing: 6, children: [
+      if (aliases.isNotEmpty) ...[const Icon(Icons.alt_route, size: 14), for (final alias in aliases) Chip(label: Text(alias, style: const TextStyle(fontSize: 11)))],
+      ActionChip(avatar: const Icon(Icons.add, size: 14), label: const Text('添加别名', style: TextStyle(fontSize: 11)), onPressed: _addAlias),
+    ]));
   }
 }
 

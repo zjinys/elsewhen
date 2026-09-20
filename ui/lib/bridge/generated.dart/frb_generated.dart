@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 293823259;
+  int get rustContentHash => 1292119434;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -79,6 +79,12 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<void> crateApiAddEntityAlias({
+    required String entityKind,
+    required String entitySlug,
+    required String alias,
+  });
+
   Future<RelationDto> crateApiAddRelation({
     required String fromSlug,
     required String toSlug,
@@ -195,6 +201,11 @@ abstract class RustLibApi extends BaseApi {
   Future<List<ConversationDto>> crateApiListConversations();
 
   Future<List<DailyEntryDto>> crateApiListDailyEntries({required String date});
+
+  Future<List<String>> crateApiListEntityAliases({
+    required String entityKind,
+    required String entitySlug,
+  });
 
   Future<List<EntityFactDto>> crateApiListEntityFacts({
     required String entityKind,
@@ -339,6 +350,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required super.generalizedFrbRustBinding,
     required super.portManager,
   });
+
+  @override
+  Future<void> crateApiAddEntityAlias({
+    required String entityKind,
+    required String entitySlug,
+    required String alias,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entityKind);
+          var arg1 = cst_encode_String(entitySlug);
+          var arg2 = cst_encode_String(alias);
+          return wire.wire__crate__api__add_entity_alias(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiAddEntityAliasConstMeta,
+        argValues: [entityKind, entitySlug, alias],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAddEntityAliasConstMeta => const TaskConstMeta(
+    debugName: "add_entity_alias",
+    argNames: ["entityKind", "entitySlug", "alias"],
+  );
 
   @override
   Future<RelationDto> crateApiAddRelation({
@@ -1329,6 +1375,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiListDailyEntriesConstMeta =>
       const TaskConstMeta(debugName: "list_daily_entries", argNames: ["date"]);
+
+  @override
+  Future<List<String>> crateApiListEntityAliases({
+    required String entityKind,
+    required String entitySlug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entityKind);
+          var arg1 = cst_encode_String(entitySlug);
+          return wire.wire__crate__api__list_entity_aliases(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListEntityAliasesConstMeta,
+        argValues: [entityKind, entitySlug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListEntityAliasesConstMeta => const TaskConstMeta(
+    debugName: "list_entity_aliases",
+    argNames: ["entityKind", "entitySlug"],
+  );
 
   @override
   Future<List<EntityFactDto>> crateApiListEntityFacts({

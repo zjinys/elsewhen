@@ -100,6 +100,24 @@ Future<List<EntityFactDto>> listEntityFacts({
 Future<bool> deleteEntityFact({required String id}) =>
     RustLib.instance.api.crateApiDeleteEntityFact(id: id);
 
+Future<List<String>> listEntityAliases({
+  required String entityKind,
+  required String entitySlug,
+}) => RustLib.instance.api.crateApiListEntityAliases(
+  entityKind: entityKind,
+  entitySlug: entitySlug,
+);
+
+Future<void> addEntityAlias({
+  required String entityKind,
+  required String entitySlug,
+  required String alias,
+}) => RustLib.instance.api.crateApiAddEntityAlias(
+  entityKind: entityKind,
+  entitySlug: entitySlug,
+  alias: alias,
+);
+
 /// List all events
 Future<List<EventDto>> listEvents() =>
     RustLib.instance.api.crateApiListEvents();

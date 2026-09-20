@@ -1405,6 +1405,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
 
+  void wire__crate__api__add_entity_alias(
+    NativePortType port_,
+    String entity_kind,
+    String entity_slug,
+    String alias,
+  ) => wasmModule.wire__crate__api__add_entity_alias(
+    port_,
+    entity_kind,
+    entity_slug,
+    alias,
+  );
+
   void wire__crate__api__add_relation(
     NativePortType port_,
     String from_slug,
@@ -1613,6 +1625,16 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String date,
   ) => wasmModule.wire__crate__api__list_daily_entries(port_, date);
+
+  void wire__crate__api__list_entity_aliases(
+    NativePortType port_,
+    String entity_kind,
+    String entity_slug,
+  ) => wasmModule.wire__crate__api__list_entity_aliases(
+    port_,
+    entity_kind,
+    entity_slug,
+  );
 
   void wire__crate__api__list_entity_facts(
     NativePortType port_,
@@ -1858,6 +1880,13 @@ external RustLibWasmModule get wasmModule;
 @JS()
 @anonymous
 extension type RustLibWasmModule._(JSObject _) implements JSObject {
+  external void wire__crate__api__add_entity_alias(
+    NativePortType port_,
+    String entity_kind,
+    String entity_slug,
+    String alias,
+  );
+
   external void wire__crate__api__add_relation(
     NativePortType port_,
     String from_slug,
@@ -2037,6 +2066,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__list_daily_entries(
     NativePortType port_,
     String date,
+  );
+
+  external void wire__crate__api__list_entity_aliases(
+    NativePortType port_,
+    String entity_kind,
+    String entity_slug,
   );
 
   external void wire__crate__api__list_entity_facts(

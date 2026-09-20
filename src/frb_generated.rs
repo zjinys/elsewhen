@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 293823259;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1292119434;
 
 // Section: executor
 
@@ -47,6 +47,37 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
+fn wire__crate__api__add_entity_alias_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    entity_kind: impl CstDecode<String>,
+    entity_slug: impl CstDecode<String>,
+    alias: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "add_entity_alias",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_entity_kind = entity_kind.cst_decode();
+            let api_entity_slug = entity_slug.cst_decode();
+            let api_alias = alias.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::add_entity_alias(
+                            api_entity_kind,
+                            api_entity_slug,
+                            api_alias,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__add_relation_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     from_slug: impl CstDecode<String>,
@@ -964,6 +995,32 @@ fn wire__crate__api__list_daily_entries_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::list_daily_entries(api_date)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__list_entity_aliases_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    entity_kind: impl CstDecode<String>,
+    entity_slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_entity_aliases",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_entity_kind = entity_kind.cst_decode();
+            let api_entity_slug = entity_slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::list_entity_aliases(api_entity_kind, api_entity_slug)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4922,6 +4979,16 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__add_entity_alias(
+        port_: i64,
+        entity_kind: *mut wire_cst_list_prim_u_8_strict,
+        entity_slug: *mut wire_cst_list_prim_u_8_strict,
+        alias: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__add_entity_alias_impl(port_, entity_kind, entity_slug, alias)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__add_relation(
         port_: i64,
         from_slug: *mut wire_cst_list_prim_u_8_strict,
@@ -5225,6 +5292,15 @@ mod io {
         date: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__list_daily_entries_impl(port_, date)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_entity_aliases(
+        port_: i64,
+        entity_kind: *mut wire_cst_list_prim_u_8_strict,
+        entity_slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__list_entity_aliases_impl(port_, entity_kind, entity_slug)
     }
 
     #[unsafe(no_mangle)]
@@ -7058,6 +7134,16 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__add_entity_alias(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        entity_kind: String,
+        entity_slug: String,
+        alias: String,
+    ) {
+        wire__crate__api__add_entity_alias_impl(port_, entity_kind, entity_slug, alias)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__add_relation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         from_slug: String,
@@ -7377,6 +7463,15 @@ mod web {
         date: String,
     ) {
         wire__crate__api__list_daily_entries_impl(port_, date)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__list_entity_aliases(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        entity_kind: String,
+        entity_slug: String,
+    ) {
+        wire__crate__api__list_entity_aliases_impl(port_, entity_kind, entity_slug)
     }
 
     #[wasm_bindgen]

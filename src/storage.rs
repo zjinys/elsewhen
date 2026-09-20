@@ -608,6 +608,19 @@ impl Store {
                  VALUES (22, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
             )?;
         }
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS entity_aliases (
+               id TEXT PRIMARY KEY,
+               entity_kind TEXT NOT NULL CHECK(entity_kind IN ('person','project','topic')),
+               entity_slug TEXT NOT NULL,
+               alias TEXT NOT NULL CHECK(length(trim(alias)) > 0),
+               created_at TEXT NOT NULL,
+               UNIQUE(entity_kind, entity_slug, alias)
+             );
+             CREATE INDEX IF NOT EXISTS idx_entity_aliases_lookup ON entity_aliases(alias);
+             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (23, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )?;
         let has_api_key = {
             let mut statement = connection.prepare("PRAGMA table_info(ai_provider_configs)")?;
             let columns = statement
@@ -1491,6 +1504,27 @@ impl Store {
             .connection
             .execute("DELETE FROM entity_facts WHERE id=?1", [id])?
             > 0)
+    }
+
+    pub fn list_entity_aliases(&self, entity_kind: &str, entity_slug: &str) -> Result<Vec<String>> {
+        let mut statement = self.connection.prepare("SELECT alias FROM entity_aliases WHERE entity_kind=?1 AND entity_slug=?2 ORDER BY alias")?;
+        let rows = statement.query_map(params![entity_kind, entity_slug], |row| row.get(0))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    pub fn add_entity_alias(
+        &self,
+        entity_kind: &str,
+        entity_slug: &str,
+        alias: &str,
+    ) -> Result<()> {
+        let alias = alias.trim();
+        if alias.is_empty() {
+            anyhow::bail!("别名不能为空");
+        }
+        self.connection.execute("INSERT OR IGNORE INTO entity_aliases (id,entity_kind,entity_slug,alias,created_at) VALUES (?1,?2,?3,?4,?5)", params![Uuid::new_v4().to_string(), entity_kind, entity_slug, alias, chrono::Utc::now().to_rfc3339()])?;
+        Ok(())
     }
 
     pub fn upsert_ai_provider_config(
@@ -3485,6 +3519,29 @@ mod tests {
             .unwrap()
             .is_empty());
         assert_eq!(store.list_events().unwrap().len(), 1);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn entity_aliases_are_idempotent_and_scoped() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store
+            .add_entity_alias("project", "project/acme", "ACME")
+            .unwrap();
+        store
+            .add_entity_alias("project", "project/acme", "ACME")
+            .unwrap();
+        assert_eq!(
+            store
+                .list_entity_aliases("project", "project/acme")
+                .unwrap(),
+            vec!["ACME"]
+        );
+        assert!(store
+            .list_entity_aliases("project", "project/other")
+            .unwrap()
+            .is_empty());
         let _ = std::fs::remove_file(path);
     }
 

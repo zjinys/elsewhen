@@ -1985,6 +1985,42 @@ class RustLibWire implements BaseWire {
   late final _store_dart_post_cobject = _store_dart_post_cobjectPtr
       .asFunction<void Function(DartPostCObjectFnType)>();
 
+  void wire__crate__api__add_entity_alias(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> alias,
+  ) {
+    return _wire__crate__api__add_entity_alias(
+      port_,
+      entity_kind,
+      entity_slug,
+      alias,
+    );
+  }
+
+  late final _wire__crate__api__add_entity_aliasPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__add_entity_alias');
+  late final _wire__crate__api__add_entity_alias =
+      _wire__crate__api__add_entity_aliasPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__add_relation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> from_slug,
@@ -2824,6 +2860,38 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__list_daily_entriesPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__list_entity_aliases(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
+  ) {
+    return _wire__crate__api__list_entity_aliases(
+      port_,
+      entity_kind,
+      entity_slug,
+    );
+  }
+
+  late final _wire__crate__api__list_entity_aliasesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__list_entity_aliases');
+  late final _wire__crate__api__list_entity_aliases =
+      _wire__crate__api__list_entity_aliasesPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__list_entity_facts(
