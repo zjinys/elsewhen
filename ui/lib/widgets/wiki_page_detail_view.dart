@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
+import '../bridge/generated.dart/api.dart' show EntityFactDto;
 import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
@@ -1029,10 +1030,27 @@ class _EntityFacts extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final facts = ref.watch(entityFactsProvider(slug)).valueOrNull ?? const [];
     if (facts.isEmpty) return const SizedBox.shrink();
+    final conflicts = _conflictingFactIds(facts);
     return Padding(
       padding: const EdgeInsets.only(top: AppTheme.space4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('结构化事实', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textTertiary)),
+        if (conflicts.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppTheme.warning.withOpacity(.10),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              border: Border.all(color: AppTheme.warning.withOpacity(.35)),
+            ),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.warning_amber_rounded, size: 16, color: AppTheme.warning),
+              const SizedBox(width: 7),
+              Expanded(child: Text('发现可能冲突的事实。历史来源均已保留，请查看来源后移除错误的派生事实。', style: TextStyle(fontSize: 11.5, height: 1.35, color: AppTheme.textSecondary))),
+            ]),
+          ),
+        ],
         const SizedBox(height: 8),
         for (final fact in facts.take(8))
           Container(
@@ -1044,7 +1062,7 @@ class _EntityFacts extends ConsumerWidget {
               border: Border.all(color: AppTheme.surface3),
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(Icons.fact_check_outlined, size: 14, color: AppTheme.accentPrimary),
+              Icon(conflicts.contains(fact.id) ? Icons.warning_amber_rounded : Icons.fact_check_outlined, size: 14, color: conflicts.contains(fact.id) ? AppTheme.warning : AppTheme.accentPrimary),
               const SizedBox(width: 6),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(fact.factText, style: TextStyle(fontSize: 12, height: 1.4, color: AppTheme.textSecondary)),
@@ -1066,6 +1084,19 @@ class _EntityFacts extends ConsumerWidget {
           ),
       ]),
     );
+  }
+
+  Set<String> _conflictingFactIds(List<EntityFactDto> facts) {
+    final groups = <String, List<EntityFactDto>>{};
+    for (final fact in facts) {
+      final separator = fact.factText.indexOf('：');
+      final key = separator > 0 ? fact.factText.substring(0, separator).trim() : fact.factText.trim();
+      groups.putIfAbsent(key, () => []).add(fact);
+    }
+    return {
+      for (final group in groups.values)
+        if (group.map((fact) => fact.factText).toSet().length > 1) ...group.map((fact) => fact.id),
+    };
   }
 
   String _factDate(String value) {
