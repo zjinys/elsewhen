@@ -1015,9 +1015,12 @@ class _EntityFacts extends ConsumerWidget {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(fact.factText, style: TextStyle(fontSize: 12, height: 1.4, color: AppTheme.textSecondary)),
                 const SizedBox(height: 4),
-                SelectableText(
-                  '${_factDate(fact.occurredAt)} · 置信度 ${fact.confidence}/5 · 来源 ${_shortId(fact.sourceEventId)}',
-                  style: TextStyle(fontSize: 10.5, color: AppTheme.textTertiary),
+                InkWell(
+                  onTap: () => _showSource(context, ref, fact.sourceEventId),
+                  child: Text(
+                    '${_factDate(fact.occurredAt)} · 置信度 ${fact.confidence}/5 · 查看来源 ${_shortId(fact.sourceEventId)}',
+                    style: TextStyle(fontSize: 10.5, color: AppTheme.accentPrimary),
+                  ),
                 ),
               ])),
             ]),
@@ -1033,6 +1036,39 @@ class _EntityFacts extends ConsumerWidget {
   }
 
   String _shortId(String value) => value.length > 8 ? value.substring(0, 8) : value;
+
+  Future<void> _showSource(BuildContext context, WidgetRef ref, String eventId) async {
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    final detail = await repo.getEventAnalysisDetail(eventId);
+    if (!context.mounted) return;
+    if (detail == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('来源事件不存在')));
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('来源事件'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SelectableText(detail.rawText),
+              if ((detail.summary ?? '').isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text('AI 摘要', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textTertiary)),
+                const SizedBox(height: 6),
+                SelectableText(detail.summary!),
+              ],
+              const SizedBox(height: 16),
+              Text('记录于 ${_factDate(detail.recordedAt)} · 分析状态 ${detail.jobStatus}', style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+            ]),
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('关闭'))],
+      ),
+    );
+  }
 }
 
 /// 来源链接 chip：点击复制
