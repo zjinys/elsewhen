@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -385,6 +386,16 @@ class _PendingRelationsBanner extends ConsumerWidget {
     final actions = ref.watch(pendingActionsProvider).valueOrNull ?? const [];
     final relation = actions.cast<dynamic>().where((a) => a.action == 'propose_people_relations').toList();
     if (relation.isEmpty) return const SizedBox.shrink();
+    final payload = jsonDecode(relation.first.argsJson) as Map<String, dynamic>;
+    final people = (payload['people'] as List? ?? const [])
+        .map((item) => (item as Map)['name']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .join('、');
+    final targets = (payload['relations'] as List? ?? const [])
+        .map((item) => (item as Map)['target']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .join('、');
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -393,8 +404,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
       child: Row(children: [
         Icon(Icons.auto_awesome_outlined, size: 18, color: AppTheme.accentPrimary),
         const SizedBox(width: 8),
-        Expanded(child: Text('已从记录中发现人物与项目关系，回复“好”确认保存，回复“不要”忽略。', style: TextStyle(fontSize: 12))),
-        TextButton(onPressed: () {}, child: const Text('查看')),
+        Expanded(child: Text('发现人物：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。', style: const TextStyle(fontSize: 12, height: 1.5))),
       ]),
     );
   }
