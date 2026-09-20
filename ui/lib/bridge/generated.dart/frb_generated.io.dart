@@ -45,6 +45,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
@@ -168,6 +171,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
@@ -243,6 +249,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AiProviderConfigDto sse_decode_box_autoadd_ai_provider_config_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
@@ -392,6 +401,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
   ConversationDto? sse_decode_opt_box_autoadd_conversation_dto(
     SseDeserializer deserializer,
   );
@@ -468,6 +480,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ptr = wire.cst_new_box_autoadd_ai_provider_config_dto();
     cst_api_fill_to_wire_ai_provider_config_dto(raw, ptr.ref);
     return ptr;
+  }
+
+  @protected
+  ffi.Pointer<ffi.Bool> cst_encode_box_autoadd_bool(bool raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return wire.cst_new_box_autoadd_bool(cst_encode_bool(raw));
   }
 
   @protected
@@ -718,6 +736,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return raw == null
         ? ffi.nullptr
         : cst_encode_box_autoadd_ai_provider_config_dto(raw);
+  }
+
+  @protected
+  ffi.Pointer<ffi.Bool> cst_encode_opt_box_autoadd_bool(bool? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? ffi.nullptr : cst_encode_box_autoadd_bool(raw);
   }
 
   @protected
@@ -979,6 +1003,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.people = cst_encode_list_String(apiObj.people);
     wireObj.projects = cst_encode_list_String(apiObj.projects);
     wireObj.follow_ups = cst_encode_list_String(apiObj.followUps);
+    wireObj.recordable = cst_encode_opt_box_autoadd_bool(apiObj.recordable);
+    wireObj.kind = cst_encode_opt_String(apiObj.kind);
   }
 
   @protected
@@ -1182,6 +1208,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_conversation_dto(
     ConversationDto self,
     SseSerializer serializer,
@@ -1374,6 +1403,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_conversation_dto(
     ConversationDto? self,
     SseSerializer serializer,
@@ -1479,6 +1511,17 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_ai_provider_config_dto> Function()
           >();
+
+  ffi.Pointer<ffi.Bool> cst_new_box_autoadd_bool(bool value) {
+    return _cst_new_box_autoadd_bool(value);
+  }
+
+  late final _cst_new_box_autoadd_boolPtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Bool> Function(ffi.Bool)>>(
+        'frbgen_elsewhen_ui_cst_new_box_autoadd_bool',
+      );
+  late final _cst_new_box_autoadd_bool = _cst_new_box_autoadd_boolPtr
+      .asFunction<ffi.Pointer<ffi.Bool> Function(bool)>();
 
   ffi.Pointer<wire_cst_conversation_dto>
   cst_new_box_autoadd_conversation_dto() {
@@ -3696,6 +3739,10 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_String> follow_ups;
 
+  external ffi.Pointer<ffi.Bool> recordable;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
   static ffi.Pointer<wire_cst_event_analysis_detail_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
@@ -3717,6 +3764,8 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_String> people,
     required ffi.Pointer<wire_cst_list_String> projects,
     required ffi.Pointer<wire_cst_list_String> follow_ups,
+    required ffi.Pointer<ffi.Bool> recordable,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
   }) => $allocator<wire_cst_event_analysis_detail_dto>()
     ..ref.event_id = event_id
     ..ref.raw_text = raw_text
@@ -3736,7 +3785,9 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
     ..ref.clarifications = clarifications
     ..ref.people = people
     ..ref.projects = projects
-    ..ref.follow_ups = follow_ups;
+    ..ref.follow_ups = follow_ups
+    ..ref.recordable = recordable
+    ..ref.kind = kind;
 }
 
 final class wire_cst_event_dto extends ffi.Struct {

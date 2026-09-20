@@ -2126,6 +2126,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_conversation_dto(raw);
@@ -2280,8 +2286,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 19)
-      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
+    if (arr.length != 21)
+      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
     return EventAnalysisDetailDto(
       eventId: dco_decode_String(arr[0]),
       rawText: dco_decode_String(arr[1]),
@@ -2302,6 +2308,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       people: dco_decode_list_String(arr[16]),
       projects: dco_decode_list_String(arr[17]),
       followUps: dco_decode_list_String(arr[18]),
+      recordable: dco_decode_opt_box_autoadd_bool(arr[19]),
+      kind: dco_decode_opt_String(arr[20]),
     );
   }
 
@@ -2500,6 +2508,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return raw == null
         ? null
         : dco_decode_box_autoadd_ai_provider_config_dto(raw);
+  }
+
+  @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_bool(raw);
   }
 
   @protected
@@ -2768,6 +2782,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_bool(deserializer));
+  }
+
+  @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
     SseDeserializer deserializer,
   ) {
@@ -2973,6 +2993,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_people = sse_decode_list_String(deserializer);
     var var_projects = sse_decode_list_String(deserializer);
     var var_followUps = sse_decode_list_String(deserializer);
+    var var_recordable = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_kind = sse_decode_opt_String(deserializer);
     return EventAnalysisDetailDto(
       eventId: var_eventId,
       rawText: var_rawText,
@@ -2993,6 +3015,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       people: var_people,
       projects: var_projects,
       followUps: var_followUps,
+      recordable: var_recordable,
+      kind: var_kind,
     );
   }
 
@@ -3308,6 +3332,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_ai_provider_config_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_bool(deserializer));
     } else {
       return null;
     }
@@ -3661,6 +3696,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_conversation_dto(
     ConversationDto self,
     SseSerializer serializer,
@@ -3835,6 +3876,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.people, serializer);
     sse_encode_list_String(self.projects, serializer);
     sse_encode_list_String(self.followUps, serializer);
+    sse_encode_opt_box_autoadd_bool(self.recordable, serializer);
+    sse_encode_opt_String(self.kind, serializer);
   }
 
   @protected
@@ -4096,6 +4139,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_ai_provider_config_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_bool(self, serializer);
     }
   }
 

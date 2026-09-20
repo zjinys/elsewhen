@@ -548,13 +548,13 @@ impl Tool for RecordEventTool {
         "record_event"
     }
     fn description(&self) -> &'static str {
-        "把一段经历/事件直接记录为个人事件，立即保存到事件记录（无需确认）。"
+        "把一段值得长期回看的客观经历、决定、行动或进展记录为个人事件，立即保存到事件记录（无需确认）。只记录用户自己的事实；不要记录对 AI 回复的评价、对话过程、寒暄、纯提问或闲聊。用户明确说‘记一下/帮我记/存进事件’时，按用户意图记录。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
             "type":"object",
             "properties":{
-                "raw_text":{"type":"string","description":"事件内容（第一人称，具体），必填"},
+                "raw_text":{"type":"string","description":"值得回看的第一人称事实、决定、行动或进展；不要填入对 AI 的评价或闲聊，必填"},
                 "occurred_at":{"type":"string","description":"发生时间（ISO 8601，如 2026-09-15T10:30:00Z），可选，默认现在"}
             },
             "required":["raw_text"],

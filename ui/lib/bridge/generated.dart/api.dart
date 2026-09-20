@@ -7,7 +7,7 @@ import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dto_from_active`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
+// These functions are ignored because they are not marked as `pub`: `default_event_kind`, `default_recordable`, `dto_from_active`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
@@ -804,6 +804,8 @@ class EventAnalysisDetailDto {
   final List<String> people;
   final List<String> projects;
   final List<String> followUps;
+  final bool? recordable;
+  final String? kind;
 
   const EventAnalysisDetailDto({
     required this.eventId,
@@ -825,6 +827,8 @@ class EventAnalysisDetailDto {
     required this.people,
     required this.projects,
     required this.followUps,
+    this.recordable,
+    this.kind,
   });
 
   @override
@@ -847,7 +851,9 @@ class EventAnalysisDetailDto {
       clarifications.hashCode ^
       people.hashCode ^
       projects.hashCode ^
-      followUps.hashCode;
+      followUps.hashCode ^
+      recordable.hashCode ^
+      kind.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -872,7 +878,9 @@ class EventAnalysisDetailDto {
           clarifications == other.clarifications &&
           people == other.people &&
           projects == other.projects &&
-          followUps == other.followUps;
+          followUps == other.followUps &&
+          recordable == other.recordable &&
+          kind == other.kind;
 }
 
 /// Event data transfer object for Flutter

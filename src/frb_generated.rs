@@ -1916,6 +1916,8 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
         let mut var_people = <Vec<String>>::sse_decode(deserializer);
         let mut var_projects = <Vec<String>>::sse_decode(deserializer);
         let mut var_followUps = <Vec<String>>::sse_decode(deserializer);
+        let mut var_recordable = <Option<bool>>::sse_decode(deserializer);
+        let mut var_kind = <Option<String>>::sse_decode(deserializer);
         return crate::api::EventAnalysisDetailDto {
             event_id: var_eventId,
             raw_text: var_rawText,
@@ -1936,6 +1938,8 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
             people: var_people,
             projects: var_projects,
             follow_ups: var_followUps,
+            recordable: var_recordable,
+            kind: var_kind,
         };
     }
 }
@@ -2249,6 +2253,17 @@ impl SseDecode for Option<crate::api::AiProviderConfigDto> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::AiProviderConfigDto>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<bool>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -2776,6 +2791,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventAnalysisDetailDto {
             self.people.into_into_dart().into_dart(),
             self.projects.into_into_dart().into_dart(),
             self.follow_ups.into_into_dart().into_dart(),
+            self.recordable.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3170,6 +3187,8 @@ impl SseEncode for crate::api::EventAnalysisDetailDto {
         <Vec<String>>::sse_encode(self.people, serializer);
         <Vec<String>>::sse_encode(self.projects, serializer);
         <Vec<String>>::sse_encode(self.follow_ups, serializer);
+        <Option<bool>>::sse_encode(self.recordable, serializer);
+        <Option<String>>::sse_encode(self.kind, serializer);
     }
 }
 
@@ -3413,6 +3432,16 @@ impl SseEncode for Option<crate::api::AiProviderConfigDto> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::AiProviderConfigDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <bool>::sse_encode(value, serializer);
         }
     }
 }
@@ -3674,6 +3703,12 @@ mod io {
             CstDecode::<crate::api::AiProviderConfigDto>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<bool> for *mut bool {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> bool {
+            unsafe { *flutter_rust_bridge::for_generated::box_from_leak_ptr(self) }
+        }
+    }
     impl CstDecode<crate::api::ConversationDto> for *mut wire_cst_conversation_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::ConversationDto {
@@ -3829,6 +3864,8 @@ mod io {
                 people: self.people.cst_decode(),
                 projects: self.projects.cst_decode(),
                 follow_ups: self.follow_ups.cst_decode(),
+                recordable: self.recordable.cst_decode(),
+                kind: self.kind.cst_decode(),
             }
         }
     }
@@ -4320,6 +4357,8 @@ mod io {
                 people: core::ptr::null_mut(),
                 projects: core::ptr::null_mut(),
                 follow_ups: core::ptr::null_mut(),
+                recordable: core::ptr::null_mut(),
+                kind: core::ptr::null_mut(),
             }
         }
     }
@@ -5084,6 +5123,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_bool(value: bool) -> *mut bool {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_conversation_dto(
     ) -> *mut wire_cst_conversation_dto {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -5455,6 +5499,8 @@ mod io {
         people: *mut wire_cst_list_String,
         projects: *mut wire_cst_list_String,
         follow_ups: *mut wire_cst_list_String,
+        recordable: *mut bool,
+        kind: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -5950,8 +5996,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                19,
-                "Expected 19 elements, got {}",
+                21,
+                "Expected 21 elements, got {}",
                 self_.length()
             );
             crate::api::EventAnalysisDetailDto {
@@ -5974,6 +6020,8 @@ mod web {
                 people: self_.get(16).cst_decode(),
                 projects: self_.get(17).cst_decode(),
                 follow_ups: self_.get(18).cst_decode(),
+                recordable: self_.get(19).cst_decode(),
+                kind: self_.get(20).cst_decode(),
             }
         }
     }

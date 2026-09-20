@@ -47,6 +47,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
@@ -170,6 +173,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
@@ -245,6 +251,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AiProviderConfigDto sse_decode_box_autoadd_ai_provider_config_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
@@ -394,6 +403,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
   ConversationDto? sse_decode_opt_box_autoadd_conversation_dto(
     SseDeserializer deserializer,
   );
@@ -505,6 +517,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_ai_provider_config_dto(AiProviderConfigDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_ai_provider_config_dto(raw);
+  }
+
+  @protected
+  bool cst_encode_box_autoadd_bool(bool raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_bool(raw);
   }
 
   @protected
@@ -660,6 +678,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_String(raw.people),
       cst_encode_list_String(raw.projects),
       cst_encode_list_String(raw.followUps),
+      cst_encode_opt_box_autoadd_bool(raw.recordable),
+      cst_encode_opt_String(raw.kind),
     ].jsify()!;
   }
 
@@ -832,6 +852,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return raw == null
         ? null
         : cst_encode_box_autoadd_ai_provider_config_dto(raw);
+  }
+
+  @protected
+  bool? cst_encode_opt_box_autoadd_bool(bool? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_bool(raw);
   }
 
   @protected
@@ -1024,6 +1050,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_conversation_dto(
     ConversationDto self,
     SseSerializer serializer,
@@ -1214,6 +1243,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     AiProviderConfigDto? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_conversation_dto(

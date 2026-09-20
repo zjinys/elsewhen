@@ -53,6 +53,7 @@
 - 隔离 Flutter Bridge 已验证 `getDailyOverview`：无 AI 回顾时返回事实和空 review，未关联待办不会凭空出现。
 - 新增 `save_daily_review`：写入前校验版本、日期、来源清单与逐条引用，生成器后续可安全追加回顾版本；尚未接入页面写入。
 - 新增 `generate_daily_review`：显式触发、Provider 可用且当天有事实时才生成；Bridge repository 已接入，暂不自动调用。
+- Phase 2.5 已开始：system prompt / `record_event` 工具描述加入可记录性边界；`event-analysis-v2` 兼容读取 v1，并增加 `recordable`、`kind`，详情 DTO 已同步。
 
 ## 验证事实与未完成验证
 

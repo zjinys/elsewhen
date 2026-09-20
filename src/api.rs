@@ -6,6 +6,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 const EVENT_ANALYSIS_VERSION: &str = "event-analysis-v1";
+const EVENT_ANALYSIS_VERSION_V2: &str = "event-analysis-v2";
 const DAILY_REVIEW_VERSION: &str = "daily-review-v1";
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -19,13 +20,31 @@ struct EventAnalysisV1 {
     people: Vec<String>,
     projects: Vec<String>,
     follow_ups: Vec<String>,
+    #[serde(default = "default_recordable")]
+    recordable: bool,
+    #[serde(default = "default_event_kind")]
+    kind: String,
+}
+
+fn default_recordable() -> bool {
+    true
+}
+fn default_event_kind() -> String {
+    "event".to_string()
 }
 
 impl EventAnalysisV1 {
     fn parse(raw: &str) -> Result<Self> {
         let mut result: Self = serde_json::from_str(raw)?;
-        if result.schema_version != EVENT_ANALYSIS_VERSION {
-            anyhow::bail!("schema_version 必须是 {EVENT_ANALYSIS_VERSION}");
+        if result.schema_version != EVENT_ANALYSIS_VERSION
+            && result.schema_version != EVENT_ANALYSIS_VERSION_V2
+        {
+            anyhow::bail!("schema_version 必须是 event-analysis-v1 或 event-analysis-v2");
+        }
+        if result.schema_version == EVENT_ANALYSIS_VERSION
+            && (result.recordable != true || result.kind != "event")
+        {
+            anyhow::bail!("event-analysis-v1 不支持非事件字段");
         }
         result.event_type = result.event_type.trim().to_string();
         result.summary = result.summary.trim().to_string();
@@ -34,6 +53,15 @@ impl EventAnalysisV1 {
         }
         if !result.confidence.is_finite() || !(0.0..=1.0).contains(&result.confidence) {
             anyhow::bail!("confidence 必须在 0..1 范围内");
+        }
+        if !matches!(
+            result.kind.as_str(),
+            "event" | "discussion" | "chitchat" | "meta"
+        ) {
+            anyhow::bail!("kind 必须是 event/discussion/chitchat/meta");
+        }
+        if !result.recordable && result.kind == "event" {
+            anyhow::bail!("不可记录结果不能标记为 event");
         }
         normalize_strings(&mut result.clarifications);
         normalize_strings(&mut result.people);
@@ -182,6 +210,8 @@ pub struct EventAnalysisDetailDto {
     pub people: Vec<String>,
     pub projects: Vec<String>,
     pub follow_ups: Vec<String>,
+    pub recordable: Option<bool>,
+    pub kind: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -574,6 +604,8 @@ pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysi
         follow_ups: analysis
             .as_ref()
             .map_or_else(Vec::new, |value| value.follow_ups.clone()),
+        recordable: analysis.as_ref().map(|value| value.recordable),
+        kind: analysis.as_ref().map(|value| value.kind.clone()),
     }))
 }
 
@@ -790,7 +822,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
             break;
         };
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。字段必须包含 schema_version(固定字符串 event-analysis-v1)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、follow_ups(array of strings)。\n记录：{}",
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v2。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、follow_ups(array of strings)。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n记录：{}",
             job.raw_text
         );
         match provider.generate_reply(vec![ContextMessage::new("user", prompt)]) {
@@ -798,7 +830,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
                 Ok(value) => {
                     store.complete_analysis(
                         &job,
-                        EVENT_ANALYSIS_VERSION,
+                        &value.schema_version,
                         &serde_json::to_string(&value)?,
                     )?;
                     processed += 1;
@@ -1923,5 +1955,21 @@ mod daily_review_tests {
             .is_some());
         drop(store);
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn event_analysis_v2_classifies_non_recordable_discussion() {
+        let raw = r#"{"schema_version":"event-analysis-v2","recordable":false,"kind":"meta","event_type":"conversation","confidence":0.9,"summary":"用户在评价助手回复","clarifications":[],"people":[],"projects":[],"follow_ups":[]}"#;
+        let parsed = EventAnalysisV1::parse(raw).unwrap();
+        assert!(!parsed.recordable);
+        assert_eq!(parsed.kind, "meta");
+    }
+
+    #[test]
+    fn event_analysis_v1_defaults_to_recordable_event() {
+        let raw = r#"{"schema_version":"event-analysis-v1","event_type":"note","confidence":0.8,"summary":"旧结果","clarifications":[],"people":[],"projects":[],"follow_ups":[]}"#;
+        let parsed = EventAnalysisV1::parse(raw).unwrap();
+        assert!(parsed.recordable);
+        assert_eq!(parsed.kind, "event");
     }
 }
