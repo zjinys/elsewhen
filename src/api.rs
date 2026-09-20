@@ -393,6 +393,8 @@ pub fn list_daily_entries(date: String) -> Result<Vec<DailyEntryDto>> {
     Ok(store
         .daily_entries(date)?
         .into_iter()
+        .filter(|entry| entry_is_recordable(&store, &entry.event_id))
+        .into_iter()
         .map(|entry| DailyEntryDto {
             event_id: entry.event_id,
             input_id: entry.input_id,
@@ -405,6 +407,17 @@ pub fn list_daily_entries(date: String) -> Result<Vec<DailyEntryDto>> {
         .collect())
 }
 
+fn entry_is_recordable(store: &Store, event_id: &str) -> bool {
+    store
+        .event_analysis_detail(event_id)
+        .ok()
+        .flatten()
+        .and_then(|detail| detail.result_json)
+        .and_then(|raw| EventAnalysisV1::parse(&raw).ok())
+        .map(|analysis| analysis.recordable)
+        .unwrap_or(true)
+}
+
 pub fn get_daily_overview(date: String) -> Result<DailyOverviewDto> {
     let date = chrono::NaiveDate::parse_from_str(date.trim(), "%Y-%m-%d")
         .map_err(|_| anyhow::anyhow!("日期必须是 YYYY-MM-DD"))?;
@@ -413,6 +426,8 @@ pub fn get_daily_overview(date: String) -> Result<DailyOverviewDto> {
     let store = Store::open(&config.database_path)?;
     let entries = store
         .daily_entries(date)?
+        .into_iter()
+        .filter(|entry| entry_is_recordable(&store, &entry.event_id))
         .into_iter()
         .map(|entry| DailyEntryDto {
             event_id: entry.event_id,
@@ -488,6 +503,8 @@ pub fn save_daily_review(
     let allowed_sources = store
         .daily_entries(date)?
         .into_iter()
+        .filter(|entry| entry_is_recordable(&store, &entry.event_id))
+        .into_iter()
         .map(|entry| entry.event_id)
         .collect::<Vec<_>>();
     let parsed = DailyReviewV1::parse(
@@ -535,7 +552,11 @@ fn generate_daily_review_with_provider(
     date: chrono::NaiveDate,
     provider: &dyn AiProvider,
 ) -> Result<String> {
-    let entries = store.daily_entries(date)?;
+    let entries = store
+        .daily_entries(date)?
+        .into_iter()
+        .filter(|entry| entry_is_recordable(store, &entry.event_id))
+        .collect::<Vec<_>>();
     if entries.is_empty() {
         return Ok("no_entries".to_string());
     }

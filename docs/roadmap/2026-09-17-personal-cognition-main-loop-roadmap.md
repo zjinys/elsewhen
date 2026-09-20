@@ -59,6 +59,7 @@
 - 对话层先判断是否值得记录；评价 AI、闲聊、元对话默认不写 `events`。
 - **已完成第一步：** system prompt 与 `record_event` 工具描述已明确上述边界，用户显式要求记录时仍按意图执行。
 - **已完成第二步：** `event-analysis-v2` 在兼容读取 v1 的基础上增加 `recordable` 与 `kind`，分析 prompt 要求区分 event / discussion / chitchat / meta；详情 DTO 暴露这两个字段。
+- **已完成第三步：** 日流、每日概览和每日回顾生成输入均过滤最新分析中的 `recordable=false`；无分析或旧 v1 结果保持可记录，原始事件不删除。
 - 明确记录时放宽判断，保留用户主动记录意图。
 - 分析契约升级为兼容的 v2，增加 `recordable` 与 `kind`，为存量事件和 UI 过滤提供确定字段。
 - 误记内容不物理删除：保留在 conversation，事件侧通过派生状态从时间线撤出。
