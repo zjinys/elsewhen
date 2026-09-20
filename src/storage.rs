@@ -1946,6 +1946,20 @@ impl Store {
             .map_err(Into::into)
     }
 
+    pub fn find_wiki_pages_by_title_or_alias(&self, name: &str) -> Result<Vec<WikiPage>> {
+        let mut statement = self.connection.prepare(
+            "SELECT DISTINCT p.id, p.slug, p.kind, p.title, p.summary, p.content_md, p.tags, p.source_event_ids,
+                    p.evidence_count, p.first_seen_at, p.last_seen_at, p.status, p.created_at, p.updated_at,
+                    p.source_url, COALESCE(p.area, 'insight'), p.based_on, p.content_type
+             FROM wiki_pages p LEFT JOIN entity_aliases a ON a.entity_slug=p.slug AND a.entity_kind=p.kind
+             WHERE lower(trim(p.title))=lower(trim(?1)) OR lower(trim(a.alias))=lower(trim(?1))
+             ORDER BY p.updated_at DESC",
+        )?;
+        let rows = statement.query_map(params![name], map_wiki_page)?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     /// 列出知识库页面（主列表）。
     /// - `kind`：按内容类型过滤；`area`：按来源/用途分区过滤（imported/network/insight）。
     /// - 默认排除派生产物（area=derivative，它们只经 `list_derivatives` 按原文展开读取）。

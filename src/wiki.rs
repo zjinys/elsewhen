@@ -581,7 +581,7 @@ pub fn apply_people_relations(
         if person_entries.iter().any(|(n, _, _)| *n == name) {
             continue;
         }
-        let matches = store.find_wiki_pages_by_title(&name)?;
+        let matches = store.find_wiki_pages_by_title_or_alias(&name)?;
         let selected_slug = parsed
             .relations
             .iter()
@@ -641,7 +641,7 @@ pub fn apply_people_relations(
         if target.is_empty() || target_entries.iter().any(|(t, _, _)| *t == target) {
             continue;
         }
-        let target_matches = store.find_wiki_pages_by_title(&target)?;
+        let target_matches = store.find_wiki_pages_by_title_or_alias(&target)?;
         let selected_target_slug = parsed
             .relations
             .iter()
