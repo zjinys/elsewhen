@@ -49,7 +49,7 @@
 
 - **Phase 0：安全与可观测性。** Bridge 测试隔离、分析队列状态、数据安全门禁完成。
 - **Phase 1：统一输入。** Capture、主输入、对话和 URL 路由统一进入可追溯输入链路，幂等和确认边界完成。
-- **Phase 2：分析闭环。** 非阻塞分析 worker、重试、重启恢复、`event-analysis-v1`、详情 API 和 Bridge 验证完成。
+- **Phase 2：分析闭环。** 非阻塞分析 worker、重试、重启恢复、统一 `event-analysis` 契约、详情 API 和 Bridge 验证完成。
 - **Phase 3 数据层：每日概览契约。** `get_daily_overview`、`daily_reviews`、来源引用、显式生成和当天待办聚合完成；Today 页面暂缓。
 
 ### Step 1：Phase 2.5 — 事件账本质量治理
@@ -58,7 +58,7 @@
 
 - 对话层先判断是否值得记录；评价 AI、闲聊、元对话默认不写 `events`。
 - **已完成第一步：** system prompt 与 `record_event` 工具描述已明确上述边界，用户显式要求记录时仍按意图执行。
-- **已完成第二步：** `event-analysis-v2` 在兼容读取 v1 的基础上增加 `recordable` 与 `kind`，分析 prompt 要求区分 event / discussion / chitchat / meta；详情 DTO 暴露这两个字段。
+- **已完成第二步：** 统一 `event-analysis` 契约保留 `recordable` 与 `kind`，旧 v1/v2 仅兼容读取；分析 prompt 区分 event / discussion / chitchat / meta，并明确 `projects` 只收录长期项目/产品/组织，不把动作或流程当项目。
 - **已完成第三步：** 日流、每日概览和每日回顾生成输入均过滤最新分析中的 `recordable=false`；无分析或旧 v1 结果保持可记录，原始事件不删除。
 - 明确记录时放宽判断，保留用户主动记录意图。
 - 分析契约升级为兼容的 v2，增加 `recordable` 与 `kind`，为存量事件和 UI 过滤提供确定字段。

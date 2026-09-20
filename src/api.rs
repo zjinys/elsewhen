@@ -5,8 +5,9 @@ use crate::storage::{RelationDraft, RuleStatus, Store};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-const EVENT_ANALYSIS_VERSION: &str = "event-analysis-v1";
-const EVENT_ANALYSIS_VERSION_V2: &str = "event-analysis-v2";
+const EVENT_ANALYSIS_VERSION: &str = "event-analysis";
+const LEGACY_EVENT_ANALYSIS_V1: &str = "event-analysis-v1";
+const LEGACY_EVENT_ANALYSIS_V2: &str = "event-analysis-v2";
 const DAILY_REVIEW_VERSION: &str = "daily-review-v1";
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -37,15 +38,12 @@ impl EventAnalysisV1 {
     fn parse(raw: &str) -> Result<Self> {
         let mut result: Self = serde_json::from_str(raw)?;
         if result.schema_version != EVENT_ANALYSIS_VERSION
-            && result.schema_version != EVENT_ANALYSIS_VERSION_V2
+            && result.schema_version != LEGACY_EVENT_ANALYSIS_V1
+            && result.schema_version != LEGACY_EVENT_ANALYSIS_V2
         {
-            anyhow::bail!("schema_version 必须是 event-analysis-v1 或 event-analysis-v2");
+            anyhow::bail!("schema_version 必须是 event-analysis");
         }
-        if result.schema_version == EVENT_ANALYSIS_VERSION
-            && (result.recordable != true || result.kind != "event")
-        {
-            anyhow::bail!("event-analysis-v1 不支持非事件字段");
-        }
+        result.schema_version = EVENT_ANALYSIS_VERSION.to_string();
         result.event_type = result.event_type.trim().to_string();
         result.summary = result.summary.trim().to_string();
         if result.event_type.is_empty() || result.summary.is_empty() {
@@ -876,7 +874,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
             break;
         };
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v2。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、follow_ups(array of strings)。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n记录：{}",
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织，不要把动作、流程、任务、付款、联调或短期事项当作项目；这些内容只保留在 summary 或 follow_ups。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n记录：{}",
             job.raw_text
         );
         match provider.generate_reply(vec![ContextMessage::new("user", prompt)]) {
@@ -1038,6 +1036,7 @@ mod analysis_tests {
         assert_eq!(parsed.summary, "summary");
         assert_eq!(parsed.clarifications, ["ask"]);
         assert_eq!(parsed.people, ["Ada"]);
+        assert_eq!(parsed.schema_version, EVENT_ANALYSIS_VERSION);
     }
 }
 
@@ -2067,6 +2066,7 @@ mod daily_review_tests {
         let parsed = EventAnalysisV1::parse(raw).unwrap();
         assert!(!parsed.recordable);
         assert_eq!(parsed.kind, "meta");
+        assert_eq!(parsed.schema_version, EVENT_ANALYSIS_VERSION);
     }
 
     #[test]
@@ -2075,5 +2075,6 @@ mod daily_review_tests {
         let parsed = EventAnalysisV1::parse(raw).unwrap();
         assert!(parsed.recordable);
         assert_eq!(parsed.kind, "event");
+        assert_eq!(parsed.schema_version, EVENT_ANALYSIS_VERSION);
     }
 }

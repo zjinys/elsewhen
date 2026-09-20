@@ -33,7 +33,7 @@
 - 离线 StubProvider 测试覆盖多任务成功、不重复处理、非法 JSON/非对象 JSON及 Provider 失败。
 - Flutter Bridge 已实现进程内串行 worker：启动及保存后非阻塞唤醒，合并重复信号，pending 超过 50 项自动续批，5 秒周期检查 retry 到期；测试 teardown 会取消 timer。
 - init_bridge 会将上次进程遗留的 running 任务恢复为立即可执行的 retry；恢复只发生在启动边界，避免每次 Store::open 抢占活跃任务。
-- `event-analysis-v1` 已定义并严格校验八字段 schema；结果 JSON 与 `prompt_version` 同步记录版本，数组字段规范化去重。
+- `event-analysis` 是当前统一分析契约；旧 `event-analysis-v1/v2` 仅作为读取兼容，新的分析结果统一规范化为 `event-analysis`。
 - 决策记录：
   - [统一输入与幂等边界](implemented/architecture/2026-09-17-unified-input-routing-and-idempotency.md)
   - [分析队列触发边界](implemented/architecture/2026-09-18-analysis-queue-trigger.md)
@@ -63,7 +63,7 @@
 - 隔离 Flutter Bridge 已验证 `getDailyOverview`：无 AI 回顾时返回事实和空 review，未关联待办不会凭空出现。
 - 新增 `save_daily_review`：写入前校验版本、日期、来源清单与逐条引用，生成器后续可安全追加回顾版本；尚未接入页面写入。
 - 新增 `generate_daily_review`：显式触发、Provider 可用且当天有事实时才生成；Bridge repository 已接入，暂不自动调用。
-- Phase 2.5 已开始：system prompt / `record_event` 工具描述加入可记录性边界；`event-analysis-v2` 兼容读取 v1，并增加 `recordable`、`kind`，详情 DTO 已同步。
+- Phase 2.5 已完成：system prompt / `record_event` 工具描述加入可记录性边界；统一 `event-analysis` 保留 `recordable`、`kind`，旧 v1/v2 兼容读取，详情 DTO 已同步。
 - 日流 API、`get_daily_overview` 和每日回顾生成均已按最新分析结果过滤 `recordable=false`，原始事件仍保留。
 - Phase 4A 已新增 `entity_facts`（migration v21）、幂等 upsert / 置信度提升和 `list_entity_facts` Bridge API；尚未自动从分析候选写入，保持确认边界。
 
