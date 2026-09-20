@@ -80,13 +80,15 @@
 
 退出条件：同一实体可以查询最近事实；重复分析幂等；所有事实可回到来源事件；旧 Wiki 页面继续可读。
 
-### Step 3：基础设施并行项 — 归档对话清理
+### Step 3：基础设施并行项 — 归档对话清理（已完成）
 
 对应：`docs/notes/proposed/architecture/2026-09-19-archived-conversation-deletion.md`
 
 - 只允许删除已归档、非知识页会话。
 - UI 二次确认；AI 指令走 `WriteConfirm`。
 - 删除与 messages、pending actions 级联，禁止留下悬挂引用。
+
+已完成：归档列表中的普通对话提供永久删除入口，UI 二次确认；后端拒绝删除未归档对话和知识页专用会话。提交 `aabf15b`，Flutter analyze 与 Rust/Bridge 构建通过。
 
 该项不属于 Phase 4 业务模型，但应在事件过滤后完成，保证讨论内容可收纳、可清理。
 
