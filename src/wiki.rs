@@ -558,6 +558,8 @@ pub fn apply_people_relations(
         people: Vec<PersonDraft>,
         #[serde(default)]
         relations: Vec<RelationDraftArg>,
+        #[serde(default)]
+        source_event_id: Option<String>,
     }
 
     let parsed: PeopleRelationsArgs = serde_json::from_value(args.clone())?;
@@ -670,7 +672,19 @@ pub fn apply_people_relations(
             note,
             confidence: 3,
             source_conversation_id: Some(conversation_id.to_string()),
+            source_event_id: parsed.source_event_id.clone(),
         })?;
+        if let Some(event_id) = parsed.source_event_id.as_deref() {
+            let fact = format!("与{target}的关系：{relation}");
+            store.upsert_entity_fact(
+                from_kind,
+                from_slug,
+                &fact,
+                &chrono::Utc::now().to_rfc3339(),
+                3,
+                event_id,
+            )?;
+        }
         saved += 1;
         relation_lines.push(format!("{person} —— {relation} —— {target}"));
     }

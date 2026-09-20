@@ -1496,6 +1496,7 @@ pub fn add_relation(
         note,
         confidence: 3,
         source_conversation_id: None,
+        source_event_id: None,
     })?;
     Ok(RelationDto::from(rel))
 }

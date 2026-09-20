@@ -789,7 +789,8 @@ impl Tool for ProposePeopleRelationsTool {
                         "required":["person","target"],
                         "additionalProperties":false
                     }
-                }
+                },
+                "source_event_id":{"type":"string","description":"可选：关系明确来自的真实事件 ID；只有提供该 ID 时才会同步生成实体事实"}
             },
             "additionalProperties":false
         })
@@ -812,7 +813,7 @@ impl Tool for ProposePeopleRelationsTool {
         if people.is_empty() && relations.is_empty() {
             anyhow::bail!("请至少提供一位人物或一条关系");
         }
-        let action_args = json!({ "people": people, "relations": relations });
+        let action_args = json!({ "people": people, "relations": relations, "source_event_id": args.get("source_event_id") });
         store_create_pending(
             ctx.store,
             ctx.conversation_id,
@@ -1920,6 +1921,7 @@ mod tests {
                 note: None,
                 confidence: 3,
                 source_conversation_id: Some(conv.clone()),
+                source_event_id: None,
             })
             .unwrap();
 

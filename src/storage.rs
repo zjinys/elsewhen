@@ -287,6 +287,7 @@ pub struct RelationDraft {
     pub note: Option<String>,
     pub confidence: i64,
     pub source_conversation_id: Option<String>,
+    pub source_event_id: Option<String>,
 }
 
 /// 带 id 的事件记录（digest 需要把事件 id 写进 wiki 页作为溯源）
@@ -587,6 +588,26 @@ impl Store {
              INSERT OR IGNORE INTO schema_migrations(version, applied_at)
              VALUES (21, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
         )?;
+        // 版本 22：关系可选关联真实事件，避免把会话本身伪装成事实来源。
+        let relations_table_exists: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='relations')",
+            [],
+            |row| row.get(0),
+        )?;
+        let has_relation_event = relations_table_exists && {
+            let mut statement = connection.prepare("PRAGMA table_info(relations)")?;
+            let columns = statement
+                .query_map([], |row| row.get::<_, String>(1))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            columns.iter().any(|name| name == "source_event_id")
+        };
+        if relations_table_exists && !has_relation_event {
+            connection.execute_batch(
+                "ALTER TABLE relations ADD COLUMN source_event_id TEXT;
+                 INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                 VALUES (22, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+            )?;
+        }
         let has_api_key = {
             let mut statement = connection.prepare("PRAGMA table_info(ai_provider_configs)")?;
             let columns = statement
@@ -828,6 +849,7 @@ impl Store {
                note TEXT,
                confidence INTEGER NOT NULL DEFAULT 3,
                source_conversation_id TEXT,
+               source_event_id TEXT,
                created_at TEXT NOT NULL,
                last_seen_at TEXT NOT NULL,
                UNIQUE(from_slug, to_slug, relation)
@@ -2494,10 +2516,10 @@ impl Store {
         self.connection.execute(
             "INSERT INTO relations
                (id, from_slug, from_kind, to_slug, to_kind, relation, note, confidence,
-                source_conversation_id, created_at, last_seen_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)
+                source_conversation_id, source_event_id, created_at, last_seen_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)
              ON CONFLICT(from_slug, to_slug, relation) DO UPDATE SET
-               note = ?7, confidence = ?8, last_seen_at = ?10",
+               note = ?7, confidence = ?8, source_event_id = COALESCE(?10, relations.source_event_id), last_seen_at = ?11",
             params![
                 Uuid::new_v4().to_string(),
                 draft.from_slug,
@@ -2508,6 +2530,7 @@ impl Store {
                 draft.note,
                 draft.confidence,
                 draft.source_conversation_id,
+                draft.source_event_id,
                 now.clone(),
             ],
         )?;
@@ -3582,6 +3605,7 @@ mod tests {
             note: Some("主导该项目".to_string()),
             confidence: 3,
             source_conversation_id: Some("conv-1".to_string()),
+            source_event_id: None,
         };
         store.upsert_relation(&rel).unwrap();
         // 同一条重复写入：去重为 1 条，指向同一页双向都能查到
@@ -3627,6 +3651,7 @@ mod tests {
                 note: Some("处理付款事宜".to_string()),
                 confidence: 3,
                 source_conversation_id: Some("conv-1".to_string()),
+                source_event_id: None,
             })
             .unwrap();
         store
