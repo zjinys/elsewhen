@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../models/conversation.dart';
 import '../models/wiki_page.dart';
+import '../bridge/rust_bridge_repository.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/wiki_provider.dart';
@@ -503,6 +504,39 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
 
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.space3,
+            AppTheme.space3,
+            AppTheme.space3,
+            AppTheme.space1,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.forum_outlined, size: 16, color: AppTheme.accentPrimary),
+              const SizedBox(width: 6),
+              Text(
+                '议题',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () => _createTopic(context),
+                icon: const Icon(Icons.add, size: 15),
+                label: const Text('新建'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.accentPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+        ),
         // 搜索框
         Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -769,6 +803,52 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
         ),
       ],
     );
+  }
+
+  Future<void> _createTopic(BuildContext context) async {
+    final titleController = TextEditingController();
+    final title = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('新建议题'),
+        content: TextField(
+          controller: titleController,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: '例如：重构项目的技术方案'),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('取消')),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, titleController.text.trim()),
+            child: const Text('创建'),
+          ),
+        ],
+      ),
+    );
+    titleController.dispose();
+    if (!mounted || title == null || title.trim().isEmpty) return;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final page = await repo.saveTextPage(
+        text: '这是一个新议题，后续讨论结论会沉淀在这里。',
+        title: title.trim(),
+        tags: const ['topic'],
+      );
+      ref.invalidate(wikiPagesProvider);
+      openWikiPageTab(ref, page);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已创建议题《${page.title}》')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('创建失败：${e.toString().replaceFirst('Exception: ', '')}')),
+        );
+      }
+    }
   }
 }
 
