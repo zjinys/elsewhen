@@ -595,7 +595,7 @@ impl Tool for SaveKnowledgeDraftTool {
         "save_knowledge_draft"
     }
     fn description(&self) -> &'static str {
-        "把一段可复用的知识/结论草拟成知识库页面。调用后进入待确认状态，需要用户确认才会真正保存。"
+        "把对话中形成的一段可复用知识或结论草拟成知识库页面。系统会先按标题查重；已有同名页面时不会覆盖，需改用 save_wiki_revision 提议补充。调用后进入待确认状态，需要用户确认才会真正保存。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -616,6 +616,12 @@ impl Tool for SaveKnowledgeDraftTool {
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
         let title = arg_str(args, "title")?;
         let content_md = arg_str(args, "content_md")?;
+        if let Some(existing) = ctx.store.find_wiki_page_by_title(&title)? {
+            return Ok(format!(
+                "知识库已有《{}》（slug={}），本次没有新建或覆盖。请先结合现有页面内容，再用 save_wiki_revision 草拟补充；仍需用户确认后才保存。",
+                existing.title, existing.slug
+            ));
+        }
         let kind = arg_str_opt(args, "kind").unwrap_or_else(|| "topic".to_string());
         let tags: Vec<String> = args
             .get("tags")
@@ -1681,6 +1687,54 @@ mod tests {
         let pages = store.list_wiki_pages(None, None).unwrap();
         assert_eq!(pages.len(), 1);
         assert_eq!(pages[0].kind, "principle");
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn knowledge_draft_does_not_overwrite_same_title() {
+        let (store, path) = temp_db();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        store
+            .upsert_wiki_page(&crate::storage::WikiPageDraft {
+                slug: "topic/沟通复盘".to_string(),
+                kind: "topic".to_string(),
+                title: "沟通复盘".to_string(),
+                summary: "原摘要".to_string(),
+                content_md: "原有内容".to_string(),
+                tags: vec![],
+                source_event_ids: vec![],
+                status: "active".to_string(),
+                reason: "test".to_string(),
+                source_url: None,
+            })
+            .unwrap();
+        let result = dispatch(
+            &ToolCall::new(
+                "save_knowledge_draft",
+                json!({"title":"沟通复盘", "content_md":"新内容"}),
+            ),
+            &ToolRegistry::default(),
+            &store,
+            &conv,
+        );
+        assert!(
+            result.content.contains("没有新建或覆盖"),
+            "{}",
+            result.content
+        );
+        assert!(store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            store
+                .find_wiki_page_by_title("沟通复盘")
+                .unwrap()
+                .unwrap()
+                .content_md,
+            "原有内容"
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
