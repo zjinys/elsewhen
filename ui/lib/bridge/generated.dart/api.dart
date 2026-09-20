@@ -154,6 +154,14 @@ Future<List<PendingActionDto>> listPendingActions({
   conversationId: conversationId,
 );
 
+Future<bool> updatePendingActionArgs({
+  required String actionId,
+  required String argsJson,
+}) => RustLib.instance.api.crateApiUpdatePendingActionArgs(
+  actionId: actionId,
+  argsJson: argsJson,
+);
+
 /// 列出规则库（含已生效与待确认）
 Future<List<RuleDto>> listRules() => RustLib.instance.api.crateApiListRules();
 

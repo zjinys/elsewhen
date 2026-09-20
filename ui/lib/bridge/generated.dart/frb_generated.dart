@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 2095843864;
+  int get rustContentHash => 1358832771;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -297,6 +297,11 @@ abstract class RustLibApi extends BaseApi {
     required String baseUrl,
     required String model,
     required String apiKey,
+  });
+
+  Future<bool> crateApiUpdatePendingActionArgs({
+    required String actionId,
+    required String argsJson,
   });
 
   Future<void> crateApiUpdateThemePrefs({
@@ -1995,6 +2000,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "update_ai_provider_config",
         argNames: ["baseUrl", "model", "apiKey"],
+      );
+
+  @override
+  Future<bool> crateApiUpdatePendingActionArgs({
+    required String actionId,
+    required String argsJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(actionId);
+          var arg1 = cst_encode_String(argsJson);
+          return wire.wire__crate__api__update_pending_action_args(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUpdatePendingActionArgsConstMeta,
+        argValues: [actionId, argsJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdatePendingActionArgsConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_pending_action_args",
+        argNames: ["actionId", "argsJson"],
       );
 
   @override

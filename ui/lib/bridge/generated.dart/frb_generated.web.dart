@@ -1799,6 +1799,16 @@ class RustLibWire implements BaseWire {
     api_key,
   );
 
+  void wire__crate__api__update_pending_action_args(
+    NativePortType port_,
+    String action_id,
+    String args_json,
+  ) => wasmModule.wire__crate__api__update_pending_action_args(
+    port_,
+    action_id,
+    args_json,
+  );
+
   void wire__crate__api__update_theme_prefs(
     NativePortType port_,
     String mode,
@@ -2153,6 +2163,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String base_url,
     String model,
     String api_key,
+  );
+
+  external void wire__crate__api__update_pending_action_args(
+    NativePortType port_,
+    String action_id,
+    String args_json,
   );
 
   external void wire__crate__api__update_theme_prefs(

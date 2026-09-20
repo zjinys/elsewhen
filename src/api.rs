@@ -1095,6 +1095,13 @@ pub fn list_pending_actions(conversation_id: String) -> Result<Vec<PendingAction
         .collect())
 }
 
+pub fn update_pending_action_args(action_id: String, args_json: String) -> Result<bool> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let _: serde_json::Value = serde_json::from_str(&args_json)?;
+    store.update_pending_action_args(&action_id, &args_json)
+}
+
 /// Create a new conversation
 /// 个人经验规则 DTO
 #[derive(Clone, Debug)]

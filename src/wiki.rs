@@ -551,6 +551,10 @@ pub fn apply_people_relations(
         relation: String,
         #[serde(default)]
         note: String,
+        #[serde(default)]
+        from_slug: Option<String>,
+        #[serde(default)]
+        to_slug: Option<String>,
     }
     #[derive(Deserialize)]
     struct PeopleRelationsArgs {
@@ -578,7 +582,12 @@ pub fn apply_people_relations(
             continue;
         }
         let matches = store.find_wiki_pages_by_title(&name)?;
-        if matches.len() > 1 {
+        let selected_slug = parsed
+            .relations
+            .iter()
+            .find(|relation| relation.person.trim() == name)
+            .and_then(|relation| relation.from_slug.clone());
+        if matches.len() > 1 && selected_slug.is_none() {
             anyhow::bail!(
                 "人物「{name}」存在多个同名页面（{}），请先在知识库中消歧后再确认",
                 matches
@@ -588,7 +597,12 @@ pub fn apply_people_relations(
                     .join("、")
             );
         }
-        if let Some(page) = matches.into_iter().next() {
+        if let Some(page) = selected_slug
+            .as_deref()
+            .and_then(|slug| matches.iter().find(|page| page.slug == slug))
+            .or_else(|| matches.first())
+            .cloned()
+        {
             person_entries.push((name, page.slug.clone(), page.kind.clone()));
             continue;
         }
@@ -628,7 +642,12 @@ pub fn apply_people_relations(
             continue;
         }
         let target_matches = store.find_wiki_pages_by_title(&target)?;
-        if target_matches.len() > 1 {
+        let selected_target_slug = parsed
+            .relations
+            .iter()
+            .find(|relation| relation.target.trim() == target)
+            .and_then(|relation| relation.to_slug.clone());
+        if target_matches.len() > 1 && selected_target_slug.is_none() {
             anyhow::bail!(
                 "事项「{target}」存在多个同名页面（{}），请先在知识库中消歧后再确认",
                 target_matches
@@ -638,7 +657,12 @@ pub fn apply_people_relations(
                     .join("、")
             );
         }
-        let (slug, kind) = match target_matches.into_iter().next() {
+        let (slug, kind) = match selected_target_slug
+            .as_deref()
+            .and_then(|slug| target_matches.iter().find(|page| page.slug == slug))
+            .or_else(|| target_matches.first())
+            .cloned()
+        {
             Some(page) => (page.slug, page.kind),
             None => {
                 let slug = unique_slug(store, &format!("topic/{}", slugify(&target)), &target)?;
@@ -667,14 +691,24 @@ pub fn apply_people_relations(
     for r in &parsed.relations {
         let person = r.person.trim().to_string();
         let target = r.target.trim().to_string();
-        let Some((_, from_slug, from_kind)) = person_entries.iter().find(|(n, _, _)| *n == person)
+        let Some((_, inferred_from_slug, inferred_from_kind)) =
+            person_entries.iter().find(|(n, _, _)| *n == person)
         else {
             continue;
         };
-        let Some((_, to_slug, to_kind)) = target_entries.iter().find(|(t, _, _)| *t == target)
+        let Some((_, inferred_to_slug, inferred_to_kind)) =
+            target_entries.iter().find(|(t, _, _)| *t == target)
         else {
             continue;
         };
+        let from_slug = r
+            .from_slug
+            .as_deref()
+            .unwrap_or(inferred_from_slug)
+            .to_string();
+        let from_kind = inferred_from_kind.clone();
+        let to_slug = r.to_slug.as_deref().unwrap_or(inferred_to_slug).to_string();
+        let to_kind = inferred_to_kind.clone();
         let relation = if r.relation.trim().is_empty() {
             "参与".to_string()
         } else {
@@ -702,9 +736,16 @@ pub fn apply_people_relations(
                 .map(|detail| detail.recorded_at)
                 .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
             let fact = format!("与{target}的关系：{relation}");
-            store.upsert_entity_fact(from_kind, from_slug, &fact, &occurred_at, 3, event_id)?;
+            store.upsert_entity_fact(&from_kind, &from_slug, &fact, &occurred_at, 3, event_id)?;
             let target_fact = format!("{person}：{relation}");
-            store.upsert_entity_fact(to_kind, to_slug, &target_fact, &occurred_at, 3, event_id)?;
+            store.upsert_entity_fact(
+                &to_kind,
+                &to_slug,
+                &target_fact,
+                &occurred_at,
+                3,
+                event_id,
+            )?;
         }
         saved += 1;
         relation_lines.push(format!("{person} —— {relation} —— {target}"));

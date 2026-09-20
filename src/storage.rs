@@ -2687,6 +2687,13 @@ impl Store {
         Ok(())
     }
 
+    pub fn update_pending_action_args(&self, id: &str, args_json: &str) -> Result<bool> {
+        Ok(self.connection.execute(
+            "UPDATE pending_actions SET args_json=?1 WHERE id=?2 AND status='pending'",
+            params![args_json, id],
+        )? > 0)
+    }
+
     /// 清空某个对话的全部待确认动作，返回删除条数
     pub fn delete_pending_actions_for_conversation(&self, conversation_id: &str) -> Result<usize> {
         let affected = self.connection.execute(
