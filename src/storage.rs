@@ -1148,6 +1148,19 @@ impl Store {
             .map_err(Into::into)
     }
 
+    pub fn conversation_id_for_event(&self, event_id: &str) -> Result<Option<String>> {
+        self.connection
+            .query_row(
+                "SELECT m.conversation_id FROM input_records i
+                 JOIN messages m ON m.id=i.message_id
+                 WHERE i.event_id=?1 LIMIT 1",
+                [event_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
     fn get_input_record_by_idempotency_key(&self, key: &str) -> Result<Option<InputRecord>> {
         self.connection
             .query_row(

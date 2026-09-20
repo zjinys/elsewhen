@@ -887,6 +887,48 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
                         &value.schema_version,
                         &serde_json::to_string(&value)?,
                     )?;
+                    if value.recordable && !value.people.is_empty() && !value.projects.is_empty() {
+                        if let Some(conversation_id) =
+                            store.conversation_id_for_event(&job.event_id)?
+                        {
+                            let pending =
+                                store.pending_actions_for_conversation(&conversation_id)?;
+                            let exists = pending.iter().any(|action| {
+                                action.action == "propose_people_relations"
+                                    && action.args_json.contains(&job.event_id)
+                            });
+                            if !exists {
+                                let people: Vec<_> = value
+                                    .people
+                                    .iter()
+                                    .map(|name| serde_json::json!({"name": name}))
+                                    .collect();
+                                let relations: Vec<_> = value
+                                    .people
+                                    .iter()
+                                    .flat_map(|person| {
+                                        value.projects.iter().map(move |project| {
+                                            serde_json::json!({
+                                                "person": person,
+                                                "target": project,
+                                                "relation": "参与"
+                                            })
+                                        })
+                                    })
+                                    .collect();
+                                let args = serde_json::json!({
+                                    "people": people,
+                                    "relations": relations,
+                                    "source_event_id": job.event_id
+                                });
+                                store.create_pending_action(
+                                    &conversation_id,
+                                    "propose_people_relations",
+                                    &args.to_string(),
+                                )?;
+                            }
+                        }
+                    }
                     processed += 1;
                 }
                 Err(error) => store.fail_analysis(
