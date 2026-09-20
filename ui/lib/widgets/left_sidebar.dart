@@ -130,6 +130,9 @@ class LeftSidebar extends ConsumerWidget {
                       conversation,
                       !showArchived,
                     ),
+                    onDelete: showArchived
+                        ? () => _deleteArchivedConversation(context, ref, conversation)
+                        : null,
                   );
                 },
               );
@@ -252,6 +255,27 @@ class LeftSidebar extends ConsumerWidget {
       ref.read(selectedConversationIdProvider.notifier).state = null;
     }
     ref.invalidate(conversationsProvider);
+  }
+
+  Future<void> _deleteArchivedConversation(BuildContext context, WidgetRef ref, Conversation conversation) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('删除归档对话？'),
+        content: Text('将永久删除「${conversation.displayTitle}」及其消息，不能恢复。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('永久删除')),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final deleted = await ref.read(conversationRepositoryProvider).deleteArchived(conversation.id);
+    if (!context.mounted) return;
+    if (deleted) {
+      ref.invalidate(conversationsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('归档对话已删除')));
+    }
   }
 
   Widget _buildFooter(BuildContext context, WidgetRef ref) {
@@ -1128,6 +1152,7 @@ class _ConversationItem extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onRename;
   final VoidCallback onArchive;
+  final VoidCallback? onDelete;
 
   const _ConversationItem({
     required this.conversation,
@@ -1135,6 +1160,7 @@ class _ConversationItem extends StatelessWidget {
     required this.onTap,
     required this.onRename,
     required this.onArchive,
+    this.onDelete,
   });
 
   @override
@@ -1235,6 +1261,8 @@ class _ConversationItem extends StatelessWidget {
                           onRename();
                         case 'archive':
                           onArchive();
+                        case 'delete':
+                          onDelete?.call();
                       }
                     },
                     itemBuilder: (context) => [
@@ -1255,6 +1283,8 @@ class _ConversationItem extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (onDelete != null)
+                        const PopupMenuItem(value: 'delete', child: Text('永久删除')),
                       PopupMenuItem(
                         value: 'archive',
                         child: Row(

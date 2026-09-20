@@ -2122,6 +2122,31 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__delete_archived_conversation(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__delete_archived_conversation(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__delete_archived_conversationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__delete_archived_conversation');
+  late final _wire__crate__api__delete_archived_conversation =
+      _wire__crate__api__delete_archived_conversationPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__delete_relation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,

@@ -39,6 +39,9 @@ class ConversationRepository {
     return await _bridge.setConversationArchived(conversationId, archived);
   }
 
+  Future<bool> deleteArchived(String conversationId) =>
+      _bridge.deleteArchivedConversation(conversationId);
+
   /// Send a message in a conversation
   Future<Message> sendMessage(
     String conversationId,

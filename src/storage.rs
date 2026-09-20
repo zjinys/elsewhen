@@ -2846,6 +2846,15 @@ impl Store {
         Ok(())
     }
 
+    /// 删除已归档的普通对话；知识页专用会话和未归档对话均拒绝删除。
+    pub fn delete_archived_conversation(&self, conversation_id: &str) -> Result<bool> {
+        let eligible: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM conversations WHERE id=?1 AND archived=1 AND wiki_page_slug IS NULL)",
+            [conversation_id], |row| row.get(0))?;
+        if !eligible { return Ok(false); }
+        Ok(self.connection.execute("DELETE FROM conversations WHERE id=?1", [conversation_id])? > 0)
+    }
+
     pub fn get_conversation(&self, conversation_id: &str) -> Result<Option<ConversationSummary>> {
         self.connection
             .query_row(

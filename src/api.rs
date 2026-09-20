@@ -1153,6 +1153,13 @@ pub fn set_conversation_archived(conversation_id: String, archived: bool) -> Res
     store.set_conversation_archived(&conversation_id, archived)
 }
 
+/// Delete an archived ordinary conversation.
+pub fn delete_archived_conversation(conversation_id: String) -> Result<bool> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.delete_archived_conversation(&conversation_id)
+}
+
 /// Get a specific conversation
 pub fn get_conversation(conversation_id: String) -> Result<Option<ConversationDto>> {
     let config = crate::config::AppConfig::load()?;

@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 622004973;
+  int get rustContentHash => -948175645;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -109,6 +109,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiDeleteAiProviderConfig({required String id});
+
+  Future<bool> crateApiDeleteArchivedConversation({
+    required String conversationId,
+  });
 
   Future<bool> crateApiDeleteRelation({required String id});
 
@@ -530,6 +534,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "delete_ai_provider_config",
         argNames: ["id"],
+      );
+
+  @override
+  Future<bool> crateApiDeleteArchivedConversation({
+    required String conversationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          return wire.wire__crate__api__delete_archived_conversation(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDeleteArchivedConversationConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDeleteArchivedConversationConstMeta =>
+      const TaskConstMeta(
+        debugName: "delete_archived_conversation",
+        argNames: ["conversationId"],
       );
 
   @override

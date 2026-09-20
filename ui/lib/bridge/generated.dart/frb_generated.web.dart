@@ -1420,6 +1420,14 @@ class RustLibWire implements BaseWire {
     String id,
   ) => wasmModule.wire__crate__api__delete_ai_provider_config(port_, id);
 
+  void wire__crate__api__delete_archived_conversation(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__delete_archived_conversation(
+    port_,
+    conversation_id,
+  );
+
   void wire__crate__api__delete_relation(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__delete_relation(port_, id);
 
@@ -1829,6 +1837,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__delete_ai_provider_config(
     NativePortType port_,
     String id,
+  );
+
+  external void wire__crate__api__delete_archived_conversation(
+    NativePortType port_,
+    String conversation_id,
   );
 
   external void wire__crate__api__delete_relation(

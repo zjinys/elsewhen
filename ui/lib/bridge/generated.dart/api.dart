@@ -188,6 +188,12 @@ Future<void> setConversationArchived({
   archived: archived,
 );
 
+/// Delete an archived ordinary conversation.
+Future<bool> deleteArchivedConversation({required String conversationId}) =>
+    RustLib.instance.api.crateApiDeleteArchivedConversation(
+      conversationId: conversationId,
+    );
+
 /// Get a specific conversation
 Future<ConversationDto?> getConversation({required String conversationId}) =>
     RustLib.instance.api.crateApiGetConversation(

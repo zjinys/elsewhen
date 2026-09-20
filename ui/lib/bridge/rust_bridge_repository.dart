@@ -258,6 +258,9 @@ class RustBridgeRepository implements StorageRepository {
         archived: archived,
       );
 
+  Future<bool> deleteArchivedConversation(String conversationId) =>
+      api.deleteArchivedConversation(conversationId: conversationId);
+
   // ── 个人经验规则库 ──
 
   Future<List<Rule>> listRules() async {
