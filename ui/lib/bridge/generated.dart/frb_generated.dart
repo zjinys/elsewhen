@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1358832771;
+  int get rustContentHash => 293823259;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -113,6 +113,8 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiDeleteArchivedConversation({
     required String conversationId,
   });
+
+  Future<bool> crateApiDeleteEntityFact({required String id});
 
   Future<bool> crateApiDeleteRelation({required String id});
 
@@ -574,6 +576,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "delete_archived_conversation",
         argNames: ["conversationId"],
       );
+
+  @override
+  Future<bool> crateApiDeleteEntityFact({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__delete_entity_fact(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDeleteEntityFactConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDeleteEntityFactConstMeta =>
+      const TaskConstMeta(debugName: "delete_entity_fact", argNames: ["id"]);
 
   @override
   Future<bool> crateApiDeleteRelation({required String id}) {

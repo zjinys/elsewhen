@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1358832771;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 293823259;
 
 // Section: executor
 
@@ -255,6 +255,29 @@ fn wire__crate__api__delete_archived_conversation_impl(
                     (move || {
                         let output_ok =
                             crate::api::delete_archived_conversation(api_conversation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__delete_entity_fact_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "delete_entity_fact",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::delete_entity_fact(api_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4972,6 +4995,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__delete_entity_fact(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__delete_entity_fact_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__delete_relation(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
@@ -7097,6 +7128,14 @@ mod web {
         conversation_id: String,
     ) {
         wire__crate__api__delete_archived_conversation_impl(port_, conversation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__delete_entity_fact(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__delete_entity_fact_impl(port_, id)
     }
 
     #[wasm_bindgen]

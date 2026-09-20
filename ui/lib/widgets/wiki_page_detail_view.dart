@@ -1023,6 +1023,11 @@ class _EntityFacts extends ConsumerWidget {
                   ),
                 ),
               ])),
+              IconButton(
+                tooltip: '纠正：移除此事实',
+                icon: Icon(Icons.close, size: 15, color: AppTheme.textTertiary),
+                onPressed: () => _deleteFact(context, ref, fact.id),
+              ),
             ]),
           ),
       ]),
@@ -1036,6 +1041,27 @@ class _EntityFacts extends ConsumerWidget {
   }
 
   String _shortId(String value) => value.length > 8 ? value.substring(0, 8) : value;
+
+  Future<void> _deleteFact(BuildContext context, WidgetRef ref, String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('移除这条事实？'),
+        content: const Text('只会移除知识页中的派生事实，不会删除原始事件。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('移除')),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    await repo.deleteEntityFact(id);
+    ref.invalidate(entityFactsProvider(slug));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('事实已移除，原始事件仍保留')));
+    }
+  }
 
   Future<void> _showSource(BuildContext context, WidgetRef ref, String eventId) async {
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;

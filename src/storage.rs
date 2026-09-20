@@ -1486,6 +1486,13 @@ impl Store {
             .map_err(Into::into)
     }
 
+    pub fn delete_entity_fact(&self, id: &str) -> Result<bool> {
+        Ok(self
+            .connection
+            .execute("DELETE FROM entity_facts WHERE id=?1", [id])?
+            > 0)
+    }
+
     pub fn upsert_ai_provider_config(
         &self,
         base_url: &str,
@@ -3452,6 +3459,32 @@ mod tests {
             1
         );
         drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn deleting_entity_fact_keeps_source_event() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let event_id = store
+            .insert_event(crate::event::NewEvent::now("原始事实"))
+            .unwrap();
+        let fact = store
+            .upsert_entity_fact(
+                "person",
+                "person/张三",
+                "负责项目",
+                "2026-01-01T00:00:00Z",
+                3,
+                &event_id,
+            )
+            .unwrap();
+        assert!(store.delete_entity_fact(&fact.id).unwrap());
+        assert!(store
+            .list_entity_facts("person", "person/张三")
+            .unwrap()
+            .is_empty());
+        assert_eq!(store.list_events().unwrap().len(), 1);
         let _ = std::fs::remove_file(path);
     }
 

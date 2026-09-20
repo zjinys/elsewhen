@@ -97,6 +97,9 @@ Future<List<EntityFactDto>> listEntityFacts({
   entitySlug: entitySlug,
 );
 
+Future<bool> deleteEntityFact({required String id}) =>
+    RustLib.instance.api.crateApiDeleteEntityFact(id: id);
+
 /// List all events
 Future<List<EventDto>> listEvents() =>
     RustLib.instance.api.crateApiListEvents();

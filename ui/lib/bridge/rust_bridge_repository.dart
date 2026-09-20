@@ -129,6 +129,8 @@ class RustBridgeRepository implements StorageRepository {
     String entitySlug,
   ) => api.listEntityFacts(entityKind: entityKind, entitySlug: entitySlug);
 
+  Future<bool> deleteEntityFact(String id) => api.deleteEntityFact(id: id);
+
   Future<api.EventAnalysisDetailDto?> getEventAnalysisDetail(String eventId) =>
       api.getEventAnalysisDetail(eventId: eventId);
 

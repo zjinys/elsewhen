@@ -668,6 +668,12 @@ pub fn list_entity_facts(entity_kind: String, entity_slug: String) -> Result<Vec
         .collect())
 }
 
+pub fn delete_entity_fact(id: String) -> Result<bool> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.delete_entity_fact(id.trim())
+}
+
 /// List all events
 pub fn list_events() -> Result<Vec<EventDto>> {
     let config = crate::config::AppConfig::load()?;
