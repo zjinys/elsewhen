@@ -5,6 +5,7 @@ import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
 import '../bridge/rust_bridge_repository.dart';
+import '../bridge/generated.dart/api.dart' show EntityFactDto;
 
 /// 一级导航只保留主要内容域；待办从侧栏工具入口打开。
 enum SidebarTab { conversation, wiki }
@@ -46,7 +47,7 @@ final wikiDerivativesProvider = FutureProvider.family<List<WikiPage>, String>((
   return await bridge.listWikiPageDerivatives(slug);
 });
 
-final entityFactsProvider = FutureProvider.family<List<dynamic>, String>((ref, slug) async {
+final entityFactsProvider = FutureProvider.family<List<EntityFactDto>, String>((ref, slug) async {
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
   final kind = slug.split('/').first;
   if (!['person', 'project', 'topic'].contains(kind)) return const [];

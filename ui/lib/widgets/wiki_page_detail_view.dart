@@ -993,7 +993,7 @@ class _EntityFacts extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final facts = ref.watch(entityFactsProvider(slug)).valueOrNull ?? <dynamic>[];
+    final facts = ref.watch(entityFactsProvider(slug)).valueOrNull ?? const [];
     if (facts.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: AppTheme.space4),
@@ -1001,17 +1001,38 @@ class _EntityFacts extends ConsumerWidget {
         Text('结构化事实', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textTertiary)),
         const SizedBox(height: 8),
         for (final fact in facts.take(8))
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppTheme.surface2,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              border: Border.all(color: AppTheme.surface3),
+            ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Icon(Icons.fact_check_outlined, size: 14, color: AppTheme.accentPrimary),
               const SizedBox(width: 6),
-              Expanded(child: Text('${fact.factText} · 置信度 ${fact.confidence}/5', style: TextStyle(fontSize: 12, height: 1.4, color: AppTheme.textSecondary))),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(fact.factText, style: TextStyle(fontSize: 12, height: 1.4, color: AppTheme.textSecondary)),
+                const SizedBox(height: 4),
+                SelectableText(
+                  '${_factDate(fact.occurredAt)} · 置信度 ${fact.confidence}/5 · 来源 ${_shortId(fact.sourceEventId)}',
+                  style: TextStyle(fontSize: 10.5, color: AppTheme.textTertiary),
+                ),
+              ])),
             ]),
           ),
       ]),
     );
   }
+
+  String _factDate(String value) {
+    final parsed = DateTime.tryParse(value)?.toLocal();
+    if (parsed == null) return value;
+    return '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
+  }
+
+  String _shortId(String value) => value.length > 8 ? value.substring(0, 8) : value;
 }
 
 /// 来源链接 chip：点击复制
