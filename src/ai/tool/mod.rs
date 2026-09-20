@@ -88,6 +88,7 @@ pub enum ToolPolicy {
 pub struct ToolContext<'a> {
     pub store: &'a Store,
     pub conversation_id: &'a str,
+    pub source_event_id: Option<String>,
 }
 
 /// 一个可被 AI 调用的工具。
@@ -179,6 +180,10 @@ pub fn dispatch(
             let ctx = ToolContext {
                 store,
                 conversation_id,
+                source_event_id: store
+                    .latest_event_id_for_conversation(conversation_id)
+                    .ok()
+                    .flatten(),
             };
             match tool.run(&call.arguments, &ctx) {
                 Ok(text) => ToolResultMsg::ok(call, text),
@@ -795,8 +800,7 @@ impl Tool for ProposePeopleRelationsTool {
                         "required":["person","target"],
                         "additionalProperties":false
                     }
-                },
-                "source_event_id":{"type":"string","description":"可选：关系明确来自的真实事件 ID；只有提供该 ID 时才会同步生成实体事实"}
+                }
             },
             "additionalProperties":false
         })
@@ -819,7 +823,9 @@ impl Tool for ProposePeopleRelationsTool {
         if people.is_empty() && relations.is_empty() {
             anyhow::bail!("请至少提供一位人物或一条关系");
         }
-        let action_args = json!({ "people": people, "relations": relations, "source_event_id": args.get("source_event_id") });
+        let source_event_id = ctx.source_event_id.clone();
+        let action_args =
+            json!({ "people": people, "relations": relations, "source_event_id": source_event_id });
         store_create_pending(
             ctx.store,
             ctx.conversation_id,
@@ -1789,6 +1795,37 @@ mod tests {
             2,
             "目标页自动建档，且两边关系都能查到"
         );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn confirmed_relation_from_conversation_creates_sourced_facts() {
+        let (store, path) = temp_db();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let input = store
+            .submit_conversation_input(&conv, "@张伟 正在负责 #付款流程", Some("fact-1"))
+            .unwrap();
+        let call = ToolCall::new(
+            "propose_people_relations",
+            json!({
+                "people":[{"name":"张伟","role_note":"付款流程负责人"}],
+                "relations":[{"person":"张伟","target":"付款流程","relation":"负责"}]
+            }),
+        );
+        let result = dispatch(&call, &ToolRegistry::default(), &store, &conv);
+        assert!(result.content.contains("待确认"), "{}", result.content);
+        let pending = store.pending_actions_for_conversation(&conv).unwrap();
+        execute_pending_action(&store, &pending[0]).unwrap();
+
+        let person = store.find_wiki_page_by_title("张伟").unwrap().unwrap();
+        let target = store.find_wiki_page_by_title("付款流程").unwrap().unwrap();
+        let person_facts = store.list_entity_facts(&person.kind, &person.slug).unwrap();
+        let target_facts = store.list_entity_facts(&target.kind, &target.slug).unwrap();
+        assert_eq!(person_facts.len(), 1);
+        assert_eq!(target_facts.len(), 1);
+        assert_eq!(person_facts[0].source_event_id, input.event_id.unwrap());
+        assert!(target_facts[0].fact_text.contains("张伟"));
         drop(store);
         let _ = std::fs::remove_file(path);
     }

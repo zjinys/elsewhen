@@ -675,15 +675,14 @@ pub fn apply_people_relations(
             source_event_id: parsed.source_event_id.clone(),
         })?;
         if let Some(event_id) = parsed.source_event_id.as_deref() {
+            let occurred_at = store
+                .event_analysis_detail(event_id)?
+                .map(|detail| detail.recorded_at)
+                .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
             let fact = format!("与{target}的关系：{relation}");
-            store.upsert_entity_fact(
-                from_kind,
-                from_slug,
-                &fact,
-                &chrono::Utc::now().to_rfc3339(),
-                3,
-                event_id,
-            )?;
+            store.upsert_entity_fact(from_kind, from_slug, &fact, &occurred_at, 3, event_id)?;
+            let target_fact = format!("{person}：{relation}");
+            store.upsert_entity_fact(to_kind, to_slug, &target_fact, &occurred_at, 3, event_id)?;
         }
         saved += 1;
         relation_lines.push(format!("{person} —— {relation} —— {target}"));

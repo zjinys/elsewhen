@@ -1131,6 +1131,23 @@ impl Store {
             .context("read input record")
     }
 
+    pub fn latest_event_id_for_conversation(
+        &self,
+        conversation_id: &str,
+    ) -> Result<Option<String>> {
+        self.connection
+            .query_row(
+                "SELECT i.event_id FROM input_records i
+             JOIN messages m ON m.id=i.message_id
+             WHERE m.conversation_id=?1 AND i.event_id IS NOT NULL
+             ORDER BY m.created_at DESC, i.created_at DESC LIMIT 1",
+                [conversation_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
     fn get_input_record_by_idempotency_key(&self, key: &str) -> Result<Option<InputRecord>> {
         self.connection
             .query_row(
@@ -2851,8 +2868,13 @@ impl Store {
         let eligible: bool = self.connection.query_row(
             "SELECT EXISTS(SELECT 1 FROM conversations WHERE id=?1 AND archived=1 AND wiki_page_slug IS NULL)",
             [conversation_id], |row| row.get(0))?;
-        if !eligible { return Ok(false); }
-        Ok(self.connection.execute("DELETE FROM conversations WHERE id=?1", [conversation_id])? > 0)
+        if !eligible {
+            return Ok(false);
+        }
+        Ok(self
+            .connection
+            .execute("DELETE FROM conversations WHERE id=?1", [conversation_id])?
+            > 0)
     }
 
     pub fn get_conversation(&self, conversation_id: &str) -> Result<Option<ConversationSummary>> {
