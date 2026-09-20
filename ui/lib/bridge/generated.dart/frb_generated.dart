@@ -2372,8 +2372,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 21)
-      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
+    if (arr.length != 22)
+      throw Exception('unexpected arr length: expect 22 but see ${arr.length}');
     return EventAnalysisDetailDto(
       eventId: dco_decode_String(arr[0]),
       rawText: dco_decode_String(arr[1]),
@@ -2393,9 +2393,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       clarifications: dco_decode_list_String(arr[15]),
       people: dco_decode_list_String(arr[16]),
       projects: dco_decode_list_String(arr[17]),
-      followUps: dco_decode_list_String(arr[18]),
-      recordable: dco_decode_opt_box_autoadd_bool(arr[19]),
-      kind: dco_decode_opt_String(arr[20]),
+      activities: dco_decode_list_String(arr[18]),
+      followUps: dco_decode_list_String(arr[19]),
+      recordable: dco_decode_opt_box_autoadd_bool(arr[20]),
+      kind: dco_decode_opt_String(arr[21]),
     );
   }
 
@@ -3109,6 +3110,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_clarifications = sse_decode_list_String(deserializer);
     var var_people = sse_decode_list_String(deserializer);
     var var_projects = sse_decode_list_String(deserializer);
+    var var_activities = sse_decode_list_String(deserializer);
     var var_followUps = sse_decode_list_String(deserializer);
     var var_recordable = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_kind = sse_decode_opt_String(deserializer);
@@ -3131,6 +3133,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       clarifications: var_clarifications,
       people: var_people,
       projects: var_projects,
+      activities: var_activities,
       followUps: var_followUps,
       recordable: var_recordable,
       kind: var_kind,
@@ -4023,6 +4026,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.clarifications, serializer);
     sse_encode_list_String(self.people, serializer);
     sse_encode_list_String(self.projects, serializer);
+    sse_encode_list_String(self.activities, serializer);
     sse_encode_list_String(self.followUps, serializer);
     sse_encode_opt_box_autoadd_bool(self.recordable, serializer);
     sse_encode_opt_String(self.kind, serializer);

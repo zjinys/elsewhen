@@ -1044,6 +1044,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.clarifications = cst_encode_list_String(apiObj.clarifications);
     wireObj.people = cst_encode_list_String(apiObj.people);
     wireObj.projects = cst_encode_list_String(apiObj.projects);
+    wireObj.activities = cst_encode_list_String(apiObj.activities);
     wireObj.follow_ups = cst_encode_list_String(apiObj.followUps);
     wireObj.recordable = cst_encode_opt_box_autoadd_bool(apiObj.recordable);
     wireObj.kind = cst_encode_opt_String(apiObj.kind);
@@ -3903,6 +3904,8 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_String> projects;
 
+  external ffi.Pointer<wire_cst_list_String> activities;
+
   external ffi.Pointer<wire_cst_list_String> follow_ups;
 
   external ffi.Pointer<ffi.Bool> recordable;
@@ -3929,6 +3932,7 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_String> clarifications,
     required ffi.Pointer<wire_cst_list_String> people,
     required ffi.Pointer<wire_cst_list_String> projects,
+    required ffi.Pointer<wire_cst_list_String> activities,
     required ffi.Pointer<wire_cst_list_String> follow_ups,
     required ffi.Pointer<ffi.Bool> recordable,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
@@ -3951,6 +3955,7 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
     ..ref.clarifications = clarifications
     ..ref.people = people
     ..ref.projects = projects
+    ..ref.activities = activities
     ..ref.follow_ups = follow_ups
     ..ref.recordable = recordable
     ..ref.kind = kind;

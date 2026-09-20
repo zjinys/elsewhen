@@ -707,6 +707,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_String(raw.clarifications),
       cst_encode_list_String(raw.people),
       cst_encode_list_String(raw.projects),
+      cst_encode_list_String(raw.activities),
       cst_encode_list_String(raw.followUps),
       cst_encode_opt_box_autoadd_bool(raw.recordable),
       cst_encode_opt_String(raw.kind),

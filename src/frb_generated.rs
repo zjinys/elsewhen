@@ -1991,6 +1991,7 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
         let mut var_clarifications = <Vec<String>>::sse_decode(deserializer);
         let mut var_people = <Vec<String>>::sse_decode(deserializer);
         let mut var_projects = <Vec<String>>::sse_decode(deserializer);
+        let mut var_activities = <Vec<String>>::sse_decode(deserializer);
         let mut var_followUps = <Vec<String>>::sse_decode(deserializer);
         let mut var_recordable = <Option<bool>>::sse_decode(deserializer);
         let mut var_kind = <Option<String>>::sse_decode(deserializer);
@@ -2013,6 +2014,7 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
             clarifications: var_clarifications,
             people: var_people,
             projects: var_projects,
+            activities: var_activities,
             follow_ups: var_followUps,
             recordable: var_recordable,
             kind: var_kind,
@@ -2901,6 +2903,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventAnalysisDetailDto {
             self.clarifications.into_into_dart().into_dart(),
             self.people.into_into_dart().into_dart(),
             self.projects.into_into_dart().into_dart(),
+            self.activities.into_into_dart().into_dart(),
             self.follow_ups.into_into_dart().into_dart(),
             self.recordable.into_into_dart().into_dart(),
             self.kind.into_into_dart().into_dart(),
@@ -3312,6 +3315,7 @@ impl SseEncode for crate::api::EventAnalysisDetailDto {
         <Vec<String>>::sse_encode(self.clarifications, serializer);
         <Vec<String>>::sse_encode(self.people, serializer);
         <Vec<String>>::sse_encode(self.projects, serializer);
+        <Vec<String>>::sse_encode(self.activities, serializer);
         <Vec<String>>::sse_encode(self.follow_ups, serializer);
         <Option<bool>>::sse_encode(self.recordable, serializer);
         <Option<String>>::sse_encode(self.kind, serializer);
@@ -4015,6 +4019,7 @@ mod io {
                 clarifications: self.clarifications.cst_decode(),
                 people: self.people.cst_decode(),
                 projects: self.projects.cst_decode(),
+                activities: self.activities.cst_decode(),
                 follow_ups: self.follow_ups.cst_decode(),
                 recordable: self.recordable.cst_decode(),
                 kind: self.kind.cst_decode(),
@@ -4538,6 +4543,7 @@ mod io {
                 clarifications: core::ptr::null_mut(),
                 people: core::ptr::null_mut(),
                 projects: core::ptr::null_mut(),
+                activities: core::ptr::null_mut(),
                 follow_ups: core::ptr::null_mut(),
                 recordable: core::ptr::null_mut(),
                 kind: core::ptr::null_mut(),
@@ -5724,6 +5730,7 @@ mod io {
         clarifications: *mut wire_cst_list_String,
         people: *mut wire_cst_list_String,
         projects: *mut wire_cst_list_String,
+        activities: *mut wire_cst_list_String,
         follow_ups: *mut wire_cst_list_String,
         recordable: *mut bool,
         kind: *mut wire_cst_list_prim_u_8_strict,
@@ -6255,8 +6262,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                21,
-                "Expected 21 elements, got {}",
+                22,
+                "Expected 22 elements, got {}",
                 self_.length()
             );
             crate::api::EventAnalysisDetailDto {
@@ -6278,9 +6285,10 @@ mod web {
                 clarifications: self_.get(15).cst_decode(),
                 people: self_.get(16).cst_decode(),
                 projects: self_.get(17).cst_decode(),
-                follow_ups: self_.get(18).cst_decode(),
-                recordable: self_.get(19).cst_decode(),
-                kind: self_.get(20).cst_decode(),
+                activities: self_.get(18).cst_decode(),
+                follow_ups: self_.get(19).cst_decode(),
+                recordable: self_.get(20).cst_decode(),
+                kind: self_.get(21).cst_decode(),
             }
         }
     }

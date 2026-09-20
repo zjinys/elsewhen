@@ -868,6 +868,7 @@ class EventAnalysisDetailDto {
   final List<String> clarifications;
   final List<String> people;
   final List<String> projects;
+  final List<String> activities;
   final List<String> followUps;
   final bool? recordable;
   final String? kind;
@@ -891,6 +892,7 @@ class EventAnalysisDetailDto {
     required this.clarifications,
     required this.people,
     required this.projects,
+    required this.activities,
     required this.followUps,
     this.recordable,
     this.kind,
@@ -916,6 +918,7 @@ class EventAnalysisDetailDto {
       clarifications.hashCode ^
       people.hashCode ^
       projects.hashCode ^
+      activities.hashCode ^
       followUps.hashCode ^
       recordable.hashCode ^
       kind.hashCode;
@@ -943,6 +946,7 @@ class EventAnalysisDetailDto {
           clarifications == other.clarifications &&
           people == other.people &&
           projects == other.projects &&
+          activities == other.activities &&
           followUps == other.followUps &&
           recordable == other.recordable &&
           kind == other.kind;

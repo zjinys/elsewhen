@@ -20,6 +20,8 @@ struct EventAnalysisV1 {
     clarifications: Vec<String>,
     people: Vec<String>,
     projects: Vec<String>,
+    #[serde(default)]
+    activities: Vec<String>,
     follow_ups: Vec<String>,
     #[serde(default = "default_recordable")]
     recordable: bool,
@@ -64,6 +66,7 @@ impl EventAnalysisV1 {
         normalize_strings(&mut result.clarifications);
         normalize_strings(&mut result.people);
         normalize_strings(&mut result.projects);
+        normalize_strings(&mut result.activities);
         normalize_strings(&mut result.follow_ups);
         Ok(result)
     }
@@ -207,6 +210,7 @@ pub struct EventAnalysisDetailDto {
     pub clarifications: Vec<String>,
     pub people: Vec<String>,
     pub projects: Vec<String>,
+    pub activities: Vec<String>,
     pub follow_ups: Vec<String>,
     pub recordable: Option<bool>,
     pub kind: Option<String>,
@@ -633,6 +637,9 @@ pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysi
         projects: analysis
             .as_ref()
             .map_or_else(Vec::new, |value| value.projects.clone()),
+        activities: analysis
+            .as_ref()
+            .map_or_else(Vec::new, |value| value.activities.clone()),
         follow_ups: analysis
             .as_ref()
             .map_or_else(Vec::new, |value| value.follow_ups.clone()),
@@ -874,7 +881,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
             break;
         };
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织，不要把动作、流程、任务、付款、联调或短期事项当作项目；这些内容只保留在 summary 或 follow_ups。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n记录：{}",
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织；付款流程、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n记录：{}",
             job.raw_text
         );
         match provider.generate_reply(vec![ContextMessage::new("user", prompt)]) {
