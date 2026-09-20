@@ -82,6 +82,11 @@ class _EventInputState extends State<EventInput> {
             ),
           ),
         ),
+        IconButton(
+          tooltip: '对话格式',
+          onPressed: () => _showConversationGuide(context),
+          icon: Icon(Icons.help_outline, size: 19, color: AppTheme.textTertiary),
+        ),
         const SizedBox(width: AppTheme.space3),
         SizedBox(
           height: 48,
@@ -131,4 +136,28 @@ class _EventInputState extends State<EventInput> {
       ],
     );
   }
+
+  Future<void> _showConversationGuide(BuildContext context) => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('怎么记录'),
+      content: const SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Text(
+            '@人名：明确标注人物\n'
+            '#事情：明确标注项目、事项或主题\n\n'
+            '例如：@张伟 正在负责 #付款流程\n\n'
+            '记一下：明确保存一条经历或进展\n'
+            '保存到知识库：把结论沉淀下来\n'
+            '帮我建待办：创建后续行动\n\n'
+            '人物关系、知识页和待办会先给你看草稿。回复“好”才保存；回复“不要”或“取消”则放弃。',
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('知道了')),
+      ],
+    ),
+  );
 }
