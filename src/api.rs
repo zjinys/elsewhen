@@ -896,12 +896,11 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
                         if let Some(conversation_id) =
                             store.conversation_id_for_event(&job.event_id)?
                         {
-                            let pending =
-                                store.pending_actions_for_conversation(&conversation_id)?;
-                            let exists = pending.iter().any(|action| {
-                                action.action == "propose_people_relations"
-                                    && action.args_json.contains(&job.event_id)
-                            });
+                            let exists = store.action_exists_for_event(
+                                &conversation_id,
+                                "propose_people_relations",
+                                &job.event_id,
+                            )?;
                             if !exists {
                                 let people: Vec<_> = value
                                     .people

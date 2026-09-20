@@ -740,8 +740,14 @@ fn handle_pending_action_confirmation(
                 Err(e) => summaries.push(format!("「{}」执行失败：{e}", pa.action)),
             }
         }
-        if confirmed || declined {
+        if confirmed {
             store.delete_pending_action(&pa.id)?;
+        } else if declined {
+            if pa.action == "propose_people_relations" {
+                store.decline_pending_action(&pa.id)?;
+            } else {
+                store.delete_pending_action(&pa.id)?;
+            }
         }
         // 其他消息：保留待确认
     }

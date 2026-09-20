@@ -2680,6 +2680,18 @@ impl Store {
         Ok(rows)
     }
 
+    pub fn action_exists_for_event(
+        &self,
+        conversation_id: &str,
+        action: &str,
+        event_id: &str,
+    ) -> Result<bool> {
+        let needle = format!("%{}%", event_id);
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pending_actions WHERE conversation_id=?1 AND action=?2 AND args_json LIKE ?3)",
+            params![conversation_id, action, needle], |row| row.get(0))?)
+    }
+
     /// 删除一条待确认动作（执行完或用户拒绝后清理）
     pub fn delete_pending_action(&self, id: &str) -> Result<()> {
         self.connection
@@ -2691,6 +2703,13 @@ impl Store {
         Ok(self.connection.execute(
             "UPDATE pending_actions SET args_json=?1 WHERE id=?2 AND status='pending'",
             params![args_json, id],
+        )? > 0)
+    }
+
+    pub fn decline_pending_action(&self, id: &str) -> Result<bool> {
+        Ok(self.connection.execute(
+            "UPDATE pending_actions SET status='declined' WHERE id=?1 AND status='pending'",
+            [id],
         )? > 0)
     }
 
