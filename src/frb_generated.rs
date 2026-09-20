@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -948175645;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2095843864;
 
 // Section: executor
 
@@ -1009,6 +1009,29 @@ fn wire__crate__api__list_messages_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::list_messages(api_conversation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__list_pending_actions_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    conversation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_pending_actions",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_conversation_id = conversation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::list_pending_actions(api_conversation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2247,6 +2270,18 @@ impl SseDecode for Vec<crate::api::MessageDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::PendingActionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::PendingActionDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2436,6 +2471,22 @@ impl SseDecode for Option<crate::api::WikiPageDto> {
         } else {
             return None;
         }
+    }
+}
+
+impl SseDecode for crate::api::PendingActionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_action = <String>::sse_decode(deserializer);
+        let mut var_argsJson = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        return crate::api::PendingActionDto {
+            id: var_id,
+            action: var_action,
+            args_json: var_argsJson,
+            created_at: var_createdAt,
+        };
     }
 }
 
@@ -3008,6 +3059,26 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::MessageDto> for crate::api::M
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::PendingActionDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.action.into_into_dart().into_dart(),
+            self.args_json.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::PendingActionDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::PendingActionDto>
+    for crate::api::PendingActionDto
+{
+    fn into_into_dart(self) -> crate::api::PendingActionDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::RelationDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3494,6 +3565,16 @@ impl SseEncode for Vec<crate::api::MessageDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::PendingActionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::PendingActionDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3653,6 +3734,16 @@ impl SseEncode for Option<crate::api::WikiPageDto> {
         if let Some(value) = self {
             <crate::api::WikiPageDto>::sse_encode(value, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::PendingActionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.action, serializer);
+        <String>::sse_encode(self.args_json, serializer);
+        <String>::sse_encode(self.created_at, serializer);
     }
 }
 
@@ -4182,6 +4273,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::PendingActionDto>> for *mut wire_cst_list_pending_action_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::PendingActionDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<u8>> for *mut wire_cst_list_prim_u_8_strict {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<u8> {
@@ -4240,6 +4341,17 @@ mod io {
                 parent_message_id: self.parent_message_id.cst_decode(),
                 role: self.role.cst_decode(),
                 content: self.content.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::PendingActionDto> for wire_cst_pending_action_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::PendingActionDto {
+            crate::api::PendingActionDto {
+                id: self.id.cst_decode(),
+                action: self.action.cst_decode(),
+                args_json: self.args_json.cst_decode(),
                 created_at: self.created_at.cst_decode(),
             }
         }
@@ -4624,6 +4736,21 @@ mod io {
         }
     }
     impl Default for wire_cst_message_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_pending_action_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                action: core::ptr::null_mut(),
+                args_json: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_pending_action_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -5063,6 +5190,14 @@ mod io {
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__list_messages_impl(port_, conversation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_pending_actions(
+        port_: i64,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__list_pending_actions_impl(port_, conversation_id)
     }
 
     #[unsafe(no_mangle)]
@@ -5534,6 +5669,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_pending_action_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_pending_action_dto {
+        let wrap = wire_cst_list_pending_action_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_pending_action_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_prim_u_8_strict(
         len: i32,
     ) -> *mut wire_cst_list_prim_u_8_strict {
@@ -5838,6 +5987,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_pending_action_dto {
+        ptr: *mut wire_cst_pending_action_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_prim_u_8_strict {
         ptr: *mut u8,
         len: i32,
@@ -5874,6 +6029,14 @@ mod io {
         parent_message_id: *mut wire_cst_list_prim_u_8_strict,
         role: *mut wire_cst_list_prim_u_8_strict,
         content: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_pending_action_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        action: *mut wire_cst_list_prim_u_8_strict,
+        args_json: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
@@ -6497,6 +6660,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::PendingActionDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::PendingActionDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<u8>> for Box<[u8]> {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<u8> {
@@ -6579,6 +6754,28 @@ mod web {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Option<String> {
             self.map(CstDecode::cst_decode)
+        }
+    }
+    impl CstDecode<crate::api::PendingActionDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::PendingActionDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                4,
+                "Expected 4 elements, got {}",
+                self_.length()
+            );
+            crate::api::PendingActionDto {
+                id: self_.get(0).cst_decode(),
+                action: self_.get(1).cst_decode(),
+                args_json: self_.get(2).cst_decode(),
+                created_at: self_.get(3).cst_decode(),
+            }
         }
     }
     impl CstDecode<crate::api::RelationDto>
@@ -7128,6 +7325,14 @@ mod web {
         conversation_id: String,
     ) {
         wire__crate__api__list_messages_impl(port_, conversation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__list_pending_actions(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        conversation_id: String,
+    ) {
+        wire__crate__api__list_pending_actions_impl(port_, conversation_id)
     }
 
     #[wasm_bindgen]

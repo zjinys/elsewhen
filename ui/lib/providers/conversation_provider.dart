@@ -42,6 +42,9 @@ class ConversationRepository {
   Future<bool> deleteArchived(String conversationId) =>
       _bridge.deleteArchivedConversation(conversationId);
 
+  Future<List<dynamic>> listPendingActions(String conversationId) =>
+      _bridge.listPendingActions(conversationId);
+
   /// Send a message in a conversation
   Future<Message> sendMessage(
     String conversationId,
@@ -139,6 +142,12 @@ final messagesProvider = FutureProvider<List<Message>>((ref) async {
 
   final repo = ref.read(conversationRepositoryProvider);
   return await repo.getMessages(conversationId);
+});
+
+final pendingActionsProvider = FutureProvider<List<dynamic>>((ref) async {
+  final conversationId = ref.watch(selectedConversationIdProvider);
+  if (conversationId == null) return const [];
+  return ref.read(conversationRepositoryProvider).listPendingActions(conversationId);
 });
 
 /// Message input provider

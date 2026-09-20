@@ -1072,6 +1072,24 @@ pub struct MessageDto {
     pub created_at: String,
 }
 
+#[derive(Clone, Debug)]
+pub struct PendingActionDto {
+    pub id: String,
+    pub action: String,
+    pub args_json: String,
+    pub created_at: String,
+}
+
+pub fn list_pending_actions(conversation_id: String) -> Result<Vec<PendingActionDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store
+        .pending_actions_for_conversation(&conversation_id)?
+        .into_iter()
+        .map(|item| PendingActionDto { id: item.id, action: item.action, args_json: item.args_json, created_at: item.created_at })
+        .collect())
+}
+
 /// Create a new conversation
 /// 个人经验规则 DTO
 #[derive(Clone, Debug)]

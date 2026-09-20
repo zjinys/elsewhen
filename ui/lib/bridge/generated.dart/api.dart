@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `default_event_kind`, `default_recordable`, `dto_from_active`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -147,6 +147,12 @@ Future<void> updateAiProviderConfig({
 /// Returns "no_provider" or "processed:<successful count>".
 Future<String> triggerAnalysis() =>
     RustLib.instance.api.crateApiTriggerAnalysis();
+
+Future<List<PendingActionDto>> listPendingActions({
+  required String conversationId,
+}) => RustLib.instance.api.crateApiListPendingActions(
+  conversationId: conversationId,
+);
 
 /// 列出规则库（含已生效与待确认）
 Future<List<RuleDto>> listRules() => RustLib.instance.api.crateApiListRules();
@@ -1130,6 +1136,34 @@ class MessageDto {
           parentMessageId == other.parentMessageId &&
           role == other.role &&
           content == other.content &&
+          createdAt == other.createdAt;
+}
+
+class PendingActionDto {
+  final String id;
+  final String action;
+  final String argsJson;
+  final String createdAt;
+
+  const PendingActionDto({
+    required this.id,
+    required this.action,
+    required this.argsJson,
+    required this.createdAt,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ action.hashCode ^ argsJson.hashCode ^ createdAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PendingActionDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          action == other.action &&
+          argsJson == other.argsJson &&
           createdAt == other.createdAt;
 }
 

@@ -151,6 +151,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
 
   @protected
+  List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -201,6 +204,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
+
+  @protected
+  PendingActionDto dco_decode_pending_action_dto(dynamic raw);
 
   @protected
   RelationDto dco_decode_relation_dto(dynamic raw);
@@ -389,6 +395,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
 
   @protected
+  List<PendingActionDto> sse_decode_list_pending_action_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -445,6 +456,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiPageDto? sse_decode_opt_box_autoadd_wiki_page_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
 
   @protected
   RelationDto sse_decode_relation_dto(SseDeserializer deserializer);
@@ -685,6 +699,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_message_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_message_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_pending_action_dto>
+  cst_encode_list_pending_action_dto(List<PendingActionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_pending_action_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_pending_action_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -1108,6 +1133,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_pending_action_dto(
+    PendingActionDto apiObj,
+    wire_cst_pending_action_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.action = cst_encode_String(apiObj.action);
+    wireObj.args_json = cst_encode_String(apiObj.argsJson);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_relation_dto(
     RelationDto apiObj,
     wire_cst_relation_dto wireObj,
@@ -1419,6 +1455,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_pending_action_dto(
+    List<PendingActionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -1490,6 +1532,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_wiki_page_dto(
     WikiPageDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_pending_action_dto(
+    PendingActionDto self,
     SseSerializer serializer,
   );
 
@@ -1829,6 +1877,24 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_message_dto');
   late final _cst_new_list_message_dto = _cst_new_list_message_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_message_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_pending_action_dto> cst_new_list_pending_action_dto(
+    int len,
+  ) {
+    return _cst_new_list_pending_action_dto(len);
+  }
+
+  late final _cst_new_list_pending_action_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_pending_action_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_pending_action_dto');
+  late final _cst_new_list_pending_action_dto =
+      _cst_new_list_pending_action_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_pending_action_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_prim_u_8_strict> cst_new_list_prim_u_8_strict(
     int len,
@@ -2799,6 +2865,28 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_wire__crate__api__list_messages');
   late final _wire__crate__api__list_messages =
       _wire__crate__api__list_messagesPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__list_pending_actions(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__list_pending_actions(port_, conversation_id);
+  }
+
+  late final _wire__crate__api__list_pending_actionsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__list_pending_actions');
+  late final _wire__crate__api__list_pending_actions =
+      _wire__crate__api__list_pending_actionsPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -4236,6 +4324,21 @@ final class wire_cst_list_message_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_pending_action_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_pending_action_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_pending_action_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_pending_action_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_pending_action_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_prim_u_8_strict extends ffi.Struct {
   external ffi.Pointer<ffi.Uint8> ptr;
 
@@ -4338,6 +4441,28 @@ final class wire_cst_message_dto extends ffi.Struct {
     ..ref.parent_message_id = parent_message_id
     ..ref.role = role
     ..ref.content = content
+    ..ref.created_at = created_at;
+}
+
+final class wire_cst_pending_action_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> action;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  static ffi.Pointer<wire_cst_pending_action_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> action,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+  }) => $allocator<wire_cst_pending_action_dto>()
+    ..ref.id = id
+    ..ref.action = action
+    ..ref.args_json = args_json
     ..ref.created_at = created_at;
 }
 

@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -948175645;
+  int get rustContentHash => 2095843864;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -202,6 +202,10 @@ abstract class RustLibApi extends BaseApi {
   Future<List<EventDto>> crateApiListEvents();
 
   Future<List<MessageDto>> crateApiListMessages({
+    required String conversationId,
+  });
+
+  Future<List<PendingActionDto>> crateApiListPendingActions({
     required String conversationId,
   });
 
@@ -1369,6 +1373,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiListMessagesConstMeta => const TaskConstMeta(
     debugName: "list_messages",
+    argNames: ["conversationId"],
+  );
+
+  @override
+  Future<List<PendingActionDto>> crateApiListPendingActions({
+    required String conversationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          return wire.wire__crate__api__list_pending_actions(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_pending_action_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListPendingActionsConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListPendingActionsConstMeta => const TaskConstMeta(
+    debugName: "list_pending_actions",
     argNames: ["conversationId"],
   );
 
@@ -2542,6 +2572,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_pending_action_dto).toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
@@ -2653,6 +2689,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  PendingActionDto dco_decode_pending_action_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return PendingActionDto(
+      id: dco_decode_String(arr[0]),
+      action: dco_decode_String(arr[1]),
+      argsJson: dco_decode_String(arr[2]),
+      createdAt: dco_decode_String(arr[3]),
+    );
   }
 
   @protected
@@ -3372,6 +3422,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PendingActionDto> sse_decode_list_pending_action_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PendingActionDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_pending_action_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -3565,6 +3629,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_action = sse_decode_String(deserializer);
+    var var_argsJson = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    return PendingActionDto(
+      id: var_id,
+      action: var_action,
+      argsJson: var_argsJson,
+      createdAt: var_createdAt,
+    );
   }
 
   @protected
@@ -4221,6 +4300,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_pending_action_dto(
+    List<PendingActionDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_pending_action_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -4399,6 +4490,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_wiki_page_dto(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_pending_action_dto(
+    PendingActionDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.action, serializer);
+    sse_encode_String(self.argsJson, serializer);
+    sse_encode_String(self.createdAt, serializer);
   }
 
   @protected

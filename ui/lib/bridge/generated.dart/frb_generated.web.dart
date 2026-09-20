@@ -153,6 +153,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
 
   @protected
+  List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -203,6 +206,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
+
+  @protected
+  PendingActionDto dco_decode_pending_action_dto(dynamic raw);
 
   @protected
   RelationDto dco_decode_relation_dto(dynamic raw);
@@ -391,6 +397,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
 
   @protected
+  List<PendingActionDto> sse_decode_list_pending_action_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -447,6 +458,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiPageDto? sse_decode_opt_box_autoadd_wiki_page_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
 
   @protected
   RelationDto sse_decode_relation_dto(SseDeserializer deserializer);
@@ -833,6 +847,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_pending_action_dto(List<PendingActionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_pending_action_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_prim_u_8_strict(Uint8List raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.jsify()!;
@@ -941,6 +961,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_wiki_page_dto(WikiPageDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_pending_action_dto(PendingActionDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.action),
+      cst_encode_String(raw.argsJson),
+      cst_encode_String(raw.createdAt),
+    ].jsify()!;
   }
 
   @protected
@@ -1255,6 +1286,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_pending_action_dto(
+    List<PendingActionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -1326,6 +1363,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_wiki_page_dto(
     WikiPageDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_pending_action_dto(
+    PendingActionDto self,
     SseSerializer serializer,
   );
 
@@ -1585,6 +1628,12 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String conversation_id,
   ) => wasmModule.wire__crate__api__list_messages(port_, conversation_id);
+
+  void wire__crate__api__list_pending_actions(
+    NativePortType port_,
+    String conversation_id,
+  ) =>
+      wasmModule.wire__crate__api__list_pending_actions(port_, conversation_id);
 
   void wire__crate__api__list_relations(NativePortType port_) =>
       wasmModule.wire__crate__api__list_relations(port_);
@@ -1981,6 +2030,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__list_events(NativePortType port_);
 
   external void wire__crate__api__list_messages(
+    NativePortType port_,
+    String conversation_id,
+  );
+
+  external void wire__crate__api__list_pending_actions(
     NativePortType port_,
     String conversation_id,
   );

@@ -163,6 +163,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           loading: () => const SizedBox.shrink(),
           error: (_, __) => const SizedBox.shrink(),
         ),
+        _PendingRelationsBanner(),
         // Messages list
         Expanded(
           child: messagesAsync.when(
@@ -374,6 +375,27 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PendingRelationsBanner extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final actions = ref.watch(pendingActionsProvider).valueOrNull ?? const [];
+    final relation = actions.cast<dynamic>().where((a) => a.action == 'propose_people_relations').toList();
+    if (relation.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppTheme.accentPrimary.withValues(alpha: .1), borderRadius: BorderRadius.circular(10)),
+      child: Row(children: [
+        Icon(Icons.auto_awesome_outlined, size: 18, color: AppTheme.accentPrimary),
+        const SizedBox(width: 8),
+        Expanded(child: Text('已从记录中发现人物与项目关系，回复“好”确认保存，回复“不要”忽略。', style: TextStyle(fontSize: 12))),
+        TextButton(onPressed: () {}, child: const Text('查看')),
+      ]),
     );
   }
 }
