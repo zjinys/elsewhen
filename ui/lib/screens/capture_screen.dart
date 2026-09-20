@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme/app_theme.dart';
 import '../bridge/rust_bridge_repository.dart';
@@ -219,13 +220,28 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
                             const SizedBox(width: 12),
                             _buildHintChip('esc', '取消'),
                             const Spacer(),
-                            Text(
-                              'Elsewhen',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.4),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: SvgPicture.asset(
+                                    'assets/brand/elsewhen-icon-v2.svg',
+                                    width: 20,
+                                    height: 20,
+                                    semanticsLabel: 'Elsewhen',
+                                  ),
+                                ),
+                                const SizedBox(width: 7),
+                                Text(
+                                  'Elsewhen',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.55),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

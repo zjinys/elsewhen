@@ -1,14 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/wiki_page.dart';
 import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
 import '../bridge/rust_bridge_repository.dart';
 
-/// 侧栏 Tab：对话 / 知识库 / 待办
-enum SidebarTab { conversation, wiki, todo }
+/// 一级导航只保留主要内容域；待办从侧栏工具入口打开。
+enum SidebarTab { conversation, wiki }
 
-final sidebarTabProvider = StateProvider<SidebarTab>((ref) => SidebarTab.conversation);
+final sidebarTabProvider = StateProvider<SidebarTab>(
+  (ref) => SidebarTab.conversation,
+);
 
 /// wiki 页面列表（全部，UI 按 kind 分组展示）
 final wikiPagesProvider = FutureProvider<List<WikiPage>>((ref) async {
@@ -17,21 +20,28 @@ final wikiPagesProvider = FutureProvider<List<WikiPage>>((ref) async {
 });
 
 /// 与某页相关的人物关系（双向；页面详情头部的人物关系区块用）
-final pageRelationsProvider =
-    FutureProvider.family<List<Relation>, String>((ref, slug) async {
+final pageRelationsProvider = FutureProvider.family<List<Relation>, String>((
+  ref,
+  slug,
+) async {
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
   return await bridge.listRelationsForPage(slug);
 });
 
 /// 单独查询某页详情（tab 内容用，不依赖“单页选中”）
-final wikiPageProvider = FutureProvider.family<WikiPage?, String>((ref, slug) async {
+final wikiPageProvider = FutureProvider.family<WikiPage?, String>((
+  ref,
+  slug,
+) async {
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
   return await bridge.getWikiPage(slug);
 });
 
 /// 某页的派生产物列表（AI 加工成果，挂在详情页「派生产物」区块）
-final wikiDerivativesProvider =
-    FutureProvider.family<List<WikiPage>, String>((ref, slug) async {
+final wikiDerivativesProvider = FutureProvider.family<List<WikiPage>, String>((
+  ref,
+  slug,
+) async {
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
   return await bridge.listWikiPageDerivatives(slug);
 });
@@ -176,7 +186,8 @@ void closeWikiTab(WidgetRef ref, String id) {
   ref.read(wikiOpenTabsProvider.notifier).state = tabs;
   if (ref.read(wikiActiveTabIdProvider) == id) {
     final fallback = index.clamp(0, tabs.length - 1);
-    ref.read(wikiActiveTabIdProvider.notifier).state =
-        tabs.isEmpty ? 'import' : tabs[fallback].id;
+    ref.read(wikiActiveTabIdProvider.notifier).state = tabs.isEmpty
+        ? 'import'
+        : tabs[fallback].id;
   }
 }

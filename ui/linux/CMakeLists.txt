@@ -5,9 +5,12 @@ project(runner LANGUAGES CXX)
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "elsewhen_ui")
-# The unique GTK application identifier for this application. See:
-# https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "dev.elsewhen.elsewhen_ui")
+# The unique GTK application identifier for this application. This becomes the
+# Wayland app_id / X11 WM_CLASS, which desktop environments use to resolve the
+# running window's taskbar icon via the matching .desktop file
+# (packaging/linux/io.github.elsewhen.Elsewhen.desktop) and icon theme entry
+# (io.github.elsewhen.Elsewhen.png).
+set(APPLICATION_ID "io.github.elsewhen.Elsewhen")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

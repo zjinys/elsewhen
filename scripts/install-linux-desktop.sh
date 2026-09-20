@@ -9,10 +9,10 @@ mkdir -p "$desktop_dir"
 install -m 0644 packaging/linux/io.github.elsewhen.Elsewhen.desktop \
   "$desktop_dir/io.github.elsewhen.Elsewhen.desktop"
 
-# Icons are optional until assets/icons/elsewhen-256.png lands.
-if [ -f assets/icons/elsewhen-256.png ]; then
+# Install the canonical v2 brand icon used by the desktop UI.
+if [ -f assets/brand/elsewhen-icon-v2-256.png ]; then
   mkdir -p "$icon_dir"
-  install -m 0644 assets/icons/elsewhen-256.png \
+  install -m 0644 assets/brand/elsewhen-icon-v2-256.png \
     "$icon_dir/io.github.elsewhen.Elsewhen.png"
 fi
 

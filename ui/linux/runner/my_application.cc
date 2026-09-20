@@ -1,6 +1,8 @@
 #include "my_application.h"
 
+#include <cstddef>
 #include <flutter_linux/flutter_linux.h>
+#include <gio/gio.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -14,6 +16,31 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+// App icon bytes, generated from app_icon.png by make_embedded_icon.cmake.
+extern "C" const unsigned char kAppIconPng[];
+extern "C" const std::size_t kAppIconPngSize;
+
+// Sets the window (taskbar / alt-tab / title-bar) icon from the embedded PNG,
+// so the running app shows the Elsewhen logo in every build mode instead of
+// falling back to a generic icon.
+static void set_window_icon(GtkWindow* window) {
+  GBytes* bytes = g_bytes_new_static(kAppIconPng, kAppIconPngSize);
+  GInputStream* stream = g_memory_input_stream_new_from_bytes(bytes);
+  GError* error = nullptr;
+  GdkPixbuf* pixbuf = gdk_pixbuf_new_from_stream(stream, nullptr, &error);
+  g_object_unref(stream);
+  g_bytes_unref(bytes);
+
+  if (pixbuf != nullptr) {
+    gtk_window_set_icon(window, pixbuf);
+    g_object_unref(pixbuf);
+  } else {
+    g_warning("Failed to load embedded app icon: %s",
+              error != nullptr ? error->message : "unknown error");
+    g_clear_error(&error);
+  }
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -24,6 +51,9 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+
+  // Show the Elsewhen logo as the window/taskbar icon.
+  set_window_icon(window);
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -45,11 +75,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "elsewhen_ui");
+    gtk_header_bar_set_title(header_bar, "Elsewhen");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "elsewhen_ui");
+    gtk_window_set_title(window, "Elsewhen");
   }
 
   gtk_window_set_default_size(window, 1920, 1080);

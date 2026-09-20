@@ -48,6 +48,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   freezed_annotation: ^2.4.4
   flex_color_scheme: ^8.4.0
+  flutter_svg: ^2.2.1
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +74,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/brand/elsewhen-icon-v2.svg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -3,7 +3,107 @@ use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatiblePr
 use crate::event::NewEvent;
 use crate::storage::{RelationDraft, RuleStatus, Store};
 use anyhow::Result;
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
+
+const EVENT_ANALYSIS_VERSION: &str = "event-analysis-v1";
+const DAILY_REVIEW_VERSION: &str = "daily-review-v1";
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct EventAnalysisV1 {
+    schema_version: String,
+    event_type: String,
+    confidence: f64,
+    summary: String,
+    clarifications: Vec<String>,
+    people: Vec<String>,
+    projects: Vec<String>,
+    follow_ups: Vec<String>,
+}
+
+impl EventAnalysisV1 {
+    fn parse(raw: &str) -> Result<Self> {
+        let mut result: Self = serde_json::from_str(raw)?;
+        if result.schema_version != EVENT_ANALYSIS_VERSION {
+            anyhow::bail!("schema_version 必须是 {EVENT_ANALYSIS_VERSION}");
+        }
+        result.event_type = result.event_type.trim().to_string();
+        result.summary = result.summary.trim().to_string();
+        if result.event_type.is_empty() || result.summary.is_empty() {
+            anyhow::bail!("event_type 和 summary 不能为空");
+        }
+        if !result.confidence.is_finite() || !(0.0..=1.0).contains(&result.confidence) {
+            anyhow::bail!("confidence 必须在 0..1 范围内");
+        }
+        normalize_strings(&mut result.clarifications);
+        normalize_strings(&mut result.people);
+        normalize_strings(&mut result.projects);
+        normalize_strings(&mut result.follow_ups);
+        Ok(result)
+    }
+}
+
+fn normalize_strings(values: &mut Vec<String>) {
+    let mut normalized = Vec::with_capacity(values.len());
+    for value in values.drain(..) {
+        let value = value.trim();
+        if !value.is_empty() && !normalized.iter().any(|seen| seen == value) {
+            normalized.push(value.to_string());
+        }
+    }
+    *values = normalized;
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DailyReviewItemV1 {
+    text: String,
+    source_event_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DailyReviewV1 {
+    schema_version: String,
+    date: String,
+    accomplishments: Vec<DailyReviewItemV1>,
+    ideas_decisions: Vec<DailyReviewItemV1>,
+    people_projects: Vec<DailyReviewItemV1>,
+    follow_ups: Vec<DailyReviewItemV1>,
+}
+
+impl DailyReviewV1 {
+    fn parse(raw: &str, expected_date: &str, allowed_sources: &[String]) -> Result<Self> {
+        let mut review: Self = serde_json::from_str(raw)?;
+        if review.schema_version != DAILY_REVIEW_VERSION {
+            anyhow::bail!("schema_version 必须是 {DAILY_REVIEW_VERSION}");
+        }
+        if review.date != expected_date {
+            anyhow::bail!("daily review 日期与查询日期不一致");
+        }
+        for item in review
+            .accomplishments
+            .iter_mut()
+            .chain(review.ideas_decisions.iter_mut())
+            .chain(review.people_projects.iter_mut())
+            .chain(review.follow_ups.iter_mut())
+        {
+            item.text = item.text.trim().to_string();
+            normalize_strings(&mut item.source_event_ids);
+            if item.text.is_empty() || item.source_event_ids.is_empty() {
+                anyhow::bail!("daily review 每条结论必须包含文本和来源");
+            }
+            if item
+                .source_event_ids
+                .iter()
+                .any(|id| !allowed_sources.iter().any(|allowed| allowed == id))
+            {
+                anyhow::bail!("daily review 包含未声明的来源事件");
+            }
+        }
+        Ok(review)
+    }
+}
 
 /// Event data transfer object for Flutter
 #[derive(Clone, Debug)]
@@ -61,6 +161,55 @@ pub struct DailyEntryDto {
     pub recorded_at: String,
 }
 
+#[derive(Clone, Debug)]
+pub struct EventAnalysisDetailDto {
+    pub event_id: String,
+    pub raw_text: String,
+    pub source: String,
+    pub recorded_at: String,
+    pub event_status: String,
+    pub job_status: String,
+    pub attempts: i64,
+    pub last_error: Option<String>,
+    pub available_at: String,
+    pub prompt_version: Option<String>,
+    pub analysis_created_at: Option<String>,
+    pub schema_version: Option<String>,
+    pub event_type: Option<String>,
+    pub confidence: Option<f64>,
+    pub summary: Option<String>,
+    pub clarifications: Vec<String>,
+    pub people: Vec<String>,
+    pub projects: Vec<String>,
+    pub follow_ups: Vec<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DailyReviewItemDto {
+    pub text: String,
+    pub source_event_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DailyReviewDto {
+    pub id: String,
+    pub date: String,
+    pub prompt_version: String,
+    pub created_at: String,
+    pub accomplishments: Vec<DailyReviewItemDto>,
+    pub ideas_decisions: Vec<DailyReviewItemDto>,
+    pub people_projects: Vec<DailyReviewItemDto>,
+    pub follow_ups: Vec<DailyReviewItemDto>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DailyOverviewDto {
+    pub date: String,
+    pub entries: Vec<DailyEntryDto>,
+    pub review: Option<DailyReviewDto>,
+    pub todos: Vec<TodoDto>,
+}
+
 impl From<crate::storage::InputRecord> for InputRecordDto {
     fn from(record: crate::storage::InputRecord) -> Self {
         Self {
@@ -93,6 +242,12 @@ pub fn init_bridge(database_path: Option<String>) -> String {
         Ok(c) => c,
         Err(e) => return format!("Error loading config: {}", e),
     };
+    match Store::open(&config.database_path)
+        .and_then(|store| store.recover_interrupted_analysis_jobs().map(|_| ()))
+    {
+        Ok(()) => {}
+        Err(e) => return format!("Error recovering analysis queue: {}", e),
+    }
     config.database_path.display().to_string()
 }
 
@@ -218,6 +373,208 @@ pub fn list_daily_entries(date: String) -> Result<Vec<DailyEntryDto>> {
             recorded_at: entry.recorded_at,
         })
         .collect())
+}
+
+pub fn get_daily_overview(date: String) -> Result<DailyOverviewDto> {
+    let date = chrono::NaiveDate::parse_from_str(date.trim(), "%Y-%m-%d")
+        .map_err(|_| anyhow::anyhow!("日期必须是 YYYY-MM-DD"))?;
+    let date_text = date.format("%Y-%m-%d").to_string();
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let entries = store
+        .daily_entries(date)?
+        .into_iter()
+        .map(|entry| DailyEntryDto {
+            event_id: entry.event_id,
+            input_id: entry.input_id,
+            message_id: entry.message_id,
+            raw_text: entry.raw_text,
+            source: entry.source,
+            event_status: entry.event_status,
+            recorded_at: entry.recorded_at,
+        })
+        .collect::<Vec<_>>();
+    let review = store
+        .latest_daily_review(date)?
+        .map(|record| {
+            let parsed =
+                DailyReviewV1::parse(&record.result_json, &date_text, &record.source_event_ids)?;
+            let map_items = |items: Vec<DailyReviewItemV1>| {
+                items
+                    .into_iter()
+                    .map(|item| DailyReviewItemDto {
+                        text: item.text,
+                        source_event_ids: item.source_event_ids,
+                    })
+                    .collect()
+            };
+            Ok::<_, anyhow::Error>(DailyReviewDto {
+                id: record.id,
+                date: record.date,
+                prompt_version: record.prompt_version,
+                created_at: record.created_at,
+                accomplishments: map_items(parsed.accomplishments),
+                ideas_decisions: map_items(parsed.ideas_decisions),
+                people_projects: map_items(parsed.people_projects),
+                follow_ups: map_items(parsed.follow_ups),
+            })
+        })
+        .transpose()?;
+    let todos = store
+        .list_todos(None)?
+        .into_iter()
+        .filter(|todo| {
+            todo.related_event_id
+                .as_deref()
+                .is_some_and(|event_id| entries.iter().any(|entry| entry.event_id == event_id))
+                || todo
+                    .due_at
+                    .as_deref()
+                    .is_some_and(|due_at| due_at.starts_with(&date_text))
+        })
+        .map(TodoDto::from)
+        .collect();
+    Ok(DailyOverviewDto {
+        date: date_text,
+        entries,
+        review,
+        todos,
+    })
+}
+
+pub fn save_daily_review(
+    date: String,
+    result_json: String,
+    prompt_version: String,
+    source_event_ids: Vec<String>,
+) -> Result<String> {
+    let date = chrono::NaiveDate::parse_from_str(date.trim(), "%Y-%m-%d")
+        .map_err(|_| anyhow::anyhow!("日期必须是 YYYY-MM-DD"))?;
+    if prompt_version.trim() != DAILY_REVIEW_VERSION {
+        anyhow::bail!("prompt_version 必须是 {DAILY_REVIEW_VERSION}");
+    }
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let allowed_sources = store
+        .daily_entries(date)?
+        .into_iter()
+        .map(|entry| entry.event_id)
+        .collect::<Vec<_>>();
+    let parsed = DailyReviewV1::parse(
+        &result_json,
+        &date.format("%Y-%m-%d").to_string(),
+        &allowed_sources,
+    )?;
+    let referenced = parsed
+        .accomplishments
+        .iter()
+        .chain(parsed.ideas_decisions.iter())
+        .chain(parsed.people_projects.iter())
+        .chain(parsed.follow_ups.iter())
+        .flat_map(|item| item.source_event_ids.iter())
+        .collect::<std::collections::HashSet<_>>();
+    if referenced
+        .iter()
+        .any(|event_id| !source_event_ids.iter().any(|source| source == *event_id))
+    {
+        anyhow::bail!("daily review source_event_ids 未覆盖结论引用");
+    }
+    store.save_daily_review(date, DAILY_REVIEW_VERSION, &result_json, &source_event_ids)
+}
+
+pub fn generate_daily_review(date: String) -> Result<String> {
+    let date = chrono::NaiveDate::parse_from_str(date.trim(), "%Y-%m-%d")
+        .map_err(|_| anyhow::anyhow!("日期必须是 YYYY-MM-DD"))?;
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let Some(provider_config) = store.active_ai_provider_config()? else {
+        return Ok("no_provider".to_string());
+    };
+    let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
+        base_url: provider_config.base_url,
+        api_key: provider_config.api_key,
+        model: provider_config.model,
+        temperature: provider_config.temperature as f32,
+        max_tokens: provider_config.max_tokens.map(|value| value as u32),
+    })?;
+    generate_daily_review_with_provider(&store, date, &provider)
+}
+
+fn generate_daily_review_with_provider(
+    store: &Store,
+    date: chrono::NaiveDate,
+    provider: &dyn AiProvider,
+) -> Result<String> {
+    let entries = store.daily_entries(date)?;
+    if entries.is_empty() {
+        return Ok("no_entries".to_string());
+    }
+    let date_text = date.format("%Y-%m-%d").to_string();
+    let source_event_ids = entries
+        .iter()
+        .map(|entry| entry.event_id.clone())
+        .collect::<Vec<_>>();
+    let facts = entries
+        .iter()
+        .map(|entry| {
+            let analysis = store.event_analysis_detail(&entry.event_id)?;
+            let analysis_text = analysis
+                .and_then(|detail| detail.result_json)
+                .unwrap_or_else(|| "null".to_string());
+            Ok(format!(
+                "event_id={}\nrecorded_at={}\nsource={}\nraw_text={}\nanalysis={}",
+                entry.event_id, entry.recorded_at, entry.source, entry.raw_text, analysis_text
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?
+        .join("\n\n");
+    let prompt = format!("根据以下 {date_text} 的个人事实生成每日回顾。只返回 JSON 对象，不要 Markdown，不要增加字段。schema_version 固定为 daily-review-v1，date 固定为 {date_text}。字段 accomplishments、ideas_decisions、people_projects、follow_ups 都是数组；每项必须是 {{\"text\":string,\"source_event_ids\":[string]}}，来源 ID 必须来自输入。没有可靠内容的分类返回空数组，不要推测。\n\n{facts}");
+    let reply = provider.generate_reply(vec![ContextMessage::new("user", prompt)])?;
+    let parsed = DailyReviewV1::parse(&reply.content, &date_text, &source_event_ids)?;
+    let normalized = serde_json::to_string(&parsed)?;
+    let id = store.save_daily_review(date, DAILY_REVIEW_VERSION, &normalized, &source_event_ids)?;
+    Ok(format!("created:{id}"))
+}
+
+pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysisDetailDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let Some(detail) = store.event_analysis_detail(event_id.trim())? else {
+        return Ok(None);
+    };
+    let analysis = detail
+        .result_json
+        .as_deref()
+        .and_then(|raw| EventAnalysisV1::parse(raw).ok());
+    Ok(Some(EventAnalysisDetailDto {
+        event_id: detail.event_id,
+        raw_text: detail.raw_text,
+        source: detail.source,
+        recorded_at: detail.recorded_at,
+        event_status: detail.event_status,
+        job_status: detail.job_status,
+        attempts: detail.attempts,
+        last_error: detail.last_error,
+        available_at: detail.available_at,
+        prompt_version: detail.prompt_version,
+        analysis_created_at: detail.analysis_created_at,
+        schema_version: analysis.as_ref().map(|value| value.schema_version.clone()),
+        event_type: analysis.as_ref().map(|value| value.event_type.clone()),
+        confidence: analysis.as_ref().map(|value| value.confidence),
+        summary: analysis.as_ref().map(|value| value.summary.clone()),
+        clarifications: analysis
+            .as_ref()
+            .map_or_else(Vec::new, |value| value.clarifications.clone()),
+        people: analysis
+            .as_ref()
+            .map_or_else(Vec::new, |value| value.people.clone()),
+        projects: analysis
+            .as_ref()
+            .map_or_else(Vec::new, |value| value.projects.clone()),
+        follow_ups: analysis
+            .as_ref()
+            .map_or_else(Vec::new, |value| value.follow_ups.clone()),
+    }))
 }
 
 /// List all events
@@ -429,24 +786,28 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
     // become available while a slow provider is processing other records.
     let stats = store.analysis_job_stats()?;
     for _ in 0..(stats.pending + stats.retry).min(50) {
-        let Some(job) = store.claim_analysis_job()? else { break };
+        let Some(job) = store.claim_analysis_job()? else {
+            break;
+        };
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown。字段必须包含 event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、follow_ups(array of strings)。\n记录：{}",
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。字段必须包含 schema_version(固定字符串 event-analysis-v1)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、follow_ups(array of strings)。\n记录：{}",
             job.raw_text
         );
         match provider.generate_reply(vec![ContextMessage::new("user", prompt)]) {
-            Ok(reply) => {
-                let parsed = serde_json::from_str::<Value>(&reply.content)
-                    .ok()
-                    .and_then(|v| if v.is_object() { Some(v) } else { None });
-                match parsed {
-                    Some(value) => {
-                        store.complete_analysis(&job, "event-analysis-v1", &value.to_string())?;
-                        processed += 1;
-                    }
-                    None => store.fail_analysis(&job, "AI 返回不是合法 JSON 对象")?,
+            Ok(reply) => match EventAnalysisV1::parse(&reply.content) {
+                Ok(value) => {
+                    store.complete_analysis(
+                        &job,
+                        EVENT_ANALYSIS_VERSION,
+                        &serde_json::to_string(&value)?,
+                    )?;
+                    processed += 1;
                 }
-            }
+                Err(error) => store.fail_analysis(
+                    &job,
+                    &format!("AI 返回不符合 {EVENT_ANALYSIS_VERSION}: {error}"),
+                )?,
+            },
             Err(error) => store.fail_analysis(&job, &error.to_string())?,
         }
     }
@@ -491,11 +852,19 @@ mod analysis_tests {
         let store = Store::open(&path).unwrap();
         store.insert_event(NewEvent::now("first")).unwrap();
         store.insert_event(NewEvent::now("second")).unwrap();
-        let provider = StubProvider(Some(r#"{"event_type":"note","summary":"test"}"#));
-        assert_eq!(process_analysis_queue(&store, &provider).unwrap(), "processed:2");
+        let provider = StubProvider(Some(
+            r#"{"schema_version":"event-analysis-v1","event_type":"note","confidence":0.8,"summary":"test","clarifications":[],"people":[],"projects":[],"follow_ups":[]}"#,
+        ));
+        assert_eq!(
+            process_analysis_queue(&store, &provider).unwrap(),
+            "processed:2"
+        );
         assert_eq!(store.analysis_job_stats().unwrap().succeeded, 2);
         assert_eq!(store.list_analyses().unwrap().len(), 2);
-        assert_eq!(process_analysis_queue(&store, &provider).unwrap(), "processed:0");
+        assert_eq!(
+            process_analysis_queue(&store, &provider).unwrap(),
+            "processed:0"
+        );
         assert_eq!(store.list_analyses().unwrap().len(), 2);
         drop(store);
         let _ = std::fs::remove_file(path);
@@ -503,11 +872,24 @@ mod analysis_tests {
 
     #[test]
     fn invalid_json_and_provider_failure_preserve_records_for_retry() {
-        for reply in [Some("invalid"), Some("[]"), None] {
+        for reply in [
+            Some("invalid"),
+            Some("[]"),
+            Some(
+                r#"{"schema_version":"event-analysis-v1","event_type":"note","confidence":2,"summary":"bad","clarifications":[],"people":[],"projects":[],"follow_ups":[]}"#,
+            ),
+            Some(
+                r#"{"schema_version":"event-analysis-v1","event_type":"note","confidence":0.5,"summary":"extra","clarifications":[],"people":[],"projects":[],"follow_ups":[],"unexpected":true}"#,
+            ),
+            None,
+        ] {
             let path = temporary_database();
             let store = Store::open(&path).unwrap();
             store.insert_event(NewEvent::now("original")).unwrap();
-            assert_eq!(process_analysis_queue(&store, &StubProvider(reply)).unwrap(), "processed:0");
+            assert_eq!(
+                process_analysis_queue(&store, &StubProvider(reply)).unwrap(),
+                "processed:0"
+            );
             let stats = store.analysis_job_stats().unwrap();
             assert_eq!(stats.retry, 1);
             assert_eq!(stats.running, 0);
@@ -516,6 +898,18 @@ mod analysis_tests {
             drop(store);
             let _ = std::fs::remove_file(path);
         }
+    }
+
+    #[test]
+    fn analysis_schema_normalizes_repeated_and_blank_strings() {
+        let parsed = EventAnalysisV1::parse(
+            r#"{"schema_version":"event-analysis-v1","event_type":" note ","confidence":0.5,"summary":" summary ","clarifications":[" ask ","","ask"],"people":[" Ada ","Ada"],"projects":[],"follow_ups":[]}"#,
+        )
+        .unwrap();
+        assert_eq!(parsed.event_type, "note");
+        assert_eq!(parsed.summary, "summary");
+        assert_eq!(parsed.clarifications, ["ask"]);
+        assert_eq!(parsed.people, ["Ada"]);
     }
 }
 
@@ -1445,4 +1839,89 @@ pub fn archive_wiki_page_chat(page_slug: String) -> Result<()> {
         return Ok(());
     };
     store.set_conversation_archived(&conversation_id, true)
+}
+
+#[cfg(test)]
+mod daily_review_tests {
+    use super::*;
+    use crate::ai::provider::AiReply;
+    use crate::ai::tool::ToolSpec;
+    use crate::event::NewEvent;
+    use crate::storage::Store;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct StubProvider(&'static str);
+    impl AiProvider for StubProvider {
+        fn generate_reply_with_tools(
+            &self,
+            _: Vec<ContextMessage>,
+            _: Option<&[ToolSpec]>,
+        ) -> Result<AiReply> {
+            Ok(AiReply::text(self.0))
+        }
+    }
+
+    fn temporary_database() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "elsewhen-daily-review-api-{}.db",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    #[test]
+    fn daily_review_requires_per_item_sources_from_declared_set() {
+        let valid = r#"{
+          "schema_version":"daily-review-v1",
+          "date":"2026-09-18",
+          "accomplishments":[{"text":"完成分析闭环","source_event_ids":["event-1"]}],
+          "ideas_decisions":[],
+          "people_projects":[],
+          "follow_ups":[{"text":"继续每日聚合","source_event_ids":["event-1"]}]
+        }"#;
+        let parsed = DailyReviewV1::parse(valid, "2026-09-18", &["event-1".to_string()]).unwrap();
+        assert_eq!(parsed.accomplishments[0].text, "完成分析闭环");
+
+        let missing_source = valid.replace(
+            r#""source_event_ids":["event-1"]"#,
+            r#""source_event_ids":[]"#,
+        );
+        assert!(
+            DailyReviewV1::parse(&missing_source, "2026-09-18", &["event-1".to_string()],).is_err()
+        );
+
+        let unknown_source = valid.replace("event-1", "event-other");
+        assert!(
+            DailyReviewV1::parse(&unknown_source, "2026-09-18", &["event-1".to_string()],).is_err()
+        );
+    }
+
+    #[test]
+    fn generate_daily_review_with_stub_provider_appends_valid_version() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let event_id = store
+            .insert_event(NewEvent::now("完成 Phase 3 数据契约"))
+            .unwrap();
+        let reply = format!(
+            r#"{{"schema_version":"daily-review-v1","date":"{}","accomplishments":[{{"text":"完成数据契约","source_event_ids":["{}"]}}],"ideas_decisions":[],"people_projects":[],"follow_ups":[]}}"#,
+            chrono::Local::now().date_naive(),
+            event_id
+        );
+        let result = generate_daily_review_with_provider(
+            &store,
+            chrono::Local::now().date_naive(),
+            &StubProvider(Box::leak(reply.into_boxed_str())),
+        )
+        .unwrap();
+        assert!(result.starts_with("created:"));
+        assert!(store
+            .latest_daily_review(chrono::Local::now().date_naive())
+            .unwrap()
+            .is_some());
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
 }

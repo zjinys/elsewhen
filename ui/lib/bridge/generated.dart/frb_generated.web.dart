@@ -50,6 +50,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
+  DailyReviewDto dco_decode_box_autoadd_daily_review_dto(dynamic raw);
+
+  @protected
+  EventAnalysisDetailDto dco_decode_box_autoadd_event_analysis_detail_dto(
+    dynamic raw,
+  );
+
+  @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -68,7 +79,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyEntryDto dco_decode_daily_entry_dto(dynamic raw);
 
   @protected
+  DailyOverviewDto dco_decode_daily_overview_dto(dynamic raw);
+
+  @protected
+  DailyReviewDto dco_decode_daily_review_dto(dynamic raw);
+
+  @protected
+  DailyReviewItemDto dco_decode_daily_review_item_dto(dynamic raw);
+
+  @protected
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
+
+  @protected
+  EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw);
 
   @protected
   EventDto dco_decode_event_dto(dynamic raw);
@@ -109,6 +132,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DailyEntryDto> dco_decode_list_daily_entry_dto(dynamic raw);
 
   @protected
+  List<DailyReviewItemDto> dco_decode_list_daily_review_item_dto(dynamic raw);
+
+  @protected
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw);
 
   @protected
@@ -145,6 +171,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
+
+  @protected
+  DailyReviewDto? dco_decode_opt_box_autoadd_daily_review_dto(dynamic raw);
+
+  @protected
+  EventAnalysisDetailDto? dco_decode_opt_box_autoadd_event_analysis_detail_dto(
+    dynamic raw,
+  );
+
+  @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -215,6 +252,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DailyReviewDto sse_decode_box_autoadd_daily_review_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EventAnalysisDetailDto sse_decode_box_autoadd_event_analysis_detail_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -237,7 +287,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyEntryDto sse_decode_daily_entry_dto(SseDeserializer deserializer);
 
   @protected
+  DailyOverviewDto sse_decode_daily_overview_dto(SseDeserializer deserializer);
+
+  @protected
+  DailyReviewDto sse_decode_daily_review_dto(SseDeserializer deserializer);
+
+  @protected
+  DailyReviewItemDto sse_decode_daily_review_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DailyTokenUsageDto sse_decode_daily_token_usage_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EventAnalysisDetailDto sse_decode_event_analysis_detail_dto(
     SseDeserializer deserializer,
   );
 
@@ -286,6 +352,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DailyReviewItemDto> sse_decode_list_daily_review_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DailyTokenUsageDto> sse_decode_list_daily_token_usage_dto(
     SseDeserializer deserializer,
   );
@@ -326,6 +397,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ConversationDto? sse_decode_opt_box_autoadd_conversation_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DailyReviewDto? sse_decode_opt_box_autoadd_daily_review_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EventAnalysisDetailDto? sse_decode_opt_box_autoadd_event_analysis_detail_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
@@ -430,6 +514,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_box_autoadd_daily_review_dto(DailyReviewDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_daily_review_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_event_analysis_detail_dto(raw);
+  }
+
+  @protected
+  double cst_encode_box_autoadd_f_64(double raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_f_64(raw);
+  }
+
+  @protected
   JSAny cst_encode_box_autoadd_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_64(raw);
@@ -487,6 +591,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_daily_overview_dto(DailyOverviewDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.date),
+      cst_encode_list_daily_entry_dto(raw.entries),
+      cst_encode_opt_box_autoadd_daily_review_dto(raw.review),
+      cst_encode_list_todo_dto(raw.todos),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_daily_review_dto(DailyReviewDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.date),
+      cst_encode_String(raw.promptVersion),
+      cst_encode_String(raw.createdAt),
+      cst_encode_list_daily_review_item_dto(raw.accomplishments),
+      cst_encode_list_daily_review_item_dto(raw.ideasDecisions),
+      cst_encode_list_daily_review_item_dto(raw.peopleProjects),
+      cst_encode_list_daily_review_item_dto(raw.followUps),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_daily_review_item_dto(DailyReviewItemDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.text),
+      cst_encode_list_String(raw.sourceEventIds),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_daily_token_usage_dto(DailyTokenUsageDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -495,6 +634,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_64(raw.completionTokens),
       cst_encode_i_64(raw.totalTokens),
       cst_encode_i_64(raw.callCount),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_event_analysis_detail_dto(EventAnalysisDetailDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.rawText),
+      cst_encode_String(raw.source),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_String(raw.eventStatus),
+      cst_encode_String(raw.jobStatus),
+      cst_encode_i_64(raw.attempts),
+      cst_encode_opt_String(raw.lastError),
+      cst_encode_String(raw.availableAt),
+      cst_encode_opt_String(raw.promptVersion),
+      cst_encode_opt_String(raw.analysisCreatedAt),
+      cst_encode_opt_String(raw.schemaVersion),
+      cst_encode_opt_String(raw.eventType),
+      cst_encode_opt_box_autoadd_f_64(raw.confidence),
+      cst_encode_opt_String(raw.summary),
+      cst_encode_list_String(raw.clarifications),
+      cst_encode_list_String(raw.people),
+      cst_encode_list_String(raw.projects),
+      cst_encode_list_String(raw.followUps),
     ].jsify()!;
   }
 
@@ -587,6 +752,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_daily_review_item_dto(List<DailyReviewItemDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_daily_review_item_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_daily_token_usage_dto(List<DailyTokenUsageDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_daily_token_usage_dto).toList().jsify()!;
@@ -667,6 +838,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_conversation_dto(ConversationDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_conversation_dto(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_daily_review_dto(DailyReviewDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_daily_review_dto(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_event_analysis_detail_dto(raw);
+  }
+
+  @protected
+  double? cst_encode_opt_box_autoadd_f_64(double? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_f_64(raw);
   }
 
   @protected
@@ -837,6 +1030,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_daily_review_dto(
+    DailyReviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -867,8 +1075,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_daily_entry_dto(DailyEntryDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_daily_overview_dto(
+    DailyOverviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_daily_review_dto(
+    DailyReviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_daily_review_item_dto(
+    DailyReviewItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_daily_token_usage_dto(
     DailyTokenUsageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_event_analysis_detail_dto(
+    EventAnalysisDetailDto self,
     SseSerializer serializer,
   );
 
@@ -923,6 +1155,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_daily_entry_dto(
     List<DailyEntryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_daily_review_item_dto(
+    List<DailyReviewItemDto> self,
     SseSerializer serializer,
   );
 
@@ -982,6 +1220,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ConversationDto? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_daily_review_dto(
+    DailyReviewDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_i_64(
@@ -1137,6 +1390,11 @@ class RustLibWire implements BaseWire {
     messages,
   );
 
+  void wire__crate__api__generate_daily_review(
+    NativePortType port_,
+    String date,
+  ) => wasmModule.wire__crate__api__generate_daily_review(port_, date);
+
   void wire__crate__api__generate_reply(
     NativePortType port_,
     String conversation_id,
@@ -1170,10 +1428,20 @@ class RustLibWire implements BaseWire {
     String conversation_id,
   ) => wasmModule.wire__crate__api__get_conversation(port_, conversation_id);
 
+  void wire__crate__api__get_daily_overview(
+    NativePortType port_,
+    String date,
+  ) => wasmModule.wire__crate__api__get_daily_overview(port_, date);
+
   void wire__crate__api__get_daily_token_usage(
     NativePortType port_,
     int days,
   ) => wasmModule.wire__crate__api__get_daily_token_usage(port_, days);
+
+  void wire__crate__api__get_event_analysis_detail(
+    NativePortType port_,
+    String event_id,
+  ) => wasmModule.wire__crate__api__get_event_analysis_detail(port_, event_id);
 
   void wire__crate__api__get_message_chain(
     NativePortType port_,
@@ -1264,6 +1532,20 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     JSAny provider,
   ) => wasmModule.wire__crate__api__save_ai_provider_config(port_, provider);
+
+  void wire__crate__api__save_daily_review(
+    NativePortType port_,
+    String date,
+    String result_json,
+    String prompt_version,
+    JSAny source_event_ids,
+  ) => wasmModule.wire__crate__api__save_daily_review(
+    port_,
+    date,
+    result_json,
+    prompt_version,
+    source_event_ids,
+  );
 
   void wire__crate__api__save_imported_page(
     NativePortType port_,
@@ -1504,6 +1786,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny messages,
   );
 
+  external void wire__crate__api__generate_daily_review(
+    NativePortType port_,
+    String date,
+  );
+
   external void wire__crate__api__generate_reply(
     NativePortType port_,
     String conversation_id,
@@ -1528,9 +1815,19 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
+  external void wire__crate__api__get_daily_overview(
+    NativePortType port_,
+    String date,
+  );
+
   external void wire__crate__api__get_daily_token_usage(
     NativePortType port_,
     int days,
+  );
+
+  external void wire__crate__api__get_event_analysis_detail(
+    NativePortType port_,
+    String event_id,
   );
 
   external void wire__crate__api__get_message_chain(
@@ -1620,6 +1917,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__save_ai_provider_config(
     NativePortType port_,
     JSAny provider,
+  );
+
+  external void wire__crate__api__save_daily_review(
+    NativePortType port_,
+    String date,
+    String result_json,
+    String prompt_version,
+    JSAny source_event_ids,
   );
 
   external void wire__crate__api__save_imported_page(

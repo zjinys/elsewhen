@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t d">
+  <title id="t">Elsewhen app icon</title>
+  <desc id="d">An open temporal orbit with an offset glowing dot on a dark square that fills the whole canvas (no corner transparency). The offset dot represents the "else" moment.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#24262D"/>
+      <stop offset="1" stop-color="#15161B"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="128" y1="128" x2="384" y2="384" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4E5568"/>
+      <stop offset="0.55" stop-color="#6A6FE0"/>
+      <stop offset="1" stop-color="#8A8FF5"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8A8FF5" stop-opacity="0.85"/>
+      <stop offset="0.45" stop-color="#6A6FE0" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#6A6FE0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="0" fill="url(#bg)"/>
+
+  <!-- Open temporal orbit: the gap is the unknown, the orbit is the record. -->
+  <path d="M205.27 445.32 A196 196 0 1 1 445.32 205.27"
+        fill="none" stroke="url(#ring)" stroke-width="44" stroke-linecap="round"/>
+
+  <!-- The "else" moment -->
+  <circle cx="394.59" cy="394.59" r="62" fill="url(#halo)"/>
+  <circle cx="394.59" cy="394.59" r="28" fill="#A5A9F8"/>
+</svg>

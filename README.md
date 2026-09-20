@@ -1,4 +1,6 @@
-# elsewhen
+# elsewhen · 别时
+
+> 本地优先的个人认知主循环 —— 记录此刻，复利此生。
 
 Personal Event System 的 Rust 本地核心 + Flutter 跨平台 GUI。
 
@@ -144,7 +146,7 @@ Linux 上安装一次桌面元数据，使窗口合成器能解析应用 ID 到�
 ```
 
 三个脚本都会先构建 release 版本；分别需要系统提供 `dpkg-deb`、`rpmbuild` 或 `makepkg`。
-这些脚本只用于从源码生成安装包，不会被安装到用户系统。安装包本身包含 CLI、桌面入口和应用图标（`assets/icons/elsewhen-256.png` 落地后自动打入包）。
+这些脚本只用于从源码生成安装包，不会被安装到用户系统。安装包本身包含 CLI、桌面入口和正式品牌图标（`assets/brand/elsewhen-icon-v2-256.png`）。
 
 也可以通过 Makefile 调用：
 

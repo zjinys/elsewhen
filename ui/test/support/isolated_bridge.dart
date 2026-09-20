@@ -11,13 +11,13 @@ Future<RustBridgeRepository> createIsolatedBridge() async {
   final dataDir = await Directory.systemTemp.createTemp(
     'elsewhen-flutter-test-',
   );
+  final repo = RustBridgeRepository(databasePath: dataDir.path);
+  await repo.initialize();
   addTearDown(() async {
+    repo.dispose();
     if (await dataDir.exists()) {
       await dataDir.delete(recursive: true);
     }
   });
-
-  final repo = RustBridgeRepository(databasePath: dataDir.path);
-  await repo.initialize();
   return repo;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../models/conversation.dart';
 import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
@@ -18,15 +19,13 @@ class LeftSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(sidebarTabProvider);
 
-    // 切到知识库 / 待办 tab 时强制刷新列表：
+    // 切到知识库 / 今天时强制刷新列表：
     // 对话里 AI 可能刚导入过页面 / 建过待办（含用户确认后落库），
     // 若沿用缓存，切换到对应 tab 会看不到最新数据。
     ref.listen(sidebarTabProvider, (prev, next) {
       if (prev == next) return;
       if (next == SidebarTab.wiki) {
         ref.invalidate(wikiPagesProvider);
-      } else if (next == SidebarTab.todo) {
-        ref.invalidate(todosProvider);
       }
     });
 
@@ -34,12 +33,7 @@ class LeftSidebar extends ConsumerWidget {
       width: 280,
       decoration: BoxDecoration(
         color: AppTheme.surface1,
-        border: Border(
-          right: BorderSide(
-            color: AppTheme.surface3,
-            width: 1,
-          ),
-        ),
+        border: Border(right: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: Column(
         children: [
@@ -48,7 +42,6 @@ class LeftSidebar extends ConsumerWidget {
             child: switch (tab) {
               SidebarTab.conversation => _buildConversationTab(context, ref),
               SidebarTab.wiki => const _WikiTab(),
-              SidebarTab.todo => const _TodoTab(),
             },
           ),
           _buildFooter(context, ref),
@@ -61,12 +54,7 @@ class LeftSidebar extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(AppTheme.space2),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: AppTheme.surface3,
-            width: 1,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: Row(
         children: [
@@ -75,7 +63,8 @@ class LeftSidebar extends ConsumerWidget {
             icon: Icons.chat_bubble_outline,
             selected: tab == SidebarTab.conversation,
             onTap: () {
-              ref.read(sidebarTabProvider.notifier).state = SidebarTab.conversation;
+              ref.read(sidebarTabProvider.notifier).state =
+                  SidebarTab.conversation;
             },
           ),
           const SizedBox(width: AppTheme.space2),
@@ -85,15 +74,6 @@ class LeftSidebar extends ConsumerWidget {
             selected: tab == SidebarTab.wiki,
             onTap: () {
               ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
-            },
-          ),
-          const SizedBox(width: AppTheme.space2),
-          _TabButton(
-            label: '待办',
-            icon: Icons.fact_check_outlined,
-            selected: tab == SidebarTab.todo,
-            onTap: () {
-              ref.read(sidebarTabProvider.notifier).state = SidebarTab.todo;
             },
           ),
         ],
@@ -115,7 +95,9 @@ class LeftSidebar extends ConsumerWidget {
             data: (conversations) {
               if (conversations.isEmpty) {
                 return _EmptyState(
-                  icon: showArchived ? Icons.archive_outlined : Icons.chat_bubble_outline,
+                  icon: showArchived
+                      ? Icons.archive_outlined
+                      : Icons.chat_bubble_outline,
                   message: showArchived ? '没有归档对话' : '还没有对话\n\n点上方「新建对话」开始',
                 );
               }
@@ -141,9 +123,13 @@ class LeftSidebar extends ConsumerWidget {
                       ref.read(selectedConversationIdProvider.notifier).state =
                           conversation.id;
                     },
-                    onRename: () => _renameConversation(context, ref, conversation),
-                    onArchive: () =>
-                        _setConversationArchived(ref, conversation, !showArchived),
+                    onRename: () =>
+                        _renameConversation(context, ref, conversation),
+                    onArchive: () => _setConversationArchived(
+                      ref,
+                      conversation,
+                      !showArchived,
+                    ),
                   );
                 },
               );
@@ -179,12 +165,15 @@ class LeftSidebar extends ConsumerWidget {
               final newConv = await repo.createConversation();
               ref.read(showArchivedProvider.notifier).state = false;
               ref.invalidate(conversationsProvider);
-              ref.read(selectedConversationIdProvider.notifier).state = newConv.id;
+              ref.read(selectedConversationIdProvider.notifier).state =
+                  newConv.id;
             },
           ),
           const Spacer(),
           _ToolbarAction(
-            icon: showArchived ? Icons.chat_bubble_outline : Icons.archive_outlined,
+            icon: showArchived
+                ? Icons.chat_bubble_outline
+                : Icons.archive_outlined,
             label: showArchived ? '活跃对话' : '已归档',
             onTap: () {
               ref.read(showArchivedProvider.notifier).state = !showArchived;
@@ -225,8 +214,7 @@ class LeftSidebar extends ConsumerWidget {
               borderSide: BorderSide(color: AppTheme.accentPrimary),
             ),
           ),
-          onSubmitted: (value) =>
-              Navigator.of(dialogContext).pop(value.trim()),
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
         ),
         actions: [
           TextButton(
@@ -234,7 +222,9 @@ class LeftSidebar extends ConsumerWidget {
             child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.accentPrimary),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.accentPrimary,
+            ),
             onPressed: () =>
                 Navigator.of(dialogContext).pop(controller.text.trim()),
             child: const Text('确定'),
@@ -257,7 +247,8 @@ class LeftSidebar extends ConsumerWidget {
   ) async {
     final repo = ref.read(conversationRepositoryProvider);
     await repo.setArchived(conversation.id, archived);
-    if (archived && ref.read(selectedConversationIdProvider) == conversation.id) {
+    if (archived &&
+        ref.read(selectedConversationIdProvider) == conversation.id) {
       ref.read(selectedConversationIdProvider.notifier).state = null;
     }
     ref.invalidate(conversationsProvider);
@@ -266,41 +257,98 @@ class LeftSidebar extends ConsumerWidget {
   Widget _buildFooter(BuildContext context, WidgetRef ref) {
     return Container(
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: AppTheme.surface3,
-            width: 1,
-          ),
-        ),
+        border: Border(top: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SettingsScreen()),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.space4,
-            vertical: AppTheme.space3,
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.settings_outlined, size: 18, color: AppTheme.textSecondary),
-              const SizedBox(width: AppTheme.space2),
-              Text(
-                '设置',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
+      child: Column(
+        children: [
+          _FooterAction(
+            icon: Icons.fact_check_outlined,
+            label: '待办',
+            onTap: () {
+              ref.invalidate(todosProvider);
+              showDialog<void>(
+                context: context,
+                builder: (dialogContext) => Dialog(
+                  child: SizedBox(
+                    width: 440,
+                    height: 620,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '待办',
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: '关闭',
+                                onPressed: () => Navigator.pop(dialogContext),
+                                icon: const Icon(Icons.close),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Expanded(child: TodoListView()),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
-        ),
+          _FooterAction(
+            icon: Icons.settings_outlined,
+            label: '设置',
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _FooterAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _FooterAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space4,
+        vertical: AppTheme.space2,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.textSecondary),
+          const SizedBox(width: AppTheme.space2),
+          Text(
+            label,
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _TabButton extends StatelessWidget {
@@ -333,15 +381,23 @@ class _TabButton extends StatelessWidget {
                 Icon(
                   icon,
                   size: 16,
-                  color: selected ? AppTheme.accentPrimary : AppTheme.textTertiary,
+                  color: selected
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textTertiary,
                 ),
                 const SizedBox(width: AppTheme.space2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected ? AppTheme.textPrimary : AppTheme.textTertiary,
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected
+                          ? AppTheme.textPrimary
+                          : AppTheme.textTertiary,
+                    ),
                   ),
                 ),
               ],
@@ -414,11 +470,11 @@ enum _WikiSort { updated, evidence, title }
 enum _WikiArea { all, imported, network, insight }
 
 String _areaLabel(_WikiArea area) => switch (area) {
-      _WikiArea.all => '全部',
-      _WikiArea.imported => '素材库',
-      _WikiArea.network => '人物/项目',
-      _WikiArea.insight => '知识沉淀',
-    };
+  _WikiArea.all => '全部',
+  _WikiArea.imported => '素材库',
+  _WikiArea.network => '人物/项目',
+  _WikiArea.insight => '知识沉淀',
+};
 
 class _WikiTabState extends ConsumerState<_WikiTab> {
   String _query = '';
@@ -431,11 +487,13 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
 
   /// 按当前排序方式就地排序
   void _sortPages(List<WikiPage> pages) {
-    pages.sort((a, b) => switch (_sort) {
-          _WikiSort.updated => b.updatedAt.compareTo(a.updatedAt),
-          _WikiSort.evidence => b.evidenceCount.compareTo(a.evidenceCount),
-          _WikiSort.title => a.title.compareTo(b.title),
-        });
+    pages.sort(
+      (a, b) => switch (_sort) {
+        _WikiSort.updated => b.updatedAt.compareTo(a.updatedAt),
+        _WikiSort.evidence => b.evidenceCount.compareTo(a.evidenceCount),
+        _WikiSort.title => a.title.compareTo(b.title),
+      },
+    );
   }
 
   @override
@@ -454,10 +512,14 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
             AppTheme.space1,
           ),
           child: TextField(
-            onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+            onChanged: (value) =>
+                setState(() => _query = value.trim().toLowerCase()),
             decoration: InputDecoration(
               hintText: '搜索知识库…',
-              hintStyle: TextStyle(fontSize: 12.5, color: AppTheme.textTertiary),
+              hintStyle: TextStyle(
+                fontSize: 12.5,
+                color: AppTheme.textTertiary,
+              ),
               prefixIcon: const Icon(Icons.search, size: 16),
               prefixIconConstraints: const BoxConstraints(
                 minWidth: 32,
@@ -507,8 +569,7 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
               final allTags = tagCounts.keys.toList()..sort();
 
               // 分区 + kind + 标签 + 搜索
-              final areaFilter =
-                  _area == _WikiArea.all ? null : _area.name;
+              final areaFilter = _area == _WikiArea.all ? null : _area.name;
               final filtered = pages.where((page) {
                 if (areaFilter != null && page.area != areaFilter) {
                   return false;
@@ -579,7 +640,9 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                             label: _areaLabel(area),
                             count: area == _WikiArea.all
                                 ? pages.length
-                                : pages.where((p) => p.area == area.name).length,
+                                : pages
+                                      .where((p) => p.area == area.name)
+                                      .length,
                             selected: _area == area,
                             onTap: () => setState(() {
                               _area = area;
@@ -608,11 +671,12 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                         for (final kind in kinds)
                           _FilterChip(
                             label: kind,
-                            count: pages.where((p) => p.kindLabel == kind).length,
+                            count: pages
+                                .where((p) => p.kindLabel == kind)
+                                .length,
                             selected: _kindFilter == kind,
                             onTap: () => setState(() {
-                              _kindFilter =
-                                  _kindFilter == kind ? null : kind;
+                              _kindFilter = _kindFilter == kind ? null : kind;
                             }),
                           ),
                       ],
@@ -742,9 +806,7 @@ class _FilterChip extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected
-                        ? Colors.black
-                        : AppTheme.textSecondary,
+                    color: selected ? Colors.black : AppTheme.textSecondary,
                   ),
                 ),
               ],
@@ -967,7 +1029,9 @@ class _WikiPageItem extends StatelessWidget {
                       style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1006,10 +1070,7 @@ class _WikiPageItem extends StatelessWidget {
                 const SizedBox(height: AppTheme.space1),
                 Text(
                   page.summary,
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1101,9 +1162,13 @@ class _ConversationItem extends StatelessWidget {
                     child: Text(
                       conversation.displayTitle,
                       style: TextStyle(
-                        color: isSelected ? AppTheme.textPrimary : AppTheme.textSecondary,
+                        color: isSelected
+                            ? AppTheme.textPrimary
+                            : AppTheme.textSecondary,
                         fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1176,11 +1241,16 @@ class _ConversationItem extends StatelessWidget {
                         value: 'rename',
                         child: Row(
                           children: [
-                            Icon(Icons.edit_outlined,
-                                size: 16, color: AppTheme.textSecondary),
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 16,
+                              color: AppTheme.textSecondary,
+                            ),
                             const SizedBox(width: AppTheme.space2),
-                            Text('改名',
-                                style: TextStyle(color: AppTheme.textPrimary)),
+                            Text(
+                              '改名',
+                              style: TextStyle(color: AppTheme.textPrimary),
+                            ),
                           ],
                         ),
                       ),
@@ -1234,10 +1304,7 @@ class _EmptyState extends StatelessWidget {
   final IconData icon;
   final String message;
 
-  const _EmptyState({
-    required this.icon,
-    required this.message,
-  });
+  const _EmptyState({required this.icon, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -1247,11 +1314,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 48,
-              color: AppTheme.textTertiary,
-            ),
+            Icon(icon, size: 48, color: AppTheme.textTertiary),
             const SizedBox(height: AppTheme.space3),
             Text(
               message,
@@ -1270,11 +1333,3 @@ class _EmptyState extends StatelessWidget {
 }
 
 /// 待办 tab：手写待办视图（列表按进行中/已完成分组）
-class _TodoTab extends StatelessWidget {
-  const _TodoTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const TodoListView();
-  }
-}

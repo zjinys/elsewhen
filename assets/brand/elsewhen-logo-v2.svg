@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 220" role="img" aria-labelledby="title desc">
+  <title id="title">Elsewhen logo v2</title>
+  <desc id="desc">An open temporal orbit with a glowing offset dot, paired with the Elsewhen wordmark.</desc>
+  <defs>
+    <linearGradient id="mark" x1="30" y1="24" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3E4453"/>
+      <stop offset="0.55" stop-color="#5A60D8"/>
+      <stop offset="1" stop-color="#7B81F0"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7B81F0" stop-opacity="0.45"/>
+      <stop offset="0.5" stop-color="#5A60D8" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#5A60D8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Mark: open temporal orbit. The offset dot represents the "else" moment. -->
+  <path d="M140.1 27.3 A88 88 0 1 0 195.0 87.2"
+        fill="none" stroke="url(#mark)" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="148.6" cy="78.2" r="26" fill="url(#halo)"/>
+  <circle cx="148.6" cy="78.2" r="12" fill="#6A6FE0"/>
+
+  <!-- Wordmark -->
+  <text x="248" y="134"
+        font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="68" font-weight="520" letter-spacing="-2.5" fill="#171A21">Elsewhen</text>
+</svg>

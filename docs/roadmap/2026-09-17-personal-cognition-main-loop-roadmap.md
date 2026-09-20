@@ -37,9 +37,90 @@
 
 更新规则：每完成一个可独立验证的步骤，立即在对应 Phase 勾选，并在下方完成记录中追加验证证据。
 
-- **当前阶段：** Phase 2 — 打通记录分析闭环
+- **当前阶段：** Phase 2.5 — 事件账本质量治理与 Phase 4 前置准备
 - **整体状态：** 进行中
-- **下一步骤：** 保存后非阻塞唤醒分析 worker，确保应用重启后能继续处理积压
+- **下一步骤：** 落地事件可记录性过滤，避免闲聊和元对话污染后续人物 / 项目模型
+
+## 整合执行路线（2026-09-20）
+
+原有 Phase 编号描述产品能力层级；本节把 `todo.md` 中的方案按依赖重新排列，作为实际开发顺序。原则是先保证进入账本的数据可靠，再建立结构化用户模型，最后让模型参与决策辅助；Today UI 暂不提前上线。
+
+### 已完成基线
+
+- **Phase 0：安全与可观测性。** Bridge 测试隔离、分析队列状态、数据安全门禁完成。
+- **Phase 1：统一输入。** Capture、主输入、对话和 URL 路由统一进入可追溯输入链路，幂等和确认边界完成。
+- **Phase 2：分析闭环。** 非阻塞分析 worker、重试、重启恢复、`event-analysis-v1`、详情 API 和 Bridge 验证完成。
+- **Phase 3 数据层：每日概览契约。** `get_daily_overview`、`daily_reviews`、来源引用、显式生成和当天待办聚合完成；Today 页面暂缓。
+
+### Step 1：Phase 2.5 — 事件账本质量治理
+
+对应：`docs/notes/proposed/architecture/2026-09-19-event-recordability-filter.md`
+
+- 对话层先判断是否值得记录；评价 AI、闲聊、元对话默认不写 `events`。
+- 明确记录时放宽判断，保留用户主动记录意图。
+- 分析契约升级为兼容的 v2，增加 `recordable` 与 `kind`，为存量事件和 UI 过滤提供确定字段。
+- 误记内容不物理删除：保留在 conversation，事件侧通过派生状态从时间线撤出。
+- 复用现有分析队列做存量重新分析。
+
+退出条件：新对话不再把元对话写入事件；原始事件保持不可变；存量事件可重新分类；Bridge/Flutter 可区分事件与讨论。
+
+### Step 2：Phase 4A — 结构化用户模型地基
+
+对应：`docs/notes/proposed/architecture/2026-09-19-decision-support-loop.md` 中“剩余四件硬活”的前两项。
+
+- 以现有 `relations`、network Wiki 页面和事件分析结果为基础，增加统一实体事实表达：`person / project / topic`。
+- 每条事实包含来源事件、发生时间、置信度和当前状态；原始事件永不覆盖。
+- 新事件只做增量维护，更新 `last_seen` / confidence，不重复制造关系。
+- 建立名称规范化、slug 和别名表，为人物 / 项目消歧做准备。
+
+退出条件：同一实体可以查询最近事实；重复分析幂等；所有事实可回到来源事件；旧 Wiki 页面继续可读。
+
+### Step 3：基础设施并行项 — 归档对话清理
+
+对应：`docs/notes/proposed/architecture/2026-09-19-archived-conversation-deletion.md`
+
+- 只允许删除已归档、非知识页会话。
+- UI 二次确认；AI 指令走 `WriteConfirm`。
+- 删除与 messages、pending actions 级联，禁止留下悬挂引用。
+
+该项不属于 Phase 4 业务模型，但应在事件过滤后完成，保证讨论内容可收纳、可清理。
+
+### Step 4：Phase 4B — 实体确认与来源闭环
+
+- 高置信且有 `@/#` 明确标注的实体可自动合并；低置信候选必须确认。
+- 人工确认、忽略、合并、拆分都保存为显式操作，不修改历史事件。
+- 人物 / 项目详情展示事实时间线、来源、最近动态和关联待办。
+- 将事件分析、关系提议和 Wiki network 统一到同一实体模型。
+
+退出条件：实体消歧可解释；人工纠正后引用一致；候选不会越权写入长期记忆。
+
+### Step 5：Phase 4C — 决策辅助第一版
+
+对应：`decision-support-loop.md` 的规则触发、上下文引用和轻量闭环度量。
+
+- 新事件分析时按需检索相关人物、项目、规则和历史事实。
+- 先输出“关联事实 / 可复用经验 / 可能后续行动”，不直接执行高影响写入。
+- 明确行动仍进入待办并保留来源；提醒按高置信即时、低置信回顾分级。
+- 记录用户接受、忽略或改写建议，为后续优化提供数据。
+
+### Step 6：Phase 3 UI — Today 工作台（后置）
+
+对应：`docs/notes/proposed/product/2026-09-20-today-daily-review-workbench.md`。
+
+Today 只有在日期切换、来源跳转、每日回顾版本、行动区和实体事实可用后才进入 UI。它不是 Records 或 Inbox，也不新增重复的待办 Tab。具体设计和上线条件以该设计文档为准。
+
+### Step 7：Phase 5/6 — 素材加工与主动回顾
+
+在实体模型和来源引用稳定后，再推进素材阅读 / 派生产物、跨域检索、周回顾和低打扰主动陪伴。情绪、健康、财务、地点、身份和创作主题等维度先作为独立可见的事实类型演进，不提前建设全知画像。
+
+### TODO 映射
+
+| todo.md 文档 | 新路线位置 |
+| --- | --- |
+| 事件可记录性过滤 | Step 1：Phase 2.5 |
+| 归档对话可删除 | Step 3：基础设施并行项 |
+| 决策辅助闭环 | Step 2、4、5，贯穿 Phase 4～6 |
+| Today 每日回顾工作台 | Step 6：Phase 3 UI 后置 |
 
 ## 实施原则
 
@@ -120,11 +201,11 @@
 ### 范围
 
 - [x] 实现 Flutter `trigger_analysis`，复用现有 claim / complete / fail / retry 机制；
-- 保存后非阻塞唤醒后台 worker，应用重启后能继续处理积压；
-- 为分析结果定义稳定版本，至少提取：记录类型、简短摘要、人物、项目 / 主题、可能的后续事项；
-- 记录详情展示分析状态、结构化结果、来源与错误；
-- 对误识别提供修正或忽略入口，修正不修改原始事件；
-- 所有候选人物、项目、待办写入继续遵循确定性合并和确认策略。
+- [x] 保存后非阻塞唤醒后台 worker，应用重启后能继续处理积压；
+- [x] 为分析结果定义稳定版本，至少提取：记录类型、简短摘要、人物、项目 / 主题、可能的后续事项；
+- [x] 提供分析详情 API，暴露状态、结构化结果、来源与错误，供 Today 等来源视图按需展示；
+- [x] 不设置独立 Records / Inbox 导航：分析失败由设置中的队列状态承载，明确行动进入待办，普通记录进入 Today；
+- [x] 所有候选人物、项目、待办不由分析 worker 自动写入；后续只在具体上下文中按确定性合并和确认策略落库。
 
 ### 退出证据
 
@@ -136,6 +217,11 @@
 ### 完成记录
 
 - **2026-09-18 — 分析队列处理器：完成。** `trigger_analysis` 读取当前激活 Provider，逐项 claim 持久化队列任务，并将合法 JSON 对象写入 `event_analyses`、标记事件为 `processed`；无 Provider 返回 `no_provider`，Provider 错误或非法 JSON 通过 `fail_analysis` 进入 retry / failed 状态，原始事件保持不变。补充了离线 StubProvider 测试，覆盖多任务成功、重复调用不重处理、非法 JSON 和 Provider 故障。验证：`cargo test`（109 个 lib 测试及全部目标通过）、`git diff --check` 通过；真实数据库 SHA-256 保持 `23ae80c302b8c344cecbfaa79e1f664dd80637f5c12b4c986430b8540cf5e29c`。本次 `./regen.sh` 因宿主 FVM 缓存只读而无法运行，Bridge 生成文件此前已与公开 API 同步，后续环境可写时需重跑确认。
+- **2026-09-18 — 非阻塞分析 worker 与重启恢复：完成。** Flutter Bridge 初始化后立即唤醒串行 worker，事件、Capture 和对话统一输入保存成功后只合并唤醒信号，不等待 Provider；5 秒周期唤醒覆盖 retry 到期，pending 超过 Rust 单次 50 项上限时自动续批。Bridge 启动边界把上次进程遗留的 running 任务恢复为可立即 claim 的 retry，恢复不放在每次 `Store::open`，避免抢占当前进程仍在执行的任务。隔离 Bridge teardown 会停止周期 worker 后再删除临时库。验证：新增 running 恢复 Rust 测试；`./regen.sh` 成功并重建匹配动态库；`cargo test --all-targets`（lib 110 + bin 97）和 Flutter 39 项全部通过；`flutter analyze` 无 error/warning（32 条既有 info）；`git diff --check` 通过。
+- **2026-09-18 — 稳定结构化分析 schema：完成。** `event-analysis-v1` 现在要求固定 schema_version、event_type、confidence、summary、clarifications、people、projects、follow_ups 八个字段，拒绝未知字段、错误类型、空摘要和越界 confidence；字符串数组 trim、去空并按首次出现去重。schema_version 同时写入 JSON 和 `prompt_version`，为后续按版本重算保留边界。验证：离线 StubProvider 覆盖合法结果、规范化、非法 JSON/非对象、confidence 越界、未知字段和 Provider 失败；`./regen.sh` 成功并同步动态库，`git diff --check` 通过。
+- **2026-09-18 — 用户入口边界收敛：完成。** 撤销 Records / Inbox 一级导航：单独浏览原始记录价值不足，而把所有分析候选做成 Inbox 又与待办重叠并制造人工清理负担。明确行动继续进入待办；分析失败由设置中的队列状态承载；普通记录与来源详情进入 Phase 3 Today；人物/项目候选仅在具体上下文中确认。底层 `get_event_analysis_detail` 保留，原始事件和模型结果仍可追溯。验证：Flutter 导航/UI 回归测试 6 项通过；`flutter analyze` 无 error，仅保留既有 info/style 提示。
+- **2026-09-18 — 一级导航与待办位置收敛：完成。** 一级导航只保留对话与知识库两个主要内容域；待办不再占用 Tab，移动到侧栏底部常用工具入口，以固定尺寸面板承载添加、勾选、编辑和删除。“今天”暂不以只有记录列表的半成品页面上线，等日期切换、日结、来源引用和行动关联形成完整场景后再进入导航。验证：Flutter 导航/UI 回归测试 6 项通过；`flutter analyze` 无 error/warning，保留 32 条既有 info；`git diff --check` 通过。
+- **2026-09-18 — Phase 2 完成。** 持久化分析队列、非阻塞 worker、重启恢复、严格 `event-analysis-v1`、重试与错误可观测、来源详情 API 均已交付；保存路径不依赖 Provider，分析候选不会越权写入人物、项目或待办。最终验证：`cargo test --all-targets` 全部通过；完整 Flutter 39 项通过；`flutter analyze` 无 error/warning（32 条既有 info）；`git diff --check` 通过。进入 Phase 3，UI 信息架构暂冻结。
 
 ## Phase 3：“今天”与每日回顾
 
@@ -163,6 +249,14 @@
 - 日结中的每条结论都能跳回至少一条来源；
 - 删除并重算日结不会改变事件、人物、项目和待办；
 - 无 AI 时仍能按时间可靠回顾当天事实。
+
+### 完成记录
+
+- **2026-09-18 — 每日回顾版本与来源契约：完成。** migration v20 新增追加式 `daily_reviews` 与 `daily_review_sources`，重算创建新版本且不覆盖事件或旧回顾；`daily-review-v1` 要求每条结论携带至少一个目标日期内的来源事件。`get_daily_overview` 在无回顾时返回当天事实与空 review，在有回顾时只暴露通过 schema 和来源校验的最新版本。Flutter Bridge 已生成 `DailyOverviewDto`、`DailyReviewDto` 和条目 DTO，但尚未新增页面。决策见 [每日回顾版本与来源契约](../notes/implemented/architecture/2026-09-18-daily-review-source-contract.md)。验证：存储版本/跨日来源测试与 schema 逐条引用测试通过；`./regen.sh` 成功并同步 release 动态库。
+- **2026-09-19 — 每日概览行动关联：完成。** `DailyOverviewDto` 在事实列表和可选最新回顾之外，返回当天相关的未归档待办：事件关联待办或当天到期待办；无 AI 回顾时仍可直接使用事实与行动数据。验证：Bridge 重新生成并重建 release 动态库；每日回顾定向 Rust 测试通过；`flutter analyze` 无 error/warning，保留 32 条既有 info。
+- **2026-09-19 — 每日概览 Flutter Bridge 验证：完成。** `RustBridgeRepository.getDailyOverview` 接入生成绑定；隔离真实 Bridge 验证日期、统一日流事实、无 AI 回顾降级和无关联待办结果，测试不接触个人数据库。验证：`flutter test test/bridge_integration_test.dart` 通过。
+- **2026-09-19 — 每日回顾写入边界：完成。** 新增 `save_daily_review` API，仅接受 `daily-review-v1`、目标日期内的来源事件和每条结论的来源引用；回顾继续追加版本，不提供覆盖更新。生成绑定与 release 动态库已同步。验证：Rust schema/来源定向测试通过，`git diff --check` 通过。
+- **2026-09-20 — 每日回顾显式生成：完成。** 新增 `generate_daily_review`，仅在用户或后续明确流程触发时读取当天事实和已完成分析，调用 Provider，严格校验 `daily-review-v1` 后追加版本；无 Provider 返回 `no_provider`，无事实返回 `no_entries`，Provider/解析失败不写半成品。Flutter 仓库层已接入方法，但尚未绑定页面或自动任务。验证：离线 StubProvider 生成测试通过；`./regen.sh` 成功并同步 release 动态库。
 
 ## Phase 4：人物、项目与长期记忆
 

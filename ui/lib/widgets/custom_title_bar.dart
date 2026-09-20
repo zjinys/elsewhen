@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// Custom title bar for frameless window
@@ -6,11 +7,7 @@ class CustomTitleBar extends StatelessWidget {
   final String title;
   final List<Widget>? actions;
 
-  const CustomTitleBar({
-    super.key,
-    required this.title,
-    this.actions,
-  });
+  const CustomTitleBar({super.key, required this.title, this.actions});
 
   @override
   Widget build(BuildContext context) {
@@ -34,17 +31,28 @@ class CustomTitleBar extends StatelessWidget {
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFE9ECEF),
-                      letterSpacing: -0.2,
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: SvgPicture.asset(
+                        'assets/brand/elsewhen-icon-v2.svg',
+                        width: 24,
+                        height: 24,
+                        semanticsLabel: 'Elsewhen',
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFE9ECEF),
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -106,16 +114,14 @@ class _WindowButtonState extends State<_WindowButton> {
           height: 48,
           color: _isHovered
               ? (widget.isClose
-                  ? const Color(0xFFE81123)
-                  : const Color(0xFF38BDF8).withValues(alpha: 0.1))
+                    ? const Color(0xFFE81123)
+                    : const Color(0xFF38BDF8).withValues(alpha: 0.1))
               : Colors.transparent,
           child: Icon(
             widget.icon,
             size: 16,
             color: _isHovered
-                ? (widget.isClose
-                    ? Colors.white
-                    : const Color(0xFF38BDF8))
+                ? (widget.isClose ? Colors.white : const Color(0xFF38BDF8))
                 : const Color(0xFF6C7A89),
           ),
         ),

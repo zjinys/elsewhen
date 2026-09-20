@@ -11,8 +11,8 @@ stage="$(mktemp -d)"; trap 'rm -rf "$stage"' EXIT
 mkdir -p "$stage/DEBIAN" "$stage/usr/bin" "$stage/usr/share/applications" "$stage/usr/share/icons/hicolor/256x256/apps"
 install -m 0755 "$root/target/release/elsewhen" "$stage/usr/bin/elsewhen"
 install -m 0644 "$root/packaging/linux/io.github.elsewhen.Elsewhen.desktop" "$stage/usr/share/applications/"
-if [ -f "$root/assets/icons/elsewhen-256.png" ]; then
-  install -m 0644 "$root/assets/icons/elsewhen-256.png" "$stage/usr/share/icons/hicolor/256x256/apps/io.github.elsewhen.Elsewhen.png"
+if [ -f "$root/assets/brand/elsewhen-icon-v2-256.png" ]; then
+  install -m 0644 "$root/assets/brand/elsewhen-icon-v2-256.png" "$stage/usr/share/icons/hicolor/256x256/apps/io.github.elsewhen.Elsewhen.png"
 fi
 cat > "$stage/DEBIAN/control" <<EOF
 Package: elsewhen

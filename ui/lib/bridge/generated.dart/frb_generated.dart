@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 44984859;
+  int get rustContentHash => -1981797780;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -137,6 +137,8 @@ abstract class RustLibApi extends BaseApi {
     required List<ContentChatMessageDto> messages,
   });
 
+  Future<String> crateApiGenerateDailyReview({required String date});
+
   Future<String> crateApiGenerateReply({
     required String conversationId,
     String? providerType,
@@ -156,8 +158,14 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
   });
 
+  Future<DailyOverviewDto> crateApiGetDailyOverview({required String date});
+
   Future<List<DailyTokenUsageDto>> crateApiGetDailyTokenUsage({
     required int days,
+  });
+
+  Future<EventAnalysisDetailDto?> crateApiGetEventAnalysisDetail({
+    required String eventId,
   });
 
   Future<List<MessageDto>> crateApiGetMessageChain({required String messageId});
@@ -213,6 +221,13 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiSaveAiProviderConfig({
     required AiProviderConfigDto provider,
+  });
+
+  Future<String> crateApiSaveDailyReview({
+    required String date,
+    required String resultJson,
+    required String promptVersion,
+    required List<String> sourceEventIds,
   });
 
   Future<WikiPageDto> crateApiSaveImportedPage({
@@ -742,6 +757,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiGenerateDailyReview({required String date}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(date);
+          return wire.wire__crate__api__generate_daily_review(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGenerateDailyReviewConstMeta,
+        argValues: [date],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGenerateDailyReviewConstMeta =>
+      const TaskConstMeta(
+        debugName: "generate_daily_review",
+        argNames: ["date"],
+      );
+
+  @override
   Future<String> crateApiGenerateReply({
     required String conversationId,
     String? providerType,
@@ -900,6 +940,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<DailyOverviewDto> crateApiGetDailyOverview({required String date}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(date);
+          return wire.wire__crate__api__get_daily_overview(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_daily_overview_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGetDailyOverviewConstMeta,
+        argValues: [date],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetDailyOverviewConstMeta =>
+      const TaskConstMeta(debugName: "get_daily_overview", argNames: ["date"]);
+
+  @override
   Future<List<DailyTokenUsageDto>> crateApiGetDailyTokenUsage({
     required int days,
   }) {
@@ -924,6 +986,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "get_daily_token_usage",
     argNames: ["days"],
   );
+
+  @override
+  Future<EventAnalysisDetailDto?> crateApiGetEventAnalysisDetail({
+    required String eventId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(eventId);
+          return wire.wire__crate__api__get_event_analysis_detail(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData:
+              dco_decode_opt_box_autoadd_event_analysis_detail_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGetEventAnalysisDetailConstMeta,
+        argValues: [eventId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetEventAnalysisDetailConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_event_analysis_detail",
+        argNames: ["eventId"],
+      );
 
   @override
   Future<List<MessageDto>> crateApiGetMessageChain({
@@ -1437,6 +1527,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "save_ai_provider_config",
         argNames: ["provider"],
       );
+
+  @override
+  Future<String> crateApiSaveDailyReview({
+    required String date,
+    required String resultJson,
+    required String promptVersion,
+    required List<String> sourceEventIds,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(date);
+          var arg1 = cst_encode_String(resultJson);
+          var arg2 = cst_encode_String(promptVersion);
+          var arg3 = cst_encode_list_String(sourceEventIds);
+          return wire.wire__crate__api__save_daily_review(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSaveDailyReviewConstMeta,
+        argValues: [date, resultJson, promptVersion, sourceEventIds],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSaveDailyReviewConstMeta => const TaskConstMeta(
+    debugName: "save_daily_review",
+    argNames: ["date", "resultJson", "promptVersion", "sourceEventIds"],
+  );
 
   @override
   Future<WikiPageDto> crateApiSaveImportedPage({
@@ -2004,6 +2132,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DailyReviewDto dco_decode_box_autoadd_daily_review_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_daily_review_dto(raw);
+  }
+
+  @protected
+  EventAnalysisDetailDto dco_decode_box_autoadd_event_analysis_detail_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_event_analysis_detail_dto(raw);
+  }
+
+  @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_i_64(raw);
@@ -2070,6 +2218,50 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DailyOverviewDto dco_decode_daily_overview_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return DailyOverviewDto(
+      date: dco_decode_String(arr[0]),
+      entries: dco_decode_list_daily_entry_dto(arr[1]),
+      review: dco_decode_opt_box_autoadd_daily_review_dto(arr[2]),
+      todos: dco_decode_list_todo_dto(arr[3]),
+    );
+  }
+
+  @protected
+  DailyReviewDto dco_decode_daily_review_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return DailyReviewDto(
+      id: dco_decode_String(arr[0]),
+      date: dco_decode_String(arr[1]),
+      promptVersion: dco_decode_String(arr[2]),
+      createdAt: dco_decode_String(arr[3]),
+      accomplishments: dco_decode_list_daily_review_item_dto(arr[4]),
+      ideasDecisions: dco_decode_list_daily_review_item_dto(arr[5]),
+      peopleProjects: dco_decode_list_daily_review_item_dto(arr[6]),
+      followUps: dco_decode_list_daily_review_item_dto(arr[7]),
+    );
+  }
+
+  @protected
+  DailyReviewItemDto dco_decode_daily_review_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DailyReviewItemDto(
+      text: dco_decode_String(arr[0]),
+      sourceEventIds: dco_decode_list_String(arr[1]),
+    );
+  }
+
+  @protected
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -2081,6 +2273,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       completionTokens: dco_decode_i_64(arr[2]),
       totalTokens: dco_decode_i_64(arr[3]),
       callCount: dco_decode_i_64(arr[4]),
+    );
+  }
+
+  @protected
+  EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 19)
+      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
+    return EventAnalysisDetailDto(
+      eventId: dco_decode_String(arr[0]),
+      rawText: dco_decode_String(arr[1]),
+      source: dco_decode_String(arr[2]),
+      recordedAt: dco_decode_String(arr[3]),
+      eventStatus: dco_decode_String(arr[4]),
+      jobStatus: dco_decode_String(arr[5]),
+      attempts: dco_decode_i_64(arr[6]),
+      lastError: dco_decode_opt_String(arr[7]),
+      availableAt: dco_decode_String(arr[8]),
+      promptVersion: dco_decode_opt_String(arr[9]),
+      analysisCreatedAt: dco_decode_opt_String(arr[10]),
+      schemaVersion: dco_decode_opt_String(arr[11]),
+      eventType: dco_decode_opt_String(arr[12]),
+      confidence: dco_decode_opt_box_autoadd_f_64(arr[13]),
+      summary: dco_decode_opt_String(arr[14]),
+      clarifications: dco_decode_list_String(arr[15]),
+      people: dco_decode_list_String(arr[16]),
+      projects: dco_decode_list_String(arr[17]),
+      followUps: dco_decode_list_String(arr[18]),
     );
   }
 
@@ -2196,6 +2417,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DailyReviewItemDto> dco_decode_list_daily_review_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_daily_review_item_dto).toList();
+  }
+
+  @protected
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_daily_token_usage_dto).toList();
@@ -2279,6 +2506,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_conversation_dto(raw);
+  }
+
+  @protected
+  DailyReviewDto? dco_decode_opt_box_autoadd_daily_review_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_daily_review_dto(raw);
+  }
+
+  @protected
+  EventAnalysisDetailDto? dco_decode_opt_box_autoadd_event_analysis_detail_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_event_analysis_detail_dto(raw);
+  }
+
+  @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
   }
 
   @protected
@@ -2527,6 +2776,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DailyReviewDto sse_decode_box_autoadd_daily_review_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_daily_review_dto(deserializer));
+  }
+
+  @protected
+  EventAnalysisDetailDto sse_decode_box_autoadd_event_analysis_detail_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_event_analysis_detail_dto(deserializer));
+  }
+
+  @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_f_64(deserializer));
+  }
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
@@ -2603,6 +2874,63 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DailyOverviewDto sse_decode_daily_overview_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_date = sse_decode_String(deserializer);
+    var var_entries = sse_decode_list_daily_entry_dto(deserializer);
+    var var_review = sse_decode_opt_box_autoadd_daily_review_dto(deserializer);
+    var var_todos = sse_decode_list_todo_dto(deserializer);
+    return DailyOverviewDto(
+      date: var_date,
+      entries: var_entries,
+      review: var_review,
+      todos: var_todos,
+    );
+  }
+
+  @protected
+  DailyReviewDto sse_decode_daily_review_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_date = sse_decode_String(deserializer);
+    var var_promptVersion = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_accomplishments = sse_decode_list_daily_review_item_dto(
+      deserializer,
+    );
+    var var_ideasDecisions = sse_decode_list_daily_review_item_dto(
+      deserializer,
+    );
+    var var_peopleProjects = sse_decode_list_daily_review_item_dto(
+      deserializer,
+    );
+    var var_followUps = sse_decode_list_daily_review_item_dto(deserializer);
+    return DailyReviewDto(
+      id: var_id,
+      date: var_date,
+      promptVersion: var_promptVersion,
+      createdAt: var_createdAt,
+      accomplishments: var_accomplishments,
+      ideasDecisions: var_ideasDecisions,
+      peopleProjects: var_peopleProjects,
+      followUps: var_followUps,
+    );
+  }
+
+  @protected
+  DailyReviewItemDto sse_decode_daily_review_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_text = sse_decode_String(deserializer);
+    var var_sourceEventIds = sse_decode_list_String(deserializer);
+    return DailyReviewItemDto(
+      text: var_text,
+      sourceEventIds: var_sourceEventIds,
+    );
+  }
+
+  @protected
   DailyTokenUsageDto sse_decode_daily_token_usage_dto(
     SseDeserializer deserializer,
   ) {
@@ -2618,6 +2946,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       completionTokens: var_completionTokens,
       totalTokens: var_totalTokens,
       callCount: var_callCount,
+    );
+  }
+
+  @protected
+  EventAnalysisDetailDto sse_decode_event_analysis_detail_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventId = sse_decode_String(deserializer);
+    var var_rawText = sse_decode_String(deserializer);
+    var var_source = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_eventStatus = sse_decode_String(deserializer);
+    var var_jobStatus = sse_decode_String(deserializer);
+    var var_attempts = sse_decode_i_64(deserializer);
+    var var_lastError = sse_decode_opt_String(deserializer);
+    var var_availableAt = sse_decode_String(deserializer);
+    var var_promptVersion = sse_decode_opt_String(deserializer);
+    var var_analysisCreatedAt = sse_decode_opt_String(deserializer);
+    var var_schemaVersion = sse_decode_opt_String(deserializer);
+    var var_eventType = sse_decode_opt_String(deserializer);
+    var var_confidence = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_summary = sse_decode_opt_String(deserializer);
+    var var_clarifications = sse_decode_list_String(deserializer);
+    var var_people = sse_decode_list_String(deserializer);
+    var var_projects = sse_decode_list_String(deserializer);
+    var var_followUps = sse_decode_list_String(deserializer);
+    return EventAnalysisDetailDto(
+      eventId: var_eventId,
+      rawText: var_rawText,
+      source: var_source,
+      recordedAt: var_recordedAt,
+      eventStatus: var_eventStatus,
+      jobStatus: var_jobStatus,
+      attempts: var_attempts,
+      lastError: var_lastError,
+      availableAt: var_availableAt,
+      promptVersion: var_promptVersion,
+      analysisCreatedAt: var_analysisCreatedAt,
+      schemaVersion: var_schemaVersion,
+      eventType: var_eventType,
+      confidence: var_confidence,
+      summary: var_summary,
+      clarifications: var_clarifications,
+      people: var_people,
+      projects: var_projects,
+      followUps: var_followUps,
     );
   }
 
@@ -2787,6 +3162,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DailyReviewItemDto> sse_decode_list_daily_review_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DailyReviewItemDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_daily_review_item_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<DailyTokenUsageDto> sse_decode_list_daily_token_usage_dto(
     SseDeserializer deserializer,
   ) {
@@ -2932,6 +3321,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_conversation_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  DailyReviewDto? sse_decode_opt_box_autoadd_daily_review_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_daily_review_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  EventAnalysisDetailDto? sse_decode_opt_box_autoadd_event_analysis_detail_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_event_analysis_detail_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_f_64(deserializer));
     } else {
       return null;
     }
@@ -3244,6 +3670,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_daily_review_dto(
+    DailyReviewDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_daily_review_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_event_analysis_detail_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -3310,6 +3760,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_daily_overview_dto(
+    DailyOverviewDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.date, serializer);
+    sse_encode_list_daily_entry_dto(self.entries, serializer);
+    sse_encode_opt_box_autoadd_daily_review_dto(self.review, serializer);
+    sse_encode_list_todo_dto(self.todos, serializer);
+  }
+
+  @protected
+  void sse_encode_daily_review_dto(
+    DailyReviewDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.date, serializer);
+    sse_encode_String(self.promptVersion, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_list_daily_review_item_dto(self.accomplishments, serializer);
+    sse_encode_list_daily_review_item_dto(self.ideasDecisions, serializer);
+    sse_encode_list_daily_review_item_dto(self.peopleProjects, serializer);
+    sse_encode_list_daily_review_item_dto(self.followUps, serializer);
+  }
+
+  @protected
+  void sse_encode_daily_review_item_dto(
+    DailyReviewItemDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.text, serializer);
+    sse_encode_list_String(self.sourceEventIds, serializer);
+  }
+
+  @protected
   void sse_encode_daily_token_usage_dto(
     DailyTokenUsageDto self,
     SseSerializer serializer,
@@ -3320,6 +3808,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.completionTokens, serializer);
     sse_encode_i_64(self.totalTokens, serializer);
     sse_encode_i_64(self.callCount, serializer);
+  }
+
+  @protected
+  void sse_encode_event_analysis_detail_dto(
+    EventAnalysisDetailDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.rawText, serializer);
+    sse_encode_String(self.source, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_String(self.eventStatus, serializer);
+    sse_encode_String(self.jobStatus, serializer);
+    sse_encode_i_64(self.attempts, serializer);
+    sse_encode_opt_String(self.lastError, serializer);
+    sse_encode_String(self.availableAt, serializer);
+    sse_encode_opt_String(self.promptVersion, serializer);
+    sse_encode_opt_String(self.analysisCreatedAt, serializer);
+    sse_encode_opt_String(self.schemaVersion, serializer);
+    sse_encode_opt_String(self.eventType, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.confidence, serializer);
+    sse_encode_opt_String(self.summary, serializer);
+    sse_encode_list_String(self.clarifications, serializer);
+    sse_encode_list_String(self.people, serializer);
+    sse_encode_list_String(self.projects, serializer);
+    sse_encode_list_String(self.followUps, serializer);
   }
 
   @protected
@@ -3447,6 +3962,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_daily_entry_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_daily_review_item_dto(
+    List<DailyReviewItemDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_daily_review_item_dto(item, serializer);
     }
   }
 
@@ -3582,6 +4109,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_conversation_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_daily_review_dto(
+    DailyReviewDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_daily_review_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_event_analysis_detail_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_f_64(self, serializer);
     }
   }
 

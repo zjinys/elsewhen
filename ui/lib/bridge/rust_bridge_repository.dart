@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/storage_repository.dart';
@@ -18,6 +20,11 @@ import 'generated.dart/frb_generated.dart';
 class RustBridgeRepository implements StorageRepository {
   final String? databasePath;
   bool _initialized = false;
+  bool _analysisWorkerRunning = false;
+  bool _analysisWorkerScheduled = false;
+  bool _analysisRerunRequested = false;
+  bool _disposed = false;
+  Timer? _analysisTimer;
 
   RustBridgeRepository({this.databasePath});
 
@@ -27,15 +34,22 @@ class RustBridgeRepository implements StorageRepository {
 
     await RustLib.init();
     final initializedPath = await api.initBridge(databasePath: databasePath);
-    if (initializedPath.startsWith('Error loading config:')) {
+    if (initializedPath.startsWith('Error ')) {
       throw StateError(initializedPath);
     }
     _initialized = true;
+    // Resume durable work after process restart. The timer also covers retry
+    // backoff expiry and the Rust-side 50-job invocation bound.
+    _analysisTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _wakeAnalysisWorker();
+    });
+    _wakeAnalysisWorker();
   }
 
   @override
   Future<Event> recordEvent(String rawText) async {
     final dto = await api.recordEvent(rawText: rawText);
+    _wakeAnalysisWorker();
     return Event(
       id: dto.id,
       rawText: dto.rawText,
@@ -49,11 +63,15 @@ class RustBridgeRepository implements StorageRepository {
     String rawText, {
     String source = 'main_input',
     String? idempotencyKey,
-  }) => api.submitInput(
-    rawText: rawText,
-    source: source,
-    idempotencyKey: idempotencyKey,
-  );
+  }) async {
+    final input = await api.submitInput(
+      rawText: rawText,
+      source: source,
+      idempotencyKey: idempotencyKey,
+    );
+    _wakeAnalysisWorker();
+    return input;
+  }
 
   Future<api.InputRecordDto> beginUrlInput(
     String url, {
@@ -92,12 +110,22 @@ class RustBridgeRepository implements StorageRepository {
     if (messageId == null) {
       throw StateError('统一输入没有关联 message');
     }
+    _wakeAnalysisWorker();
     final messages = await listMessages(conversationId);
     return messages.firstWhere((message) => message.id == messageId);
   }
 
   Future<List<api.DailyEntryDto>> listDailyEntries(String date) =>
       api.listDailyEntries(date: date);
+
+  Future<api.DailyOverviewDto> getDailyOverview(String date) =>
+      api.getDailyOverview(date: date);
+
+  Future<String> generateDailyReview(String date) =>
+      api.generateDailyReview(date: date);
+
+  Future<api.EventAnalysisDetailDto?> getEventAnalysisDetail(String eventId) =>
+      api.getEventAnalysisDetail(eventId: eventId);
 
   @override
   Future<List<Event>> listEvents() async {
@@ -141,6 +169,53 @@ class RustBridgeRepository implements StorageRepository {
   @override
   Future<String> triggerAnalysis() async {
     return await api.triggerAnalysis();
+  }
+
+  /// Schedule analysis without making input persistence wait for the network.
+  /// Multiple saves coalesce into one in-flight invocation.
+  void _wakeAnalysisWorker() {
+    if (!_initialized || _disposed) return;
+    if (_analysisWorkerRunning) {
+      _analysisRerunRequested = true;
+      return;
+    }
+    if (_analysisWorkerScheduled) return;
+    _analysisWorkerScheduled = true;
+    Future<void>(() async {
+      _analysisWorkerScheduled = false;
+      if (_analysisWorkerRunning || _disposed) return;
+      _analysisWorkerRunning = true;
+      try {
+        do {
+          _analysisRerunRequested = false;
+          // Keep draining bounded Rust batches while pending work is
+          // immediately available. Retry jobs are revisited by the timer once
+          // available_at expires.
+          while (!_disposed) {
+            final result = await triggerAnalysis();
+            if (result == 'no_provider' || !result.startsWith('processed:')) {
+              break;
+            }
+            final stats = await getAnalysisJobStats();
+            if (stats.pending == 0) break;
+          }
+        } while (_analysisRerunRequested && !_disposed);
+      } catch (_) {
+        // Queue state remains durable; the next wake retries after startup or
+        // the periodic timer without surfacing an error in the save path.
+      } finally {
+        _analysisWorkerRunning = false;
+        if (_analysisRerunRequested) _wakeAnalysisWorker();
+      }
+    });
+  }
+
+  /// Stop lifecycle polling. Production keeps the repository for the process
+  /// lifetime; isolated tests call this before deleting their temporary data.
+  void dispose() {
+    _disposed = true;
+    _analysisTimer?.cancel();
+    _analysisTimer = null;
   }
 
   // Conversation methods

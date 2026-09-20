@@ -7,8 +7,9 @@ import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dto_from_active`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `dto_from_active`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -66,6 +67,28 @@ Future<InputRecordDto> submitConversationInput({
 Future<List<DailyEntryDto>> listDailyEntries({required String date}) =>
     RustLib.instance.api.crateApiListDailyEntries(date: date);
 
+Future<DailyOverviewDto> getDailyOverview({required String date}) =>
+    RustLib.instance.api.crateApiGetDailyOverview(date: date);
+
+Future<String> saveDailyReview({
+  required String date,
+  required String resultJson,
+  required String promptVersion,
+  required List<String> sourceEventIds,
+}) => RustLib.instance.api.crateApiSaveDailyReview(
+  date: date,
+  resultJson: resultJson,
+  promptVersion: promptVersion,
+  sourceEventIds: sourceEventIds,
+);
+
+Future<String> generateDailyReview({required String date}) =>
+    RustLib.instance.api.crateApiGenerateDailyReview(date: date);
+
+Future<EventAnalysisDetailDto?> getEventAnalysisDetail({
+  required String eventId,
+}) => RustLib.instance.api.crateApiGetEventAnalysisDetail(eventId: eventId);
+
 /// List all events
 Future<List<EventDto>> listEvents() =>
     RustLib.instance.api.crateApiListEvents();
@@ -113,7 +136,7 @@ Future<void> updateAiProviderConfig({
 );
 
 /// Trigger AI analysis for pending events
-/// Returns "success" or "error: <message>"
+/// Returns "no_provider" or "processed:<successful count>".
 Future<String> triggerAnalysis() =>
     RustLib.instance.api.crateApiTriggerAnalysis();
 
@@ -632,6 +655,99 @@ class DailyEntryDto {
           recordedAt == other.recordedAt;
 }
 
+class DailyOverviewDto {
+  final String date;
+  final List<DailyEntryDto> entries;
+  final DailyReviewDto? review;
+  final List<TodoDto> todos;
+
+  const DailyOverviewDto({
+    required this.date,
+    required this.entries,
+    this.review,
+    required this.todos,
+  });
+
+  @override
+  int get hashCode =>
+      date.hashCode ^ entries.hashCode ^ review.hashCode ^ todos.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DailyOverviewDto &&
+          runtimeType == other.runtimeType &&
+          date == other.date &&
+          entries == other.entries &&
+          review == other.review &&
+          todos == other.todos;
+}
+
+class DailyReviewDto {
+  final String id;
+  final String date;
+  final String promptVersion;
+  final String createdAt;
+  final List<DailyReviewItemDto> accomplishments;
+  final List<DailyReviewItemDto> ideasDecisions;
+  final List<DailyReviewItemDto> peopleProjects;
+  final List<DailyReviewItemDto> followUps;
+
+  const DailyReviewDto({
+    required this.id,
+    required this.date,
+    required this.promptVersion,
+    required this.createdAt,
+    required this.accomplishments,
+    required this.ideasDecisions,
+    required this.peopleProjects,
+    required this.followUps,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      date.hashCode ^
+      promptVersion.hashCode ^
+      createdAt.hashCode ^
+      accomplishments.hashCode ^
+      ideasDecisions.hashCode ^
+      peopleProjects.hashCode ^
+      followUps.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DailyReviewDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          date == other.date &&
+          promptVersion == other.promptVersion &&
+          createdAt == other.createdAt &&
+          accomplishments == other.accomplishments &&
+          ideasDecisions == other.ideasDecisions &&
+          peopleProjects == other.peopleProjects &&
+          followUps == other.followUps;
+}
+
+class DailyReviewItemDto {
+  final String text;
+  final List<String> sourceEventIds;
+
+  const DailyReviewItemDto({required this.text, required this.sourceEventIds});
+
+  @override
+  int get hashCode => text.hashCode ^ sourceEventIds.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DailyReviewItemDto &&
+          runtimeType == other.runtimeType &&
+          text == other.text &&
+          sourceEventIds == other.sourceEventIds;
+}
+
 /// Daily token usage DTO for Flutter（每日 token 使用统计）
 class DailyTokenUsageDto {
   final String date;
@@ -666,6 +782,97 @@ class DailyTokenUsageDto {
           completionTokens == other.completionTokens &&
           totalTokens == other.totalTokens &&
           callCount == other.callCount;
+}
+
+class EventAnalysisDetailDto {
+  final String eventId;
+  final String rawText;
+  final String source;
+  final String recordedAt;
+  final String eventStatus;
+  final String jobStatus;
+  final PlatformInt64 attempts;
+  final String? lastError;
+  final String availableAt;
+  final String? promptVersion;
+  final String? analysisCreatedAt;
+  final String? schemaVersion;
+  final String? eventType;
+  final double? confidence;
+  final String? summary;
+  final List<String> clarifications;
+  final List<String> people;
+  final List<String> projects;
+  final List<String> followUps;
+
+  const EventAnalysisDetailDto({
+    required this.eventId,
+    required this.rawText,
+    required this.source,
+    required this.recordedAt,
+    required this.eventStatus,
+    required this.jobStatus,
+    required this.attempts,
+    this.lastError,
+    required this.availableAt,
+    this.promptVersion,
+    this.analysisCreatedAt,
+    this.schemaVersion,
+    this.eventType,
+    this.confidence,
+    this.summary,
+    required this.clarifications,
+    required this.people,
+    required this.projects,
+    required this.followUps,
+  });
+
+  @override
+  int get hashCode =>
+      eventId.hashCode ^
+      rawText.hashCode ^
+      source.hashCode ^
+      recordedAt.hashCode ^
+      eventStatus.hashCode ^
+      jobStatus.hashCode ^
+      attempts.hashCode ^
+      lastError.hashCode ^
+      availableAt.hashCode ^
+      promptVersion.hashCode ^
+      analysisCreatedAt.hashCode ^
+      schemaVersion.hashCode ^
+      eventType.hashCode ^
+      confidence.hashCode ^
+      summary.hashCode ^
+      clarifications.hashCode ^
+      people.hashCode ^
+      projects.hashCode ^
+      followUps.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EventAnalysisDetailDto &&
+          runtimeType == other.runtimeType &&
+          eventId == other.eventId &&
+          rawText == other.rawText &&
+          source == other.source &&
+          recordedAt == other.recordedAt &&
+          eventStatus == other.eventStatus &&
+          jobStatus == other.jobStatus &&
+          attempts == other.attempts &&
+          lastError == other.lastError &&
+          availableAt == other.availableAt &&
+          promptVersion == other.promptVersion &&
+          analysisCreatedAt == other.analysisCreatedAt &&
+          schemaVersion == other.schemaVersion &&
+          eventType == other.eventType &&
+          confidence == other.confidence &&
+          summary == other.summary &&
+          clarifications == other.clarifications &&
+          people == other.people &&
+          projects == other.projects &&
+          followUps == other.followUps;
 }
 
 /// Event data transfer object for Flutter

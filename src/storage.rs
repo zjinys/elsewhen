@@ -325,6 +325,32 @@ pub struct DailyEntry {
     pub recorded_at: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DailyReviewRecord {
+    pub id: String,
+    pub date: String,
+    pub prompt_version: String,
+    pub result_json: String,
+    pub source_event_ids: Vec<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct EventAnalysisDetail {
+    pub event_id: String,
+    pub raw_text: String,
+    pub source: String,
+    pub recorded_at: String,
+    pub event_status: String,
+    pub job_status: String,
+    pub attempts: i64,
+    pub last_error: Option<String>,
+    pub available_at: String,
+    pub prompt_version: Option<String>,
+    pub result_json: Option<String>,
+    pub analysis_created_at: Option<String>,
+}
+
 fn map_input_record(row: &rusqlite::Row) -> rusqlite::Result<InputRecord> {
     Ok(InputRecord {
         id: row.get(0)?,
@@ -833,6 +859,27 @@ impl Store {
              INSERT OR IGNORE INTO schema_migrations(version, applied_at)
              VALUES (19, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
         )?;
+        // 版本 20：每日总结按版本追加，来源通过独立关联表显式引用原始事件。
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS daily_reviews (
+               id TEXT PRIMARY KEY,
+               review_date TEXT NOT NULL,
+               prompt_version TEXT NOT NULL,
+               result_json TEXT NOT NULL,
+               created_at TEXT NOT NULL
+             );
+             CREATE INDEX IF NOT EXISTS idx_daily_reviews_date
+               ON daily_reviews(review_date, created_at);
+             CREATE TABLE IF NOT EXISTS daily_review_sources (
+               review_id TEXT NOT NULL,
+               event_id TEXT NOT NULL,
+               PRIMARY KEY(review_id, event_id),
+               FOREIGN KEY(review_id) REFERENCES daily_reviews(id) ON DELETE CASCADE,
+               FOREIGN KEY(event_id) REFERENCES events(id)
+             );
+             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (20, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )?;
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at)
              VALUES (8, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
@@ -1094,6 +1141,20 @@ impl Store {
         Ok(job)
     }
 
+    /// Return jobs left running by a previous process to the durable queue.
+    /// This is called once at bridge startup, never from `Store::open`, so it
+    /// cannot steal work from a live worker in the current process.
+    pub fn recover_interrupted_analysis_jobs(&self) -> Result<usize> {
+        let now = chrono::Utc::now().to_rfc3339();
+        Ok(self.connection.execute(
+            "UPDATE analysis_jobs
+             SET status='retry', last_error='应用退出时分析尚未完成',
+                 available_at=?1, updated_at=?1
+             WHERE status='running'",
+            [now],
+        )?)
+    }
+
     pub fn complete_analysis(
         &self,
         job: &AnalysisJob,
@@ -1146,6 +1207,132 @@ impl Store {
                 },
             )
             .context("aggregate analysis job stats")
+    }
+
+    pub fn event_analysis_detail(&self, event_id: &str) -> Result<Option<EventAnalysisDetail>> {
+        self.connection
+            .query_row(
+                "SELECT e.id,e.raw_text,e.source,e.recorded_at,e.status,
+                        j.status,j.attempts,j.last_error,j.available_at,
+                        a.prompt_version,a.result_json,a.created_at
+                 FROM events e
+                 JOIN analysis_jobs j ON j.event_id=e.id
+                 LEFT JOIN event_analyses a ON a.id=(
+                   SELECT latest.id FROM event_analyses latest
+                   WHERE latest.event_id=e.id
+                   ORDER BY latest.created_at DESC LIMIT 1
+                 )
+                 WHERE e.id=?1",
+                [event_id],
+                |row| {
+                    Ok(EventAnalysisDetail {
+                        event_id: row.get(0)?,
+                        raw_text: row.get(1)?,
+                        source: row.get(2)?,
+                        recorded_at: row.get(3)?,
+                        event_status: row.get(4)?,
+                        job_status: row.get(5)?,
+                        attempts: row.get(6)?,
+                        last_error: row.get(7)?,
+                        available_at: row.get(8)?,
+                        prompt_version: row.get(9)?,
+                        result_json: row.get(10)?,
+                        analysis_created_at: row.get(11)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
+    pub fn save_daily_review(
+        &self,
+        date: chrono::NaiveDate,
+        prompt_version: &str,
+        result_json: &str,
+        source_event_ids: &[String],
+    ) -> Result<String> {
+        let prompt_version = prompt_version.trim();
+        if prompt_version.is_empty() {
+            anyhow::bail!("daily review prompt_version 不能为空");
+        }
+        if source_event_ids.is_empty() {
+            anyhow::bail!("daily review 必须引用至少一条来源事件");
+        }
+        let daily_event_ids = self
+            .daily_entries(date)?
+            .into_iter()
+            .map(|entry| entry.event_id)
+            .collect::<Vec<_>>();
+        for event_id in source_event_ids {
+            if !daily_event_ids
+                .iter()
+                .any(|candidate| candidate == event_id)
+            {
+                anyhow::bail!("daily review 来源不属于目标日期: {event_id}");
+            }
+        }
+
+        let transaction = self.connection.unchecked_transaction()?;
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        transaction.execute(
+            "INSERT INTO daily_reviews
+             (id,review_date,prompt_version,result_json,created_at)
+             VALUES (?1,?2,?3,?4,?5)",
+            params![
+                id,
+                date.format("%Y-%m-%d").to_string(),
+                prompt_version,
+                result_json,
+                now
+            ],
+        )?;
+        for event_id in source_event_ids {
+            transaction.execute(
+                "INSERT OR IGNORE INTO daily_review_sources (review_id,event_id)
+                 VALUES (?1,?2)",
+                params![id, event_id],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(id)
+    }
+
+    pub fn latest_daily_review(
+        &self,
+        date: chrono::NaiveDate,
+    ) -> Result<Option<DailyReviewRecord>> {
+        let review = self
+            .connection
+            .query_row(
+                "SELECT id,review_date,prompt_version,result_json,created_at
+                 FROM daily_reviews WHERE review_date=?1
+                 ORDER BY created_at DESC,rowid DESC LIMIT 1",
+                [date.format("%Y-%m-%d").to_string()],
+                |row| {
+                    Ok(DailyReviewRecord {
+                        id: row.get(0)?,
+                        date: row.get(1)?,
+                        prompt_version: row.get(2)?,
+                        result_json: row.get(3)?,
+                        source_event_ids: Vec::new(),
+                        created_at: row.get(4)?,
+                    })
+                },
+            )
+            .optional()?;
+        let Some(mut review) = review else {
+            return Ok(None);
+        };
+        let mut statement = self.connection.prepare(
+            "SELECT event_id FROM daily_review_sources
+             WHERE review_id=?1 ORDER BY rowid",
+        )?;
+        review.source_event_ids = statement
+            .query_map([&review.id], |row| row.get(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(Some(review))
     }
 
     pub fn upsert_ai_provider_config(
@@ -2975,6 +3162,55 @@ mod tests {
     }
 
     #[test]
+    fn daily_reviews_are_versioned_and_require_same_day_sources() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let event_id = store
+            .insert_event(NewEvent::now("今天完成总结契约"))
+            .unwrap();
+        let today = chrono::Local::now().date_naive();
+
+        assert!(store
+            .save_daily_review(today, "daily-review-v1", "{}", &[])
+            .is_err());
+        assert!(store
+            .save_daily_review(
+                today - chrono::Duration::days(1),
+                "daily-review-v1",
+                "{}",
+                std::slice::from_ref(&event_id),
+            )
+            .is_err());
+
+        let first = store
+            .save_daily_review(
+                today,
+                "daily-review-v1",
+                r#"{"summary":"第一版"}"#,
+                std::slice::from_ref(&event_id),
+            )
+            .unwrap();
+        let second = store
+            .save_daily_review(
+                today,
+                "daily-review-v2",
+                r#"{"summary":"第二版"}"#,
+                std::slice::from_ref(&event_id),
+            )
+            .unwrap();
+        assert_ne!(first, second);
+
+        let latest = store.latest_daily_review(today).unwrap().unwrap();
+        assert_eq!(latest.id, second);
+        assert_eq!(latest.prompt_version, "daily-review-v2");
+        assert_eq!(latest.source_event_ids, vec![event_id]);
+        assert_eq!(store.list_events().unwrap().len(), 1);
+
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn events_on_date_uses_local_day_boundaries() {
         let path = temporary_database();
         let store = Store::open(&path).unwrap();
@@ -3058,6 +3294,54 @@ mod tests {
             .unwrap();
         assert_eq!(status, "retry");
         assert_eq!(store.list_events().unwrap()[0].raw_text, "AI 失败也不能丢");
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn recover_interrupted_analysis_jobs_requeues_running_work() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store.insert_event(NewEvent::now("恢复中的任务")).unwrap();
+        let job = store.claim_analysis_job().unwrap().unwrap();
+        assert_eq!(store.analysis_job_stats().unwrap().running, 1);
+        assert_eq!(store.recover_interrupted_analysis_jobs().unwrap(), 1);
+        assert_eq!(store.analysis_job_stats().unwrap().retry, 1);
+        assert!(store.claim_analysis_job().unwrap().is_some());
+        let _ = std::fs::remove_file(path);
+        drop(job);
+    }
+
+    #[test]
+    fn event_analysis_detail_exposes_queue_result_and_error() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let event_id = store.insert_event(NewEvent::now("查看分析详情")).unwrap();
+        let pending = store.event_analysis_detail(&event_id).unwrap().unwrap();
+        assert_eq!(pending.job_status, "pending");
+        assert_eq!(pending.attempts, 0);
+        assert!(pending.result_json.is_none());
+
+        let job = store.claim_analysis_job().unwrap().unwrap();
+        store.fail_analysis(&job, "invalid schema").unwrap();
+        let retry = store.event_analysis_detail(&event_id).unwrap().unwrap();
+        assert_eq!(retry.job_status, "retry");
+        assert_eq!(retry.last_error.as_deref(), Some("invalid schema"));
+
+        store
+            .complete_analysis(
+                &job,
+                "event-analysis-v1",
+                r#"{"schema_version":"event-analysis-v1"}"#,
+            )
+            .unwrap();
+        let succeeded = store.event_analysis_detail(&event_id).unwrap().unwrap();
+        assert_eq!(succeeded.job_status, "succeeded");
+        assert_eq!(
+            succeeded.prompt_version.as_deref(),
+            Some("event-analysis-v1")
+        );
+        assert!(succeeded.result_json.is_some());
+        drop(store);
         let _ = std::fs::remove_file(path);
     }
 

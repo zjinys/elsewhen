@@ -48,6 +48,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
+  DailyReviewDto dco_decode_box_autoadd_daily_review_dto(dynamic raw);
+
+  @protected
+  EventAnalysisDetailDto dco_decode_box_autoadd_event_analysis_detail_dto(
+    dynamic raw,
+  );
+
+  @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -66,7 +77,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyEntryDto dco_decode_daily_entry_dto(dynamic raw);
 
   @protected
+  DailyOverviewDto dco_decode_daily_overview_dto(dynamic raw);
+
+  @protected
+  DailyReviewDto dco_decode_daily_review_dto(dynamic raw);
+
+  @protected
+  DailyReviewItemDto dco_decode_daily_review_item_dto(dynamic raw);
+
+  @protected
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
+
+  @protected
+  EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw);
 
   @protected
   EventDto dco_decode_event_dto(dynamic raw);
@@ -107,6 +130,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DailyEntryDto> dco_decode_list_daily_entry_dto(dynamic raw);
 
   @protected
+  List<DailyReviewItemDto> dco_decode_list_daily_review_item_dto(dynamic raw);
+
+  @protected
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw);
 
   @protected
@@ -143,6 +169,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
+
+  @protected
+  DailyReviewDto? dco_decode_opt_box_autoadd_daily_review_dto(dynamic raw);
+
+  @protected
+  EventAnalysisDetailDto? dco_decode_opt_box_autoadd_event_analysis_detail_dto(
+    dynamic raw,
+  );
+
+  @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -213,6 +250,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DailyReviewDto sse_decode_box_autoadd_daily_review_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EventAnalysisDetailDto sse_decode_box_autoadd_event_analysis_detail_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -235,7 +285,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyEntryDto sse_decode_daily_entry_dto(SseDeserializer deserializer);
 
   @protected
+  DailyOverviewDto sse_decode_daily_overview_dto(SseDeserializer deserializer);
+
+  @protected
+  DailyReviewDto sse_decode_daily_review_dto(SseDeserializer deserializer);
+
+  @protected
+  DailyReviewItemDto sse_decode_daily_review_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DailyTokenUsageDto sse_decode_daily_token_usage_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EventAnalysisDetailDto sse_decode_event_analysis_detail_dto(
     SseDeserializer deserializer,
   );
 
@@ -284,6 +350,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DailyReviewItemDto> sse_decode_list_daily_review_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DailyTokenUsageDto> sse_decode_list_daily_token_usage_dto(
     SseDeserializer deserializer,
   );
@@ -324,6 +395,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ConversationDto? sse_decode_opt_box_autoadd_conversation_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DailyReviewDto? sse_decode_opt_box_autoadd_daily_review_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EventAnalysisDetailDto? sse_decode_opt_box_autoadd_event_analysis_detail_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
@@ -393,6 +477,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ptr = wire.cst_new_box_autoadd_conversation_dto();
     cst_api_fill_to_wire_conversation_dto(raw, ptr.ref);
     return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_daily_review_dto>
+  cst_encode_box_autoadd_daily_review_dto(DailyReviewDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_daily_review_dto();
+    cst_api_fill_to_wire_daily_review_dto(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_event_analysis_detail_dto>
+  cst_encode_box_autoadd_event_analysis_detail_dto(EventAnalysisDetailDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_event_analysis_detail_dto();
+    cst_api_fill_to_wire_event_analysis_detail_dto(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<ffi.Double> cst_encode_box_autoadd_f_64(double raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return wire.cst_new_box_autoadd_f_64(cst_encode_f_64(raw));
   }
 
   @protected
@@ -487,6 +595,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_daily_entry_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_daily_entry_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_daily_review_item_dto>
+  cst_encode_list_daily_review_item_dto(List<DailyReviewItemDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_daily_review_item_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_daily_review_item_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -611,6 +730,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_daily_review_dto>
+  cst_encode_opt_box_autoadd_daily_review_dto(DailyReviewDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_daily_review_dto(raw);
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_event_analysis_detail_dto>
+  cst_encode_opt_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_event_analysis_detail_dto(raw);
+  }
+
+  @protected
+  ffi.Pointer<ffi.Double> cst_encode_opt_box_autoadd_f_64(double? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? ffi.nullptr : cst_encode_box_autoadd_f_64(raw);
+  }
+
+  @protected
   ffi.Pointer<ffi.Int64> cst_encode_opt_box_autoadd_i_64(PlatformInt64? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_i_64(raw);
@@ -689,6 +834,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_box_autoadd_daily_review_dto(
+    DailyReviewDto apiObj,
+    ffi.Pointer<wire_cst_daily_review_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_daily_review_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto apiObj,
+    ffi.Pointer<wire_cst_event_analysis_detail_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_event_analysis_detail_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
   void cst_api_fill_to_wire_box_autoadd_wiki_page_dto(
     WikiPageDto apiObj,
     ffi.Pointer<wire_cst_wiki_page_dto> wireObj,
@@ -738,6 +899,49 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_daily_overview_dto(
+    DailyOverviewDto apiObj,
+    wire_cst_daily_overview_dto wireObj,
+  ) {
+    wireObj.date = cst_encode_String(apiObj.date);
+    wireObj.entries = cst_encode_list_daily_entry_dto(apiObj.entries);
+    wireObj.review = cst_encode_opt_box_autoadd_daily_review_dto(apiObj.review);
+    wireObj.todos = cst_encode_list_todo_dto(apiObj.todos);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_daily_review_dto(
+    DailyReviewDto apiObj,
+    wire_cst_daily_review_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.date = cst_encode_String(apiObj.date);
+    wireObj.prompt_version = cst_encode_String(apiObj.promptVersion);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.accomplishments = cst_encode_list_daily_review_item_dto(
+      apiObj.accomplishments,
+    );
+    wireObj.ideas_decisions = cst_encode_list_daily_review_item_dto(
+      apiObj.ideasDecisions,
+    );
+    wireObj.people_projects = cst_encode_list_daily_review_item_dto(
+      apiObj.peopleProjects,
+    );
+    wireObj.follow_ups = cst_encode_list_daily_review_item_dto(
+      apiObj.followUps,
+    );
+  }
+
+  @protected
+  void cst_api_fill_to_wire_daily_review_item_dto(
+    DailyReviewItemDto apiObj,
+    wire_cst_daily_review_item_dto wireObj,
+  ) {
+    wireObj.text = cst_encode_String(apiObj.text);
+    wireObj.source_event_ids = cst_encode_list_String(apiObj.sourceEventIds);
+  }
+
+  @protected
   void cst_api_fill_to_wire_daily_token_usage_dto(
     DailyTokenUsageDto apiObj,
     wire_cst_daily_token_usage_dto wireObj,
@@ -747,6 +951,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.completion_tokens = cst_encode_i_64(apiObj.completionTokens);
     wireObj.total_tokens = cst_encode_i_64(apiObj.totalTokens);
     wireObj.call_count = cst_encode_i_64(apiObj.callCount);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_event_analysis_detail_dto(
+    EventAnalysisDetailDto apiObj,
+    wire_cst_event_analysis_detail_dto wireObj,
+  ) {
+    wireObj.event_id = cst_encode_String(apiObj.eventId);
+    wireObj.raw_text = cst_encode_String(apiObj.rawText);
+    wireObj.source = cst_encode_String(apiObj.source);
+    wireObj.recorded_at = cst_encode_String(apiObj.recordedAt);
+    wireObj.event_status = cst_encode_String(apiObj.eventStatus);
+    wireObj.job_status = cst_encode_String(apiObj.jobStatus);
+    wireObj.attempts = cst_encode_i_64(apiObj.attempts);
+    wireObj.last_error = cst_encode_opt_String(apiObj.lastError);
+    wireObj.available_at = cst_encode_String(apiObj.availableAt);
+    wireObj.prompt_version = cst_encode_opt_String(apiObj.promptVersion);
+    wireObj.analysis_created_at = cst_encode_opt_String(
+      apiObj.analysisCreatedAt,
+    );
+    wireObj.schema_version = cst_encode_opt_String(apiObj.schemaVersion);
+    wireObj.event_type = cst_encode_opt_String(apiObj.eventType);
+    wireObj.confidence = cst_encode_opt_box_autoadd_f_64(apiObj.confidence);
+    wireObj.summary = cst_encode_opt_String(apiObj.summary);
+    wireObj.clarifications = cst_encode_list_String(apiObj.clarifications);
+    wireObj.people = cst_encode_list_String(apiObj.people);
+    wireObj.projects = cst_encode_list_String(apiObj.projects);
+    wireObj.follow_ups = cst_encode_list_String(apiObj.followUps);
   }
 
   @protected
@@ -956,6 +1188,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_daily_review_dto(
+    DailyReviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -986,8 +1233,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_daily_entry_dto(DailyEntryDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_daily_overview_dto(
+    DailyOverviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_daily_review_dto(
+    DailyReviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_daily_review_item_dto(
+    DailyReviewItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_daily_token_usage_dto(
     DailyTokenUsageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_event_analysis_detail_dto(
+    EventAnalysisDetailDto self,
     SseSerializer serializer,
   );
 
@@ -1042,6 +1313,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_daily_entry_dto(
     List<DailyEntryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_daily_review_item_dto(
+    List<DailyReviewItemDto> self,
     SseSerializer serializer,
   );
 
@@ -1101,6 +1378,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ConversationDto? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_daily_review_dto(
+    DailyReviewDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_event_analysis_detail_dto(
+    EventAnalysisDetailDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_i_64(
@@ -1200,6 +1492,47 @@ class RustLibWire implements BaseWire {
   late final _cst_new_box_autoadd_conversation_dto =
       _cst_new_box_autoadd_conversation_dtoPtr
           .asFunction<ffi.Pointer<wire_cst_conversation_dto> Function()>();
+
+  ffi.Pointer<wire_cst_daily_review_dto>
+  cst_new_box_autoadd_daily_review_dto() {
+    return _cst_new_box_autoadd_daily_review_dto();
+  }
+
+  late final _cst_new_box_autoadd_daily_review_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_daily_review_dto> Function()>
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_daily_review_dto');
+  late final _cst_new_box_autoadd_daily_review_dto =
+      _cst_new_box_autoadd_daily_review_dtoPtr
+          .asFunction<ffi.Pointer<wire_cst_daily_review_dto> Function()>();
+
+  ffi.Pointer<wire_cst_event_analysis_detail_dto>
+  cst_new_box_autoadd_event_analysis_detail_dto() {
+    return _cst_new_box_autoadd_event_analysis_detail_dto();
+  }
+
+  late final _cst_new_box_autoadd_event_analysis_detail_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_event_analysis_detail_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_event_analysis_detail_dto');
+  late final _cst_new_box_autoadd_event_analysis_detail_dto =
+      _cst_new_box_autoadd_event_analysis_detail_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_event_analysis_detail_dto> Function()
+          >();
+
+  ffi.Pointer<ffi.Double> cst_new_box_autoadd_f_64(double value) {
+    return _cst_new_box_autoadd_f_64(value);
+  }
+
+  late final _cst_new_box_autoadd_f_64Ptr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Double> Function(ffi.Double)>>(
+        'frbgen_elsewhen_ui_cst_new_box_autoadd_f_64',
+      );
+  late final _cst_new_box_autoadd_f_64 = _cst_new_box_autoadd_f_64Ptr
+      .asFunction<ffi.Pointer<ffi.Double> Function(double)>();
 
   ffi.Pointer<ffi.Int64> cst_new_box_autoadd_i_64(int value) {
     return _cst_new_box_autoadd_i_64(value);
@@ -1326,6 +1659,23 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_daily_entry_dto');
   late final _cst_new_list_daily_entry_dto = _cst_new_list_daily_entry_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_daily_entry_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_daily_review_item_dto>
+  cst_new_list_daily_review_item_dto(int len) {
+    return _cst_new_list_daily_review_item_dto(len);
+  }
+
+  late final _cst_new_list_daily_review_item_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_daily_review_item_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_daily_review_item_dto');
+  late final _cst_new_list_daily_review_item_dto =
+      _cst_new_list_daily_review_item_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_daily_review_item_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_daily_token_usage_dto>
   cst_new_list_daily_token_usage_dto(int len) {
@@ -1878,6 +2228,28 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__generate_daily_review(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> date,
+  ) {
+    return _wire__crate__api__generate_daily_review(port_, date);
+  }
+
+  late final _wire__crate__api__generate_daily_reviewPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__generate_daily_review');
+  late final _wire__crate__api__generate_daily_review =
+      _wire__crate__api__generate_daily_reviewPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__generate_reply(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
@@ -1997,6 +2369,28 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__get_daily_overview(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> date,
+  ) {
+    return _wire__crate__api__get_daily_overview(port_, date);
+  }
+
+  late final _wire__crate__api__get_daily_overviewPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__get_daily_overview');
+  late final _wire__crate__api__get_daily_overview =
+      _wire__crate__api__get_daily_overviewPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__get_daily_token_usage(int port_, int days) {
     return _wire__crate__api__get_daily_token_usage(port_, days);
   }
@@ -2008,6 +2402,28 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__get_daily_token_usage =
       _wire__crate__api__get_daily_token_usagePtr
           .asFunction<void Function(int, int)>();
+
+  void wire__crate__api__get_event_analysis_detail(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+  ) {
+    return _wire__crate__api__get_event_analysis_detail(port_, event_id);
+  }
+
+  late final _wire__crate__api__get_event_analysis_detailPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__get_event_analysis_detail');
+  late final _wire__crate__api__get_event_analysis_detail =
+      _wire__crate__api__get_event_analysis_detailPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void wire__crate__api__get_message_chain(
     int port_,
@@ -2409,6 +2825,46 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__save_ai_provider_configPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_ai_provider_config_dto>)
+          >();
+
+  void wire__crate__api__save_daily_review(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> date,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> result_json,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> prompt_version,
+    ffi.Pointer<wire_cst_list_String> source_event_ids,
+  ) {
+    return _wire__crate__api__save_daily_review(
+      port_,
+      date,
+      result_json,
+      prompt_version,
+      source_event_ids,
+    );
+  }
+
+  late final _wire__crate__api__save_daily_reviewPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_String>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__save_daily_review');
+  late final _wire__crate__api__save_daily_review =
+      _wire__crate__api__save_daily_reviewPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_String>,
+            )
           >();
 
   void wire__crate__api__save_imported_page(
@@ -3096,6 +3552,80 @@ final class wire_cst_daily_entry_dto extends ffi.Struct {
     ..ref.recorded_at = recorded_at;
 }
 
+final class wire_cst_daily_overview_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> date;
+
+  external ffi.Pointer<wire_cst_list_daily_entry_dto> entries;
+
+  external ffi.Pointer<wire_cst_daily_review_dto> review;
+
+  external ffi.Pointer<wire_cst_list_todo_dto> todos;
+
+  static ffi.Pointer<wire_cst_daily_overview_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> date,
+    required ffi.Pointer<wire_cst_list_daily_entry_dto> entries,
+    required ffi.Pointer<wire_cst_daily_review_dto> review,
+    required ffi.Pointer<wire_cst_list_todo_dto> todos,
+  }) => $allocator<wire_cst_daily_overview_dto>()
+    ..ref.date = date
+    ..ref.entries = entries
+    ..ref.review = review
+    ..ref.todos = todos;
+}
+
+final class wire_cst_daily_review_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> date;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> prompt_version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_daily_review_item_dto> accomplishments;
+
+  external ffi.Pointer<wire_cst_list_daily_review_item_dto> ideas_decisions;
+
+  external ffi.Pointer<wire_cst_list_daily_review_item_dto> people_projects;
+
+  external ffi.Pointer<wire_cst_list_daily_review_item_dto> follow_ups;
+
+  static ffi.Pointer<wire_cst_daily_review_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> date,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> prompt_version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_daily_review_item_dto> accomplishments,
+    required ffi.Pointer<wire_cst_list_daily_review_item_dto> ideas_decisions,
+    required ffi.Pointer<wire_cst_list_daily_review_item_dto> people_projects,
+    required ffi.Pointer<wire_cst_list_daily_review_item_dto> follow_ups,
+  }) => $allocator<wire_cst_daily_review_dto>()
+    ..ref.id = id
+    ..ref.date = date
+    ..ref.prompt_version = prompt_version
+    ..ref.created_at = created_at
+    ..ref.accomplishments = accomplishments
+    ..ref.ideas_decisions = ideas_decisions
+    ..ref.people_projects = people_projects
+    ..ref.follow_ups = follow_ups;
+}
+
+final class wire_cst_daily_review_item_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> text;
+
+  external ffi.Pointer<wire_cst_list_String> source_event_ids;
+
+  static ffi.Pointer<wire_cst_daily_review_item_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> text,
+    required ffi.Pointer<wire_cst_list_String> source_event_ids,
+  }) => $allocator<wire_cst_daily_review_item_dto>()
+    ..ref.text = text
+    ..ref.source_event_ids = source_event_ids;
+}
+
 final class wire_cst_daily_token_usage_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> date;
 
@@ -3124,6 +3654,89 @@ final class wire_cst_daily_token_usage_dto extends ffi.Struct {
     ..ref.completion_tokens = completion_tokens
     ..ref.total_tokens = total_tokens
     ..ref.call_count = call_count;
+}
+
+final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_text;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> job_status;
+
+  @ffi.Int64()
+  external int attempts;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_error;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> available_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> prompt_version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> analysis_created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> schema_version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_type;
+
+  external ffi.Pointer<ffi.Double> confidence;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> summary;
+
+  external ffi.Pointer<wire_cst_list_String> clarifications;
+
+  external ffi.Pointer<wire_cst_list_String> people;
+
+  external ffi.Pointer<wire_cst_list_String> projects;
+
+  external ffi.Pointer<wire_cst_list_String> follow_ups;
+
+  static ffi.Pointer<wire_cst_event_analysis_detail_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_text,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> job_status,
+    required int attempts,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_error,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> available_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> prompt_version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> analysis_created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> schema_version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_type,
+    required ffi.Pointer<ffi.Double> confidence,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> summary,
+    required ffi.Pointer<wire_cst_list_String> clarifications,
+    required ffi.Pointer<wire_cst_list_String> people,
+    required ffi.Pointer<wire_cst_list_String> projects,
+    required ffi.Pointer<wire_cst_list_String> follow_ups,
+  }) => $allocator<wire_cst_event_analysis_detail_dto>()
+    ..ref.event_id = event_id
+    ..ref.raw_text = raw_text
+    ..ref.source = source
+    ..ref.recorded_at = recorded_at
+    ..ref.event_status = event_status
+    ..ref.job_status = job_status
+    ..ref.attempts = attempts
+    ..ref.last_error = last_error
+    ..ref.available_at = available_at
+    ..ref.prompt_version = prompt_version
+    ..ref.analysis_created_at = analysis_created_at
+    ..ref.schema_version = schema_version
+    ..ref.event_type = event_type
+    ..ref.confidence = confidence
+    ..ref.summary = summary
+    ..ref.clarifications = clarifications
+    ..ref.people = people
+    ..ref.projects = projects
+    ..ref.follow_ups = follow_ups;
 }
 
 final class wire_cst_event_dto extends ffi.Struct {
@@ -3322,6 +3935,21 @@ final class wire_cst_list_daily_entry_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_daily_entry_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_daily_entry_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_daily_review_item_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_daily_review_item_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_daily_review_item_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_daily_review_item_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_daily_review_item_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }

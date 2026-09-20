@@ -60,6 +60,11 @@ void main() {
     expect(daily, hasLength(3));
     expect(daily.where((entry) => entry.inputId != null), hasLength(2));
     expect(daily.where((entry) => entry.messageId != null), isEmpty);
+    final overview = await repo.getDailyOverview(today);
+    expect(overview.date, today);
+    expect(overview.entries, hasLength(3));
+    expect(overview.review, isNull);
+    expect(overview.todos, isEmpty);
 
     final urlInput = await repo.beginUrlInput('https://example.com/article');
     expect(urlInput.source, 'url_import');

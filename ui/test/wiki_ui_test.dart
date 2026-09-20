@@ -37,10 +37,9 @@ void main() {
     );
     await tester.pump();
 
-    // 1. 左侧栏结构：三个 Tab + 底部设置入口
+    // 1. 左侧栏结构：对话 / 知识库 + 底部工具入口
     expect(find.text('对话'), findsOneWidget, reason: '对话 tab 应在左侧栏');
     expect(find.text('知识库'), findsOneWidget, reason: '知识库 tab 应在左侧栏');
-    expect(find.text('待办'), findsOneWidget, reason: '待办 tab 应在左侧栏');
     expect(find.text('设置'), findsOneWidget, reason: '设置入口应在左侧栏底部');
 
     // 2. 初始为对话 Tab：右侧是 MessageArea

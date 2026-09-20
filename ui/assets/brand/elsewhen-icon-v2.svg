@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t d">
+  <title id="t">Elsewhen app icon</title>
+  <desc id="d">An open temporal orbit with an offset glowing dot on a dark rounded square.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#24262D"/><stop offset="1" stop-color="#15161B"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="120" y1="96" x2="400" y2="424" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4E5568"/><stop offset="0.55" stop-color="#6A6FE0"/><stop offset="1" stop-color="#8A8FF5"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8A8FF5" stop-opacity="0.85"/><stop offset="0.45" stop-color="#6A6FE0" stop-opacity="0.30"/><stop offset="1" stop-color="#6A6FE0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <path d="M306.6 124.9 A148 148 0 1 0 399.0 225.7" fill="none" stroke="url(#ring)" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="326.6" cy="200.4" r="54" fill="url(#halo)"/><circle cx="326.6" cy="200.4" r="24" fill="#A5A9F8"/>
+</svg>
