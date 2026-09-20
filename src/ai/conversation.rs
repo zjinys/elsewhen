@@ -87,6 +87,36 @@ pub fn generate_conversation_reply(
         .into_iter()
         .rev()
         .find(|m| m.role == "user");
+    if let Some(message) = &last_user {
+        let annotations = crate::event::parse_annotations(&message.content);
+        if !annotations.people.is_empty() && !annotations.targets.is_empty() {
+            let pending = store.pending_actions_for_conversation(conversation_id)?;
+            let already_pending = pending
+                .iter()
+                .any(|p| p.action == "propose_people_relations");
+            if !already_pending {
+                let people: Vec<_> = annotations
+                    .people
+                    .iter()
+                    .map(|name| serde_json::json!({"name": name}))
+                    .collect();
+                let relations: Vec<_> = annotations.people.iter().flat_map(|person| {
+                    annotations.targets.iter().map(move |target| serde_json::json!({"person": person, "target": target, "relation": "参与"}))
+                }).collect();
+                let args = serde_json::json!({
+                    "people": people,
+                    "relations": relations,
+                    "source_event_id": store.latest_event_id_for_conversation(conversation_id)?
+                });
+                store.create_pending_action(
+                    conversation_id,
+                    "propose_people_relations",
+                    &args.to_string(),
+                )?;
+                return Ok(format!("已识别人物 {} 和事项 {}，并草拟了关系保存内容。回复「好」确认保存，回复「不要」取消。", annotations.people.join("、"), annotations.targets.join("、")));
+            }
+        }
+    }
     let direct_query_result: Option<(String, String)> =
         last_user.and_then(|m| direct_query(store, &m.content));
     if let Some((label, data)) = &direct_query_result {
