@@ -1892,6 +1892,19 @@ impl Store {
         Ok(page)
     }
 
+    pub fn find_wiki_pages_by_title(&self, title: &str) -> Result<Vec<WikiPage>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
+                    evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+                    source_url, COALESCE(area, 'insight'), based_on, content_type
+             FROM wiki_pages WHERE lower(trim(title)) = lower(trim(?1))
+             ORDER BY updated_at DESC",
+        )?;
+        let rows = statement.query_map(params![title], map_wiki_page)?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     /// 列出知识库页面（主列表）。
     /// - `kind`：按内容类型过滤；`area`：按来源/用途分区过滤（imported/network/insight）。
     /// - 默认排除派生产物（area=derivative，它们只经 `list_derivatives` 按原文展开读取）。

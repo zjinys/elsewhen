@@ -1086,7 +1086,12 @@ pub fn list_pending_actions(conversation_id: String) -> Result<Vec<PendingAction
     Ok(store
         .pending_actions_for_conversation(&conversation_id)?
         .into_iter()
-        .map(|item| PendingActionDto { id: item.id, action: item.action, args_json: item.args_json, created_at: item.created_at })
+        .map(|item| PendingActionDto {
+            id: item.id,
+            action: item.action,
+            args_json: item.args_json,
+            created_at: item.created_at,
+        })
         .collect())
 }
 

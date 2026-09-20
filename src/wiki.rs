@@ -577,7 +577,18 @@ pub fn apply_people_relations(
         if person_entries.iter().any(|(n, _, _)| *n == name) {
             continue;
         }
-        if let Some(page) = store.find_wiki_page_by_title(&name)? {
+        let matches = store.find_wiki_pages_by_title(&name)?;
+        if matches.len() > 1 {
+            anyhow::bail!(
+                "人物「{name}」存在多个同名页面（{}），请先在知识库中消歧后再确认",
+                matches
+                    .iter()
+                    .map(|page| page.slug.as_str())
+                    .collect::<Vec<_>>()
+                    .join("、")
+            );
+        }
+        if let Some(page) = matches.into_iter().next() {
             person_entries.push((name, page.slug.clone(), page.kind.clone()));
             continue;
         }
@@ -616,7 +627,18 @@ pub fn apply_people_relations(
         if target.is_empty() || target_entries.iter().any(|(t, _, _)| *t == target) {
             continue;
         }
-        let (slug, kind) = match store.find_wiki_page_by_title(&target)? {
+        let target_matches = store.find_wiki_pages_by_title(&target)?;
+        if target_matches.len() > 1 {
+            anyhow::bail!(
+                "事项「{target}」存在多个同名页面（{}），请先在知识库中消歧后再确认",
+                target_matches
+                    .iter()
+                    .map(|page| page.slug.as_str())
+                    .collect::<Vec<_>>()
+                    .join("、")
+            );
+        }
+        let (slug, kind) = match target_matches.into_iter().next() {
             Some(page) => (page.slug, page.kind),
             None => {
                 let slug = unique_slug(store, &format!("topic/{}", slugify(&target)), &target)?;
