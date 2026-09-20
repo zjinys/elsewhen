@@ -94,6 +94,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
 
   @protected
+  EntityFactDto dco_decode_entity_fact_dto(dynamic raw);
+
+  @protected
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw);
 
   @protected
@@ -139,6 +142,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw);
+
+  @protected
+  List<EntityFactDto> dco_decode_list_entity_fact_dto(dynamic raw);
 
   @protected
   List<EventDto> dco_decode_list_event_dto(dynamic raw);
@@ -312,6 +318,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  EntityFactDto sse_decode_entity_fact_dto(SseDeserializer deserializer);
+
+  @protected
   EventAnalysisDetailDto sse_decode_event_analysis_detail_dto(
     SseDeserializer deserializer,
   );
@@ -367,6 +376,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DailyTokenUsageDto> sse_decode_list_daily_token_usage_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<EntityFactDto> sse_decode_list_entity_fact_dto(
     SseDeserializer deserializer,
   );
 
@@ -656,6 +670,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_entity_fact_dto(EntityFactDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.entityKind),
+      cst_encode_String(raw.entitySlug),
+      cst_encode_String(raw.factText),
+      cst_encode_String(raw.occurredAt),
+      cst_encode_i_64(raw.confidence),
+      cst_encode_String(raw.sourceEventId),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.lastSeenAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_event_analysis_detail_dto(EventAnalysisDetailDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -781,6 +811,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_daily_token_usage_dto(List<DailyTokenUsageDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_daily_token_usage_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_entity_fact_dto(List<EntityFactDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_entity_fact_dto).toList().jsify()!;
   }
 
   @protected
@@ -1128,6 +1164,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_entity_fact_dto(EntityFactDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_event_analysis_detail_dto(
     EventAnalysisDetailDto self,
     SseSerializer serializer,
@@ -1196,6 +1235,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_daily_token_usage_dto(
     List<DailyTokenUsageDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_entity_fact_dto(
+    List<EntityFactDto> self,
     SseSerializer serializer,
   );
 
@@ -1513,6 +1558,16 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String date,
   ) => wasmModule.wire__crate__api__list_daily_entries(port_, date);
+
+  void wire__crate__api__list_entity_facts(
+    NativePortType port_,
+    String entity_kind,
+    String entity_slug,
+  ) => wasmModule.wire__crate__api__list_entity_facts(
+    port_,
+    entity_kind,
+    entity_slug,
+  );
 
   void wire__crate__api__list_events(NativePortType port_) =>
       wasmModule.wire__crate__api__list_events(port_);
@@ -1901,6 +1956,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__list_daily_entries(
     NativePortType port_,
     String date,
+  );
+
+  external void wire__crate__api__list_entity_facts(
+    NativePortType port_,
+    String entity_kind,
+    String entity_slug,
   );
 
   external void wire__crate__api__list_events(NativePortType port_);

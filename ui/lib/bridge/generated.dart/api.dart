@@ -7,9 +7,9 @@ import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `default_event_kind`, `default_recordable`, `dto_from_active`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
+// These functions are ignored because they are not marked as `pub`: `default_event_kind`, `default_recordable`, `dto_from_active`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -88,6 +88,14 @@ Future<String> generateDailyReview({required String date}) =>
 Future<EventAnalysisDetailDto?> getEventAnalysisDetail({
   required String eventId,
 }) => RustLib.instance.api.crateApiGetEventAnalysisDetail(eventId: eventId);
+
+Future<List<EntityFactDto>> listEntityFacts({
+  required String entityKind,
+  required String entitySlug,
+}) => RustLib.instance.api.crateApiListEntityFacts(
+  entityKind: entityKind,
+  entitySlug: entitySlug,
+);
 
 /// List all events
 Future<List<EventDto>> listEvents() =>
@@ -782,6 +790,57 @@ class DailyTokenUsageDto {
           completionTokens == other.completionTokens &&
           totalTokens == other.totalTokens &&
           callCount == other.callCount;
+}
+
+class EntityFactDto {
+  final String id;
+  final String entityKind;
+  final String entitySlug;
+  final String factText;
+  final String occurredAt;
+  final PlatformInt64 confidence;
+  final String sourceEventId;
+  final String createdAt;
+  final String lastSeenAt;
+
+  const EntityFactDto({
+    required this.id,
+    required this.entityKind,
+    required this.entitySlug,
+    required this.factText,
+    required this.occurredAt,
+    required this.confidence,
+    required this.sourceEventId,
+    required this.createdAt,
+    required this.lastSeenAt,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      entityKind.hashCode ^
+      entitySlug.hashCode ^
+      factText.hashCode ^
+      occurredAt.hashCode ^
+      confidence.hashCode ^
+      sourceEventId.hashCode ^
+      createdAt.hashCode ^
+      lastSeenAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EntityFactDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          entityKind == other.entityKind &&
+          entitySlug == other.entitySlug &&
+          factText == other.factText &&
+          occurredAt == other.occurredAt &&
+          confidence == other.confidence &&
+          sourceEventId == other.sourceEventId &&
+          createdAt == other.createdAt &&
+          lastSeenAt == other.lastSeenAt;
 }
 
 class EventAnalysisDetailDto {

@@ -72,6 +72,8 @@
 对应：`docs/notes/proposed/architecture/2026-09-19-decision-support-loop.md` 中“剩余四件硬活”的前两项。
 
 - 以现有 `relations`、network Wiki 页面和事件分析结果为基础，增加统一实体事实表达：`person / project / topic`。
+- **已完成第一步：** migration v21 新增 `entity_facts`，事实必须携带实体类型、slug、文本、发生时间、置信度和来源事件；重复的同实体/事实/来源幂等合并并提升置信度。
+- **已完成第二步：** Rust `list_entity_facts` API 与 Flutter Bridge 已生成，后续实体详情可直接读取时间线。
 - 每条事实包含来源事件、发生时间、置信度和当前状态；原始事件永不覆盖。
 - 新事件只做增量维护，更新 `last_seen` / confidence，不重复制造关系。
 - 建立名称规范化、slug 和别名表，为人物 / 项目消歧做准备。

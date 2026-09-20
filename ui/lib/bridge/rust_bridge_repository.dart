@@ -124,6 +124,11 @@ class RustBridgeRepository implements StorageRepository {
   Future<String> generateDailyReview(String date) =>
       api.generateDailyReview(date: date);
 
+  Future<List<api.EntityFactDto>> listEntityFacts(
+    String entityKind,
+    String entitySlug,
+  ) => api.listEntityFacts(entityKind: entityKind, entitySlug: entitySlug);
+
   Future<api.EventAnalysisDetailDto?> getEventAnalysisDetail(String eventId) =>
       api.getEventAnalysisDetail(eventId: eventId);
 

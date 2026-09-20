@@ -55,6 +55,7 @@
 - 新增 `generate_daily_review`：显式触发、Provider 可用且当天有事实时才生成；Bridge repository 已接入，暂不自动调用。
 - Phase 2.5 已开始：system prompt / `record_event` 工具描述加入可记录性边界；`event-analysis-v2` 兼容读取 v1，并增加 `recordable`、`kind`，详情 DTO 已同步。
 - 日流 API、`get_daily_overview` 和每日回顾生成均已按最新分析结果过滤 `recordable=false`，原始事件仍保留。
+- Phase 4A 已新增 `entity_facts`（migration v21）、幂等 upsert / 置信度提升和 `list_entity_facts` Bridge API；尚未自动从分析候选写入，保持确认边界。
 
 ## 验证事实与未完成验证
 

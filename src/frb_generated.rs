@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1981797780;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 622004973;
 
 // Section: executor
 
@@ -917,6 +917,32 @@ fn wire__crate__api__list_daily_entries_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::list_daily_entries(api_date)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__list_entity_facts_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    entity_kind: impl CstDecode<String>,
+    entity_slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_entity_facts",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_entity_kind = entity_kind.cst_decode();
+            let api_entity_slug = entity_slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::list_entity_facts(api_entity_kind, api_entity_slug)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1894,6 +1920,32 @@ impl SseDecode for crate::api::DailyTokenUsageDto {
     }
 }
 
+impl SseDecode for crate::api::EntityFactDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_entityKind = <String>::sse_decode(deserializer);
+        let mut var_entitySlug = <String>::sse_decode(deserializer);
+        let mut var_factText = <String>::sse_decode(deserializer);
+        let mut var_occurredAt = <String>::sse_decode(deserializer);
+        let mut var_confidence = <i64>::sse_decode(deserializer);
+        let mut var_sourceEventId = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_lastSeenAt = <String>::sse_decode(deserializer);
+        return crate::api::EntityFactDto {
+            id: var_id,
+            entity_kind: var_entityKind,
+            entity_slug: var_entitySlug,
+            fact_text: var_factText,
+            occurred_at: var_occurredAt,
+            confidence: var_confidence,
+            source_event_id: var_sourceEventId,
+            created_at: var_createdAt,
+            last_seen_at: var_lastSeenAt,
+        };
+    }
+}
+
 impl SseDecode for crate::api::EventAnalysisDetailDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2128,6 +2180,18 @@ impl SseDecode for Vec<crate::api::DailyTokenUsageDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::DailyTokenUsageDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::EntityFactDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::EntityFactDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -2769,6 +2833,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::DailyTokenUsageDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::EntityFactDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.entity_kind.into_into_dart().into_dart(),
+            self.entity_slug.into_into_dart().into_dart(),
+            self.fact_text.into_into_dart().into_dart(),
+            self.occurred_at.into_into_dart().into_dart(),
+            self.confidence.into_into_dart().into_dart(),
+            self.source_event_id.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.last_seen_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EntityFactDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::EntityFactDto> for crate::api::EntityFactDto {
+    fn into_into_dart(self) -> crate::api::EntityFactDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::EventAnalysisDetailDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3165,6 +3252,21 @@ impl SseEncode for crate::api::DailyTokenUsageDto {
     }
 }
 
+impl SseEncode for crate::api::EntityFactDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.entity_kind, serializer);
+        <String>::sse_encode(self.entity_slug, serializer);
+        <String>::sse_encode(self.fact_text, serializer);
+        <String>::sse_encode(self.occurred_at, serializer);
+        <i64>::sse_encode(self.confidence, serializer);
+        <String>::sse_encode(self.source_event_id, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+        <String>::sse_encode(self.last_seen_at, serializer);
+    }
+}
+
 impl SseEncode for crate::api::EventAnalysisDetailDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3330,6 +3432,16 @@ impl SseEncode for Vec<crate::api::DailyTokenUsageDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::DailyTokenUsageDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::EntityFactDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::EntityFactDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -3841,6 +3953,22 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::EntityFactDto> for wire_cst_entity_fact_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EntityFactDto {
+            crate::api::EntityFactDto {
+                id: self.id.cst_decode(),
+                entity_kind: self.entity_kind.cst_decode(),
+                entity_slug: self.entity_slug.cst_decode(),
+                fact_text: self.fact_text.cst_decode(),
+                occurred_at: self.occurred_at.cst_decode(),
+                confidence: self.confidence.cst_decode(),
+                source_event_id: self.source_event_id.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+                last_seen_at: self.last_seen_at.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::EventAnalysisDetailDto> for wire_cst_event_analysis_detail_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::EventAnalysisDetailDto {
@@ -3988,6 +4116,16 @@ mod io {
     impl CstDecode<Vec<crate::api::DailyTokenUsageDto>> for *mut wire_cst_list_daily_token_usage_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::DailyTokenUsageDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::EntityFactDto>> for *mut wire_cst_list_entity_fact_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::EntityFactDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -4331,6 +4469,26 @@ mod io {
         }
     }
     impl Default for wire_cst_daily_token_usage_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_entity_fact_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                entity_kind: core::ptr::null_mut(),
+                entity_slug: core::ptr::null_mut(),
+                fact_text: core::ptr::null_mut(),
+                occurred_at: core::ptr::null_mut(),
+                confidence: Default::default(),
+                source_event_id: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+                last_seen_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_entity_fact_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -4848,6 +5006,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_entity_facts(
+        port_: i64,
+        entity_kind: *mut wire_cst_list_prim_u_8_strict,
+        entity_slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__list_entity_facts_impl(port_, entity_kind, entity_slug)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_events(port_: i64) {
         wire__crate__api__list_events_impl(port_)
     }
@@ -5287,6 +5454,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_entity_fact_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_entity_fact_dto {
+        let wrap = wire_cst_list_entity_fact_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_entity_fact_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_event_dto(
         len: i32,
     ) -> *mut wire_cst_list_event_dto {
@@ -5479,6 +5660,19 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_entity_fact_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        entity_kind: *mut wire_cst_list_prim_u_8_strict,
+        entity_slug: *mut wire_cst_list_prim_u_8_strict,
+        fact_text: *mut wire_cst_list_prim_u_8_strict,
+        occurred_at: *mut wire_cst_list_prim_u_8_strict,
+        confidence: i64,
+        source_event_id: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+        last_seen_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_event_analysis_detail_dto {
         event_id: *mut wire_cst_list_prim_u_8_strict,
         raw_text: *mut wire_cst_list_prim_u_8_strict,
@@ -5583,6 +5777,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_daily_token_usage_dto {
         ptr: *mut wire_cst_daily_token_usage_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_entity_fact_dto {
+        ptr: *mut wire_cst_entity_fact_dto,
         len: i32,
     }
     #[repr(C)]
@@ -5986,6 +6186,33 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::EntityFactDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EntityFactDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                9,
+                "Expected 9 elements, got {}",
+                self_.length()
+            );
+            crate::api::EntityFactDto {
+                id: self_.get(0).cst_decode(),
+                entity_kind: self_.get(1).cst_decode(),
+                entity_slug: self_.get(2).cst_decode(),
+                fact_text: self_.get(3).cst_decode(),
+                occurred_at: self_.get(4).cst_decode(),
+                confidence: self_.get(5).cst_decode(),
+                source_event_id: self_.get(6).cst_decode(),
+                created_at: self_.get(7).cst_decode(),
+                last_seen_at: self_.get(8).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::EventAnalysisDetailDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -6187,6 +6414,18 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::DailyTokenUsageDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::EntityFactDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::EntityFactDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -6819,6 +7058,15 @@ mod web {
         date: String,
     ) {
         wire__crate__api__list_daily_entries_impl(port_, date)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__list_entity_facts(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        entity_kind: String,
+        entity_slug: String,
+    ) {
+        wire__crate__api__list_entity_facts_impl(port_, entity_kind, entity_slug)
     }
 
     #[wasm_bindgen]

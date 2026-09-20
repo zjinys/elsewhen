@@ -92,6 +92,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
 
   @protected
+  EntityFactDto dco_decode_entity_fact_dto(dynamic raw);
+
+  @protected
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw);
 
   @protected
@@ -137,6 +140,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw);
+
+  @protected
+  List<EntityFactDto> dco_decode_list_entity_fact_dto(dynamic raw);
 
   @protected
   List<EventDto> dco_decode_list_event_dto(dynamic raw);
@@ -310,6 +316,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  EntityFactDto sse_decode_entity_fact_dto(SseDeserializer deserializer);
+
+  @protected
   EventAnalysisDetailDto sse_decode_event_analysis_detail_dto(
     SseDeserializer deserializer,
   );
@@ -365,6 +374,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DailyTokenUsageDto> sse_decode_list_daily_token_usage_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<EntityFactDto> sse_decode_list_entity_fact_dto(
     SseDeserializer deserializer,
   );
 
@@ -635,6 +649,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_daily_token_usage_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_daily_token_usage_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_entity_fact_dto> cst_encode_list_entity_fact_dto(
+    List<EntityFactDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_entity_fact_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_entity_fact_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -978,6 +1004,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_entity_fact_dto(
+    EntityFactDto apiObj,
+    wire_cst_entity_fact_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.entity_kind = cst_encode_String(apiObj.entityKind);
+    wireObj.entity_slug = cst_encode_String(apiObj.entitySlug);
+    wireObj.fact_text = cst_encode_String(apiObj.factText);
+    wireObj.occurred_at = cst_encode_String(apiObj.occurredAt);
+    wireObj.confidence = cst_encode_i_64(apiObj.confidence);
+    wireObj.source_event_id = cst_encode_String(apiObj.sourceEventId);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.last_seen_at = cst_encode_String(apiObj.lastSeenAt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_event_analysis_detail_dto(
     EventAnalysisDetailDto apiObj,
     wire_cst_event_analysis_detail_dto wireObj,
@@ -1286,6 +1328,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_entity_fact_dto(EntityFactDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_event_analysis_detail_dto(
     EventAnalysisDetailDto self,
     SseSerializer serializer,
@@ -1354,6 +1399,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_daily_token_usage_dto(
     List<DailyTokenUsageDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_entity_fact_dto(
+    List<EntityFactDto> self,
     SseSerializer serializer,
   );
 
@@ -1736,6 +1787,21 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_list_daily_token_usage_dto> Function(int)
           >();
+
+  ffi.Pointer<wire_cst_list_entity_fact_dto> cst_new_list_entity_fact_dto(
+    int len,
+  ) {
+    return _cst_new_list_entity_fact_dto(len);
+  }
+
+  late final _cst_new_list_entity_fact_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_entity_fact_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_entity_fact_dto');
+  late final _cst_new_list_entity_fact_dto = _cst_new_list_entity_fact_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_entity_fact_dto> Function(int)>();
 
   ffi.Pointer<wire_cst_list_event_dto> cst_new_list_event_dto(int len) {
     return _cst_new_list_event_dto(len);
@@ -2644,6 +2710,38 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__list_daily_entriesPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__list_entity_facts(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
+  ) {
+    return _wire__crate__api__list_entity_facts(
+      port_,
+      entity_kind,
+      entity_slug,
+    );
+  }
+
+  late final _wire__crate__api__list_entity_factsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__list_entity_facts');
+  late final _wire__crate__api__list_entity_facts =
+      _wire__crate__api__list_entity_factsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__list_events(int port_) {
@@ -3699,6 +3797,49 @@ final class wire_cst_daily_token_usage_dto extends ffi.Struct {
     ..ref.call_count = call_count;
 }
 
+final class wire_cst_entity_fact_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> fact_text;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> occurred_at;
+
+  @ffi.Int64()
+  external int confidence;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_event_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_seen_at;
+
+  static ffi.Pointer<wire_cst_entity_fact_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> fact_text,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> occurred_at,
+    required int confidence,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_event_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_seen_at,
+  }) => $allocator<wire_cst_entity_fact_dto>()
+    ..ref.id = id
+    ..ref.entity_kind = entity_kind
+    ..ref.entity_slug = entity_slug
+    ..ref.fact_text = fact_text
+    ..ref.occurred_at = occurred_at
+    ..ref.confidence = confidence
+    ..ref.source_event_id = source_event_id
+    ..ref.created_at = created_at
+    ..ref.last_seen_at = last_seen_at;
+}
+
 final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
 
@@ -4016,6 +4157,21 @@ final class wire_cst_list_daily_token_usage_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_daily_token_usage_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_daily_token_usage_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_entity_fact_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_entity_fact_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_entity_fact_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_entity_fact_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_entity_fact_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }

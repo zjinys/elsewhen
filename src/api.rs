@@ -240,6 +240,19 @@ pub struct DailyOverviewDto {
     pub todos: Vec<TodoDto>,
 }
 
+#[derive(Clone, Debug)]
+pub struct EntityFactDto {
+    pub id: String,
+    pub entity_kind: String,
+    pub entity_slug: String,
+    pub fact_text: String,
+    pub occurred_at: String,
+    pub confidence: i64,
+    pub source_event_id: String,
+    pub created_at: String,
+    pub last_seen_at: String,
+}
+
 impl From<crate::storage::InputRecord> for InputRecordDto {
     fn from(record: crate::storage::InputRecord) -> Self {
         Self {
@@ -628,6 +641,26 @@ pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysi
         recordable: analysis.as_ref().map(|value| value.recordable),
         kind: analysis.as_ref().map(|value| value.kind.clone()),
     }))
+}
+
+pub fn list_entity_facts(entity_kind: String, entity_slug: String) -> Result<Vec<EntityFactDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store
+        .list_entity_facts(entity_kind.trim(), entity_slug.trim())?
+        .into_iter()
+        .map(|fact| EntityFactDto {
+            id: fact.id,
+            entity_kind: fact.entity_kind,
+            entity_slug: fact.entity_slug,
+            fact_text: fact.fact_text,
+            occurred_at: fact.occurred_at,
+            confidence: fact.confidence,
+            source_event_id: fact.source_event_id,
+            created_at: fact.created_at,
+            last_seen_at: fact.last_seen_at,
+        })
+        .collect())
 }
 
 /// List all events

@@ -335,6 +335,19 @@ pub struct DailyReviewRecord {
     pub created_at: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntityFact {
+    pub id: String,
+    pub entity_kind: String,
+    pub entity_slug: String,
+    pub fact_text: String,
+    pub occurred_at: String,
+    pub confidence: i64,
+    pub source_event_id: String,
+    pub created_at: String,
+    pub last_seen_at: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct EventAnalysisDetail {
     pub event_id: String,
@@ -551,6 +564,28 @@ impl Store {
               CREATE INDEX IF NOT EXISTS idx_token_usage_created ON token_usage(created_at);
               INSERT OR IGNORE INTO schema_migrations(version, applied_at)
               VALUES (7, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )?;
+        // 版本 21：人物 / 项目 / 主题的最小结构化事实层，来源事件不可省略。
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS entity_facts (
+               id TEXT PRIMARY KEY,
+               entity_kind TEXT NOT NULL CHECK(entity_kind IN ('person','project','topic')),
+               entity_slug TEXT NOT NULL,
+               fact_text TEXT NOT NULL CHECK(length(trim(fact_text)) > 0),
+               occurred_at TEXT NOT NULL,
+               confidence INTEGER NOT NULL CHECK(confidence BETWEEN 0 AND 5),
+               source_event_id TEXT NOT NULL,
+               created_at TEXT NOT NULL,
+               last_seen_at TEXT NOT NULL,
+               FOREIGN KEY(source_event_id) REFERENCES events(id),
+               UNIQUE(entity_kind, entity_slug, fact_text, source_event_id)
+             );
+             CREATE INDEX IF NOT EXISTS idx_entity_facts_entity
+               ON entity_facts(entity_kind, entity_slug, occurred_at DESC);
+             CREATE INDEX IF NOT EXISTS idx_entity_facts_source
+               ON entity_facts(source_event_id);
+             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (21, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
         )?;
         let has_api_key = {
             let mut statement = connection.prepare("PRAGMA table_info(ai_provider_configs)")?;
@@ -1333,6 +1368,70 @@ impl Store {
             .query_map([&review.id], |row| row.get(0))?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(Some(review))
+    }
+
+    pub fn upsert_entity_fact(
+        &self,
+        entity_kind: &str,
+        entity_slug: &str,
+        fact_text: &str,
+        occurred_at: &str,
+        confidence: i64,
+        source_event_id: &str,
+    ) -> Result<EntityFact> {
+        if !matches!(entity_kind, "person" | "project" | "topic") {
+            anyhow::bail!("非法实体类型: {entity_kind}");
+        }
+        if entity_slug.trim().is_empty() || fact_text.trim().is_empty() {
+            anyhow::bail!("实体标识和事实内容不能为空");
+        }
+        if !(0..=5).contains(&confidence) {
+            anyhow::bail!("事实置信度必须在 0..5");
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "INSERT INTO entity_facts
+             (id,entity_kind,entity_slug,fact_text,occurred_at,confidence,source_event_id,created_at,last_seen_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?8)
+             ON CONFLICT(entity_kind,entity_slug,fact_text,source_event_id) DO UPDATE SET
+               confidence=MAX(entity_facts.confidence, excluded.confidence),
+               last_seen_at=excluded.last_seen_at",
+            params![Uuid::new_v4().to_string(), entity_kind, entity_slug.trim(), fact_text.trim(), occurred_at, confidence, source_event_id, now],
+        )?;
+        self.connection
+            .query_row(
+                "SELECT id,entity_kind,entity_slug,fact_text,occurred_at,confidence,source_event_id,created_at,last_seen_at
+                 FROM entity_facts WHERE entity_kind=?1 AND entity_slug=?2 AND fact_text=?3 AND source_event_id=?4",
+                params![entity_kind, entity_slug.trim(), fact_text.trim(), source_event_id],
+                |row| Ok(EntityFact { id: row.get(0)?, entity_kind: row.get(1)?, entity_slug: row.get(2)?, fact_text: row.get(3)?, occurred_at: row.get(4)?, confidence: row.get(5)?, source_event_id: row.get(6)?, created_at: row.get(7)?, last_seen_at: row.get(8)? }),
+            )
+            .map_err(Into::into)
+    }
+
+    pub fn list_entity_facts(
+        &self,
+        entity_kind: &str,
+        entity_slug: &str,
+    ) -> Result<Vec<EntityFact>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id,entity_kind,entity_slug,fact_text,occurred_at,confidence,source_event_id,created_at,last_seen_at
+             FROM entity_facts WHERE entity_kind=?1 AND entity_slug=?2 ORDER BY occurred_at DESC, id DESC",
+        )?;
+        let rows = statement.query_map(params![entity_kind, entity_slug], |row| {
+            Ok(EntityFact {
+                id: row.get(0)?,
+                entity_kind: row.get(1)?,
+                entity_slug: row.get(2)?,
+                fact_text: row.get(3)?,
+                occurred_at: row.get(4)?,
+                confidence: row.get(5)?,
+                source_event_id: row.get(6)?,
+                created_at: row.get(7)?,
+                last_seen_at: row.get(8)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
     }
 
     pub fn upsert_ai_provider_config(
@@ -3206,6 +3305,46 @@ mod tests {
         assert_eq!(latest.source_event_ids, vec![event_id]);
         assert_eq!(store.list_events().unwrap().len(), 1);
 
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn entity_facts_are_idempotent_and_raise_confidence() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let event_id = store
+            .insert_event(NewEvent::now("项目进入测试阶段"))
+            .unwrap();
+        let first = store
+            .upsert_entity_fact(
+                "project",
+                "elsewhen",
+                "进入测试阶段",
+                chrono::Utc::now().to_rfc3339().as_str(),
+                2,
+                &event_id,
+            )
+            .unwrap();
+        let second = store
+            .upsert_entity_fact(
+                "project",
+                "elsewhen",
+                "进入测试阶段",
+                &first.occurred_at,
+                4,
+                &event_id,
+            )
+            .unwrap();
+        assert_eq!(first.id, second.id);
+        assert_eq!(second.confidence, 4);
+        assert_eq!(
+            store
+                .list_entity_facts("project", "elsewhen")
+                .unwrap()
+                .len(),
+            1
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }

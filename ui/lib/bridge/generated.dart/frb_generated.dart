@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1981797780;
+  int get rustContentHash => 622004973;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -189,6 +189,11 @@ abstract class RustLibApi extends BaseApi {
   Future<List<ConversationDto>> crateApiListConversations();
 
   Future<List<DailyEntryDto>> crateApiListDailyEntries({required String date});
+
+  Future<List<EntityFactDto>> crateApiListEntityFacts({
+    required String entityKind,
+    required String entitySlug,
+  });
 
   Future<List<EventDto>> crateApiListEvents();
 
@@ -1259,6 +1264,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_daily_entries", argNames: ["date"]);
 
   @override
+  Future<List<EntityFactDto>> crateApiListEntityFacts({
+    required String entityKind,
+    required String entitySlug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entityKind);
+          var arg1 = cst_encode_String(entitySlug);
+          return wire.wire__crate__api__list_entity_facts(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_entity_fact_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListEntityFactsConstMeta,
+        argValues: [entityKind, entitySlug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListEntityFactsConstMeta => const TaskConstMeta(
+    debugName: "list_entity_facts",
+    argNames: ["entityKind", "entitySlug"],
+  );
+
+  @override
   Future<List<EventDto>> crateApiListEvents() {
     return handler.executeNormal(
       NormalTask(
@@ -2283,6 +2316,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EntityFactDto dco_decode_entity_fact_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return EntityFactDto(
+      id: dco_decode_String(arr[0]),
+      entityKind: dco_decode_String(arr[1]),
+      entitySlug: dco_decode_String(arr[2]),
+      factText: dco_decode_String(arr[3]),
+      occurredAt: dco_decode_String(arr[4]),
+      confidence: dco_decode_i_64(arr[5]),
+      sourceEventId: dco_decode_String(arr[6]),
+      createdAt: dco_decode_String(arr[7]),
+      lastSeenAt: dco_decode_String(arr[8]),
+    );
+  }
+
+  @protected
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -2434,6 +2486,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_daily_token_usage_dto).toList();
+  }
+
+  @protected
+  List<EntityFactDto> dco_decode_list_entity_fact_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_entity_fact_dto).toList();
   }
 
   @protected
@@ -2970,6 +3028,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EntityFactDto sse_decode_entity_fact_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_entityKind = sse_decode_String(deserializer);
+    var var_entitySlug = sse_decode_String(deserializer);
+    var var_factText = sse_decode_String(deserializer);
+    var var_occurredAt = sse_decode_String(deserializer);
+    var var_confidence = sse_decode_i_64(deserializer);
+    var var_sourceEventId = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_lastSeenAt = sse_decode_String(deserializer);
+    return EntityFactDto(
+      id: var_id,
+      entityKind: var_entityKind,
+      entitySlug: var_entitySlug,
+      factText: var_factText,
+      occurredAt: var_occurredAt,
+      confidence: var_confidence,
+      sourceEventId: var_sourceEventId,
+      createdAt: var_createdAt,
+      lastSeenAt: var_lastSeenAt,
+    );
+  }
+
+  @protected
   EventAnalysisDetailDto sse_decode_event_analysis_detail_dto(
     SseDeserializer deserializer,
   ) {
@@ -3209,6 +3292,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <DailyTokenUsageDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_daily_token_usage_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<EntityFactDto> sse_decode_list_entity_fact_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EntityFactDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_entity_fact_dto(deserializer));
     }
     return ans_;
   }
@@ -3852,6 +3949,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_entity_fact_dto(
+    EntityFactDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.entityKind, serializer);
+    sse_encode_String(self.entitySlug, serializer);
+    sse_encode_String(self.factText, serializer);
+    sse_encode_String(self.occurredAt, serializer);
+    sse_encode_i_64(self.confidence, serializer);
+    sse_encode_String(self.sourceEventId, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.lastSeenAt, serializer);
+  }
+
+  @protected
   void sse_encode_event_analysis_detail_dto(
     EventAnalysisDetailDto self,
     SseSerializer serializer,
@@ -4029,6 +4143,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_daily_token_usage_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_entity_fact_dto(
+    List<EntityFactDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_entity_fact_dto(item, serializer);
     }
   }
 
