@@ -46,6 +46,13 @@ final wikiDerivativesProvider = FutureProvider.family<List<WikiPage>, String>((
   return await bridge.listWikiPageDerivatives(slug);
 });
 
+final entityFactsProvider = FutureProvider.family<List<dynamic>, String>((ref, slug) async {
+  final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+  final kind = slug.split('/').first;
+  if (!['person', 'project', 'topic'].contains(kind)) return const [];
+  return bridge.listEntityFacts(kind, slug);
+});
+
 /// 当前选中查看的 wiki 页 slug（保留：左侧列表高亮 + 兼容引用）
 final selectedWikiSlugProvider = StateProvider<String?>((ref) => null);
 

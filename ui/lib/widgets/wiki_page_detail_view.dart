@@ -277,7 +277,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space4),
-      child: Column(
+              child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 模式切换
@@ -650,6 +650,7 @@ class _WikiPageBody extends ConsumerWidget {
                       MarkdownView(markdown: page.contentMd),
                       const SizedBox(height: AppTheme.space6),
                       WikiDerivatives(slug: page.slug),
+                      _EntityFacts(slug: page.slug),
                     ],
                   ),
                 ),
@@ -983,6 +984,33 @@ class _WikiPageBody extends ConsumerWidget {
     final s = page.summary.trim();
     if (s.isEmpty) return false;
     return page.title.trim() != s;
+  }
+}
+
+class _EntityFacts extends ConsumerWidget {
+  final String slug;
+  const _EntityFacts({required this.slug});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final facts = ref.watch(entityFactsProvider(slug)).valueOrNull ?? <dynamic>[];
+    if (facts.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.space4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('结构化事实', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textTertiary)),
+        const SizedBox(height: 8),
+        for (final fact in facts.take(8))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.fact_check_outlined, size: 14, color: AppTheme.accentPrimary),
+              const SizedBox(width: 6),
+              Expanded(child: Text('${fact.factText} · 置信度 ${fact.confidence}/5', style: TextStyle(fontSize: 12, height: 1.4, color: AppTheme.textSecondary))),
+            ]),
+          ),
+      ]),
+    );
   }
 }
 
