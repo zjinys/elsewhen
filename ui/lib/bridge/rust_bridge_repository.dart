@@ -305,6 +305,9 @@ class RustBridgeRepository implements StorageRepository {
   Future<List<api.PendingActionDto>> listPendingActions(String conversationId) =>
       api.listPendingActions(conversationId: conversationId);
 
+  Future<bool> updatePendingActionArgs(String actionId, String argsJson) =>
+      api.updatePendingActionArgs(actionId: actionId, argsJson: argsJson);
+
   Future<List<Message>> getChildMessages(String parentId) async {
     final dtos = await api.getChildMessages(parentId: parentId);
     return dtos

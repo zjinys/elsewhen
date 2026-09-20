@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../models/conversation.dart';
+import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../bridge/rust_bridge_repository.dart';
@@ -406,7 +407,55 @@ class _PendingRelationsBanner extends ConsumerWidget {
         Icon(Icons.auto_awesome_outlined, size: 18, color: AppTheme.accentPrimary),
         const SizedBox(width: 8),
         Expanded(child: Text('发现人物：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。', style: const TextStyle(fontSize: 12, height: 1.5))),
+        if (_hasAmbiguity(ref, payload))
+          TextButton(onPressed: () => _resolveAmbiguity(context, ref, relation.first), child: const Text('选择')),
       ]),
+    );
+  }
+
+  bool _hasAmbiguity(WidgetRef ref, Map<String, dynamic> payload) {
+    final pages = ref.read(wikiPagesProvider).valueOrNull ?? const [];
+    final people = (payload['people'] as List? ?? const []).map((item) => (item as Map)['name']?.toString() ?? '');
+    final targets = (payload['relations'] as List? ?? const []).map((item) => (item as Map)['target']?.toString() ?? '');
+    return [...people, ...targets].any((name) => pages.where((page) => page.title.trim().toLowerCase() == name.trim().toLowerCase()).length > 1);
+  }
+
+  Future<void> _resolveAmbiguity(BuildContext context, WidgetRef ref, dynamic action) async {
+    final payload = jsonDecode(action.argsJson) as Map<String, dynamic>;
+    final pages = ref.read(wikiPagesProvider).valueOrNull ?? const [];
+    final relations = (payload['relations'] as List? ?? const []).map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    for (final relation in relations) {
+      final person = relation['person']?.toString() ?? '';
+      final target = relation['target']?.toString() ?? '';
+      final peopleMatches = pages.where((page) => page.title.trim().toLowerCase() == person.trim().toLowerCase()).toList();
+      if (peopleMatches.length > 1) {
+        final selected = await _pickPage(context, '选择人物「$person」', peopleMatches);
+        if (selected == null) return;
+        relation['from_slug'] = selected.slug;
+      }
+      final targetMatches = pages.where((page) => page.title.trim().toLowerCase() == target.trim().toLowerCase()).toList();
+      if (targetMatches.length > 1) {
+        final selected = await _pickPage(context, '选择事项「$target」', targetMatches);
+        if (selected == null) return;
+        relation['to_slug'] = selected.slug;
+      }
+    }
+    payload['relations'] = relations;
+    await ref.read(conversationRepositoryProvider).updatePendingActionArgs(action.id, jsonEncode(payload));
+    ref.invalidate(pendingActionsProvider);
+  }
+
+  Future<WikiPage?> _pickPage(BuildContext context, String title, List<WikiPage> pages) {
+    return showDialog<WikiPage>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final page in pages)
+            ListTile(title: Text(page.title), subtitle: Text('${page.kindLabel} · ${page.summary}', maxLines: 2, overflow: TextOverflow.ellipsis), onTap: () => Navigator.pop(dialogContext, page)),
+        ])),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('取消'))],
+      ),
     );
   }
 }

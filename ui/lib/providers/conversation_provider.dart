@@ -45,6 +45,9 @@ class ConversationRepository {
   Future<List<dynamic>> listPendingActions(String conversationId) =>
       _bridge.listPendingActions(conversationId);
 
+  Future<bool> updatePendingActionArgs(String actionId, String argsJson) =>
+      _bridge.updatePendingActionArgs(actionId, argsJson);
+
   /// Send a message in a conversation
   Future<Message> sendMessage(
     String conversationId,
