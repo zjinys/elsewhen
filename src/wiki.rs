@@ -1561,6 +1561,53 @@ mod tests {
     }
 
     #[test]
+    fn apply_people_relations_uses_explicit_disambiguation_slugs() {
+        let path = std::env::temp_dir().join(format!(
+            "elsewhen-wiki-disambiguation-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = Store::open(&path).unwrap();
+        for slug in ["person/张伟-市场部", "person/张伟-设计"] {
+            store
+                .upsert_wiki_page(&WikiPageDraft {
+                    slug: slug.into(),
+                    kind: "person".into(),
+                    title: "张伟".into(),
+                    summary: slug.into(),
+                    content_md: "正文".into(),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".into(),
+                    reason: "test".into(),
+                    source_url: None,
+                })
+                .unwrap();
+        }
+        let args = serde_json::json!({
+            "people": [{"name":"张伟"}],
+            "relations": [{"person":"张伟","target":"新项目","relation":"负责","from_slug":"person/张伟-设计"}]
+        });
+        let summary = apply_people_relations(&args, &store, "conv-1").unwrap();
+        assert!(summary.contains("张伟"));
+        assert_eq!(
+            store
+                .list_relations_for_page("person/张伟-设计")
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(store
+            .list_relations_for_page("person/张伟-市场部")
+            .unwrap()
+            .is_empty());
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn proposals_parse_plain_and_fenced() {
         let reply = r#"[{"op":"create","kind":"recurring_cost","slug":"recurring-cost/test","title":"t","summary":"s","content":"- a","tags":["x"],"source_event_ids":["1"],"reason":"r"}]"#;
         let list = parse_proposals(reply).unwrap();
