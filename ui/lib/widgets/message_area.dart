@@ -31,6 +31,7 @@ Future<void> runAiGeneration(
     if (isMounted == null || isMounted()) {
       ref.invalidate(messagesProvider);
       ref.invalidate(conversationsProvider);
+      ref.invalidate(pendingActionsProvider);
     }
   } catch (e) {
     addConversationNotice(ref, conversationId, aiFailureNotice(e));
