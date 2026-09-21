@@ -10,6 +10,8 @@ import '../models/import_fetch.dart';
 import '../models/wiki_page.dart';
 import '../models/conversation.dart';
 import '../providers/wiki_provider.dart';
+import '../providers/todo_provider.dart';
+import '../models/todo.dart';
 import '../theme/app_theme.dart';
 import 'markdown_view.dart';
 import 'wiki_derivatives.dart';
@@ -278,7 +280,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space4),
-              child: Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 模式切换
@@ -648,10 +650,12 @@ class _WikiPageBody extends ConsumerWidget {
                     children: [
                       if (page.basedOn != null)
                         WikiSourceLink(slug: page.basedOn!),
+                      _EntityMergeControls(page: page),
                       MarkdownView(markdown: page.contentMd),
                       const SizedBox(height: AppTheme.space6),
                       WikiDerivatives(slug: page.slug),
                       _EntityFacts(slug: page.slug),
+                      _EntityRelatedTodos(page: page),
                     ],
                   ),
                 ),
@@ -999,11 +1003,28 @@ class _EntityAliases extends ConsumerStatefulWidget {
 class _EntityAliasesState extends ConsumerState<_EntityAliases> {
   Future<void> _addAlias() async {
     final controller = TextEditingController();
-    final value = await showDialog<String>(context: context, builder: (dialogContext) => AlertDialog(
-      title: const Text('添加别名'),
-      content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(hintText: '例如：项目简称、常用称呼')),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('取消')), FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: const Text('添加'))],
-    ));
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('添加别名'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: '例如：项目简称、常用称呼'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('添加'),
+          ),
+        ],
+      ),
+    );
     controller.dispose();
     if (value == null || value.trim().isEmpty || !mounted) return;
     final kind = widget.slug.split('/').first;
@@ -1014,11 +1035,305 @@ class _EntityAliasesState extends ConsumerState<_EntityAliases> {
 
   @override
   Widget build(BuildContext context) {
-    final aliases = ref.watch(entityAliasesProvider(widget.slug)).valueOrNull ?? const [];
-    return Padding(padding: const EdgeInsets.only(top: 8), child: Wrap(spacing: 6, children: [
-      if (aliases.isNotEmpty) ...[const Icon(Icons.alt_route, size: 14), for (final alias in aliases) Chip(label: Text(alias, style: const TextStyle(fontSize: 11)))],
-      ActionChip(avatar: const Icon(Icons.add, size: 14), label: const Text('添加别名', style: TextStyle(fontSize: 11)), onPressed: _addAlias),
-    ]));
+    final aliases =
+        ref.watch(entityAliasesProvider(widget.slug)).valueOrNull ?? const [];
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        spacing: 6,
+        children: [
+          if (aliases.isNotEmpty) ...[
+            const Icon(Icons.alt_route, size: 14),
+            for (final alias in aliases)
+              Chip(label: Text(alias, style: const TextStyle(fontSize: 11))),
+          ],
+          ActionChip(
+            avatar: const Icon(Icons.add, size: 14),
+            label: const Text('添加别名', style: TextStyle(fontSize: 11)),
+            onPressed: _addAlias,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EntityMergeControls extends ConsumerWidget {
+  final WikiPage page;
+  const _EntityMergeControls({required this.page});
+
+  bool get _isEntity =>
+      const ['person', 'project', 'topic'].contains(page.kind);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!_isEntity) return const SizedBox.shrink();
+    final merge = ref.watch(entityMergeStatusProvider(page.slug)).valueOrNull;
+    if (merge != null || page.status == 'merged') {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: AppTheme.space4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppTheme.warning.withValues(alpha: .08),
+          border: Border.all(color: AppTheme.warning.withValues(alpha: .3)),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.merge_type, size: 17, color: AppTheme.warning),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                merge == null ? '此实体已合并' : '此实体已合并到 ${merge.targetSlug}',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
+            ),
+            if (merge != null)
+              TextButton(
+                onPressed: () => _openTarget(ref, merge.targetSlug),
+                child: const Text('查看目标'),
+              ),
+            if (merge != null)
+              TextButton(
+                onPressed: () => _undo(context, ref, merge.targetSlug),
+                child: const Text('撤销合并'),
+              ),
+          ],
+        ),
+      );
+    }
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton.icon(
+        onPressed: () => _merge(context, ref),
+        icon: const Icon(Icons.merge_type, size: 15),
+        label: const Text('合并实体'),
+      ),
+    );
+  }
+
+  Future<void> _merge(BuildContext context, WidgetRef ref) async {
+    final pages = (await ref.read(wikiPagesProvider.future))
+        .where(
+          (candidate) =>
+              candidate.kind == page.kind &&
+              candidate.slug != page.slug &&
+              candidate.status != 'merged',
+        )
+        .toList();
+    if (!context.mounted) return;
+    if (pages.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('没有可合并的同类型实体')));
+      return;
+    }
+    String target = pages.first.slug;
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('选择目标实体'),
+          content: DropdownButtonFormField<String>(
+            initialValue: target,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: '合并到'),
+            items: [
+              for (final candidate in pages)
+                DropdownMenuItem(
+                  value: candidate.slug,
+                  child: Text(
+                    '${candidate.title}  ·  ${candidate.slug}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => target = value);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, target),
+              child: const Text('继续'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !context.mounted) return;
+    final targetPage = pages.firstWhere(
+      (candidate) => candidate.slug == selected,
+    );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('合并到“${targetPage.title}”？'),
+        content: const Text(
+          '事实、别名和关系会迁移到目标实体；重复内容会合并。原始事件不会改变。只要迁移后的内容没有被修改，就可以从旧实体页撤销。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('确认合并'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.mergeEntity(page.kind, page.slug, selected);
+      _refresh(ref, selected);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已合并到“${targetPage.title}”，原始事件仍保留')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('合并失败：$error')));
+      }
+    }
+  }
+
+  Future<void> _openTarget(WidgetRef ref, String slug) async {
+    final target = await ref.read(wikiPageProvider(slug).future);
+    if (target != null) openWikiPageTab(ref, target);
+  }
+
+  Future<void> _undo(
+    BuildContext context,
+    WidgetRef ref,
+    String targetSlug,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('撤销这次合并？'),
+        content: const Text(
+          '只恢复本次合并迁移的事实、别名和关系。若这些内容合并后已被修改，系统会拒绝操作以保护新数据。原始事件不会改变。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('撤销合并'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.undoEntityMerge(page.slug);
+      _refresh(ref, targetSlug);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('合并已撤销，实体内容已恢复')));
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('无法安全撤销：$error')));
+      }
+    }
+  }
+
+  void _refresh(WidgetRef ref, String targetSlug) {
+    for (final slug in [page.slug, targetSlug]) {
+      ref.invalidate(wikiPageProvider(slug));
+      ref.invalidate(entityFactsProvider(slug));
+      ref.invalidate(entityAliasesProvider(slug));
+      ref.invalidate(pageRelationsProvider(slug));
+      ref.invalidate(entityMergeStatusProvider(slug));
+    }
+    ref.invalidate(wikiPagesProvider);
+  }
+}
+
+class _EntityRelatedTodos extends ConsumerWidget {
+  final WikiPage page;
+  const _EntityRelatedTodos({required this.page});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!const ['person', 'project', 'topic'].contains(page.kind)) {
+      return const SizedBox.shrink();
+    }
+    final todos = (ref.watch(todosProvider).valueOrNull ?? const <Todo>[])
+        .where((todo) => todo.relatedWikiSlug == page.slug)
+        .toList();
+    if (todos.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.space4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '关联待办',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textTertiary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final todo in todos)
+            CheckboxListTile(
+              value: todo.status == TodoStatus.done,
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(
+                todo.title,
+                style: TextStyle(
+                  fontSize: 12,
+                  decoration: todo.status == TodoStatus.done
+                      ? TextDecoration.lineThrough
+                      : null,
+                  color: todo.status == TodoStatus.done
+                      ? AppTheme.textTertiary
+                      : AppTheme.textSecondary,
+                ),
+              ),
+              subtitle: todo.dueAt == null
+                  ? null
+                  : Text(
+                      '截止 ${todo.dueAt}',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+              onChanged: todo.status == TodoStatus.archived
+                  ? null
+                  : (_) => _toggle(ref, todo),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _toggle(WidgetRef ref, Todo todo) async {
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    await repo.updateTodoStatus(
+      todo.id,
+      todo.status == TodoStatus.done ? 'open' : 'done',
+    );
+    ref.invalidate(todosProvider);
   }
 }
 
@@ -1033,56 +1348,113 @@ class _EntityFacts extends ConsumerWidget {
     final conflicts = _conflictingFactIds(facts);
     return Padding(
       padding: const EdgeInsets.only(top: AppTheme.space4),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('结构化事实', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textTertiary)),
-        if (conflicts.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.warning.withOpacity(.10),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              border: Border.all(color: AppTheme.warning.withOpacity(.35)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '结构化事实',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textTertiary,
             ),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(Icons.warning_amber_rounded, size: 16, color: AppTheme.warning),
-              const SizedBox(width: 7),
-              Expanded(child: Text('发现可能冲突的事实。历史来源均已保留，请查看来源后移除错误的派生事实。', style: TextStyle(fontSize: 11.5, height: 1.35, color: AppTheme.textSecondary))),
-            ]),
           ),
-        ],
-        const SizedBox(height: 8),
-        for (final fact in facts.take(8))
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.surface2,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              border: Border.all(color: AppTheme.surface3),
-            ),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(conflicts.contains(fact.id) ? Icons.warning_amber_rounded : Icons.fact_check_outlined, size: 14, color: conflicts.contains(fact.id) ? AppTheme.warning : AppTheme.accentPrimary),
-              const SizedBox(width: 6),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(fact.factText, style: TextStyle(fontSize: 12, height: 1.4, color: AppTheme.textSecondary)),
-                const SizedBox(height: 4),
-                InkWell(
-                  onTap: () => _showSource(context, ref, fact.sourceEventId),
-                  child: Text(
-                    '${_factDate(fact.occurredAt)} · 置信度 ${fact.confidence}/5 · 查看来源 ${_shortId(fact.sourceEventId)}',
-                    style: TextStyle(fontSize: 10.5, color: AppTheme.accentPrimary),
-                  ),
-                ),
-              ])),
-              IconButton(
-                tooltip: '纠正：移除此事实',
-                icon: Icon(Icons.close, size: 15, color: AppTheme.textTertiary),
-                onPressed: () => _deleteFact(context, ref, fact.id),
+          if (conflicts.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.warning.withOpacity(.10),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(color: AppTheme.warning.withOpacity(.35)),
               ),
-            ]),
-          ),
-      ]),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 16,
+                    color: AppTheme.warning,
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      '发现可能冲突的事实。历史来源均已保留，请查看来源后移除错误的派生事实。',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.35,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          for (final fact in facts.take(8))
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.surface2,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: Border.all(color: AppTheme.surface3),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    conflicts.contains(fact.id)
+                        ? Icons.warning_amber_rounded
+                        : Icons.fact_check_outlined,
+                    size: 14,
+                    color: conflicts.contains(fact.id)
+                        ? AppTheme.warning
+                        : AppTheme.accentPrimary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fact.factText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.4,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () =>
+                              _showSource(context, ref, fact.sourceEventId),
+                          child: Text(
+                            '${_factDate(fact.occurredAt)} · 置信度 ${fact.confidence}/5 · 查看来源 ${_shortId(fact.sourceEventId)}',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: AppTheme.accentPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: '纠正：移除此事实',
+                    icon: Icon(
+                      Icons.close,
+                      size: 15,
+                      color: AppTheme.textTertiary,
+                    ),
+                    onPressed: () => _deleteFact(context, ref, fact.id),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1090,12 +1462,15 @@ class _EntityFacts extends ConsumerWidget {
     final groups = <String, List<EntityFactDto>>{};
     for (final fact in facts) {
       final separator = fact.factText.indexOf('：');
-      final key = separator > 0 ? fact.factText.substring(0, separator).trim() : fact.factText.trim();
+      final key = separator > 0
+          ? fact.factText.substring(0, separator).trim()
+          : fact.factText.trim();
       groups.putIfAbsent(key, () => []).add(fact);
     }
     return {
       for (final group in groups.values)
-        if (group.map((fact) => fact.factText).toSet().length > 1) ...group.map((fact) => fact.id),
+        if (group.map((fact) => fact.factText).toSet().length > 1)
+          ...group.map((fact) => fact.id),
     };
   }
 
@@ -1105,17 +1480,28 @@ class _EntityFacts extends ConsumerWidget {
     return '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
   }
 
-  String _shortId(String value) => value.length > 8 ? value.substring(0, 8) : value;
+  String _shortId(String value) =>
+      value.length > 8 ? value.substring(0, 8) : value;
 
-  Future<void> _deleteFact(BuildContext context, WidgetRef ref, String id) async {
+  Future<void> _deleteFact(
+    BuildContext context,
+    WidgetRef ref,
+    String id,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('移除这条事实？'),
         content: const Text('只会移除知识页中的派生事实，不会删除原始事件。'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('移除')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('移除'),
+          ),
         ],
       ),
     );
@@ -1124,16 +1510,22 @@ class _EntityFacts extends ConsumerWidget {
     await repo.deleteEntityFact(id);
     ref.invalidate(entityFactsProvider(slug));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('事实已移除，原始事件仍保留')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('事实已移除，原始事件仍保留')));
     }
   }
 
-  Future<void> _showSource(BuildContext context, WidgetRef ref, String eventId) async {
+  Future<void> _showSource(
+    BuildContext context,
+    WidgetRef ref,
+    String eventId,
+  ) async {
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
     final detail = await repo.getEventAnalysisDetail(eventId);
     if (!context.mounted) return;
     if (detail == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('来源事件不存在')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('来源事件不存在')));
       return;
     }
     await showDialog<void>(
@@ -1143,20 +1535,38 @@ class _EntityFacts extends ConsumerWidget {
         content: SizedBox(
           width: 520,
           child: SingleChildScrollView(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              SelectableText(detail.rawText),
-              if ((detail.summary ?? '').isNotEmpty) ...[
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SelectableText(detail.rawText),
+                if ((detail.summary ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'AI 摘要',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(detail.summary!),
+                ],
                 const SizedBox(height: 16),
-                Text('AI 摘要', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textTertiary)),
-                const SizedBox(height: 6),
-                SelectableText(detail.summary!),
+                Text(
+                  '记录于 ${_factDate(detail.recordedAt)} · 分析状态 ${detail.jobStatus}',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                ),
               ],
-              const SizedBox(height: 16),
-              Text('记录于 ${_factDate(detail.recordedAt)} · 分析状态 ${detail.jobStatus}', style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
-            ]),
+            ),
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('关闭'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('关闭'),
+          ),
+        ],
       ),
     );
   }

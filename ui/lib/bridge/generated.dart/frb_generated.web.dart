@@ -56,6 +56,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyReviewDto dco_decode_box_autoadd_daily_review_dto(dynamic raw);
 
   @protected
+  EntityMergeStatusDto dco_decode_box_autoadd_entity_merge_status_dto(
+    dynamic raw,
+  );
+
+  @protected
   EventAnalysisDetailDto dco_decode_box_autoadd_event_analysis_detail_dto(
     dynamic raw,
   );
@@ -95,6 +100,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EntityFactDto dco_decode_entity_fact_dto(dynamic raw);
+
+  @protected
+  EntityMergeStatusDto dco_decode_entity_merge_status_dto(dynamic raw);
 
   @protected
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw);
@@ -191,6 +199,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyReviewDto? dco_decode_opt_box_autoadd_daily_review_dto(dynamic raw);
 
   @protected
+  EntityMergeStatusDto? dco_decode_opt_box_autoadd_entity_merge_status_dto(
+    dynamic raw,
+  );
+
+  @protected
   EventAnalysisDetailDto? dco_decode_opt_box_autoadd_event_analysis_detail_dto(
     dynamic raw,
   );
@@ -278,6 +291,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  EntityMergeStatusDto sse_decode_box_autoadd_entity_merge_status_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EventAnalysisDetailDto sse_decode_box_autoadd_event_analysis_detail_dto(
     SseDeserializer deserializer,
   );
@@ -325,6 +343,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EntityFactDto sse_decode_entity_fact_dto(SseDeserializer deserializer);
+
+  @protected
+  EntityMergeStatusDto sse_decode_entity_merge_status_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   EventAnalysisDetailDto sse_decode_event_analysis_detail_dto(
@@ -437,6 +460,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DailyReviewDto? sse_decode_opt_box_autoadd_daily_review_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EntityMergeStatusDto? sse_decode_opt_box_autoadd_entity_merge_status_dto(
     SseDeserializer deserializer,
   );
 
@@ -563,6 +591,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_daily_review_dto(DailyReviewDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_daily_review_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_entity_merge_status_dto(raw);
   }
 
   @protected
@@ -696,6 +732,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.sourceEventId),
       cst_encode_String(raw.createdAt),
       cst_encode_String(raw.lastSeenAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_entity_merge_status_dto(EntityMergeStatusDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.sourceSlug),
+      cst_encode_String(raw.targetSlug),
+      cst_encode_String(raw.entityKind),
+      cst_encode_String(raw.createdAt),
     ].jsify()!;
   }
 
@@ -930,6 +977,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny? cst_encode_opt_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_entity_merge_status_dto(raw);
+  }
+
+  @protected
   JSAny? cst_encode_opt_box_autoadd_event_analysis_detail_dto(
     EventAnalysisDetailDto? raw,
   ) {
@@ -1133,6 +1190,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_event_analysis_detail_dto(
     EventAnalysisDetailDto self,
     SseSerializer serializer,
@@ -1197,6 +1260,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_entity_fact_dto(EntityFactDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_entity_merge_status_dto(
+    EntityMergeStatusDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_event_analysis_detail_dto(
@@ -1339,6 +1408,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_daily_review_dto(
     DailyReviewDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto? self,
     SseSerializer serializer,
   );
 
@@ -1582,6 +1657,11 @@ class RustLibWire implements BaseWire {
     int days,
   ) => wasmModule.wire__crate__api__get_daily_token_usage(port_, days);
 
+  void wire__crate__api__get_entity_merge_status(
+    NativePortType port_,
+    String source_slug,
+  ) => wasmModule.wire__crate__api__get_entity_merge_status(port_, source_slug);
+
   void wire__crate__api__get_event_analysis_detail(
     NativePortType port_,
     String event_id,
@@ -1684,6 +1764,18 @@ class RustLibWire implements BaseWire {
     String? kind,
     String? area,
   ) => wasmModule.wire__crate__api__list_wiki_pages(port_, kind, area);
+
+  void wire__crate__api__merge_entity(
+    NativePortType port_,
+    String entity_kind,
+    String source_slug,
+    String target_slug,
+  ) => wasmModule.wire__crate__api__merge_entity(
+    port_,
+    entity_kind,
+    source_slug,
+    target_slug,
+  );
 
   void wire__crate__api__record_event(NativePortType port_, String raw_text) =>
       wasmModule.wire__crate__api__record_event(port_, raw_text);
@@ -1811,6 +1903,11 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__trigger_analysis(NativePortType port_) =>
       wasmModule.wire__crate__api__trigger_analysis(port_);
+
+  void wire__crate__api__undo_entity_merge(
+    NativePortType port_,
+    String source_slug,
+  ) => wasmModule.wire__crate__api__undo_entity_merge(port_, source_slug);
 
   void wire__crate__api__update_ai_provider_config(
     NativePortType port_,
@@ -2022,6 +2119,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     int days,
   );
 
+  external void wire__crate__api__get_entity_merge_status(
+    NativePortType port_,
+    String source_slug,
+  );
+
   external void wire__crate__api__get_event_analysis_detail(
     NativePortType port_,
     String event_id,
@@ -2117,6 +2219,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? area,
   );
 
+  external void wire__crate__api__merge_entity(
+    NativePortType port_,
+    String entity_kind,
+    String source_slug,
+    String target_slug,
+  );
+
   external void wire__crate__api__record_event(
     NativePortType port_,
     String raw_text,
@@ -2200,6 +2309,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__trigger_analysis(NativePortType port_);
+
+  external void wire__crate__api__undo_entity_merge(
+    NativePortType port_,
+    String source_slug,
+  );
 
   external void wire__crate__api__update_ai_provider_config(
     NativePortType port_,

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1292119434;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 478085838;
 
 // Section: executor
 
@@ -744,6 +744,29 @@ fn wire__crate__api__get_daily_token_usage_impl(
         },
     )
 }
+fn wire__crate__api__get_entity_merge_status_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    source_slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_entity_merge_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_source_slug = source_slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::get_entity_merge_status(api_source_slug)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__get_event_analysis_detail_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     event_id: impl CstDecode<String>,
@@ -1251,6 +1274,37 @@ fn wire__crate__api__list_wiki_pages_impl(
         },
     )
 }
+fn wire__crate__api__merge_entity_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    entity_kind: impl CstDecode<String>,
+    source_slug: impl CstDecode<String>,
+    target_slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "merge_entity",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_entity_kind = entity_kind.cst_decode();
+            let api_source_slug = source_slug.cst_decode();
+            let api_target_slug = target_slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::merge_entity(
+                            api_entity_kind,
+                            api_source_slug,
+                            api_target_slug,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__record_event_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     raw_text: impl CstDecode<String>,
@@ -1617,6 +1671,29 @@ fn wire__crate__api__trigger_analysis_impl(port_: flutter_rust_bridge::for_gener
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::trigger_analysis()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__undo_entity_merge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    source_slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "undo_entity_merge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_source_slug = source_slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::undo_entity_merge(api_source_slug)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2099,6 +2176,22 @@ impl SseDecode for crate::api::EntityFactDto {
     }
 }
 
+impl SseDecode for crate::api::EntityMergeStatusDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sourceSlug = <String>::sse_decode(deserializer);
+        let mut var_targetSlug = <String>::sse_decode(deserializer);
+        let mut var_entityKind = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        return crate::api::EntityMergeStatusDto {
+            source_slug: var_sourceSlug,
+            target_slug: var_targetSlug,
+            entity_kind: var_entityKind,
+            created_at: var_createdAt,
+        };
+    }
+}
+
 impl SseDecode for crate::api::EventAnalysisDetailDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2517,6 +2610,17 @@ impl SseDecode for Option<crate::api::DailyReviewDto> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::DailyReviewDto>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::EntityMergeStatusDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::EntityMergeStatusDto>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -3039,6 +3143,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::EntityFactDto> for crate::api
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::EntityMergeStatusDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.source_slug.into_into_dart().into_dart(),
+            self.target_slug.into_into_dart().into_dart(),
+            self.entity_kind.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::EntityMergeStatusDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::EntityMergeStatusDto>
+    for crate::api::EntityMergeStatusDto
+{
+    fn into_into_dart(self) -> crate::api::EntityMergeStatusDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::EventAnalysisDetailDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3471,6 +3598,16 @@ impl SseEncode for crate::api::EntityFactDto {
     }
 }
 
+impl SseEncode for crate::api::EntityMergeStatusDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.source_slug, serializer);
+        <String>::sse_encode(self.target_slug, serializer);
+        <String>::sse_encode(self.entity_kind, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
 impl SseEncode for crate::api::EventAnalysisDetailDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3793,6 +3930,16 @@ impl SseEncode for Option<crate::api::DailyReviewDto> {
     }
 }
 
+impl SseEncode for Option<crate::api::EntityMergeStatusDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::EntityMergeStatusDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::EventAnalysisDetailDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4060,6 +4207,13 @@ mod io {
             CstDecode::<crate::api::DailyReviewDto>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<crate::api::EntityMergeStatusDto> for *mut wire_cst_entity_merge_status_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EntityMergeStatusDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::EntityMergeStatusDto>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<crate::api::EventAnalysisDetailDto> for *mut wire_cst_event_analysis_detail_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::EventAnalysisDetailDto {
@@ -4191,6 +4345,17 @@ mod io {
                 source_event_id: self.source_event_id.cst_decode(),
                 created_at: self.created_at.cst_decode(),
                 last_seen_at: self.last_seen_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::EntityMergeStatusDto> for wire_cst_entity_merge_status_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EntityMergeStatusDto {
+            crate::api::EntityMergeStatusDto {
+                source_slug: self.source_slug.cst_decode(),
+                target_slug: self.target_slug.cst_decode(),
+                entity_kind: self.entity_kind.cst_decode(),
+                created_at: self.created_at.cst_decode(),
             }
         }
     }
@@ -4740,6 +4905,21 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_entity_merge_status_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                source_slug: core::ptr::null_mut(),
+                target_slug: core::ptr::null_mut(),
+                entity_kind: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_entity_merge_status_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_event_analysis_detail_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -5217,6 +5397,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_entity_merge_status(
+        port_: i64,
+        source_slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__get_entity_merge_status_impl(port_, source_slug)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_event_analysis_detail(
         port_: i64,
         event_id: *mut wire_cst_list_prim_u_8_strict,
@@ -5377,6 +5565,16 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__merge_entity(
+        port_: i64,
+        entity_kind: *mut wire_cst_list_prim_u_8_strict,
+        source_slug: *mut wire_cst_list_prim_u_8_strict,
+        target_slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__merge_entity_impl(port_, entity_kind, source_slug, target_slug)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__record_event(
         port_: i64,
         raw_text: *mut wire_cst_list_prim_u_8_strict,
@@ -5531,6 +5729,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__undo_entity_merge(
+        port_: i64,
+        source_slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__undo_entity_merge_impl(port_, source_slug)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__update_ai_provider_config(
         port_: i64,
         base_url: *mut wire_cst_list_prim_u_8_strict,
@@ -5622,6 +5828,14 @@ mod io {
     ) -> *mut wire_cst_daily_review_dto {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_daily_review_dto::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_entity_merge_status_dto(
+    ) -> *mut wire_cst_entity_merge_status_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_entity_merge_status_dto::new_with_null_ptr(),
         )
     }
 
@@ -5999,6 +6213,14 @@ mod io {
         source_event_id: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
         last_seen_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_entity_merge_status_dto {
+        source_slug: *mut wire_cst_list_prim_u_8_strict,
+        target_slug: *mut wire_cst_list_prim_u_8_strict,
+        entity_kind: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -6554,6 +6776,28 @@ mod web {
                 source_event_id: self_.get(6).cst_decode(),
                 created_at: self_.get(7).cst_decode(),
                 last_seen_at: self_.get(8).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::EntityMergeStatusDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EntityMergeStatusDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                4,
+                "Expected 4 elements, got {}",
+                self_.length()
+            );
+            crate::api::EntityMergeStatusDto {
+                source_slug: self_.get(0).cst_decode(),
+                target_slug: self_.get(1).cst_decode(),
+                entity_kind: self_.get(2).cst_decode(),
+                created_at: self_.get(3).cst_decode(),
             }
         }
     }
@@ -7378,6 +7622,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__get_entity_merge_status(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        source_slug: String,
+    ) {
+        wire__crate__api__get_entity_merge_status_impl(port_, source_slug)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__get_event_analysis_detail(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         event_id: String,
@@ -7550,6 +7802,16 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__merge_entity(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        entity_kind: String,
+        source_slug: String,
+        target_slug: String,
+    ) {
+        wire__crate__api__merge_entity_impl(port_, entity_kind, source_slug, target_slug)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__record_event(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         raw_text: String,
@@ -7703,6 +7965,14 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__trigger_analysis_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__undo_entity_merge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        source_slug: String,
+    ) {
+        wire__crate__api__undo_entity_merge_impl(port_, source_slug)
     }
 
     #[wasm_bindgen]

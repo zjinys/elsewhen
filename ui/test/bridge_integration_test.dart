@@ -77,6 +77,28 @@ void main() {
     expect(linkedUrlInput.routeStatus, 'routed');
     expect(linkedUrlInput.wikiPageSlug, 'import-test-page');
     expect(await repo.listEvents(), hasLength(3));
+
+    final sourceEntity = await repo.saveTextPage(
+      text: '用于验证实体合并的来源主题',
+      title: '合并来源主题',
+    );
+    final targetEntity = await repo.saveTextPage(
+      text: '用于验证实体合并的目标主题',
+      title: '合并目标主题',
+    );
+    expect(sourceEntity.kind, 'topic');
+    expect(targetEntity.kind, 'topic');
+    expect(
+      await repo.mergeEntity('topic', sourceEntity.slug, targetEntity.slug),
+      isTrue,
+    );
+    final merge = await repo.getEntityMergeStatus(sourceEntity.slug);
+    expect(merge?.targetSlug, targetEntity.slug);
+    expect((await repo.getWikiPage(sourceEntity.slug))?.status, 'merged');
+    expect(await repo.undoEntityMerge(sourceEntity.slug), isTrue);
+    expect(await repo.getEntityMergeStatus(sourceEntity.slug), isNull);
+    expect((await repo.getWikiPage(sourceEntity.slug))?.status, 'active');
+    expect(await repo.listEvents(), hasLength(3));
     print('Bridge test complete! 🎉');
   });
 }

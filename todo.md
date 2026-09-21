@@ -1,5 +1,6 @@
 # TODO
 
+- [x] 完成 Phase 4B 实体确认与来源闭环：候选确认/忽略、别名与同名消歧、冲突纠正、安全合并/撤销、来源和关联待办一致性（见 `docs/notes/implemented/feature/2026-09-21-safe-entity-merge-and-split.md`）
 - [ ] 落地「事件可记录性过滤」方案：docs/notes/proposed/architecture/2026-09-19-event-recordability-filter.md
 - [x] 落地「归档对话可删除」方案：docs/notes/proposed/architecture/2026-09-19-archived-conversation-deletion.md
 - [ ] 落地「决策辅助闭环」定位补全方案：docs/notes/proposed/architecture/2026-09-19-decision-support-loop.md

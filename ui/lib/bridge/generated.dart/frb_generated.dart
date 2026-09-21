@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1292119434;
+  int get rustContentHash => 478085838;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -176,6 +176,10 @@ abstract class RustLibApi extends BaseApi {
     required int days,
   });
 
+  Future<EntityMergeStatusDto?> crateApiGetEntityMergeStatus({
+    required String sourceSlug,
+  });
+
   Future<EventAnalysisDetailDto?> crateApiGetEventAnalysisDetail({
     required String eventId,
   });
@@ -237,6 +241,12 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<WikiPageDto>> crateApiListWikiPages({String? kind, String? area});
+
+  Future<bool> crateApiMergeEntity({
+    required String entityKind,
+    required String sourceSlug,
+    required String targetSlug,
+  });
 
   Future<EventDto> crateApiRecordEvent({required String rawText});
 
@@ -305,6 +315,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<String> crateApiTriggerAnalysis();
+
+  Future<bool> crateApiUndoEntityMerge({required String sourceSlug});
 
   Future<void> crateApiUpdateAiProviderConfig({
     required String baseUrl,
@@ -1106,6 +1118,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<EntityMergeStatusDto?> crateApiGetEntityMergeStatus({
+    required String sourceSlug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(sourceSlug);
+          return wire.wire__crate__api__get_entity_merge_status(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_entity_merge_status_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGetEntityMergeStatusConstMeta,
+        argValues: [sourceSlug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetEntityMergeStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_entity_merge_status",
+        argNames: ["sourceSlug"],
+      );
+
+  @override
   Future<EventAnalysisDetailDto?> crateApiGetEventAnalysisDetail({
     required String eventId,
   }) {
@@ -1652,6 +1691,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<bool> crateApiMergeEntity({
+    required String entityKind,
+    required String sourceSlug,
+    required String targetSlug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entityKind);
+          var arg1 = cst_encode_String(sourceSlug);
+          var arg2 = cst_encode_String(targetSlug);
+          return wire.wire__crate__api__merge_entity(port_, arg0, arg1, arg2);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMergeEntityConstMeta,
+        argValues: [entityKind, sourceSlug, targetSlug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMergeEntityConstMeta => const TaskConstMeta(
+    debugName: "merge_entity",
+    argNames: ["entityKind", "sourceSlug", "targetSlug"],
+  );
+
+  @override
   Future<EventDto> crateApiRecordEvent({required String rawText}) {
     return handler.executeNormal(
       NormalTask(
@@ -2065,6 +2134,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "trigger_analysis", argNames: []);
 
   @override
+  Future<bool> crateApiUndoEntityMerge({required String sourceSlug}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(sourceSlug);
+          return wire.wire__crate__api__undo_entity_merge(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUndoEntityMergeConstMeta,
+        argValues: [sourceSlug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUndoEntityMergeConstMeta => const TaskConstMeta(
+    debugName: "undo_entity_merge",
+    argNames: ["sourceSlug"],
+  );
+
+  @override
   Future<void> crateApiUpdateAiProviderConfig({
     required String baseUrl,
     required String model,
@@ -2377,6 +2470,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EntityMergeStatusDto dco_decode_box_autoadd_entity_merge_status_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_entity_merge_status_dto(raw);
+  }
+
+  @protected
   EventAnalysisDetailDto dco_decode_box_autoadd_event_analysis_detail_dto(
     dynamic raw,
   ) {
@@ -2531,6 +2632,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sourceEventId: dco_decode_String(arr[6]),
       createdAt: dco_decode_String(arr[7]),
       lastSeenAt: dco_decode_String(arr[8]),
+    );
+  }
+
+  @protected
+  EntityMergeStatusDto dco_decode_entity_merge_status_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return EntityMergeStatusDto(
+      sourceSlug: dco_decode_String(arr[0]),
+      targetSlug: dco_decode_String(arr[1]),
+      entityKind: dco_decode_String(arr[2]),
+      createdAt: dco_decode_String(arr[3]),
     );
   }
 
@@ -2791,6 +2906,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DailyReviewDto? dco_decode_opt_box_autoadd_daily_review_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_daily_review_dto(raw);
+  }
+
+  @protected
+  EntityMergeStatusDto? dco_decode_opt_box_autoadd_entity_merge_status_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_entity_merge_status_dto(raw);
   }
 
   @protected
@@ -3083,6 +3208,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EntityMergeStatusDto sse_decode_box_autoadd_entity_merge_status_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_entity_merge_status_dto(deserializer));
+  }
+
+  @protected
   EventAnalysisDetailDto sse_decode_box_autoadd_event_analysis_detail_dto(
     SseDeserializer deserializer,
   ) {
@@ -3270,6 +3403,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sourceEventId: var_sourceEventId,
       createdAt: var_createdAt,
       lastSeenAt: var_lastSeenAt,
+    );
+  }
+
+  @protected
+  EntityMergeStatusDto sse_decode_entity_merge_status_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sourceSlug = sse_decode_String(deserializer);
+    var var_targetSlug = sse_decode_String(deserializer);
+    var var_entityKind = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    return EntityMergeStatusDto(
+      sourceSlug: var_sourceSlug,
+      targetSlug: var_targetSlug,
+      entityKind: var_entityKind,
+      createdAt: var_createdAt,
     );
   }
 
@@ -3709,6 +3859,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EntityMergeStatusDto? sse_decode_opt_box_autoadd_entity_merge_status_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_entity_merge_status_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   EventAnalysisDetailDto? sse_decode_opt_box_autoadd_event_analysis_detail_dto(
     SseDeserializer deserializer,
   ) {
@@ -4069,6 +4232,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_entity_merge_status_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_event_analysis_detail_dto(
     EventAnalysisDetailDto self,
     SseSerializer serializer,
@@ -4215,6 +4387,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.sourceEventId, serializer);
     sse_encode_String(self.createdAt, serializer);
     sse_encode_String(self.lastSeenAt, serializer);
+  }
+
+  @protected
+  void sse_encode_entity_merge_status_dto(
+    EntityMergeStatusDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.sourceSlug, serializer);
+    sse_encode_String(self.targetSlug, serializer);
+    sse_encode_String(self.entityKind, serializer);
+    sse_encode_String(self.createdAt, serializer);
   }
 
   @protected
@@ -4566,6 +4750,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_daily_review_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_entity_merge_status_dto(self, serializer);
     }
   }
 

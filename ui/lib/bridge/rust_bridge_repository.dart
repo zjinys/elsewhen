@@ -137,6 +137,19 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> addEntityAlias(String kind, String slug, String alias) =>
       api.addEntityAlias(entityKind: kind, entitySlug: slug, alias: alias);
 
+  Future<bool> mergeEntity(String kind, String sourceSlug, String targetSlug) =>
+      api.mergeEntity(
+        entityKind: kind,
+        sourceSlug: sourceSlug,
+        targetSlug: targetSlug,
+      );
+
+  Future<api.EntityMergeStatusDto?> getEntityMergeStatus(String sourceSlug) =>
+      api.getEntityMergeStatus(sourceSlug: sourceSlug);
+
+  Future<bool> undoEntityMerge(String sourceSlug) =>
+      api.undoEntityMerge(sourceSlug: sourceSlug);
+
   Future<api.EventAnalysisDetailDto?> getEventAnalysisDetail(String eventId) =>
       api.getEventAnalysisDetail(eventId: eventId);
 
@@ -310,8 +323,9 @@ class RustBridgeRepository implements StorageRepository {
         .toList();
   }
 
-  Future<List<api.PendingActionDto>> listPendingActions(String conversationId) =>
-      api.listPendingActions(conversationId: conversationId);
+  Future<List<api.PendingActionDto>> listPendingActions(
+    String conversationId,
+  ) => api.listPendingActions(conversationId: conversationId);
 
   Future<bool> updatePendingActionArgs(String actionId, String argsJson) =>
       api.updatePendingActionArgs(actionId: actionId, argsJson: argsJson);

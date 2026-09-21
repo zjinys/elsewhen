@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `default_event_kind`, `default_recordable`, `dto_from_active`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -117,6 +117,25 @@ Future<void> addEntityAlias({
   entitySlug: entitySlug,
   alias: alias,
 );
+
+/// Merge two confirmed entities after explicit user confirmation.
+Future<bool> mergeEntity({
+  required String entityKind,
+  required String sourceSlug,
+  required String targetSlug,
+}) => RustLib.instance.api.crateApiMergeEntity(
+  entityKind: entityKind,
+  sourceSlug: sourceSlug,
+  targetSlug: targetSlug,
+);
+
+Future<EntityMergeStatusDto?> getEntityMergeStatus({
+  required String sourceSlug,
+}) => RustLib.instance.api.crateApiGetEntityMergeStatus(sourceSlug: sourceSlug);
+
+/// Undo one merge only when every moved row still matches its merge snapshot.
+Future<bool> undoEntityMerge({required String sourceSlug}) =>
+    RustLib.instance.api.crateApiUndoEntityMerge(sourceSlug: sourceSlug);
 
 /// List all events
 Future<List<EventDto>> listEvents() =>
@@ -882,6 +901,37 @@ class EntityFactDto {
           sourceEventId == other.sourceEventId &&
           createdAt == other.createdAt &&
           lastSeenAt == other.lastSeenAt;
+}
+
+class EntityMergeStatusDto {
+  final String sourceSlug;
+  final String targetSlug;
+  final String entityKind;
+  final String createdAt;
+
+  const EntityMergeStatusDto({
+    required this.sourceSlug,
+    required this.targetSlug,
+    required this.entityKind,
+    required this.createdAt,
+  });
+
+  @override
+  int get hashCode =>
+      sourceSlug.hashCode ^
+      targetSlug.hashCode ^
+      entityKind.hashCode ^
+      createdAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EntityMergeStatusDto &&
+          runtimeType == other.runtimeType &&
+          sourceSlug == other.sourceSlug &&
+          targetSlug == other.targetSlug &&
+          entityKind == other.entityKind &&
+          createdAt == other.createdAt;
 }
 
 class EventAnalysisDetailDto {

@@ -688,6 +688,42 @@ pub fn add_entity_alias(entity_kind: String, entity_slug: String, alias: String)
     )
 }
 
+/// Merge two confirmed entities after explicit user confirmation.
+pub fn merge_entity(entity_kind: String, source_slug: String, target_slug: String) -> Result<bool> {
+    let config = crate::config::AppConfig::load()?;
+    Store::open(&config.database_path)?.merge_entity(
+        entity_kind.trim(),
+        source_slug.trim(),
+        target_slug.trim(),
+    )
+}
+
+#[derive(Clone, Debug)]
+pub struct EntityMergeStatusDto {
+    pub source_slug: String,
+    pub target_slug: String,
+    pub entity_kind: String,
+    pub created_at: String,
+}
+
+pub fn get_entity_merge_status(source_slug: String) -> Result<Option<EntityMergeStatusDto>> {
+    let config = crate::config::AppConfig::load()?;
+    Ok(Store::open(&config.database_path)?
+        .entity_merge_status(source_slug.trim())?
+        .map(|m| EntityMergeStatusDto {
+            source_slug: m.source_slug,
+            target_slug: m.target_slug,
+            entity_kind: m.entity_kind,
+            created_at: m.created_at,
+        }))
+}
+
+/// Undo one merge only when every moved row still matches its merge snapshot.
+pub fn undo_entity_merge(source_slug: String) -> Result<bool> {
+    let config = crate::config::AppConfig::load()?;
+    Store::open(&config.database_path)?.undo_entity_merge(source_slug.trim())
+}
+
 /// List all events
 pub fn list_events() -> Result<Vec<EventDto>> {
     let config = crate::config::AppConfig::load()?;

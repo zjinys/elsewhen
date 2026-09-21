@@ -1,4 +1,4 @@
-# Elsewhen Session 交接 — 2026-09-20
+# Elsewhen Session 交接 — 2026-09-21
 
 ## 目标与用户约定
 
@@ -24,7 +24,7 @@
 
 当前工作区包含 Phase 3 每日概览与每日回顾数据契约实现；UI 信息架构仍冻结，不上线空壳 Today 页面。
 
-Phase 4B 当前进行中：候选拒绝状态持久化（`declined`）、实体事实人工删除（保留原始事件）、实体别名表（migration v23）及知识页别名编辑入口已完成；下一步是冲突事实提示、实体合并/拆分的确认流程。
+Phase 4B 已完成：候选确认/忽略、别名与同名消歧、冲突事实提示与人工纠正、安全实体合并/撤销、来源事件和关联待办一致性均可在应用界面操作并立即可见。所有 AI 候选必须经用户确认，`@/#` 不越权写入长期记忆。
 
 ## 已完成
 
@@ -42,7 +42,7 @@ Phase 4B 当前进行中：候选拒绝状态持久化（`declined`）、实体�
 
 ## 下一步（建议顺序）
 
-1. 完成日期切换的数据边界：按本地日期读取事实、回顾和待办，保持无 AI 降级；随后再设计 Today 的完整使用场景。
+1. 进入 Phase 4C 决策辅助第一版：先读取 `docs/notes/proposed/architecture/2026-09-19-decision-support-loop.md`，实现规则触发、上下文引用和轻量闭环度量；Today 继续暂缓。
 
 ## 关键文件
 
@@ -68,6 +68,9 @@ Phase 4B 当前进行中：候选拒绝状态持久化（`declined`）、实体�
 - Phase 2.5 已完成：system prompt / `record_event` 工具描述加入可记录性边界；统一 `event-analysis` 保留 `recordable`、`kind`，旧 v1/v2 兼容读取，详情 DTO 已同步。
 - 日流 API、`get_daily_overview` 和每日回顾生成均已按最新分析结果过滤 `recordable=false`，原始事件仍保留。
 - Phase 4A 已完成 `entity_facts`（migration v21）、幂等 upsert / 置信度提升、来源回溯、`list_entity_facts` Bridge API；普通分析候选和 `@/#` 标注均进入确认门，确认后写入人物/项目事实；同名实体不会静默合并，可在候选卡片中选择明确 slug。
+- Phase 4B 已完成 migration v23-v27：实体别名、合并审计、逐行快照及旧草案兼容迁移；合并事务迁移事实、别名、关系及关联待办，重复项可逆去重，原始事件不变。撤销逐行校验，发现后续修改则整笔拒绝并回滚。
+- Flutter 实体页支持同类型目标选择、合并状态、目标跳转、安全撤销、冲突事实纠正和关联待办勾选；无事实实体也能看到合并入口。
+- 决策记录：[安全实体合并与拆分](implemented/feature/2026-09-21-safe-entity-merge-and-split.md)。
 
 ## 验证事实与未完成验证
 
@@ -77,13 +80,14 @@ Phase 4B 当前进行中：候选拒绝状态持久化（`declined`）、实体�
 - git diff --check：通过。
 - 当前 Flutter 全量测试为 39 项通过；`flutter analyze` 无 error/warning，仅保留 32 条既有 info。
 - `./regen.sh` 已成功，生成绑定与 release 动态库 hash 同步。
+- Phase 4B：`cargo test --all-targets` 通过（lib 127 + bin 114）；Flutter 全量 39 项通过，新增隔离 Bridge 合并/撤销往返；Flutter analyze 无 error/warning，保留 36 条 info；`git diff --check` 通过。
 - `cargo test --all-targets`：lib 110 + bin 97 通过；schema 定向测试 3 项通过；Flutter 全量 39 项通过；`flutter analyze` 无 error/warning，保留 32 条既有 info。
 - 最近真实数据库 SHA-256：23ae80c302b8c344cecbfaa79e1f664dd80637f5c12b4c986430b8540cf5e29c。此前 events/wiki_pages/conversations 计数为 18/19/45；新 session 不应假设用户数据此后未变化，应自行记录测试前后基线。
 - 本次文档交接：构建/测试 skipped（仅文档变更）；执行 git diff --check。
 
 ## 风险与约束
 
-- `event-analysis-v1` 已校验必填字段、字段类型、未知字段和 confidence 范围；纠正/忽略入口及候选实体确认仍待实现。
+- 安全撤销是保守操作：若合并后的事实、别名、关系或关联待办已被修改/删除，整笔撤销会拒绝，需先由用户人工处理冲突。
 - 当前 processed:0 不区分“无可执行任务”和“本次全部失败”，需结合队列状态判断。
 - 当前退避很短，较慢批次里早先失败的任务可能再次到期；处理上限限制的是尝试次数，不是唯一事件数。
 - 保存原始事件不依赖 AI；不修改原始事件来纠正分析。

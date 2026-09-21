@@ -54,6 +54,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyReviewDto dco_decode_box_autoadd_daily_review_dto(dynamic raw);
 
   @protected
+  EntityMergeStatusDto dco_decode_box_autoadd_entity_merge_status_dto(
+    dynamic raw,
+  );
+
+  @protected
   EventAnalysisDetailDto dco_decode_box_autoadd_event_analysis_detail_dto(
     dynamic raw,
   );
@@ -93,6 +98,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EntityFactDto dco_decode_entity_fact_dto(dynamic raw);
+
+  @protected
+  EntityMergeStatusDto dco_decode_entity_merge_status_dto(dynamic raw);
 
   @protected
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw);
@@ -189,6 +197,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyReviewDto? dco_decode_opt_box_autoadd_daily_review_dto(dynamic raw);
 
   @protected
+  EntityMergeStatusDto? dco_decode_opt_box_autoadd_entity_merge_status_dto(
+    dynamic raw,
+  );
+
+  @protected
   EventAnalysisDetailDto? dco_decode_opt_box_autoadd_event_analysis_detail_dto(
     dynamic raw,
   );
@@ -276,6 +289,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  EntityMergeStatusDto sse_decode_box_autoadd_entity_merge_status_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EventAnalysisDetailDto sse_decode_box_autoadd_event_analysis_detail_dto(
     SseDeserializer deserializer,
   );
@@ -323,6 +341,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EntityFactDto sse_decode_entity_fact_dto(SseDeserializer deserializer);
+
+  @protected
+  EntityMergeStatusDto sse_decode_entity_merge_status_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   EventAnalysisDetailDto sse_decode_event_analysis_detail_dto(
@@ -439,6 +462,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  EntityMergeStatusDto? sse_decode_opt_box_autoadd_entity_merge_status_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EventAnalysisDetailDto? sse_decode_opt_box_autoadd_event_analysis_detail_dto(
     SseDeserializer deserializer,
   );
@@ -531,6 +559,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_daily_review_dto();
     cst_api_fill_to_wire_daily_review_dto(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_entity_merge_status_dto>
+  cst_encode_box_autoadd_entity_merge_status_dto(EntityMergeStatusDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_entity_merge_status_dto();
+    cst_api_fill_to_wire_entity_merge_status_dto(raw, ptr.ref);
     return ptr;
   }
 
@@ -814,6 +851,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_entity_merge_status_dto>
+  cst_encode_opt_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_entity_merge_status_dto(raw);
+  }
+
+  @protected
   ffi.Pointer<wire_cst_event_analysis_detail_dto>
   cst_encode_opt_box_autoadd_event_analysis_detail_dto(
     EventAnalysisDetailDto? raw,
@@ -914,6 +962,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_daily_review_dto> wireObj,
   ) {
     cst_api_fill_to_wire_daily_review_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto apiObj,
+    ffi.Pointer<wire_cst_entity_merge_status_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_entity_merge_status_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -1042,6 +1098,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.source_event_id = cst_encode_String(apiObj.sourceEventId);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
     wireObj.last_seen_at = cst_encode_String(apiObj.lastSeenAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_entity_merge_status_dto(
+    EntityMergeStatusDto apiObj,
+    wire_cst_entity_merge_status_dto wireObj,
+  ) {
+    wireObj.source_slug = cst_encode_String(apiObj.sourceSlug);
+    wireObj.target_slug = cst_encode_String(apiObj.targetSlug);
+    wireObj.entity_kind = cst_encode_String(apiObj.entityKind);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
   }
 
   @protected
@@ -1302,6 +1369,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_event_analysis_detail_dto(
     EventAnalysisDetailDto self,
     SseSerializer serializer,
@@ -1366,6 +1439,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_entity_fact_dto(EntityFactDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_entity_merge_status_dto(
+    EntityMergeStatusDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_event_analysis_detail_dto(
@@ -1512,6 +1591,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_entity_merge_status_dto(
+    EntityMergeStatusDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_event_analysis_detail_dto(
     EventAnalysisDetailDto? self,
     SseSerializer serializer,
@@ -1648,6 +1733,23 @@ class RustLibWire implements BaseWire {
   late final _cst_new_box_autoadd_daily_review_dto =
       _cst_new_box_autoadd_daily_review_dtoPtr
           .asFunction<ffi.Pointer<wire_cst_daily_review_dto> Function()>();
+
+  ffi.Pointer<wire_cst_entity_merge_status_dto>
+  cst_new_box_autoadd_entity_merge_status_dto() {
+    return _cst_new_box_autoadd_entity_merge_status_dto();
+  }
+
+  late final _cst_new_box_autoadd_entity_merge_status_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_entity_merge_status_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_entity_merge_status_dto');
+  late final _cst_new_box_autoadd_entity_merge_status_dto =
+      _cst_new_box_autoadd_entity_merge_status_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_entity_merge_status_dto> Function()
+          >();
 
   ffi.Pointer<wire_cst_event_analysis_detail_dto>
   cst_new_box_autoadd_event_analysis_detail_dto() {
@@ -2662,6 +2764,28 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__get_daily_token_usagePtr
           .asFunction<void Function(int, int)>();
 
+  void wire__crate__api__get_entity_merge_status(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
+  ) {
+    return _wire__crate__api__get_entity_merge_status(port_, source_slug);
+  }
+
+  late final _wire__crate__api__get_entity_merge_statusPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__get_entity_merge_status');
+  late final _wire__crate__api__get_entity_merge_status =
+      _wire__crate__api__get_entity_merge_statusPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__get_event_analysis_detail(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
@@ -3096,6 +3220,42 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__merge_entity(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> target_slug,
+  ) {
+    return _wire__crate__api__merge_entity(
+      port_,
+      entity_kind,
+      source_slug,
+      target_slug,
+    );
+  }
+
+  late final _wire__crate__api__merge_entityPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__merge_entity');
+  late final _wire__crate__api__merge_entity =
+      _wire__crate__api__merge_entityPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__record_event(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_text,
@@ -3503,6 +3663,28 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__trigger_analysis =
       _wire__crate__api__trigger_analysisPtr.asFunction<void Function(int)>();
+
+  void wire__crate__api__undo_entity_merge(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
+  ) {
+    return _wire__crate__api__undo_entity_merge(port_, source_slug);
+  }
+
+  late final _wire__crate__api__undo_entity_mergePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__undo_entity_merge');
+  late final _wire__crate__api__undo_entity_merge =
+      _wire__crate__api__undo_entity_mergePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void wire__crate__api__update_ai_provider_config(
     int port_,
@@ -4074,6 +4256,28 @@ final class wire_cst_entity_fact_dto extends ffi.Struct {
     ..ref.source_event_id = source_event_id
     ..ref.created_at = created_at
     ..ref.last_seen_at = last_seen_at;
+}
+
+final class wire_cst_entity_merge_status_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> target_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  static ffi.Pointer<wire_cst_entity_merge_status_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> target_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+  }) => $allocator<wire_cst_entity_merge_status_dto>()
+    ..ref.source_slug = source_slug
+    ..ref.target_slug = target_slug
+    ..ref.entity_kind = entity_kind
+    ..ref.created_at = created_at;
 }
 
 final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
