@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:appflowy_editor/appflowy_editor.dart';
 import 'dart:io';
 
 import 'theme/app_theme.dart';
@@ -117,6 +118,11 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
         AppThemeMode.system => ThemeMode.system,
       },
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        DefaultMaterialLocalizations.delegate,
+        DefaultWidgetsLocalizations.delegate,
+        AppFlowyEditorLocalizations.delegate,
+      ],
       home: initAsync.when(
         data: (initialized) {
           if (!initialized) {

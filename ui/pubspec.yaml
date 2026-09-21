@@ -50,6 +50,15 @@ dependencies:
   flex_color_scheme: ^8.4.0
   flutter_svg: ^2.2.1
 
+  # AppFlowy Editor（WYSIWYG 编辑器，分支：feat/appflowy-editor）
+  # 本地 vendor（third_party/appflowy_editor），基于上游 commit 01eccc6：
+  #  - pub 版 6.2.0（2025-12）未适配 Flutter 3.47 新增的 TextInputClient.onFocusReceived，编译不过；
+  #  - Linux 中文输入法合成 bug：合成期光标在合成区起点导致多字节输入错乱，
+  #    本地补丁把 Windows 的 _normalizeComposingSelection 扩展到 Linux。
+  # 详见 third_party/appflowy_editor/README.local.md。
+  appflowy_editor:
+    path: third_party/appflowy_editor
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

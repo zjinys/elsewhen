@@ -8,6 +8,7 @@ import '../providers/conversation_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../screens/settings_screen.dart';
+import '../screens/appflowy_ime_test_screen.dart';
 import '../theme/app_theme.dart';
 
 /// 主界面左侧栏：对话 / 知识库 双 Tab + 底部设置入口
@@ -329,6 +330,17 @@ class LeftSidebar extends ConsumerWidget {
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
+          _FooterAction(
+            icon: Icons.edit_note,
+            label: '编辑器测试',
+            onTap: () => Navigator.of(
+              context,
+            ).push(
+              MaterialPageRoute(
+                builder: (_) => const AppFlowyImeTestScreen(),
+              ),
+            ),
           ),
         ],
       ),
