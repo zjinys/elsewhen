@@ -223,6 +223,10 @@ pub struct WikiPage {
     pub based_on: Option<String>,
     /// 派生产物的加工类型（总结/提炼观点/抖音文案…自由字符串，仅 area=derivative 有值）
     pub content_type: Option<String>,
+    /// 最近一次人工编辑该页正文的时间；非空 ⇔ 该页由人工持有，digest 不再整篇覆盖
+    pub human_edited_at: Option<String>,
+    /// 素材页观点评价：Some("endorse")=认可 / Some("reject")=不认可 / None=未表态（缺省认可）
+    pub opinion: Option<String>,
 }
 
 /// 一次写回（创建或更新）的输入草案
@@ -240,11 +244,28 @@ pub struct WikiPageDraft {
     pub source_url: Option<String>,
 }
 
+/// 写回策略：digest 等 AI 覆盖路径对「人工持有页」的保护档位。
+/// 保护只作用于内容列（content_md/title/summary/tags）；证据列（source_event_ids/
+/// evidence_count）与时间戳永远由系统合并，不受任何策略影响。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContentPolicy {
+    /// 不保护：整篇覆盖内容列。仅用于「有显式授权」的写回——素材导入流程（素材页的
+    /// 唯一合法写入方，可刷新采集快照）；AI 草拟 → 用户确认制（save_wiki_revision 修订、
+    /// save_knowledge_draft 建档，用户确认即显式授权，区别于 digest 的静默覆盖）。
+    Always,
+    /// 保护人工持有页：目标行 human_edited_at 非空（人工编辑过的档案/派生页），
+    /// 或 kind∈{source,note}（采集素材，对人和 AI 都只读正文）时，内容列不动、
+    /// 只并集证据 + 刷新 last_seen_at。AI 静默生成路径（digest/洞察归档/关系建档）一律走这一档。
+    PreserveHumanEdits,
+}
+
 /// upsert 结果
 #[derive(Debug, Clone)]
 pub struct WikiUpsertOutcome {
     pub created: bool,
     pub page: WikiPage,
+    /// 本次是否因「人工持有」保护被降级：只累加证据，内容列未动（对应 DigestResult.skipped）
+    pub protected: bool,
 }
 
 /// 重命名知识页的结果
@@ -420,14 +441,16 @@ fn map_wiki_page(row: &rusqlite::Row) -> rusqlite::Result<WikiPage> {
         area: row.get(15)?,
         based_on: row.get(16)?,
         content_type: row.get(17)?,
+        human_edited_at: row.get(18)?,
+        opinion: row.get(19)?,
     })
 }
 
 /// wiki_pages 行 → WikiPage 的公共列清单。
-/// 顺序必须与 `map_wiki_page` 的按位取值（0..=17）严格一致。
+/// 顺序必须与 `map_wiki_page` 的按位取值（0..=19）严格一致。
 const WIKI_PAGE_COLS: &str = "id, slug, kind, title, summary, content_md, tags, source_event_ids, \
      evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at, source_url, \
-     COALESCE(area, 'insight'), based_on, content_type";
+     COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion";
 
 pub struct Store {
     connection: Connection,
@@ -739,6 +762,36 @@ impl Store {
                ON event_recordability_decisions(event_id, created_at DESC, id DESC);
              INSERT OR IGNORE INTO schema_migrations(version, applied_at)
              VALUES (28, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+        )?;
+        // 版本 29：wiki 页「人类直接编辑」基础 —— kind 双语义拆分 + 人工编辑保护位 + 素材观点评价。
+        //  - kind 拆分：用户粘贴笔记（slug `note-` 前缀）从 kind=topic 拆为新 kind=note（采集素材档），
+        //    AI 提炼的主题页保持 topic。权限判定不再单看 kind 字段，而是 (kind, slug 前缀) 组合。
+        //  - human_edited_at：非空 ⇔ 该页曾被人工编辑，digest 不得整篇覆盖正文（内容列只读，证据照累）。
+        //  - opinion：素材页（source/note）观点评价（'endorse'/'reject'/NULL=未表态，缺省认可）。
+        // 列结构（ALTER 需判存在）与数据 backfill（幂等规则，每次执行无副作用：只命中
+        // `kind='topic' AND slug LIKE 'note-%'` 这一条确定性分类，新建页本身就是 note）分开处理。
+        {
+            let has_human_edited_at = {
+                let mut statement = connection.prepare("PRAGMA table_info(wiki_pages)")?;
+                let columns = statement
+                    .query_map([], |row| row.get::<_, String>(1))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                columns.iter().any(|name| name == "human_edited_at")
+            };
+            if !has_human_edited_at {
+                connection.execute_batch(
+                    "ALTER TABLE wiki_pages ADD COLUMN human_edited_at TEXT;
+                     ALTER TABLE wiki_pages ADD COLUMN opinion TEXT;
+                     INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                     VALUES (29, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+                )?;
+            }
+        }
+        // 数据 backfill 与列无关，恒执行：旧库（v29 前已写入的存量）和
+        // 升级中途落库的 `note-` 前缀 topic 页都会在这一步归位为 kind='note'。
+        connection.execute(
+            "UPDATE wiki_pages SET kind='note' WHERE kind='topic' AND slug LIKE 'note-%'",
+            [],
         )?;
         let has_api_key = {
             let mut statement = connection.prepare("PRAGMA table_info(ai_provider_configs)")?;
@@ -2385,7 +2438,7 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
                     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                    source_url, COALESCE(area, 'insight'), based_on, content_type
+                    source_url, COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion
              FROM wiki_pages WHERE slug = ?1",
         )?;
         let page = statement
@@ -2399,7 +2452,7 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
                     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                    source_url, COALESCE(area, 'insight'), based_on, content_type
+                    source_url, COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion
              FROM wiki_pages WHERE source_url = ?1
              ORDER BY updated_at DESC LIMIT 1",
         )?;
@@ -2414,7 +2467,7 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
                     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                    source_url, COALESCE(area, 'insight'), based_on, content_type
+                    source_url, COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion
              FROM wiki_pages WHERE lower(trim(title)) = lower(trim(?1))
              ORDER BY updated_at DESC LIMIT 1",
         )?;
@@ -2428,7 +2481,7 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
                     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                    source_url, COALESCE(area, 'insight'), based_on, content_type
+                    source_url, COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion
              FROM wiki_pages WHERE lower(trim(title)) = lower(trim(?1))
              ORDER BY updated_at DESC",
         )?;
@@ -2441,7 +2494,8 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT DISTINCT p.id, p.slug, p.kind, p.title, p.summary, p.content_md, p.tags, p.source_event_ids,
                     p.evidence_count, p.first_seen_at, p.last_seen_at, p.status, p.created_at, p.updated_at,
-                    p.source_url, COALESCE(p.area, 'insight'), p.based_on, p.content_type
+                    p.source_url, COALESCE(p.area, 'insight'), p.based_on, p.content_type,
+                    p.human_edited_at, p.opinion
              FROM wiki_pages p LEFT JOIN entity_aliases a ON a.entity_slug=p.slug AND a.entity_kind=p.kind
              WHERE lower(trim(p.title))=lower(trim(?1)) OR lower(trim(a.alias))=lower(trim(?1))
              ORDER BY p.updated_at DESC",
@@ -2485,7 +2539,7 @@ impl Store {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
                     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
-                    source_url, COALESCE(area, 'insight'), based_on, content_type
+                    source_url, COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion
              FROM wiki_pages WHERE based_on = ?1 AND area = 'derivative'
              ORDER BY created_at DESC",
         )?;
@@ -2571,12 +2625,57 @@ impl Store {
     /// 创建或更新一个 wiki 页面。核心做确定性合并：
     /// 已存在 → 更新内容 + 事件 id 并集 + evidence_count = 并集长度；不存在 → 新建。
     /// 每次写回都记录一条 revision。
-    pub fn upsert_wiki_page(&self, draft: &WikiPageDraft) -> Result<WikiUpsertOutcome> {
+    pub fn upsert_wiki_page(
+        &self,
+        draft: &WikiPageDraft,
+        policy: ContentPolicy,
+    ) -> Result<WikiUpsertOutcome> {
         let now = chrono::Utc::now().to_rfc3339();
         let tags_raw = serde_json::to_string(&draft.tags)?;
 
         let existing = self.get_wiki_page(&draft.slug)?;
         if let Some(page) = existing {
+            // 人工持有判定：仅 PreserveHumanEdits 拦截——human_edited_at 非空
+            // （人工编辑过的档案/派生页）或 kind∈{source,note}（采集素材，对人和
+            // AI 都只读正文，仅素材导入流用 Always 刷新）。
+            // Always 是显式授权路径（素材导入；AI 草拟→用户确认的修订/建档），不拦。
+            // 保护时正文（content_md/title/summary/tags）不变，只并集证据 + 刷新 last_seen_at。
+            let human_held = match policy {
+                ContentPolicy::Always => false,
+                ContentPolicy::PreserveHumanEdits => {
+                    page.human_edited_at.is_some()
+                        || matches!(page.kind.as_str(), "source" | "note")
+                }
+            };
+            let content_changed = page.content_md != draft.content_md;
+            if human_held && content_changed {
+                // 合并（确定性，不允许 LLM 直接改数字）：只累加证据。
+                let mut all_ids = page.source_event_ids.clone();
+                for id in &draft.source_event_ids {
+                    if !all_ids.contains(id) {
+                        all_ids.push(id.clone());
+                    }
+                }
+                let evidence_count = all_ids.len() as i64;
+                let sources_raw = serde_json::to_string(&all_ids)?;
+                self.connection.execute(
+                    "UPDATE wiki_pages
+                     SET source_event_ids=?1, evidence_count=?2, last_seen_at=?3, updated_at=?3
+                     WHERE id=?4",
+                    params![
+                        sources_raw,
+                        evidence_count,
+                        now,
+                        page.id,
+                    ],
+                )?;
+                let updated = self.get_wiki_page(&draft.slug)?.unwrap();
+                return Ok(WikiUpsertOutcome {
+                    created: false,
+                    page: updated,
+                    protected: true,
+                });
+            }
             // 合并（确定性，不允许 LLM 直接改数字）
             let mut all_ids = page.source_event_ids.clone();
             for id in &draft.source_event_ids {
@@ -2610,6 +2709,7 @@ impl Store {
             Ok(WikiUpsertOutcome {
                 created: false,
                 page: updated,
+                protected: false,
             })
         } else {
             let id = Uuid::new_v4().to_string();
@@ -2644,6 +2744,7 @@ impl Store {
             Ok(WikiUpsertOutcome {
                 created: true,
                 page: self.get_wiki_page(&draft.slug)?.unwrap(),
+                protected: false,
             })
         }
     }
@@ -2680,6 +2781,95 @@ impl Store {
         };
         self.record_wiki_revision(&page.id, &page.content_md, &reason, None)?;
         self.get_wiki_page(slug)?.context("标签更新后读取失败")
+    }
+
+    /// 人类编辑保存一页正文（「人类直接编辑」主线入口）。
+    ///
+    /// - 仅允许可编辑 kind（person/project/capability/recurring_cost/topic/…）；
+    ///   采集素材 kind（source/note）只读，直接拒绝。
+    /// - 非空、长度上限 64k 字符。
+    /// - 写 revision（reason 前缀 `[human]`）+ wiki_log 审计；
+    /// - 置 `human_edited_at=now`：此后该页被 AI digest 视为「人工持有」，不再整篇覆盖正文。
+    pub fn save_wiki_page_content(
+        &self,
+        slug: &str,
+        content_md: &str,
+        reason: &str,
+    ) -> Result<WikiPage> {
+        let page = self
+            .get_wiki_page(slug)?
+            .with_context(|| format!("知识页不存在: {slug}（可能已被改名或删除）"))?;
+        if matches!(page.kind.as_str(), "source" | "note") {
+            anyhow::bail!(
+                "素材页（kind={}）只读，不支持人工编辑正文；只能表态评价（认可/不认可）",
+                page.kind
+            );
+        }
+        let content_md = content_md.trim().to_string();
+        if content_md.is_empty() {
+            anyhow::bail!("正文为空，无法保存");
+        }
+        let char_count = content_md.chars().count();
+        if char_count > 65536 {
+            anyhow::bail!("正文超过 64k 字符上限（当前 {char_count} 字符）");
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "UPDATE wiki_pages SET content_md=?1, human_edited_at=?2, updated_at=?2 WHERE id=?3",
+            params![content_md, now, page.id],
+        )?;
+        let reason = reason.trim();
+        self.record_wiki_revision(
+            &page.id,
+            &content_md,
+            &format!("[human] {}", if reason.is_empty() { "人工编辑正文" } else { reason }),
+            None,
+        )?;
+        self.append_wiki_log(&format!(
+            "人工编辑正文：{slug}（{}）",
+            if reason.is_empty() { "无备注" } else { reason }
+        ))?;
+        self.get_wiki_page(slug)?.context("人工编辑保存后读取失败")
+    }
+
+    /// 素材页观点评价（素材唯一的交互入口）。
+    ///
+    /// - 仅允许采集素材 kind（source/note），非素材页拒绝；
+    /// - `None` = 清空回未表态（读取时按缺省认可 'endorse' 处理）；
+    ///   `Some("endorse")`/`Some("reject")` = 认可 / 不认可；
+    /// - 不改变正文、不置位 `human_edited_at`，只写 wiki_log 审计。
+    pub fn set_wiki_opinion(&self, slug: &str, opinion: Option<&str>) -> Result<WikiPage> {
+        let page = self
+            .get_wiki_page(slug)?
+            .with_context(|| format!("知识页不存在: {slug}（可能已被改名或删除）"))?;
+        if !matches!(page.kind.as_str(), "source" | "note") {
+            anyhow::bail!(
+                "只有采集素材页（source/note）可以表态评价，当前 kind={}",
+                page.kind
+            );
+        }
+        let value: Option<String> = match opinion {
+            Some(o) => {
+                let o = o.trim();
+                if o != "endorse" && o != "reject" {
+                    anyhow::bail!("评价只接受 endorse / reject，收到：{o}");
+                }
+                Some(o.to_string())
+            }
+            None => None,
+        };
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "UPDATE wiki_pages SET opinion=?1, updated_at=?2 WHERE id=?3",
+            params![value, now, page.id],
+        )?;
+        let label = match value.as_deref() {
+            Some("endorse") => "认可",
+            Some("reject") => "不认可",
+            _ => "清空（回归未表态，缺省认可）",
+        };
+        self.append_wiki_log(&format!("素材评价：{slug} → {label}"))?;
+        self.get_wiki_page(slug)?.context("评价保存后读取失败")
     }
 
     /// 重命名知识页：标题 + slug 一起换，事务内原子迁移关系引用与页内聊天会话，并追加一条修订记录。
@@ -4502,7 +4692,7 @@ mod tests {
             reason: "test".to_string(),
             source_url: None,
         };
-        store.upsert_wiki_page(&draft).unwrap();
+        store.upsert_wiki_page(&draft, ContentPolicy::Always).unwrap();
         store
             .upsert_relation(&RelationDraft {
                 from_slug: "person/谭俊".to_string(),
@@ -4584,7 +4774,7 @@ mod tests {
             reason: "test".to_string(),
             source_url: None,
         };
-        store.upsert_wiki_page(&src_draft).unwrap();
+        store.upsert_wiki_page(&src_draft, ContentPolicy::Always).unwrap();
         let outcome = store
             .rename_wiki_page("tweet-123", "新标题", "更正")
             .unwrap();
@@ -4599,18 +4789,21 @@ mod tests {
 
     fn entity_page(store: &Store, slug: &str, kind: &str, title: &str) {
         store
-            .upsert_wiki_page(&WikiPageDraft {
-                slug: slug.to_string(),
-                kind: kind.to_string(),
-                title: title.to_string(),
-                summary: String::new(),
-                content_md: format!("# {title}"),
-                tags: vec![],
-                source_event_ids: vec![],
-                status: "active".to_string(),
-                reason: "test".to_string(),
-                source_url: None,
-            })
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: slug.to_string(),
+                    kind: kind.to_string(),
+                    title: title.to_string(),
+                    summary: String::new(),
+                    content_md: format!("# {title}"),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: "test".to_string(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
             .unwrap();
     }
 
@@ -4884,18 +5077,21 @@ mod tests {
         let path = temporary_database();
         let store = Store::open(&path).unwrap();
         store
-            .upsert_wiki_page(&WikiPageDraft {
-                slug: "person/张伟".to_string(),
-                kind: "person".to_string(),
-                title: "张伟".to_string(),
-                summary: "简介".to_string(),
-                content_md: "内容".to_string(),
-                tags: vec![],
-                source_event_ids: vec![],
-                status: "active".to_string(),
-                reason: "test".to_string(),
-                source_url: None,
-            })
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: "person/张伟".to_string(),
+                    kind: "person".to_string(),
+                    title: "张伟".to_string(),
+                    summary: "简介".to_string(),
+                    content_md: "内容".to_string(),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: "test".to_string(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
             .unwrap();
         assert!(store.find_wiki_page_by_title(" 张伟 ").unwrap().is_some());
         assert!(store
@@ -4927,6 +5123,291 @@ mod tests {
         let archived = store.list_archived_conversations().unwrap();
         assert!(archived.iter().all(|c| c.wiki_page_slug.is_none()));
         assert_eq!(archived.len(), 1);
+        let _ = std::fs::remove_file(path);
+    }
+
+    // ── M1：人工编辑保护（human_edited_at + ContentPolicy + opinion）──────────
+
+    fn wiki_draft(slug: &str, kind: &str, content_md: &str) -> WikiPageDraft {
+        WikiPageDraft {
+            slug: slug.to_string(),
+            kind: kind.to_string(),
+            title: slug.to_string(),
+            summary: "s".to_string(),
+            content_md: content_md.to_string(),
+            tags: vec![],
+            source_event_ids: vec![],
+            status: "active".to_string(),
+            reason: "test".to_string(),
+            source_url: None,
+        }
+    }
+
+    #[test]
+    fn migration_v29_splits_note_kind_and_adds_columns() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        // 预置一条旧语义数据：note- 前缀但 kind=topic（升级前属于「用户粘贴笔记」）
+        store
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: "note-abc".to_string(),
+                    kind: "topic".to_string(),
+                    title: "旧笔记".to_string(),
+                    summary: "s".to_string(),
+                    content_md: "旧内容".to_string(),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: "test".to_string(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
+            .unwrap();
+        drop(store);
+
+        // 重新打开（触发 v29 迁移），存量数据应被修正为 kind='note'
+        let store = Store::open(&path).unwrap();
+        let page = store.get_wiki_page("note-abc").unwrap().unwrap();
+        assert_eq!(page.kind, "note", "note- 前缀旧页应被迁移为 note kind");
+        assert_eq!(page.human_edited_at, None);
+        assert_eq!(page.opinion, None);
+        // 非 note- 前缀的 topic 页不受影响
+        store
+            .upsert_wiki_page(
+                &wiki_draft("topic/subject", "topic", "x"),
+                ContentPolicy::Always,
+            )
+            .unwrap();
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn save_wiki_page_content_sets_human_edited_at_and_rejects_material() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store
+            .upsert_wiki_page(&wiki_draft("person/张三", "person", "AI 原始内容"), ContentPolicy::Always)
+            .unwrap();
+
+        // 正常路径：保存正文 → human_edited_at 置位 + revision 原因带 [human]
+        let saved = store
+            .save_wiki_page_content("person/张三", "人类修改后的正文", "修正职位")
+            .unwrap();
+        assert!(saved.human_edited_at.is_some());
+        assert_eq!(saved.content_md, "人类修改后的正文");
+        let (_, revised_content, reason) = store
+            .list_wiki_revisions("person/张三")
+            .unwrap()
+            .first()
+            .cloned()
+            .unwrap();
+        assert_eq!(revised_content, "人类修改后的正文");
+        assert!(reason.starts_with("[human]"), "reason 应带 [human] 前缀: {reason}");
+        let log = store.list_wiki_log(5).unwrap();
+        assert!(log.iter().any(|(_, e)| e.contains("人工编辑正文")));
+
+        // 空正文拒绝
+        assert!(store
+            .save_wiki_page_content("person/张三", "   ", "清空")
+            .is_err());
+
+        // 素材页（source/note）只读拒绝
+        store
+            .upsert_wiki_page(&wiki_draft("tweet-1", "source", "素材内容"), ContentPolicy::Always)
+            .unwrap();
+        assert!(store
+            .save_wiki_page_content("tweet-1", "改素材", "不该允许")
+            .is_err());
+        store
+            .upsert_wiki_page(&wiki_draft("note-x", "note", "笔记内容"), ContentPolicy::Always)
+            .unwrap();
+        assert!(store.save_wiki_page_content("note-x", "改笔记", "不该允许").is_err());
+
+        // 超过 64k 字符拒绝
+        let big = "长".repeat(65537);
+        assert!(store
+            .save_wiki_page_content("person/张三", &big, "超大")
+            .is_err());
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn digest_preserve_respects_human_edited_and_material_pages() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+
+        // ① 人工编辑过的档案页：PreserveHumanEdits → 正文不动、证据照累、protected=true
+        store
+            .upsert_wiki_page(&wiki_draft("person/李四", "person", "AI 初稿"), ContentPolicy::Always)
+            .unwrap();
+        store.save_wiki_page_content("person/李四", "人工定稿", "人工修正").unwrap();
+        let outcome = store
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: "person/李四".to_string(),
+                    kind: "person".to_string(),
+                    title: "李四（AI 想改名）".to_string(),
+                    summary: "AI 摘要".to_string(),
+                    content_md: "AI 想覆盖的新内容".to_string(),
+                    tags: vec!["ai".to_string()],
+                    source_event_ids: vec!["evt-1".to_string(), "evt-2".to_string()],
+                    status: "active".to_string(),
+                    reason: "digest".to_string(),
+                    source_url: None,
+                },
+                ContentPolicy::PreserveHumanEdits,
+            )
+            .unwrap();
+        assert!(outcome.protected, "人工编辑页应被保护");
+        let page = outcome.page;
+        assert_eq!(page.content_md, "人工定稿", "正文不可被 digest 覆盖");
+        assert_eq!(page.title, "person/李四", "标题不可被 digest 覆盖");
+        assert_eq!(page.tags, Vec::<String>::new(), "tags 不可被 digest 覆盖");
+        assert_eq!(
+            page.source_event_ids,
+            vec!["evt-1".to_string(), "evt-2".to_string()],
+            "但证据应并集"
+        );
+        assert_eq!(page.evidence_count, 2);
+
+        // ② 未人工编辑的档案页：PreserveHumanEdits → 正常整篇覆盖
+        store
+            .upsert_wiki_page(&wiki_draft("topic/新主题", "topic", "AI 第一版"), ContentPolicy::Always)
+            .unwrap();
+        let outcome2 = store
+            .upsert_wiki_page(
+                &wiki_draft("topic/新主题", "topic", "AI 第二版"),
+                ContentPolicy::PreserveHumanEdits,
+            )
+            .unwrap();
+        assert!(!outcome2.protected);
+        assert_eq!(outcome2.page.content_md, "AI 第二版");
+
+        // ③ 素材页：PreserveHumanEdits → 永不覆盖（采集快照只读）
+        store
+            .upsert_wiki_page(&wiki_draft("tweet-9", "source", "原始素材"), ContentPolicy::Always)
+            .unwrap();
+        let outcome3 = store
+            .upsert_wiki_page(
+                &wiki_draft("tweet-9", "source", "新素材内容"),
+                ContentPolicy::PreserveHumanEdits,
+            )
+            .unwrap();
+        assert!(outcome3.protected);
+        assert_eq!(outcome3.page.content_md, "原始素材", "素材正文对 AI 只读");
+
+        // ④ Always 策略 = 素材导入流程：允许刷新素材内容（仅所有者可写）
+        let outcome4 = store
+            .upsert_wiki_page(&wiki_draft("tweet-9", "source", "导入流程刷新"), ContentPolicy::Always)
+            .unwrap();
+        assert!(!outcome4.protected);
+        assert_eq!(outcome4.page.content_md, "导入流程刷新");
+
+        // ⑤ Always 策略 = 确认制修订（save_wiki_revision：AI 草拟 → 用户确认后才落库）：
+        //    人工编辑页也可被覆盖——这是文档承诺的修订通道，区别于 digest 的静默覆盖
+        let outcome5 = store
+            .upsert_wiki_page(
+                &wiki_draft("person/李四", "person", "用户确认后的修订版本"),
+                ContentPolicy::Always,
+            )
+            .unwrap();
+        assert!(!outcome5.protected);
+        assert_eq!(outcome5.page.content_md, "用户确认后的修订版本");
+        assert!(
+            outcome5.page.human_edited_at.is_some(),
+            "确认制修订不触碰 human_edited_at 列：曾被人动过的事实开关永久保留"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn set_wiki_opinion_only_on_material_and_audits() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store
+            .upsert_wiki_page(&wiki_draft("tweet-8", "source", "素材"), ContentPolicy::Always)
+            .unwrap();
+
+        // 认可
+        let p = store.set_wiki_opinion("tweet-8", Some("endorse")).unwrap();
+        assert_eq!(p.opinion.as_deref(), Some("endorse"));
+
+        // 不认可
+        let p = store.set_wiki_opinion("tweet-8", Some("reject")).unwrap();
+        assert_eq!(p.opinion.as_deref(), Some("reject"));
+
+        // 清空（未表态）
+        let p = store.set_wiki_opinion("tweet-8", None).unwrap();
+        assert_eq!(p.opinion, None);
+
+        // 非法值拒绝
+        assert!(store.set_wiki_opinion("tweet-8", Some("meh")).is_err());
+
+        // 非素材页拒绝（即使人工编辑过也一样）
+        store
+            .upsert_wiki_page(&wiki_draft("person/王五", "person", "x"), ContentPolicy::Always)
+            .unwrap();
+        assert!(store.set_wiki_opinion("person/王五", Some("endorse")).is_err());
+
+        // 审计日志
+        let log = store.list_wiki_log(10).unwrap();
+        assert!(log.iter().any(|(_, e)| e.contains("素材评价")));
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn digest_protection_does_not_record_revisions_or_opinion_changes() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store
+            .upsert_wiki_page(&wiki_draft("person/赵六", "person", "v1 AI"), ContentPolicy::Always)
+            .unwrap();
+        store.save_wiki_page_content("person/赵六", "v1 人工", "修正").unwrap();
+        let revs_before = store.list_wiki_revisions("person/赵六").unwrap().len();
+
+        // 受保护写回：不追加 revision（内容没变，纯证据累加）
+        let outcome = store
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: "person/赵六".to_string(),
+                    kind: "person".to_string(),
+                    title: "赵六".to_string(),
+                    summary: "s".to_string(),
+                    content_md: "AI 想覆盖".to_string(),
+                    tags: vec![],
+                    source_event_ids: vec!["evt-x".to_string()],
+                    status: "active".to_string(),
+                    reason: "digest".to_string(),
+                    source_url: None,
+                },
+                ContentPolicy::PreserveHumanEdits,
+            )
+            .unwrap();
+        assert!(outcome.protected);
+        let revs_after = store.list_wiki_revisions("person/赵六").unwrap().len();
+        assert_eq!(revs_before, revs_after, "保护降级写回不应追加 revision");
+
+        // opinion / human_edited_at 不受 upsert 影响
+        store
+            .upsert_wiki_page(&wiki_draft("tweet-7", "source", "素材"), ContentPolicy::Always)
+            .unwrap();
+        store.set_wiki_opinion("tweet-7", Some("endorse")).unwrap();
+        let before = store.get_wiki_page("tweet-7").unwrap().unwrap();
+        assert!(before.opinion.is_some());
+        store
+            .upsert_wiki_page(
+                &wiki_draft("tweet-7", "source", "改不了"),
+                ContentPolicy::PreserveHumanEdits,
+            )
+            .unwrap();
+        let after = store.get_wiki_page("tweet-7").unwrap().unwrap();
+        assert_eq!(after.opinion, Some("endorse".to_string()), "评价不被 digest 清掉");
+
         let _ = std::fs::remove_file(path);
     }
 }

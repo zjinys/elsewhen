@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -959297336;
+  int get rustContentHash => 724295265;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -296,6 +296,12 @@ abstract class RustLibApi extends BaseApi {
     String? screenName,
   });
 
+  Future<WikiPageDto> crateApiSaveWikiPageContent({
+    required String slug,
+    required String contentMd,
+    required String reason,
+  });
+
   Future<MessageDto> crateApiSendMessage({
     required String conversationId,
     required String role,
@@ -313,6 +319,11 @@ abstract class RustLibApi extends BaseApi {
   Future<MessageRecordabilityDto> crateApiSetEventRecordability({
     required String eventId,
     required bool recordable,
+  });
+
+  Future<WikiPageDto> crateApiSetWikiOpinion({
+    required String slug,
+    String? opinion,
   });
 
   Future<InputRecordDto> crateApiSubmitConversationInput({
@@ -2033,6 +2044,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<WikiPageDto> crateApiSaveWikiPageContent({
+    required String slug,
+    required String contentMd,
+    required String reason,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          var arg1 = cst_encode_String(contentMd);
+          var arg2 = cst_encode_String(reason);
+          return wire.wire__crate__api__save_wiki_page_content(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSaveWikiPageContentConstMeta,
+        argValues: [slug, contentMd, reason],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSaveWikiPageContentConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_wiki_page_content",
+        argNames: ["slug", "contentMd", "reason"],
+      );
+
+  @override
   Future<MessageDto> crateApiSendMessage({
     required String conversationId,
     required String role,
@@ -2163,6 +2210,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "set_event_recordability",
         argNames: ["eventId", "recordable"],
       );
+
+  @override
+  Future<WikiPageDto> crateApiSetWikiOpinion({
+    required String slug,
+    String? opinion,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          var arg1 = cst_encode_opt_String(opinion);
+          return wire.wire__crate__api__set_wiki_opinion(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetWikiOpinionConstMeta,
+        argValues: [slug, opinion],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetWikiOpinionConstMeta => const TaskConstMeta(
+    debugName: "set_wiki_opinion",
+    argNames: ["slug", "opinion"],
+  );
 
   @override
   Future<InputRecordDto> crateApiSubmitConversationInput({
@@ -3226,8 +3301,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 18)
-      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
+    if (arr.length != 20)
+      throw Exception('unexpected arr length: expect 20 but see ${arr.length}');
     return WikiPageDto(
       id: dco_decode_String(arr[0]),
       slug: dco_decode_String(arr[1]),
@@ -3247,6 +3322,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       area: dco_decode_String(arr[15]),
       basedOn: dco_decode_opt_String(arr[16]),
       contentType: dco_decode_opt_String(arr[17]),
+      humanEditedAt: dco_decode_opt_String(arr[18]),
+      opinion: dco_decode_opt_String(arr[19]),
     );
   }
 
@@ -4285,6 +4362,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_area = sse_decode_String(deserializer);
     var var_basedOn = sse_decode_opt_String(deserializer);
     var var_contentType = sse_decode_opt_String(deserializer);
+    var var_humanEditedAt = sse_decode_opt_String(deserializer);
+    var var_opinion = sse_decode_opt_String(deserializer);
     return WikiPageDto(
       id: var_id,
       slug: var_slug,
@@ -4304,6 +4383,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       area: var_area,
       basedOn: var_basedOn,
       contentType: var_contentType,
+      humanEditedAt: var_humanEditedAt,
+      opinion: var_opinion,
     );
   }
 
@@ -5184,5 +5265,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.area, serializer);
     sse_encode_opt_String(self.basedOn, serializer);
     sse_encode_opt_String(self.contentType, serializer);
+    sse_encode_opt_String(self.humanEditedAt, serializer);
+    sse_encode_opt_String(self.opinion, serializer);
   }
 }

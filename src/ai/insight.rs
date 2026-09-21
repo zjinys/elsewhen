@@ -7,7 +7,7 @@
 
 use super::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
 use crate::event::EventSummary;
-use crate::storage::{Store, WikiPageDraft};
+use crate::storage::{ContentPolicy, Store, WikiPageDraft};
 use crate::wiki::{self, INSIGHT_KINDS};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -159,7 +159,7 @@ fn file_back_insights(store: &Store, insights: &[Insight]) -> Result<()> {
             reason: "认知推微归档：好答案写回知识库".to_string(),
             source_url: None,
         };
-        store.upsert_wiki_page(&draft)?;
+        store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
     }
     if !insights.is_empty() {
         let date = chrono::Utc::now().format("%Y-%m-%d").to_string();

@@ -7,7 +7,7 @@
 //! - 知识页保存（`save_knowledge_draft`，影响面更大）为 `ToolPolicy::WriteConfirm`：
 //!   只生成「待确认动作」，用户确认后才碰真源，守住「只有确认才入库」的铁律。
 
-use crate::storage::{PendingAction, Store};
+use crate::storage::{ContentPolicy, PendingAction, Store};
 use anyhow::{Context, Result};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -1329,7 +1329,7 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 reason: "由 AI 工具草拟、用户确认后保存".to_string(),
                 source_url: None,
             };
-            let outcome = store.upsert_wiki_page(&draft)?;
+            let outcome = store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
             Ok(format!(
                 "已保存知识页「{}」（{}，slug={}）",
                 title,
@@ -1457,7 +1457,7 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 reason: format!("从 {source_url} 导入（AI 对话）"),
                 source_url: Some(source_url),
             };
-            let outcome = store.upsert_wiki_page(&draft)?;
+            let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
             Ok(format!(
                 "已导入知识库：{}（{}，slug={}）",
                 title,
@@ -1529,7 +1529,7 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     reason: format!("AI 页内修订：{change_note}"),
                     source_url,
                 };
-                let outcome = store.upsert_wiki_page(&draft)?;
+                let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
                 Ok(format!(
                     "知识页「{}」修订已保存：{change_note}",
                     outcome.page.title
@@ -1702,18 +1702,21 @@ mod tests {
         let (store, path) = temp_db();
         let conv = store.create_conversation(Some("t"), None).unwrap();
         store
-            .upsert_wiki_page(&crate::storage::WikiPageDraft {
-                slug: "topic/沟通复盘".to_string(),
-                kind: "topic".to_string(),
-                title: "沟通复盘".to_string(),
-                summary: "原摘要".to_string(),
-                content_md: "原有内容".to_string(),
-                tags: vec![],
-                source_event_ids: vec![],
-                status: "active".to_string(),
-                reason: "test".to_string(),
-                source_url: None,
-            })
+            .upsert_wiki_page(
+                &crate::storage::WikiPageDraft {
+                    slug: "topic/沟通复盘".to_string(),
+                    kind: "topic".to_string(),
+                    title: "沟通复盘".to_string(),
+                    summary: "原摘要".to_string(),
+                    content_md: "原有内容".to_string(),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: "test".to_string(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
             .unwrap();
         let result = dispatch(
             &ToolCall::new(
@@ -1989,18 +1992,21 @@ mod tests {
         let registry = ToolRegistry::default();
         let conv = store.create_conversation(Some("t"), None).unwrap();
         store
-            .upsert_wiki_page(&crate::storage::WikiPageDraft {
-                slug: "topic/付款流程".to_string(),
-                kind: "topic".to_string(),
-                title: "付款流程".to_string(),
-                summary: "付款流程（自动建档）".to_string(),
-                content_md: "# 付款流程".to_string(),
-                tags: vec![],
-                source_event_ids: vec![],
-                status: "active".to_string(),
-                reason: "test".to_string(),
-                source_url: None,
-            })
+            .upsert_wiki_page(
+                &crate::storage::WikiPageDraft {
+                    slug: "topic/付款流程".to_string(),
+                    kind: "topic".to_string(),
+                    title: "付款流程".to_string(),
+                    summary: "付款流程（自动建档）".to_string(),
+                    content_md: "# 付款流程".to_string(),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: "test".to_string(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
             .unwrap();
         store
             .upsert_relation(&crate::storage::RelationDraft {

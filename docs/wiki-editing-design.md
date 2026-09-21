@@ -58,42 +58,90 @@
 
 ## 4. 核心设计（Rust，并行推进）
 
-### 4.1 迁移 v29：`human_edited_at`
+### 4.0 kind 拆分（前置修正）
+
+`kind=topic` 现行身兼两职（用户粘贴笔记 `save_text_page` 与 AI 主题页共用），按"页面所有权"拆开：
+
+- 用户粘贴笔记（`note-` 前缀 slug）→ 新 kind `note`；
+- AI 提炼的主题页（`topic/` 前缀）→ 保持 `topic`。
+
+迁移 v29 backfill：`UPDATE wiki_pages SET kind='note' WHERE kind='topic' AND slug LIKE 'note-%'`。
+权限判定一律用 `(kind, slug 前缀)` 组合（与 `derive_wiki_area` 同键），不再单看 kind 字段。
+
+### 4.1 页面类型 × 能力矩阵（编辑权分层）
+
+两正交维度：**kind 决定默认持有权**（谁写、能否编辑），**`human_edited_at` 是"曾被人动过"的页级事实开关**。一次人工编辑 = 永久把该页从 AI 持有切到人工持有。
+
+| kind | 内容可改 | 评价（观点表态） | digest 默认行为 | 人工编辑一次后 |
+|---|---|---|---|---|
+| `source` / `note`（采集素材） | ❌ 只读 | ✅ `endorse`/`reject`（缺省认可） | 永不整篇覆盖（人工持有） | 不适用 |
+| `person`/`project`/`capability`/`recurring_cost`/`topic`（AI 档案页） | ✅ 修改完善 | ❌ | 整篇覆盖（AI 持有） | 保护：正文不动，证据照累 |
+| `derivative`（派生加工） | ✅ | ❌ | 覆盖、可再生（预期） | 保护：人接管，不再被重生成覆盖 |
+
+两类对所有 kind 一刀切、不可人工修改：
+- **证据/机制字段**：`source_event_ids`、`evidence_count`、`first/last_seen_at`、`created/updated_at` —— 系统持有；
+- **结构字段**：`area`/`based_on`/`content_type`/`source_url`/`kind`/`id`/`slug` —— 只能由产生它的流程改动。
+- 素材 `source`/`note` 的正文对**人和 AI 都只读**；评价是唯一入口。
+
+### 4.2 迁移 v29
 
 ```sql
+-- 1) 拆 kind 双语义（存量数据）
+UPDATE wiki_pages SET kind='note' WHERE kind='topic' AND slug LIKE 'note-%';
+-- 2) 人工编辑保护位（AI 档案页：非空 ⇔ digest 不得整篇覆盖正文）
 ALTER TABLE wiki_pages ADD COLUMN human_edited_at TEXT;  -- 可空 RFC3339
+-- 3) 素材页观点评价（NULL ⇔ 未表态，渲染/读取按缺省认可 'endorse' 处理）
+ALTER TABLE wiki_pages ADD COLUMN opinion TEXT;  -- 'endorse' | 'reject' | NULL
 ```
 
-- `NULL` ⇔ 从未人工编辑（既有数据全 NULL，digest 行为不变）；
-- 非空 ⇔ digest 不得整篇覆盖正文。
+既有数据：`note-` 存量改 1 条 kind；其余全 NULL，digest 行为与升级前一致。
 
-### 4.2 写入 API（人类路径）
+### 4.3 写入 API（人类路径）
 
 ```rust
-/// 人类编辑保存。非空、长度上限（64k）。写 revision（reason 前缀 "[human]"）+ wiki_log；
-/// 置 human_edited_at=now。返回更新后的页面。
+/// 人类编辑保存。仅允许可编辑 kind（person/project/capability/recurring_cost/topic/derivative）；
+/// 素材 kind（source/note）直接拒绝。非空、长度上限（64k）。写 revision（reason 前缀 "[human]"）
+/// + wiki_log；置 human_edited_at=now。返回更新后的页面。
 pub fn save_wiki_page_content(slug: String, content_md: String, reason: String) -> Result<WikiPageDto>
+
+/// 素材页观点评价。仅允许素材 kind（source/note）。不改变正文、不置位 human_edited_at，
+/// 只写 wiki_log 审计。
+pub fn set_wiki_opinion(slug: String, opinion: Option<String>) -> Result<WikiPageDto>
+// opinion: None=清空回未表态；Some("endorse"|"reject")
 ```
 
-仿 `update_wiki_tags`（`src/api.rs:1680`），`./regen.sh` 自动生成绑定。素材原文（`area=imported`）同样允许人工编辑。
+均仿 `update_wiki_tags`（`src/api.rs:1680`），`./regen.sh` 自动生成绑定。评价字段为后续「AI 提炼引用人工认可素材」的权重信号预留（消费逻辑不在 M1）。
 
-### 4.3 digest 保护
+### 4.4 digest 保护
 
-`upsert_wiki_page` 增加写回策略参数：
+`upsert_wiki_page` 增加策略参数，并按 kind 决定默认：
 
 ```rust
 enum ContentPolicy { Always, PreserveHumanEdits }
+```
 
-// PreserveHumanEdits 且 existing.human_edited_at 非空 且 existing.content_md != draft.content_md：
-//   → 不动 content_md/title/summary/tags；只做 source_event_ids 并集 + evidence_count 重算 + last_seen_at 刷新
-//   → 结果记入 DigestResult.skipped，reason "human-edited, 仅累加证据"
+- 素材页（`source`/`note`）：digest 调用即传 `PreserveHumanEdits`（内容对 AI 也只读，仅素材流程可写）；
+- 档案页/派生页：AI **静默生成路径**（digest 消化、洞察归档、关系建档）传 `PreserveHumanEdits`——见人工编辑（`human_edited_at` 非空）即转保护；
+- `PreserveHumanEdits` 且存在既有行且 `existing.content_md != draft.content_md`：
+  - 不动 `content_md/title/summary/tags`；
+  - 照做 `source_event_ids` 并集 + `evidence_count` 重算 + `last_seen_at` 刷新；
+  - 结果记入 `DigestResult.skipped`，reason `"human-edited, 仅累加证据"`。
+
+两档语义（实现即此，`Always` 触发条件为空集——它只出现在「有显式授权」的写回，不产生静默覆盖）：
+
+```rust
+enum ContentPolicy { Always, PreserveHumanEdits }
+// Always             → 不拦内容列：素材导入流程（素材页唯一合法写入方，可刷新采集快照）、
+//                      AI 草拟 → 用户确认制（save_knowledge_draft 建档 / save_wiki_revision 修订，
+//                      确认即显式授权）。人工编辑页也允许被确认制修订覆盖——这正是下面这句话的意义。
+// PreserveHumanEdits → human_edited_at 非空 或 kind∈{source,note} 时内容列只读。
 ```
 
 AI 对人工编辑页仍可走既有 `save_wiki_revision` 草拟确认制修订（显式确认，非静默覆盖），保持「AI 只提议、核心决定」纪律。
 
-### 4.4 派生页
+### 4.5 派生页
 
-`derivative` 不设保护（AI 生成物，覆盖是预期）；人类要改某条派生页，等同人工编辑置位即受保护。
+`derivative` 不设保护（AI 生成物，覆盖是预期）；人类要改某条派生页，等同人工编辑置位即受保护（升级为人工持有）。
 
 ## 5. 可行性 spike（本轮第一步，先于全面集成）
 
@@ -156,7 +204,7 @@ v1 建议 A；若聊天交互（键盘焦点/光标）与编辑器冲突严重�
 
 ## 8. 兼容与迁移
 
-- 迁移 v29 补列，既有行全 NULL，digest 行为与升级前一致；
+- 迁移 v29：拆 kind（`note-`→`note`）+ 补 `human_edited_at`/`opinion` 两列，既有数据 backfill 后行为与升级前一致；
 - CLI `wiki digest / insight / export` 不受影响（保护是内部行为变化）；
 - 所有写回仍留 `wiki_revisions`，可回滚；
 - `MarkdownView` 保留（对话消息等场景仍在用），不删除。
@@ -165,7 +213,8 @@ v1 建议 A；若聊天交互（键盘焦点/光标）与编辑器冲突严重�
 
 ### Rust
 
-- `save_wiki_page_content`：置位、revision 追加、日志、空/超长拒绝；
+- `save_wiki_page_content`：置位、revision 追加、日志、空/超长拒绝、**素材 kind 拒绝**；
+- `set_wiki_opinion`：校准/清空/审计，素材 kind 专用、非素材 kind 拒绝；
 - digest 保护：人工编辑页 → 正文不变、事件并集与证据数正确累加、进 `skipped`；未人工编辑页 → 与现网一致（回归）。
 
 ### Flutter
@@ -175,7 +224,7 @@ v1 建议 A；若聊天交互（键盘焦点/光标）与编辑器冲突严重�
 
 ## 10. 里程碑
 
-1. **M1（并行）**：核心保护 —— 迁移 v29 + `save_wiki_page_content` + digest 保护 + Rust 测试；
+1. **M1（并行）**：核心保护 —— 迁移 v29（kind 拆分 + `human_edited_at` + `opinion`）+ `save_wiki_page_content` + `set_wiki_opinion` + digest 按 kind 保护 + Rust 测试；
 2. **M2（spike）**：`flutter pub add appflowy_editor` + §5 四项验证，产出来回 diff 清单与决策记录；
 3. **M3（集成）**：双模式编辑器替换 + 保存链路 + AI 对话块（§6/§7）；
 4. **M4**：`round_trip` 常驻测试 + 主题打磨 + 移动端走查。

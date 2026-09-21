@@ -12,7 +12,7 @@
 use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
 use crate::event::{AnnotationSet, EventSummary};
-use crate::storage::{EventRecord, RelationDraft, Store, WikiPage, WikiPageDraft};
+use crate::storage::{ContentPolicy, EventRecord, RelationDraft, Store, WikiPage, WikiPageDraft};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::Path;
@@ -34,6 +34,8 @@ pub const WIKI_KINDS: &[&str] = &[
     "insight",
     "topic",
     "source",
+    // 用户粘贴笔记（M1 kind 拆分：从 topic 独立为素材档 note）
+    "note",
 ];
 
 /// 认知推微生成时要导航的页面类型（镜像四透镜的取材范围）
@@ -458,7 +460,7 @@ pub fn save_tweet_page(t: &TweetText, source_url: Option<&str>, store: &Store) -
         reason: format!("从 x.com 导入推文 {}", t.tweet_id),
         source_url: source_url.map(|s| s.to_string()),
     };
-    let outcome = store.upsert_wiki_page(&draft)?;
+    let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
     Ok(outcome.page)
 }
 
@@ -506,7 +508,7 @@ pub fn save_text_page(
 
     let draft = WikiPageDraft {
         slug,
-        kind: "topic".to_string(),
+        kind: "note".to_string(),
         title,
         summary,
         content_md: trimmed.to_string(),
@@ -516,7 +518,7 @@ pub fn save_text_page(
         reason: "用户粘贴文本导入".to_string(),
         source_url: None,
     };
-    let outcome = store.upsert_wiki_page(&draft)?;
+    let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
     Ok(outcome.page)
 }
 
@@ -628,7 +630,7 @@ pub fn apply_people_relations(
             reason: "AI 从对话识别人物，用户确认".to_string(),
             source_url: None,
         };
-        store.upsert_wiki_page(&draft)?;
+        store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
         person_entries.push((name, slug, "person".to_string()));
     }
 
@@ -676,7 +678,7 @@ pub fn apply_people_relations(
                     reason: "AI 人物关系确认时自动建档".to_string(),
                     source_url: None,
                 };
-                store.upsert_wiki_page(&draft)?;
+                store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
                 (slug, "topic".to_string())
             }
         };
@@ -1128,8 +1130,12 @@ pub fn generate_digest(store: &Store, opts: &DigestOptions) -> Result<DigestResu
                 .unwrap_or_else(|| "digest 消化新事件".to_string()),
             source_url: None,
         };
-        let outcome = store.upsert_wiki_page(&draft)?;
-        if outcome.created {
+        let outcome = store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
+        if outcome.protected {
+            result
+                .skipped
+                .push(format!("human-edited, 仅累加证据: {}", p.slug));
+        } else if outcome.created {
             result.created.push(p.slug.clone());
         } else {
             result.updated.push(p.slug.clone());
@@ -1311,18 +1317,21 @@ mod tests {
         let store = Store::open(&path).unwrap();
         // 先用不同标题占住 person/zhang-wei 这个 slug
         store
-            .upsert_wiki_page(&WikiPageDraft {
-                slug: "person/zhang-wei".into(),
-                kind: "person".into(),
-                title: "Zhang Wei".into(),
-                summary: String::new(),
-                content_md: String::new(),
-                tags: vec![],
-                source_event_ids: vec![],
-                status: "active".into(),
-                reason: "test".into(),
-                source_url: None,
-            })
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: "person/zhang-wei".into(),
+                    kind: "person".into(),
+                    title: "Zhang Wei".into(),
+                    summary: String::new(),
+                    content_md: String::new(),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".into(),
+                    reason: "test".into(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
             .unwrap();
         // 不同标题 → 后缀避让
         assert_eq!(
@@ -1364,6 +1373,8 @@ mod tests {
                 area: "insight".into(),
                 based_on: None,
                 content_type: None,
+                human_edited_at: None,
+                opinion: None,
             },
             WikiPage {
                 id: "2".into(),
@@ -1384,6 +1395,8 @@ mod tests {
                 area: "insight".into(),
                 based_on: None,
                 content_type: None,
+                human_edited_at: None,
+                opinion: None,
             },
         ];
         let md = build_index_md(&pages);
@@ -1414,7 +1427,7 @@ mod tests {
             reason: "t".into(),
             source_url: None,
         };
-        store.upsert_wiki_page(&draft).unwrap();
+        store.upsert_wiki_page(&draft, ContentPolicy::Always).unwrap();
 
         // 去 #、去空白、去重、忽略空串，保持顺序
         let updated = store
@@ -1448,7 +1461,7 @@ mod tests {
         let tags = vec![" #工作 ".to_string(), "Rust".to_string(), "".to_string()];
         let page =
             save_text_page("这是一段要保存的笔记正文", Some("我的笔记"), &tags, &store).unwrap();
-        assert_eq!(page.kind, "topic");
+        assert_eq!(page.kind, "note", "用户粘贴笔记归素材档 kind=note（M1 语义拆分）");
         assert_eq!(page.title, "我的笔记");
         assert!(page.tags.contains(&"工作".to_string()), "{:?}", page.tags);
         assert!(page.tags.contains(&"Rust".to_string()), "{:?}", page.tags);
@@ -1480,18 +1493,21 @@ mod tests {
 
         // 预置一个已存在的目标页（模拟 digest 已建档的项目）
         store
-            .upsert_wiki_page(&WikiPageDraft {
-                slug: "project/shuanglian".into(),
-                kind: "project".into(),
-                title: "双链路付款".into(),
-                summary: "项目简介".into(),
-                content_md: "正文".into(),
-                tags: vec![],
-                source_event_ids: vec!["evt-1".into()],
-                status: "active".into(),
-                reason: "digest".into(),
-                source_url: None,
-            })
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: "project/shuanglian".into(),
+                    kind: "project".into(),
+                    title: "双链路付款".into(),
+                    summary: "项目简介".into(),
+                    content_md: "正文".into(),
+                    tags: vec![],
+                    source_event_ids: vec!["evt-1".into()],
+                    status: "active".into(),
+                    reason: "digest".into(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
             .unwrap();
 
         let args = serde_json::json!({
@@ -1570,18 +1586,21 @@ mod tests {
         let store = Store::open(&path).unwrap();
         for slug in ["person/张伟-市场部", "person/张伟-设计"] {
             store
-                .upsert_wiki_page(&WikiPageDraft {
-                    slug: slug.into(),
-                    kind: "person".into(),
-                    title: "张伟".into(),
-                    summary: slug.into(),
-                    content_md: "正文".into(),
-                    tags: vec![],
-                    source_event_ids: vec![],
-                    status: "active".into(),
-                    reason: "test".into(),
-                    source_url: None,
-                })
+                .upsert_wiki_page(
+                    &WikiPageDraft {
+                        slug: slug.into(),
+                        kind: "person".into(),
+                        title: "张伟".into(),
+                        summary: slug.into(),
+                        content_md: "正文".into(),
+                        tags: vec![],
+                        source_event_ids: vec![],
+                        status: "active".into(),
+                        reason: "test".into(),
+                        source_url: None,
+                    },
+                    ContentPolicy::Always,
+                )
                 .unwrap();
         }
         let args = serde_json::json!({

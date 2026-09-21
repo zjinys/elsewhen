@@ -1,7 +1,7 @@
 use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
 use crate::event::NewEvent;
-use crate::storage::{RelationDraft, RuleStatus, Store};
+use crate::storage::{ContentPolicy, RelationDraft, RuleStatus, Store};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
@@ -1624,6 +1624,10 @@ pub struct WikiPageDto {
     pub based_on: Option<String>,
     /// 派生产物的加工类型（总结/提炼观点/抖音文案…，仅 derivative 有值）
     pub content_type: Option<String>,
+    /// 最近一次人工编辑正文的时间（非空 ⇔ 该页由人工持有，digest 不整篇覆盖）
+    pub human_edited_at: Option<String>,
+    /// 素材页观点评价：Some("endorse")/Some("reject")/None=未表态（缺省认可）
+    pub opinion: Option<String>,
 }
 
 impl From<crate::storage::WikiPage> for WikiPageDto {
@@ -1647,6 +1651,8 @@ impl From<crate::storage::WikiPage> for WikiPageDto {
             area: p.area,
             based_on: p.based_on,
             content_type: p.content_type,
+            human_edited_at: p.human_edited_at,
+            opinion: p.opinion,
         }
     }
 }
@@ -1681,6 +1687,24 @@ pub fn update_wiki_tags(slug: String, tags: Vec<String>) -> Result<WikiPageDto> 
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     let page = store.update_wiki_tags(&slug, &tags)?;
+    Ok(WikiPageDto::from(page))
+}
+
+/// 人类编辑保存一页正文（限可编辑 kind；素材页只读拒绝）。
+/// 保存后 `human_edited_at` 置位：该页被 AI digest 视为人工持有，不再整篇覆盖。
+pub fn save_wiki_page_content(slug: String, content_md: String, reason: String) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let page = store.save_wiki_page_content(&slug, &content_md, &reason)?;
+    Ok(WikiPageDto::from(page))
+}
+
+/// 素材页观点评价（仅 source/note）。opinion：Some("endorse")=认可 / Some("reject")=不认可 /
+/// None=清空回未表态（读取按缺省认可处理）。不改变正文、不置位人工编辑保护。
+pub fn set_wiki_opinion(slug: String, opinion: Option<String>) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let page = store.set_wiki_opinion(&slug, opinion.as_deref())?;
     Ok(WikiPageDto::from(page))
 }
 
@@ -2185,7 +2209,7 @@ pub fn save_imported_page(
         reason: format!("从 {source_url} 导入"),
         source_url: Some(source_url),
     };
-    let outcome = store.upsert_wiki_page(&draft)?;
+    let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
     Ok(WikiPageDto::from(outcome.page))
 }
 
@@ -2352,7 +2376,7 @@ mod daily_review_tests {
             reason: "test".to_string(),
             source_url: None,
         };
-        store.upsert_wiki_page(&draft).unwrap();
+        store.upsert_wiki_page(&draft, ContentPolicy::Always).unwrap();
         let context = decision_support_context(&store).unwrap();
         assert!(context.contains("先确认付款方再推进"));
         assert!(context.contains("付款检查"));

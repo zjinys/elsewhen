@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -959297336;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 724295265;
 
 // Section: executor
 
@@ -1581,6 +1581,37 @@ fn wire__crate__api__save_tweet_page_impl(
         },
     )
 }
+fn wire__crate__api__save_wiki_page_content_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+    content_md: impl CstDecode<String>,
+    reason: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_wiki_page_content",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            let api_content_md = content_md.cst_decode();
+            let api_reason = reason.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::save_wiki_page_content(
+                            api_slug,
+                            api_content_md,
+                            api_reason,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__send_message_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     conversation_id: impl CstDecode<String>,
@@ -1685,6 +1716,31 @@ fn wire__crate__api__set_event_recordability_impl(
                     (move || {
                         let output_ok =
                             crate::api::set_event_recordability(api_event_id, api_recordable)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__set_wiki_opinion_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+    opinion: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_wiki_opinion",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            let api_opinion = opinion.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::set_wiki_opinion(api_slug, api_opinion)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2980,6 +3036,8 @@ impl SseDecode for crate::api::WikiPageDto {
         let mut var_area = <String>::sse_decode(deserializer);
         let mut var_basedOn = <Option<String>>::sse_decode(deserializer);
         let mut var_contentType = <Option<String>>::sse_decode(deserializer);
+        let mut var_humanEditedAt = <Option<String>>::sse_decode(deserializer);
+        let mut var_opinion = <Option<String>>::sse_decode(deserializer);
         return crate::api::WikiPageDto {
             id: var_id,
             slug: var_slug,
@@ -2999,6 +3057,8 @@ impl SseDecode for crate::api::WikiPageDto {
             area: var_area,
             based_on: var_basedOn,
             content_type: var_contentType,
+            human_edited_at: var_humanEditedAt,
+            opinion: var_opinion,
         };
     }
 }
@@ -3600,6 +3660,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::WikiPageDto {
             self.area.into_into_dart().into_dart(),
             self.based_on.into_into_dart().into_dart(),
             self.content_type.into_into_dart().into_dart(),
+            self.human_edited_at.into_into_dart().into_dart(),
+            self.opinion.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4293,6 +4355,8 @@ impl SseEncode for crate::api::WikiPageDto {
         <String>::sse_encode(self.area, serializer);
         <Option<String>>::sse_encode(self.based_on, serializer);
         <Option<String>>::sse_encode(self.content_type, serializer);
+        <Option<String>>::sse_encode(self.human_edited_at, serializer);
+        <Option<String>>::sse_encode(self.opinion, serializer);
     }
 }
 
@@ -4931,6 +4995,8 @@ mod io {
                 area: self.area.cst_decode(),
                 based_on: self.based_on.cst_decode(),
                 content_type: self.content_type.cst_decode(),
+                human_edited_at: self.human_edited_at.cst_decode(),
+                opinion: self.opinion.cst_decode(),
             }
         }
     }
@@ -5385,6 +5451,8 @@ mod io {
                 area: core::ptr::null_mut(),
                 based_on: core::ptr::null_mut(),
                 content_type: core::ptr::null_mut(),
+                human_edited_at: core::ptr::null_mut(),
+                opinion: core::ptr::null_mut(),
             }
         }
     }
@@ -5925,6 +5993,16 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__save_wiki_page_content(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        content_md: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__save_wiki_page_content_impl(port_, slug, content_md, reason)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__send_message(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -5965,6 +6043,15 @@ mod io {
         recordable: bool,
     ) {
         wire__crate__api__set_event_recordability_impl(port_, event_id, recordable)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__set_wiki_opinion(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        opinion: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__set_wiki_opinion_impl(port_, slug, opinion)
     }
 
     #[unsafe(no_mangle)]
@@ -6767,6 +6854,8 @@ mod io {
         area: *mut wire_cst_list_prim_u_8_strict,
         based_on: *mut wire_cst_list_prim_u_8_strict,
         content_type: *mut wire_cst_list_prim_u_8_strict,
+        human_edited_at: *mut wire_cst_list_prim_u_8_strict,
+        opinion: *mut wire_cst_list_prim_u_8_strict,
     }
 }
 #[cfg(not(target_family = "wasm"))]
@@ -7611,8 +7700,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                18,
-                "Expected 18 elements, got {}",
+                20,
+                "Expected 20 elements, got {}",
                 self_.length()
             );
             crate::api::WikiPageDto {
@@ -7634,6 +7723,8 @@ mod web {
                 area: self_.get(15).cst_decode(),
                 based_on: self_.get(16).cst_decode(),
                 content_type: self_.get(17).cst_decode(),
+                human_edited_at: self_.get(18).cst_decode(),
+                opinion: self_.get(19).cst_decode(),
             }
         }
     }
@@ -8245,6 +8336,16 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__save_wiki_page_content(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+        content_md: String,
+        reason: String,
+    ) {
+        wire__crate__api__save_wiki_page_content_impl(port_, slug, content_md, reason)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__send_message(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
@@ -8285,6 +8386,15 @@ mod web {
         recordable: bool,
     ) {
         wire__crate__api__set_event_recordability_impl(port_, event_id, recordable)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__set_wiki_opinion(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+        opinion: Option<String>,
+    ) {
+        wire__crate__api__set_wiki_opinion_impl(port_, slug, opinion)
     }
 
     #[wasm_bindgen]
