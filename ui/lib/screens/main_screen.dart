@@ -6,6 +6,7 @@ import '../providers/wiki_provider.dart';
 import '../widgets/left_sidebar.dart';
 import '../widgets/message_area.dart';
 import '../widgets/wiki_page_detail_view.dart';
+import '../widgets/todo_view.dart';
 import '../widgets/custom_title_bar.dart';
 
 class MainScreen extends ConsumerWidget {
@@ -33,6 +34,7 @@ class MainScreen extends ConsumerWidget {
                     child: switch (tab) {
                       SidebarTab.conversation => const MessageArea(),
                       SidebarTab.wiki => const WikiPageDetailView(),
+                      SidebarTab.todos => const TodoListView(),
                     },
                   ),
                 ),

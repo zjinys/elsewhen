@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/conversation.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../bridge/generated.dart/api.dart' show MessageRecordabilityDto;
+import '../models/token_usage.dart';
 
 /// Mock conversation repository (will be replaced with Rust bridge)
 class ConversationRepository {
@@ -22,12 +23,57 @@ class ConversationRepository {
 
   /// Get messages for a conversation
   Future<List<Message>> getMessages(String conversationId) async {
-    return await _bridge.listMessages(conversationId);
+    final active = await _bridge.listConversations();
+    final archived = await _bridge.listArchivedConversations();
+    final ordinary = [...active, ...archived]
+        .where((conversation) => !conversation.isWikiChat)
+        .toList();
+    final isMain = ordinary.any(
+      (conversation) =>
+          conversation.id == conversationId &&
+          conversation.title == '主对话流',
+    );
+    if (!isMain) return _bridge.listMessages(conversationId);
+
+    final batches = await Future.wait(
+      ordinary.map((conversation) => _bridge.listMessages(conversation.id)),
+    );
+    final messages = batches.expand((batch) => batch).toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return messages;
   }
 
   /// Create a new conversation
   Future<Conversation> createConversation() async {
     return await _bridge.createConversation();
+  }
+
+  /// Return the single user-facing main conversation, creating it on first use.
+  /// Knowledge-page chats are deliberately excluded from this entry point.
+  Future<Conversation> ensureMainConversation() async {
+    final conversations = await _bridge.listConversations();
+    final main = conversations.where((c) => !c.isWikiChat).toList();
+    if (main.isNotEmpty) {
+      // The reserved title makes the identity stable across restarts instead
+      // of relying on whichever conversation happens to be newest.
+      final marked = main.where((c) => c.title == '主对话流').toList();
+      if (marked.isNotEmpty) return marked.first;
+      main.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final legacyMain = main.first;
+      await _bridge.renameConversation(legacyMain.id, '主对话流');
+      return Conversation(
+        id: legacyMain.id,
+        title: '主对话流',
+        tag: legacyMain.tag,
+        createdAt: legacyMain.createdAt,
+        updatedAt: legacyMain.updatedAt,
+        messageCount: legacyMain.messageCount,
+        lastMessagePreview: legacyMain.lastMessagePreview,
+        archived: legacyMain.archived,
+        wikiPageSlug: legacyMain.wikiPageSlug,
+      );
+    }
+    return _bridge.createConversation(title: '主对话流', tag: 'diary');
   }
 
   /// Rename a conversation
@@ -86,6 +132,38 @@ final conversationsProvider = FutureProvider<List<Conversation>>((ref) async {
   return showArchived
       ? await repo.getArchivedConversations()
       : await repo.getConversations();
+});
+
+final mainConversationProvider = FutureProvider<Conversation>((ref) async {
+  return ref.read(conversationRepositoryProvider).ensureMainConversation();
+});
+
+final analysisJobStatsProvider = FutureProvider((ref) async {
+  final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+  return bridge.getAnalysisJobStats();
+});
+
+final activeAiProviderProvider = FutureProvider<String?>((ref) async {
+  final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+  final providers = await bridge.listAiProviderConfigs();
+  for (final provider in providers) {
+    if (provider.isActive) return provider.name;
+  }
+  return null;
+});
+
+final todayTokenUsageProvider = FutureProvider<DailyTokenUsage?>((ref) async {
+  final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+  final usage = await bridge.getDailyTokenUsage(1);
+  if (usage.isEmpty) return null;
+  final today = DateTime.now();
+  final key = '${today.year.toString().padLeft(4, '0')}-'
+      '${today.month.toString().padLeft(2, '0')}-'
+      '${today.day.toString().padLeft(2, '0')}';
+  for (final item in usage) {
+    if (item.date == key) return item;
+  }
+  return null;
 });
 
 /// Selected conversation ID provider

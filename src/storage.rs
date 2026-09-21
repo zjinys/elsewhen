@@ -2035,6 +2035,33 @@ impl Store {
         Ok(rows)
     }
 
+    /// Full provider configurations for runtime failover, including secrets.
+    /// The active provider is returned first, followed by creation order.
+    pub fn list_ai_provider_configs_for_runtime(&self) -> Result<Vec<AiProviderConfig>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id,name,provider_type,base_url,model,api_key_source,
+                    COALESCE(api_key,''),is_active,temperature,max_tokens
+             FROM ai_provider_configs
+             ORDER BY is_active DESC, created_at ASC, id ASC",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(AiProviderConfig {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                provider_type: row.get(2)?,
+                base_url: row.get(3)?,
+                model: row.get(4)?,
+                api_key_source: row.get(5)?,
+                api_key: row.get(6)?,
+                is_active: row.get::<_, i64>(7)? != 0,
+                temperature: row.get(8)?,
+                max_tokens: row.get(9)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     /// 新增 / 编辑 AI provider 配置。id 为空则新建；
     /// 新建且当前无激活配置时自动激活。api_key 传空串表示保留已有 key 不变。
     pub fn save_ai_provider_config(
@@ -3030,12 +3057,31 @@ impl Store {
             .map_err(Into::into)
     }
 
+    /// Fetch a todo by id, including archived history. Used by on-demand
+    /// work-item migration so archived todos are never silently lost.
+    pub fn get_todo(&self, id: &str) -> Result<Option<Todo>> {
+        let mut todos = self.list_todos(Some("archived"))?;
+        todos.extend(self.list_todos(None)?);
+        Ok(todos.into_iter().find(|todo| todo.id == id))
+    }
+
     pub fn update_todo_status(&self, id: &str, status: TodoStatus) -> Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
         self.connection.execute(
             "UPDATE todos SET status=?1, updated_at=?2 WHERE id=?3",
             params![status.as_str(), now, id],
         )?;
+        Ok(())
+    }
+
+    pub fn set_todo_related_wiki_slug(&self, id: &str, slug: &str) -> Result<()> {
+        let changed = self.connection.execute(
+            "UPDATE todos SET related_wiki_slug=?1, updated_at=?2 WHERE id=?3",
+            params![slug, chrono::Utc::now().to_rfc3339(), id],
+        )?;
+        if changed == 0 {
+            anyhow::bail!("未找到待办（id={id}）");
+        }
         Ok(())
     }
 
@@ -4346,6 +4392,65 @@ mod tests {
         assert!(store
             .update_todo(&todo.id, "   ", None, None, None)
             .is_err());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn work_item_link_is_lazy_idempotent_and_keeps_completed_history() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let todo = store
+            .create_todo(
+                "讨论发布策略",
+                "high",
+                Some("2026-09-30"),
+                None,
+                None,
+                Some("先收集约束"),
+            )
+            .unwrap();
+
+        // 创建待办不会隐式制造知识页；页面升级后关联可回溯。
+        assert!(todo.related_wiki_slug.is_none());
+        store
+            .set_todo_related_wiki_slug(&todo.id, "topic/discuss-release")
+            .unwrap();
+        let linked = store.list_todos(None).unwrap();
+        assert_eq!(
+            linked[0].related_wiki_slug.as_deref(),
+            Some("topic/discuss-release")
+        );
+
+        // 重复升级只覆盖同一关联，不产生第二条待办或改变其字段。
+        store
+            .set_todo_related_wiki_slug(&todo.id, "topic/discuss-release")
+            .unwrap();
+        assert_eq!(store.list_todos(None).unwrap().len(), 1);
+        store
+            .update_todo_status(&todo.id, TodoStatus::Done)
+            .unwrap();
+        let completed = store.list_todos(None).unwrap();
+        assert_eq!(completed[0].status, TodoStatus::Done);
+        assert_eq!(
+            completed[0].related_wiki_slug.as_deref(),
+            Some("topic/discuss-release")
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn get_todo_includes_archived_history_for_on_demand_migration() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let todo = store
+            .create_todo("归档后仍可讨论", "normal", None, None, None, None)
+            .unwrap();
+        store
+            .update_todo_status(&todo.id, TodoStatus::Archived)
+            .unwrap();
+        let found = store.get_todo(&todo.id).unwrap().unwrap();
+        assert_eq!(found.status, TodoStatus::Archived);
+        assert!(store.list_todos(None).unwrap().is_empty());
         let _ = std::fs::remove_file(path);
     }
 

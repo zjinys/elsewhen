@@ -32,7 +32,11 @@ void main() {
     );
     await tester.pump();
 
-    final input = find.byType(TextField);
+    final input = find.byWidgetPredicate(
+      (widget) => widget is TextField &&
+          (widget.decoration?.hintText == '输入消息...' ||
+              widget.decoration?.hintText?.startsWith('AI 正在思考') == true),
+    );
     expect(input, findsOneWidget);
 
     // 输入并发送（回车），generateReply 挂起在 replyGate 上 → 生成中

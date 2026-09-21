@@ -1864,6 +1864,9 @@ class RustLibWire implements BaseWire {
     target_slug,
   );
 
+  void wire__crate__api__open_todo_work_item(NativePortType port_, String id) =>
+      wasmModule.wire__crate__api__open_todo_work_item(port_, id);
+
   void wire__crate__api__reanalyze_event(
     NativePortType port_,
     String event_id,
@@ -2331,6 +2334,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String entity_kind,
     String source_slug,
     String target_slug,
+  );
+
+  external void wire__crate__api__open_todo_work_item(
+    NativePortType port_,
+    String id,
   );
 
   external void wire__crate__api__reanalyze_event(

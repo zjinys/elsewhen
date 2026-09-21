@@ -31,7 +31,11 @@ void main() {
     );
     await tester.pump();
 
-    final input = find.byType(TextField);
+    final input = find.byWidgetPredicate(
+      (widget) => widget is TextField &&
+          (widget.decoration?.hintText == '输入消息...' ||
+              widget.decoration?.hintText?.startsWith('AI 正在思考') == true),
+    );
     expect(input, findsOneWidget);
 
     // ① 发送后 AI 失败：最后一条用户消息上出现「重新生成」

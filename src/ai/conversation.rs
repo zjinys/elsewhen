@@ -156,20 +156,30 @@ pub fn generate_conversation_reply(
     }
 
     // 3) 创建 AI provider
-    let ai_provider: Box<dyn AiProvider> = match config.provider_type {
+    let ai_providers: Vec<(Option<String>, Box<dyn AiProvider>)> = match config.provider_type {
         ProviderType::OpenAiCompatible => {
-            let ai_config = store
-                .active_ai_provider_config()?
-                .context("No active AI provider configuration")?;
-
-            let provider_config = super::provider::OpenAiCompatibleConfig {
-                base_url: ai_config.base_url,
-                api_key: ai_config.api_key,
-                model: ai_config.model,
-                temperature: ai_config.temperature as f32,
-                max_tokens: ai_config.max_tokens.map(|v| v as u32),
-            };
-            Box::new(OpenAiCompatibleProvider::new(provider_config)?)
+            let configs = store.list_ai_provider_configs_for_runtime()?;
+            if configs.is_empty() {
+                anyhow::bail!("No active AI provider configuration");
+            }
+            configs
+                .into_iter()
+                .map(|ai_config| {
+                    let id = ai_config.id.clone();
+                    let provider_config = super::provider::OpenAiCompatibleConfig {
+                        base_url: ai_config.base_url,
+                        api_key: ai_config.api_key,
+                        model: ai_config.model,
+                        temperature: ai_config.temperature as f32,
+                        max_tokens: ai_config.max_tokens.map(|v| v as u32),
+                    };
+                    Ok((
+                        Some(id),
+                        Box::new(OpenAiCompatibleProvider::new(provider_config)?)
+                            as Box<dyn AiProvider>,
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?
         }
         ProviderType::Ollama => {
             // For Ollama, use environment variables or defaults
@@ -182,19 +192,35 @@ pub fn generate_conversation_reply(
                 model,
                 temperature: 0.7,
             };
-            Box::new(OllamaProvider::new(provider_config)?)
+            vec![(None, Box::new(OllamaProvider::new(provider_config)?))]
         }
     };
 
     // 4) Agent 循环（可调工具）
     let registry = ToolRegistry::default();
-    let outcome = run_agent_loop(
-        &*ai_provider,
-        &mut context,
-        &registry,
-        store,
-        conversation_id,
-    )?;
+    let mut errors = Vec::new();
+    let mut outcome = None;
+    for (provider_id, provider) in ai_providers {
+        let mut attempt_context = context.clone();
+        match run_agent_loop(
+            &*provider,
+            &mut attempt_context,
+            &registry,
+            store,
+            conversation_id,
+        ) {
+            Ok(result) => {
+                if let Some(id) = provider_id {
+                    store.set_active_ai_provider_config(&id)?;
+                }
+                context = attempt_context;
+                outcome = Some(result);
+                break;
+            }
+            Err(error) => errors.push(error.to_string()),
+        }
+    }
+    let outcome = outcome.context(format!("所有 AI provider 均失败：{}", errors.join(" | ")))?;
     let raw = outcome.content;
 
     // 5) 解析规则提议：若 AI 在末尾提交了一条规则，剥离标记转为友好提示展示，

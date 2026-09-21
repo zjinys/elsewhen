@@ -437,6 +437,12 @@ fn provider_multi_config_single_active() {
     assert_eq!(actives.len(), 1, "必须只有一个激活项");
     assert_eq!(actives[0].id, b);
 
+    let runtime = store.list_ai_provider_configs_for_runtime().unwrap();
+    assert_eq!(runtime[0].id, b, "运行时列表应将激活配置排在第一位");
+    assert_eq!(runtime[0].api_key, "key-b");
+    assert_eq!(runtime[1].id, a);
+    assert_eq!(runtime[1].api_key, "key-a");
+
     // 编辑配置：api_key 传空串应保留原 key，其余字段更新
     store
         .save_ai_provider_config(

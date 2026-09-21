@@ -10,6 +10,7 @@ import '../models/import_fetch.dart';
 import '../models/wiki_page.dart';
 import '../models/conversation.dart';
 import '../providers/wiki_provider.dart';
+import '../providers/conversation_provider.dart';
 import '../providers/todo_provider.dart';
 import '../models/todo.dart';
 import '../theme/app_theme.dart';
@@ -773,6 +774,10 @@ class _WikiPageBody extends ConsumerWidget {
                     ),
                   ),
                 ),
+              if (page.tags.contains('work-item')) ...[
+                const SizedBox(height: AppTheme.space3),
+                _WorkItemPanel(page: page),
+              ],
               const SizedBox(height: AppTheme.space3),
               _buildTagRow(context, ref),
               _EntityAliases(slug: page.slug),
@@ -816,7 +821,7 @@ class _WikiPageBody extends ConsumerWidget {
     );
   }
 
-  /// 标签行：标签 chips + 编辑入口（标签是用户组织知识库的主要元数据）
+/// 标签行：标签 chips + 编辑入口（标签是用户组织知识库的主要元数据）
   Widget _buildTagRow(BuildContext context, WidgetRef ref) {
     return Wrap(
       spacing: 6,
@@ -991,6 +996,145 @@ class _WikiPageBody extends ConsumerWidget {
     if (s.isEmpty) return false;
     return page.title.trim() != s;
   }
+}
+
+class _WorkItemPanel extends ConsumerWidget {
+  final WikiPage page;
+
+  const _WorkItemPanel({required this.page});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final todos = ref.watch(todosProvider).valueOrNull ?? const <Todo>[];
+    Todo? todo;
+    for (final item in todos) {
+      if (item.relatedWikiSlug == page.slug) {
+        todo = item;
+        break;
+      }
+    }
+    if (todo == null) return const SizedBox.shrink();
+    final workItem = todo;
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+
+    Future<void> updateFields({String? priority, String? dueAt}) async {
+      await repo.updateTodo(
+        id: workItem.id,
+        title: workItem.title,
+        note: workItem.note,
+        priority: priority ?? workItem.priority,
+        dueAt: dueAt ?? workItem.dueAt,
+      );
+      ref.invalidate(todosProvider);
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        PopupMenuButton<String>(
+          tooltip: '更新状态',
+          onSelected: (status) async {
+            await repo.updateTodoStatus(workItem.id, status);
+            ref.invalidate(todosProvider);
+          },
+          itemBuilder: (_) => [
+            for (final status in TodoStatus.values)
+              PopupMenuItem(value: status.wire, child: Text(status.label)),
+          ],
+          child: _WorkItemChip(
+            icon: workItem.isDone
+                ? Icons.check_circle
+                : Icons.radio_button_unchecked,
+            label: workItem.status.label,
+            color: workItem.isDone ? AppTheme.success : AppTheme.accentPrimary,
+          ),
+        ),
+        PopupMenuButton<String>(
+          tooltip: '更新优先级',
+          onSelected: (priority) => updateFields(priority: priority),
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'high', child: Text('高优先级')),
+            PopupMenuItem(value: 'normal', child: Text('普通优先级')),
+            PopupMenuItem(value: 'low', child: Text('低优先级')),
+          ],
+          child: _WorkItemChip(
+            icon: Icons.flag_outlined,
+            label: workItem.priority == 'high'
+                ? '高优先级'
+                : workItem.priority == 'low'
+                    ? '低优先级'
+                    : '普通优先级',
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        InkWell(
+          onTap: () async {
+            final now = DateTime.now();
+            final selected = await showDatePicker(
+              context: context,
+              initialDate: workItem.dueAt == null
+                  ? now
+                  : DateTime.tryParse(workItem.dueAt!) ?? now,
+              firstDate: DateTime(now.year - 1),
+              lastDate: DateTime(now.year + 5),
+              helpText: '选择截止日期',
+            );
+            if (selected != null) {
+              await updateFields(dueAt: selected.toIso8601String());
+            }
+          },
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          child: _WorkItemChip(
+            icon: Icons.event_outlined,
+            label: workItem.dueAt == null
+                ? '设置截止日期'
+                : '截止 ${_fmtWorkItemDate(workItem.dueAt!)}',
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WorkItemChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _WorkItemChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppTheme.surface2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        border: Border.all(color: AppTheme.surface3),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(label, style: TextStyle(fontSize: 11, color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+String _fmtWorkItemDate(String value) {
+  final date = DateTime.tryParse(value)?.toLocal();
+  if (date == null) return value;
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
 
 class _EntityAliases extends ConsumerStatefulWidget {
@@ -1317,7 +1461,22 @@ class _EntityRelatedTodos extends ConsumerWidget {
                         fontSize: 10.5,
                         color: AppTheme.textTertiary,
                       ),
-                    ),
+                      ),
+              secondary: IconButton(
+                tooltip: '打开工作项',
+                icon: Icon(
+                  Icons.open_in_new,
+                  size: 16,
+                  color: AppTheme.accentPrimary,
+                ),
+                onPressed: () async {
+                  final repo = ref.read(storageRepositoryProvider)
+                      as RustBridgeRepository;
+                  final workItem = await repo.openTodoWorkItem(todo.id);
+                  if (!context.mounted) return;
+                  openWikiPageTab(ref, workItem);
+                },
+              ),
               onChanged: todo.status == TodoStatus.archived
                   ? null
                   : (_) => _toggle(ref, todo),
@@ -1719,6 +1878,14 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
 
   /// 快捷指令：点击即把对应 prompt 发给本页 AI（结果需确认才写库）
   static const _quickPrompts = [
+    _QuickPrompt(
+      label: '沉淀决定',
+      prompt: '回顾本页最近的讨论，只提取已经明确的决定和依据。请提出对当前页面的修订，并通过 save_wiki_revision 确认门让我确认后再写入；不要直接修改页面。',
+    ),
+    _QuickPrompt(
+      label: '整理下一步',
+      prompt: '回顾本页最近的讨论，整理可执行的下一步和未决问题。请提出对当前页面的修订，并通过 save_wiki_revision 确认门让我确认后再写入；不要直接修改页面。',
+    ),
     _QuickPrompt(label: '总结', prompt: '给我总结一下这一页，用要点列出核心信息'),
     _QuickPrompt(label: '提取要点', prompt: '提取这一页的关键信息，按重要性列出'),
     _QuickPrompt(label: '写抖音文案', prompt: '根据这一页内容，写一段适合发抖音的文案'),
@@ -1875,6 +2042,16 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
                   ),
                 ),
                 const Spacer(),
+                if (widget.slug.startsWith('topic/'))
+                  TextButton.icon(
+                    onPressed: _returnToMainConversation,
+                    icon: const Icon(Icons.arrow_back, size: 14),
+                    label: const Text('返回主对话'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
                 if (!_ready)
                   const SizedBox(
                     width: 12,
@@ -2012,6 +2189,13 @@ class _PageAiChatPanelState extends ConsumerState<_PageAiChatPanel> {
         ],
       ),
     );
+  }
+
+  Future<void> _returnToMainConversation() async {
+    final main = await ref.read(mainConversationProvider.future);
+    if (!mounted) return;
+    ref.read(selectedConversationIdProvider.notifier).state = main.id;
+    ref.read(sidebarTabProvider.notifier).state = SidebarTab.conversation;
   }
 }
 

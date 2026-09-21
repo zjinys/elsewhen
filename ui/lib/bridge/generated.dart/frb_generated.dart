@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1816150120;
+  int get rustContentHash => -959297336;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -251,6 +251,8 @@ abstract class RustLibApi extends BaseApi {
     required String sourceSlug,
     required String targetSlug,
   });
+
+  Future<WikiPageDto> crateApiOpenTodoWorkItem({required String id});
 
   Future<bool> crateApiReanalyzeEvent({required String eventId});
 
@@ -1758,6 +1760,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "merge_entity",
     argNames: ["entityKind", "sourceSlug", "targetSlug"],
   );
+
+  @override
+  Future<WikiPageDto> crateApiOpenTodoWorkItem({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__open_todo_work_item(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiOpenTodoWorkItemConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiOpenTodoWorkItemConstMeta =>
+      const TaskConstMeta(debugName: "open_todo_work_item", argNames: ["id"]);
 
   @override
   Future<bool> crateApiReanalyzeEvent({required String eventId}) {

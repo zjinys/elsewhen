@@ -26,7 +26,11 @@ void main() {
     );
     await tester.pump();
 
-    final input = find.byType(TextField);
+    final input = find.byWidgetPredicate(
+      (widget) => widget is TextField &&
+          (widget.decoration?.hintText == '输入消息...' ||
+              widget.decoration?.hintText?.startsWith('AI 正在思考') == true),
+    );
     expect(input, findsOneWidget, reason: '有选中会话时应出现输入框');
 
     // ① 回车提交，写库失败 → 错误 SnackBar + 文本保留可重试

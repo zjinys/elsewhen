@@ -3390,6 +3390,28 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__open_todo_work_item(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__open_todo_work_item(port_, id);
+  }
+
+  late final _wire__crate__api__open_todo_work_itemPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__open_todo_work_item');
+  late final _wire__crate__api__open_todo_work_item =
+      _wire__crate__api__open_todo_work_itemPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__reanalyze_event(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,

@@ -1034,8 +1034,10 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
         let Some(job) = store.claim_analysis_job()? else {
             break;
         };
+        let context = decision_support_context(store)?;
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织；付款流程、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n记录：{}",
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织；付款流程、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}",
+            context,
             job.raw_text
         );
         match provider.generate_reply(vec![ContextMessage::new("user", prompt)]) {
@@ -1098,6 +1100,27 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
         }
     }
     Ok(format!("processed:{processed}"))
+}
+
+/// Build bounded, read-only context for Phase 4C. This makes existing rules and
+/// knowledge visible at the decision point while leaving all writes behind the
+/// existing confirmation gates.
+fn decision_support_context(store: &Store) -> Result<String> {
+    let mut lines = Vec::new();
+    for rule in store.list_active_rules()?.into_iter().take(8) {
+        lines.push(format!("- 已确认规则：{}", rule.content));
+    }
+    for page in store.list_wiki_pages(None, None)?.into_iter().take(8) {
+        lines.push(format!(
+            "- 知识页 [{}]：{} — {}",
+            page.kind, page.title, page.summary
+        ));
+    }
+    if lines.is_empty() {
+        Ok("（暂无已确认规则或知识页）".to_string())
+    } else {
+        Ok(lines.join("\n"))
+    }
 }
 
 #[cfg(test)]
@@ -1996,6 +2019,48 @@ pub fn update_todo_status(id: String, status: String) -> Result<()> {
     store.update_todo_status(&id, crate::storage::TodoStatus::parse(&status))
 }
 
+/// 打开待办对应的可讨论工作项；无关联页时按需创建并回写关联。
+pub fn open_todo_work_item(id: String) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let todo = store
+        .get_todo(&id)?
+        .ok_or_else(|| anyhow::anyhow!("未找到待办（id={id}）"))?;
+    if let Some(slug) = todo.related_wiki_slug.as_deref() {
+        return store
+            .get_wiki_page(slug)?
+            .map(WikiPageDto::from)
+            .ok_or_else(|| anyhow::anyhow!("待办关联页面不存在（slug={slug}）"));
+    }
+    let marker = format!("work-item-id:{}", todo.id);
+    if let Some(existing) = store
+        .list_wiki_pages(None, None)?
+        .into_iter()
+        .find(|page| page.tags.iter().any(|tag| tag == &marker))
+    {
+        store.set_todo_related_wiki_slug(&todo.id, &existing.slug)?;
+        return Ok(WikiPageDto::from(existing));
+    }
+    let mut content = format!("# {}\n\n", todo.title);
+    content.push_str("## 工作项状态\n\n");
+    content.push_str(&format!("- 状态：{}\n", todo.status.as_str()));
+    content.push_str(&format!("- 优先级：{}\n", todo.priority));
+    if let Some(due_at) = todo.due_at.as_deref() {
+        content.push_str(&format!("- 截止：{}\n", due_at));
+    }
+    if let Some(note) = todo.note.as_deref() {
+        content.push_str(&format!("\n## 说明\n\n{}\n", note));
+    }
+    let page = crate::wiki::save_text_page(
+        &content,
+        Some(&todo.title),
+        &["work-item".to_string(), marker],
+        &store,
+    )?;
+    store.set_todo_related_wiki_slug(&todo.id, &page.slug)?;
+    Ok(WikiPageDto::from(page))
+}
+
 /// 更新待办的可编辑字段（标题 / 补充 / 优先级 / 截止时间）。
 /// 可选字段传 None 表示清除（如结束拖延、去掉截止时间）。
 pub fn update_todo(
@@ -2266,5 +2331,32 @@ mod daily_review_tests {
         assert!(parsed.recordable);
         assert_eq!(parsed.kind, "event");
         assert_eq!(parsed.schema_version, EVENT_ANALYSIS_VERSION);
+    }
+
+    #[test]
+    fn decision_support_context_contains_only_confirmed_reference_material() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store
+            .add_rule("先确认付款方再推进", RuleStatus::Active, None)
+            .unwrap();
+        let draft = crate::storage::WikiPageDraft {
+            slug: "topic/payment-check".to_string(),
+            kind: "topic".to_string(),
+            title: "付款检查".to_string(),
+            summary: "付款前确认责任人".to_string(),
+            content_md: "付款前确认责任人".to_string(),
+            tags: vec!["decision".to_string()],
+            source_event_ids: vec![],
+            status: "active".to_string(),
+            reason: "test".to_string(),
+            source_url: None,
+        };
+        store.upsert_wiki_page(&draft).unwrap();
+        let context = decision_support_context(&store).unwrap();
+        assert!(context.contains("先确认付款方再推进"));
+        assert!(context.contains("付款检查"));
+        drop(store);
+        let _ = std::fs::remove_file(path);
     }
 }

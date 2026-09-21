@@ -8,8 +8,8 @@ import '../bridge/rust_bridge_repository.dart';
 import '../bridge/generated.dart/api.dart'
     show EntityFactDto, EntityMergeStatusDto;
 
-/// 一级导航只保留主要内容域；待办从侧栏工具入口打开。
-enum SidebarTab { conversation, wiki }
+/// 一级导航内容域。待办使用主工作区承载，避免在弹窗里维护持续讨论。
+enum SidebarTab { conversation, wiki, todos }
 
 final sidebarTabProvider = StateProvider<SidebarTab>(
   (ref) => SidebarTab.conversation,

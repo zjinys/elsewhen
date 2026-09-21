@@ -240,8 +240,16 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
                     ref.read(sidebarTabProvider.notifier).state =
                         SidebarTab.wiki;
                     openWikiPageTab(ref, page);
-                  });
-                },
+                });
+              },
+          onOpenWorkItem: () async {
+            final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+            final page = await repo.openTodoWorkItem(todo.id);
+            if (!mounted) return;
+            ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+            openWikiPageTab(ref, page);
+            ref.invalidate(todosProvider);
+          },
         ),
       ],
     );
@@ -254,6 +262,7 @@ class _TodoItem extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onEdit;
   final VoidCallback? onOpenWiki;
+  final VoidCallback? onOpenWorkItem;
 
   const _TodoItem({
     required this.todo,
@@ -261,6 +270,7 @@ class _TodoItem extends StatelessWidget {
     required this.onDelete,
     required this.onEdit,
     this.onOpenWiki,
+    this.onOpenWorkItem,
   });
 
   @override
@@ -273,7 +283,7 @@ class _TodoItem extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onToggle,
+        onTap: onOpenWorkItem ?? onToggle,
         child: Container(
           padding: const EdgeInsets.fromLTRB(
             AppTheme.space3,
@@ -287,14 +297,21 @@ class _TodoItem extends StatelessWidget {
               // 勾选框
               Padding(
                 padding: const EdgeInsets.only(top: 1),
-                child: Icon(
-                  todo.isDone
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  size: 18,
-                  color: todo.isDone
-                      ? AppTheme.accentPrimary
-                      : AppTheme.textTertiary,
+                child: InkWell(
+                  onTap: onToggle,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(
+                      todo.isDone
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      size: 18,
+                      color: todo.isDone
+                          ? AppTheme.accentPrimary
+                          : AppTheme.textTertiary,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: AppTheme.space2),

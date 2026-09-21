@@ -95,7 +95,7 @@ src/lib.rs             pub mod wiki
 
 ## 6. 已知边界 / 后续可做
 
-- **Flutter 应用内 wiki 浏览/编辑未做**（知识库的"IDE"应是应用本身；当前只能走 CLI `wiki list/show`）
+- **Flutter 应用内浏览已完成；正文编辑**（知识库的"IDE"应是应用本身）见 [`wiki-editing-design.md`](wiki-editing-design.md) —— 主线为 AppFlowy Editor（含 digest 不覆盖人工编辑的保护机制、md⇄JSON 往返保真 spike、AI 对话嵌入编辑器）
 - 知识库目前只以事件为原料；外部内容（文章/笔记）尚无 `sources` 层入口
 - LLM 启发式 lint（矛盾/过期论断/缺失交叉引用）未做，只有确定性检查
 - 页面级 cascade 更新（源头页 → 派生页的级联 index 更新）未做，digest 时页面间交叉引用较弱

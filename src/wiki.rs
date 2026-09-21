@@ -464,8 +464,6 @@ pub fn save_tweet_page(t: &TweetText, source_url: Option<&str>, store: &Store) -
 
 /// 把用户粘贴的纯文本保存为知识库页面（kind=topic）。
 /// content_md 保留全文、绝不截断，仅 summary（索引摘要）截断。
-/// 把用户粘贴的纯文本保存为知识库页面（kind=topic）。
-/// content_md 保留全文、绝不截断，仅 summary（索引摘要）截断。
 pub fn save_text_page(
     text: &str,
     title: Option<&str>,

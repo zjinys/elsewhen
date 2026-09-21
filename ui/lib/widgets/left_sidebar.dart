@@ -9,7 +9,6 @@ import '../providers/todo_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
-import 'todo_view.dart';
 
 /// 主界面左侧栏：对话 / 知识库 双 Tab + 底部设置入口
 class LeftSidebar extends ConsumerWidget {
@@ -27,6 +26,9 @@ class LeftSidebar extends ConsumerWidget {
       if (next == SidebarTab.wiki) {
         ref.invalidate(wikiPagesProvider);
       }
+      if (next == SidebarTab.todos) {
+        ref.invalidate(todosProvider);
+      }
     });
 
     return Container(
@@ -42,6 +44,7 @@ class LeftSidebar extends ConsumerWidget {
             child: switch (tab) {
               SidebarTab.conversation => _buildConversationTab(context, ref),
               SidebarTab.wiki => const _WikiTab(),
+              SidebarTab.todos => const SizedBox.shrink(),
             },
           ),
           _buildFooter(context, ref),
@@ -76,77 +79,105 @@ class LeftSidebar extends ConsumerWidget {
               ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
             },
           ),
+          const SizedBox(width: AppTheme.space2),
+          _TabButton(
+            label: '待办',
+            icon: Icons.fact_check_outlined,
+            selected: tab == SidebarTab.todos,
+            onTap: () {
+              ref.read(sidebarTabProvider.notifier).state = SidebarTab.todos;
+            },
+          ),
         ],
       ),
     );
   }
 
   Widget _buildConversationTab(BuildContext context, WidgetRef ref) {
-    final conversationsAsync = ref.watch(conversationsProvider);
-    final selectedId = ref.watch(selectedConversationIdProvider);
-    final showArchived = ref.watch(showArchivedProvider);
-
-    return Column(
-      children: [
-        // 工具行：新建对话 + 归档视图切换
-        _buildConversationToolbar(ref, showArchived),
-        Expanded(
-          child: conversationsAsync.when(
-            data: (conversations) {
-              if (conversations.isEmpty) {
-                return _EmptyState(
-                  icon: showArchived
-                      ? Icons.archive_outlined
-                      : Icons.chat_bubble_outline,
-                  message: showArchived ? '没有归档对话' : '还没有对话\n\n点上方「新建对话」开始',
-                );
-              }
-
-              // Auto-select first conversation if none selected
-              if (selectedId == null && conversations.isNotEmpty) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  ref.read(selectedConversationIdProvider.notifier).state =
-                      conversations.first.id;
-                });
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
-                itemCount: conversations.length,
-                itemBuilder: (context, index) {
-                  final conversation = conversations[index];
-                  final isSelected = conversation.id == selectedId;
-                  return _ConversationItem(
-                    conversation: conversation,
-                    isSelected: isSelected,
-                    onTap: () {
-                      ref.read(selectedConversationIdProvider.notifier).state =
-                          conversation.id;
-                    },
-                    onRename: () =>
-                        _renameConversation(context, ref, conversation),
-                    onArchive: () => _setConversationArchived(
-                      ref,
-                      conversation,
-                      !showArchived,
-                    ),
-                    onDelete: showArchived
-                        ? () => _deleteArchivedConversation(context, ref, conversation)
-                        : null,
-                  );
-                },
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(
+    final main = ref.watch(mainConversationProvider);
+    return main.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => Center(child: Text('对话加载失败')),
+      data: (conversation) {
+        if (ref.read(selectedConversationIdProvider) != conversation.id) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              ref.read(selectedConversationIdProvider.notifier).state = conversation.id;
+            }
+          });
+        }
+        final pages = ref.watch(wikiPagesProvider).valueOrNull ?? const [];
+        final recentPages = pages
+            .where((page) => page.status != 'archived')
+            .toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        final visiblePages = recentPages.take(10).toList();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
-                '加载失败',
-                style: TextStyle(color: AppTheme.textSecondary),
+                '最近使用',
+                style: TextStyle(
+                  color: AppTheme.textTertiary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-        ),
-      ],
+            Expanded(
+              child: visiblePages.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        '还没有最近使用的页面',
+                        style: TextStyle(
+                          color: AppTheme.textTertiary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: visiblePages.length,
+                      itemBuilder: (context, index) {
+                        final page = visiblePages[index];
+                        return Material(
+                          color: Colors.transparent,
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(
+                              page.kind == 'topic'
+                                  ? Icons.tag_outlined
+                                  : Icons.description_outlined,
+                              size: 16,
+                            ),
+                            title: Text(
+                              page.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              page.kindLabel,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textTertiary,
+                              ),
+                            ),
+                            onTap: () {
+                              ref.read(sidebarTabProvider.notifier).state =
+                                  SidebarTab.wiki;
+                              openWikiPageTab(ref, page);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -289,44 +320,7 @@ class LeftSidebar extends ConsumerWidget {
             icon: Icons.fact_check_outlined,
             label: '待办',
             onTap: () {
-              ref.invalidate(todosProvider);
-              showDialog<void>(
-                context: context,
-                builder: (dialogContext) => Dialog(
-                  child: SizedBox(
-                    width: 440,
-                    height: 620,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '待办',
-                                  style: TextStyle(
-                                    color: AppTheme.textPrimary,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: '关闭',
-                                onPressed: () => Navigator.pop(dialogContext),
-                                icon: const Icon(Icons.close),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Expanded(child: TodoListView()),
-                      ],
-                    ),
-                  ),
-                ),
-              );
+              ref.read(sidebarTabProvider.notifier).state = SidebarTab.todos;
             },
           ),
           _FooterAction(

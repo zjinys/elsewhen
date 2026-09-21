@@ -26,7 +26,6 @@ void main() {
     // Wait for async operations to complete
     await tester.pumpAndSettle();
 
-    expect(find.text('新建对话'), findsOneWidget);
     expect(find.text('对话'), findsOneWidget);
     expect(find.text('知识库'), findsOneWidget);
     expect(find.byType(SvgPicture), findsOneWidget);

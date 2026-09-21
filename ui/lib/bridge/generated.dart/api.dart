@@ -449,6 +449,10 @@ Future<TodoDto> createTodo({
 Future<void> updateTodoStatus({required String id, required String status}) =>
     RustLib.instance.api.crateApiUpdateTodoStatus(id: id, status: status);
 
+/// 打开待办对应的可讨论工作项；无关联页时按需创建并回写关联。
+Future<WikiPageDto> openTodoWorkItem({required String id}) =>
+    RustLib.instance.api.crateApiOpenTodoWorkItem(id: id);
+
 /// 更新待办的可编辑字段（标题 / 补充 / 优先级 / 截止时间）。
 /// 可选字段传 None 表示清除（如结束拖延、去掉截止时间）。
 Future<void> updateTodo({

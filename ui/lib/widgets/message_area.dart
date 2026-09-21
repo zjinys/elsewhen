@@ -10,8 +10,17 @@ import '../models/conversation.dart';
 import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
+import '../providers/todo_provider.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+
+String? explicitTopicName(String text) {
+  final match = RegExp(r'^/topic\s+(.+)$', caseSensitive: false).firstMatch(text) ??
+      RegExp(r'^进入主题[：:]\s*(.+)$').firstMatch(text) ??
+      RegExp(r'^#([^\s#].*)$').firstMatch(text);
+  final name = match?.group(1)?.trim();
+  return name == null || name.isEmpty ? null : name;
+}
 
 /// 触发一次 AI 生成（发送后自动触发，或失败气泡上的「重新生成」点击）。
 /// 首次发送与重试走完全相同的路径：成功刷新消息/会话列表、失败追加
@@ -29,11 +38,18 @@ Future<void> runAiGeneration(
     setAiGenerating(ref, conversationId, true);
     final repo = ref.read(conversationRepositoryProvider);
     await repo.generateReply(conversationId);
-    if (isMounted == null || isMounted()) {
-      ref.invalidate(messagesProvider);
-      ref.invalidate(conversationsProvider);
-      ref.invalidate(pendingActionsProvider);
-    }
+      if (isMounted == null || isMounted()) {
+        ref.invalidate(messagesProvider);
+        ref.invalidate(conversationsProvider);
+        ref.invalidate(pendingActionsProvider);
+        // AI confirmation may have created or revised a wiki page/todo.
+        // Refresh both navigation surfaces so the new object is visible
+        // immediately after the assistant response completes.
+        ref.invalidate(wikiPagesProvider);
+        ref.invalidate(todosProvider);
+        ref.invalidate(activeAiProviderProvider);
+        ref.invalidate(todayTokenUsageProvider);
+      }
   } catch (e) {
     addConversationNotice(ref, conversationId, aiFailureNotice(e));
     ref.read(scrollRequestProvider.notifier).state++;
@@ -88,10 +104,13 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
   static const int _pageSize = 20;
 
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   bool _expanded = false;
   int _shownSince = 0; // 展开后从消息开头跳过的条数
   bool _nearBottom = true;
   bool _pendingScrollToBottom = true; // 会话刚切换/初始加载后，数据到达时滚到最新
+  String _searchQuery = '';
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -106,6 +125,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -118,6 +138,18 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         ref.watch(conversationNoticeProvider)[selectedId] ?? const <String>[];
     // 正在生成 AI 回复的会话（发送后反馈「AI 生成中」占位气泡）
     final generatingIds = ref.watch(aiGeneratingProvider);
+    final openTodos = ref.watch(todosProvider).valueOrNull
+        ?.where((todo) => !todo.isDone).length;
+    final activeTopics = ref.watch(wikiPagesProvider).valueOrNull
+        ?.where(
+          (page) =>
+              page.kind == 'topic' &&
+              page.status != 'archived' &&
+              page.tags.contains('topic'),
+        )
+        .length;
+    final activeProvider = ref.watch(activeAiProviderProvider).valueOrNull;
+    final tokenUsage = ref.watch(todayTokenUsageProvider).valueOrNull;
 
     // 侦听必须在 build 中注册（riverpod 2.x 约束）。
     // 切换会话：重置窗口，数据到达后回到最新消息
@@ -158,6 +190,14 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
 
     return Column(
       children: [
+        _buildSearchBar(messagesAsync.valueOrNull ?? const []),
+        _NowStatus(
+          messages: messagesAsync.valueOrNull ?? const [],
+          openTodos: openTodos,
+          activeTopics: activeTopics,
+          activeProvider: activeProvider,
+          tokenUsage: tokenUsage?.totalTokens,
+        ),
         // 复制全部对话（有消息时显示）
         messagesAsync.when(
           data: (messages) => messages.isEmpty
@@ -187,29 +227,55 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
               }
 
               // 默认只看最近 N 条，点「显示更早」逐页展开
-              final total = messages.length;
-              final shownSince = _expanded
+              final matching = messages.where((m) {
+                if (_selectedDate != null &&
+                    (m.createdAt.year != _selectedDate!.year ||
+                        m.createdAt.month != _selectedDate!.month ||
+                        m.createdAt.day != _selectedDate!.day)) {
+                  return false;
+                }
+                if (_searchQuery.trim().isEmpty) return true;
+                return m.isUser && m.content.toLowerCase().contains(
+                  _searchQuery.trim().toLowerCase(),
+                );
+              }).toList();
+              final total = matching.length;
+              final shownSince = _searchQuery.trim().isNotEmpty
+                  ? 0
+                  : _expanded
                   ? _shownSince
                   : (total > _windowSize ? total - _windowSize : 0);
               final hasMore = shownSince > 0;
-              final visibleCount = total - shownSince;
               final tailCount = notices.length + (isAiTyping ? 1 : 0);
+              final rows = <Object>[];
+              String? previousDay;
+              for (var i = shownSince; i < total; i++) {
+                final message = matching[i];
+                final day = DateFormat('yyyy年MM月dd日').format(message.createdAt);
+                if (day != previousDay) {
+                  rows.add(day);
+                  previousDay = day;
+                }
+                rows.add(message);
+              }
 
               return ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(AppTheme.space4),
-                itemCount: visibleCount + (hasMore ? 1 : 0) + tailCount,
+                itemCount: rows.length + (hasMore ? 1 : 0) + tailCount,
                 itemBuilder: (context, index) {
                   if (hasMore && index == 0) {
                     return _buildLoadMoreButton(total);
                   }
                   final libIndex = index - (hasMore ? 1 : 0);
-                  if (libIndex < visibleCount) {
-                    final message = messages[shownSince + libIndex];
+                  if (libIndex < rows.length) {
+                    final row = rows[libIndex];
+                    if (row is String) return _DayDivider(label: row);
+                    final message = row as Message;
                     // 「重新生成」只出现在最后一条消息上：它必须是用户消息
                     // （即后面没有 AI 回复 —— 生成失败、或还没生成），
                     // 且当前不在生成中（生成期间以「AI 正在思考…」占位反馈）。
-                    final isLast = shownSince + libIndex == total - 1;
+                    final isLast = identical(message, messages.last);
                     final needsReply = isLast && message.isUser && !isAiTyping;
                     return _MessageBubble(
                       message: message,
@@ -217,7 +283,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                       onRetry: () => _retryAiGeneration(selectedId),
                     );
                   }
-                  final tailIndex = libIndex - visibleCount;
+                  final tailIndex = libIndex - rows.length;
                   if (tailIndex < notices.length) {
                     return _NoticeBubble(text: notices[tailIndex]);
                   }
@@ -259,6 +325,102 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         _jumpToBottom();
       }
     });
+  }
+
+  Widget _buildSearchBar(List<Message> messages) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Row(
+        children: [
+          const Spacer(),
+          IconButton(
+            tooltip: '按日期定位',
+            icon: Icon(
+              Icons.calendar_today_outlined,
+              size: 18,
+              color: _selectedDate == null
+                  ? AppTheme.textSecondary
+                  : AppTheme.accentPrimary,
+            ),
+            onPressed: () => _pickDate(messages),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 360,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: '搜索你说过的话',
+                hintStyle: TextStyle(color: AppTheme.textTertiary),
+                prefixIcon: Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
+                suffixIcon: (_searchQuery.isNotEmpty || _selectedDate != null)
+                    ? IconButton(
+                        tooltip: '清除定位',
+                        icon: const Icon(Icons.clear, size: 17),
+                        onPressed: _clearLocation,
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppTheme.surface1,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  borderSide: BorderSide(color: AppTheme.surface3),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  borderSide: BorderSide(color: AppTheme.surface3),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  borderSide: BorderSide(color: AppTheme.accentPrimary),
+                ),
+              ),
+              onChanged: (value) => setState(() {
+                _searchQuery = value;
+                _expanded = true;
+                _shownSince = 0;
+              }),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: '回到现在',
+            icon: Icon(Icons.vertical_align_bottom, size: 18, color: AppTheme.textSecondary),
+            onPressed: _returnToNow,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickDate(List<Message> messages) async {
+    final now = DateTime.now();
+    final dates = messages.map((m) => m.createdAt).toList()..sort();
+    final first = dates.isEmpty ? DateTime(now.year - 1) : dates.first;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? now,
+      firstDate: DateTime(first.year, first.month, first.day),
+      lastDate: DateTime(now.year, now.month, now.day),
+      helpText: '跳到日期',
+      cancelText: '取消',
+      confirmText: '跳转',
+    );
+    if (picked != null && mounted) setState(() => _selectedDate = picked);
+  }
+
+  void _clearLocation() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _selectedDate = null;
+    });
+  }
+
+  void _returnToNow() {
+    _clearLocation();
+    _scheduleScrollToBottom();
   }
 
   /// 错误气泡上的「重新生成」：清掉本次失败提示后，
@@ -546,6 +708,95 @@ class _PendingRelationsBanner extends ConsumerWidget {
 /// 会话内临时提示气泡（AI 回复失败等）。仅内存态——不写库，
 /// 不进入对话历史 / 记忆注入 / AI 上下文；发送下一条消息后即清除。
 /// 只承载失败原因文案；「重新生成」入口在最后一条用户消息上。
+class _DayDivider extends StatelessWidget {
+  final String label;
+
+  const _DayDivider({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.space4),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: AppTheme.surface3)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.space3),
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+            ),
+          ),
+          Expanded(child: Divider(color: AppTheme.surface3)),
+        ],
+      ),
+    );
+  }
+}
+
+class _NowStatus extends StatelessWidget {
+  final List<Message> messages;
+  final int? openTodos;
+  final int? activeTopics;
+  final String? activeProvider;
+  final int? tokenUsage;
+  const _NowStatus({
+    required this.messages,
+    this.openTodos,
+    this.activeTopics,
+    this.activeProvider,
+    this.tokenUsage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final count = messages.where((m) =>
+        m.createdAt.year == today.year &&
+        m.createdAt.month == today.month &&
+        m.createdAt.day == today.day).length;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.surface1,
+        border: Border.all(color: AppTheme.surface3),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.today_outlined, size: 16, color: AppTheme.accentPrimary),
+          const SizedBox(width: 8),
+          Text('今天', style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          const Spacer(),
+          if (activeProvider != null) ...[
+            Icon(Icons.smart_toy_outlined, size: 14, color: AppTheme.textTertiary),
+            const SizedBox(width: 5),
+            Text(
+              activeProvider!,
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(width: 12),
+          ],
+          Text(
+            '今天 $count 条交流'
+            '${activeTopics == null ? '' : ' · ${activeTopics!} 个主题'}'
+            '${openTodos == null ? '' : ' · ${openTodos!} 项待办'}'
+            '${tokenUsage == null ? '' : ' · ${_formatTokens(tokenUsage!)} tokens'}',
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTokens(int value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
+    return value.toString();
+  }
+}
+
 class _NoticeBubble extends StatelessWidget {
   final String text;
 
@@ -984,6 +1235,9 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   bool _isSubmitting = false;
+  bool _showInputGuide = false;
+  String? _completionMarker;
+  String _completionQuery = '';
   String? _pendingSubmissionText;
   String? _pendingSubmissionKey;
 
@@ -1003,6 +1257,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_updateCompletion);
     // 回车直接提交（多行输入下 onSubmitted 不触发，需在焦点节点拦 Enter）
     _focusNode.onKeyEvent = (node, event) {
       final isEnter = event.logicalKey == LogicalKeyboardKey.enter;
@@ -1017,9 +1272,42 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
 
   @override
   void dispose() {
+    _controller.removeListener(_updateCompletion);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _updateCompletion() {
+    final cursor = _controller.selection.baseOffset;
+    if (cursor < 0 || cursor > _controller.text.length) return;
+    final beforeCursor = _controller.text.substring(0, cursor);
+    final match = RegExp(r'(?:^|\s)([@#])([^\s@#]*)$').firstMatch(beforeCursor);
+    final marker = match?.group(1);
+    final query = match?.group(2) ?? '';
+    if (marker == _completionMarker && query == _completionQuery) return;
+    setState(() {
+      _completionMarker = marker;
+      _completionQuery = query;
+    });
+  }
+
+  void _applyCompletion(String title) {
+    final cursor = _controller.selection.baseOffset;
+    final marker = _completionMarker;
+    if (cursor < 0 || marker == null) return;
+    final replacementStart = cursor - _completionQuery.length - 1;
+    final next = _controller.text.replaceRange(
+      replacementStart,
+      cursor,
+      '$marker$title ',
+    );
+    final nextCursor = replacementStart + marker.length + title.length + 1;
+    _controller.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: nextCursor),
+    );
+    _focusNode.requestFocus();
   }
 
   void _showError(String message) {
@@ -1034,6 +1322,13 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         ),
       ),
     );
+  }
+
+  void _insertGuideExample(String selection) {
+    _controller.text = selection;
+    _controller.selection = TextSelection.collapsed(offset: selection.length);
+    setState(() => _showInputGuide = false);
+    _focusNode.requestFocus();
   }
 
   Future<void> _handleSubmit() async {
@@ -1053,6 +1348,14 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     final submissionKey = _submissionKeyFor(text);
 
     try {
+      final topic = explicitTopicName(text);
+      if (topic != null) {
+        await _enterTopic(topic);
+        _controller.clear();
+        _pendingSubmissionText = null;
+        _pendingSubmissionKey = null;
+        return;
+      }
       final uri = Uri.tryParse(text);
       final isUrl =
           uri != null &&
@@ -1099,6 +1402,32 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     // 「生成中」状态由 _generateAiReply 内部设置，确保 invalidate
     // 时列表仍在 data 分支（可渲染 notice），而非 AsyncLoading（空跑）。
     await _generateAiReply(conversationId);
+  }
+
+  Future<void> _enterTopic(String title) async {
+    final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    final pages = ref.read(wikiPagesProvider).valueOrNull ?? const [];
+    WikiPage? existing;
+    for (final page in pages) {
+      if (page.kind == 'topic' &&
+          page.title.toLowerCase() == title.toLowerCase()) {
+        existing = page;
+        break;
+      }
+    }
+    final page = existing ?? await bridge.saveTextPage(
+      text: '# $title\n\n',
+      title: title,
+      tags: const ['topic'],
+    );
+    ref.invalidate(wikiPagesProvider);
+    ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+    openWikiPageTab(ref, page);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已进入主题：${page.title}')),
+      );
+    }
   }
 
   Future<void> _routeUrlToImportPreview(
@@ -1156,6 +1485,17 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         ref.watch(aiGeneratingProvider).contains(selectedId);
     // 三态：写库中（_isSubmitting）或 AI 生成中 → 忙碌
     final busy = _isSubmitting || isGenerating;
+    final pages = ref.watch(wikiPagesProvider).valueOrNull ?? const [];
+    final completionPages = _completionMarker == null
+        ? const <WikiPage>[]
+        : pages.where((page) {
+            final allowed = _completionMarker == '@'
+                ? page.kind == 'person'
+                : page.kind == 'topic' || page.kind == 'project';
+            return allowed &&
+                page.status != 'archived' &&
+                page.title.toLowerCase().contains(_completionQuery.toLowerCase());
+          }).take(6).toList();
 
     return Container(
       padding: const EdgeInsets.all(AppTheme.space4),
@@ -1163,9 +1503,41 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         color: AppTheme.surface1,
         border: Border(top: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          if (completionPages.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppTheme.space2),
+              child: _InputCompletionPanel(
+                marker: _completionMarker!,
+                pages: completionPages,
+                onSelected: _applyCompletion,
+              ),
+            ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            child: _showInputGuide
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.space3),
+                    child: _InputGuidePanel(onInsert: _insertGuideExample),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+          IconButton(
+            onPressed: () => setState(() => _showInputGuide = !_showInputGuide),
+            icon: Icon(
+              _showInputGuide ? Icons.close : Icons.help_outline,
+              size: 20,
+            ),
+            color: AppTheme.textSecondary,
+            tooltip: '输入格式',
+          ),
+          const SizedBox(width: AppTheme.space2),
           Expanded(
             child: TextField(
               controller: _controller,
@@ -1216,7 +1588,147 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
             iconSize: 24,
             tooltip: isGenerating ? 'AI 正在思考…' : '发送',
           ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _InputGuidePanel extends StatelessWidget {
+  final ValueChanged<String> onInsert;
+
+  const _InputGuidePanel({required this.onInsert});
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      (Icons.person_outline, '@人名', '标注人物', '@张伟 '),
+      (Icons.tag_outlined, '#主题名', '进入主题', '#付款流程'),
+      (Icons.link_outlined, '链接', '导入内容', 'https://'),
+      (Icons.check_circle_outline, '确认 / 取消', '处理 AI 草案', '确认'),
+    ];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppTheme.space3),
+      decoration: BoxDecoration(
+        color: AppTheme.surface2,
+        border: Border.all(color: AppTheme.surface3),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final item in items)
+            _InputGuideItem(
+              icon: item.$1,
+              title: item.$2,
+              description: item.$3,
+              onTap: () => onInsert(item.$4),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InputCompletionPanel extends StatelessWidget {
+  final String marker;
+  final List<WikiPage> pages;
+  final ValueChanged<String> onSelected;
+
+  const _InputCompletionPanel({
+    required this.marker,
+    required this.pages,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: AppTheme.surface1,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppTheme.surface3),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final page in pages)
+                InkWell(
+                  onTap: () => onSelected(page.title),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '$marker${page.title}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: AppTheme.textPrimary),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          page.kindLabel,
+                          style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InputGuideItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final VoidCallback onTap;
+
+  const _InputGuideItem({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 17, color: AppTheme.accentPrimary),
+              const SizedBox(width: 6),
+              Text(title, style: TextStyle(color: AppTheme.textPrimary)),
+              const SizedBox(width: 6),
+              Text(
+                description,
+                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

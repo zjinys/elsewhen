@@ -632,6 +632,11 @@ class RustBridgeRepository implements StorageRepository {
 
   Future<bool> deleteTodo(String id) => api.deleteTodo(id: id);
 
+  Future<WikiPage> openTodoWorkItem(String id) async {
+    final dto = await api.openTodoWorkItem(id: id);
+    return WikiPage.fromDto(dto);
+  }
+
   // ── 任意 URL 导入 ──
 
   /// 抓取任意 URL 内容（推文走 fxtwitter，普通页面走 HTML 文本提取），只解析不入库
