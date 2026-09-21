@@ -7,7 +7,7 @@ import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `default_event_kind`, `default_recordable`, `dto_from_active`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
+// These functions are ignored because they are not marked as `pub`: `decision_support_context`, `default_event_kind`, `default_recordable`, `dto_from_active`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
@@ -330,6 +330,23 @@ Future<WikiPageDto> updateWikiTags({
   required String slug,
   required List<String> tags,
 }) => RustLib.instance.api.crateApiUpdateWikiTags(slug: slug, tags: tags);
+
+/// 人类编辑保存一页正文（限可编辑 kind；素材页只读拒绝）。
+/// 保存后 `human_edited_at` 置位：该页被 AI digest 视为人工持有，不再整篇覆盖。
+Future<WikiPageDto> saveWikiPageContent({
+  required String slug,
+  required String contentMd,
+  required String reason,
+}) => RustLib.instance.api.crateApiSaveWikiPageContent(
+  slug: slug,
+  contentMd: contentMd,
+  reason: reason,
+);
+
+/// 素材页观点评价（仅 source/note）。opinion：Some("endorse")=认可 / Some("reject")=不认可 /
+/// None=清空回未表态（读取按缺省认可处理）。不改变正文、不置位人工编辑保护。
+Future<WikiPageDto> setWikiOpinion({required String slug, String? opinion}) =>
+    RustLib.instance.api.crateApiSetWikiOpinion(slug: slug, opinion: opinion);
 
 /// 与某页相关的人物关系（双向：作为人物方或作为事情/项目方）
 Future<List<RelationDto>> listRelationsForPage({required String slug}) =>
@@ -1554,6 +1571,12 @@ class WikiPageDto {
   /// 派生产物的加工类型（总结/提炼观点/抖音文案…，仅 derivative 有值）
   final String? contentType;
 
+  /// 最近一次人工编辑正文的时间（非空 ⇔ 该页由人工持有，digest 不整篇覆盖）
+  final String? humanEditedAt;
+
+  /// 素材页观点评价：Some("endorse")/Some("reject")/None=未表态（缺省认可）
+  final String? opinion;
+
   const WikiPageDto({
     required this.id,
     required this.slug,
@@ -1573,6 +1596,8 @@ class WikiPageDto {
     required this.area,
     this.basedOn,
     this.contentType,
+    this.humanEditedAt,
+    this.opinion,
   });
 
   @override
@@ -1594,7 +1619,9 @@ class WikiPageDto {
       sourceUrl.hashCode ^
       area.hashCode ^
       basedOn.hashCode ^
-      contentType.hashCode;
+      contentType.hashCode ^
+      humanEditedAt.hashCode ^
+      opinion.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1618,5 +1645,7 @@ class WikiPageDto {
           sourceUrl == other.sourceUrl &&
           area == other.area &&
           basedOn == other.basedOn &&
-          contentType == other.contentType;
+          contentType == other.contentType &&
+          humanEditedAt == other.humanEditedAt &&
+          opinion == other.opinion;
 }

@@ -1183,6 +1183,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.area),
       cst_encode_opt_String(raw.basedOn),
       cst_encode_opt_String(raw.contentType),
+      cst_encode_opt_String(raw.humanEditedAt),
+      cst_encode_opt_String(raw.opinion),
     ].jsify()!;
   }
 
@@ -1943,6 +1945,18 @@ class RustLibWire implements BaseWire {
     screen_name,
   );
 
+  void wire__crate__api__save_wiki_page_content(
+    NativePortType port_,
+    String slug,
+    String content_md,
+    String reason,
+  ) => wasmModule.wire__crate__api__save_wiki_page_content(
+    port_,
+    slug,
+    content_md,
+    reason,
+  );
+
   void wire__crate__api__send_message(
     NativePortType port_,
     String conversation_id,
@@ -1981,6 +1995,12 @@ class RustLibWire implements BaseWire {
     event_id,
     recordable,
   );
+
+  void wire__crate__api__set_wiki_opinion(
+    NativePortType port_,
+    String slug,
+    String? opinion,
+  ) => wasmModule.wire__crate__api__set_wiki_opinion(port_, slug, opinion);
 
   void wire__crate__api__submit_conversation_input(
     NativePortType port_,
@@ -2395,6 +2415,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? screen_name,
   );
 
+  external void wire__crate__api__save_wiki_page_content(
+    NativePortType port_,
+    String slug,
+    String content_md,
+    String reason,
+  );
+
   external void wire__crate__api__send_message(
     NativePortType port_,
     String conversation_id,
@@ -2418,6 +2445,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String event_id,
     bool recordable,
+  );
+
+  external void wire__crate__api__set_wiki_opinion(
+    NativePortType port_,
+    String slug,
+    String? opinion,
   );
 
   external void wire__crate__api__submit_conversation_input(

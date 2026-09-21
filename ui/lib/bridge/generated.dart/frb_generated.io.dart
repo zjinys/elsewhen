@@ -1377,6 +1377,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.area = cst_encode_String(apiObj.area);
     wireObj.based_on = cst_encode_opt_String(apiObj.basedOn);
     wireObj.content_type = cst_encode_opt_String(apiObj.contentType);
+    wireObj.human_edited_at = cst_encode_opt_String(apiObj.humanEditedAt);
+    wireObj.opinion = cst_encode_opt_String(apiObj.opinion);
   }
 
   @protected
@@ -3669,6 +3671,42 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__save_wiki_page_content(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+  ) {
+    return _wire__crate__api__save_wiki_page_content(
+      port_,
+      slug,
+      content_md,
+      reason,
+    );
+  }
+
+  late final _wire__crate__api__save_wiki_page_contentPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__save_wiki_page_content');
+  late final _wire__crate__api__save_wiki_page_content =
+      _wire__crate__api__save_wiki_page_contentPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__send_message(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
@@ -3785,6 +3823,34 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__set_event_recordabilityPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
+  void wire__crate__api__set_wiki_opinion(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> opinion,
+  ) {
+    return _wire__crate__api__set_wiki_opinion(port_, slug, opinion);
+  }
+
+  late final _wire__crate__api__set_wiki_opinionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__set_wiki_opinion');
+  late final _wire__crate__api__set_wiki_opinion =
+      _wire__crate__api__set_wiki_opinionPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__submit_conversation_input(
@@ -5243,6 +5309,10 @@ final class wire_cst_wiki_page_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> content_type;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> human_edited_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> opinion;
+
   static ffi.Pointer<wire_cst_wiki_page_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -5263,6 +5333,8 @@ final class wire_cst_wiki_page_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> area,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> based_on,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> content_type,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> human_edited_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> opinion,
   }) => $allocator<wire_cst_wiki_page_dto>()
     ..ref.id = id
     ..ref.slug = slug
@@ -5281,5 +5353,7 @@ final class wire_cst_wiki_page_dto extends ffi.Struct {
     ..ref.source_url = source_url
     ..ref.area = area
     ..ref.based_on = based_on
-    ..ref.content_type = content_type;
+    ..ref.content_type = content_type
+    ..ref.human_edited_at = human_edited_at
+    ..ref.opinion = opinion;
 }
