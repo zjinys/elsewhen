@@ -11,9 +11,15 @@ class QuoteNodeParser extends NodeParser {
     final delta = node.delta ?? Delta()
       ..insert('');
     final children = encoder?.convertNodes(node.children, withIndent: true);
-    String markdown = '> ${DeltaMarkdownEncoder().convert(delta)}\n';
+    // elsewhen: 多行引用（delta 内嵌 \n）必须逐行打 `>`，否则续行会
+    // 在往返时滑出引用块。
+    final text = DeltaMarkdownEncoder().convert(delta);
+    final lines = text.split('\n');
+    String markdown = lines.map((line) => line.isEmpty ? '>' : '> $line').join('\n');
     if (children != null && children.isNotEmpty) {
-      markdown += children;
+      markdown = '$markdown\n$children';
+    } else {
+      markdown = '$markdown\n';
     }
 
     return markdown;

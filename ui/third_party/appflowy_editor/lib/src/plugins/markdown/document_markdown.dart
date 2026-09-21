@@ -27,6 +27,7 @@ Document markdownToDocument(
       const MarkdownBlockQuoteParserV2(),
       const MarkdownTableListParserV2(),
       const MarkdownDividerParserV2(),
+      const MarkdownCodeBlockParserV2(),
       const MarkdownImageParserV2(),
     ],
   ).decode(markdown);

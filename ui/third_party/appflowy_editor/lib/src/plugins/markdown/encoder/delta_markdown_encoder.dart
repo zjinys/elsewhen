@@ -41,7 +41,9 @@ class DeltaMarkdownEncoder extends Converter<Delta, String> {
     } else if (attributes[BuiltInAttributeKey.bold] == true) {
       syntax += '**';
     } else if (attributes[BuiltInAttributeKey.italic] == true) {
-      syntax += '_';
+      // elsewhen: 斜体用 `*`。中文里 `_斜体_` 是 intraword 下划线，
+      // CommonMark 不当斜体解析，往返语义会破坏。
+      syntax += '*';
     }
 
     if (attributes[BuiltInAttributeKey.strikethrough] == true) {
@@ -90,7 +92,9 @@ class DeltaMarkdownEncoder extends Converter<Delta, String> {
     } else if (attributes[BuiltInAttributeKey.bold] == true) {
       syntax += '**';
     } else if (attributes[BuiltInAttributeKey.italic] == true) {
-      syntax += '_';
+      // elsewhen: 斜体用 `*`。中文里 `_斜体_` 是 intraword 下划线，
+      // CommonMark 不当斜体解析，往返语义会破坏。
+      syntax += '*';
     }
 
     if (attributes[BuiltInAttributeKey.formula] != null) {

@@ -19,14 +19,23 @@ class MarkdownOrderedListParserV2 extends CustomMarkdownParser {
       return [];
     }
 
-    final startNumber = element.attributes['start'];
+    final startAttr = element.attributes['start'];
+    final listStart = startAttr != null ? int.tryParse(startAttr) : null;
 
-    // flatten the list
-    return parseElementChildren(
-      element.children,
-      parsers,
-      listType: MarkdownListType.ordered,
-      startNumber: startNumber != null ? int.tryParse(startNumber) : null,
-    );
+    // flatten the list，逐条赋号：start + i（无 start 时 1 起）。
+    // 否则所有条目共用同一 start number，往返时列表编号塌缩成同号。
+    final children = element.children ?? const [];
+    final result = <Node>[];
+    for (var i = 0; i < children.length; i++) {
+      result.addAll(
+        parseElementChildren(
+          [children[i]],
+          parsers,
+          listType: MarkdownListType.ordered,
+          startNumber: listStart != null ? listStart + i : i + 1,
+        ),
+      );
+    }
+    return result;
   }
 }

@@ -12,13 +12,13 @@ class TableNodeParser extends NodeParser {
     final int rowsLen = node.attributes['rowsLen'],
         colsLen = node.attributes['colsLen'];
     String result = '';
-
     for (var i = 0; i < rowsLen; i++) {
       for (var j = 0; j < colsLen; j++) {
         final Node cell = getCellNode(node, j, i)!;
-        String cellStr = '|${documentToMarkdown(Document(root: cell))}';
-        // markdown doesn't have literally empty table cell
-        cellStr = cellStr == '|' ? '| ' : cellStr;
+        // elsewhen: 单元格加美式空格填充，与常见写法一致（| a | b |）。
+        final content = documentToMarkdown(Document(root: cell))
+            .replaceAll(RegExp(r'\n+$'), '');
+        final cellStr = content.isEmpty ? '| ' : '| $content ';
 
         result += j == colsLen - 1 ? '$cellStr|\n' : cellStr;
       }
@@ -27,7 +27,7 @@ class TableNodeParser extends NodeParser {
 
     String tableMark = '';
     for (var j = 0; j < colsLen; j++) {
-      tableMark += j == colsLen - 1 ? '|-|' : '|-';
+      tableMark += j == colsLen - 1 ? '| --- |' : '| --- ';
     }
 
     final List<String> lines = result.split('\n');

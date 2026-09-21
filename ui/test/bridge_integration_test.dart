@@ -103,18 +103,17 @@ void main() {
       text: '用于验证实体合并的目标主题',
       title: '合并目标主题',
     );
-    expect(sourceEntity.kind, 'topic');
-    expect(targetEntity.kind, 'topic');
-    expect(
-      await repo.mergeEntity('topic', sourceEntity.slug, targetEntity.slug),
-      isTrue,
+    // M1：saveTextPage 产出 note（用户笔记，素材档只读），不再是 topic。
+    expect(sourceEntity.kind, 'note');
+    expect(targetEntity.kind, 'note');
+    // note 不在可合并档案 kind（person/project/topic）内：
+    // 以 'topic' 名义合并两个 note 页必须被守卫拒绝。
+    await expectLater(
+      repo.mergeEntity('topic', sourceEntity.slug, targetEntity.slug),
+      throwsA(anything),
     );
-    final merge = await repo.getEntityMergeStatus(sourceEntity.slug);
-    expect(merge?.targetSlug, targetEntity.slug);
-    expect((await repo.getWikiPage(sourceEntity.slug))?.status, 'merged');
-    expect(await repo.undoEntityMerge(sourceEntity.slug), isTrue);
-    expect(await repo.getEntityMergeStatus(sourceEntity.slug), isNull);
     expect((await repo.getWikiPage(sourceEntity.slug))?.status, 'active');
+    expect(await repo.getEntityMergeStatus(sourceEntity.slug), isNull);
     expect(await repo.listEvents(), hasLength(4));
     print('Bridge test complete! 🎉');
   });

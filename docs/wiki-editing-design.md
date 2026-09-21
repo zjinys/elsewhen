@@ -156,6 +156,12 @@ AI 对人工编辑页仍可走既有 `save_wiki_revision` 草拟确认制修订�
 - 按清单逐个补自定义 `inlineSyntaxes` / `markdownParsers` / `customParsers`，直到 diff 收敛；
 - 项目内落一个 `round_trip_test.dart`（git 化样例 → 快照），防止后续升级回归。
 
+> **✅ 已收敛（实证，2026-09）**：`ui/test/round_trip_test.dart` + `ui/test/fixtures/wiki_md/`（7 真实素材 + 16 合成特征）24/24 通过。
+> 三层门：`bytes`（逐字节，12 个合成特征全覆盖）/ `spaced`（空白规范但 AST 语义相等，真实 7 页 + 嵌套缩进 2）/ `knownDrift`（已知语义漂移，快照锁定）。
+> vendor 补丁（`ui/third_party/appflowy_editor/lib/.../markdown/`）：① 块间空行连接（段落+`---` 会被重解析成 setext 二级标题的语义破坏）；② 有序列表逐条赋号 `start+i`（原所有条目共用 start 号 → 编号塌缩）；③ 新增 `<pre><code>` 解码 parser + 围栏尾换行裁剪（原代码块整体丢失）；④ 引用块逐行打 `>`（续行滑出引用块）；⑤ 斜体用 `*` 不用 `_`（中文 `_斜体_` 是 intraword 下划线，CommonMark 不当斜体解析）；⑥ 表格/列表样式归一（`| a | b |` 间距、`- ` 列表符、tab 嵌套缩进——tab=4 列对 `1. ` 无歧义，2 空格会滑出列表）。
+> **白名单（不可消除，已记录）**：斜体标记归一（`*`→保留，语义等价）；紧邻同型列表的边界（节点模型无此信息，两独立列表会合并，快照锁定）；尾随空格 hard-break 与全角空格行的归一。
+> **开放项（留给 §5.2/M3）**：`code` 节点在编辑器无对应 block component（上游 01eccc6 无代码块组件），管线已保真，展示降级待 M3 处理。
+
 ### 5.2 `[[wikilink]]`
 
 - 解码：`md.InlineSyntax` 匹配 `[[slug]]` → 行内 span（样式同 `MarkdownView` 现有 wikilink 视觉）→ 点击 `ref.read` 跳转目标页；
@@ -228,13 +234,14 @@ v1 建议 A；若聊天交互（键盘焦点/光标）与编辑器冲突严重�
 
 ## 10. 里程碑
 
-1. **M1（并行）**：核心保护 —— 迁移 v29（kind 拆分 + `human_edited_at` + `opinion`）+ `save_wiki_page_content` + `set_wiki_opinion` + digest 按 kind 保护 + Rust 测试；
-2. **M2（spike）**：`flutter pub add appflowy_editor` + §5 四项验证，产出来回 diff 清单与决策记录；
+1. **M1（并行）**：核心保护 —— 迁移 v29（kind 拆分 + `human_edited_at` + `opinion`）+ `save_wiki_page_content` + `set_wiki_opinion` + digest 按 kind 保护 + Rust 测试 —— ✅（`feat/wiki-m1-protection` 已合 main）；
+2. **M2（spike）**：`flutter pub add appflowy_editor` + §5 四项验证，产出来回 diff 清单与决策记录 —— 🔄（依赖/IME/测试页 ✅；§5.1 往返保真 ✅ 已收敛；§5.2 wikilink、§5.3 AI 对话块、§5.4 只读展示待验）；
 3. **M3（集成）**：双模式编辑器替换 + 保存链路 + AI 对话块（§6/§7）；
 4. **M4**：`round_trip` 常驻测试 + 主题打磨 + 移动端走查。
 
 ## 11. 开放问题（实施前拍板）
 
-1. **往返保真不收敛时**：回退 markdown 分屏预览，还是接受白名单降级（如表格只读不可建）？
+1. **往返保真不收敛时**：回退 markdown 分屏预览，还是接受白名单降级（如表格只读不可建）？——**§5.1 已收敛**（上表），白名单条目已固化进常驻测试；
 2. **AI 对话落点**：回复默认插在光标处（生成类）还是仅展示（确认后手动插入）？——影响 §5.3 与权限模型；
 3. **乐观锁**：本地单写者，v1 不做版本冲突检测；是否接受编辑期间 digest 并发导致"保存覆盖 digest"的极端情况（缓解：保存时校验 `updated_at`）。
+4. **代码块展示降级**（§5.1 新发现）：vendor 01eccc6 的编辑器无 `code` 块组件（管线上已保真）；M3 集成时给 `code` 节点注册降级 block component（等宽字体只读块）还是升级 vendor 引入代码块组件？
