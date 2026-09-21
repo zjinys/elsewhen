@@ -153,6 +153,21 @@ class RustBridgeRepository implements StorageRepository {
   Future<api.EventAnalysisDetailDto?> getEventAnalysisDetail(String eventId) =>
       api.getEventAnalysisDetail(eventId: eventId);
 
+  Future<api.MessageRecordabilityDto?> getMessageRecordability(
+    String messageId,
+  ) => api.getMessageRecordability(messageId: messageId);
+
+  Future<api.MessageRecordabilityDto> setEventRecordability(
+    String eventId,
+    bool recordable,
+  ) => api.setEventRecordability(eventId: eventId, recordable: recordable);
+
+  Future<bool> reanalyzeEvent(String eventId) async {
+    final queued = await api.reanalyzeEvent(eventId: eventId);
+    if (queued) _wakeAnalysisWorker();
+    return queued;
+  }
+
   @override
   Future<List<Event>> listEvents() async {
     final dtos = await api.listEvents();

@@ -386,7 +386,10 @@ class _PendingRelationsBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = ref.watch(pendingActionsProvider).valueOrNull ?? const [];
-    final relation = actions.cast<dynamic>().where((a) => a.action == 'propose_people_relations').toList();
+    final relation = actions
+        .cast<dynamic>()
+        .where((a) => a.action == 'propose_people_relations')
+        .toList();
     if (relation.isEmpty) return const SizedBox.shrink();
     final payload = jsonDecode(relation.first.argsJson) as Map<String, dynamic>;
     final people = (payload['people'] as List? ?? const [])
@@ -402,59 +405,139 @@ class _PendingRelationsBanner extends ConsumerWidget {
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppTheme.accentPrimary.withValues(alpha: .1), borderRadius: BorderRadius.circular(10)),
-      child: Row(children: [
-        Icon(Icons.auto_awesome_outlined, size: 18, color: AppTheme.accentPrimary),
-        const SizedBox(width: 8),
-        Expanded(child: Text('发现人物：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。', style: const TextStyle(fontSize: 12, height: 1.5))),
-        if (_hasAmbiguity(ref, payload))
-          TextButton(onPressed: () => _resolveAmbiguity(context, ref, relation.first), child: const Text('选择')),
-      ]),
+      decoration: BoxDecoration(
+        color: AppTheme.accentPrimary.withValues(alpha: .1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.auto_awesome_outlined,
+            size: 18,
+            color: AppTheme.accentPrimary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '发现人物：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。',
+              style: const TextStyle(fontSize: 12, height: 1.5),
+            ),
+          ),
+          if (_hasAmbiguity(ref, payload))
+            TextButton(
+              onPressed: () => _resolveAmbiguity(context, ref, relation.first),
+              child: const Text('选择'),
+            ),
+        ],
+      ),
     );
   }
 
   bool _hasAmbiguity(WidgetRef ref, Map<String, dynamic> payload) {
     final pages = ref.read(wikiPagesProvider).valueOrNull ?? const [];
-    final people = (payload['people'] as List? ?? const []).map((item) => (item as Map)['name']?.toString() ?? '');
-    final targets = (payload['relations'] as List? ?? const []).map((item) => (item as Map)['target']?.toString() ?? '');
-    return [...people, ...targets].any((name) => pages.where((page) => page.title.trim().toLowerCase() == name.trim().toLowerCase()).length > 1);
+    final people = (payload['people'] as List? ?? const []).map(
+      (item) => (item as Map)['name']?.toString() ?? '',
+    );
+    final targets = (payload['relations'] as List? ?? const []).map(
+      (item) => (item as Map)['target']?.toString() ?? '',
+    );
+    return [...people, ...targets].any(
+      (name) =>
+          pages
+              .where(
+                (page) =>
+                    page.title.trim().toLowerCase() ==
+                    name.trim().toLowerCase(),
+              )
+              .length >
+          1,
+    );
   }
 
-  Future<void> _resolveAmbiguity(BuildContext context, WidgetRef ref, dynamic action) async {
+  Future<void> _resolveAmbiguity(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic action,
+  ) async {
     final payload = jsonDecode(action.argsJson) as Map<String, dynamic>;
     final pages = ref.read(wikiPagesProvider).valueOrNull ?? const [];
-    final relations = (payload['relations'] as List? ?? const []).map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    final relations = (payload['relations'] as List? ?? const [])
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
     for (final relation in relations) {
       final person = relation['person']?.toString() ?? '';
       final target = relation['target']?.toString() ?? '';
-      final peopleMatches = pages.where((page) => page.title.trim().toLowerCase() == person.trim().toLowerCase()).toList();
+      final peopleMatches = pages
+          .where(
+            (page) =>
+                page.title.trim().toLowerCase() == person.trim().toLowerCase(),
+          )
+          .toList();
       if (peopleMatches.length > 1) {
-        final selected = await _pickPage(context, '选择人物「$person」', peopleMatches);
+        final selected = await _pickPage(
+          context,
+          '选择人物「$person」',
+          peopleMatches,
+        );
         if (selected == null) return;
         relation['from_slug'] = selected.slug;
       }
-      final targetMatches = pages.where((page) => page.title.trim().toLowerCase() == target.trim().toLowerCase()).toList();
+      final targetMatches = pages
+          .where(
+            (page) =>
+                page.title.trim().toLowerCase() == target.trim().toLowerCase(),
+          )
+          .toList();
       if (targetMatches.length > 1) {
-        final selected = await _pickPage(context, '选择事项「$target」', targetMatches);
+        final selected = await _pickPage(
+          context,
+          '选择事项「$target」',
+          targetMatches,
+        );
         if (selected == null) return;
         relation['to_slug'] = selected.slug;
       }
     }
     payload['relations'] = relations;
-    await ref.read(conversationRepositoryProvider).updatePendingActionArgs(action.id, jsonEncode(payload));
+    await ref
+        .read(conversationRepositoryProvider)
+        .updatePendingActionArgs(action.id, jsonEncode(payload));
     ref.invalidate(pendingActionsProvider);
   }
 
-  Future<WikiPage?> _pickPage(BuildContext context, String title, List<WikiPage> pages) {
+  Future<WikiPage?> _pickPage(
+    BuildContext context,
+    String title,
+    List<WikiPage> pages,
+  ) {
     return showDialog<WikiPage>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
-        content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
-          for (final page in pages)
-            ListTile(title: Text(page.title), subtitle: Text('${page.kindLabel} · ${page.summary}', maxLines: 2, overflow: TextOverflow.ellipsis), onTap: () => Navigator.pop(dialogContext, page)),
-        ])),
-        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('取消'))],
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final page in pages)
+                ListTile(
+                  title: Text(page.title),
+                  subtitle: Text(
+                    '${page.kindLabel} · ${page.summary}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () => Navigator.pop(dialogContext, page),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+        ],
       ),
     );
   }
@@ -555,7 +638,7 @@ class _NoticeBubble extends StatelessWidget {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
+class _MessageBubble extends ConsumerWidget {
   final Message message;
 
   /// 是否显示「重新生成」：仅最后一条用户消息（且无 AI 回复）时为真
@@ -569,7 +652,7 @@ class _MessageBubble extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isUser = message.isUser;
 
     return Padding(
@@ -626,6 +709,7 @@ class _MessageBubble extends StatelessWidget {
                         onPressed: () =>
                             _copyToClipboard(context, message.content, '消息'),
                       ),
+                      if (isUser) _buildRecordability(context, ref),
                     ],
                   ),
                 ),
@@ -689,6 +773,109 @@ class _MessageBubble extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildRecordability(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(messageRecordabilityProvider(message.id));
+    final value = state.valueOrNull;
+    if (state.isLoading && value == null) {
+      return const SizedBox(
+        width: 20,
+        height: 20,
+        child: Padding(
+          padding: EdgeInsets.all(6),
+          child: CircularProgressIndicator(strokeWidth: 1.5),
+        ),
+      );
+    }
+    if (value == null) return const SizedBox.shrink();
+    final analyzing =
+        const ['pending', 'running', 'retry'].contains(value.jobStatus) &&
+        value.source == 'default';
+    final label = analyzing ? '分析中' : (value.recordable ? '记录' : '讨论');
+    final icon = analyzing
+        ? Icons.sync
+        : (value.recordable ? Icons.bookmark_outline : Icons.forum_outlined);
+    final color = value.recordable
+        ? AppTheme.accentPrimary
+        : AppTheme.textTertiary;
+    return PopupMenuButton<String>(
+      tooltip: '记录分类',
+      onSelected: (action) =>
+          _handleRecordabilityAction(context, ref, value.eventId, action),
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'record',
+          child: ListTile(
+            leading: Icon(Icons.bookmark_outline),
+            title: Text('纳入记录'),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ),
+        PopupMenuItem(
+          value: 'discussion',
+          child: ListTile(
+            leading: Icon(Icons.forum_outlined),
+            title: Text('作为讨论'),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ),
+        PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'reanalyze',
+          child: ListTile(
+            leading: Icon(Icons.refresh),
+            title: Text('重新分析'),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 3),
+            Text(label, style: TextStyle(fontSize: 10.5, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleRecordabilityAction(
+    BuildContext context,
+    WidgetRef ref,
+    String eventId,
+    String action,
+  ) async {
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    try {
+      if (action == 'reanalyze') {
+        final queued = await repo.reanalyzeEvent(eventId);
+        if (!queued) throw StateError('事件正在分析中，请稍后再试');
+      } else {
+        await repo.setEventRecordability(eventId, action == 'record');
+      }
+      ref.invalidate(messageRecordabilityProvider(message.id));
+      if (context.mounted) {
+        final text = action == 'record'
+            ? '已纳入记录'
+            : action == 'discussion'
+            ? '已作为讨论，不再进入日流和长期事实'
+            : '已加入重新分析队列';
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(text)));
+      }
+    } catch (error) {
+      if (context.mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('操作失败：$error')));
+    }
   }
 
   Widget _buildAvatar({required bool isUser}) {

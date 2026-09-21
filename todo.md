@@ -1,7 +1,7 @@
 # TODO
 
 - [x] 完成 Phase 4B 实体确认与来源闭环：候选确认/忽略、别名与同名消歧、冲突纠正、安全合并/撤销、来源和关联待办一致性（见 `docs/notes/implemented/feature/2026-09-21-safe-entity-merge-and-split.md`）
-- [ ] 落地「事件可记录性过滤」方案：docs/notes/proposed/architecture/2026-09-19-event-recordability-filter.md
+- [x] 落地「事件可记录性过滤」第一版：分析后过滤、消息内人工纠正、存量重新分析和来源保留（写入前严格门禁暂不默认启用）：docs/notes/implemented/feature/2026-09-21-recordability-correction-loop.md
 - [x] 落地「归档对话可删除」方案：docs/notes/proposed/architecture/2026-09-19-archived-conversation-deletion.md
 - [ ] 落地「决策辅助闭环」定位补全方案：docs/notes/proposed/architecture/2026-09-19-decision-support-loop.md
 - [ ] 实现 Today 每日回顾工作台：docs/notes/proposed/product/2026-09-20-today-daily-review-workbench.md（当前暂缓，不先上线空壳页面）

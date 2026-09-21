@@ -2,7 +2,7 @@ use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
 use crate::event::NewEvent;
 use crate::storage::{RelationDraft, RuleStatus, Store};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 const EVENT_ANALYSIS_VERSION: &str = "event-analysis";
@@ -214,6 +214,20 @@ pub struct EventAnalysisDetailDto {
     pub follow_ups: Vec<String>,
     pub recordable: Option<bool>,
     pub kind: Option<String>,
+    pub effective_recordable: bool,
+    pub effective_kind: String,
+    pub recordability_source: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct MessageRecordabilityDto {
+    pub message_id: String,
+    pub event_id: String,
+    pub recordable: bool,
+    pub kind: String,
+    pub source: String,
+    pub job_status: String,
+    pub summary: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -423,6 +437,9 @@ pub fn list_daily_entries(date: String) -> Result<Vec<DailyEntryDto>> {
 }
 
 fn entry_is_recordable(store: &Store, event_id: &str) -> bool {
+    if let Ok(Some(decision)) = store.latest_event_recordability_decision(event_id) {
+        return decision.recordable;
+    }
     store
         .event_analysis_detail(event_id)
         .ok()
@@ -431,6 +448,24 @@ fn entry_is_recordable(store: &Store, event_id: &str) -> bool {
         .and_then(|raw| EventAnalysisV1::parse(&raw).ok())
         .map(|analysis| analysis.recordable)
         .unwrap_or(true)
+}
+
+fn effective_event_recordability(
+    store: &Store,
+    event_id: &str,
+    analysis: Option<&EventAnalysisV1>,
+) -> Result<(bool, String, String)> {
+    if let Some(decision) = store.latest_event_recordability_decision(event_id)? {
+        return Ok((decision.recordable, decision.kind, "manual".to_string()));
+    }
+    if let Some(analysis) = analysis {
+        return Ok((
+            analysis.recordable,
+            analysis.kind.clone(),
+            "analysis".to_string(),
+        ));
+    }
+    Ok((true, "event".to_string(), "default".to_string()))
 }
 
 pub fn get_daily_overview(date: String) -> Result<DailyOverviewDto> {
@@ -612,6 +647,8 @@ pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysi
         .result_json
         .as_deref()
         .and_then(|raw| EventAnalysisV1::parse(raw).ok());
+    let (effective_recordable, effective_kind, recordability_source) =
+        effective_event_recordability(&store, &detail.event_id, analysis.as_ref())?;
     Ok(Some(EventAnalysisDetailDto {
         event_id: detail.event_id,
         raw_text: detail.raw_text,
@@ -645,7 +682,68 @@ pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysi
             .map_or_else(Vec::new, |value| value.follow_ups.clone()),
         recordable: analysis.as_ref().map(|value| value.recordable),
         kind: analysis.as_ref().map(|value| value.kind.clone()),
+        effective_recordable,
+        effective_kind,
+        recordability_source,
     }))
+}
+
+pub fn get_message_recordability(message_id: String) -> Result<Option<MessageRecordabilityDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let Some(event_id) = store.event_id_for_message(message_id.trim())? else {
+        return Ok(None);
+    };
+    let detail = store
+        .event_analysis_detail(&event_id)?
+        .context("关联事件不存在")?;
+    let analysis = detail
+        .result_json
+        .as_deref()
+        .and_then(|raw| EventAnalysisV1::parse(raw).ok());
+    let (recordable, kind, source) =
+        effective_event_recordability(&store, &event_id, analysis.as_ref())?;
+    Ok(Some(MessageRecordabilityDto {
+        message_id,
+        event_id,
+        recordable,
+        kind,
+        source,
+        job_status: detail.job_status,
+        summary: analysis.map(|value| value.summary),
+    }))
+}
+
+pub fn set_event_recordability(
+    event_id: String,
+    recordable: bool,
+) -> Result<MessageRecordabilityDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.set_event_recordability(event_id.trim(), recordable, "manual-ui")?;
+    let detail = store
+        .event_analysis_detail(event_id.trim())?
+        .context("事件不存在")?;
+    let analysis = detail
+        .result_json
+        .as_deref()
+        .and_then(|raw| EventAnalysisV1::parse(raw).ok());
+    let (recordable, kind, source) =
+        effective_event_recordability(&store, event_id.trim(), analysis.as_ref())?;
+    Ok(MessageRecordabilityDto {
+        message_id: String::new(),
+        event_id,
+        recordable,
+        kind,
+        source,
+        job_status: detail.job_status,
+        summary: analysis.map(|value| value.summary),
+    })
+}
+
+pub fn reanalyze_event(event_id: String) -> Result<bool> {
+    let config = crate::config::AppConfig::load()?;
+    Store::open(&config.database_path)?.requeue_event_analysis(event_id.trim())
 }
 
 pub fn list_entity_facts(entity_kind: String, entity_slug: String) -> Result<Vec<EntityFactDto>> {

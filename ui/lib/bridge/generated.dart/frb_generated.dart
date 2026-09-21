@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 478085838;
+  int get rustContentHash => 1816150120;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -186,6 +186,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<MessageDto>> crateApiGetMessageChain({required String messageId});
 
+  Future<MessageRecordabilityDto?> crateApiGetMessageRecordability({
+    required String messageId,
+  });
+
   Future<ThemePrefsDto> crateApiGetThemePrefs();
 
   Future<String> crateApiGetTweetFetchService();
@@ -248,6 +252,8 @@ abstract class RustLibApi extends BaseApi {
     required String targetSlug,
   });
 
+  Future<bool> crateApiReanalyzeEvent({required String eventId});
+
   Future<EventDto> crateApiRecordEvent({required String rawText});
 
   Future<void> crateApiRenameConversation({
@@ -300,6 +306,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiSetConversationArchived({
     required String conversationId,
     required bool archived,
+  });
+
+  Future<MessageRecordabilityDto> crateApiSetEventRecordability({
+    required String eventId,
+    required bool recordable,
   });
 
   Future<InputRecordDto> crateApiSubmitConversationInput({
@@ -1199,6 +1210,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<MessageRecordabilityDto?> crateApiGetMessageRecordability({
+    required String messageId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(messageId);
+          return wire.wire__crate__api__get_message_recordability(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData:
+              dco_decode_opt_box_autoadd_message_recordability_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGetMessageRecordabilityConstMeta,
+        argValues: [messageId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetMessageRecordabilityConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_message_recordability",
+        argNames: ["messageId"],
+      );
+
+  @override
   Future<ThemePrefsDto> crateApiGetThemePrefs() {
     return handler.executeNormal(
       NormalTask(
@@ -1721,6 +1760,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<bool> crateApiReanalyzeEvent({required String eventId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(eventId);
+          return wire.wire__crate__api__reanalyze_event(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReanalyzeEventConstMeta,
+        argValues: [eventId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReanalyzeEventConstMeta =>
+      const TaskConstMeta(debugName: "reanalyze_event", argNames: ["eventId"]);
+
+  @override
   Future<EventDto> crateApiRecordEvent({required String rawText}) {
     return handler.executeNormal(
       NormalTask(
@@ -2044,6 +2105,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "set_conversation_archived",
         argNames: ["conversationId", "archived"],
+      );
+
+  @override
+  Future<MessageRecordabilityDto> crateApiSetEventRecordability({
+    required String eventId,
+    required bool recordable,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(eventId);
+          var arg1 = cst_encode_bool(recordable);
+          return wire.wire__crate__api__set_event_recordability(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_message_recordability_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetEventRecordabilityConstMeta,
+        argValues: [eventId, recordable],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetEventRecordabilityConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_event_recordability",
+        argNames: ["eventId", "recordable"],
       );
 
   @override
@@ -2498,6 +2592,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MessageRecordabilityDto dco_decode_box_autoadd_message_recordability_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_message_recordability_dto(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_u_32(raw);
@@ -2653,8 +2755,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 22)
-      throw Exception('unexpected arr length: expect 22 but see ${arr.length}');
+    if (arr.length != 25)
+      throw Exception('unexpected arr length: expect 25 but see ${arr.length}');
     return EventAnalysisDetailDto(
       eventId: dco_decode_String(arr[0]),
       rawText: dco_decode_String(arr[1]),
@@ -2678,6 +2780,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       followUps: dco_decode_list_String(arr[19]),
       recordable: dco_decode_opt_box_autoadd_bool(arr[20]),
       kind: dco_decode_opt_String(arr[21]),
+      effectiveRecordable: dco_decode_bool(arr[22]),
+      effectiveKind: dco_decode_String(arr[23]),
+      recordabilitySource: dco_decode_String(arr[24]),
     );
   }
 
@@ -2875,6 +2980,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MessageRecordabilityDto dco_decode_message_recordability_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return MessageRecordabilityDto(
+      messageId: dco_decode_String(arr[0]),
+      eventId: dco_decode_String(arr[1]),
+      recordable: dco_decode_bool(arr[2]),
+      kind: dco_decode_String(arr[3]),
+      source: dco_decode_String(arr[4]),
+      jobStatus: dco_decode_String(arr[5]),
+      summary: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -2938,6 +3060,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  MessageRecordabilityDto? dco_decode_opt_box_autoadd_message_recordability_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_message_recordability_dto(raw);
   }
 
   @protected
@@ -3236,6 +3368,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MessageRecordabilityDto sse_decode_box_autoadd_message_recordability_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_message_recordability_dto(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_32(deserializer));
@@ -3450,6 +3590,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_followUps = sse_decode_list_String(deserializer);
     var var_recordable = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_kind = sse_decode_opt_String(deserializer);
+    var var_effectiveRecordable = sse_decode_bool(deserializer);
+    var var_effectiveKind = sse_decode_String(deserializer);
+    var var_recordabilitySource = sse_decode_String(deserializer);
     return EventAnalysisDetailDto(
       eventId: var_eventId,
       rawText: var_rawText,
@@ -3473,6 +3616,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       followUps: var_followUps,
       recordable: var_recordable,
       kind: var_kind,
+      effectiveRecordable: var_effectiveRecordable,
+      effectiveKind: var_effectiveKind,
+      recordabilitySource: var_recordabilitySource,
     );
   }
 
@@ -3798,6 +3944,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MessageRecordabilityDto sse_decode_message_recordability_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_messageId = sse_decode_String(deserializer);
+    var var_eventId = sse_decode_String(deserializer);
+    var var_recordable = sse_decode_bool(deserializer);
+    var var_kind = sse_decode_String(deserializer);
+    var var_source = sse_decode_String(deserializer);
+    var var_jobStatus = sse_decode_String(deserializer);
+    var var_summary = sse_decode_opt_String(deserializer);
+    return MessageRecordabilityDto(
+      messageId: var_messageId,
+      eventId: var_eventId,
+      recordable: var_recordable,
+      kind: var_kind,
+      source: var_source,
+      jobStatus: var_jobStatus,
+      summary: var_summary,
+    );
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -3901,6 +4070,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_i_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  MessageRecordabilityDto? sse_decode_opt_box_autoadd_message_recordability_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_message_recordability_dto(deserializer));
     } else {
       return null;
     }
@@ -4265,6 +4447,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_message_recordability_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
@@ -4429,6 +4620,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.followUps, serializer);
     sse_encode_opt_box_autoadd_bool(self.recordable, serializer);
     sse_encode_opt_String(self.kind, serializer);
+    sse_encode_bool(self.effectiveRecordable, serializer);
+    sse_encode_String(self.effectiveKind, serializer);
+    sse_encode_String(self.recordabilitySource, serializer);
   }
 
   @protected
@@ -4695,6 +4889,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_message_recordability_dto(
+    MessageRecordabilityDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.messageId, serializer);
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_bool(self.recordable, serializer);
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.source, serializer);
+    sse_encode_String(self.jobStatus, serializer);
+    sse_encode_opt_String(self.summary, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -4799,6 +5008,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_i_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_message_recordability_dto(self, serializer);
     }
   }
 

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 478085838;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1816150120;
 
 // Section: executor
 
@@ -813,6 +813,29 @@ fn wire__crate__api__get_message_chain_impl(
         },
     )
 }
+fn wire__crate__api__get_message_recordability_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    message_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_message_recordability",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_message_id = message_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::get_message_recordability(api_message_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__get_theme_prefs_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -1305,6 +1328,29 @@ fn wire__crate__api__merge_entity_impl(
         },
     )
 }
+fn wire__crate__api__reanalyze_event_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    event_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "reanalyze_event",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_event_id = event_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::reanalyze_event(api_event_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__record_event_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     raw_text: impl CstDecode<String>,
@@ -1590,6 +1636,32 @@ fn wire__crate__api__set_conversation_archived_impl(
                             api_conversation_id,
                             api_archived,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__set_event_recordability_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    event_id: impl CstDecode<String>,
+    recordable: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_event_recordability",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_event_id = event_id.cst_decode();
+            let api_recordable = recordable.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::set_event_recordability(api_event_id, api_recordable)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2217,6 +2289,9 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
         let mut var_followUps = <Vec<String>>::sse_decode(deserializer);
         let mut var_recordable = <Option<bool>>::sse_decode(deserializer);
         let mut var_kind = <Option<String>>::sse_decode(deserializer);
+        let mut var_effectiveRecordable = <bool>::sse_decode(deserializer);
+        let mut var_effectiveKind = <String>::sse_decode(deserializer);
+        let mut var_recordabilitySource = <String>::sse_decode(deserializer);
         return crate::api::EventAnalysisDetailDto {
             event_id: var_eventId,
             raw_text: var_rawText,
@@ -2240,6 +2315,9 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
             follow_ups: var_followUps,
             recordable: var_recordable,
             kind: var_kind,
+            effective_recordable: var_effectiveRecordable,
+            effective_kind: var_effectiveKind,
+            recordability_source: var_recordabilitySource,
         };
     }
 }
@@ -2561,6 +2639,28 @@ impl SseDecode for crate::api::MessageDto {
     }
 }
 
+impl SseDecode for crate::api::MessageRecordabilityDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_messageId = <String>::sse_decode(deserializer);
+        let mut var_eventId = <String>::sse_decode(deserializer);
+        let mut var_recordable = <bool>::sse_decode(deserializer);
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_source = <String>::sse_decode(deserializer);
+        let mut var_jobStatus = <String>::sse_decode(deserializer);
+        let mut var_summary = <Option<String>>::sse_decode(deserializer);
+        return crate::api::MessageRecordabilityDto {
+            message_id: var_messageId,
+            event_id: var_eventId,
+            recordable: var_recordable,
+            kind: var_kind,
+            source: var_source,
+            job_status: var_jobStatus,
+            summary: var_summary,
+        };
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2656,6 +2756,19 @@ impl SseDecode for Option<i64> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<i64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::MessageRecordabilityDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::MessageRecordabilityDto>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -3191,6 +3304,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventAnalysisDetailDto {
             self.follow_ups.into_into_dart().into_dart(),
             self.recordable.into_into_dart().into_dart(),
             self.kind.into_into_dart().into_dart(),
+            self.effective_recordable.into_into_dart().into_dart(),
+            self.effective_kind.into_into_dart().into_dart(),
+            self.recordability_source.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3288,6 +3404,32 @@ impl flutter_rust_bridge::IntoDart for crate::api::MessageDto {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::MessageDto {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::MessageDto> for crate::api::MessageDto {
     fn into_into_dart(self) -> crate::api::MessageDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::MessageRecordabilityDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.message_id.into_into_dart().into_dart(),
+            self.event_id.into_into_dart().into_dart(),
+            self.recordable.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.source.into_into_dart().into_dart(),
+            self.job_status.into_into_dart().into_dart(),
+            self.summary.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::MessageRecordabilityDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::MessageRecordabilityDto>
+    for crate::api::MessageRecordabilityDto
+{
+    fn into_into_dart(self) -> crate::api::MessageRecordabilityDto {
         self
     }
 }
@@ -3633,6 +3775,9 @@ impl SseEncode for crate::api::EventAnalysisDetailDto {
         <Vec<String>>::sse_encode(self.follow_ups, serializer);
         <Option<bool>>::sse_encode(self.recordable, serializer);
         <Option<String>>::sse_encode(self.kind, serializer);
+        <bool>::sse_encode(self.effective_recordable, serializer);
+        <String>::sse_encode(self.effective_kind, serializer);
+        <String>::sse_encode(self.recordability_source, serializer);
     }
 }
 
@@ -3880,6 +4025,19 @@ impl SseEncode for crate::api::MessageDto {
     }
 }
 
+impl SseEncode for crate::api::MessageRecordabilityDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.message_id, serializer);
+        <String>::sse_encode(self.event_id, serializer);
+        <bool>::sse_encode(self.recordable, serializer);
+        <String>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.source, serializer);
+        <String>::sse_encode(self.job_status, serializer);
+        <Option<String>>::sse_encode(self.summary, serializer);
+    }
+}
+
 impl SseEncode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3966,6 +4124,16 @@ impl SseEncode for Option<i64> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <i64>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::MessageRecordabilityDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::MessageRecordabilityDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -4233,6 +4401,13 @@ mod io {
             unsafe { *flutter_rust_bridge::for_generated::box_from_leak_ptr(self) }
         }
     }
+    impl CstDecode<crate::api::MessageRecordabilityDto> for *mut wire_cst_message_recordability_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::MessageRecordabilityDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::MessageRecordabilityDto>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<u32> for *mut u32 {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> u32 {
@@ -4385,6 +4560,9 @@ mod io {
                 follow_ups: self.follow_ups.cst_decode(),
                 recordable: self.recordable.cst_decode(),
                 kind: self.kind.cst_decode(),
+                effective_recordable: self.effective_recordable.cst_decode(),
+                effective_kind: self.effective_kind.cst_decode(),
+                recordability_source: self.recordability_source.cst_decode(),
             }
         }
     }
@@ -4613,6 +4791,20 @@ mod io {
                 role: self.role.cst_decode(),
                 content: self.content.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::MessageRecordabilityDto> for wire_cst_message_recordability_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::MessageRecordabilityDto {
+            crate::api::MessageRecordabilityDto {
+                message_id: self.message_id.cst_decode(),
+                event_id: self.event_id.cst_decode(),
+                recordable: self.recordable.cst_decode(),
+                kind: self.kind.cst_decode(),
+                source: self.source.cst_decode(),
+                job_status: self.job_status.cst_decode(),
+                summary: self.summary.cst_decode(),
             }
         }
     }
@@ -4945,6 +5137,9 @@ mod io {
                 follow_ups: core::ptr::null_mut(),
                 recordable: core::ptr::null_mut(),
                 kind: core::ptr::null_mut(),
+                effective_recordable: Default::default(),
+                effective_kind: core::ptr::null_mut(),
+                recordability_source: core::ptr::null_mut(),
             }
         }
     }
@@ -5022,6 +5217,24 @@ mod io {
         }
     }
     impl Default for wire_cst_message_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_message_recordability_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                message_id: core::ptr::null_mut(),
+                event_id: core::ptr::null_mut(),
+                recordable: Default::default(),
+                kind: core::ptr::null_mut(),
+                source: core::ptr::null_mut(),
+                job_status: core::ptr::null_mut(),
+                summary: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_message_recordability_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -5421,6 +5634,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_message_recordability(
+        port_: i64,
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__get_message_recordability_impl(port_, message_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_theme_prefs(port_: i64) {
         wire__crate__api__get_theme_prefs_impl(port_)
     }
@@ -5575,6 +5796,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__reanalyze_event(
+        port_: i64,
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__reanalyze_event_impl(port_, event_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__record_event(
         port_: i64,
         raw_text: *mut wire_cst_list_prim_u_8_strict,
@@ -5696,6 +5925,15 @@ mod io {
         archived: bool,
     ) {
         wire__crate__api__set_conversation_archived_impl(port_, conversation_id, archived)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__set_event_recordability(
+        port_: i64,
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+        recordable: bool,
+    ) {
+        wire__crate__api__set_event_recordability_impl(port_, event_id, recordable)
     }
 
     #[unsafe(no_mangle)]
@@ -5855,6 +6093,14 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_i_64(value: i64) -> *mut i64 {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_message_recordability_dto(
+    ) -> *mut wire_cst_message_recordability_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_message_recordability_dto::new_with_null_ptr(),
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -6247,6 +6493,9 @@ mod io {
         follow_ups: *mut wire_cst_list_String,
         recordable: *mut bool,
         kind: *mut wire_cst_list_prim_u_8_strict,
+        effective_recordable: bool,
+        effective_kind: *mut wire_cst_list_prim_u_8_strict,
+        recordability_source: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -6394,6 +6643,17 @@ mod io {
         role: *mut wire_cst_list_prim_u_8_strict,
         content: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_message_recordability_dto {
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+        recordable: bool,
+        kind: *mut wire_cst_list_prim_u_8_strict,
+        source: *mut wire_cst_list_prim_u_8_strict,
+        job_status: *mut wire_cst_list_prim_u_8_strict,
+        summary: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -6811,8 +7071,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                22,
-                "Expected 22 elements, got {}",
+                25,
+                "Expected 25 elements, got {}",
                 self_.length()
             );
             crate::api::EventAnalysisDetailDto {
@@ -6838,6 +7098,9 @@ mod web {
                 follow_ups: self_.get(19).cst_decode(),
                 recordable: self_.get(20).cst_decode(),
                 kind: self_.get(21).cst_decode(),
+                effective_recordable: self_.get(22).cst_decode(),
+                effective_kind: self_.get(23).cst_decode(),
+                recordability_source: self_.get(24).cst_decode(),
             }
         }
     }
@@ -7133,6 +7396,31 @@ mod web {
                 role: self_.get(3).cst_decode(),
                 content: self_.get(4).cst_decode(),
                 created_at: self_.get(5).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::MessageRecordabilityDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::MessageRecordabilityDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                7,
+                "Expected 7 elements, got {}",
+                self_.length()
+            );
+            crate::api::MessageRecordabilityDto {
+                message_id: self_.get(0).cst_decode(),
+                event_id: self_.get(1).cst_decode(),
+                recordable: self_.get(2).cst_decode(),
+                kind: self_.get(3).cst_decode(),
+                source: self_.get(4).cst_decode(),
+                job_status: self_.get(5).cst_decode(),
+                summary: self_.get(6).cst_decode(),
             }
         }
     }
@@ -7646,6 +7934,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__get_message_recordability(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        message_id: String,
+    ) {
+        wire__crate__api__get_message_recordability_impl(port_, message_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__get_theme_prefs(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -7812,6 +8108,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__reanalyze_event(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        event_id: String,
+    ) {
+        wire__crate__api__reanalyze_event_impl(port_, event_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__record_event(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         raw_text: String,
@@ -7933,6 +8237,15 @@ mod web {
         archived: bool,
     ) {
         wire__crate__api__set_conversation_archived_impl(port_, conversation_id, archived)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__set_event_recordability(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        event_id: String,
+        recordable: bool,
+    ) {
+        wire__crate__api__set_event_recordability_impl(port_, event_id, recordable)
     }
 
     #[wasm_bindgen]

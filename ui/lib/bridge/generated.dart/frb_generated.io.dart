@@ -70,6 +70,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  MessageRecordabilityDto dco_decode_box_autoadd_message_recordability_dto(
+    dynamic raw,
+  );
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -180,6 +185,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MessageDto dco_decode_message_dto(dynamic raw);
 
   @protected
+  MessageRecordabilityDto dco_decode_message_recordability_dto(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -211,6 +219,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  MessageRecordabilityDto? dco_decode_opt_box_autoadd_message_recordability_dto(
+    dynamic raw,
+  );
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -303,6 +316,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  MessageRecordabilityDto sse_decode_box_autoadd_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
@@ -441,6 +459,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MessageDto sse_decode_message_dto(SseDeserializer deserializer);
 
   @protected
+  MessageRecordabilityDto sse_decode_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -476,6 +499,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  MessageRecordabilityDto? sse_decode_opt_box_autoadd_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
@@ -590,6 +618,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Int64> cst_encode_box_autoadd_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return wire.cst_new_box_autoadd_i_64(cst_encode_i_64(raw));
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_message_recordability_dto>
+  cst_encode_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_message_recordability_dto();
+    cst_api_fill_to_wire_message_recordability_dto(raw, ptr.ref);
+    return ptr;
   }
 
   @protected
@@ -885,6 +924,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_message_recordability_dto>
+  cst_encode_opt_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_message_recordability_dto(raw);
+  }
+
+  @protected
   ffi.Pointer<ffi.Uint32> cst_encode_opt_box_autoadd_u_32(int? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_u_32(raw);
@@ -978,6 +1028,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_event_analysis_detail_dto> wireObj,
   ) {
     cst_api_fill_to_wire_event_analysis_detail_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto apiObj,
+    ffi.Pointer<wire_cst_message_recordability_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_message_recordability_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -1140,6 +1198,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.follow_ups = cst_encode_list_String(apiObj.followUps);
     wireObj.recordable = cst_encode_opt_box_autoadd_bool(apiObj.recordable);
     wireObj.kind = cst_encode_opt_String(apiObj.kind);
+    wireObj.effective_recordable = cst_encode_bool(apiObj.effectiveRecordable);
+    wireObj.effective_kind = cst_encode_String(apiObj.effectiveKind);
+    wireObj.recordability_source = cst_encode_String(
+      apiObj.recordabilitySource,
+    );
   }
 
   @protected
@@ -1197,6 +1260,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.role = cst_encode_String(apiObj.role);
     wireObj.content = cst_encode_String(apiObj.content);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_message_recordability_dto(
+    MessageRecordabilityDto apiObj,
+    wire_cst_message_recordability_dto wireObj,
+  ) {
+    wireObj.message_id = cst_encode_String(apiObj.messageId);
+    wireObj.event_id = cst_encode_String(apiObj.eventId);
+    wireObj.recordable = cst_encode_bool(apiObj.recordable);
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.source = cst_encode_String(apiObj.source);
+    wireObj.job_status = cst_encode_String(apiObj.jobStatus);
+    wireObj.summary = cst_encode_opt_String(apiObj.summary);
   }
 
   @protected
@@ -1390,6 +1467,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -1567,6 +1650,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_message_dto(MessageDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_message_recordability_dto(
+    MessageRecordabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -1608,6 +1697,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto? self,
     SseSerializer serializer,
   );
 
@@ -1789,6 +1884,23 @@ class RustLibWire implements BaseWire {
       );
   late final _cst_new_box_autoadd_i_64 = _cst_new_box_autoadd_i_64Ptr
       .asFunction<ffi.Pointer<ffi.Int64> Function(int)>();
+
+  ffi.Pointer<wire_cst_message_recordability_dto>
+  cst_new_box_autoadd_message_recordability_dto() {
+    return _cst_new_box_autoadd_message_recordability_dto();
+  }
+
+  late final _cst_new_box_autoadd_message_recordability_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_message_recordability_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_message_recordability_dto');
+  late final _cst_new_box_autoadd_message_recordability_dto =
+      _cst_new_box_autoadd_message_recordability_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_message_recordability_dto> Function()
+          >();
 
   ffi.Pointer<ffi.Uint32> cst_new_box_autoadd_u_32(int value) {
     return _cst_new_box_autoadd_u_32(value);
@@ -2830,6 +2942,28 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__get_message_recordability(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+  ) {
+    return _wire__crate__api__get_message_recordability(port_, message_id);
+  }
+
+  late final _wire__crate__api__get_message_recordabilityPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__get_message_recordability');
+  late final _wire__crate__api__get_message_recordability =
+      _wire__crate__api__get_message_recordabilityPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__get_theme_prefs(int port_) {
     return _wire__crate__api__get_theme_prefs(port_);
   }
@@ -3256,6 +3390,28 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__reanalyze_event(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+  ) {
+    return _wire__crate__api__reanalyze_event(port_, event_id);
+  }
+
+  late final _wire__crate__api__reanalyze_eventPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__reanalyze_event');
+  late final _wire__crate__api__reanalyze_event =
+      _wire__crate__api__reanalyze_eventPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__record_event(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_text,
@@ -3577,6 +3733,34 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_wire__crate__api__set_conversation_archived');
   late final _wire__crate__api__set_conversation_archived =
       _wire__crate__api__set_conversation_archivedPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
+  void wire__crate__api__set_event_recordability(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+    bool recordable,
+  ) {
+    return _wire__crate__api__set_event_recordability(
+      port_,
+      event_id,
+      recordable,
+    );
+  }
+
+  late final _wire__crate__api__set_event_recordabilityPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__set_event_recordability');
+  late final _wire__crate__api__set_event_recordability =
+      _wire__crate__api__set_event_recordabilityPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
@@ -4326,6 +4510,13 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
 
+  @ffi.Bool()
+  external bool effective_recordable;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> effective_kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> recordability_source;
+
   static ffi.Pointer<wire_cst_event_analysis_detail_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
@@ -4350,6 +4541,9 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_String> follow_ups,
     required ffi.Pointer<ffi.Bool> recordable,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required bool effective_recordable,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> effective_kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> recordability_source,
   }) => $allocator<wire_cst_event_analysis_detail_dto>()
     ..ref.event_id = event_id
     ..ref.raw_text = raw_text
@@ -4372,7 +4566,10 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
     ..ref.activities = activities
     ..ref.follow_ups = follow_ups
     ..ref.recordable = recordable
-    ..ref.kind = kind;
+    ..ref.kind = kind
+    ..ref.effective_recordable = effective_recordable
+    ..ref.effective_kind = effective_kind
+    ..ref.recordability_source = recordability_source;
 }
 
 final class wire_cst_event_dto extends ffi.Struct {
@@ -4768,6 +4965,41 @@ final class wire_cst_message_dto extends ffi.Struct {
     ..ref.role = role
     ..ref.content = content
     ..ref.created_at = created_at;
+}
+
+final class wire_cst_message_recordability_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
+
+  @ffi.Bool()
+  external bool recordable;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> job_status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> summary;
+
+  static ffi.Pointer<wire_cst_message_recordability_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+    required bool recordable,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> job_status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> summary,
+  }) => $allocator<wire_cst_message_recordability_dto>()
+    ..ref.message_id = message_id
+    ..ref.event_id = event_id
+    ..ref.recordable = recordable
+    ..ref.kind = kind
+    ..ref.source = source
+    ..ref.job_status = job_status
+    ..ref.summary = summary;
 }
 
 final class wire_cst_pending_action_dto extends ffi.Struct {

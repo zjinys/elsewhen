@@ -7,9 +7,9 @@ import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `default_event_kind`, `default_recordable`, `dto_from_active`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
+// These functions are ignored because they are not marked as `pub`: `default_event_kind`, `default_recordable`, `dto_from_active`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -88,6 +88,22 @@ Future<String> generateDailyReview({required String date}) =>
 Future<EventAnalysisDetailDto?> getEventAnalysisDetail({
   required String eventId,
 }) => RustLib.instance.api.crateApiGetEventAnalysisDetail(eventId: eventId);
+
+Future<MessageRecordabilityDto?> getMessageRecordability({
+  required String messageId,
+}) =>
+    RustLib.instance.api.crateApiGetMessageRecordability(messageId: messageId);
+
+Future<MessageRecordabilityDto> setEventRecordability({
+  required String eventId,
+  required bool recordable,
+}) => RustLib.instance.api.crateApiSetEventRecordability(
+  eventId: eventId,
+  recordable: recordable,
+);
+
+Future<bool> reanalyzeEvent({required String eventId}) =>
+    RustLib.instance.api.crateApiReanalyzeEvent(eventId: eventId);
 
 Future<List<EntityFactDto>> listEntityFacts({
   required String entityKind,
@@ -957,6 +973,9 @@ class EventAnalysisDetailDto {
   final List<String> followUps;
   final bool? recordable;
   final String? kind;
+  final bool effectiveRecordable;
+  final String effectiveKind;
+  final String recordabilitySource;
 
   const EventAnalysisDetailDto({
     required this.eventId,
@@ -981,6 +1000,9 @@ class EventAnalysisDetailDto {
     required this.followUps,
     this.recordable,
     this.kind,
+    required this.effectiveRecordable,
+    required this.effectiveKind,
+    required this.recordabilitySource,
   });
 
   @override
@@ -1006,7 +1028,10 @@ class EventAnalysisDetailDto {
       activities.hashCode ^
       followUps.hashCode ^
       recordable.hashCode ^
-      kind.hashCode;
+      kind.hashCode ^
+      effectiveRecordable.hashCode ^
+      effectiveKind.hashCode ^
+      recordabilitySource.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1034,7 +1059,10 @@ class EventAnalysisDetailDto {
           activities == other.activities &&
           followUps == other.followUps &&
           recordable == other.recordable &&
-          kind == other.kind;
+          kind == other.kind &&
+          effectiveRecordable == other.effectiveRecordable &&
+          effectiveKind == other.effectiveKind &&
+          recordabilitySource == other.recordabilitySource;
 }
 
 /// Event data transfer object for Flutter
@@ -1216,6 +1244,49 @@ class MessageDto {
           role == other.role &&
           content == other.content &&
           createdAt == other.createdAt;
+}
+
+class MessageRecordabilityDto {
+  final String messageId;
+  final String eventId;
+  final bool recordable;
+  final String kind;
+  final String source;
+  final String jobStatus;
+  final String? summary;
+
+  const MessageRecordabilityDto({
+    required this.messageId,
+    required this.eventId,
+    required this.recordable,
+    required this.kind,
+    required this.source,
+    required this.jobStatus,
+    this.summary,
+  });
+
+  @override
+  int get hashCode =>
+      messageId.hashCode ^
+      eventId.hashCode ^
+      recordable.hashCode ^
+      kind.hashCode ^
+      source.hashCode ^
+      jobStatus.hashCode ^
+      summary.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MessageRecordabilityDto &&
+          runtimeType == other.runtimeType &&
+          messageId == other.messageId &&
+          eventId == other.eventId &&
+          recordable == other.recordable &&
+          kind == other.kind &&
+          source == other.source &&
+          jobStatus == other.jobStatus &&
+          summary == other.summary;
 }
 
 class PendingActionDto {

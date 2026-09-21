@@ -72,6 +72,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  MessageRecordabilityDto dco_decode_box_autoadd_message_recordability_dto(
+    dynamic raw,
+  );
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -182,6 +187,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MessageDto dco_decode_message_dto(dynamic raw);
 
   @protected
+  MessageRecordabilityDto dco_decode_message_recordability_dto(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -213,6 +221,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  MessageRecordabilityDto? dco_decode_opt_box_autoadd_message_recordability_dto(
+    dynamic raw,
+  );
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -305,6 +318,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  MessageRecordabilityDto sse_decode_box_autoadd_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
@@ -443,6 +461,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MessageDto sse_decode_message_dto(SseDeserializer deserializer);
 
   @protected
+  MessageRecordabilityDto sse_decode_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -478,6 +501,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  MessageRecordabilityDto? sse_decode_opt_box_autoadd_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
@@ -619,6 +647,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_64(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_message_recordability_dto(raw);
   }
 
   @protected
@@ -772,6 +808,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_String(raw.followUps),
       cst_encode_opt_box_autoadd_bool(raw.recordable),
       cst_encode_opt_String(raw.kind),
+      cst_encode_bool(raw.effectiveRecordable),
+      cst_encode_String(raw.effectiveKind),
+      cst_encode_String(raw.recordabilitySource),
     ].jsify()!;
   }
 
@@ -943,6 +982,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_message_recordability_dto(MessageRecordabilityDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.messageId),
+      cst_encode_String(raw.eventId),
+      cst_encode_bool(raw.recordable),
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.source),
+      cst_encode_String(raw.jobStatus),
+      cst_encode_opt_String(raw.summary),
+    ].jsify()!;
+  }
+
+  @protected
   String? cst_encode_opt_String(String? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_String(raw);
@@ -1006,6 +1059,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_i_64(PlatformInt64? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_message_recordability_dto(raw);
   }
 
   @protected
@@ -1211,6 +1274,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -1388,6 +1457,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_message_dto(MessageDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_message_recordability_dto(
+    MessageRecordabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -1429,6 +1504,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_message_recordability_dto(
+    MessageRecordabilityDto? self,
     SseSerializer serializer,
   );
 
@@ -1672,6 +1753,12 @@ class RustLibWire implements BaseWire {
     String message_id,
   ) => wasmModule.wire__crate__api__get_message_chain(port_, message_id);
 
+  void wire__crate__api__get_message_recordability(
+    NativePortType port_,
+    String message_id,
+  ) =>
+      wasmModule.wire__crate__api__get_message_recordability(port_, message_id);
+
   void wire__crate__api__get_theme_prefs(NativePortType port_) =>
       wasmModule.wire__crate__api__get_theme_prefs(port_);
 
@@ -1777,6 +1864,11 @@ class RustLibWire implements BaseWire {
     target_slug,
   );
 
+  void wire__crate__api__reanalyze_event(
+    NativePortType port_,
+    String event_id,
+  ) => wasmModule.wire__crate__api__reanalyze_event(port_, event_id);
+
   void wire__crate__api__record_event(NativePortType port_, String raw_text) =>
       wasmModule.wire__crate__api__record_event(port_, raw_text);
 
@@ -1875,6 +1967,16 @@ class RustLibWire implements BaseWire {
     port_,
     conversation_id,
     archived,
+  );
+
+  void wire__crate__api__set_event_recordability(
+    NativePortType port_,
+    String event_id,
+    bool recordable,
+  ) => wasmModule.wire__crate__api__set_event_recordability(
+    port_,
+    event_id,
+    recordable,
   );
 
   void wire__crate__api__submit_conversation_input(
@@ -2134,6 +2236,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String message_id,
   );
 
+  external void wire__crate__api__get_message_recordability(
+    NativePortType port_,
+    String message_id,
+  );
+
   external void wire__crate__api__get_theme_prefs(NativePortType port_);
 
   external void wire__crate__api__get_tweet_fetch_service(NativePortType port_);
@@ -2226,6 +2333,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String target_slug,
   );
 
+  external void wire__crate__api__reanalyze_event(
+    NativePortType port_,
+    String event_id,
+  );
+
   external void wire__crate__api__record_event(
     NativePortType port_,
     String raw_text,
@@ -2292,6 +2404,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String conversation_id,
     bool archived,
+  );
+
+  external void wire__crate__api__set_event_recordability(
+    NativePortType port_,
+    String event_id,
+    bool recordable,
   );
 
   external void wire__crate__api__submit_conversation_input(

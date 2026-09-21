@@ -78,6 +78,23 @@ void main() {
     expect(linkedUrlInput.wikiPageSlug, 'import-test-page');
     expect(await repo.listEvents(), hasLength(3));
 
+    final conversation = await repo.createConversation(title: '记录性隔离测试');
+    final message = await repo.submitConversationInput(
+      conversation.id,
+      '你这个回答情绪价值不够',
+      idempotencyKey: 'recordability-bridge-1',
+    );
+    var recordability = await repo.getMessageRecordability(message.id);
+    expect(recordability, isNotNull);
+    expect(recordability!.recordable, isTrue, reason: '无分析时默认保留原始记录');
+    recordability = await repo.setEventRecordability(
+      recordability.eventId,
+      false,
+    );
+    expect(recordability.recordable, isFalse);
+    expect(recordability.kind, 'discussion');
+    expect(await repo.reanalyzeEvent(recordability.eventId), isTrue);
+
     final sourceEntity = await repo.saveTextPage(
       text: '用于验证实体合并的来源主题',
       title: '合并来源主题',
@@ -98,7 +115,7 @@ void main() {
     expect(await repo.undoEntityMerge(sourceEntity.slug), isTrue);
     expect(await repo.getEntityMergeStatus(sourceEntity.slug), isNull);
     expect((await repo.getWikiPage(sourceEntity.slug))?.status, 'active');
-    expect(await repo.listEvents(), hasLength(3));
+    expect(await repo.listEvents(), hasLength(4));
     print('Bridge test complete! 🎉');
   });
 }

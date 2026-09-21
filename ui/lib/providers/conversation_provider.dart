@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/conversation.dart';
 import '../bridge/rust_bridge_repository.dart';
+import '../bridge/generated.dart/api.dart' show MessageRecordabilityDto;
 
 /// Mock conversation repository (will be replaced with Rust bridge)
 class ConversationRepository {
@@ -90,6 +91,16 @@ final conversationsProvider = FutureProvider<List<Conversation>>((ref) async {
 /// Selected conversation ID provider
 final selectedConversationIdProvider = StateProvider<String?>((ref) => null);
 
+final messageRecordabilityProvider =
+    FutureProvider.family<MessageRecordabilityDto?, String>((
+      ref,
+      messageId,
+    ) async {
+      final bridge =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      return bridge.getMessageRecordability(messageId);
+    });
+
 /// 会话内的临时提示气泡（如 AI 回复失败）。
 /// 仅存在于内存、不写库 —— 不会进入对话历史、记忆注入或后续 AI 上下文。
 /// key 为 conversationId；发送新消息或切库刷新后即可清空。
@@ -150,7 +161,9 @@ final messagesProvider = FutureProvider<List<Message>>((ref) async {
 final pendingActionsProvider = FutureProvider<List<dynamic>>((ref) async {
   final conversationId = ref.watch(selectedConversationIdProvider);
   if (conversationId == null) return const [];
-  return ref.read(conversationRepositoryProvider).listPendingActions(conversationId);
+  return ref
+      .read(conversationRepositoryProvider)
+      .listPendingActions(conversationId);
 });
 
 /// Message input provider

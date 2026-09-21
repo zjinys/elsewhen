@@ -373,6 +373,15 @@ pub struct EventAnalysisDetail {
     pub analysis_created_at: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EventRecordabilityDecision {
+    pub event_id: String,
+    pub recordable: bool,
+    pub kind: String,
+    pub reason: String,
+    pub created_at: String,
+}
+
 fn map_input_record(row: &rusqlite::Row) -> rusqlite::Result<InputRecord> {
     Ok(InputRecord {
         id: row.get(0)?,
@@ -715,6 +724,21 @@ impl Store {
         connection.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (27, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
             [],
+        )?;
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS event_recordability_decisions (
+               id TEXT PRIMARY KEY,
+               event_id TEXT NOT NULL,
+               recordable INTEGER NOT NULL CHECK(recordable IN (0,1)),
+               kind TEXT NOT NULL CHECK(kind IN ('event','discussion','chitchat','meta')),
+               reason TEXT NOT NULL,
+               created_at TEXT NOT NULL,
+               FOREIGN KEY(event_id) REFERENCES events(id)
+             );
+             CREATE INDEX IF NOT EXISTS idx_event_recordability_latest
+               ON event_recordability_decisions(event_id, created_at DESC, id DESC);
+             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+             VALUES (28, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
         )?;
         let has_api_key = {
             let mut statement = connection.prepare("PRAGMA table_info(ai_provider_configs)")?;
@@ -1438,6 +1462,99 @@ impl Store {
             )
             .optional()
             .map_err(Into::into)
+    }
+
+    pub fn latest_event_recordability_decision(
+        &self,
+        event_id: &str,
+    ) -> Result<Option<EventRecordabilityDecision>> {
+        self.connection
+            .query_row(
+                "SELECT event_id,recordable,kind,reason,created_at
+                 FROM event_recordability_decisions
+                 WHERE event_id=?1 ORDER BY created_at DESC,id DESC LIMIT 1",
+                [event_id],
+                |row| {
+                    Ok(EventRecordabilityDecision {
+                        event_id: row.get(0)?,
+                        recordable: row.get(1)?,
+                        kind: row.get(2)?,
+                        reason: row.get(3)?,
+                        created_at: row.get(4)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
+    pub fn event_id_for_message(&self, message_id: &str) -> Result<Option<String>> {
+        self.connection
+            .query_row(
+                "SELECT event_id FROM input_records WHERE message_id=?1 AND event_id IS NOT NULL LIMIT 1",
+                [message_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
+    pub fn set_event_recordability(
+        &self,
+        event_id: &str,
+        recordable: bool,
+        reason: &str,
+    ) -> Result<EventRecordabilityDecision> {
+        if self.event_analysis_detail(event_id)?.is_none() {
+            anyhow::bail!("事件不存在");
+        }
+        let kind = if recordable { "event" } else { "discussion" };
+        let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.connection.unchecked_transaction()?;
+        tx.execute(
+            "INSERT INTO event_recordability_decisions (id,event_id,recordable,kind,reason,created_at)
+             VALUES (?1,?2,?3,?4,?5,?6)",
+            params![Uuid::new_v4().to_string(), event_id, recordable, kind, reason.trim(), now],
+        )?;
+        if !recordable {
+            tx.execute(
+                "DELETE FROM entity_facts WHERE source_event_id=?1",
+                [event_id],
+            )?;
+            tx.execute("DELETE FROM relations WHERE source_event_id=?1", [event_id])?;
+            tx.execute(
+                "UPDATE pending_actions SET status='declined'
+                 WHERE status='pending' AND args_json LIKE '%' || ?1 || '%'",
+                [event_id],
+            )?;
+            tx.execute(
+                "UPDATE conversations SET tag='discussion',updated_at=?2
+                 WHERE id IN (
+                   SELECT m.conversation_id FROM input_records i
+                   JOIN messages m ON m.id=i.message_id WHERE i.event_id=?1
+                 ) AND (tag IS NULL OR tag='general')",
+                params![event_id, now],
+            )?;
+        }
+        tx.commit()?;
+        self.latest_event_recordability_decision(event_id)?
+            .context("记录人工分类后读取失败")
+    }
+
+    pub fn requeue_event_analysis(&self, event_id: &str) -> Result<bool> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let affected = self.connection.execute(
+            "UPDATE analysis_jobs SET status='pending',attempts=0,last_error=NULL,available_at=?2,updated_at=?2
+             WHERE event_id=?1 AND status<>'running'",
+            params![event_id, now],
+        )?;
+        if affected > 0 {
+            self.connection.execute(
+                "UPDATE events SET status='pending',processed_at=NULL,updated_at=?2 WHERE id=?1",
+                params![event_id, now],
+            )?;
+        }
+        Ok(affected > 0)
     }
 
     pub fn save_daily_review(
@@ -4037,6 +4154,112 @@ mod tests {
             Some("event-analysis-v1")
         );
         assert!(succeeded.result_json.is_some());
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn manual_recordability_is_append_only_and_preserves_raw_event_and_message() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let conversation_id = store.create_conversation(None, None).unwrap();
+        let input = store
+            .submit_conversation_input(
+                &conversation_id,
+                "你这个回答情绪价值不够",
+                Some("recordability-1"),
+            )
+            .unwrap();
+        let event_id = input.event_id.clone().unwrap();
+        let message_id = input.message_id.clone().unwrap();
+        store
+            .upsert_entity_fact(
+                "topic",
+                "topic/回答",
+                "评价：不满意",
+                "2026-09-21",
+                2,
+                &event_id,
+            )
+            .unwrap();
+        store
+            .create_pending_action(
+                &conversation_id,
+                "propose_people_relations",
+                &format!(r#"{{"source_event_id":"{event_id}"}}"#),
+            )
+            .unwrap();
+
+        let first = store
+            .set_event_recordability(&event_id, false, "manual-ui")
+            .unwrap();
+        assert!(!first.recordable);
+        assert_eq!(first.kind, "discussion");
+        assert!(store
+            .list_entity_facts("topic", "topic/回答")
+            .unwrap()
+            .is_empty());
+        assert!(store
+            .pending_actions_for_conversation(&conversation_id)
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            store
+                .get_conversation(&conversation_id)
+                .unwrap()
+                .unwrap()
+                .tag
+                .as_deref(),
+            Some("discussion")
+        );
+        assert_eq!(
+            store.list_events().unwrap()[0].raw_text,
+            "你这个回答情绪价值不够"
+        );
+        assert_eq!(
+            store.list_messages(&conversation_id).unwrap()[0].id,
+            message_id
+        );
+
+        let second = store
+            .set_event_recordability(&event_id, true, "manual-ui")
+            .unwrap();
+        assert!(second.recordable);
+        let decision_count: i64 = store
+            .connection
+            .query_row(
+                "SELECT count(*) FROM event_recordability_decisions WHERE event_id=?1",
+                [&event_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(decision_count, 2);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn reanalysis_requeues_without_deleting_previous_analysis() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let event_id = store.insert_event(NewEvent::now("存量重新分析")).unwrap();
+        let job = store.claim_analysis_job().unwrap().unwrap();
+        store.complete_analysis(&job, "event-analysis", r#"{"schema_version":"event-analysis","recordable":true,"kind":"event","event_type":"note","confidence":0.8,"summary":"旧结果","clarifications":[],"people":[],"projects":[],"activities":[],"follow_ups":[]}"#).unwrap();
+        assert!(store.requeue_event_analysis(&event_id).unwrap());
+        let detail = store.event_analysis_detail(&event_id).unwrap().unwrap();
+        assert_eq!(detail.job_status, "pending");
+        assert!(detail.result_json.unwrap().contains("旧结果"));
+        assert_eq!(
+            store
+                .connection
+                .query_row(
+                    "SELECT count(*) FROM event_analyses WHERE event_id=?1",
+                    [&event_id],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            1
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
