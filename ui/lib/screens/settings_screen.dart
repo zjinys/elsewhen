@@ -168,7 +168,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             actions: [
               IconButton(
                 icon: const Icon(Icons.arrow_back, size: 18),
-                tooltip: '返回',
+                tooltip: '返回主界面',
                 color: const Color(0xFF9BA1AB),
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -1202,6 +1202,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               final preset = AppThemePreset.fromName(value);
               notifier
                 ..updateThemePreset(preset)
+                ..saveTheme();
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        _buildDropdownField(
+          label: '字体',
+          value: settings.fontFamily.name,
+          items: AppFontFamily.values.map((font) {
+            return DropdownMenuItem(
+              value: font.name,
+              child: Text(font.displayName),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              notifier
+                ..updateFontFamily(AppFontFamily.fromName(value))
                 ..saveTheme();
             }
           },

@@ -1916,6 +1916,7 @@ fn wire__crate__api__update_theme_prefs_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     mode: impl CstDecode<String>,
     preset: impl CstDecode<String>,
+    font: impl CstDecode<String>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -1926,10 +1927,12 @@ fn wire__crate__api__update_theme_prefs_impl(
         move || {
             let api_mode = mode.cst_decode();
             let api_preset = preset.cst_decode();
+            let api_font = font.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::update_theme_prefs(api_mode, api_preset)?;
+                        let output_ok =
+                            crate::api::update_theme_prefs(api_mode, api_preset, api_font)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2944,9 +2947,11 @@ impl SseDecode for crate::api::ThemePrefsDto {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_mode = <String>::sse_decode(deserializer);
         let mut var_preset = <String>::sse_decode(deserializer);
+        let mut var_font = <String>::sse_decode(deserializer);
         return crate::api::ThemePrefsDto {
             mode: var_mode,
             preset: var_preset,
+            font: var_font,
         };
     }
 }
@@ -3587,6 +3592,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::ThemePrefsDto {
         [
             self.mode.into_into_dart().into_dart(),
             self.preset.into_into_dart().into_dart(),
+            self.font.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4287,6 +4293,7 @@ impl SseEncode for crate::api::ThemePrefsDto {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.mode, serializer);
         <String>::sse_encode(self.preset, serializer);
+        <String>::sse_encode(self.font, serializer);
     }
 }
 
@@ -4943,6 +4950,7 @@ mod io {
             crate::api::ThemePrefsDto {
                 mode: self.mode.cst_decode(),
                 preset: self.preset.cst_decode(),
+                font: self.font.cst_decode(),
             }
         }
     }
@@ -5387,6 +5395,7 @@ mod io {
             Self {
                 mode: core::ptr::null_mut(),
                 preset: core::ptr::null_mut(),
+                font: core::ptr::null_mut(),
             }
         }
     }
@@ -6126,8 +6135,9 @@ mod io {
         port_: i64,
         mode: *mut wire_cst_list_prim_u_8_strict,
         preset: *mut wire_cst_list_prim_u_8_strict,
+        font: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__update_theme_prefs_impl(port_, mode, preset)
+        wire__crate__api__update_theme_prefs_impl(port_, mode, preset, font)
     }
 
     #[unsafe(no_mangle)]
@@ -6818,6 +6828,7 @@ mod io {
     pub struct wire_cst_theme_prefs_dto {
         mode: *mut wire_cst_list_prim_u_8_strict,
         preset: *mut wire_cst_list_prim_u_8_strict,
+        font: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -7640,13 +7651,14 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                2,
-                "Expected 2 elements, got {}",
+                3,
+                "Expected 3 elements, got {}",
                 self_.length()
             );
             crate::api::ThemePrefsDto {
                 mode: self_.get(0).cst_decode(),
                 preset: self_.get(1).cst_decode(),
+                font: self_.get(2).cst_decode(),
             }
         }
     }
@@ -8478,8 +8490,9 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
         mode: String,
         preset: String,
+        font: String,
     ) {
-        wire__crate__api__update_theme_prefs_impl(port_, mode, preset)
+        wire__crate__api__update_theme_prefs_impl(port_, mode, preset, font)
     }
 
     #[wasm_bindgen]

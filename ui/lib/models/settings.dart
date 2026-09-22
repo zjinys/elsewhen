@@ -120,6 +120,28 @@ enum AppThemePreset {
   }
 }
 
+/// 全局字体选择：UI 正文字体（代码块等 monospace 场景不受影响）。
+/// Google Fonts 字体在首次使用时联网下载并缓存；system 不引入网络字体。
+enum AppFontFamily {
+  inter('inter', 'Inter（默认）'),
+  notoSansSc('notoSansSc', '思源黑体'),
+  notoSerifSc('notoSerifSc', '思源宋体'),
+  system('system', '系统默认');
+
+  const AppFontFamily(this.name, this.displayName);
+
+  /// 存库用的机器名
+  final String name;
+  final String displayName;
+
+  static AppFontFamily fromName(String name) {
+    return AppFontFamily.values.firstWhere(
+      (f) => f.name == name,
+      orElse: () => AppFontFamily.inter,
+    );
+  }
+}
+
 /// Complete application settings
 class AppSettings {
   final AiProviderSettings aiProvider;
@@ -127,6 +149,7 @@ class AppSettings {
   final StorageSettings storage;
   final AppThemeMode themeMode;
   final AppThemePreset themePreset;
+  final AppFontFamily fontFamily;
   final String? language;
 
   const AppSettings({
@@ -135,6 +158,7 @@ class AppSettings {
     required this.storage,
     this.themeMode = AppThemeMode.dark,
     this.themePreset = AppThemePreset.amber,
+    this.fontFamily = AppFontFamily.inter,
     this.language,
   });
 
@@ -144,6 +168,7 @@ class AppSettings {
     StorageSettings? storage,
     AppThemeMode? themeMode,
     AppThemePreset? themePreset,
+    AppFontFamily? fontFamily,
     String? language,
   }) {
     return AppSettings(
@@ -152,6 +177,7 @@ class AppSettings {
       storage: storage ?? this.storage,
       themeMode: themeMode ?? this.themeMode,
       themePreset: themePreset ?? this.themePreset,
+      fontFamily: fontFamily ?? this.fontFamily,
       language: language ?? this.language,
     );
   }

@@ -31,6 +31,10 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = state.copyWith(themePreset: preset);
   }
 
+  void updateFontFamily(AppFontFamily font) {
+    state = state.copyWith(fontFamily: font);
+  }
+
   void updateLanguage(String? language) {
     state = state.copyWith(language: language);
   }
@@ -45,6 +49,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
           orElse: () => AppThemeMode.dark,
         ),
         themePreset: AppThemePreset.fromName(prefs.preset),
+        fontFamily: AppFontFamily.fromName(prefs.font),
       );
     } catch (e) {
       // 老库可能没有这两条 meta，保持默认即可
@@ -57,6 +62,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     await _repo.updateThemePrefs(
       mode: state.themeMode.name,
       preset: state.themePreset.name,
+      font: state.fontFamily.name,
     );
   }
 

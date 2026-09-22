@@ -571,7 +571,8 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> updateThemePrefs({
     required String mode,
     required String preset,
-  }) => api.updateThemePrefs(mode: mode, preset: preset);
+    String font = 'inter',
+  }) => api.updateThemePrefs(mode: mode, preset: preset, font: font);
 
   /// AI provider 配置（设置页预填/保存用，直连 Rust DB 的 ai_provider_configs）
   Future<api.AiProviderConfigDto?> getAiProviderConfig() =>

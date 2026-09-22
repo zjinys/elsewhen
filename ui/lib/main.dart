@@ -99,14 +99,24 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
       AppThemeMode.dark => Brightness.dark,
       AppThemeMode.system => MediaQuery.platformBrightnessOf(context),
     };
-    final lightTheme = AppTheme.buildTheme(settings.themePreset, Brightness.light);
-    final darkTheme = AppTheme.buildTheme(settings.themePreset, Brightness.dark);
+    final lightTheme = AppTheme.buildTheme(
+      settings.themePreset,
+      Brightness.light,
+      settings.fontFamily,
+    );
+    final darkTheme = AppTheme.buildTheme(
+      settings.themePreset,
+      Brightness.dark,
+      settings.fontFamily,
+    );
     final activeTheme = brightness == Brightness.dark ? darkTheme : lightTheme;
     // 把当前色卡（含 accent）同步给自定义组件用的全局色板
     AppTheme.apply(brightness, accent: activeTheme.colorScheme.primary);
 
-    // 深浅 / 配色变化时整棵子树重建，保证用 AppTheme.* 硬编码的自定义配色全部刷新
-    final themeKey = ValueKey('${settings.themeMode.name}-${settings.themePreset.name}');
+    // 深浅 / 配色 / 字体变化时整棵子树重建，保证用 AppTheme.* 硬编码的自定义配色全部刷新
+    final themeKey = ValueKey(
+      '${settings.themeMode.name}-${settings.themePreset.name}-${settings.fontFamily.name}',
+    );
 
     return MaterialApp(
       title: 'Elsewhen',

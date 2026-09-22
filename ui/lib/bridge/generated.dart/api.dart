@@ -439,13 +439,20 @@ Future<void> updateTweetFetchService({required String service}) =>
 Future<WikiPageDto?> findTweetSourcePage({required String url}) =>
     RustLib.instance.api.crateApiFindTweetSourcePage(url: url);
 
-/// 读取主题偏好（默认深色 + 琥珀，保留现有观感）
+/// 读取主题偏好（默认深色 + 琥珀 + Inter，保留现有观感）
 Future<ThemePrefsDto> getThemePrefs() =>
     RustLib.instance.api.crateApiGetThemePrefs();
 
 /// 保存主题偏好（设置页「外观」保存）
-Future<void> updateThemePrefs({required String mode, required String preset}) =>
-    RustLib.instance.api.crateApiUpdateThemePrefs(mode: mode, preset: preset);
+Future<void> updateThemePrefs({
+  required String mode,
+  required String preset,
+  required String font,
+}) => RustLib.instance.api.crateApiUpdateThemePrefs(
+  mode: mode,
+  preset: preset,
+  font: font,
+);
 
 /// 列出待办（status 过滤：open/done/archived；None 时列出 open+done）
 Future<List<TodoDto>> listTodos({String? status}) =>
@@ -1428,7 +1435,7 @@ class RuleDto {
           createdAt == other.createdAt;
 }
 
-/// 主题偏好 DTO（设置页「外观」：模式 + 预设；存 app_meta）
+/// 主题偏好 DTO（设置页「外观」：模式 + 预设 + 字体；存 app_meta）
 class ThemePrefsDto {
   /// "light" | "dark" | "system"
   final String mode;
@@ -1436,10 +1443,17 @@ class ThemePrefsDto {
   /// 预设名，如 "amber" | "indigo" | "aqua" | "violet"
   final String preset;
 
-  const ThemePrefsDto({required this.mode, required this.preset});
+  /// 字体名，如 "inter" | "notoSansSc" | "notoSerifSc" | "system"
+  final String font;
+
+  const ThemePrefsDto({
+    required this.mode,
+    required this.preset,
+    required this.font,
+  });
 
   @override
-  int get hashCode => mode.hashCode ^ preset.hashCode;
+  int get hashCode => mode.hashCode ^ preset.hashCode ^ font.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1447,7 +1461,8 @@ class ThemePrefsDto {
       other is ThemePrefsDto &&
           runtimeType == other.runtimeType &&
           mode == other.mode &&
-          preset == other.preset;
+          preset == other.preset &&
+          font == other.font;
 }
 
 /// 待办 DTO

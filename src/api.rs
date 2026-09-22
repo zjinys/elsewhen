@@ -1952,16 +1952,18 @@ pub fn find_tweet_source_page(url: String) -> Result<Option<WikiPageDto>> {
     Ok(page.map(WikiPageDto::from))
 }
 
-/// 主题偏好 DTO（设置页「外观」：模式 + 预设；存 app_meta）
+/// 主题偏好 DTO（设置页「外观」：模式 + 预设 + 字体；存 app_meta）
 #[derive(Clone, Debug)]
 pub struct ThemePrefsDto {
     /// "light" | "dark" | "system"
     pub mode: String,
     /// 预设名，如 "amber" | "indigo" | "aqua" | "violet"
     pub preset: String,
+    /// 字体名，如 "inter" | "notoSansSc" | "notoSerifSc" | "system"
+    pub font: String,
 }
 
-/// 读取主题偏好（默认深色 + 琥珀，保留现有观感）
+/// 读取主题偏好（默认深色 + 琥珀 + Inter，保留现有观感）
 pub fn get_theme_prefs() -> Result<ThemePrefsDto> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
@@ -1971,15 +1973,19 @@ pub fn get_theme_prefs() -> Result<ThemePrefsDto> {
     let preset = store
         .get_meta("theme_preset")?
         .unwrap_or_else(|| "amber".to_string());
-    Ok(ThemePrefsDto { mode, preset })
+    let font = store
+        .get_meta("theme_font")?
+        .unwrap_or_else(|| "inter".to_string());
+    Ok(ThemePrefsDto { mode, preset, font })
 }
 
 /// 保存主题偏好（设置页「外观」保存）
-pub fn update_theme_prefs(mode: String, preset: String) -> Result<()> {
+pub fn update_theme_prefs(mode: String, preset: String, font: String) -> Result<()> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     store.set_meta("theme_mode", &mode)?;
-    store.set_meta("theme_preset", &preset)
+    store.set_meta("theme_preset", &preset)?;
+    store.set_meta("theme_font", &font)
 }
 
 // ── 个人待办（todo） ──────────────────────────────────────────────────

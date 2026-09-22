@@ -2,7 +2,7 @@ import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../models/settings.dart' show AppThemePreset;
+import '../models/settings.dart' show AppFontFamily, AppThemePreset;
 
 /// 一整套界面色板（浅 / 深两套）。应用在 `AppTheme.apply()` 时切换，
 /// 组件里继续写 `AppTheme.surface1` 就能自动跟随深浅模式。
@@ -133,7 +133,11 @@ class AppTheme {
   }
 
   /// 用 flex_color_scheme 搭 Material 主题（浅 / 深都由设定色卡派生）
-  static ThemeData buildTheme(AppThemePreset preset, Brightness brightness) {
+  static ThemeData buildTheme(
+    AppThemePreset preset,
+    Brightness brightness, [
+    AppFontFamily font = AppFontFamily.inter,
+  ]) {
     final scheme = flexSchemeOf(preset);
     final flex = brightness == Brightness.dark
         ? FlexThemeData.dark(
@@ -150,13 +154,26 @@ class AppTheme {
           );
 
     // 字体 + 行高微调（沿用现有 typography 习惯）
-    final textTheme = GoogleFonts.interTextTheme(flex.textTheme);
+    final textTheme = _textThemeFor(font, flex.textTheme);
     return flex.copyWith(
       scaffoldBackgroundColor: _current.surface0,
+      colorScheme: flex.colorScheme.copyWith(
+        surface: _current.surface1,
+        surfaceContainer: _current.surface2,
+        surfaceContainerHighest: _current.surface3,
+        outline: _current.surface3,
+        outlineVariant: _current.surface3.withValues(alpha: 0.7),
+      ),
+      dividerTheme: DividerThemeData(
+        color: _current.surface3.withValues(alpha: 0.72),
+        thickness: 1,
+        space: 1,
+      ),
+      splashFactory: InkSparkle.splashFactory,
       textTheme: textTheme.copyWith(
-        bodyLarge: textTheme.bodyLarge?.copyWith(height: 1.6),
-        bodyMedium: textTheme.bodyMedium?.copyWith(height: 1.6),
-        bodySmall: textTheme.bodySmall?.copyWith(height: 1.5),
+        bodyLarge: textTheme.bodyLarge?.copyWith(height: 1.75, fontSize: 16),
+        bodyMedium: textTheme.bodyMedium?.copyWith(height: 1.65, fontSize: 14),
+        bodySmall: textTheme.bodySmall?.copyWith(height: 1.55, fontSize: 12),
       ),
       cardTheme: CardThemeData(
         color: _current.surface2,
@@ -179,10 +196,23 @@ class AppTheme {
           borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.all(space4),
+        hintStyle: TextStyle(color: _current.textTertiary, fontSize: 14),
+        labelStyle: TextStyle(color: _current.textSecondary, fontSize: 13),
       ),
     );
   }
 
   /// 兼容引用（等价于默认预设的深色主题）
   static ThemeData get darkTheme => buildTheme(AppThemePreset.amber, Brightness.dark);
+
+  /// 按字体选择生成 textTheme：system 不套网络字体（跟随系统），
+  /// 其余经 google_fonts 下载对应字体族。
+  static TextTheme _textThemeFor(AppFontFamily font, TextTheme base) {
+    return switch (font) {
+      AppFontFamily.inter => GoogleFonts.interTextTheme(base),
+      AppFontFamily.notoSansSc => GoogleFonts.notoSansScTextTheme(base),
+      AppFontFamily.notoSerifSc => GoogleFonts.notoSerifScTextTheme(base),
+      AppFontFamily.system => base,
+    };
+  }
 }

@@ -1322,6 +1322,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.mode = cst_encode_String(apiObj.mode);
     wireObj.preset = cst_encode_String(apiObj.preset);
+    wireObj.font = cst_encode_String(apiObj.font);
   }
 
   @protected
@@ -4034,8 +4035,9 @@ class RustLibWire implements BaseWire {
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> preset,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> font,
   ) {
-    return _wire__crate__api__update_theme_prefs(port_, mode, preset);
+    return _wire__crate__api__update_theme_prefs(port_, mode, preset, font);
   }
 
   late final _wire__crate__api__update_theme_prefsPtr =
@@ -4043,6 +4045,7 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
@@ -4053,6 +4056,7 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(
               int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
@@ -5190,13 +5194,17 @@ final class wire_cst_theme_prefs_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> preset;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> font;
+
   static ffi.Pointer<wire_cst_theme_prefs_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> preset,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> font,
   }) => $allocator<wire_cst_theme_prefs_dto>()
     ..ref.mode = mode
-    ..ref.preset = preset;
+    ..ref.preset = preset
+    ..ref.font = font;
 }
 
 final class wire_cst_todo_dto extends ffi.Struct {
