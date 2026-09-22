@@ -165,6 +165,12 @@ class AppTheme {
           borderRadius: BorderRadius.circular(radiusMedium),
         ),
       ),
+      // 对话框圆角与卡片/输入框一致（M3 默认 28 过大）
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: _current.surface2,

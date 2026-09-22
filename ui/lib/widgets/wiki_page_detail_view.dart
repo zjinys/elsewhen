@@ -720,6 +720,9 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
   bool _saving = false;
   String? _editError;
 
+  /// 头部「标签 · 别名」折叠态：默认收起，把纵向空间还给正文。
+  bool _metaExpanded = false;
+
   /// 保存回调注册表的 notifier 引用：dispose 后 `ref` 不可用，须提前缓存。
   late final StateController<Map<String, Future<bool> Function()>>
       _saveCallbacks;
@@ -1087,16 +1090,17 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 元数据行：类型 / slug / 证据 / 更新 / 来源
+              // 紧凑主行：kind 徽章 + 标题 + 元数据同一流动行（窄屏自然换行）。
+              // 布局原则：头部只保留「这页是什么」，把纵向空间还给正文。
               Wrap(
                 spacing: AppTheme.space2,
-                runSpacing: AppTheme.space2,
+                runSpacing: 4,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
-                      vertical: 3,
+                      vertical: 2,
                     ),
                     decoration: BoxDecoration(
                       color: AppTheme.accentPrimary.withValues(alpha: 0.12),
@@ -1147,45 +1151,70 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
                     _SourceChip(url: widget.page.sourceUrl!),
                 ],
               ),
-              const SizedBox(height: AppTheme.space4),
-              Text(
-                widget.page.title,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
-                  height: 1.3,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              // 摘要：让阅读者先扫到这一页在讲什么，再决定是否细读
+              // 摘要：一行预览，让阅读者扫到这一页在讲什么
               if (_hasSummary)
                 Padding(
-                  padding: const EdgeInsets.only(top: AppTheme.space2),
+                  padding: const EdgeInsets.only(top: 2),
                   child: Text(
                     widget.page.summary.trim(),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 13,
-                      height: 1.6,
+                      fontSize: 12,
+                      height: 1.5,
                       color: AppTheme.textTertiary,
                     ),
                   ),
                 ),
               if (widget.page.tags.contains('work-item')) ...[
-                const SizedBox(height: AppTheme.space3),
+                const SizedBox(height: AppTheme.space2),
                 _WorkItemPanel(page: widget.page),
               ],
-              const SizedBox(height: AppTheme.space3),
-              _buildTagRow(context),
-              _EntityAliases(slug: widget.page.slug),
-              const SizedBox(height: AppTheme.space3),
+              // 人物关系是内容级信息，保持直接可见（空时自隐藏）
               _buildRelationsRow(context),
+              // 标签 / 别名是纯元数据，折叠进「标签 · 别名」，默认收起
+              _buildMetaFold(context),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// 元数据折叠行：标签 + 别名默认收起，点击展开编辑。
+  Widget _buildMetaFold(BuildContext context) {
+    final tagCount = widget.page.tags.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _metaExpanded = !_metaExpanded),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _metaExpanded ? Icons.expand_less : Icons.expand_more,
+                  size: 14,
+                  color: AppTheme.textTertiary,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  tagCount > 0 ? '标签（$tagCount）· 别名' : '标签 · 别名',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_metaExpanded) ...[
+          const SizedBox(height: 4),
+          _buildTagRow(context),
+          _EntityAliases(slug: widget.page.slug),
+        ],
+      ],
     );
   }
 
