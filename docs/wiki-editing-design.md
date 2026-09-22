@@ -168,6 +168,24 @@ AI 对人工编辑页仍可走既有 `save_wiki_revision` 草拟确认制修订�
 - 编码：自定义 `NodeParser` 输出 `[[slug]]`；
 - 兜底：打开无 wikilink 解析的旧样例必须仍然保真（spike 用例里覆盖）。
 
+> **✅ 已收敛（实证，2026-09）**：
+>
+> **解码（vendor 补丁 + 应用注入）**
+> - `ui/lib/wiki/wikilink_syntax.dart`：`md.InlineSyntax` 匹配 `[[target]]` / `[[target|alias]]`，产出 `<wikilink>` 元素（`attributes['wikilink']` 存 target，子文本为 alias）；
+> - `ui/lib/wiki/wiki_markdown_codec.dart`：`wikiMarkdownToDocument` 在 `markdownToDocument(inlineSyntaxes: [WikilinkInlineSyntax()])` 注册（块级解析即产出元素；各块 parser 的 `DeltaMarkdownDecoder` 已按 tag 映射为 delta 行内 `wikilink` 属性）；
+> - ⚠️ **踩坑（已根治）**：markdown 包中正则一旦匹配、`onMatch` 返回 false，`tryMatch` 仍返回 true，parse 循环不复位位置 → 死循环。`[[|x]]` / `[[a|]]` 这类空 target/alias 会触发。修复：pattern 收紧为 `\[\[([^\[\]|]+(?:\|[^\[\]|]+)?)\]\]`（target/alias 均非空、至多一个 `|`），且 `onMatch` 永不返回 false（防御分支按原样文本消费）→ 非法形态直接按字面保留。
+>
+> **编码（vendor 补丁）**
+> - `DeltaMarkdownEncoder.convert` 处理 `wikilink` 属性：`[[target|alias]]`（alias == target 时省略为 `[[target]]`）——无需自定义 NodeParser（该属性本就是行内级，走现成行内编码路径即可）。`BuiltInAttributeKey.wikilink` 常量补进 vendored 常量类，vendor 与 app 共用。
+>
+> **渲染（应用侧注入，无 vendor 渲染补丁）**
+> - `ui/lib/wiki/wiki_text_span_decorator.dart`：`wikiTextSpanDecorator({onTapWikiLink})` 经 `EditorStyle.copyWith(textSpanDecorator:)` 注入；wikilink 属性 → MarkdownView 同款视觉（accentPrimary + 下划线 + w600）+ `TapGestureRecognizer` 点击回调 slug；非 wikilink 委托 `defaultTextSpanDecoratorForAttribute`（href 等原生行为保留）。
+>
+> **测试**
+> - `ui/test/round_trip_test.dart` 切换为生产管线（`roundTrip` 走 wiki codec）→ 25 个 fixture（7 真实 + 18 合成特征）26 测试全绿：s02（既有 wikilink 样例，alias==target 省写仍逐字节收敛）+ 新增 `s17_wikilink_alias`（alias/列表项内 wikilink）+ `s18_wikilink_fallback`（未闭合 `[[`、代码 span 内 `[[x]]`、空 target/alias 均按字面保真）；
+> - `ui/test/wiki_wikilink_spike_test.dart`：编解码属性断言 + 真编辑器 widget spike（span 视觉断言 + 点击回调 slug = `topic/投资`）。
+> - IME 测试页同步切到 wiki codec，作为手动快速入口。
+
 ### 5.3 AI 对话块
 
 - 把现有页内聊天 UI（`ui/lib/widgets/` 下聊天视图）包成自定义 block component，验证：聊天在编辑/只读模式下可交互、不干扰选区/光标、回复"插入到正文"的落点（可选 v1）。
@@ -235,7 +253,7 @@ v1 建议 A；若聊天交互（键盘焦点/光标）与编辑器冲突严重�
 ## 10. 里程碑
 
 1. **M1（并行）**：核心保护 —— 迁移 v29（kind 拆分 + `human_edited_at` + `opinion`）+ `save_wiki_page_content` + `set_wiki_opinion` + digest 按 kind 保护 + Rust 测试 —— ✅（`feat/wiki-m1-protection` 已合 main）；
-2. **M2（spike）**：`flutter pub add appflowy_editor` + §5 四项验证，产出来回 diff 清单与决策记录 —— 🔄（依赖/IME/测试页 ✅；§5.1 往返保真 ✅ 已收敛；§5.2 wikilink、§5.3 AI 对话块、§5.4 只读展示待验）；
+2. **M2（spike）**：`flutter pub add appflowy_editor` + §5 四项验证，产出来回 diff 清单与决策记录 —— 🔄（依赖/IME/测试页 ✅；§5.1 往返保真 ✅ 已收敛；§5.2 wikilink ✅ 已收敛（含 round_trip 切生产管线 + spike 测试）；§5.3 AI 对话块、§5.4 只读展示待验）；
 3. **M3（集成）**：双模式编辑器替换 + 保存链路 + AI 对话块（§6/§7）；
 4. **M4**：`round_trip` 常驻测试 + 主题打磨 + 移动端走查。
 

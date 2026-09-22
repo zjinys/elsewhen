@@ -21,6 +21,9 @@ class BuiltInAttributeKey {
   static String code = 'code';
   static String href = 'href';
   static String formula = 'formula';
+  // elsewhen: `[[target|alias]]` 行内 wikilink（属性存跳转目标 slug，
+  // delta 文本为展示文本 alias）
+  static String wikilink = 'wikilink';
 
   static String subtype = 'subtype';
   static String heading = 'heading';

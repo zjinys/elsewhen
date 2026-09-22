@@ -8,9 +8,10 @@
 // 任何新 fixture 未在 _gates 注册一律按 bytes 断言，防止悄悄引入新漂移。
 import 'dart:io';
 
-import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markdown/markdown.dart' as md;
+
+import 'package:elsewhen_ui/wiki/wiki_markdown_codec.dart';
 
 const _fixtureDir = 'test/fixtures/wiki_md';
 
@@ -39,7 +40,8 @@ const _knownDriftSnapshots = <String, String>{
   's16_two_lists': '- 星号无序列表\n- 加号无序列表\n',
 };
 
-String roundTrip(String md) => documentToMarkdown(markdownToDocument(md));
+/// 生产管线：wiki codec（解码注册 WikilinkInlineSyntax，§5.2）。
+String roundTrip(String md) => wikiDocumentToMarkdown(wikiMarkdownToDocument(md));
 
 /// 仅归一化文件尾换行（\n+ 结尾 → 单个 \n；无结尾 → 补 \n）。
 String _t1(String s) => '${s.replaceAll(RegExp(r'\n+$'), '')}\n';

@@ -80,6 +80,9 @@ class DeltaMarkdownDecoder extends Converter<String, Delta>
       _attributes[BuiltInAttributeKey.underline] = true;
     } else if (element.tag == 'formula') {
       _attributes[BuiltInAttributeKey.formula] = element.attributes['formula'];
+    } else if (element.tag == 'wikilink') {
+      // elsewhen: `[[target|alias]]` -> 行内 wikilink 属性（值为跳转目标 slug）
+      _attributes[BuiltInAttributeKey.wikilink] = element.attributes['wikilink'];
     } else {
       element.attributes.forEach((key, value) {
         try {
@@ -106,6 +109,8 @@ class DeltaMarkdownDecoder extends Converter<String, Delta>
       _attributes.remove(BuiltInAttributeKey.underline);
     } else if (element.tag == 'formula') {
       _attributes.remove(BuiltInAttributeKey.formula);
+    } else if (element.tag == 'wikilink') {
+      _attributes.remove(BuiltInAttributeKey.wikilink);
     } else {
       for (final key in element.attributes.keys) {
         _attributes.remove(key);

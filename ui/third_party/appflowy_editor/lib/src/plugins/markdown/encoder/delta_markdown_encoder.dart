@@ -15,6 +15,13 @@ class DeltaMarkdownEncoder extends Converter<Delta, String> {
       if (op is TextInsert) {
         final attributes = op.attributes;
         if (attributes != null) {
+          final wikilink = attributes[BuiltInAttributeKey.wikilink];
+          if (wikilink != null && wikilink.isNotEmpty) {
+            // elsewhen: 行内 wikilink 编码 [[target|alias]]，alias==target
+            // 时省略成 [[target]]（其他行内样式不与 wikilink 组合，直接收口）
+            buffer.write(_wikilinkSyntax(wikilink as String, op.text));
+            continue;
+          }
           final formula = attributes[BuiltInAttributeKey.formula] ?? '';
           buffer.write(_prefixSyntax(attributes));
           if (formula.isNotEmpty) {
@@ -102,5 +109,10 @@ class DeltaMarkdownEncoder extends Converter<Delta, String> {
     }
 
     return syntax;
+  }
+
+  /// `[[target|alias]]`；alias == target 时省略为 `[[target]]`。
+  String _wikilinkSyntax(String target, String text) {
+    return target == text ? '[[$target]]' : '[[$target|$text]]';
   }
 }

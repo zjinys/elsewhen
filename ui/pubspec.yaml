@@ -40,6 +40,8 @@ dependencies:
   # UI utilities
   google_fonts: ^6.2.1
   intl: ^0.20.1
+  # wiki md⇄JSON codec 行内语法（[[wikilink]] 等，vendored 编辑器同款协议）
+  markdown: ^7.3.1
 
   # Desktop integration
   window_manager: ^0.4.3
@@ -72,7 +74,6 @@ dev_dependencies:
   ffigen: ^22.0.0
   freezed: ^2.5.7
   build_runner: ^2.4.13
-  markdown: ^7.3.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -2,15 +2,17 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../wiki/wiki_markdown_codec.dart';
+
 /// AppFlowy Editor 中文输入法（IME）测试页。
 ///
 /// 应用内入口：左侧栏底部「编辑器测试」。
 ///
 /// 功能：
 ///  - 编辑 / 只读切换（切换时强制重建编辑器实例，验证输入法 attach 路径）
-///  - 中文样例 markdown 载入（markdownToDocument）
+///  - 中文样例 markdown 载入（wikiMarkdownToDocument）
 ///  - 程序化在光标处插入中文（transaction.insertText），验证 IME 合成后的插入
-///  - 导出 markdown（documentToMarkdown）并复制，验证往返
+///  - 导出 markdown（wikiDocumentToMarkdown）并复制，验证往返
 class AppFlowyImeTestScreen extends StatefulWidget {
   const AppFlowyImeTestScreen({super.key});
 
@@ -59,7 +61,8 @@ class _AppFlowyImeTestScreenState extends State<AppFlowyImeTestScreen> {
   }
 
   EditorState _fromMarkdown(String md) {
-    return EditorState(document: markdownToDocument(md));
+    // wiki codec：注册 WikilinkInlineSyntax，`[[slug]]` 解析为行内属性
+    return EditorState(document: wikiMarkdownToDocument(md));
   }
 
   void _reload() {
@@ -76,7 +79,7 @@ class _AppFlowyImeTestScreenState extends State<AppFlowyImeTestScreen> {
       // 强制重建编辑器实例，重新走一遍输入法 attach 路径
       _editorState = _fromMarkdown(
         _exportedMd.isEmpty
-            ? documentToMarkdown(_editorState.document)
+            ? wikiDocumentToMarkdown(_editorState.document)
             : _exportedMd,
       );
     });
@@ -109,7 +112,7 @@ class _AppFlowyImeTestScreenState extends State<AppFlowyImeTestScreen> {
 
   Future<void> _export() async {
     try {
-      final md = documentToMarkdown(_editorState.document);
+      final md = wikiDocumentToMarkdown(_editorState.document);
       setState(() {
         _exportedMd = md;
         _lastError = '';
@@ -235,7 +238,7 @@ class _AppFlowyImeTestScreenState extends State<AppFlowyImeTestScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '导出的 markdown（documentToMarkdown）',
+                    '导出的 markdown（wikiDocumentToMarkdown）',
                     style: Theme.of(context).textTheme.labelMedium,
                   ),
                   const SizedBox(height: 6),
@@ -311,5 +314,5 @@ void main() => print('你好，AppFlowy');
 1. 有序列表第一项
 2. 有序列表第二项
 
-[[person/张三]] 我的 wikilink 占位行（本页未接入自定义解析，暂显示为原样文本）
+[[person/张三]] 我的 wikilink 占位行（wiki codec 已接入，`[[slug]]` 会解析为 wikilink）
 ''';
