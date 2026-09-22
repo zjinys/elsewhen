@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,7 +14,7 @@ import '../providers/wiki_provider.dart';
 import '../providers/todo_provider.dart';
 import '../models/todo.dart';
 import '../theme/app_theme.dart';
-import 'markdown_view.dart';
+import '../wiki/wiki_content_editor.dart';
 import 'wiki_ai_chat_panel.dart';
 import 'wiki_derivatives.dart';
 
@@ -36,12 +38,21 @@ class WikiPageDetailView extends ConsumerWidget {
       children: [
         _WikiTabBar(tabs: tabs, activeId: active.id),
         Expanded(
-          child: switch (active) {
-            ImportTabEntry() => const _ImportTab(),
-            PageTabEntry() => _PageTabBody(slug: active.slug),
-            TweetTabEntry() => _TweetTabBody(fetch: active.fetch),
-            ImportFetchTabEntry() => _ImportFetchTabBody(fetch: active.fetch),
-          },
+          // IndexedStack：所有 tab 的子树常驻，切 tab 不销毁详情页编辑器状态
+          // （未保存的编辑切走再切回仍在；§6.3 未保存保护的前提）
+          child: IndexedStack(
+            index: tabs.indexWhere((t) => t.id == active.id),
+            children: [
+              for (final tab in tabs)
+                switch (tab) {
+                  ImportTabEntry() => const _ImportTab(),
+                  PageTabEntry(:final slug) => _PageTabBody(slug: slug),
+                  TweetTabEntry(:final fetch) => _TweetTabBody(fetch: fetch),
+                  ImportFetchTabEntry(:final fetch) =>
+                    _ImportFetchTabBody(fetch: fetch),
+                },
+            ],
+          ),
         ),
       ],
     );
@@ -82,11 +93,52 @@ class _WikiTabBar extends ConsumerWidget {
             onTap: () {
               ref.read(wikiActiveTabIdProvider.notifier).state = tab.id;
             },
-            onClose: tab.closable ? () => closeWikiTab(ref, tab.id) : null,
+            onClose: tab.closable ? () => _closeTab(context, ref, tab) : null,
           );
         },
       ),
     );
+  }
+
+  /// 关闭 tab；若有未保存的编辑（§6.3），先弹确认再关。
+  Future<void> _closeTab(
+    BuildContext context,
+    WidgetRef ref,
+    WikiTabEntry tab,
+  ) async {
+    final slug = switch (tab) {
+      PageTabEntry(:final slug) => slug,
+      _ => null,
+    };
+    final dirty = slug != null &&
+        ref.read(wikiDirtyTabsProvider).contains(slug);
+    if (!dirty) {
+      closeWikiTab(ref, tab.id);
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('关闭前确认'),
+        content: const Text('该页面还有未保存的编辑，关闭将丢失这些修改。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('放弃修改并关闭'),
+          ),
+        ],
+      ),
+    );
+    if (discard == true) {
+      ref.read(wikiDirtyTabsProvider.notifier).update(
+        (set) => {...set}..remove(slug),
+      );
+      closeWikiTab(ref, tab.id);
+    }
   }
 }
 
@@ -618,59 +670,272 @@ class _PageTabBody extends ConsumerWidget {
 /// 阅读栏最大宽度：正文与头部共用，保证长文行宽舒适、视线不来回扫。
 const double _kReadingMaxWidth = 760;
 
-class _WikiPageBody extends ConsumerWidget {
+class _WikiPageBody extends ConsumerStatefulWidget {
   final WikiPage page;
 
   const _WikiPageBody({required this.page});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_WikiPageBody> createState() => _WikiPageBodyState();
+}
+
+class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
+  final _editorKey = GlobalKey<WikiContentEditorState>();
+
+  /// 可编辑判定：素材页（source/note）只读，与 Rust 侧 `save_wiki_page_content`
+  /// 保护一致（M1 素材保护）；人员/项目等 AI 档案页可人工修改。
+  bool get _canEdit {
+    final kind = widget.page.kind;
+    return kind != 'source' && kind != 'note';
+  }
+
+  bool _editing = false;
+  bool _saving = false;
+  String? _editError;
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(context, ref),
+        _buildHeader(context),
+        if (_editError != null) _buildEditErrorBar(),
+        if (_canEdit) _buildEditorToolbar(),
 
-        // 正文：居中阅读栏（限制行宽 + 宽松留白）
+        // 正文：编辑器自带滚动（含尾部对话块，§7 Form A；有限高约束，
+        // vendor overlay 不允许无界父级），派生产物/事实/待办作为下方卡座。
         Expanded(
-          child: SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(
               AppTheme.space6,
-              AppTheme.space4,
+              AppTheme.space3,
               AppTheme.space6,
-              AppTheme.space6,
+              0,
             ),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: _kReadingMaxWidth),
-                child: SelectableRegion(
-                  focusNode: FocusNode(),
-                  selectionControls: materialTextSelectionControls,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (page.basedOn != null)
-                        WikiSourceLink(slug: page.basedOn!),
-                      _EntityMergeControls(page: page),
-                      MarkdownView(markdown: page.contentMd),
-                      const SizedBox(height: AppTheme.space6),
-                      WikiDerivatives(slug: page.slug),
-                      _EntityFacts(slug: page.slug),
-                      _EntityRelatedTodos(page: page),
-                    ],
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.page.basedOn != null)
+                      WikiSourceLink(slug: widget.page.basedOn!),
+                    _EntityMergeControls(page: widget.page),
+                    const SizedBox(height: AppTheme.space3),
+                    Expanded(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: _kReadingMaxWidth,
+                          ),
+                          child: WikiContentEditor(
+                            key: _editorKey,
+                            slug: widget.page.slug,
+                            contentMd: widget.page.contentMd,
+                            editable: _editing,
+                            onWikiLinkTap: _openWikiPageFromSlug,
+                            onSave: _persistEdit,
+                            onSaveError: (e) {
+                              if (!mounted) return;
+                              setState(() => _editError = _errText(e));
+                            },
+                            onDirtyChanged: _setDirty,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 卡座：AI 派生产物 / 事实 / 相关待办（高度上限内自滚动）
+                    _buildCardStrip(context),
+                  ],
                 ),
               ),
             ),
           ),
         ),
 
-        // 溯源脚注 + AI 处理入口
+        // 溯源脚注（聊天入口已移入正文尾部对话块，§7 Form A）
         _buildFooter(),
       ],
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+  /// 编辑工具栏：入口「编辑正文」；编辑态「取消 · 完成（保存）」。
+  Widget _buildEditorToolbar() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space6,
+        AppTheme.space2,
+        AppTheme.space6,
+        AppTheme.space2,
+      ),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.surface3, width: 1)),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _kReadingMaxWidth),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _editing
+                      ? '编辑正文中 · Ctrl/⌘+S 保存'
+                      : 'AI 生成正文，可人工修正',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+              ),
+              if (_editing) ...[
+                TextButton(
+                  onPressed: _saving ? null : _cancelEditing,
+                  child: const Text('取消'),
+                ),
+                const SizedBox(width: 4),
+                FilledButton(
+                  onPressed: _saving ? null : _finishEditing,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('完成'),
+                ),
+              ] else
+                FilledButton.tonalIcon(
+                  onPressed: _enterEditing,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('编辑正文'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 卡座：AI 派生产物 / 事实 / 相关待办。
+  /// 编辑器占据主滚动区后，这些区块落在下方，内部自滚动（上限约 42% 高度）。
+  Widget _buildCardStrip(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxStrip = math.min(constraints.maxHeight * 0.42, 420.0);
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxStrip),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: AppTheme.space4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                WikiDerivatives(slug: widget.page.slug),
+                _EntityFacts(slug: widget.page.slug),
+                _EntityRelatedTodos(page: widget.page),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEditErrorBar() {
+    return Container(
+      width: double.infinity,
+      color: AppTheme.error.withValues(alpha: 0.08),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space6,
+        vertical: AppTheme.space2,
+      ),
+      child: Text(
+        '保存失败：$_editError',
+        style: TextStyle(fontSize: 12, color: AppTheme.error),
+      ),
+    );
+  }
+
+  /// 进入编辑态（素材页不显示入口，到不了这里）
+  void _enterEditing() {
+    setState(() {
+      _editing = true;
+      _saving = false;
+      _editError = null;
+    });
+    _setDirty(_editorKey.currentState?.isDirty ?? false);
+  }
+
+  /// 「完成」：保存正文（无改动直接退出；保存失败留在编辑态，错误条已展示）
+  Future<void> _finishEditing() async {
+    final state = _editorKey.currentState;
+    if (state == null) return;
+    setState(() => _saving = true);
+    final ok = await state.save();
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      if (ok) _editing = false;
+    });
+  }
+
+  /// 「取消」：放弃修改，从加载快照重建文档
+  void _cancelEditing() {
+    _editorKey.currentState?.discard();
+    setState(() => _editing = false);
+    _setDirty(false);
+  }
+
+  /// 保存链路（§6.2）：documentToMarkdown → saveWikiPageContent → 刷新 → 退出编辑态
+  Future<void> _persistEdit(String markdown) async {
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    await repo.saveWikiPageContent(
+      slug: widget.page.slug,
+      contentMd: markdown,
+      reason: '[human] GUI 编辑',
+    );
+    ref.invalidate(wikiPageProvider(widget.page.slug));
+    ref.invalidate(wikiPagesProvider);
+    if (!mounted) return;
+    setState(() {
+      _editing = false;
+      _editError = null;
+    });
+    _setDirty(false);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('已保存到知识库'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+  }
+
+  /// 脏标记上报（未保存保护：tab 关闭前确认用）
+  void _setDirty(bool dirty) {
+    if (!mounted) return;
+    ref.read(wikiDirtyTabsProvider.notifier).update((set) {
+      if (dirty) return {...set, widget.page.slug};
+      return {...set}..remove(widget.page.slug);
+    });
+  }
+
+  /// wikilink 点击：slug → 查询目标页 → 打开/激活对应 tab
+  Future<void> _openWikiPageFromSlug(String slug) async {
+    try {
+      final target = await ref.read(wikiPageProvider(slug).future);
+      if (!mounted || target == null) return;
+      openWikiPageTab(ref, target);
+    } catch (_) {
+      // 目标页不存在或查询失败：静默忽略，保持当前阅读位置
+    }
+  }
+
+  String _errText(Object e) => e.toString().replaceFirst('Exception: ', '');
+
+  Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
@@ -704,7 +969,7 @@ class _WikiPageBody extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                     ),
                     child: Text(
-                      page.kindLabel,
+                      widget.page.kindLabel,
                       style: TextStyle(
                         fontSize: 11,
                         color: AppTheme.accentPrimary,
@@ -726,7 +991,7 @@ class _WikiPageBody extends ConsumerWidget {
                         ),
                       ),
                       child: Text(
-                        page.slug,
+                        widget.page.slug,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -738,18 +1003,19 @@ class _WikiPageBody extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    '证据 ${page.evidenceCount} · 更新 ${_fmtDate(page.updatedAt)}',
+                    '证据 ${widget.page.evidenceCount} · 更新 ${_fmtDate(widget.page.updatedAt)}',
                     style: TextStyle(
                       fontSize: 11,
                       color: AppTheme.textTertiary,
                     ),
                   ),
-                  if (page.sourceUrl != null) _SourceChip(url: page.sourceUrl!),
+                  if (widget.page.sourceUrl != null)
+                    _SourceChip(url: widget.page.sourceUrl!),
                 ],
               ),
               const SizedBox(height: AppTheme.space4),
               Text(
-                page.title,
+                widget.page.title,
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
@@ -763,7 +1029,7 @@ class _WikiPageBody extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: AppTheme.space2),
                   child: Text(
-                    page.summary.trim(),
+                    widget.page.summary.trim(),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -773,15 +1039,15 @@ class _WikiPageBody extends ConsumerWidget {
                     ),
                   ),
                 ),
-              if (page.tags.contains('work-item')) ...[
+              if (widget.page.tags.contains('work-item')) ...[
                 const SizedBox(height: AppTheme.space3),
-                _WorkItemPanel(page: page),
+                _WorkItemPanel(page: widget.page),
               ],
               const SizedBox(height: AppTheme.space3),
-              _buildTagRow(context, ref),
-              _EntityAliases(slug: page.slug),
+              _buildTagRow(context),
+              _EntityAliases(slug: widget.page.slug),
               const SizedBox(height: AppTheme.space3),
-              _buildRelationsRow(context, ref),
+              _buildRelationsRow(context),
             ],
           ),
         ),
@@ -804,15 +1070,23 @@ class _WikiPageBody extends ConsumerWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _kReadingMaxWidth),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Text(
-                '源于 ${page.sourceEventIds.isEmpty ? "尚无事件溯源" : "${page.sourceEventIds.length} 条事件"}',
-                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+              Icon(
+                Icons.track_changes,
+                size: 12,
+                color: AppTheme.textTertiary,
               ),
-              const SizedBox(height: AppTheme.space2),
-              WikiAiChatPanel(slug: page.slug),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '源于 ${widget.page.sourceEventIds.isEmpty ? "尚无事件溯源" : "${widget.page.sourceEventIds.length} 条事件"}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -821,13 +1095,13 @@ class _WikiPageBody extends ConsumerWidget {
   }
 
 /// 标签行：标签 chips + 编辑入口（标签是用户组织知识库的主要元数据）
-  Widget _buildTagRow(BuildContext context, WidgetRef ref) {
+  Widget _buildTagRow(BuildContext context) {
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        for (final tag in page.tags)
+        for (final tag in widget.page.tags)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
@@ -841,7 +1115,7 @@ class _WikiPageBody extends ConsumerWidget {
             ),
           ),
         InkWell(
-          onTap: () => _editTags(context, ref),
+          onTap: () => _editTags(context),
           borderRadius: BorderRadius.circular(AppTheme.radiusFull),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -849,13 +1123,13 @@ class _WikiPageBody extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  page.tags.isEmpty ? Icons.add : Icons.edit_outlined,
+                  widget.page.tags.isEmpty ? Icons.add : Icons.edit_outlined,
                   size: 12,
                   color: AppTheme.textTertiary,
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  page.tags.isEmpty ? '添加标签' : '编辑标签',
+                  widget.page.tags.isEmpty ? '添加标签' : '编辑标签',
                   style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                 ),
               ],
@@ -868,8 +1142,8 @@ class _WikiPageBody extends ConsumerWidget {
 
   /// 人物关系区块：AI 从对话识别、用户确认后保存的「人物 ↔ 事情/项目」。
   /// 双侧方向都以当前页为中心展示（出→ 人·事；入← 人·事）。
-  Widget _buildRelationsRow(BuildContext context, WidgetRef ref) {
-    final relationsAsync = ref.watch(pageRelationsProvider(page.slug));
+  Widget _buildRelationsRow(BuildContext context) {
+    final relationsAsync = ref.watch(pageRelationsProvider(widget.page.slug));
     final relations = relationsAsync.valueOrNull ?? const [];
     if (relations.isEmpty) return const SizedBox.shrink();
     return Column(
@@ -890,7 +1164,7 @@ class _WikiPageBody extends ConsumerWidget {
           runSpacing: 6,
           children: [
             for (final r in relations)
-              _RelationChip(relation: r, pageSlug: page.slug),
+              _RelationChip(relation: r, pageSlug: widget.page.slug),
           ],
         ),
       ],
@@ -898,8 +1172,8 @@ class _WikiPageBody extends ConsumerWidget {
   }
 
   /// 编辑标签：空格 / 逗号分隔，留空即清空。保存后刷新页面与列表。
-  Future<void> _editTags(BuildContext context, WidgetRef ref) async {
-    final controller = TextEditingController(text: page.tags.join(' '));
+  Future<void> _editTags(BuildContext context) async {
+    final controller = TextEditingController(text: widget.page.tags.join(' '));
     final submitted = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -961,10 +1235,10 @@ class _WikiPageBody extends ConsumerWidget {
 
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      await repo.updateWikiTags(slug: page.slug, tags: tags);
+      await repo.updateWikiTags(slug: widget.page.slug, tags: tags);
       if (!context.mounted) return;
-      ref.invalidate(wikiPageProvider(page.slug));
-      ref.invalidate(pageRelationsProvider(page.slug));
+      ref.invalidate(wikiPageProvider(widget.page.slug));
+      ref.invalidate(pageRelationsProvider(widget.page.slug));
       ref.invalidate(wikiPagesProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -991,9 +1265,9 @@ class _WikiPageBody extends ConsumerWidget {
 
   /// 摘要是否有展示价值：非空、且不是标题的重复
   bool get _hasSummary {
-    final s = page.summary.trim();
+    final s = widget.page.summary.trim();
     if (s.isEmpty) return false;
-    return page.title.trim() != s;
+    return widget.page.title.trim() != s;
   }
 }
 

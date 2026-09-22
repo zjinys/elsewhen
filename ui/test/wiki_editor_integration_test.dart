@@ -1,0 +1,453 @@
+// M3 集成测试（§6 / §7）：
+//  1. 详情页正文从 MarkdownView 换为 AppFlowy 编辑器（浏览态只读渲染）；
+//  2. 「编辑正文」→ 编辑态 →「完成」保存：documentToMarkdown → saveWikiPageContent；
+//  3. Ctrl+S 保存（HardwareKeyboard 全局监听）；
+//  4. 「取消」丢弃未保存修改；
+//  5. 保存失败：留在编辑态并展示错误条；
+//  6. 素材页（kind=source/note）不显示编辑入口；
+//  7. 聊天移入正文尾部对话块（页尾仅一个聊天面板），footer 不再有独立聊天面板；
+//  8. wikilink 点击跳转目标页 tab；
+//  9. 关闭有未保存修改的 tab 前弹确认。
+import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:elsewhen_ui/bridge/generated.dart/api.dart' show EntityFactDto;
+import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
+import 'package:elsewhen_ui/models/conversation.dart';
+import 'package:elsewhen_ui/models/relation.dart';
+import 'package:elsewhen_ui/models/wiki_page.dart';
+import 'package:elsewhen_ui/providers/wiki_provider.dart';
+import 'package:elsewhen_ui/widgets/wiki_ai_chat_panel.dart';
+import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
+import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
+
+const _testMd = '# 测试标题\n\n正文段落提到[[人物/张三|张三]]';
+
+final _testPage = WikiPage(
+  id: 'p1',
+  slug: 'topic/测试',
+  kind: 'topic',
+  title: '测试页面',
+  summary: '一句话摘要',
+  contentMd: _testMd,
+  tags: const ['test'],
+  sourceEventIds: const ['ev1'],
+  evidenceCount: 1,
+  firstSeenAt: DateTime(2025, 1, 1),
+  lastSeenAt: DateTime(2025, 1, 2),
+  status: 'active',
+  createdAt: DateTime(2025, 1, 1),
+  updatedAt: DateTime(2025, 1, 2),
+  area: 'insight',
+);
+
+final _sourcePage = WikiPage(
+  id: 'p2',
+  slug: 'tweet-1',
+  kind: 'source',
+  title: '素材推文',
+  summary: '素材',
+  contentMd: '# 素材\n\n不可编辑',
+  tags: const [],
+  sourceEventIds: const ['ev2'],
+  evidenceCount: 1,
+  firstSeenAt: DateTime(2025, 2, 1),
+  lastSeenAt: DateTime(2025, 2, 2),
+  status: 'active',
+  createdAt: DateTime(2025, 2, 1),
+  updatedAt: DateTime(2025, 2, 2),
+  area: 'imported',
+);
+
+final _wikilinkTarget = WikiPage(
+  id: 'p3',
+  slug: '人物/张三',
+  kind: 'person',
+  title: '张三',
+  summary: '',
+  contentMd: '# 张三',
+  tags: const [],
+  sourceEventIds: const [],
+  evidenceCount: 0,
+  firstSeenAt: DateTime(2025, 3, 1),
+  lastSeenAt: DateTime(2025, 3, 1),
+  status: 'active',
+  createdAt: DateTime(2025, 3, 1),
+  updatedAt: DateTime(2025, 3, 1),
+  area: 'network',
+);
+
+void main() {
+  late _FakeRepo repo;
+  late ProviderContainer container;
+
+  Future<void> pumpDetail(WidgetTester tester, {WikiPage? page}) async {
+    repo = _FakeRepo(page: page ?? _testPage, wikilinkTarget: _wikilinkTarget);
+    container = ProviderContainer(
+      overrides: [
+        storageRepositoryProvider.overrideWithValue(repo),
+      ],
+    );
+    container.read(wikiOpenTabsProvider.notifier).state = [
+      ImportTabEntry(),
+      PageTabEntry(slug: _testPage.slug, title: _testPage.title),
+    ];
+    container
+        .read(wikiActiveTabIdProvider.notifier)
+        .state = 'page-${_testPage.slug}';
+    addTearDown(container.dispose);
+
+    tester.view.physicalSize = const Size(1600, 2200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          localizationsDelegates: const [
+            DefaultMaterialLocalizations.delegate,
+            DefaultWidgetsLocalizations.delegate,
+            AppFlowyEditorLocalizations.delegate,
+          ],
+          home: const Scaffold(body: WikiPageDetailView()),
+        ),
+      ),
+    );
+    await tester.pump(); // wikiPageProvider 等异步 provider 落地
+    await tester.pumpAndSettle();
+  }
+
+  /// 在正文首段落末尾插入文本（模拟用户输入，绕开 IME 层）
+  Future<void> insertText(WidgetTester tester, String text) async {
+    final editorState = tester
+        .state<WikiContentEditorState>(find.byType(WikiContentEditor))
+        .editorState;
+    final firstPara = editorState.document.root.children.first;
+    final t = editorState.transaction;
+    t.insertText(firstPara, firstPara.delta?.length ?? 0, text);
+    await editorState.apply(t);
+    await tester.pump();
+  }
+
+  group('wiki 详情页 · M3 编辑器集成', () {
+    testWidgets('浏览态：正文经编辑器渲染，聊天块在页尾且仅一个', (tester) async {
+      await pumpDetail(tester);
+
+      expect(find.text('测试页面'), findsWidgets);
+      expect(find.text('正文段落提到张三', findRichText: true), findsOneWidget);
+      expect(find.byType(WikiContentEditor), findsOneWidget);
+      expect(
+        tester
+            .widget<WikiContentEditor>(find.byType(WikiContentEditor))
+            .editable,
+        isFalse,
+        reason: '浏览态应只读',
+      );
+      // 页尾对话块（§7 Form A）：全文只有一个聊天面板，footer 不再独立渲染
+      expect(find.byType(WikiAiChatPanel), findsOneWidget);
+      expect(find.text('AI 处理本页'), findsOneWidget);
+      // 编辑入口存在
+      expect(find.text('编辑正文'), findsOneWidget);
+    });
+
+    testWidgets('素材页（kind=source）不显示编辑入口', (tester) async {
+      await pumpDetail(tester, page: _sourcePage);
+
+      expect(find.text('素材推文'), findsOneWidget);
+      expect(
+        find.text('编辑正文'),
+        findsNothing,
+        reason: '素材采集页内容不可改，不提供人工编辑入口',
+      );
+    });
+
+    testWidgets('编辑 → 修改 → 完成：saveWikiPageContent 收到含改动的 markdown，退出编辑态', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      expect(find.text('完成'), findsOneWidget, reason: '编辑态出现「完成」');
+      expect(
+        tester
+            .widget<WikiContentEditor>(find.byType(WikiContentEditor))
+            .editable,
+        isTrue,
+        reason: '编辑态应可写',
+      );
+
+      await insertText(tester, '人工补充内容');
+      expect(
+        container.read(wikiDirtyTabsProvider).contains(_testPage.slug),
+        isTrue,
+        reason: '改动后应标记脏',
+      );
+
+      await tester.tap(find.text('完成'));
+      await tester.pumpAndSettle();
+
+      expect(repo.savedCount, 1, reason: '应只保存一次');
+      final (slug, md, reason) = repo.savedContent.single;
+      expect(slug, _testPage.slug);
+      expect(reason, '[human] GUI 编辑');
+      expect(md, contains('人工补充内容'), reason: '保存的 markdown 应包含人工改动');
+      expect(md, isNot(contains('wiki_chat')), reason: '对话块不进 markdown');
+      expect(
+        container.read(wikiDirtyTabsProvider).contains(_testPage.slug),
+        isFalse,
+        reason: '保存后清除脏标记',
+      );
+      expect(find.text('完成'), findsNothing, reason: '保存成功退出编辑态');
+      expect(find.text('编辑正文'), findsOneWidget);
+    });
+
+    testWidgets('无改动点「完成」：不写库直接退出', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('完成'));
+      await tester.pumpAndSettle();
+
+      expect(repo.savedCount, 0, reason: '无改动不触发保存');
+      expect(find.text('编辑正文'), findsOneWidget);
+    });
+
+    testWidgets('编辑 → 修改 → 取消：丢弃改动，不写库', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '将被丢弃');
+      expect(
+        container.read(wikiDirtyTabsProvider).contains(_testPage.slug),
+        isTrue,
+      );
+
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+
+      expect(repo.savedCount, 0, reason: '取消不保存');
+      expect(
+        container.read(wikiDirtyTabsProvider).contains(_testPage.slug),
+        isFalse,
+        reason: '取消后清除脏标记',
+      );
+      expect(find.text('完成'), findsNothing, reason: '退出编辑态');
+      // 文档回到加载快照
+      final editorState = tester
+          .state<WikiContentEditorState>(find.byType(WikiContentEditor))
+          .editorState;
+      expect(editorState.document.toJson(), isNot(contains('将被丢弃')));
+    });
+
+    testWidgets('Ctrl+S 保存并退出编辑态', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '保存快捷键');
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyS);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyS);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(repo.savedCount, 1, reason: 'Ctrl+S 应触发保存');
+      expect(repo.savedContent.single.$2, contains('保存快捷键'));
+      expect(find.text('编辑正文'), findsOneWidget, reason: '保存后退出编辑态');
+    });
+
+    testWidgets('保存失败：留在编辑态并展示错误条', (tester) async {
+      repo = _FakeRepo(page: _testPage)..saveThrows = true;
+      container = ProviderContainer(
+        overrides: [
+          storageRepositoryProvider.overrideWithValue(repo),
+        ],
+      );
+      container.read(wikiOpenTabsProvider.notifier).state = [
+        ImportTabEntry(),
+        PageTabEntry(slug: _testPage.slug, title: _testPage.title),
+      ];
+      container
+          .read(wikiActiveTabIdProvider.notifier)
+          .state = 'page-${_testPage.slug}';
+      addTearDown(container.dispose);
+      tester.view.physicalSize = const Size(1600, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            localizationsDelegates: const [
+              DefaultMaterialLocalizations.delegate,
+              DefaultWidgetsLocalizations.delegate,
+              AppFlowyEditorLocalizations.delegate,
+            ],
+            home: const Scaffold(body: WikiPageDetailView()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '保存会失败');
+      await tester.tap(find.text('完成'));
+      await tester.pumpAndSettle();
+
+      expect(repo.savedCount, 1, reason: '尝试过一次保存');
+      expect(find.textContaining('保存失败'), findsOneWidget, reason: '应展示错误条');
+      expect(find.text('完成'), findsOneWidget, reason: '失败后留在编辑态');
+    });
+
+    testWidgets('wikilink 点击：跳转目标页 tab', (tester) async {
+      await pumpDetail(tester);
+
+      // 段落渲染为纯文本「正文段落提到张三」，其中「张三」是 wikilink span
+      final richTextFinder = find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText() == '正文段落提到张三',
+      );
+      expect(richTextFinder, findsOneWidget);
+      final renderParagraph =
+          tester.renderObject<RenderParagraph>(richTextFinder);
+      final localBox = renderParagraph
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 6, extentOffset: 8),
+          )
+          .first;
+      final center = renderParagraph.localToGlobal(
+        Offset(
+          (localBox.left + localBox.right) / 2,
+          (localBox.top + localBox.bottom) / 2,
+        ),
+      );
+      await tester.tapAt(center);
+      await tester.pumpAndSettle();
+
+      expect(repo.wikilinkLookups, contains('人物/张三'));
+      expect(
+        container.read(wikiActiveTabIdProvider),
+        'page-人物/张三',
+        reason: 'wikilink 应打开目标页',
+      );
+    });
+
+    testWidgets('关闭有未保存修改的 tab：先确认，放弃才关', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '未保存');
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(find.text('关闭前确认'), findsOneWidget, reason: '脏 tab 关闭应弹确认');
+
+      // 取消：tab 保留
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('取消'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(container.read(wikiActiveTabIdProvider), 'page-topic/测试');
+
+      // 再次关闭并确认放弃
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('放弃修改并关闭'));
+      await tester.pumpAndSettle();
+
+      expect(container.read(wikiActiveTabIdProvider), 'import', reason: '确认放弃后关闭');
+      expect(repo.savedCount, 0, reason: '放弃不触发保存');
+    });
+  });
+}
+
+/// 假仓库：内存应答 + 记录保存调用与 wikilink 查询
+class _FakeRepo extends RustBridgeRepository {
+  _FakeRepo({required this.page, this.wikilinkTarget});
+
+  final WikiPage page;
+  final WikiPage? wikilinkTarget;
+  int savedCount = 0;
+  bool saveThrows = false;
+  final List<(String, String, String)> savedContent = [];
+  final List<String> wikilinkLookups = [];
+
+  @override
+  Future<WikiPage?> getWikiPage(String slug) async {
+    wikilinkLookups.add(slug);
+    if (slug == wikilinkTarget?.slug) return wikilinkTarget;
+    return page;
+  }
+
+  @override
+  Future<List<WikiPage>> listWikiPages({String? kind, String? area}) async =>
+      [page];
+
+  @override
+  Future<List<WikiPage>> listWikiPageDerivatives(String slug) async =>
+      const [];
+
+  @override
+  Future<List<EntityFactDto>> listEntityFacts(
+    String entityKind,
+    String entitySlug,
+  ) async =>
+      const [];
+
+  @override
+  Future<List<Relation>> listRelationsForPage(String slug) async => const [];
+
+  @override
+  Future<WikiPage> saveWikiPageContent({
+    required String slug,
+    required String contentMd,
+    String reason = '[human] GUI 编辑',
+  }) async {
+    savedCount++;
+    savedContent.add((slug, contentMd, reason));
+    if (saveThrows) throw Exception('模拟保存失败');
+    return page;
+  }
+
+  @override
+  Future<Conversation> ensureWikiPageChat(String pageSlug) async {
+    return Conversation(
+      id: 'conv-page',
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      messageCount: 0,
+      wikiPageSlug: pageSlug,
+    );
+  }
+
+  @override
+  Future<List<Message>> listMessages(String conversationId) async =>
+      const [];
+
+  @override
+  Future<Message> sendMessage(
+    String conversationId,
+    String role,
+    String content, {
+    String? parentMessageId,
+  }) async {
+    return Message(
+      id: 'm-reply',
+      conversationId: conversationId,
+      role: MessageRole.fromString('assistant'),
+      content: '模拟回复',
+      createdAt: DateTime(2026, 1, 1),
+    );
+  }
+}

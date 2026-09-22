@@ -164,6 +164,10 @@ final wikiOpenTabsProvider = StateProvider<List<WikiTabEntry>>(
 /// 当前激活的 tab id
 final wikiActiveTabIdProvider = StateProvider<String>((ref) => 'import');
 
+/// 正在编辑且未保存改动的页面 slug 集合（§6.3：关闭/离开前确认）。
+/// 由详情页编辑器在事务变更/保存/放弃时维护。
+final wikiDirtyTabsProvider = StateProvider<Set<String>>((ref) => <String>{});
+
 const _maxWikiTabs = 8;
 
 /// 打开一个 tab；已存在则用新条目替换（拿到最新标题）并激活。

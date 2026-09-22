@@ -206,10 +206,19 @@ AI 对人工编辑页仍可走既有 `save_wiki_revision` 草拟确认制修订�
 
 ## 6. Flutter 集成设计（spike 通过后）
 
-### 6.1 浏览 / 编辑双模式
+### 6.1 浏览 / 编辑双模式 ✅（M3 落地, 2026-09）
 
 - 详情页（`wiki_page_detail_view.dart` 内容 tab）渲染从 `MarkdownView` 换为 `AppFlowyEditor`（`editable: false` 浏览态）；
 - 工具栏「编辑」→ 同一实例切 `editable: true`；离开编辑态时若有改动：`documentToMarkdown` → `saveWikiPageContent` → `ref.invalidate` 刷新。
+
+**落地细节（实现即此，与初稿差异已注明）**：
+
+- 封装 `ui/lib/wiki/wiki_content_editor.dart`（`WikiContentEditor`）：`editable` 双模式、`wikiMarkdownToDocument` 解码 + 尾部 `wikiChatNode`、`wikiDocumentToMarkdown` 保存、`editorStyle` 注入 `wikiTextSpanDecorator(onTapWikiLink:)`、注册 `wiki_chat` 自定义块；**同一 `EditorState` 实例切 editable，进出编辑态不重建文档**；
+- 脏判定以 **markdown 编码串** 为基准（`save()` 前 `wikiDocumentToMarkdown(doc) != 加载快照`）。⚠️ 不要用 `Document.toJson() == …` 做快照比较——vendor 的 `toJson()` 两次调用返回的 Map 即使内容一致也 `==` false（内部 HashMap 迭代序不确定），会导致「无改动却判脏」（集成测试实证）；
+- 编辑器首次挂载可能对文档做规范化，`_initEditor` 在首帧渲染完成后（postFrame）再定格一次快照，避免脏标记误报；
+- **编辑器自持滚动，不进外层 `SingleChildScrollView`**：vendor 的 overlay（`_Theatre`）断言有限约束，放进无界高滚动父级会直接抛 `constraints.biggest.isFinite`（widget 测试实证）。布局改为：header → 编辑工具栏 → `Expanded(编辑器，含页尾对话块滚动流)` → 下方「卡座」条（派生产物 / 事实 / 相关待办，高度上限约 42% 内自滚动）；
+- 编辑入口「编辑正文」仅对**可编辑 kind** 显示（`!kind ∈ {source, note}`），与 Rust 侧 `save_wiki_page_content` 守卫一致（素材采集页全链路只读）；
+- 编辑工具栏：浏览态「编辑正文」；编辑态「取消 · 完成（保存）+ 提示 Ctrl/⌘+S」；保存失败展示错误条并留在编辑态。
 
 ### 6.2 保存链路
 
@@ -218,17 +227,22 @@ editorState.document → documentToMarkdown() → saveWikiPageContent(slug, md, 
 → bridge → Rust: record_wiki_revision + append_wiki_log + human_edited_at=now
 ```
 
-### 6.3 未保存保护
+本页保存回调 `_persistEdit` 即上述链路：`RustBridgeRepository.saveWikiPageContent`（M3 新增 wrapper）→ `ref.invalidate(wikiPageProvider / wikiPagesProvider)` → snackbar「已保存到知识库」→ 退出编辑态。手动路径之外还有 `Ctrl/Cmd+S`（`HardwareKeyboard` 全局监听，编辑态任意焦点可用；Linux/Win 用 Ctrl、macOS 用 ⌘，`KeyRepeatEvent` 排除按键连发）。
 
-- 编辑态切换/离开时 diff `document.toJson()` 与加载快照；有改动弹确认；
-- `Ctrl/Cmd+S` 保存；保存成功 toast + 退出编辑态。
+### 6.3 未保存保护 ✅（M3 落地, 2026-09）
+
+- **切 tab 不丢编辑**：`WikiPageDetailView` 的 tab 容器改 `IndexedStack`（保活所有 tab 子树），编辑中的页面切走再切回编辑态与改动原样保留（初稿未规定，实现补足）；
+- **关闭 tab 确认**：编辑器经 `onDirtyChanged` 把未保存 slug 上报 `wikiDirtyTabsProvider`；关闭该 tab 时弹「关闭前确认」——v1 只做「取消 / 放弃修改并关闭」两档；**「关前先保存」留 v1.5**（对话框加保存按钮）；
+- **显式离开编辑态**：`「完成」`（有改动才保存，无改动直接退出）与 `「取消」`（`discard()` 从加载快照重建文档，丢弃未保存改动）双入口，不需要额外确认弹窗；
+- `Ctrl/Cmd+S` 保存成功即退出编辑态（与「完成」同一持久化路径）。
 
 ### 6.4 边界
 
 - v1 只编辑正文；title/summary 人工编辑留 v2；
-- `wiki export` 仍为只读快照，应用内编辑写真源，快照由真源重生成。
+- `wiki export` 仍为只读快照，应用内编辑写真源，快照由真源重生成；
+- 详情页不再引用 `MarkdownView`（`wiki_page_detail_view.dart` 已移除 import）；文件本体保留未删，未来对话消息等场景的高保真 markdown 展示可复用。
 
-## 7. AI 对话嵌入（两种形态，v1 取其一）
+## 7. AI 对话嵌入（两种形态，v1 取其一）✅ A 已落地
 
 | 形态 | 做法 | 取舍 |
 |---|---|---|
@@ -237,12 +251,14 @@ editorState.document → documentToMarkdown() → saveWikiPageContent(slug, md, 
 
 v1 建议 A；**spike §5.3 已验证聊天交互与编辑器焦点/选区互不干扰 → 拍板取 A（页尾对话块）**；B（右侧悬浮面板）保留为移动端 / 超长页备选。
 
+**落地说明（M3）**：对话块随编辑器文档渲染（正文解码后尾部插 `wikiChatNode(slug)`，聊天内容不进 markdown、按页走 `ensure/archive_wiki_page_chat` 独立持久化）；详情页 footer 不再独立挂 `WikiAiChatPanel`（页内全页仅一个聊天面板，避免双 UI）。
+
 ## 8. 兼容与迁移
 
 - 迁移 v29：拆 kind（`note-`→`note`）+ 补 `human_edited_at`/`opinion` 两列，既有数据 backfill 后行为与升级前一致；
 - CLI `wiki digest / insight / export` 不受影响（保护是内部行为变化）；
 - 所有写回仍留 `wiki_revisions`，可回滚；
-- `MarkdownView` 保留（对话消息等场景仍在用），不删除。
+- `MarkdownView` 文件保留（未删），但由于详情页正文已切换 AppFlowyEditor，lib 内已无使用方；对话消息等场景如需高保真 markdown 展示可复用。
 
 ## 9. 测试计划
 
@@ -255,13 +271,13 @@ v1 建议 A；**spike §5.3 已验证聊天交互与编辑器焦点/选区互不
 ### Flutter
 
 - `round_trip_test.dart`：真实样例 md → doc → md 快照 diff（§5.1 产物，常驻）；
-- 编辑 → 保存 → bridge 调用与刷新；未保存离开确认；wikilink 点击跳页；只读模式可选词。
+- 编辑 → 保存 → bridge 调用与刷新；未保存离开确认；wikilink 点击跳页；只读模式可选词。—— ✅ M3 落地为 `ui/test/wiki_editor_integration_test.dart`（9 项：浏览态/素材页无编辑入口/编辑保存/无改动不保存/取消丢弃/Ctrl+S/保存失败错误条/wikilink 跳页/脏 tab 关闭确认）。
 
 ## 10. 里程碑
 
 1. **M1（并行）**：核心保护 —— 迁移 v29（kind 拆分 + `human_edited_at` + `opinion`）+ `save_wiki_page_content` + `set_wiki_opinion` + digest 按 kind 保护 + Rust 测试 —— ✅（`feat/wiki-m1-protection` 已合 main）；
 2. **M2（spike）**：`flutter pub add appflowy_editor` + §5 四项验证，产出来回 diff 清单与决策记录 —— ✅ 全部完成（依赖/IME/测试页 ✅；§5.1 往返保真 ✅；§5.2 wikilink ✅；§5.3 AI 对话块 ✅ 拍板 Form A；§5.4 只读展示 ✅ + code 块降级实证）；
-3. **M3（集成）**：双模式编辑器替换 + 保存链路 + AI 对话块（§6/§7）；
+3. **M3（集成）**：双模式编辑器替换 + 保存链路 + AI 对话块（§6/§7）—— ✅（编辑器 `WikiContentEditor` + 详情页双模式/保存/未保存保护 + 页尾对话块 + 9 项集成测试；UI 侧全程无 Rust 改动）；
 4. **M4**：`round_trip` 常驻测试 + 主题打磨 + 移动端走查。
 
 ## 11. 开放问题（实施前拍板）
@@ -269,4 +285,4 @@ v1 建议 A；**spike §5.3 已验证聊天交互与编辑器焦点/选区互不
 1. **往返保真不收敛时**：回退 markdown 分屏预览，还是接受白名单降级（如表格只读不可建）？——**§5.1 已收敛**（上表），白名单条目已固化进常驻测试；
 2. **AI 对话落点**：v1 拍板 —— 回复**仅入会话展示**，改页必须过 `save_wiki_revision` 确认门（模型提议 → 用户确认 → 写库），不做"生成即插光标"；理由：改动可审计、避免 AI 半成品直进正文；§5.3 已证聊天焦点与编辑器选区隔离，不构成自动插入的技术障碍，仍按确认门推进。
 3. **乐观锁**：本地单写者，v1 不做版本冲突检测；是否接受编辑期间 digest 并发导致"保存覆盖 digest"的极端情况（缓解：保存时校验 `updated_at`）。
-4. **代码块展示降级**（§5.4 实证）：vendor 01eccc6 的编辑器**无 `code` 块组件**（`code` 节点渲染为 30px placeholder 占位框；管线上已保真）。M3 拍板方向：注册降级 code block（等宽字体只读块 + 复制按钮），**不升级 vendor**（避免引入代码块组件的体积与行为漂移）。
+4. **代码块展示降级**（§5.4 实证）：vendor 01eccc6 的编辑器**无 `code` 块组件**（`code` 节点渲染为 30px placeholder 占位框；管线上已保真）。M3 拍板方向：注册降级 code block（等宽字体只读块 + 复制按钮），**不升级 vendor**（避免引入代码块组件的体积与行为漂移）。—— ⏳ M3 集成未做（`code` 节点仍展示为 placeholder 占位框），留 M4。

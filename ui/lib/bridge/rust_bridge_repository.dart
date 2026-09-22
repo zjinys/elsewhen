@@ -449,6 +449,21 @@ class RustBridgeRepository implements StorageRepository {
     return WikiPage.fromDto(dto);
   }
 
+  /// 人类编辑保存一页正文（M3 §6.2；限可编辑 kind，素材页只读拒绝）。
+  /// 保存后 `human_edited_at` 置位：该页被 AI digest 视为人工持有，不再整篇覆盖。
+  Future<WikiPage> saveWikiPageContent({
+    required String slug,
+    required String contentMd,
+    String reason = '[human] GUI 编辑',
+  }) async {
+    final dto = await api.saveWikiPageContent(
+      slug: slug,
+      contentMd: contentMd,
+      reason: reason,
+    );
+    return WikiPage.fromDto(dto);
+  }
+
   // ── 人物关系 ──
 
   /// 与某页相关的人物关系（双向：作为人物方或作为事情/项目方）
