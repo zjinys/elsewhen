@@ -186,16 +186,23 @@ AI 对人工编辑页仍可走既有 `save_wiki_revision` 草拟确认制修订�
 > - `ui/test/wiki_wikilink_spike_test.dart`：编解码属性断言 + 真编辑器 widget spike（span 视觉断言 + 点击回调 slug = `topic/投资`）。
 > - IME 测试页同步切到 wiki codec，作为手动快速入口。
 
-### 5.3 AI 对话块
+### 5.3 AI 对话块 ✅
 
-- 把现有页内聊天 UI（`ui/lib/widgets/` 下聊天视图）包成自定义 block component，验证：聊天在编辑/只读模式下可交互、不干扰选区/光标、回复"插入到正文"的落点（可选 v1）。
+- 把页内聊天 UI 抽成共享面板 `ui/lib/widgets/wiki_ai_chat_panel.dart`（`WikiAiChatPanel` / `WikiChatBubble`，行为与详情页底部原面板一致），并包成自定义 block `ui/lib/wiki/wiki_chat_block.dart`（`wiki_chat` 节点 + `WikiChatBlockComponentBuilder` + `wikiChatNode({slug})`）；
+- 验证结论（`ui/test/wiki_chat_block_spike_test.dart`，9 项全绿）：
+  - 编辑 / 只读模式均可交互：输入→发送→回复走通，AI 回复气泡渲染；
+  - 不干扰选区/光标：聊天输入只进会话、不写正文文档；聊天交互后点击正文段落，选区正确落回正文（折叠光标）；
+  - 聊天块不进 markdown 往返（无 NodeParser，编码器静默跳过，正文往返不受影响）；
+  - 块节点携带 `slug` 属性，会话按页走 `ensure/archive_wiki_page_chat` 独立持久化。
+- 回复「插入到正文」落点：v1 **不做自动插入**——沿用现有 `save_wiki_revision` 确认门，见 §11 Q2 拍板。
 
-### 5.4 只读展示 + 版本
+### 5.4 只读展示 + 版本 ✅
 
-- `editable: false` 走查展示观感（嵌套列表/表格/代码块样式，主题对齐 `AppTheme`）；
-- `flutter pub add appflowy_editor` 实际解析一次依赖树，记录体积与覆盖范围。
+- `editable: false` 走查（`ui/test/wiki_readonly_walkthrough_test.dart`，4 项全绿）：嵌套列表 / 引用 / 待办（选中+未选）/ 分割线 / 表格单元格 / 标题 / wikilink 均正常渲染；wikilink 沿用 MarkdownView 同款视觉（accentPrimary + 下划线）；只读态仍可点选正文（复制场景不阻塞）；
+- 依赖树：vendored `appflowy_editor`（01eccc6）以 path 依赖随主 pubspec 解析；自定义 block 运行时需 `provider`/`collection`，已加为直接依赖（版本对齐 vendor pubspec）；
+- ⚠️ 代码块降级实证：vendor 无 `code` 块组件 → `code` 节点渲染为 30px "placeholder" 占位框，见 §11 Q4。
 
-**完成标准**：往返 diff 收敛 + wikilink 可解析可回填 + 聊天块可交互。任一不达标 → 回退 v1 方案（markdown 分屏预览，§设计稿 v1），决策点在文档留痕。
+**完成标准**：往返 diff 收敛 + wikilink 可解析可回填 + 聊天块可交互。✅ 全部达标 —— M2 关闭，无需回退 v1 方案（markdown 分屏预览）。
 
 ## 6. Flutter 集成设计（spike 通过后）
 
@@ -228,7 +235,7 @@ editorState.document → documentToMarkdown() → saveWikiPageContent(slug, md, 
 | **A. 页尾对话块** | 自定义 block「AI 对话」，复用现有聊天 UI 与 `ensure/archive_wiki_page_chat` | 与正文同滚动流，编辑与对话同一上下文（推荐先做） |
 | B. 右侧悬浮面板 | 详情页横向布局加聊天面板 | 不侵入文档模型，但"对话与段落"的关联弱 |
 
-v1 建议 A；若聊天交互（键盘焦点/光标）与编辑器冲突严重，降级 B——spike §5.3 专门验证这一点。
+v1 建议 A；**spike §5.3 已验证聊天交互与编辑器焦点/选区互不干扰 → 拍板取 A（页尾对话块）**；B（右侧悬浮面板）保留为移动端 / 超长页备选。
 
 ## 8. 兼容与迁移
 
@@ -253,13 +260,13 @@ v1 建议 A；若聊天交互（键盘焦点/光标）与编辑器冲突严重�
 ## 10. 里程碑
 
 1. **M1（并行）**：核心保护 —— 迁移 v29（kind 拆分 + `human_edited_at` + `opinion`）+ `save_wiki_page_content` + `set_wiki_opinion` + digest 按 kind 保护 + Rust 测试 —— ✅（`feat/wiki-m1-protection` 已合 main）；
-2. **M2（spike）**：`flutter pub add appflowy_editor` + §5 四项验证，产出来回 diff 清单与决策记录 —— 🔄（依赖/IME/测试页 ✅；§5.1 往返保真 ✅ 已收敛；§5.2 wikilink ✅ 已收敛（含 round_trip 切生产管线 + spike 测试）；§5.3 AI 对话块、§5.4 只读展示待验）；
+2. **M2（spike）**：`flutter pub add appflowy_editor` + §5 四项验证，产出来回 diff 清单与决策记录 —— ✅ 全部完成（依赖/IME/测试页 ✅；§5.1 往返保真 ✅；§5.2 wikilink ✅；§5.3 AI 对话块 ✅ 拍板 Form A；§5.4 只读展示 ✅ + code 块降级实证）；
 3. **M3（集成）**：双模式编辑器替换 + 保存链路 + AI 对话块（§6/§7）；
 4. **M4**：`round_trip` 常驻测试 + 主题打磨 + 移动端走查。
 
 ## 11. 开放问题（实施前拍板）
 
 1. **往返保真不收敛时**：回退 markdown 分屏预览，还是接受白名单降级（如表格只读不可建）？——**§5.1 已收敛**（上表），白名单条目已固化进常驻测试；
-2. **AI 对话落点**：回复默认插在光标处（生成类）还是仅展示（确认后手动插入）？——影响 §5.3 与权限模型；
+2. **AI 对话落点**：v1 拍板 —— 回复**仅入会话展示**，改页必须过 `save_wiki_revision` 确认门（模型提议 → 用户确认 → 写库），不做"生成即插光标"；理由：改动可审计、避免 AI 半成品直进正文；§5.3 已证聊天焦点与编辑器选区隔离，不构成自动插入的技术障碍，仍按确认门推进。
 3. **乐观锁**：本地单写者，v1 不做版本冲突检测；是否接受编辑期间 digest 并发导致"保存覆盖 digest"的极端情况（缓解：保存时校验 `updated_at`）。
-4. **代码块展示降级**（§5.1 新发现）：vendor 01eccc6 的编辑器无 `code` 块组件（管线上已保真）；M3 集成时给 `code` 节点注册降级 block component（等宽字体只读块）还是升级 vendor 引入代码块组件？
+4. **代码块展示降级**（§5.4 实证）：vendor 01eccc6 的编辑器**无 `code` 块组件**（`code` 节点渲染为 30px placeholder 占位框；管线上已保真）。M3 拍板方向：注册降级 code block（等宽字体只读块 + 复制按钮），**不升级 vendor**（避免引入代码块组件的体积与行为漂移）。
