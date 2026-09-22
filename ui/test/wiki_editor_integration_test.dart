@@ -9,6 +9,7 @@
 //  8. wikilink 点击跳转目标页 tab；
 //  9. 关闭有未保存修改的 tab 前弹确认。
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -22,10 +23,14 @@ import 'package:elsewhen_ui/models/relation.dart';
 import 'package:elsewhen_ui/models/wiki_page.dart';
 import 'package:elsewhen_ui/providers/wiki_provider.dart';
 import 'package:elsewhen_ui/widgets/wiki_ai_chat_panel.dart';
+import 'package:elsewhen_ui/widgets/wiki_derivatives.dart';
 import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
 
 const _testMd = '# 测试标题\n\n正文段落提到[[人物/张三|张三]]';
+
+/// 带代码块的正文字样（§11 Q4 降级展示）
+const _codeMd = '# 带代码\n\n```dart\nfinal x = 1;\n```\n\n尾部段落。';
 
 final _testPage = WikiPage(
   id: 'p1',
@@ -81,12 +86,32 @@ final _wikilinkTarget = WikiPage(
   area: 'network',
 );
 
+/// 带代码块正文的页面（M4 §11 Q4）
+final _codePage = WikiPage(
+  id: 'p4',
+  slug: 'topic/带代码',
+  kind: 'topic',
+  title: '带代码页面',
+  summary: '',
+  contentMd: _codeMd,
+  tags: const [],
+  sourceEventIds: const [],
+  evidenceCount: 0,
+  firstSeenAt: DateTime(2025, 4, 1),
+  lastSeenAt: DateTime(2025, 4, 1),
+  status: 'active',
+  createdAt: DateTime(2025, 4, 1),
+  updatedAt: DateTime(2025, 4, 1),
+  area: 'insight',
+);
+
 void main() {
   late _FakeRepo repo;
   late ProviderContainer container;
 
   Future<void> pumpDetail(WidgetTester tester, {WikiPage? page}) async {
-    repo = _FakeRepo(page: page ?? _testPage, wikilinkTarget: _wikilinkTarget);
+    final p = page ?? _testPage;
+    repo = _FakeRepo(page: p, wikilinkTarget: _wikilinkTarget);
     container = ProviderContainer(
       overrides: [
         storageRepositoryProvider.overrideWithValue(repo),
@@ -94,11 +119,9 @@ void main() {
     );
     container.read(wikiOpenTabsProvider.notifier).state = [
       ImportTabEntry(),
-      PageTabEntry(slug: _testPage.slug, title: _testPage.title),
+      PageTabEntry(slug: p.slug, title: p.title),
     ];
-    container
-        .read(wikiActiveTabIdProvider.notifier)
-        .state = 'page-${_testPage.slug}';
+    container.read(wikiActiveTabIdProvider.notifier).state = 'page-${p.slug}';
     addTearDown(container.dispose);
 
     tester.view.physicalSize = const Size(1600, 2200);
@@ -158,7 +181,7 @@ void main() {
     testWidgets('素材页（kind=source）不显示编辑入口', (tester) async {
       await pumpDetail(tester, page: _sourcePage);
 
-      expect(find.text('素材推文'), findsOneWidget);
+      expect(find.text('素材推文'), findsWidgets);
       expect(
         find.text('编辑正文'),
         findsNothing,
@@ -337,6 +360,97 @@ void main() {
         'page-人物/张三',
         reason: 'wikilink 应打开目标页',
       );
+    });
+
+    testWidgets('code 块：详情页渲染只读降级块，复制按钮写剪贴板（§11 Q4）', (tester) async {
+      final clipboardLog = <MethodCall>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          clipboardLog.add(call);
+          return null;
+        },
+      );
+      addTearDown(() => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null));
+
+      await pumpDetail(tester, page: _codePage);
+
+      // 经 WikiContentEditor（生产路径）渲染：不再是 30px placeholder
+      expect(find.text('placeholder'), findsNothing);
+      expect(find.text('final x = 1;', findRichText: true), findsOneWidget);
+      expect(find.text('dart'), findsOneWidget, reason: '语言角标');
+      expect(find.text('复制'), findsOneWidget);
+
+      // 点复制：Clipboard.setData 收到代码全文
+      await tester.tap(find.text('复制'));
+      await tester.pumpAndSettle();
+      final copyCall = clipboardLog
+          .where((c) => c.method == 'Clipboard.setData')
+          .lastOrNull;
+      expect(copyCall, isNotNull, reason: '应调用 Clipboard.setData');
+      expect(
+        (copyCall!.arguments as Map)['text'],
+        'final x = 1;',
+        reason: '复制内容应去掉围栏与语言行',
+      );
+    });
+
+    testWidgets('移动端走查（390×844）：窄视口不溢出，编辑器与卡座可用', (tester) async {
+      // 单独起容器，视口改为手机尺寸（M4 移动端走查）
+      repo = _FakeRepo(page: _testPage, wikilinkTarget: _wikilinkTarget);
+      container = ProviderContainer(
+        overrides: [storageRepositoryProvider.overrideWithValue(repo)],
+      );
+      container.read(wikiOpenTabsProvider.notifier).state = [
+        ImportTabEntry(),
+        PageTabEntry(slug: _testPage.slug, title: _testPage.title),
+      ];
+      container
+          .read(wikiActiveTabIdProvider.notifier)
+          .state = 'page-${_testPage.slug}';
+      addTearDown(container.dispose);
+
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            localizationsDelegates: const [
+              DefaultMaterialLocalizations.delegate,
+              DefaultWidgetsLocalizations.delegate,
+              AppFlowyEditorLocalizations.delegate,
+            ],
+            home: const Scaffold(body: WikiPageDetailView()),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      // 无溢出/布局异常（RenderFlex overflow 等会在此抛出）
+      expect(tester.takeException(), isNull, reason: '窄视口不应有布局溢出');
+
+      // 正文经编辑器渲染、编辑入口可见、聊天块在页尾
+      expect(find.byType(WikiContentEditor), findsOneWidget);
+      expect(find.text('正文段落提到张三', findRichText: true), findsOneWidget);
+      expect(find.text('编辑正文'), findsOneWidget);
+      expect(find.byType(WikiAiChatPanel), findsOneWidget);
+
+      // 底部卡座存在于树中（内部自滚动，窄屏也有界）
+      expect(find.byType(WikiDerivatives), findsOneWidget);
+
+      // 编辑态在窄屏同样可用：进入 → 插入 → 保存
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '窄屏也编辑');
+      await tester.tap(find.text('完成'));
+      await tester.pumpAndSettle();
+      expect(repo.savedCount, 1, reason: '窄屏保存正常');
+      expect(repo.savedContent.single.$2, contains('窄屏也编辑'));
     });
 
     testWidgets('关闭有未保存修改的 tab：先确认，放弃才关', (tester) async {

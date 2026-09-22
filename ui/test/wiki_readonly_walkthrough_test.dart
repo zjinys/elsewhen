@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:elsewhen_ui/theme/app_theme.dart';
+import 'package:elsewhen_ui/wiki/wiki_code_block.dart';
 import 'package:elsewhen_ui/wiki/wiki_markdown_codec.dart';
 import 'package:elsewhen_ui/wiki/wiki_text_span_decorator.dart';
 
@@ -141,7 +142,8 @@ void main() {
       expect(span.style?.decoration, TextDecoration.underline);
     });
 
-    testWidgets('code 块当前展示降级：placeholder 占位（§11 记录）', (tester) async {
+    testWidgets('code 块：生产编辑器注册降级组件，只读展示 + 复制按钮（§11 Q4）',
+        (tester) async {
       tester.view.physicalSize = const Size(1600, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -162,15 +164,23 @@ void main() {
               editorState: editorState,
               editable: false,
               autoFocus: false,
+              // 与 WikiContentEditor 相同的注册集：code 节点走降级组件
+              blockComponentBuilders: {
+                ...standardBlockComponentBuilderMap,
+                WikiCodeBlockKeys.type: WikiCodeBlockComponentBuilder(),
+              },
             ),
           ),
         ),
       );
       await tester.pump();
 
-      // vendor 01eccc6 无 code 块组件 —— 暂时降级为占位框；一旦注册了
-      // 降级 code 组件或升级 vendor，这条断言会失败并提示更新文档。
-      expect(find.text('placeholder'), findsOneWidget);
+      // 不再渲染 vendor 的 placeholder 占位；代码以等宽文本呈现
+      expect(find.text('placeholder'), findsNothing);
+      expect(find.text('final x = 1;', findRichText: true), findsOneWidget);
+      expect(find.text('dart'), findsOneWidget, reason: '语言角标');
+      expect(find.text('复制'), findsOneWidget);
+      expect(find.byIcon(Icons.copy_rounded), findsOneWidget);
     });
 
     testWidgets('只读态仍可点选正文（不阻塞复制场景）', (tester) async {

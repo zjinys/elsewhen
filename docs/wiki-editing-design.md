@@ -278,11 +278,11 @@ v1 建议 A；**spike §5.3 已验证聊天交互与编辑器焦点/选区互不
 1. **M1（并行）**：核心保护 —— 迁移 v29（kind 拆分 + `human_edited_at` + `opinion`）+ `save_wiki_page_content` + `set_wiki_opinion` + digest 按 kind 保护 + Rust 测试 —— ✅（`feat/wiki-m1-protection` 已合 main）；
 2. **M2（spike）**：`flutter pub add appflowy_editor` + §5 四项验证，产出来回 diff 清单与决策记录 —— ✅ 全部完成（依赖/IME/测试页 ✅；§5.1 往返保真 ✅；§5.2 wikilink ✅；§5.3 AI 对话块 ✅ 拍板 Form A；§5.4 只读展示 ✅ + code 块降级实证）；
 3. **M3（集成）**：双模式编辑器替换 + 保存链路 + AI 对话块（§6/§7）—— ✅（编辑器 `WikiContentEditor` + 详情页双模式/保存/未保存保护 + 页尾对话块 + 9 项集成测试；UI 侧全程无 Rust 改动）；
-4. **M4**：`round_trip` 常驻测试 + 主题打磨 + 移动端走查。
+4. **M4**：`round_trip` 常驻测试 + 主题打磨 + 移动端走查。—— ✅（`round_trip_test.dart` 常驻；code 块降级渲染 ✅ §11 Q4；移动端走查 ✅ 窄视口 390×844 专项测试 + 修复 vendor 默认 block padding 左右各 100 导致的窄屏溢出 —— 编辑器显式收窄为 24；主题打磨 = code 块配色随 `AppTheme` 深浅主题）；
 
 ## 11. 开放问题（实施前拍板）
 
 1. **往返保真不收敛时**：回退 markdown 分屏预览，还是接受白名单降级（如表格只读不可建）？——**§5.1 已收敛**（上表），白名单条目已固化进常驻测试；
 2. **AI 对话落点**：v1 拍板 —— 回复**仅入会话展示**，改页必须过 `save_wiki_revision` 确认门（模型提议 → 用户确认 → 写库），不做"生成即插光标"；理由：改动可审计、避免 AI 半成品直进正文；§5.3 已证聊天焦点与编辑器选区隔离，不构成自动插入的技术障碍，仍按确认门推进。
 3. **乐观锁**：本地单写者，v1 不做版本冲突检测；是否接受编辑期间 digest 并发导致"保存覆盖 digest"的极端情况（缓解：保存时校验 `updated_at`）。
-4. **代码块展示降级**（§5.4 实证）：vendor 01eccc6 的编辑器**无 `code` 块组件**（`code` 节点渲染为 30px placeholder 占位框；管线上已保真）。M3 拍板方向：注册降级 code block（等宽字体只读块 + 复制按钮），**不升级 vendor**（避免引入代码块组件的体积与行为漂移）。—— ⏳ M3 集成未做（`code` 节点仍展示为 placeholder 占位框），留 M4。
+4. **代码块展示降级**（§5.4 实证）：vendor 01eccc6 的编辑器**无 `code` 块组件**（`code` 节点渲染为 30px placeholder 占位框；管线上已保真）。**M4 已落地**：注册降级 code block `WikiCodeBlockComponent`（`ui/lib/wiki/wiki_code_block.dart`，等宽字体只读块 + 语言角标 + 复制按钮），**不升级 vendor**（避免引入代码块组件的体积与行为漂移）；复制走 `Clipboard.setData`（集成测试断言内容去围栏/语言行）。

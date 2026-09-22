@@ -4,7 +4,9 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_theme.dart';
 import 'wiki_chat_block.dart';
+import 'wiki_code_block.dart';
 import 'wiki_markdown_codec.dart';
 import 'wiki_text_span_decorator.dart';
 
@@ -167,13 +169,20 @@ class WikiContentEditorState extends State<WikiContentEditor> {
       autoFocus: false,
       shrinkWrap: widget.shrinkWrap,
       editorStyle: EditorStyle.desktop(
+        // vendor 默认 desktop padding 左右各 100：宽屏阅读栏内仍够，但窄视口
+        // （移动端）会把内容压垮（390 - 48 页边 - 200 = 142px 可用，移动走查实证）。
+        // 显式收窄到 24，宽屏仍有阅读栏兜底、窄屏不溢出。
+        padding: EdgeInsets.symmetric(horizontal: AppTheme.space6),
         textSpanDecorator: wikiTextSpanDecorator(
           onTapWikiLink: widget.onWikiLinkTap,
         ),
       ),
       blockComponentBuilders: {
         ...standardBlockComponentBuilderMap,
+        // §7 Form A：页尾对话块（聊天内容不进 markdown，按 slug 独立持久化）
         WikiChatBlockKeys.type: WikiChatBlockComponentBuilder(),
+        // §11 Q4：code 块降级（vendor 无组件，占位 30px；只读展示 + 复制）
+        WikiCodeBlockKeys.type: WikiCodeBlockComponentBuilder(),
       },
     );
   }
