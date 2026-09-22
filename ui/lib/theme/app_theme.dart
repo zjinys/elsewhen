@@ -132,11 +132,13 @@ class AppTheme {
     };
   }
 
-  /// 用 flex_color_scheme 搭 Material 主题（浅 / 深都由设定色卡派生）
+  /// 用 flex_color_scheme 搭 Material 主题（浅 / 深都由设定色卡派生）。
+  /// [fontName]：内建值见 [AppFontFamily]（inter/notoSansSc/notoSerifSc/system），
+  /// 其余按系统字体族名解析（Linux 经 fontconfig）。
   static ThemeData buildTheme(
     AppThemePreset preset,
     Brightness brightness, [
-    AppFontFamily font = AppFontFamily.inter,
+    String fontName = 'inter',
   ]) {
     final scheme = flexSchemeOf(preset);
     final flex = brightness == Brightness.dark
@@ -154,7 +156,7 @@ class AppTheme {
           );
 
     // 字体 + 行高微调（沿用现有 typography 习惯）
-    final textTheme = _textThemeFor(font, flex.textTheme);
+    final textTheme = _textThemeFor(fontName, flex.textTheme);
     return flex.copyWith(
       scaffoldBackgroundColor: _current.surface0,
       colorScheme: flex.colorScheme.copyWith(
@@ -206,13 +208,15 @@ class AppTheme {
   static ThemeData get darkTheme => buildTheme(AppThemePreset.amber, Brightness.dark);
 
   /// 按字体选择生成 textTheme：system 不套网络字体（跟随系统），
-  /// 其余经 google_fonts 下载对应字体族。
-  static TextTheme _textThemeFor(AppFontFamily font, TextTheme base) {
-    return switch (font) {
-      AppFontFamily.inter => GoogleFonts.interTextTheme(base),
-      AppFontFamily.notoSansSc => GoogleFonts.notoSansScTextTheme(base),
-      AppFontFamily.notoSerifSc => GoogleFonts.notoSerifScTextTheme(base),
-      AppFontFamily.system => base,
+  /// 内建字体经 google_fonts 下载，其余按系统字体族名直接套用
+  /// （Linux 桌面经 fontconfig 解析，未安装时回退系统默认）。
+  static TextTheme _textThemeFor(String fontName, TextTheme base) {
+    return switch (fontName) {
+      'inter' => GoogleFonts.interTextTheme(base),
+      'notoSansSc' => GoogleFonts.notoSansScTextTheme(base),
+      'notoSerifSc' => GoogleFonts.notoSerifScTextTheme(base),
+      'system' => base,
+      _ => base.apply(fontFamily: fontName),
     };
   }
 }

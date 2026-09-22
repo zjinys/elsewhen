@@ -102,12 +102,12 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
     final lightTheme = AppTheme.buildTheme(
       settings.themePreset,
       Brightness.light,
-      settings.fontFamily,
+      settings.fontName,
     );
     final darkTheme = AppTheme.buildTheme(
       settings.themePreset,
       Brightness.dark,
-      settings.fontFamily,
+      settings.fontName,
     );
     final activeTheme = brightness == Brightness.dark ? darkTheme : lightTheme;
     // 把当前色卡（含 accent）同步给自定义组件用的全局色板
@@ -115,7 +115,7 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
 
     // 深浅 / 配色 / 字体变化时整棵子树重建，保证用 AppTheme.* 硬编码的自定义配色全部刷新
     final themeKey = ValueKey(
-      '${settings.themeMode.name}-${settings.themePreset.name}-${settings.fontFamily.name}',
+      '${settings.themeMode.name}-${settings.themePreset.name}-${settings.fontName}',
     );
 
     return MaterialApp(

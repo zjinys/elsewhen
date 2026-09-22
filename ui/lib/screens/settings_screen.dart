@@ -1207,24 +1207,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           },
         ),
         const SizedBox(height: 16),
-        _buildDropdownField(
-          label: '字体',
-          value: settings.fontFamily.name,
-          items: AppFontFamily.values.map((font) {
-            return DropdownMenuItem(
-              value: font.name,
-              child: Text(font.displayName),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              notifier
-                ..updateFontFamily(AppFontFamily.fromName(value))
-                ..saveTheme();
-            }
-          },
-        ),
+        _buildFontDropdown(settings, notifier),
       ],
+    );
+  }
+
+  /// 字体下拉：内建四项 + 系统字体（fc-list 枚举，条目用自身字体预览）。
+  /// 存值是字体机器名/族名字符串，见 [AppFontFamily]。
+  Widget _buildFontDropdown(AppSettings settings, SettingsNotifier notifier) {
+    final systemFonts =
+        ref.watch(systemFontFamiliesProvider).valueOrNull ?? const <String>[];
+    final items = <DropdownMenuItem<String>>[
+      for (final font in AppFontFamily.values)
+        DropdownMenuItem(value: font.name, child: Text(font.displayName)),
+      if (systemFonts.isNotEmpty) ...[
+        const DropdownMenuItem<String>(
+          enabled: false,
+          child: Divider(height: 1),
+        ),
+        for (final family in systemFonts)
+          DropdownMenuItem(
+            value: family,
+            // 用字体自身渲染预览；未安装/解析失败时 Flutter 自动回退，不影响选择
+            child: Text(family, style: TextStyle(fontFamily: family)),
+          ),
+      ],
+    ];
+    // 当前值不在候选里（如字体已卸载）：补一个占位项，避免 DropdownButton 断言
+    final value = settings.fontName;
+    if (items.every((item) => item.value != value)) {
+      items.add(DropdownMenuItem(value: value, child: Text(value)));
+    }
+    return _buildDropdownField(
+      label: '字体',
+      value: value,
+      items: items,
+      onChanged: (selected) {
+        if (selected != null) {
+          notifier
+            ..updateFontName(selected)
+            ..saveTheme();
+        }
+      },
     );
   }
 

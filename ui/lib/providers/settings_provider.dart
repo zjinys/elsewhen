@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,8 +32,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = state.copyWith(themePreset: preset);
   }
 
-  void updateFontFamily(AppFontFamily font) {
-    state = state.copyWith(fontFamily: font);
+  void updateFontName(String fontName) {
+    state = state.copyWith(fontName: fontName);
   }
 
   void updateLanguage(String? language) {
@@ -49,7 +50,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
           orElse: () => AppThemeMode.dark,
         ),
         themePreset: AppThemePreset.fromName(prefs.preset),
-        fontFamily: AppFontFamily.fromName(prefs.font),
+        // 字体是自由字符串（内建值或系统字体族名），空值回退默认
+        fontName: prefs.font.isEmpty ? 'inter' : prefs.font,
       );
     } catch (e) {
       // 老库可能没有这两条 meta，保持默认即可
@@ -62,7 +64,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     await _repo.updateThemePrefs(
       mode: state.themeMode.name,
       preset: state.themePreset.name,
-      font: state.fontFamily.name,
+      font: state.fontName,
     );
   }
 
@@ -91,3 +93,48 @@ final settingsProvider =
     ref.read(storageRepositoryProvider) as RustBridgeRepository,
   );
 });
+
+/// 系统字体族列表（Linux 经 `fc-list` 枚举，去重排序；其它平台/枚举失败返回空表）。
+/// 设置页「外观 → 字体」下拉在内建四项之后追加这份列表。
+final systemFontFamiliesProvider = FutureProvider<List<String>>((ref) async {
+  if (!Platform.isLinux) return const [];
+  try {
+    final result = await Process.run('fc-list', [':', 'family']);
+    if (result.exitCode != 0) return const [];
+    final families = <String>{};
+    for (final line in (result.stdout as String).split('\n')) {
+      // 一行可能有多个别名（逗号分隔），取首个作为展示名
+      final aliases = _splitFcListAliases(line);
+      if (aliases.isEmpty) continue;
+      final first = aliases.first;
+      if (first.isNotEmpty) families.add(first);
+    }
+    return families.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  } catch (_) {
+    return const [];
+  }
+});
+
+/// 解析 fc-list 一行别名：逗号分隔但 `\,` 是转义；fontconfig 会用反斜杠
+/// 转义家族名里的 `-` `,` `:` `\` 等字符（如 `FZSongS\-Extended`），需反转义。
+List<String> _splitFcListAliases(String line) {
+  final aliases = <String>[];
+  final buf = StringBuffer();
+  var escaped = false;
+  for (final ch in line.split('')) {
+    if (escaped) {
+      buf.write(ch);
+      escaped = false;
+    } else if (ch == '\\') {
+      escaped = true;
+    } else if (ch == ',') {
+      aliases.add(buf.toString().trim());
+      buf.clear();
+    } else {
+      buf.write(ch);
+    }
+  }
+  aliases.add(buf.toString().trim());
+  return aliases;
+}

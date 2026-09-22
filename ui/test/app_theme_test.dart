@@ -47,34 +47,35 @@ void main() {
 
   test('字体选择作用于 textTheme：system 不套网络字体，其余注入对应字体族', () async {
     await swallowFontLoadErrors(() {
-      TextStyle? bodyOf(AppFontFamily font) =>
-          AppTheme.buildTheme(AppThemePreset.amber, Brightness.dark, font)
+      TextStyle? bodyOf(String fontName) =>
+          AppTheme.buildTheme(AppThemePreset.amber, Brightness.dark, fontName)
               .textTheme
               .bodyLarge;
 
       expect(
-        bodyOf(AppFontFamily.inter)!.fontFamily,
+        bodyOf('inter')!.fontFamily,
         contains('Inter'),
         reason: '默认 Inter（现状保持）',
       );
+      expect(bodyOf('notoSansSc')!.fontFamily, contains('NotoSansSC'));
+      expect(bodyOf('notoSerifSc')!.fontFamily, contains('NotoSerifSC'));
       expect(
-        bodyOf(AppFontFamily.notoSansSc)!.fontFamily,
-        contains('NotoSansSC'),
-      );
-      expect(
-        bodyOf(AppFontFamily.notoSerifSc)!.fontFamily,
-        contains('NotoSerifSC'),
-      );
-      expect(
-        bodyOf(AppFontFamily.system)!.fontFamily,
+        bodyOf('system')!.fontFamily,
         'Roboto',
         reason: 'system 不套网络字体，保持 flex 默认（Roboto 由系统字体回退解析）',
+      );
+      expect(
+        bodyOf('Noto Sans CJK SC')!.fontFamily,
+        'Noto Sans CJK SC',
+        reason: '非内建值按系统字体族名原样套用（fontconfig 解析）',
       );
     });
   });
 
-  test('AppFontFamily.fromName 未知值回退 Inter（老库兼容）', () {
-    expect(AppFontFamily.fromName('notoSansSc'), AppFontFamily.notoSansSc);
-    expect(AppFontFamily.fromName('不存在的'), AppFontFamily.inter);
+  test('AppFontFamily.displayNameOf：内建取中文名，系统字体原样显示', () {
+    expect(AppFontFamily.displayNameOf('inter'), 'Inter（默认）');
+    expect(AppFontFamily.displayNameOf('system'), '系统默认');
+    expect(AppFontFamily.displayNameOf('LXGW WenKai'), 'LXGW WenKai');
+    expect(AppFontFamily.builtinNames, containsAll(['inter', 'system']));
   });
 }

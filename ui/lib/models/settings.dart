@@ -120,8 +120,11 @@ enum AppThemePreset {
   }
 }
 
-/// 全局字体选择：UI 正文字体（代码块等 monospace 场景不受影响）。
+/// 内建字体选项（外观 tab 下拉的前四项；系统字体见 [systemFontFamiliesProvider]）。
 /// Google Fonts 字体在首次使用时联网下载并缓存；system 不引入网络字体。
+///
+/// 持久化存的是字体机器名字符串（app_meta `theme_font`）：内建四项用 name，
+/// 系统字体直接存字体族名（如 "Noto Sans CJK SC"）——非内建值一律按系统字体解析。
 enum AppFontFamily {
   inter('inter', 'Inter（默认）'),
   notoSansSc('notoSansSc', '思源黑体'),
@@ -134,11 +137,16 @@ enum AppFontFamily {
   final String name;
   final String displayName;
 
-  static AppFontFamily fromName(String name) {
-    return AppFontFamily.values.firstWhere(
-      (f) => f.name == name,
-      orElse: () => AppFontFamily.inter,
-    );
+  /// 内建字体的机器名集合（用于区分系统字体族名）
+  static Set<String> get builtinNames =>
+      AppFontFamily.values.map((f) => f.name).toSet();
+
+  /// 下拉显示名：内建取 displayName，系统字体原样显示族名
+  static String displayNameOf(String fontName) {
+    for (final f in AppFontFamily.values) {
+      if (f.name == fontName) return f.displayName;
+    }
+    return fontName;
   }
 }
 
@@ -149,7 +157,9 @@ class AppSettings {
   final StorageSettings storage;
   final AppThemeMode themeMode;
   final AppThemePreset themePreset;
-  final AppFontFamily fontFamily;
+
+  /// 字体机器名：内建值见 [AppFontFamily]，其余按系统字体族名解析
+  final String fontName;
   final String? language;
 
   const AppSettings({
@@ -158,7 +168,7 @@ class AppSettings {
     required this.storage,
     this.themeMode = AppThemeMode.dark,
     this.themePreset = AppThemePreset.amber,
-    this.fontFamily = AppFontFamily.inter,
+    this.fontName = 'inter',
     this.language,
   });
 
@@ -168,7 +178,7 @@ class AppSettings {
     StorageSettings? storage,
     AppThemeMode? themeMode,
     AppThemePreset? themePreset,
-    AppFontFamily? fontFamily,
+    String? fontName,
     String? language,
   }) {
     return AppSettings(
@@ -177,7 +187,7 @@ class AppSettings {
       storage: storage ?? this.storage,
       themeMode: themeMode ?? this.themeMode,
       themePreset: themePreset ?? this.themePreset,
-      fontFamily: fontFamily ?? this.fontFamily,
+      fontName: fontName ?? this.fontName,
       language: language ?? this.language,
     );
   }
