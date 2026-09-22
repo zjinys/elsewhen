@@ -2,7 +2,7 @@ import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../models/settings.dart' show AppFontFamily, AppThemePreset;
+import '../models/settings.dart' show AppFonts, AppThemePreset;
 
 /// 一整套界面色板（浅 / 深两套）。应用在 `AppTheme.apply()` 时切换，
 /// 组件里继续写 `AppTheme.surface1` 就能自动跟随深浅模式。
@@ -133,12 +133,12 @@ class AppTheme {
   }
 
   /// 用 flex_color_scheme 搭 Material 主题（浅 / 深都由设定色卡派生）。
-  /// [fontName]：内建值见 [AppFontFamily]（inter/notoSansSc/notoSerifSc/system），
-  /// 其余按系统字体族名解析（Linux 经 fontconfig）。
+  /// [fontName]：Google Fonts 家族名，或 [AppFonts.system] 跟随系统；
+  /// 未知值回退 [AppFonts.defaultFont]。
   static ThemeData buildTheme(
     AppThemePreset preset,
     Brightness brightness, [
-    String fontName = 'inter',
+    String fontName = AppFonts.defaultFont,
   ]) {
     final scheme = flexSchemeOf(preset);
     final flex = brightness == Brightness.dark
@@ -208,15 +208,12 @@ class AppTheme {
   static ThemeData get darkTheme => buildTheme(AppThemePreset.amber, Brightness.dark);
 
   /// 按字体选择生成 textTheme：system 不套网络字体（跟随系统），
-  /// 内建字体经 google_fonts 下载，其余按系统字体族名直接套用
-  /// （Linux 桌面经 fontconfig 解析，未安装时回退系统默认）。
+  /// 其余经 google_fonts 按家族名动态加载（首次使用联网下载并缓存，
+  /// 未知家族名回退默认字体）。
   static TextTheme _textThemeFor(String fontName, TextTheme base) {
-    return switch (fontName) {
-      'inter' => GoogleFonts.interTextTheme(base),
-      'notoSansSc' => GoogleFonts.notoSansScTextTheme(base),
-      'notoSerifSc' => GoogleFonts.notoSerifScTextTheme(base),
-      'system' => base,
-      _ => base.apply(fontFamily: fontName),
-    };
+    if (fontName == AppFonts.system) return base;
+    final family =
+        GoogleFonts.asMap().containsKey(fontName) ? fontName : AppFonts.defaultFont;
+    return GoogleFonts.getTextTheme(family, base);
   }
 }

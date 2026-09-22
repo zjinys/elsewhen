@@ -120,34 +120,33 @@ enum AppThemePreset {
   }
 }
 
-/// 内建字体选项（外观 tab 下拉的前四项；系统字体见 [systemFontFamiliesProvider]）。
-/// Google Fonts 字体在首次使用时联网下载并缓存；system 不引入网络字体。
-///
-/// 持久化存的是字体机器名字符串（app_meta `theme_font`）：内建四项用 name，
-/// 系统字体直接存字体族名（如 "Noto Sans CJK SC"）——非内建值一律按系统字体解析。
-enum AppFontFamily {
-  inter('inter', 'Inter（默认）'),
-  notoSansSc('notoSansSc', '思源黑体'),
-  notoSerifSc('notoSerifSc', '思源宋体'),
-  system('system', '系统默认');
+/// 全局字体选择（外观 tab，经 flutter_font_picker 从 Google Fonts 挑选）。
+/// 存值（app_meta `theme_font`）即 Google Fonts 家族名（如 "Inter"、
+/// "Noto Sans SC"），首次使用联网下载并缓存；特殊值 [system] 不套网络字体，
+/// 跟随系统。monospace 场景不受影响。
+final class AppFonts {
+  AppFonts._();
 
-  const AppFontFamily(this.name, this.displayName);
+  /// 特殊存值：跟随系统默认字体
+  static const String system = 'system';
 
-  /// 存库用的机器名
-  final String name;
-  final String displayName;
+  /// 默认字体家族名
+  static const String defaultFont = 'Inter';
 
-  /// 内建字体的机器名集合（用于区分系统字体族名）
-  static Set<String> get builtinNames =>
-      AppFontFamily.values.map((f) => f.name).toSet();
+  static const String systemDisplayName = '系统默认';
 
-  /// 下拉显示名：内建取 displayName，系统字体原样显示族名
-  static String displayNameOf(String fontName) {
-    for (final f in AppFontFamily.values) {
-      if (f.name == fontName) return f.displayName;
-    }
-    return fontName;
-  }
+  /// 归一化历史存值：旧机器名与空值映射到家族名；其它原样透传
+  ///（主题层对非 Google Fonts 的未知值回退 [defaultFont]）。
+  static String normalize(String stored) => switch (stored) {
+        '' || 'inter' => defaultFont,
+        'notoSansSc' => 'Noto Sans SC',
+        'notoSerifSc' => 'Noto Serif SC',
+        _ => stored,
+      };
+
+  /// 显示名：system 取中文名，其余原样显示家族名
+  static String displayNameOf(String fontName) =>
+      fontName == system ? systemDisplayName : fontName;
 }
 
 /// Complete application settings

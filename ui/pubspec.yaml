@@ -51,6 +51,8 @@ dependencies:
   freezed_annotation: ^2.4.4
   flex_color_scheme: ^8.4.0
   flutter_svg: ^2.2.1
+  file_picker: ^10.3.10
+  url_launcher: ^6.3.2
 
   # Editor 块组件运行依赖（自定义 block 与 vendored 编辑器共享，版本对齐其 pubspec）
   provider: ^6.0.5
@@ -64,6 +66,7 @@ dependencies:
   # 详见 third_party/appflowy_editor/README.local.md。
   appflowy_editor:
     path: third_party/appflowy_editor
+  flutter_font_picker: ^2.0.0
 
 dev_dependencies:
   flutter_test:

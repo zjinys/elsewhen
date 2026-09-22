@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_font_picker/flutter_font_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/settings_provider.dart';
 import '../models/settings.dart';
@@ -1207,48 +1209,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           },
         ),
         const SizedBox(height: 16),
-        _buildFontDropdown(settings, notifier),
+        _buildFontField(settings, notifier),
       ],
     );
   }
 
-  /// 字体下拉：内建四项 + 系统字体（fc-list 枚举，条目用自身字体预览）。
-  /// 存值是字体机器名/族名字符串，见 [AppFontFamily]。
-  Widget _buildFontDropdown(AppSettings settings, SettingsNotifier notifier) {
-    final systemFonts =
-        ref.watch(systemFontFamiliesProvider).valueOrNull ?? const <String>[];
-    final items = <DropdownMenuItem<String>>[
-      for (final font in AppFontFamily.values)
-        DropdownMenuItem(value: font.name, child: Text(font.displayName)),
-      if (systemFonts.isNotEmpty) ...[
-        const DropdownMenuItem<String>(
-          enabled: false,
-          child: Divider(height: 1),
-        ),
-        for (final family in systemFonts)
-          DropdownMenuItem(
-            value: family,
-            // 用字体自身渲染预览；未安装/解析失败时 Flutter 自动回退，不影响选择
-            child: Text(family, style: TextStyle(fontFamily: family)),
+  /// 字体选择：主按钮打开 flutter_font_picker 搜索对话框（Google Fonts 全量，
+  /// 支持按名称搜索、分类/中文字形过滤、最近使用）；「系统默认」chip 单独提供。
+  /// 存值是 Google Fonts 家族名或 [AppFonts.system]，见 [AppFonts]。
+  Widget _buildFontField(AppSettings settings, SettingsNotifier notifier) {
+    final fontName = settings.fontName;
+    final isSystem = fontName == AppFonts.system;
+    // 预览样式：字体已全局应用，这里仅对未知家族名（历史存值）防断言
+    final previewStyle = !isSystem && GoogleFonts.asMap().containsKey(fontName)
+        ? GoogleFonts.getFont(fontName)
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '字体',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textSecondary,
           ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _showFontPicker(notifier, fontName),
+                style: OutlinedButton.styleFrom(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        AppFonts.displayNameOf(fontName),
+                        style: previewStyle,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(
+                      Icons.font_download_outlined,
+                      size: 18,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text(AppFonts.systemDisplayName),
+              selected: isSystem,
+              onSelected: (selected) {
+                if (selected) {
+                  notifier
+                    ..updateFontName(AppFonts.system)
+                    ..saveTheme();
+                }
+              },
+            ),
+          ],
+        ),
       ],
-    ];
-    // 当前值不在候选里（如字体已卸载）：补一个占位项，避免 DropdownButton 断言
-    final value = settings.fontName;
-    if (items.every((item) => item.value != value)) {
-      items.add(DropdownMenuItem(value: value, child: Text(value)));
-    }
-    return _buildDropdownField(
-      label: '字体',
-      value: value,
-      items: items,
-      onChanged: (selected) {
-        if (selected != null) {
-          notifier
-            ..updateFontName(selected)
-            ..saveTheme();
-        }
-      },
+    );
+  }
+
+  /// 打开字体选择对话框。注意：picker 内部「Select」按钮会自行关闭对话框，
+  /// onFontChanged 里只需更新状态，不要重复 pop。
+  void _showFontPicker(SettingsNotifier notifier, String current) {
+    final initial = GoogleFonts.asMap().containsKey(current)
+        ? current
+        : AppFonts.defaultFont;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('选择字体'),
+        contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        content: SizedBox(
+          width: 520,
+          height: 560,
+          child: FontPicker(
+            showInDialog: true,
+            // 全局正文字体只选家族，字重由主题管理
+            showFontVariants: false,
+            initialFontFamily: initial,
+            onFontChanged: (font) {
+              notifier
+                ..updateFontName(font.fontFamily)
+                ..saveTheme();
+            },
+          ),
+        ),
+      ),
     );
   }
 

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:elsewhen_ui/models/settings.dart'
-    show AppFontFamily, AppThemePreset;
+    show AppFonts, AppThemePreset;
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,7 +45,7 @@ void main() {
     });
   });
 
-  test('字体选择作用于 textTheme：system 不套网络字体，其余注入对应字体族', () async {
+  test('字体选择作用于 textTheme：system 不套网络字体，未知值回退 Inter', () async {
     await swallowFontLoadErrors(() {
       TextStyle? bodyOf(String fontName) =>
           AppTheme.buildTheme(AppThemePreset.amber, Brightness.dark, fontName)
@@ -53,29 +53,33 @@ void main() {
               .bodyLarge;
 
       expect(
-        bodyOf('inter')!.fontFamily,
+        bodyOf('Inter')!.fontFamily,
         contains('Inter'),
         reason: '默认 Inter（现状保持）',
       );
-      expect(bodyOf('notoSansSc')!.fontFamily, contains('NotoSansSC'));
-      expect(bodyOf('notoSerifSc')!.fontFamily, contains('NotoSerifSC'));
+      expect(bodyOf('Noto Sans SC')!.fontFamily, contains('NotoSansSC'));
+      expect(bodyOf('Noto Serif SC')!.fontFamily, contains('NotoSerifSC'));
       expect(
         bodyOf('system')!.fontFamily,
         'Roboto',
         reason: 'system 不套网络字体，保持 flex 默认（Roboto 由系统字体回退解析）',
       );
       expect(
-        bodyOf('Noto Sans CJK SC')!.fontFamily,
-        'Noto Sans CJK SC',
-        reason: '非内建值按系统字体族名原样套用（fontconfig 解析）',
+        bodyOf('不存在的字体')!.fontFamily,
+        contains('Inter'),
+        reason: '非 Google Fonts 的未知值回退默认字体',
       );
     });
   });
 
-  test('AppFontFamily.displayNameOf：内建取中文名，系统字体原样显示', () {
-    expect(AppFontFamily.displayNameOf('inter'), 'Inter（默认）');
-    expect(AppFontFamily.displayNameOf('system'), '系统默认');
-    expect(AppFontFamily.displayNameOf('LXGW WenKai'), 'LXGW WenKai');
-    expect(AppFontFamily.builtinNames, containsAll(['inter', 'system']));
+  test('AppFonts.normalize：旧机器名与空值映射到家族名，其余透传', () {
+    expect(AppFonts.normalize(''), 'Inter');
+    expect(AppFonts.normalize('inter'), 'Inter');
+    expect(AppFonts.normalize('notoSansSc'), 'Noto Sans SC');
+    expect(AppFonts.normalize('notoSerifSc'), 'Noto Serif SC');
+    expect(AppFonts.normalize('system'), 'system');
+    expect(AppFonts.normalize('LXGW WenKai'), 'LXGW WenKai');
+    expect(AppFonts.displayNameOf('system'), '系统默认');
+    expect(AppFonts.displayNameOf('Inter'), 'Inter');
   });
 }
