@@ -1950,11 +1950,13 @@ class RustLibWire implements BaseWire {
     String slug,
     String content_md,
     String reason,
+    String? expected_updated_at,
   ) => wasmModule.wire__crate__api__save_wiki_page_content(
     port_,
     slug,
     content_md,
     reason,
+    expected_updated_at,
   );
 
   void wire__crate__api__send_message(
@@ -2420,6 +2422,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
     String content_md,
     String reason,
+    String? expected_updated_at,
   );
 
   external void wire__crate__api__send_message(

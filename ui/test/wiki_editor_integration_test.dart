@@ -10,6 +10,7 @@
 //  9. 关闭有未保存修改的 tab 前弹确认。
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -216,7 +217,7 @@ void main() {
       expect(repo.savedCount, 1, reason: '应只保存一次');
       final (slug, md, reason) = repo.savedContent.single;
       expect(slug, _testPage.slug);
-      expect(reason, '[human] GUI 编辑');
+      expect(reason, 'GUI 编辑');
       expect(md, contains('人工补充内容'), reason: '保存的 markdown 应包含人工改动');
       expect(md, isNot(contains('wiki_chat')), reason: '对话块不进 markdown');
       expect(
@@ -483,6 +484,135 @@ void main() {
       expect(container.read(wikiActiveTabIdProvider), 'import', reason: '确认放弃后关闭');
       expect(repo.savedCount, 0, reason: '放弃不触发保存');
     });
+
+    testWidgets('鼠标中键点击脏 tab：弹同款关闭确认', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '中键未保存');
+
+      // 中键点 tab 标题（chip 内 12.5px，区别于页面大标题 26px）
+      final chipTitle = find.byWidgetPredicate(
+        (w) => w is Text && w.data == '测试页面' && w.style?.fontSize == 12.5,
+      );
+      expect(chipTitle, findsOneWidget);
+      await tester.tap(chipTitle, buttons: kMiddleMouseButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('关闭前确认'), findsOneWidget, reason: '中键关闭脏 tab 应先确认');
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('取消'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(container.read(wikiActiveTabIdProvider), 'page-topic/测试');
+    });
+
+    testWidgets('关闭脏 tab 选「保存并关闭」：先保存再关', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '关前保存');
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(find.text('关闭前确认'), findsOneWidget);
+
+      await tester.tap(find.text('保存并关闭'));
+      await tester.pumpAndSettle();
+
+      expect(repo.savedCount, 1, reason: '关闭前应先保存');
+      expect(repo.savedContent.single.$2, contains('关前保存'));
+      expect(container.read(wikiActiveTabIdProvider), 'import', reason: '保存成功后关闭');
+      expect(
+        container.read(wikiDirtyTabsProvider).contains(_testPage.slug),
+        isFalse,
+      );
+    });
+
+    testWidgets('编辑冲突 → 强制覆盖：跳过乐观锁再存', (tester) async {
+      await pumpDetail(tester);
+      repo.conflictOnLockedSave = true;
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '覆盖后台更新');
+      await tester.tap(find.text('完成'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('页面已被后台更新'), findsOneWidget, reason: '应弹冲突确认');
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('取消'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('重新加载'), findsOneWidget);
+
+      await tester.tap(find.text('强制覆盖'));
+      await tester.pumpAndSettle();
+
+      expect(repo.savedCount, 2, reason: '冲突一次 + 覆盖一次');
+      expect(repo.savedExpectedUpdatedAt[0], isNotNull, reason: '首次携带乐观锁');
+      expect(repo.savedExpectedUpdatedAt[1], isNull, reason: '覆盖时跳过乐观锁');
+      expect(repo.savedContent[1].$3, 'GUI 编辑（冲突后覆盖）');
+      expect(find.text('编辑正文'), findsOneWidget, reason: '覆盖成功退出编辑态');
+    });
+
+    testWidgets('编辑冲突 → 取消：留在编辑态、无错误条、改动保留', (tester) async {
+      await pumpDetail(tester);
+      repo.conflictOnLockedSave = true;
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '先不存了');
+      await tester.tap(find.text('完成'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('取消'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(repo.savedCount, 1, reason: '只有被拒的那一次尝试');
+      expect(find.text('完成'), findsOneWidget, reason: '取消后留在编辑态');
+      expect(find.textContaining('保存失败'), findsNothing, reason: '取消不是失败');
+      expect(
+        container.read(wikiDirtyTabsProvider).contains(_testPage.slug),
+        isTrue,
+        reason: '改动仍未保存，脏标记保留',
+      );
+    });
+
+    testWidgets('编辑冲突 → 重新加载：放弃本地改动并退出编辑态', (tester) async {
+      await pumpDetail(tester);
+      repo.conflictOnLockedSave = true;
+
+      await tester.tap(find.text('编辑正文'));
+      await tester.pumpAndSettle();
+      await insertText(tester, '将被重载丢弃');
+      await tester.tap(find.text('完成'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('重新加载'));
+      await tester.pumpAndSettle();
+
+      expect(repo.savedCount, 1, reason: '重载不再写库');
+      expect(find.text('编辑正文'), findsOneWidget, reason: '重载后回到浏览态');
+      expect(
+        container.read(wikiDirtyTabsProvider).contains(_testPage.slug),
+        isFalse,
+        reason: '重载视为放弃改动，清脏标记',
+      );
+    });
   });
 }
 
@@ -494,7 +624,11 @@ class _FakeRepo extends RustBridgeRepository {
   final WikiPage? wikilinkTarget;
   int savedCount = 0;
   bool saveThrows = false;
+
+  /// 模拟「编辑期间页面被后台更新」：携带乐观锁的保存一律报冲突
+  bool conflictOnLockedSave = false;
   final List<(String, String, String)> savedContent = [];
+  final List<String?> savedExpectedUpdatedAt = [];
   final List<String> wikilinkLookups = [];
 
   @override
@@ -526,10 +660,15 @@ class _FakeRepo extends RustBridgeRepository {
   Future<WikiPage> saveWikiPageContent({
     required String slug,
     required String contentMd,
-    String reason = '[human] GUI 编辑',
+    String reason = 'GUI 编辑',
+    String? expectedUpdatedAt,
   }) async {
     savedCount++;
     savedContent.add((slug, contentMd, reason));
+    savedExpectedUpdatedAt.add(expectedUpdatedAt);
+    if (conflictOnLockedSave && expectedUpdatedAt != null) {
+      throw Exception('编辑冲突：页面在你编辑期间已被更新（模拟）');
+    }
     if (saveThrows) throw Exception('模拟保存失败');
     return page;
   }

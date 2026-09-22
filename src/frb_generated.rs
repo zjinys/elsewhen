@@ -1586,6 +1586,7 @@ fn wire__crate__api__save_wiki_page_content_impl(
     slug: impl CstDecode<String>,
     content_md: impl CstDecode<String>,
     reason: impl CstDecode<String>,
+    expected_updated_at: impl CstDecode<Option<String>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -1597,6 +1598,7 @@ fn wire__crate__api__save_wiki_page_content_impl(
             let api_slug = slug.cst_decode();
             let api_content_md = content_md.cst_decode();
             let api_reason = reason.cst_decode();
+            let api_expected_updated_at = expected_updated_at.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
@@ -1604,6 +1606,7 @@ fn wire__crate__api__save_wiki_page_content_impl(
                             api_slug,
                             api_content_md,
                             api_reason,
+                            api_expected_updated_at,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -5998,8 +6001,15 @@ mod io {
         slug: *mut wire_cst_list_prim_u_8_strict,
         content_md: *mut wire_cst_list_prim_u_8_strict,
         reason: *mut wire_cst_list_prim_u_8_strict,
+        expected_updated_at: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__save_wiki_page_content_impl(port_, slug, content_md, reason)
+        wire__crate__api__save_wiki_page_content_impl(
+            port_,
+            slug,
+            content_md,
+            reason,
+            expected_updated_at,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -8341,8 +8351,15 @@ mod web {
         slug: String,
         content_md: String,
         reason: String,
+        expected_updated_at: Option<String>,
     ) {
-        wire__crate__api__save_wiki_page_content_impl(port_, slug, content_md, reason)
+        wire__crate__api__save_wiki_page_content_impl(
+            port_,
+            slug,
+            content_md,
+            reason,
+            expected_updated_at,
+        )
     }
 
     #[wasm_bindgen]

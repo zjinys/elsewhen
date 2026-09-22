@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -100,7 +102,7 @@ class _WikiTabBar extends ConsumerWidget {
     );
   }
 
-  /// 关闭 tab；若有未保存的编辑（§6.3），先弹确认再关。
+  /// 关闭 tab；若有未保存的编辑（§6.3），先弹确认再关（v1.5：三档）。
   Future<void> _closeTab(
     BuildContext context,
     WidgetRef ref,
@@ -116,29 +118,38 @@ class _WikiTabBar extends ConsumerWidget {
       closeWikiTab(ref, tab.id);
       return;
     }
-    final discard = await showDialog<bool>(
+    final action = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('关闭前确认'),
         content: const Text('该页面还有未保存的编辑，关闭将丢失这些修改。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () => Navigator.of(dialogContext).pop('cancel'),
             child: const Text('取消'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('discard'),
             child: const Text('放弃修改并关闭'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop('save'),
+            child: const Text('保存并关闭'),
           ),
         ],
       ),
     );
-    if (discard == true) {
-      ref.read(wikiDirtyTabsProvider.notifier).update(
-        (set) => {...set}..remove(slug),
-      );
-      closeWikiTab(ref, tab.id);
+    if (action == null || action == 'cancel') return;
+    if (action == 'save') {
+      // v1.5：先走页面注册的保存回调；保存失败/冲突取消则保持 tab 打开。
+      final save = ref.read(wikiSaveCallbacksProvider)[slug];
+      final ok = save == null ? false : await save();
+      if (!ok) return;
     }
+    ref.read(wikiDirtyTabsProvider.notifier).update(
+      (set) => {...set}..remove(slug),
+    );
+    closeWikiTab(ref, tab.id);
   }
 }
 
@@ -157,38 +168,47 @@ class _WikiTabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: active ? AppTheme.surface3 : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-      child: InkWell(
-        onTap: onTap,
+    return Listener(
+      // 鼠标中键点击 tab 关闭（浏览器/编辑器惯例），与「×」按钮同走
+      // 关闭前脏检查（由上层传入的 onClose 承载确认逻辑）。
+      onPointerDown: (event) {
+        if (onClose != null && event.buttons == kMiddleMouseButton) {
+          onClose!();
+        }
+      },
+      child: Material(
+        color: active ? AppTheme.surface3 : Colors.transparent,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        child: Padding(
-          padding: const EdgeInsets.only(left: 12, right: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 150),
-                child: Text(
-                  tab.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                    color: active
-                        ? AppTheme.textPrimary
-                        : AppTheme.textSecondary,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12, right: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Text(
+                    tab.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                      color: active
+                          ? AppTheme.textPrimary
+                          : AppTheme.textSecondary,
+                    ),
                   ),
                 ),
-              ),
-              if (onClose != null) ...[
-                const SizedBox(width: 2),
-                _buildCloseButton(),
-              ] else
-                const SizedBox(width: 8),
-            ],
+                if (onClose != null) ...[
+                  const SizedBox(width: 2),
+                  _buildCloseButton(),
+                ] else
+                  const SizedBox(width: 8),
+              ],
+            ),
           ),
         ),
       ),
@@ -670,6 +690,13 @@ class _PageTabBody extends ConsumerWidget {
 /// 阅读栏最大宽度：正文与头部共用，保证长文行宽舒适、视线不来回扫。
 const double _kReadingMaxWidth = 760;
 
+/// 编辑冲突对话框中用户选择「取消/重新加载」时中止保存的内部信号：
+/// 让 [WikiContentEditor.save] 返回 false（留在/退出编辑态由调用处控制），
+/// 但不触发错误条（不是失败）。
+class _SaveCancelled implements Exception {
+  const _SaveCancelled();
+}
+
 class _WikiPageBody extends ConsumerStatefulWidget {
   final WikiPage page;
 
@@ -692,6 +719,41 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
   bool _editing = false;
   bool _saving = false;
   String? _editError;
+
+  /// 保存回调注册表的 notifier 引用：dispose 后 `ref` 不可用，须提前缓存。
+  late final StateController<Map<String, Future<bool> Function()>>
+      _saveCallbacks;
+
+  @override
+  void initState() {
+    super.initState();
+    _saveCallbacks = ref.read(wikiSaveCallbacksProvider.notifier);
+    // v1.5：向 tab bar 注册「保存」回调，关闭脏 tab 时可先保存再关。
+    // 闭包惰性读 _editorKey.currentState，调用时机总在挂载之后。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _saveCallbacks.update(
+        (map) => {...map, widget.page.slug: _finishEditing},
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    // dispose 发生在 widget tree 卸载期内，同步改 provider 会触发
+    // 「Tried to modify a provider while the widget tree was building」；
+    // 延迟到事件队列空闲时注销。notifier 已提前缓存，不依赖 ref。
+    final notifier = _saveCallbacks;
+    final slug = widget.page.slug;
+    scheduleMicrotask(() {
+      try {
+        notifier.update((map) => {...map}..remove(slug));
+      } on StateError {
+        // provider 已随容器销毁（如测试 teardown）：无需注销
+      }
+    });
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -736,7 +798,8 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
                             onWikiLinkTap: _openWikiPageFromSlug,
                             onSave: _persistEdit,
                             onSaveError: (e) {
-                              if (!mounted) return;
+                              // 冲突对话框的取消/重载是用户主动选择，不是失败
+                              if (!mounted || e is _SaveCancelled) return;
                               setState(() => _editError = _errText(e));
                             },
                             onDirtyChanged: _setDirty,
@@ -866,17 +929,19 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
     _setDirty(_editorKey.currentState?.isDirty ?? false);
   }
 
-  /// 「完成」：保存正文（无改动直接退出；保存失败留在编辑态，错误条已展示）
-  Future<void> _finishEditing() async {
+  /// 「完成」：保存正文（无改动直接退出；保存失败留在编辑态，错误条已展示）。
+  /// 返回是否保存成功/无改动——v1.5 关闭脏 tab 的「保存并关闭」复用此判定。
+  Future<bool> _finishEditing() async {
     final state = _editorKey.currentState;
-    if (state == null) return;
+    if (state == null) return true; // 从未进入编辑态：视为无脏内容
     setState(() => _saving = true);
     final ok = await state.save();
-    if (!mounted) return;
+    if (!mounted) return ok;
     setState(() {
       _saving = false;
       if (ok) _editing = false;
     });
+    return ok;
   }
 
   /// 「取消」：放弃修改，从加载快照重建文档
@@ -886,14 +951,50 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
     _setDirty(false);
   }
 
-  /// 保存链路（§6.2）：documentToMarkdown → saveWikiPageContent → 刷新 → 退出编辑态
+  /// 保存链路（§6.2）：documentToMarkdown → saveWikiPageContent → 刷新 → 退出编辑态。
+  /// 乐观锁（§11 Q3）：携带加载时的 updatedAt；编辑期间页面被后台更新则冲突，
+  /// 弹「重新加载 / 强制覆盖 / 取消」三选；取消/重载抛 [_SaveCancelled]，
+  /// 中止保存但不视为失败（不显示错误条）。
   Future<void> _persistEdit(String markdown) async {
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-    await repo.saveWikiPageContent(
-      slug: widget.page.slug,
-      contentMd: markdown,
-      reason: '[human] GUI 编辑',
-    );
+    try {
+      await repo.saveWikiPageContent(
+        slug: widget.page.slug,
+        contentMd: markdown,
+        reason: 'GUI 编辑',
+        expectedUpdatedAt: widget.page.updatedAt.toUtc().toIso8601String(),
+      );
+    } on Exception catch (e) {
+      if (!mounted || !_isConflictError(e)) rethrow;
+      // 保存尝试已被拒，先放下 saving 态再弹冲突对话框
+      // （否则工具栏 spinner 常转，pumpAndSettle 永不收敛）。
+      setState(() => _saving = false);
+      final action = await _showConflictDialog();
+      if (!mounted) throw const _SaveCancelled();
+      switch (action) {
+        case 'overwrite':
+          // 强制覆盖：跳过乐观锁再存一次；仍失败则交给错误条
+          await repo.saveWikiPageContent(
+            slug: widget.page.slug,
+            contentMd: markdown,
+            reason: 'GUI 编辑（冲突后覆盖）',
+            expectedUpdatedAt: null,
+          );
+        case 'reload':
+          // 重新加载：放弃本地改动，刷新为最新页面内容
+          ref.invalidate(wikiPageProvider(widget.page.slug));
+          ref.invalidate(wikiPagesProvider);
+          setState(() {
+            _editing = false;
+            _editError = null;
+          });
+          _setDirty(false);
+          throw const _SaveCancelled();
+        default:
+          // 取消：留在编辑态，改动保留，不显示错误条
+          throw const _SaveCancelled();
+      }
+    }
     ref.invalidate(wikiPageProvider(widget.page.slug));
     ref.invalidate(wikiPagesProvider);
     if (!mounted) return;
@@ -911,6 +1012,39 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
           duration: Duration(seconds: 2),
         ),
       );
+  }
+
+  /// 冲突判定：Rust 侧乐观锁拒绝时的错误消息前缀
+  static bool _isConflictError(Object e) =>
+      e.toString().contains('编辑冲突');
+
+  /// 编辑冲突三选：重新加载（弃本地）/ 强制覆盖（盖后台）/ 取消（继续编辑）
+  Future<String?> _showConflictDialog() {
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('页面已被后台更新'),
+        content: const Text(
+          '你编辑期间，该页面被后台 digest 更新过。\n'
+          '「重新加载」放弃你的修改并查看最新内容；\n'
+          '「强制覆盖」以你的修改覆盖后台更新（两个版本都留在修订历史里）。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('cancel'),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('reload'),
+            child: const Text('重新加载'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop('overwrite'),
+            child: const Text('强制覆盖'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 脏标记上报（未保存保护：tab 关闭前确认用）

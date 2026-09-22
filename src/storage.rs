@@ -2788,6 +2788,8 @@ impl Store {
     /// - 仅允许可编辑 kind（person/project/capability/recurring_cost/topic/…）；
     ///   采集素材 kind（source/note）只读，直接拒绝。
     /// - 非空、长度上限 64k 字符。
+    /// - 乐观锁（§11 Q3）：`expected_updated_at` 提供时须与当前 `updated_at` 一致，
+    ///   否则报「编辑冲突」——编辑会话期间页面被后台 digest 写回时，拒绝静默覆盖。
     /// - 写 revision（reason 前缀 `[human]`）+ wiki_log 审计；
     /// - 置 `human_edited_at=now`：此后该页被 AI digest 视为「人工持有」，不再整篇覆盖正文。
     pub fn save_wiki_page_content(
@@ -2795,6 +2797,7 @@ impl Store {
         slug: &str,
         content_md: &str,
         reason: &str,
+        expected_updated_at: Option<&str>,
     ) -> Result<WikiPage> {
         let page = self
             .get_wiki_page(slug)?
@@ -2804,6 +2807,25 @@ impl Store {
                 "素材页（kind={}）只读，不支持人工编辑正文；只能表态评价（认可/不认可）",
                 page.kind
             );
+        }
+        if let Some(expected) = expected_updated_at {
+            // 乐观锁按毫秒精度比较解析后的时间戳，而非字符串相等：
+            // Dart 侧 DateTime.parse 会把纳秒截断为微秒并转本地时区，
+            // 字符串往返不可能精确还原 rfc3339（"Z" vs "+00:00"、精度位数）。
+            // 解析失败（调用方传非 rfc3339）按冲突处理——fail-closed 优于静默覆盖。
+            let expected_ts = chrono::DateTime::parse_from_rfc3339(expected);
+            let current_ts = chrono::DateTime::parse_from_rfc3339(&page.updated_at);
+            let consistent = matches!(
+                (expected_ts, current_ts),
+                (Ok(e), Ok(c)) if e.timestamp_millis() == c.timestamp_millis()
+            );
+            if !consistent {
+                anyhow::bail!(
+                    "编辑冲突：页面在你编辑期间已被更新（加载于 {}，当前 {}）；请重新加载后合并修改，或强制覆盖",
+                    expected,
+                    page.updated_at
+                );
+            }
         }
         let content_md = content_md.trim().to_string();
         if content_md.is_empty() {
@@ -5188,12 +5210,15 @@ mod tests {
         let path = temporary_database();
         let store = Store::open(&path).unwrap();
         store
-            .upsert_wiki_page(&wiki_draft("person/张三", "person", "AI 原始内容"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("person/张三", "person", "AI 原始内容"),
+                ContentPolicy::Always,
+            )
             .unwrap();
 
         // 正常路径：保存正文 → human_edited_at 置位 + revision 原因带 [human]
         let saved = store
-            .save_wiki_page_content("person/张三", "人类修改后的正文", "修正职位")
+            .save_wiki_page_content("person/张三", "人类修改后的正文", "修正职位", None)
             .unwrap();
         assert!(saved.human_edited_at.is_some());
         assert_eq!(saved.content_md, "人类修改后的正文");
@@ -5204,32 +5229,134 @@ mod tests {
             .cloned()
             .unwrap();
         assert_eq!(revised_content, "人类修改后的正文");
-        assert!(reason.starts_with("[human]"), "reason 应带 [human] 前缀: {reason}");
+        assert!(
+            reason.starts_with("[human]"),
+            "reason 应带 [human] 前缀: {reason}"
+        );
         let log = store.list_wiki_log(5).unwrap();
         assert!(log.iter().any(|(_, e)| e.contains("人工编辑正文")));
 
         // 空正文拒绝
         assert!(store
-            .save_wiki_page_content("person/张三", "   ", "清空")
+            .save_wiki_page_content("person/张三", "   ", "清空", None)
             .is_err());
 
         // 素材页（source/note）只读拒绝
         store
-            .upsert_wiki_page(&wiki_draft("tweet-1", "source", "素材内容"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("tweet-1", "source", "素材内容"),
+                ContentPolicy::Always,
+            )
             .unwrap();
         assert!(store
-            .save_wiki_page_content("tweet-1", "改素材", "不该允许")
+            .save_wiki_page_content("tweet-1", "改素材", "不该允许", None)
             .is_err());
         store
-            .upsert_wiki_page(&wiki_draft("note-x", "note", "笔记内容"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("note-x", "note", "笔记内容"),
+                ContentPolicy::Always,
+            )
             .unwrap();
-        assert!(store.save_wiki_page_content("note-x", "改笔记", "不该允许").is_err());
+        assert!(store
+            .save_wiki_page_content("note-x", "改笔记", "不该允许", None)
+            .is_err());
 
         // 超过 64k 字符拒绝
         let big = "长".repeat(65537);
         assert!(store
-            .save_wiki_page_content("person/张三", &big, "超大")
+            .save_wiki_page_content("person/张三", &big, "超大", None)
             .is_err());
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn save_wiki_page_content_optimistic_lock_rejects_stale_write() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store
+            .upsert_wiki_page(
+                &wiki_draft("person/王五", "person", "AI 原始内容"),
+                ContentPolicy::Always,
+            )
+            .unwrap();
+
+        // 加载时刻的快照 updated_at
+        let loaded_at = store
+            .get_wiki_page("person/王五")
+            .unwrap()
+            .unwrap()
+            .updated_at;
+
+        // 模拟编辑期间后台 digest 写回：updated_at 变化（直接改库绕过守卫）
+        store
+            .connection
+            .execute(
+                "UPDATE wiki_pages SET content_md='digest 新内容', updated_at='2099-01-01T00:00:00Z' WHERE slug='person/王五'",
+                [],
+            )
+            .unwrap();
+
+        // 持旧快照保存 → 冲突拒绝，且不落库
+        let err = store
+            .save_wiki_page_content("person/王五", "人工修改", "修正", Some(&loaded_at))
+            .unwrap_err();
+        assert!(err.to_string().contains("编辑冲突"), "应报编辑冲突: {err}");
+        assert_eq!(
+            store
+                .get_wiki_page("person/王五")
+                .unwrap()
+                .unwrap()
+                .content_md,
+            "digest 新内容",
+            "冲突时不得覆盖后台写入"
+        );
+
+        // 持当前快照保存 → 正常通过
+        let current_at = store
+            .get_wiki_page("person/王五")
+            .unwrap()
+            .unwrap()
+            .updated_at;
+        store
+            .save_wiki_page_content("person/王五", "人工修改", "修正", Some(&current_at))
+            .unwrap();
+        assert_eq!(
+            store
+                .get_wiki_page("person/王五")
+                .unwrap()
+                .unwrap()
+                .content_md,
+            "人工修改"
+        );
+
+        // 模拟 Dart 往返格式漂移（毫秒精度 + "Z" 后缀）：同一时刻应判定一致。
+        // 注意：上面保存成功后 updated_at 已变，需重读当前值再做格式变换。
+        let fresh_at = store
+            .get_wiki_page("person/王五")
+            .unwrap()
+            .unwrap()
+            .updated_at;
+        let reformatted = format!(
+            "{}Z",
+            chrono::DateTime::parse_from_rfc3339(&fresh_at)
+                .unwrap()
+                .to_utc()
+                .format("%Y-%m-%dT%H:%M:%S%.3f")
+        );
+        store
+            .save_wiki_page_content(
+                "person/王五",
+                "格式漂移仍应通过",
+                "修正",
+                Some(&reformatted),
+            )
+            .unwrap();
+
+        // 不传 expected（None）→ 跳过校验（兼容旧调用方）
+        store
+            .save_wiki_page_content("person/王五", "无锁保存", "修正", None)
+            .unwrap();
 
         let _ = std::fs::remove_file(path);
     }
@@ -5241,9 +5368,14 @@ mod tests {
 
         // ① 人工编辑过的档案页：PreserveHumanEdits → 正文不动、证据照累、protected=true
         store
-            .upsert_wiki_page(&wiki_draft("person/李四", "person", "AI 初稿"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("person/李四", "person", "AI 初稿"),
+                ContentPolicy::Always,
+            )
             .unwrap();
-        store.save_wiki_page_content("person/李四", "人工定稿", "人工修正").unwrap();
+        store
+            .save_wiki_page_content("person/李四", "人工定稿", "人工修正", None)
+            .unwrap();
         let outcome = store
             .upsert_wiki_page(
                 &WikiPageDraft {
@@ -5365,9 +5497,14 @@ mod tests {
         let path = temporary_database();
         let store = Store::open(&path).unwrap();
         store
-            .upsert_wiki_page(&wiki_draft("person/赵六", "person", "v1 AI"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("person/赵六", "person", "v1 AI"),
+                ContentPolicy::Always,
+            )
             .unwrap();
-        store.save_wiki_page_content("person/赵六", "v1 人工", "修正").unwrap();
+        store
+            .save_wiki_page_content("person/赵六", "v1 人工", "修正", None)
+            .unwrap();
         let revs_before = store.list_wiki_revisions("person/赵六").unwrap().len();
 
         // 受保护写回：不追加 revision（内容没变，纯证据累加）

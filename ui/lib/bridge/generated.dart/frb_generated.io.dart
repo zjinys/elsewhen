@@ -3676,12 +3676,14 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_updated_at,
   ) {
     return _wire__crate__api__save_wiki_page_content(
       port_,
       slug,
       content_md,
       reason,
+      expected_updated_at,
     );
   }
 
@@ -3693,6 +3695,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
       >('frbgen_elsewhen_ui_wire__crate__api__save_wiki_page_content');
@@ -3701,6 +3704,7 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(
               int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,

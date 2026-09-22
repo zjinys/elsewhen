@@ -451,15 +451,19 @@ class RustBridgeRepository implements StorageRepository {
 
   /// 人类编辑保存一页正文（M3 §6.2；限可编辑 kind，素材页只读拒绝）。
   /// 保存后 `human_edited_at` 置位：该页被 AI digest 视为人工持有，不再整篇覆盖。
+  /// [expectedUpdatedAt]：乐观锁（§11 Q3）——传加载时的 updatedAt（rfc3339），
+  /// 编辑期间页面被后台更新则报「编辑冲突」；null 跳过校验（强制覆盖路径）。
   Future<WikiPage> saveWikiPageContent({
     required String slug,
     required String contentMd,
-    String reason = '[human] GUI 编辑',
+    String reason = 'GUI 编辑',
+    String? expectedUpdatedAt,
   }) async {
     final dto = await api.saveWikiPageContent(
       slug: slug,
       contentMd: contentMd,
       reason: reason,
+      expectedUpdatedAt: expectedUpdatedAt,
     );
     return WikiPage.fromDto(dto);
   }

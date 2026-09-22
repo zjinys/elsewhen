@@ -300,6 +300,7 @@ abstract class RustLibApi extends BaseApi {
     required String slug,
     required String contentMd,
     required String reason,
+    String? expectedUpdatedAt,
   });
 
   Future<MessageDto> crateApiSendMessage({
@@ -2048,6 +2049,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String slug,
     required String contentMd,
     required String reason,
+    String? expectedUpdatedAt,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2055,11 +2057,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(slug);
           var arg1 = cst_encode_String(contentMd);
           var arg2 = cst_encode_String(reason);
+          var arg3 = cst_encode_opt_String(expectedUpdatedAt);
           return wire.wire__crate__api__save_wiki_page_content(
             port_,
             arg0,
             arg1,
             arg2,
+            arg3,
           );
         },
         codec: DcoCodec(
@@ -2067,7 +2071,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiSaveWikiPageContentConstMeta,
-        argValues: [slug, contentMd, reason],
+        argValues: [slug, contentMd, reason, expectedUpdatedAt],
         apiImpl: this,
       ),
     );
@@ -2076,7 +2080,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSaveWikiPageContentConstMeta =>
       const TaskConstMeta(
         debugName: "save_wiki_page_content",
-        argNames: ["slug", "contentMd", "reason"],
+        argNames: ["slug", "contentMd", "reason", "expectedUpdatedAt"],
       );
 
   @override

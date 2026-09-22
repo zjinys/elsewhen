@@ -229,10 +229,11 @@ editorState.document → documentToMarkdown() → saveWikiPageContent(slug, md, 
 
 本页保存回调 `_persistEdit` 即上述链路：`RustBridgeRepository.saveWikiPageContent`（M3 新增 wrapper）→ `ref.invalidate(wikiPageProvider / wikiPagesProvider)` → snackbar「已保存到知识库」→ 退出编辑态。手动路径之外还有 `Ctrl/Cmd+S`（`HardwareKeyboard` 全局监听，编辑态任意焦点可用；Linux/Win 用 Ctrl、macOS 用 ⌘，`KeyRepeatEvent` 排除按键连发）。
 
-### 6.3 未保存保护 ✅（M3 落地, 2026-09）
+### 6.3 未保存保护 ✅（M3 落地 2026-09；v1.5 补强 2026-09）
 
 - **切 tab 不丢编辑**：`WikiPageDetailView` 的 tab 容器改 `IndexedStack`（保活所有 tab 子树），编辑中的页面切走再切回编辑态与改动原样保留（初稿未规定，实现补足）；
-- **关闭 tab 确认**：编辑器经 `onDirtyChanged` 把未保存 slug 上报 `wikiDirtyTabsProvider`；关闭该 tab 时弹「关闭前确认」——v1 只做「取消 / 放弃修改并关闭」两档；**「关前先保存」留 v1.5**（对话框加保存按钮）；
+- **关闭 tab 确认**：编辑器经 `onDirtyChanged` 把未保存 slug 上报 `wikiDirtyTabsProvider`；关闭该 tab 时弹「关闭前确认」——**v1.5 已落地三档**：「取消 / 放弃修改并关闭 / 保存并关闭」。「保存并关闭」经 `wikiSaveCallbacksProvider`（slug → 保存回调，详情页挂载注册、卸载注销）调用页内保存，保存失败/冲突取消则保持打开；
+- **鼠标中键关闭 tab**（v1.5）：tab chip 外包 `Listener` 识别 `kMiddleMouseButton`，与「×」按钮同走关闭前脏检查（同一 `_closeTab` 入口）；
 - **显式离开编辑态**：`「完成」`（有改动才保存，无改动直接退出）与 `「取消」`（`discard()` 从加载快照重建文档，丢弃未保存改动）双入口，不需要额外确认弹窗；
 - `Ctrl/Cmd+S` 保存成功即退出编辑态（与「完成」同一持久化路径）。
 
@@ -284,5 +285,5 @@ v1 建议 A；**spike §5.3 已验证聊天交互与编辑器焦点/选区互不
 
 1. **往返保真不收敛时**：回退 markdown 分屏预览，还是接受白名单降级（如表格只读不可建）？——**§5.1 已收敛**（上表），白名单条目已固化进常驻测试；
 2. **AI 对话落点**：v1 拍板 —— 回复**仅入会话展示**，改页必须过 `save_wiki_revision` 确认门（模型提议 → 用户确认 → 写库），不做"生成即插光标"；理由：改动可审计、避免 AI 半成品直进正文；§5.3 已证聊天焦点与编辑器选区隔离，不构成自动插入的技术障碍，仍按确认门推进。
-3. **乐观锁**：本地单写者，v1 不做版本冲突检测；是否接受编辑期间 digest 并发导致"保存覆盖 digest"的极端情况（缓解：保存时校验 `updated_at`）。
+3. **乐观锁**：—— ✅ 已落地（2026-09）：`save_wiki_page_content` 增加可选 `expected_updated_at`；UI 保存时携带加载快照的 `updatedAt`，不一致则 Rust 拒绝并报「编辑冲突」，UI 弹三选（重新加载 / 强制覆盖 / 取消）。⚠️ 比较按**毫秒精度时间戳**而非字符串：Dart `DateTime.parse` 会把纳秒截断为微秒并转本地时区，字符串往返无法精确还原 rfc3339（集成实证）；解析失败按冲突处理（fail-closed）。
 4. **代码块展示降级**（§5.4 实证）：vendor 01eccc6 的编辑器**无 `code` 块组件**（`code` 节点渲染为 30px placeholder 占位框；管线上已保真）。**M4 已落地**：注册降级 code block `WikiCodeBlockComponent`（`ui/lib/wiki/wiki_code_block.dart`，等宽字体只读块 + 语言角标 + 复制按钮），**不升级 vendor**（避免引入代码块组件的体积与行为漂移）；复制走 `Clipboard.setData`（集成测试断言内容去围栏/语言行）。

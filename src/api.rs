@@ -1692,10 +1692,22 @@ pub fn update_wiki_tags(slug: String, tags: Vec<String>) -> Result<WikiPageDto> 
 
 /// 人类编辑保存一页正文（限可编辑 kind；素材页只读拒绝）。
 /// 保存后 `human_edited_at` 置位：该页被 AI digest 视为人工持有，不再整篇覆盖。
-pub fn save_wiki_page_content(slug: String, content_md: String, reason: String) -> Result<WikiPageDto> {
+/// `expected_updated_at`：乐观锁（§11 Q3）——传加载时的 updated_at（rfc3339），
+/// 与当前不一致则报「编辑冲突」，拒绝静默覆盖编辑期间的后台写入；None 跳过校验。
+pub fn save_wiki_page_content(
+    slug: String,
+    content_md: String,
+    reason: String,
+    expected_updated_at: Option<String>,
+) -> Result<WikiPageDto> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
-    let page = store.save_wiki_page_content(&slug, &content_md, &reason)?;
+    let page = store.save_wiki_page_content(
+        &slug,
+        &content_md,
+        &reason,
+        expected_updated_at.as_deref(),
+    )?;
     Ok(WikiPageDto::from(page))
 }
 
@@ -2376,7 +2388,9 @@ mod daily_review_tests {
             reason: "test".to_string(),
             source_url: None,
         };
-        store.upsert_wiki_page(&draft, ContentPolicy::Always).unwrap();
+        store
+            .upsert_wiki_page(&draft, ContentPolicy::Always)
+            .unwrap();
         let context = decision_support_context(&store).unwrap();
         assert!(context.contains("先确认付款方再推进"));
         assert!(context.contains("付款检查"));

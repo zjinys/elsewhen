@@ -333,14 +333,18 @@ Future<WikiPageDto> updateWikiTags({
 
 /// 人类编辑保存一页正文（限可编辑 kind；素材页只读拒绝）。
 /// 保存后 `human_edited_at` 置位：该页被 AI digest 视为人工持有，不再整篇覆盖。
+/// `expected_updated_at`：乐观锁（§11 Q3）——传加载时的 updated_at（rfc3339），
+/// 与当前不一致则报「编辑冲突」，拒绝静默覆盖编辑期间的后台写入；None 跳过校验。
 Future<WikiPageDto> saveWikiPageContent({
   required String slug,
   required String contentMd,
   required String reason,
+  String? expectedUpdatedAt,
 }) => RustLib.instance.api.crateApiSaveWikiPageContent(
   slug: slug,
   contentMd: contentMd,
   reason: reason,
+  expectedUpdatedAt: expectedUpdatedAt,
 );
 
 /// 素材页观点评价（仅 source/note）。opinion：Some("endorse")=认可 / Some("reject")=不认可 /

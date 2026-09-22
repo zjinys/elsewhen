@@ -168,6 +168,12 @@ final wikiActiveTabIdProvider = StateProvider<String>((ref) => 'import');
 /// 由详情页编辑器在事务变更/保存/放弃时维护。
 final wikiDirtyTabsProvider = StateProvider<Set<String>>((ref) => <String>{});
 
+/// 各打开页面 tab 的保存回调（v1.5：关闭脏 tab 时支持「保存并关闭」）。
+/// 由详情页 body 挂载时按 slug 注册、卸载时移除；回调返回是否保存成功
+/// （无改动/编辑器未就绪视为成功）。tab bar 关闭流程只读此表。
+final wikiSaveCallbacksProvider =
+    StateProvider<Map<String, Future<bool> Function()>>((ref) => {});
+
 const _maxWikiTabs = 8;
 
 /// 打开一个 tab；已存在则用新条目替换（拿到最新标题）并激活。
