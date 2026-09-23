@@ -1,6 +1,6 @@
 # 知识页阅读参数分层：编辑器（内容区）覆盖层 + 全局界面设置
 
-Status: proposed（2026-09-23 与用户讨论收敛，未实现）
+Status: proposed（2026-09-23 讨论收敛）→ 已实现（2026-09-23 晚，见 [实现笔记](../../implemented/feature/2026-09-22-appearance-font-selection.md)）
 
 ## 背景
 

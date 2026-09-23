@@ -65,3 +65,32 @@ App 字体硬编码 Inter（google_fonts），中文走系统回退；用户需�
 ## 后续设计存档：编辑器（内容区）覆盖层
 
 用户要求「看知识页内容时能就地改字体/字号/行距」，讨论收敛为**两层覆盖模型**（编辑器可空覆盖层 ?? 全局层），并明确「先讨论、不动代码」。设计全文、模型、存储、UI 与开放问题见 [proposed：知识页阅读参数分层](../../proposed/product/2026-09-23-editor-reading-settings-layer.md)。本段（全局页正文字号）作为该模型的第一段已落地。
+
+## Follow-up: 编辑器（内容区）阅读参数覆盖层 · AA 浮层（2026-09-23 晚）
+
+按上述设计落地完整**两层覆盖模型**：知识页区块栏新增「AA」按钮（`IconButton` format_size）→ 浮层内三个独立控件（字体/字号/行距），每项都可「跟随全局」重置；值 `实际 = 编辑器覆盖(可空) ?? 全局`。
+
+**存储**（app_meta）：
+- 全局层保持 `theme_font / theme_font_size`（未来全局行距未做，回落 vendor 默认 1.5）。
+- 覆盖层新增 `theme_editor_font / theme_editor_font_size / theme_editor_line_height`，均为可空；`update_theme_prefs` 传 `None` 时经新增的 `Store::remove_meta` 删除对应键（覆盖态回归继承态，两层互不污染）。
+- Rust `ThemePrefsDto` 增三个 `Option` 字段 + `get/update_theme_prefs` 扩展；regen 桥接 + release lib 重编（hash 一致）。
+
+**模型/Provider**：
+- `AppSettings` 增 `editorFontName / editorFontSize / editorLineHeight`（可空）；求值 getter `contentFontSize`（`editorFontSize ?? fontSize`，钳 12–24）、`contentLineHeight`（`editorLineHeight ?? 1.5`，钳 1.0–2.5）、`contentFontName`。
+- `copyWithEditorSettings({font?, fontSizeOverride?, lineHeightOverride?})`：用 const 哨兵 `_unset` 区分「不改动」与「显式置空」，写入时钳制越界值；普通 `copyWith` 保留覆盖层（改全局不冲掉覆盖）。
+- Provider：`updateEditorFont/FontSize/LineHeight`（传 null = 跟随全局）+ `loadThemeFromBridge`/`saveTheme` 带覆盖层。
+
+**渲染（求值点收敛于 fontAware）**：
+- `fontAwareTextStyleConfiguration(family, {color, fontSize, lineHeight})` 新增 `lineHeight`，落在配置顶层（vendor `appflowy_rich_text` 用 `text.copyWith(height: lineHeight)` 渲染，实测 height 生效）。
+- `WikiContentEditor` 增 `fontFamily`（null=跟随全局→回退主题 textTheme 的全局字体解析值；`AppFonts.system`=显式跟随系统不注入；家族名经 `GoogleFonts.getFont` 解析加载，与全局字体同一机制）与 `lineHeight` 参数。详情页接线：`fontFamily: s.editorFontName`、`fontSize: s.contentFontSize`、`lineHeight: s.contentLineHeight`。
+
+**UI（AA 浮层）**：新组件 `wiki_reading_settings_dialog.dart`（`showWikiReadingSettings(context)`）。字体行：当前值 + FontPicker 对话框 + 跟随全局 chip；字号/行距行：滑块（字号 12–24 步进 1、行距 1.0–2.5 步进 0.1），拖拽实时预览、松手 `saveTheme`；每项「跟随全局」chip 高亮 = 覆盖为空，点按清空即回归继承。
+
+**测试**（全绿）：
+- `settings_reading_layer_test.dart`：两层求值（覆盖 ?? 全局）、显式清空、越界钳制、copyWith 原子性、fontAware 行距注入/回落（7 项）。
+- `wiki_content_editor_reading_layer_test.dart`：编辑器层渲染 fontFamily 覆盖（经 GoogleFonts 解析的内部家族名）、system 不注入、lineHeight 2.0/默认 1.5（4 项）。
+- `wiki_reading_settings_dialog_test.dart`：浮层三项控件、拖动滑块进入覆盖态、跟随全局重置、字体项打开 FontPicker（5 项，真实隔离桥接共享 repo）。
+- `settings_bridge_test.dart`：覆盖层写入 + 跟随全局清除 roundtrip（1 项）。
+- 回归：font_test / font_size_test / theme_color_test / settings_screen_test / wiki_editor_integration_test（含移动端走查）全绿。
+
+**协作交接**（与并行会话）：`wiki_content_editor.dart`（fontFamily/lineHeight 参数 + fontAware lineHeight 注入）与 `wiki_page_detail_view.dart`（AA 按钮 + 两层求值接线）两文件内我的本次改动未单独提交，随并行会话的重构提交一起落库（工作区即测即用）；`src`、`settings.dart/provider`、桥接生成面、浮层组件与三个新测试文件已随本次提交。
