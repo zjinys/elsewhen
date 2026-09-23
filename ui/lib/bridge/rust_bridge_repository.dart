@@ -565,14 +565,21 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> updateTweetFetchService(String service) =>
       api.updateTweetFetchService(service: service);
 
-  /// 主题偏好（模式 + 预设，存 app_meta）
+  /// 主题偏好（模式 + 预设 + 字体 + 正文字号，存 app_meta）
   Future<api.ThemePrefsDto> getThemePrefs() => api.getThemePrefs();
 
   Future<void> updateThemePrefs({
     required String mode,
     required String preset,
     String font = 'inter',
-  }) => api.updateThemePrefs(mode: mode, preset: preset, font: font);
+    double fontSize = 16.0,
+  }) =>
+      api.updateThemePrefs(
+        mode: mode,
+        preset: preset,
+        font: font,
+        fontSize: fontSize,
+      );
 
   /// AI provider 配置（设置页预填/保存用，直连 Rust DB 的 ai_provider_configs）
   Future<api.AiProviderConfigDto?> getAiProviderConfig() =>

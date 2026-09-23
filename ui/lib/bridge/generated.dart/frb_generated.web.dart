@@ -1129,6 +1129,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.mode),
       cst_encode_String(raw.preset),
       cst_encode_String(raw.font),
+      cst_encode_f_64(raw.fontSize),
     ].jsify()!;
   }
 
@@ -2064,11 +2065,13 @@ class RustLibWire implements BaseWire {
     String mode,
     String preset,
     String font,
+    double font_size,
   ) => wasmModule.wire__crate__api__update_theme_prefs(
     port_,
     mode,
     preset,
     font,
+    font_size,
   );
 
   void wire__crate__api__update_todo(
@@ -2502,6 +2505,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String mode,
     String preset,
     String font,
+    double font_size,
   );
 
   external void wire__crate__api__update_todo(

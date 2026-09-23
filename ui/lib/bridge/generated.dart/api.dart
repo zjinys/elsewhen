@@ -439,7 +439,7 @@ Future<void> updateTweetFetchService({required String service}) =>
 Future<WikiPageDto?> findTweetSourcePage({required String url}) =>
     RustLib.instance.api.crateApiFindTweetSourcePage(url: url);
 
-/// 读取主题偏好（默认深色 + 琥珀 + Inter，保留现有观感）
+/// 读取主题偏好（默认深色 + 琥珀 + Inter + 16px，保留现有观感）
 Future<ThemePrefsDto> getThemePrefs() =>
     RustLib.instance.api.crateApiGetThemePrefs();
 
@@ -448,10 +448,12 @@ Future<void> updateThemePrefs({
   required String mode,
   required String preset,
   required String font,
+  required double fontSize,
 }) => RustLib.instance.api.crateApiUpdateThemePrefs(
   mode: mode,
   preset: preset,
   font: font,
+  fontSize: fontSize,
 );
 
 /// 列出待办（status 过滤：open/done/archived；None 时列出 open+done）
@@ -1435,7 +1437,7 @@ class RuleDto {
           createdAt == other.createdAt;
 }
 
-/// 主题偏好 DTO（设置页「外观」：模式 + 预设 + 字体；存 app_meta）
+/// 主题偏好 DTO（设置页「外观」：模式 + 预设 + 字体 + 正文字号；存 app_meta）
 class ThemePrefsDto {
   /// "light" | "dark" | "system"
   final String mode;
@@ -1446,14 +1448,19 @@ class ThemePrefsDto {
   /// 字体名，如 "inter" | "notoSansSc" | "notoSerifSc" | "system"
   final String font;
 
+  /// 知识库正文字号（12.0–24.0，默认 16.0）
+  final double fontSize;
+
   const ThemePrefsDto({
     required this.mode,
     required this.preset,
     required this.font,
+    required this.fontSize,
   });
 
   @override
-  int get hashCode => mode.hashCode ^ preset.hashCode ^ font.hashCode;
+  int get hashCode =>
+      mode.hashCode ^ preset.hashCode ^ font.hashCode ^ fontSize.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1462,7 +1469,8 @@ class ThemePrefsDto {
           runtimeType == other.runtimeType &&
           mode == other.mode &&
           preset == other.preset &&
-          font == other.font;
+          font == other.font &&
+          fontSize == other.fontSize;
 }
 
 /// 待办 DTO

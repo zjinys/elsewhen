@@ -1323,6 +1323,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.mode = cst_encode_String(apiObj.mode);
     wireObj.preset = cst_encode_String(apiObj.preset);
     wireObj.font = cst_encode_String(apiObj.font);
+    wireObj.font_size = cst_encode_f_64(apiObj.fontSize);
   }
 
   @protected
@@ -4036,8 +4037,15 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> preset,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> font,
+    double font_size,
   ) {
-    return _wire__crate__api__update_theme_prefs(port_, mode, preset, font);
+    return _wire__crate__api__update_theme_prefs(
+      port_,
+      mode,
+      preset,
+      font,
+      font_size,
+    );
   }
 
   late final _wire__crate__api__update_theme_prefsPtr =
@@ -4048,6 +4056,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Double,
           )
         >
       >('frbgen_elsewhen_ui_wire__crate__api__update_theme_prefs');
@@ -4059,6 +4068,7 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              double,
             )
           >();
 
@@ -5196,15 +5206,20 @@ final class wire_cst_theme_prefs_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> font;
 
+  @ffi.Double()
+  external double font_size;
+
   static ffi.Pointer<wire_cst_theme_prefs_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> preset,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> font,
+    required double font_size,
   }) => $allocator<wire_cst_theme_prefs_dto>()
     ..ref.mode = mode
     ..ref.preset = preset
-    ..ref.font = font;
+    ..ref.font = font
+    ..ref.font_size = font_size;
 }
 
 final class wire_cst_todo_dto extends ffi.Struct {

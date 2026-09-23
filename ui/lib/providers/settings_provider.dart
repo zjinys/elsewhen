@@ -35,6 +35,10 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = state.copyWith(fontName: fontName);
   }
 
+  void updateFontSize(double fontSize) {
+    state = state.copyWith(fontSize: AppFonts.clampFontSize(fontSize));
+  }
+
   void updateLanguage(String? language) {
     state = state.copyWith(language: language);
   }
@@ -51,9 +55,11 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         themePreset: AppThemePreset.fromName(prefs.preset),
         // 归一化旧机器名存值（inter/notoSansSc/...）为 Google Fonts 家族名
         fontName: AppFonts.normalize(prefs.font),
+        // 字号：老库无 theme_font_size 时 DTO 给默认 16.0，仍钳制越界值
+        fontSize: AppFonts.clampFontSize(prefs.fontSize),
       );
     } catch (e) {
-      // 老库可能没有这两条 meta，保持默认即可
+      // 老库可能没有这几条 meta，保持默认即可
       debugPrint('loadThemeFromBridge failed: $e');
     }
   }
@@ -64,6 +70,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       mode: state.themeMode.name,
       preset: state.themePreset.name,
       font: state.fontName,
+      fontSize: state.fontSize,
     );
   }
 

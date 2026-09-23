@@ -4,6 +4,7 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/settings.dart';
 import '../theme/app_theme.dart';
 import 'wiki_chat_block.dart';
 import 'wiki_code_block.dart';
@@ -29,6 +30,7 @@ class WikiContentEditor extends StatefulWidget {
     this.onSaveError,
     this.onDirtyChanged,
     this.shrinkWrap = false,
+    this.fontSize = AppFonts.defaultFontSize,
   });
 
   /// 页面 slug：决定尾部对话块挂哪个会话
@@ -55,6 +57,9 @@ class WikiContentEditor extends StatefulWidget {
 
   /// 是否由外层滚动容器承载（独立滚动场景传 false，即编辑器自带滚动）
   final bool shrinkWrap;
+
+  /// 正文字号（px）：跟随「外观 → 正文字号」，仅作用于正文
+  final double fontSize;
 
   @override
   State<WikiContentEditor> createState() => WikiContentEditorState();
@@ -181,6 +186,8 @@ class WikiContentEditorState extends State<WikiContentEditor> {
           // 的 DefaultTextStyle 继承链，深浅色切换下内容文字必定跟随主题。
           color: Theme.of(context).textTheme.bodyLarge?.color ??
               Theme.of(context).textTheme.bodyMedium?.color,
+          // 正文字号：跟随「外观 → 正文字号」（默认 16 即当前观感）
+          fontSize: widget.fontSize,
         ),
         textSpanDecorator: wikiTextSpanDecorator(
           onTapWikiLink: widget.onWikiLinkTap,
@@ -206,13 +213,24 @@ class WikiContentEditorState extends State<WikiContentEditor> {
 /// - [color]：主题正文色。仅当目标样式自身未带颜色时才注入——
 ///   vendor 自带的语义色（href 蓝 / code 红 / autoComplete 灰）保持不变；
 ///   span 级显式颜色（attributes.color）在 combine 时仍覆盖基础色；
-/// - 两者都为空时原样返回 vendor 默认（零影响）。
+/// - [fontSize]：正文字号。仅写入基础 `text` 样式——vendor 的
+///   text/bold/italic/... 按 combine 合并，基础字号会自动传递到加粗/斜体等
+///   组合；heading/code 等带显式 delta 字号的场景仍以显式值为准。为 null 时不注入；
+/// - 三者都为空时原样返回 vendor 默认（零影响）。
 TextStyleConfiguration fontAwareTextStyleConfiguration(
   String? family, {
   Color? color,
+  double? fontSize,
 }) {
   final base = const TextStyleConfiguration();
-  if ((family == null || family.isEmpty) && color == null) return base;
+  final injectSize = (fontSize != null &&
+      fontSize > 0 &&
+      base.text.fontSize != fontSize);
+  if ((family == null || family.isEmpty) &&
+      color == null &&
+      !injectSize) {
+    return base;
+  }
   TextStyle themed(TextStyle style) {
     var next = style;
     if (family != null && family.isNotEmpty && next.fontFamily != family) {
@@ -224,8 +242,10 @@ TextStyleConfiguration fontAwareTextStyleConfiguration(
     return next;
   }
 
+  // 字号只落基础 text：bold/italic/underline/strikethrough 经 combine
+  // 继承基础字号（它们自身不带 fontSize，合并时保留父级值）。
   return TextStyleConfiguration(
-    text: themed(base.text),
+    text: themed(base.text).copyWith(fontSize: injectSize ? fontSize : null),
     bold: themed(base.bold),
     italic: themed(base.italic),
     underline: themed(base.underline),

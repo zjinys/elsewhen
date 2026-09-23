@@ -1917,6 +1917,7 @@ fn wire__crate__api__update_theme_prefs_impl(
     mode: impl CstDecode<String>,
     preset: impl CstDecode<String>,
     font: impl CstDecode<String>,
+    font_size: impl CstDecode<f64>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -1928,11 +1929,16 @@ fn wire__crate__api__update_theme_prefs_impl(
             let api_mode = mode.cst_decode();
             let api_preset = preset.cst_decode();
             let api_font = font.cst_decode();
+            let api_font_size = font_size.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::update_theme_prefs(api_mode, api_preset, api_font)?;
+                        let output_ok = crate::api::update_theme_prefs(
+                            api_mode,
+                            api_preset,
+                            api_font,
+                            api_font_size,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2948,10 +2954,12 @@ impl SseDecode for crate::api::ThemePrefsDto {
         let mut var_mode = <String>::sse_decode(deserializer);
         let mut var_preset = <String>::sse_decode(deserializer);
         let mut var_font = <String>::sse_decode(deserializer);
+        let mut var_fontSize = <f64>::sse_decode(deserializer);
         return crate::api::ThemePrefsDto {
             mode: var_mode,
             preset: var_preset,
             font: var_font,
+            font_size: var_fontSize,
         };
     }
 }
@@ -3593,6 +3601,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::ThemePrefsDto {
             self.mode.into_into_dart().into_dart(),
             self.preset.into_into_dart().into_dart(),
             self.font.into_into_dart().into_dart(),
+            self.font_size.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4294,6 +4303,7 @@ impl SseEncode for crate::api::ThemePrefsDto {
         <String>::sse_encode(self.mode, serializer);
         <String>::sse_encode(self.preset, serializer);
         <String>::sse_encode(self.font, serializer);
+        <f64>::sse_encode(self.font_size, serializer);
     }
 }
 
@@ -4951,6 +4961,7 @@ mod io {
                 mode: self.mode.cst_decode(),
                 preset: self.preset.cst_decode(),
                 font: self.font.cst_decode(),
+                font_size: self.font_size.cst_decode(),
             }
         }
     }
@@ -5396,6 +5407,7 @@ mod io {
                 mode: core::ptr::null_mut(),
                 preset: core::ptr::null_mut(),
                 font: core::ptr::null_mut(),
+                font_size: Default::default(),
             }
         }
     }
@@ -6136,8 +6148,9 @@ mod io {
         mode: *mut wire_cst_list_prim_u_8_strict,
         preset: *mut wire_cst_list_prim_u_8_strict,
         font: *mut wire_cst_list_prim_u_8_strict,
+        font_size: f64,
     ) {
-        wire__crate__api__update_theme_prefs_impl(port_, mode, preset, font)
+        wire__crate__api__update_theme_prefs_impl(port_, mode, preset, font, font_size)
     }
 
     #[unsafe(no_mangle)]
@@ -6829,6 +6842,7 @@ mod io {
         mode: *mut wire_cst_list_prim_u_8_strict,
         preset: *mut wire_cst_list_prim_u_8_strict,
         font: *mut wire_cst_list_prim_u_8_strict,
+        font_size: f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -7651,14 +7665,15 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                3,
-                "Expected 3 elements, got {}",
+                4,
+                "Expected 4 elements, got {}",
                 self_.length()
             );
             crate::api::ThemePrefsDto {
                 mode: self_.get(0).cst_decode(),
                 preset: self_.get(1).cst_decode(),
                 font: self_.get(2).cst_decode(),
+                font_size: self_.get(3).cst_decode(),
             }
         }
     }
@@ -8491,8 +8506,9 @@ mod web {
         mode: String,
         preset: String,
         font: String,
+        font_size: f64,
     ) {
-        wire__crate__api__update_theme_prefs_impl(port_, mode, preset, font)
+        wire__crate__api__update_theme_prefs_impl(port_, mode, preset, font, font_size)
     }
 
     #[wasm_bindgen]

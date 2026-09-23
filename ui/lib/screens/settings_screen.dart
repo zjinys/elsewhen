@@ -1210,6 +1210,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ),
         const SizedBox(height: 16),
         _buildFontField(settings, notifier),
+        const SizedBox(height: 16),
+        _buildFontSizeField(settings, notifier),
+      ],
+    );
+  }
+
+  /// 正文字号（仅知识库正文）：拖拽实时预览，松手才持久化
+  Widget _buildFontSizeField(AppSettings settings, SettingsNotifier notifier) {
+    final size = settings.fontSize;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '正文字号',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${size.toStringAsFixed(size == size.roundToDouble() ? 0 : 1)} pt',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textTertiary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Slider(
+          value: size,
+          min: AppFonts.minFontSize,
+          max: AppFonts.maxFontSize,
+          divisions:
+              (AppFonts.maxFontSize - AppFonts.minFontSize).round(),
+          label: size.toStringAsFixed(0),
+          onChanged: (v) => notifier.updateFontSize(v),
+          onChangeEnd: (v) => notifier
+            ..updateFontSize(v)
+            ..saveTheme(),
+        ),
       ],
     );
   }

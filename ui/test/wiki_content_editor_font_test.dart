@@ -75,4 +75,40 @@ void main() {
       expect(none.text.color, isNull);
     });
   });
+
+  group('fontAwareTextStyleConfiguration：正文字号挂钩设置', () {
+    test('注入字号到基础 text；组合样式无字号留空由 combine 继承', () {
+      final cfg = fontAwareTextStyleConfiguration(
+        'Inter',
+        color: const Color(0xFF111111),
+        fontSize: 18,
+      );
+
+      expect(cfg.text.fontSize, 18, reason: '基础样式携带设置字号');
+      // 组合样式自身不带 fontSize（null）——渲染时 AppFlowy combine
+      // 会把 text 的基础字号带到 bold/italic/... 上
+      expect(cfg.bold.fontSize, isNull);
+      expect(cfg.italic.fontSize, isNull);
+    });
+
+    test('未显式传字号保持 vendor 默认；0/负数不注入', () {
+      expect(fontAwareTextStyleConfiguration('Inter').text.fontSize, 16);
+      expect(
+        fontAwareTextStyleConfiguration('Inter', fontSize: 0).text.fontSize,
+        16,
+      );
+      expect(
+        fontAwareTextStyleConfiguration('Inter', fontSize: -2).text.fontSize,
+        16,
+      );
+    });
+
+    test('仅 fontSize 时：只落字号，字体族/颜色保持默认', () {
+      final cfg = fontAwareTextStyleConfiguration(null, fontSize: 20);
+      expect(cfg.text.fontSize, 20);
+      expect(cfg.text.fontFamily, isNull);
+      expect(cfg.text.color, isNull);
+      expect(cfg.href.color, Colors.lightBlue, reason: '语义色不受影响');
+    });
+  });
 }

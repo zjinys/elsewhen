@@ -41,3 +41,23 @@ App 字体硬编码 Inter（google_fonts），中文走系统回退；用户需�
 **测试**：`wiki_content_editor_font_test.dart` +4 单测（注入/语义色保留/仅 color/null 零影响，共 7 项）；新增 `wiki_content_editor_theme_color_test.dart` 3 项 widget 级回归——真 AppTheme 下渲染实际渲染色深色为浅 / 浅色为深 / 两者不同。注意：同一 testWidgets 连续 pump 两个 MaterialApp，后一个的 Theme 会错位（实测），深浅各用独立 testWidgets。
 
 **未代修**：并行会话的移动端走查溢出（_buildSectionBar 250px TabBar 在 390px 下溢出 55px）与 3 项遗留失败，均非本次范围。
+
+## Follow-up: 正文字号设置 + 区块栏自适应（2026-09-23 下午）
+
+用户两条新需求：① 系统设置除字体外支持**字体大小**；② 知识页详情某区块宽度不自适应（截图不可见，按已知 250px 溢出定位为区块栏）。
+
+### 字体大小（仅知识库正文，默认 16 对应原观感）
+
+- **存储**：Rust `ThemePrefsDto` 增加 `font_size: f64`，存 `app_meta["theme_font_size"]`（默认 16.0，解析失败回落）。`update_theme_prefs(mode, preset, font, font_size)`。生成面全套 regen（api.dart / frb_generated.rs / io / web），同轮 regen 也把并行会话 src 的 API 改动带进生成文件（实测仅我的 ThemePrefs hunk 进 diff，并行的 frb 改动不在 API 面）。**regen.sh 会重编 release lib**，走查 hash 一致。
+- **模型/Provider**：`AppSettings.fontSize`（12–24，钳 clamp）；`SettingsNotifier.updateFontSize` + load/save 带字号。
+- **UI**（外观 tab）：字号滑块 12–24 步进 1，拖拽实时更新状态、松手才 `saveTheme` 持久化；右侧显示 `N pt`。
+- **生效**：`fontAwareTextStyleConfiguration(family, {color, fontSize})` 把字号只写入基础 `text` 样式——bold/italic/underline/strikethrough 自身不带 fontSize（vendor `text` 默认 16、组合均为 null），AppFlowy combine 时非空优先、null 回落基础值 → 组合样式自动继承字号；显式 delta 字号（heading/code 等）仍覆盖。为 null/0/负数不注入（vendor 默认零影响）。`WikiContentEditor.fontSize` 参数（默认 16），详情页在 `_buildSectionContent` 用 `ref.watch(settingsProvider.select((s) => s.fontSize))` 传入。
+- **测试**：font_test +3（注入/默认/仅字号）；新增 `wiki_content_editor_font_size_test.dart` 3 项 widget 回归（RenderParagraph 真实渲染字号 18/16、加粗 span 继承字号）；settings_screen_test 外观 tab 滑块（共享 repo setUpAll——RustLib.init 每 isolate 只能一次）；settings_bridge_test theme prefs roundtrip 含字号。
+
+### 区块栏自适应（内容/关联/产出 Tab 行）
+
+- 病根：`SizedBox(width: 250)` 固定宽度（并行重构引入）+ 右侧「编辑/取消/完成」+ 聊天按钮，390px 下溢出 55px。
+- 修复：去掉固定 250，`TabBar(isScrollable)` 自然宽度；Row 改 `spaceBetween`（Tab 贴左、操作居中、聊天贴右）；`LayoutBuilder` 内宽 <480 时 `_buildInlineEditActions(compact)`——编辑态「取消」收成 X 图标、「完成」缩 padding（保留文本，走查仍 tap 文本）；浏览态保持一致（'编辑正文' 文本保留）。
+- 走查修复：窄屏（<1040）聊天本就不内联（FAB→bottom sheet），原 `WikiAiChatPanel findsOneWidget` 断言是陈旧拷贝 → 改 `findsNothing` + FAB 图标；卡座在「产出」页签下 → 切签验证再切回。**移动端走查转绿**（此前因 250px 溢出红）。
+
+**协作交接**（与并行会话）：`wiki_page_detail_view.dart`（字号接线 + 区块栏自适应 + compact 编辑操作）与 `wiki_editor_integration_test.dart`（走查断言修复）两文件整体属并行重构区，本次提交不暂存，随并行会话的重构提交一起落库；工作时是同一工作区，功能即时可测。

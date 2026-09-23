@@ -3,20 +3,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
+import 'package:elsewhen_ui/providers/settings_provider.dart';
 import 'package:elsewhen_ui/screens/settings_screen.dart';
 
 import 'support/isolated_bridge.dart';
 
-/// 设置页预填验证：在隔离数据库写入 provider 后，页面应从 Rust DB 加载，
-/// 而不是使用硬编码默认值。
+/// 设置页行为验证（真实 Rust 桥接）。
+/// 同一 isolate 内 RustLib.init 只能初始化一次，故所有用例共享一个 repo 实例。
 void main() {
+  late RustBridgeRepository repo;
+
+  setUpAll(() async {
+    repo = await createIsolatedBridge();
+  });
+
   testWidgets('settings screen prefills real provider from bridge', (
     tester,
   ) async {
-    final repo = await tester.runAsync(createIsolatedBridge);
-    final bridge = repo!;
     await tester.runAsync(
-      () => bridge.saveAiProviderConfig(
+      () => repo.saveAiProviderConfig(
         api.AiProviderConfigDto(
           id: '',
           name: '隔离测试 Provider',
@@ -33,14 +38,15 @@ void main() {
     );
 
     // 真实桥接读取当前生效的 provider（demo 副本里有 hub.oaifree.com / gpt-4o）
-    final expected = await tester.runAsync(() => bridge.getAiProviderConfig());
+    final expected =
+        await tester.runAsync(() => repo.getAiProviderConfig());
     expect(expected, isNotNull, reason: '测试库副本应含 provider 配置');
     final expectedUrl = expected!.baseUrl;
     final expectedModel = expected.model;
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [storageRepositoryProvider.overrideWithValue(bridge)],
+        overrides: [storageRepositoryProvider.overrideWithValue(repo)],
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
@@ -93,5 +99,34 @@ void main() {
     expect(find.text('事件分析队列'), findsOneWidget);
     expect(find.text('待处理'), findsOneWidget);
     expect(find.text('等待重试'), findsOneWidget);
+  });
+
+  testWidgets('外观 tab：正文字号滑块存在并驱动设置状态', (tester) async {
+    final container = ProviderContainer(
+      overrides: [storageRepositoryProvider.overrideWithValue(repo)],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await tester.pump();
+
+    // 切到「外观」tab
+    await tester.tap(find.text('外观'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('正文字号'), findsOneWidget);
+    expect(find.byType(Slider), findsOneWidget, reason: '外观区应有字号滑块');
+    // 默认 16（AppFonts.defaultFontSize）
+    expect(container.read(settingsProvider).fontSize, 16);
+
+    // 拖到最右 → divisions 吸附到最大值 24，状态实时更新
+    await tester.drag(find.byType(Slider), const Offset(500, 0));
+    await tester.pumpAndSettle();
+    expect(container.read(settingsProvider).fontSize, 24);
+    expect(find.text('24 pt'), findsOneWidget, reason: '滑块右侧应显示 24 pt');
   });
 }

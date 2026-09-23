@@ -358,6 +358,7 @@ abstract class RustLibApi extends BaseApi {
     required String mode,
     required String preset,
     required String font,
+    required double fontSize,
   });
 
   Future<void> crateApiUpdateTodo({
@@ -2429,6 +2430,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String mode,
     required String preset,
     required String font,
+    required double fontSize,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2436,11 +2438,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(mode);
           var arg1 = cst_encode_String(preset);
           var arg2 = cst_encode_String(font);
+          var arg3 = cst_encode_f_64(fontSize);
           return wire.wire__crate__api__update_theme_prefs(
             port_,
             arg0,
             arg1,
             arg2,
+            arg3,
           );
         },
         codec: DcoCodec(
@@ -2448,7 +2452,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiUpdateThemePrefsConstMeta,
-        argValues: [mode, preset, font],
+        argValues: [mode, preset, font, fontSize],
         apiImpl: this,
       ),
     );
@@ -2456,7 +2460,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateThemePrefsConstMeta => const TaskConstMeta(
     debugName: "update_theme_prefs",
-    argNames: ["mode", "preset", "font"],
+    argNames: ["mode", "preset", "font", "fontSize"],
   );
 
   @override
@@ -3247,12 +3251,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ThemePrefsDto dco_decode_theme_prefs_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return ThemePrefsDto(
       mode: dco_decode_String(arr[0]),
       preset: dco_decode_String(arr[1]),
       font: dco_decode_String(arr[2]),
+      fontSize: dco_decode_f_64(arr[3]),
     );
   }
 
@@ -4289,7 +4294,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_mode = sse_decode_String(deserializer);
     var var_preset = sse_decode_String(deserializer);
     var var_font = sse_decode_String(deserializer);
-    return ThemePrefsDto(mode: var_mode, preset: var_preset, font: var_font);
+    var var_fontSize = sse_decode_f_64(deserializer);
+    return ThemePrefsDto(
+      mode: var_mode,
+      preset: var_preset,
+      font: var_font,
+      fontSize: var_fontSize,
+    );
   }
 
   @protected
@@ -5211,6 +5222,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.mode, serializer);
     sse_encode_String(self.preset, serializer);
     sse_encode_String(self.font, serializer);
+    sse_encode_f_64(self.fontSize, serializer);
   }
 
   @protected

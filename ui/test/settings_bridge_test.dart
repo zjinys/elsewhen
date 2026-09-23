@@ -73,6 +73,31 @@ void main() {
     }
   });
 
+  test('theme prefs 读写 roundtrip（含正文字号）', () async {
+    await repo.updateThemePrefs(
+      mode: 'light',
+      preset: 'violet',
+      font: 'Noto Sans SC',
+      fontSize: 18,
+    );
+    final prefs = await repo.getThemePrefs();
+    expect(prefs.mode, 'light');
+    expect(prefs.preset, 'violet');
+    expect(prefs.font, 'Noto Sans SC');
+    expect(prefs.fontSize, 18, reason: '字号应随主题偏好持久化');
+
+    // 覆盖回默认（模拟用户拖回落）
+    await repo.updateThemePrefs(
+      mode: 'dark',
+      preset: 'amber',
+      font: 'system',
+      fontSize: 16,
+    );
+    final back = await repo.getThemePrefs();
+    expect(back.mode, 'dark');
+    expect(back.fontSize, 16);
+  });
+
   test('analysis job stats expose durable queue statuses', () async {
     final before = await repo.getAnalysisJobStats();
     expect(before.pending, 0);

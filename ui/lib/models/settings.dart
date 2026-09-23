@@ -147,6 +147,15 @@ final class AppFonts {
   /// 显示名：system 取中文名，其余原样显示家族名
   static String displayNameOf(String fontName) =>
       fontName == system ? systemDisplayName : fontName;
+
+  /// 正文字号范围与默认值（仅知识库正文，见设置页「外观」字号滑块）
+  static const double minFontSize = 12.0;
+  static const double maxFontSize = 24.0;
+  static const double defaultFontSize = 16.0;
+
+  /// 把历史/越界存值收敛到合法区间
+  static double clampFontSize(double size) =>
+      size.clamp(minFontSize, maxFontSize);
 }
 
 /// Complete application settings
@@ -159,6 +168,9 @@ class AppSettings {
 
   /// 字体机器名：内建值见 [AppFontFamily]，其余按系统字体族名解析
   final String fontName;
+
+  /// 知识库正文字号（px，仅作用于 wiki 内容编辑器），见 [AppFonts]
+  final double fontSize;
   final String? language;
 
   const AppSettings({
@@ -168,6 +180,7 @@ class AppSettings {
     this.themeMode = AppThemeMode.dark,
     this.themePreset = AppThemePreset.amber,
     this.fontName = 'inter',
+    this.fontSize = AppFonts.defaultFontSize,
     this.language,
   });
 
@@ -178,6 +191,7 @@ class AppSettings {
     AppThemeMode? themeMode,
     AppThemePreset? themePreset,
     String? fontName,
+    double? fontSize,
     String? language,
   }) {
     return AppSettings(
@@ -187,6 +201,7 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       themePreset: themePreset ?? this.themePreset,
       fontName: fontName ?? this.fontName,
+      fontSize: fontSize ?? this.fontSize,
       language: language ?? this.language,
     );
   }
