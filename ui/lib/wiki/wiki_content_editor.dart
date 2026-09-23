@@ -177,6 +177,10 @@ class WikiContentEditorState extends State<WikiContentEditor> {
         // 需把主题解析后的字体族注入，让正文跟随「外观 → 字体」。
         textStyleConfiguration: fontAwareTextStyleConfiguration(
           Theme.of(context).textTheme.bodyLarge?.fontFamily,
+          // 正文颜色显式取主题正文色：编辑器文本不再依赖 Document rooting 之外
+          // 的 DefaultTextStyle 继承链，深浅色切换下内容文字必定跟随主题。
+          color: Theme.of(context).textTheme.bodyLarge?.color ??
+              Theme.of(context).textTheme.bodyMedium?.color,
         ),
         textSpanDecorator: wikiTextSpanDecorator(
           onTapWikiLink: widget.onWikiLinkTap,
@@ -193,24 +197,41 @@ class WikiContentEditorState extends State<WikiContentEditor> {
   }
 }
 
-/// 编辑器正文样式：vendor 默认 `TextStyleConfiguration` 各样式均无 fontFamily，
-/// 这里把 [family]（主题已解析的字体族，如 'Inter' / 'Noto Sans SC'；system 时
-/// 为 Roboto）平铺到各家默认样式上，保留编辑器原有字号/字重/装饰。
-/// [family] 为空时返回 vendor 默认（跟随系统）。
-TextStyleConfiguration fontAwareTextStyleConfiguration(String? family) {
+/// 编辑器正文样式：vendor 默认 `TextStyleConfiguration` 的基础样式
+/// （text/bold/italic/underline/strikethrough）均无 fontFamily 与 color，
+/// 这里把主题解析后的 [family] 与 [color] 平铺上去，让正文跟随
+/// 「外观 → 字体」，并保证内容颜色显式挂钩主题（防继承链断链）。
+///
+/// - [family]：正文使用的字体族（如 'Inter' / 'Noto Sans SC'；system/空时为 null）；
+/// - [color]：主题正文色。仅当目标样式自身未带颜色时才注入——
+///   vendor 自带的语义色（href 蓝 / code 红 / autoComplete 灰）保持不变；
+///   span 级显式颜色（attributes.color）在 combine 时仍覆盖基础色；
+/// - 两者都为空时原样返回 vendor 默认（零影响）。
+TextStyleConfiguration fontAwareTextStyleConfiguration(
+  String? family, {
+  Color? color,
+}) {
   final base = const TextStyleConfiguration();
-  if (family == null || family.isEmpty) return base;
-  TextStyle familyOf(TextStyle style) => style.fontFamily == family
-      ? style
-      : style.copyWith(fontFamily: family);
+  if ((family == null || family.isEmpty) && color == null) return base;
+  TextStyle themed(TextStyle style) {
+    var next = style;
+    if (family != null && family.isNotEmpty && next.fontFamily != family) {
+      next = next.copyWith(fontFamily: family);
+    }
+    if (color != null && next.color == null) {
+      next = next.copyWith(color: color);
+    }
+    return next;
+  }
+
   return TextStyleConfiguration(
-    text: familyOf(base.text),
-    bold: familyOf(base.bold),
-    italic: familyOf(base.italic),
-    underline: familyOf(base.underline),
-    strikethrough: familyOf(base.strikethrough),
-    href: familyOf(base.href),
-    code: familyOf(base.code),
-    autoComplete: familyOf(base.autoComplete),
+    text: themed(base.text),
+    bold: themed(base.bold),
+    italic: themed(base.italic),
+    underline: themed(base.underline),
+    strikethrough: themed(base.strikethrough),
+    href: themed(base.href),
+    code: themed(base.code),
+    autoComplete: themed(base.autoComplete),
   );
 }

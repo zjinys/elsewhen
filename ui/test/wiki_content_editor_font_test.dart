@@ -35,4 +35,44 @@ void main() {
       expect(withFamily.bold.fontWeight, FontWeight.bold);
     });
   });
+
+  group('fontAwareTextStyleConfiguration：正文颜色挂钩主题', () {
+    test('注入主题色到基础样式，保留字号/字体族', () {
+      const color = Color(0xFF123456);
+      final cfg = fontAwareTextStyleConfiguration('Inter', color: color);
+
+      expect(cfg.text.color, color);
+      expect(cfg.bold.color, color);
+      expect(cfg.italic.color, color);
+      expect(cfg.underline.color, color);
+      expect(cfg.strikethrough.color, color);
+      expect(cfg.text.fontSize, 16, reason: '字号保持编辑器默认不变');
+      expect(cfg.text.fontFamily, 'Inter');
+      expect(cfg.bold.fontWeight, FontWeight.bold, reason: '字重保持默认');
+    });
+
+    test('vendor 自带语义色不被主题色覆盖（href/code/autoComplete）', () {
+      const color = Color(0xFF111111);
+      final cfg = fontAwareTextStyleConfiguration('Inter', color: color);
+
+      expect(cfg.href.color, Colors.lightBlue);
+      expect(cfg.code.color, Colors.red);
+      expect(cfg.autoComplete.color, Colors.grey);
+    });
+
+    test('仅 color 时：基础样式着色、字体族保持默认', () {
+      const color = Color(0xFF111111);
+      final cfg = fontAwareTextStyleConfiguration(null, color: color);
+
+      expect(cfg.text.color, color);
+      expect(cfg.text.fontFamily, isNull);
+      expect(cfg.text.fontSize, 16);
+    });
+
+    test('family 与 color 都为空时返回 vendor 默认（零影响）', () {
+      final none = fontAwareTextStyleConfiguration(null);
+      expect(none.text, const TextStyleConfiguration().text);
+      expect(none.text.color, isNull);
+    });
+  });
 }
