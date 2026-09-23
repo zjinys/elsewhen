@@ -173,6 +173,11 @@ class WikiContentEditorState extends State<WikiContentEditor> {
         // （移动端）会把内容压垮（390 - 48 页边 - 200 = 142px 可用，移动走查实证）。
         // 显式收窄到 24，宽屏仍有阅读栏兜底、窄屏不溢出。
         padding: EdgeInsets.symmetric(horizontal: AppTheme.space6),
+        // 编辑器正文不继承 Theme textTheme（vendor 默认样式无 fontFamily），
+        // 需把主题解析后的字体族注入，让正文跟随「外观 → 字体」。
+        textStyleConfiguration: fontAwareTextStyleConfiguration(
+          Theme.of(context).textTheme.bodyLarge?.fontFamily,
+        ),
         textSpanDecorator: wikiTextSpanDecorator(
           onTapWikiLink: widget.onWikiLinkTap,
         ),
@@ -186,4 +191,26 @@ class WikiContentEditorState extends State<WikiContentEditor> {
       },
     );
   }
+}
+
+/// 编辑器正文样式：vendor 默认 `TextStyleConfiguration` 各样式均无 fontFamily，
+/// 这里把 [family]（主题已解析的字体族，如 'Inter' / 'Noto Sans SC'；system 时
+/// 为 Roboto）平铺到各家默认样式上，保留编辑器原有字号/字重/装饰。
+/// [family] 为空时返回 vendor 默认（跟随系统）。
+TextStyleConfiguration fontAwareTextStyleConfiguration(String? family) {
+  final base = const TextStyleConfiguration();
+  if (family == null || family.isEmpty) return base;
+  TextStyle familyOf(TextStyle style) => style.fontFamily == family
+      ? style
+      : style.copyWith(fontFamily: family);
+  return TextStyleConfiguration(
+    text: familyOf(base.text),
+    bold: familyOf(base.bold),
+    italic: familyOf(base.italic),
+    underline: familyOf(base.underline),
+    strikethrough: familyOf(base.strikethrough),
+    href: familyOf(base.href),
+    code: familyOf(base.code),
+    autoComplete: familyOf(base.autoComplete),
+  );
 }
