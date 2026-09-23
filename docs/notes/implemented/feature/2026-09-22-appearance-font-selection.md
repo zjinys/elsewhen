@@ -61,3 +61,7 @@ App 字体硬编码 Inter（google_fonts），中文走系统回退；用户需�
 - 走查修复：窄屏（<1040）聊天本就不内联（FAB→bottom sheet），原 `WikiAiChatPanel findsOneWidget` 断言是陈旧拷贝 → 改 `findsNothing` + FAB 图标；卡座在「产出」页签下 → 切签验证再切回。**移动端走查转绿**（此前因 250px 溢出红）。
 
 **协作交接**（与并行会话）：`wiki_page_detail_view.dart`（字号接线 + 区块栏自适应 + compact 编辑操作）与 `wiki_editor_integration_test.dart`（走查断言修复）两文件整体属并行重构区，本次提交不暂存，随并行会话的重构提交一起落库；工作时是同一工作区，功能即时可测。
+
+## 后续设计存档：编辑器（内容区）覆盖层
+
+用户要求「看知识页内容时能就地改字体/字号/行距」，讨论收敛为**两层覆盖模型**（编辑器可空覆盖层 ?? 全局层），并明确「先讨论、不动代码」。设计全文、模型、存储、UI 与开放问题见 [proposed：知识页阅读参数分层](../../proposed/product/2026-09-23-editor-reading-settings-layer.md)。本段（全局页正文字号）作为该模型的第一段已落地。
