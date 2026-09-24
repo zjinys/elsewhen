@@ -2,7 +2,7 @@
 Type=Application
 Name=Elsewhen
 Comment=Local-first personal event recorder with global hotkey capture
-Exec=elsewhen capture
+Exec=elsewhen
 Icon=io.github.elsewhen.Elsewhen
 Terminal=false
 Categories=Utility;

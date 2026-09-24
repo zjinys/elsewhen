@@ -2,18 +2,9 @@
 name = "elsewhen"
 version = "0.1.0"
 edition = "2021"
+autobins = false
 description = "Local-first personal event recorder with global hotkey capture"
 license = "MIT"
-default-run = "elsewhen"
-
-[[bin]]
-name = "elsewhen"
-path = "src/main.rs"
-
-[[bin]]
-name = "test_adapter"
-path = "test_adapter.rs"
-
 # Flutter bridge library
 [lib]
 crate-type = ["staticlib", "cdylib", "rlib"]

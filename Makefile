@@ -3,10 +3,10 @@ SHELL := /bin/sh
 .PHONY: build release check test install-desktop deb rpm pacman package clean
 
 build:
-	cargo build --bin elsewhen
+	cargo build
 
 release:
-	cargo build --release --bin elsewhen
+	cargo build --release
 
 check:
 	cargo check
