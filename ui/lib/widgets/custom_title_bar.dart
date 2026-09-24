@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nativeapi/nativeapi.dart';
 
 import 'dart:ui';
 
+import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
 
 /// 当前平台窗口（nativeapi 统一接口，取代 window_manager 单例调用）。
 Window? get _window => WindowManager.instance.getCurrent();
 
 /// Custom title bar for frameless window
-class CustomTitleBar extends StatelessWidget {
+class CustomTitleBar extends ConsumerWidget {
   final String title;
   final List<Widget>? actions;
 
   const CustomTitleBar({super.key, required this.title, this.actions});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final aiBusy = ref.watch(aiGeneratingProvider).isNotEmpty;
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
@@ -68,6 +71,7 @@ class CustomTitleBar extends StatelessWidget {
                   ),
                 ),
               ),
+              if (aiBusy) const _AiActivityIndicator(),
               ...?actions,
               const SizedBox(width: 8),
               _WindowButton(
@@ -94,6 +98,31 @@ class CustomTitleBar extends StatelessWidget {
                 isClose: true,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AiActivityIndicator extends StatelessWidget {
+  const _AiActivityIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'AI 正在工作',
+      child: SizedBox(
+        width: 36,
+        height: 48,
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.accentPrimary,
+            ),
           ),
         ),
       ),

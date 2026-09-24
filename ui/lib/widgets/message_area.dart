@@ -150,12 +150,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
     final activeTopics = ref
         .watch(wikiPagesProvider)
         .valueOrNull
-        ?.where(
-          (page) =>
-              page.kind == 'topic' &&
-              page.status != 'archived' &&
-              page.tags.contains('topic'),
-        )
+        ?.where((page) => page.kind == 'topic' && page.status != 'archived')
         .length;
     final activeProvider = ref.watch(activeAiProviderProvider).valueOrNull;
     final tokenUsage = ref.watch(todayTokenUsageProvider).valueOrNull;
@@ -1024,57 +1019,62 @@ class _NowStatus extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
-                  const Spacer(),
-                  if (!compact && activeProvider != null) ...[
-                    Icon(
-                      Icons.smart_toy_outlined,
-                      size: 14,
-                      color: AppTheme.textTertiary,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      activeProvider!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
                   if (!compact) ...[
-                    Flexible(
-                      child: Text(
-                        summary,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary,
+                    const Spacer(),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (activeProvider != null) ...[
+                          Icon(
+                            Icons.smart_toy_outlined,
+                            size: 14,
+                            color: AppTheme.textTertiary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            activeProvider!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Flexible(
+                          child: Text(
+                            summary,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        if (onCopyAll != null)
+                          IconButton(
+                            tooltip: '复制全部对话',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.copy_all_rounded, size: 17),
+                            color: AppTheme.textSecondary,
+                            onPressed: onCopyAll,
+                          ),
+                        IconButton(
+                          tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(
+                            showSearch ? Icons.search_off : Icons.search,
+                            size: 17,
+                          ),
+                          color: showSearch
+                              ? AppTheme.accentPrimary
+                              : AppTheme.textSecondary,
+                          onPressed: onToggleSearch,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
                   ],
-                  if (onCopyAll != null)
-                    IconButton(
-                      tooltip: '复制全部对话',
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.copy_all_rounded, size: 17),
-                      color: AppTheme.textSecondary,
-                      onPressed: onCopyAll,
-                    ),
-                  IconButton(
-                    tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      showSearch ? Icons.search_off : Icons.search,
-                      size: 17,
-                    ),
-                    color: showSearch
-                        ? AppTheme.accentPrimary
-                        : AppTheme.textSecondary,
-                    onPressed: onToggleSearch,
-                  ),
                 ],
               ),
               if (compact)

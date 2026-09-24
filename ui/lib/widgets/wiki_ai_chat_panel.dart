@@ -110,6 +110,8 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
     });
     _inputController.clear();
     _scrollToBottom();
+    final generatingNotifier = ref.read(aiGeneratingProvider.notifier);
+    setAiGenerating(ref, id, true);
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       await repo.sendMessage(id, 'user', text);
@@ -141,6 +143,8 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
       _scrollToBottom();
+    } finally {
+      generatingNotifier.state = {...generatingNotifier.state}..remove(id);
     }
   }
 
