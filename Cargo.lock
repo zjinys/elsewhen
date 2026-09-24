@@ -1002,6 +1002,7 @@ dependencies = [
  "directories",
  "dotenvy",
  "flutter_rust_bridge",
+ "fontdb",
  "iced",
  "rdev",
  "reqwest",

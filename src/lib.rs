@@ -4,6 +4,7 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 pub mod ai;
 pub mod config;
 pub mod event;
+pub mod fonts;
 pub mod storage;
 pub mod wiki;
 

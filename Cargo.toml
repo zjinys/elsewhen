@@ -21,6 +21,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [dependencies]
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
+fontdb = "0.23"
 directories = "5"
 dotenvy = "0.15"
 rusqlite = { version = "0.32", features = ["bundled"] }

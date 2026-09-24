@@ -3,6 +3,7 @@ mod api;
 mod capture;
 mod config;
 mod event;
+mod fonts;
 mod hotkey;
 mod settings;
 mod storage;
