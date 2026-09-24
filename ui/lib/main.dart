@@ -1,8 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'dart:io';
+import 'package:nativeapi/nativeapi.dart' hide Brightness;
 
 import 'theme/app_theme.dart';
 import 'models/app_config.dart';
@@ -11,64 +12,98 @@ import 'screens/main_screen.dart';
 import 'screens/capture_screen.dart';
 import 'providers/app_provider.dart';
 import 'providers/settings_provider.dart';
+import 'utils/window_service.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final config = AppConfig.fromArgs(args);
 
-  // Initialize window manager for desktop platforms
+  // nativeapi（替代 window_manager）：没有 waitUntilReadyToShow + WindowOptions，
+  // 改为启动期尽早应用无边框/尺寸/位置/置顶等配置——Flutter runner 首帧
+  // 会自动显示窗口，这里抢在首帧前把外观与几何就位，避免原生标题栏/默认
+  // 尺寸闪现。
   if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
-    await windowManager.ensureInitialized();
-
-    WindowOptions windowOptions = config.mode == AppMode.capture
-        ? WindowOptions(
-            size: const Size(650, 180),
-            center: true,
-            backgroundColor: const Color(0xFF1C1C1E),
-            skipTaskbar: false,
-            titleBarStyle: TitleBarStyle.hidden,
-            alwaysOnTop: true,
-          )
-        : WindowOptions(
-            size: const Size(1920, 1080),
-            minimumSize: const Size(800, 600),
-            center: true,
-            backgroundColor: Colors.transparent,
-            skipTaskbar: false,
-            title: 'Elsewhen',
-            titleBarStyle: TitleBarStyle.hidden,
-          );
-
-    windowManager.waitUntilReadyToShow(windowOptions, () async {
-      // Intercept the window close button (X): hide the window instead of
-      // destroying it, so the app keeps running in the background.
-      // Without this, GTK destroys the window and the `onWindowClose` →
-      // `windowManager.hide()` path crashes with GTK critical assertions.
-      await windowManager.setPreventClose(true);
-      await windowManager.show();
-      await windowManager.center(animate: true);
-      await windowManager.focus();
-    });
+    final windowService = WindowService();
+    if (config.mode == AppMode.capture) {
+      await windowService.applyCaptureChrome();
+    } else {
+      await windowService.applyMainChrome();
+    }
   }
 
-  runApp(
-    ProviderScope(
-      child: ElsewhenApp(config: config),
-    ),
-  );
+  runApp(ProviderScope(child: ElsewhenApp(config: config)));
 }
 
 class ElsewhenApp extends ConsumerStatefulWidget {
   final AppConfig config;
 
-  const ElsewhenApp({
-    super.key,
-    required this.config,
-  });
+  const ElsewhenApp({super.key, required this.config});
 
   @override
   ConsumerState<ElsewhenApp> createState() => _ElsewhenAppState();
+}
+
+/// 窗口圆角：非最大化时给整棵子树（MaterialApp 之上）套 ClipRRect。
+/// 最大化/全屏时自动恢复直角（监听 nativeapi 的 maximized/restored 事件）。
+class _WindowRoundedClipper extends StatefulWidget {
+  const _WindowRoundedClipper({required this.child});
+  final Widget child;
+
+  static const double _radius = 12;
+
+  @override
+  State<_WindowRoundedClipper> createState() => _WindowRoundedClipperState();
+}
+
+class _WindowRoundedClipperState extends State<_WindowRoundedClipper> {
+  bool _maximized = false;
+  ListenerId? _listenerId;
+
+  /// 测试环境（flutter test）下没有 libcnativeapi.so，WindowManager.addListener
+  /// 会直接抛 ArgumentError；跳过注册，圆角仍生效、只是最大化时不会恢复直角
+  /// （测试里也不会最大化）。
+  static bool get _isTestEnv =>
+      Platform.environment.containsKey('FLUTTER_TEST');
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_isTestEnv &&
+        (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+      _listenerId = WindowManager.instance.addListener((event) {
+        switch (event) {
+          case WindowMaximizedEvent():
+            _setMaximized(true);
+          case WindowRestoredEvent():
+            _setMaximized(false);
+          default:
+            break;
+        }
+      });
+    }
+  }
+
+  void _setMaximized(bool v) {
+    if (!mounted || _maximized == v) return;
+    setState(() => _maximized = v);
+  }
+
+  @override
+  void dispose() {
+    final id = _listenerId;
+    if (id != null) WindowManager.instance.removeListener(id);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_maximized) return widget.child;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(_WindowRoundedClipper._radius),
+      child: widget.child,
+    );
+  }
 }
 
 class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
@@ -133,71 +168,62 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
         DefaultWidgetsLocalizations.delegate,
         AppFlowyEditorLocalizations.delegate,
       ],
-      home: initAsync.when(
-        data: (initialized) {
-          if (!initialized) {
-            return const Scaffold(
-              body: Center(
-                child: Text('Initialization failed'),
-              ),
-            );
-          }
+      home: _WindowRoundedClipper(
+        child: initAsync.when(
+          data: (initialized) {
+            if (!initialized) {
+              return const Scaffold(
+                body: Center(child: Text('Initialization failed')),
+              );
+            }
 
-          return KeyedSubtree(
-            key: themeKey,
-            child: widget.config.mode == AppMode.capture
-                ? const CaptureScreen()
-                : const MainScreen(),
-          );
-        },
-        loading: () => Scaffold(
-          backgroundColor: AppTheme.surface0,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  color: AppTheme.accentPrimary,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Initializing Elsewhen...',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
+            return KeyedSubtree(
+              key: themeKey,
+              child: widget.config.mode == AppMode.capture
+                  ? const CaptureScreen()
+                  : const MainScreen(),
+            );
+          },
+          loading: () => Scaffold(
+            backgroundColor: AppTheme.surface0,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: AppTheme.accentPrimary),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Initializing Elsewhen...',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        error: (error, stack) => Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  color: AppTheme.error,
-                  size: 48,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Failed to initialize',
-                  style: TextStyle(
-                    color: AppTheme.error,
-                    fontSize: 16,
+          error: (error, stack) => Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, color: AppTheme.error, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to initialize',
+                    style: TextStyle(color: AppTheme.error, fontSize: 16),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  error.toString(),
-                  style: TextStyle(
-                    color: AppTheme.textTertiary,
-                    fontSize: 12,
+                  const SizedBox(height: 8),
+                  Text(
+                    error.toString(),
+                    style: TextStyle(
+                      color: AppTheme.textTertiary,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -90,9 +90,10 @@ static void my_application_activate(GApplication* application) {
 
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;
-  // Background defaults to black, override it here if necessary, e.g. #00000000
-  // for transparent.
-  gdk_rgba_parse(&background_color, "#000000");
+  // 窗口圆角要求窗口真透明：#00000000 把 FlView 底色设为透明，
+  // 角落区域由 Flutter 根部 ClipRRect 裁成圆角后透出桌面（需 RGBA visual，
+  // Wayland/X11+compositor 下 GTK3 顶层窗口自动启用）。
+  gdk_rgba_parse(&background_color, "#00000000");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));

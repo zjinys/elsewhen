@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:nativeapi/nativeapi.dart';
+
+import 'dart:ui';
+
+import '../theme/app_theme.dart';
+
+/// 当前平台窗口（nativeapi 统一接口，取代 window_manager 单例调用）。
+Window? get _window => WindowManager.instance.getCurrent();
 
 /// Custom title bar for frameless window
 class CustomTitleBar extends StatelessWidget {
@@ -11,74 +18,84 @@ class CustomTitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A0D12).withValues(alpha: 0.95),
-        border: Border(
-          bottom: BorderSide(
-            color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onPanStart: (details) {
-                windowManager.startDragging();
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(5),
-                      child: SvgPicture.asset(
-                        'assets/brand/elsewhen-icon-v2.svg',
-                        width: 24,
-                        height: 24,
-                        semanticsLabel: 'Elsewhen',
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFE9ECEF),
-                        letterSpacing: 0,
-                      ),
-                    ),
-                  ],
-                ),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppTheme.surface1.withValues(alpha: 0.82),
+            border: Border(
+              bottom: BorderSide(
+                color: AppTheme.surface3.withValues(alpha: 0.8),
               ),
             ),
           ),
-          if (actions != null) ...actions!,
-          const SizedBox(width: 8),
-          _WindowButton(
-            icon: Icons.minimize,
-            onPressed: () => windowManager.minimize(),
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onPanStart: (details) {
+                    // Linux 原生层已实现（gdk_window_begin_move_drag_for_device）。
+                    _window?.startDragging();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(5),
+                          child: SvgPicture.asset(
+                            'assets/brand/elsewhen-icon-v2.svg',
+                            width: 24,
+                            height: 24,
+                            semanticsLabel: 'Elsewhen',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              ...?actions,
+              const SizedBox(width: 8),
+              _WindowButton(
+                icon: Icons.minimize,
+                onPressed: () => _window?.minimize(),
+              ),
+              _WindowButton(
+                icon: Icons.crop_square,
+                onPressed: () {
+                  final w = _window;
+                  if (w == null) return;
+                  if (w.isMaximized) {
+                    w.unmaximize();
+                  } else {
+                    w.maximize();
+                  }
+                },
+              ),
+              _WindowButton(
+                icon: Icons.close,
+                // 关闭即隐藏：窗口 isClosable=false 已拦截原生关闭，
+                // 这里直接 hide（应用继续驻留后台，热键再唤出）。
+                onPressed: () => _window?.hide(),
+                isClose: true,
+              ),
+            ],
           ),
-          _WindowButton(
-            icon: Icons.crop_square,
-            onPressed: () async {
-              if (await windowManager.isMaximized()) {
-                windowManager.unmaximize();
-              } else {
-                windowManager.maximize();
-              }
-            },
-          ),
-          _WindowButton(
-            icon: Icons.close,
-            onPressed: () => windowManager.close(),
-            isClose: true,
-          ),
-        ],
+        ),
       ),
     );
   }

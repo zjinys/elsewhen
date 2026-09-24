@@ -44,7 +44,9 @@ dependencies:
   markdown: ^7.3.1
 
   # Desktop integration
-  window_manager: ^0.4.3
+  # window_manager / screen_retriever 已合并迁移到 nativeapi（同一作者 leanflutter
+  # 的统一原生 API 继任者）：窗口大小/位置/无边框/置顶/事件 + 显示器信息一包覆盖。
+  nativeapi: ^0.3.0
 
   # Icons
   cupertino_icons: ^1.0.8
@@ -66,7 +68,6 @@ dependencies:
   # 详见 third_party/appflowy_editor/README.local.md。
   appflowy_editor:
     path: third_party/appflowy_editor
-  flutter_font_picker: ^2.0.0
 
 dev_dependencies:
   flutter_test:

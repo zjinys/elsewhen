@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:nativeapi/nativeapi.dart';
+
 import 'screens/conversation_timeline_screen.dart';
 import 'bridge/rust_bridge_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Configure frameless window
-  await windowManager.ensureInitialized();
-  await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-  await windowManager.setMinimumSize(const Size(800, 600));
-  await windowManager.setSize(const Size(1200, 800));
-  await windowManager.center();
+  // Configure frameless window（nativeapi：窗口由 Flutter runner 创建，直接取当前窗口配置）
+  final window = WindowManager.instance.getCurrent();
+  window?.titleBarStyle = TitleBarStyle.hidden;
+  window?.minimumSize = const Size(800, 600);
+  window?.setSize(const Size(1200, 800), false);
+  window?.center();
 
   // Initialize Rust bridge
   final repository = RustBridgeRepository();
@@ -20,9 +21,7 @@ void main() async {
 
   runApp(
     ProviderScope(
-      overrides: [
-        storageRepositoryProvider.overrideWithValue(repository),
-      ],
+      overrides: [storageRepositoryProvider.overrideWithValue(repository)],
       child: const MyApp(),
     ),
   );
@@ -38,9 +37,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
-        cardTheme: const CardThemeData(
-          elevation: 2,
-        ),
+        cardTheme: const CardThemeData(elevation: 2),
       ),
       home: const ConversationTimelineScreen(),
       debugShowCheckedModeBanner: false,
