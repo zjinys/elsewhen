@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../bridge/generated.dart/api.dart' show EntityFactDto;
@@ -13,22 +14,30 @@ import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
 import '../models/wiki_page.dart';
 import '../providers/wiki_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/todo_provider.dart';
 import '../models/todo.dart';
 import '../theme/app_theme.dart';
 import '../wiki/wiki_content_editor.dart';
+import 'wiki_reading_settings_dialog.dart';
 import 'wiki_ai_chat_panel.dart';
 import 'wiki_derivatives.dart';
+import 'markdown_view.dart';
 
 /// 右侧知识库面板：多 tab。
 /// - 固定 Tab 1：导入（粘贴链接抓取或直接文本保存）
 /// - 抓取成功后新开「预览」tab：内容 + 保存按钮（点保存才入库）
 /// - 从左侧点击知识库页时新开「页面详情」tab（含 AI 处理面板）
-class WikiPageDetailView extends ConsumerWidget {
+class WikiPageDetailView extends ConsumerStatefulWidget {
   const WikiPageDetailView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WikiPageDetailView> createState() => _WikiPageDetailViewState();
+}
+
+class _WikiPageDetailViewState extends ConsumerState<WikiPageDetailView> {
+  @override
+  Widget build(BuildContext context) {
     final tabs = ref.watch(wikiOpenTabsProvider);
     final activeId = ref.watch(wikiActiveTabIdProvider);
     final active = tabs.firstWhere(
@@ -47,11 +56,12 @@ class WikiPageDetailView extends ConsumerWidget {
             children: [
               for (final tab in tabs)
                 switch (tab) {
-                  ImportTabEntry() => const _ImportTab(),
+                  ImportTabEntry() => const _HomeTab(),
                   PageTabEntry(:final slug) => _PageTabBody(slug: slug),
                   TweetTabEntry(:final fetch) => _TweetTabBody(fetch: fetch),
-                  ImportFetchTabEntry(:final fetch) =>
-                    _ImportFetchTabBody(fetch: fetch),
+                  ImportFetchTabEntry(:final fetch) => _ImportFetchTabBody(
+                    fetch: fetch,
+                  ),
                 },
             ],
           ),
@@ -59,6 +69,325 @@ class WikiPageDetailView extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// 知识库首页：上方导入，下方浏览。二者属于同一工作区，不再拆成两个 tab。
+class _HomeTab extends StatelessWidget {
+  const _HomeTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: _HomeAction(
+                  icon: Icons.link_outlined,
+                  title: '网址导入',
+                  subtitle: '抓取网页或推文，确认后保存',
+                  onTap: () => _showImportDialog(context, urlMode: true),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _HomeAction(
+                  icon: Icons.notes_outlined,
+                  title: '直接文本',
+                  subtitle: '粘贴内容并创建知识页',
+                  onTap: () => _showImportDialog(context, urlMode: false),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Divider(height: 1, color: AppTheme.surface3),
+        const Expanded(child: _WikiBrowseTab()),
+      ],
+    );
+  }
+
+  Future<void> _showImportDialog(
+    BuildContext context, {
+    required bool urlMode,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720, maxHeight: 680),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: _ImportTab(
+              initialUrlMode: urlMode,
+              onCompleted: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeAction extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _HomeAction({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: AppTheme.surface1,
+    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, size: 19, color: AppTheme.accentPrimary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: AppTheme.textTertiary),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _KnowledgeBrowser extends ConsumerWidget {
+  final TextEditingController queryController;
+  final Set<String> areasSelected;
+  final Set<String> kindsSelected;
+  final Set<String> tagsSelected;
+  final ValueChanged<Set<String>> onAreaChanged;
+  final ValueChanged<Set<String>> onKindChanged;
+  final ValueChanged<Set<String>> onTagChanged;
+  final ValueChanged<String> onQueryChanged;
+  final String query;
+
+  const _KnowledgeBrowser({
+    required this.queryController,
+    required this.areasSelected,
+    required this.kindsSelected,
+    required this.tagsSelected,
+    required this.onAreaChanged,
+    required this.onKindChanged,
+    required this.onTagChanged,
+    required this.onQueryChanged,
+    required this.query,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pages =
+        ref.watch(wikiPagesProvider).valueOrNull ?? const <WikiPage>[];
+    final areas =
+        pages.map((p) => p.area).where((v) => v.isNotEmpty).toSet().toList()
+          ..sort();
+    final kinds =
+        pages.map((p) => p.kind).where((v) => v.isNotEmpty).toSet().toList()
+          ..sort();
+    final tags = pages.expand((p) => p.tags).toSet().toList()..sort();
+    final active =
+        areasSelected.length + kindsSelected.length + tagsSelected.length;
+    bool areaMatches(WikiPage page) {
+      if (areasSelected.isEmpty) return true;
+      return areasSelected.any((value) {
+        if (value == 'network:person') {
+          return page.area == 'network' && page.kind == 'person';
+        }
+        if (value == 'network:project') {
+          return page.area == 'network' && page.kind == 'project';
+        }
+        return page.area == value;
+      });
+    }
+
+    final resultCount = pages.where((p) {
+      final text = '${p.title} ${p.summary} ${p.contentMd} ${p.tags.join(' ')}'
+          .toLowerCase();
+      return (query.trim().isEmpty ||
+              text.contains(query.trim().toLowerCase())) &&
+          areaMatches(p) &&
+          (kindsSelected.isEmpty || kindsSelected.contains(p.kind)) &&
+          (tagsSelected.isEmpty || p.tags.any(tagsSelected.contains));
+    }).length;
+    return Container(
+      color: AppTheme.surface1,
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space4,
+        10,
+        AppTheme.space4,
+        8,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '知识库浏览',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '$resultCount 条',
+                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+              ),
+              if (active > 0)
+                Text(
+                  ' · $active 个筛选',
+                  style: TextStyle(fontSize: 11, color: AppTheme.accentPrimary),
+                ),
+              const Spacer(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            style: const TextStyle(fontSize: 13),
+            controller: queryController,
+            onChanged: onQueryChanged,
+            decoration: InputDecoration(
+              hintText: '搜索标题、摘要、正文或标签',
+              prefixIcon: const Icon(Icons.search, size: 18),
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear, size: 17),
+                      onPressed: () {
+                        queryController.clear();
+                        onQueryChanged('');
+                      },
+                    ),
+              isDense: true,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _FilterRow(
+            label: '区域',
+            values: [
+              for (final v in areas.where((v) => v != 'network'))
+                _FilterOption(
+                  v,
+                  pages.firstWhere((p) => p.area == v).areaLabel,
+                ),
+              if (pages.any((p) => p.area == 'network' && p.kind == 'person'))
+                const _FilterOption('network:person', '人物'),
+              if (pages.any((p) => p.area == 'network' && p.kind == 'project'))
+                const _FilterOption('network:project', '项目'),
+            ],
+            selected: areasSelected,
+            onChanged: onAreaChanged,
+          ),
+          _FilterRow(
+            label: '类型',
+            values: kinds
+                .map(
+                  (v) => _FilterOption(
+                    v,
+                    pages.firstWhere((p) => p.kind == v).kindLabel,
+                  ),
+                )
+                .toList(),
+            selected: kindsSelected,
+            onChanged: onKindChanged,
+          ),
+          if (tags.isNotEmpty)
+            _FilterRow(
+              label: '标签',
+              values: tags.map((v) => _FilterOption(v, '#$v')).toList(),
+              selected: tagsSelected,
+              onChanged: onTagChanged,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterOption {
+  final String value;
+  final String label;
+  const _FilterOption(this.value, this.label);
+}
+
+class _FilterRow extends StatelessWidget {
+  final String label;
+  final List<_FilterOption> values;
+  final Set<String> selected;
+  final ValueChanged<Set<String>> onChanged;
+  const _FilterRow({
+    required this.label,
+    required this.values,
+    required this.selected,
+    required this.onChanged,
+  });
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+        ),
+        ChoiceChip(
+          label: const Text('全部'),
+          selected: selected.isEmpty,
+          onSelected: (_) => onChanged(<String>{}),
+          visualDensity: VisualDensity.compact,
+        ),
+        for (final option in values.take(12))
+          ChoiceChip(
+            label: Text(option.label),
+            selected: selected.contains(option.value),
+            onSelected: (_) {
+              final next = {...selected};
+              if (!next.add(option.value)) next.remove(option.value);
+              onChanged(next);
+            },
+            visualDensity: VisualDensity.compact,
+          ),
+      ],
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────
@@ -112,8 +441,8 @@ class _WikiTabBar extends ConsumerWidget {
       PageTabEntry(:final slug) => slug,
       _ => null,
     };
-    final dirty = slug != null &&
-        ref.read(wikiDirtyTabsProvider).contains(slug);
+    final dirty =
+        slug != null && ref.read(wikiDirtyTabsProvider).contains(slug);
     if (!dirty) {
       closeWikiTab(ref, tab.id);
       return;
@@ -146,9 +475,9 @@ class _WikiTabBar extends ConsumerWidget {
       final ok = save == null ? false : await save();
       if (!ok) return;
     }
-    ref.read(wikiDirtyTabsProvider.notifier).update(
-      (set) => {...set}..remove(slug),
-    );
+    ref
+        .read(wikiDirtyTabsProvider.notifier)
+        .update((set) => {...set}..remove(slug));
     closeWikiTab(ref, tab.id);
   }
 }
@@ -232,7 +561,10 @@ class _WikiTabChip extends StatelessWidget {
 // ─────────────────────────────────────────────
 
 class _ImportTab extends ConsumerStatefulWidget {
-  const _ImportTab();
+  final bool initialUrlMode;
+  final VoidCallback? onCompleted;
+
+  const _ImportTab({this.initialUrlMode = true, this.onCompleted});
 
   @override
   ConsumerState<_ImportTab> createState() => _ImportTabState();
@@ -245,7 +577,13 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
   final _tagsController = TextEditingController();
   bool _busy = false;
   String? _error;
-  bool _isUrlMode = true;
+  late bool _isUrlMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _isUrlMode = widget.initialUrlMode;
+  }
 
   @override
   void dispose() {
@@ -287,18 +625,21 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
           openWikiPageTab(ref, existing);
           ScaffoldMessenger.of(context)
               .showSnackBar(const SnackBar(content: Text('知识库中已保存过该推文，已直接打开')));
+          widget.onCompleted?.call();
           return;
         }
         final fetch = await repo.fetchTweet(url);
         if (!mounted) return;
         _urlController.clear();
         openWikiTweetTab(ref, fetch);
+        widget.onCompleted?.call();
       } else {
         // 通用网页 / 非推文链接
         final fetch = await repo.fetchImportUrl(url);
         if (!mounted) return;
         _urlController.clear();
         openWikiImportFetchTab(ref, fetch);
+        widget.onCompleted?.call();
       }
     } catch (e) {
       if (!mounted) return;
@@ -334,6 +675,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
       _tagsController.clear();
       ref.invalidate(wikiPagesProvider);
       openWikiPageTab(ref, page);
+      widget.onCompleted?.call();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('已保存到知识库：《${page.title}》'),
@@ -355,9 +697,6 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 模式切换
-          _buildModeSwitch(),
-          const SizedBox(height: AppTheme.space4),
           if (_isUrlMode) ...[_buildUrlInput()] else ...[_buildTextInput()],
           if (_error != null) ...[
             const SizedBox(height: AppTheme.space2),
@@ -501,6 +840,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
         TextField(
           controller: _titleController,
           enabled: !_busy,
+          textAlignVertical: TextAlignVertical.top,
           decoration: InputDecoration(
             hintText: '标题（可选，留空自动取前 60 字）',
             hintStyle: TextStyle(fontSize: 13, color: AppTheme.textTertiary),
@@ -529,6 +869,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
         TextField(
           controller: _tagsController,
           enabled: !_busy,
+          textAlignVertical: TextAlignVertical.top,
           style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
           cursorColor: AppTheme.accentPrimary,
           decoration: InputDecoration(
@@ -568,6 +909,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
             enabled: !_busy,
             maxLines: null,
             expands: true,
+            textAlignVertical: TextAlignVertical.top,
             decoration: InputDecoration(
               hintText: '粘贴或输入要保存的内容（Markdown 语法支持）',
               hintStyle: TextStyle(fontSize: 13, color: AppTheme.textTertiary),
@@ -674,7 +1016,7 @@ class _PageTabBody extends ConsumerWidget {
             ),
           );
         }
-        return _WikiPageBody(page: page);
+        return _WikiPageBody(key: ValueKey(page.slug), page: page);
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => Center(
@@ -688,7 +1030,7 @@ class _PageTabBody extends ConsumerWidget {
 }
 
 /// 阅读栏最大宽度：正文与头部共用，保证长文行宽舒适、视线不来回扫。
-const double _kReadingMaxWidth = 760;
+const double _kReadingMaxWidth = 1160;
 
 /// 编辑冲突对话框中用户选择「取消/重新加载」时中止保存的内部信号：
 /// 让 [WikiContentEditor.save] 返回 false（留在/退出编辑态由调用处控制），
@@ -697,10 +1039,19 @@ class _SaveCancelled implements Exception {
   const _SaveCancelled();
 }
 
+enum _WikiPageSection {
+  content('内容'),
+  relations('关联'),
+  outputs('产出');
+
+  const _WikiPageSection(this.label);
+  final String label;
+}
+
 class _WikiPageBody extends ConsumerStatefulWidget {
   final WikiPage page;
 
-  const _WikiPageBody({required this.page});
+  const _WikiPageBody({super.key, required this.page});
 
   @override
   ConsumerState<_WikiPageBody> createState() => _WikiPageBodyState();
@@ -708,6 +1059,8 @@ class _WikiPageBody extends ConsumerStatefulWidget {
 
 class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
   final _editorKey = GlobalKey<WikiContentEditorState>();
+
+  _WikiPageSection _section = _WikiPageSection.content;
 
   /// 可编辑判定：素材页（source/note）只读，与 Rust 侧 `save_wiki_page_content`
   /// 保护一致（M1 素材保护）；人员/项目等 AI 档案页可人工修改。
@@ -719,13 +1072,13 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
   bool _editing = false;
   bool _saving = false;
   String? _editError;
-
-  /// 头部「标签 · 别名」折叠态：默认收起，把纵向空间还给正文。
-  bool _metaExpanded = false;
+  bool _chatOpen = false;
+  bool _chatInitialized = false;
+  Offset? _chatPosition;
 
   /// 保存回调注册表的 notifier 引用：dispose 后 `ref` 不可用，须提前缓存。
   late final StateController<Map<String, Future<bool> Function()>>
-      _saveCallbacks;
+  _saveCallbacks;
 
   @override
   void initState() {
@@ -760,127 +1113,275 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildHeader(context),
-        if (_editError != null) _buildEditErrorBar(),
-        if (_canEdit) _buildEditorToolbar(),
+    return DefaultTabController(
+      length: _WikiPageSection.values.length,
+      initialIndex: _section.index,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(context),
+          if (_editError != null) _buildEditErrorBar(),
+          _buildSectionBar(),
 
-        // 正文：编辑器自带滚动（含尾部对话块，§7 Form A；有限高约束，
-        // vendor overlay 不允许无界父级），派生产物/事实/待办作为下方卡座。
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.space6,
-              AppTheme.space3,
-              AppTheme.space6,
-              0,
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: _kReadingMaxWidth),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = math.min(
+                  720.0,
+                  math.max(0.0, constraints.maxWidth - 24),
+                );
+                final height = math.min(
+                  760.0,
+                  math.max(0.0, constraints.maxHeight - 24),
+                );
+                final maxX = math.max(0.0, constraints.maxWidth - width);
+                final maxY = math.max(0.0, constraints.maxHeight - height);
+                final x = _chatPosition == null
+                    ? maxX - 12
+                    : _chatPosition!.dx.clamp(0.0, maxX);
+                final y = _chatPosition == null
+                    ? maxY - 12
+                    : _chatPosition!.dy.clamp(0.0, maxY);
+                return Stack(
                   children: [
-                    if (widget.page.basedOn != null)
-                      WikiSourceLink(slug: widget.page.basedOn!),
-                    _EntityMergeControls(page: widget.page),
-                    const SizedBox(height: AppTheme.space3),
-                    Expanded(
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: _kReadingMaxWidth,
-                          ),
-                          child: WikiContentEditor(
-                            key: _editorKey,
-                            slug: widget.page.slug,
-                            contentMd: widget.page.contentMd,
-                            editable: _editing,
-                            onWikiLinkTap: _openWikiPageFromSlug,
-                            onSave: _persistEdit,
-                            onSaveError: (e) {
-                              // 冲突对话框的取消/重载是用户主动选择，不是失败
-                              if (!mounted || e is _SaveCancelled) return;
-                              setState(() => _editError = _errText(e));
-                            },
-                            onDirtyChanged: _setDirty,
+                    Positioned.fill(child: _buildSectionContent()),
+                    if (!_chatOpen)
+                      Positioned(
+                        right: 16,
+                        bottom: 16,
+                        child: FloatingActionButton.small(
+                          tooltip: '和 AI 讨论此页',
+                          onPressed: () => setState(() {
+                            _chatOpen = true;
+                            _chatInitialized = true;
+                          }),
+                          child: const Icon(Icons.auto_awesome_outlined),
+                        ),
+                      ),
+                    if (_chatInitialized)
+                      Positioned(
+                        left: x,
+                        top: y,
+                        width: width,
+                        height: height,
+                        child: Offstage(
+                          offstage: !_chatOpen,
+                          child: Material(
+                            elevation: 12,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusMedium,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: WikiAiChatPanel(
+                              slug: widget.page.slug,
+                              onMinimize: () =>
+                                  setState(() => _chatOpen = false),
+                              onDragUpdate: (delta) => setState(() {
+                                _chatPosition = Offset(
+                                  (x + delta.dx).clamp(0.0, maxX),
+                                  (y + delta.dy).clamp(0.0, maxY),
+                                );
+                              }),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    // 卡座：AI 派生产物 / 事实 / 相关待办（高度上限内自滚动）
-                    _buildCardStrip(context),
                   ],
-                ),
-              ),
+                );
+              },
             ),
           ),
-        ),
 
-        // 溯源脚注（聊天入口已移入正文尾部对话块，§7 Form A）
-        _buildFooter(),
-      ],
+          _buildFooter(),
+        ],
+      ),
     );
   }
 
-  /// 编辑工具栏：入口「编辑正文」；编辑态「取消 · 完成（保存）」。
-  Widget _buildEditorToolbar() {
+  Widget _buildSectionBar() {
     return Container(
-      width: double.infinity,
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.space6),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.surface3)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 窄视口（<480 内宽，对应 ~528 以下窗口）下编辑操作收成紧凑态，
+          // 避免「取消/完成」按钮把 Tab 栏挤到溢出。
+          final compact = constraints.maxWidth < 480;
+          return Row(
+            // 不自适应时 TabBar 用自然宽度（isScrollable），宽度随内容；
+            // spaceBetween 让 Tab 组贴左、编辑操作居中、聊天贴右。
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                labelColor: AppTheme.textPrimary,
+                unselectedLabelColor: AppTheme.textTertiary,
+                indicatorColor: AppTheme.accentPrimary,
+                indicatorWeight: 2,
+                labelStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                unselectedLabelStyle: const TextStyle(fontSize: 13),
+                dividerColor: Colors.transparent,
+                onTap: (index) => setState(() {
+                  _section = _WikiPageSection.values[index];
+                }),
+                tabs: [
+                  for (final section in _WikiPageSection.values)
+                    Tab(text: section.label),
+                ],
+              ),
+              if (_section == _WikiPageSection.content) ...[
+                // 右侧操作组：「正文阅读设置」永远贴最右，编辑操作排在它左
+                // 侧——编辑按钮（编辑正文/取消/完成）显隐不影响阅读按钮位置。
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_canEdit) _buildInlineEditActions(compact: compact),
+                    // 正文阅读参数（AA 浮层：字体/字号/行距，两层覆盖模型）。
+                    // 宽屏与「编辑正文」统一为 tonal 标签按钮（同 32 高、同
+                    // padding、同图标尺寸）；窄视口（compact）与编辑操作一致
+                    // 收成图标按钮，避免手机宽度下 section bar 溢出。
+                    if (compact)
+                      IconButton(
+                        tooltip: '正文阅读设置（字体 / 字号 / 行距）',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => showWikiReadingSettings(context),
+                        icon: const Icon(Icons.format_size, size: 19),
+                        color: AppTheme.textSecondary,
+                      )
+                    else
+                      Tooltip(
+                        message: '正文阅读设置（字体 / 字号 / 行距）',
+                        child: FilledButton.tonalIcon(
+                          onPressed: () => showWikiReadingSettings(context),
+                          icon: const Icon(Icons.format_size, size: 15),
+                          label: const Text('阅读设置'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 32),
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSectionContent() {
+    return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppTheme.space6,
-        AppTheme.space2,
+        AppTheme.space3,
         AppTheme.space6,
-        AppTheme.space2,
+        0,
       ),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppTheme.surface3, width: 1)),
-      ),
-      child: Center(
+      child: Align(
+        alignment: Alignment.topLeft,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _kReadingMaxWidth),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _editing
-                      ? '编辑正文中 · Ctrl/⌘+S 保存'
-                      : 'AI 生成正文，可人工修正',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textTertiary,
-                  ),
-                ),
+          child: switch (_section) {
+            _WikiPageSection.content => WikiContentEditor(
+              key: _editorKey,
+              slug: widget.page.slug,
+              contentMd: widget.page.contentMd,
+              editable: _editing,
+              onWikiLinkTap: _openWikiPageFromSlug,
+              onSave: _persistEdit,
+              onSaveError: (e) {
+                if (!mounted || e is _SaveCancelled) return;
+                setState(() => _editError = _errText(e));
+              },
+              onDirtyChanged: _setDirty,
+              // 两层覆盖模型：编辑器覆盖 ?? 全局；font 覆盖层原样传入，
+              // 编辑器内回退主题解析的全局字体（system = 跟随系统字体）
+              fontFamily: ref.watch(
+                settingsProvider.select((s) => s.editorFontName),
               ),
-              if (_editing) ...[
-                TextButton(
-                  onPressed: _saving ? null : _cancelEditing,
-                  child: const Text('取消'),
-                ),
-                const SizedBox(width: 4),
-                FilledButton(
-                  onPressed: _saving ? null : _finishEditing,
-                  child: _saving
-                      ? const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('完成'),
-                ),
-              ] else
-                FilledButton.tonalIcon(
-                  onPressed: _enterEditing,
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('编辑正文'),
-                ),
-            ],
-          ),
+              fontSize: ref.watch(
+                settingsProvider.select((s) => s.contentFontSize),
+              ),
+              lineHeight: ref.watch(
+                settingsProvider.select((s) => s.contentLineHeight),
+              ),
+            ),
+            _WikiPageSection.relations => SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.page.basedOn != null)
+                    WikiSourceLink(slug: widget.page.basedOn!),
+                  _EntityMergeControls(page: widget.page),
+                  _EntityFacts(slug: widget.page.slug),
+                  _EntityRelatedTodos(page: widget.page),
+                ],
+              ),
+            ),
+            _WikiPageSection.outputs => SingleChildScrollView(
+              child: WikiDerivatives(slug: widget.page.slug),
+            ),
+          },
         ),
       ),
     );
+  }
+
+  Widget _buildInlineEditActions({bool compact = false}) {
+    if (_editing) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (compact)
+            IconButton(
+              tooltip: '取消',
+              visualDensity: VisualDensity.compact,
+              onPressed: _saving ? null : _cancelEditing,
+              icon: const Icon(Icons.close, size: 18),
+            )
+          else ...[
+            TextButton(
+              onPressed: _saving ? null : _cancelEditing,
+              child: const Text('取消'),
+            ),
+            const SizedBox(width: 2),
+          ],
+          FilledButton(
+            onPressed: _saving ? null : _finishEditing,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(58, 32),
+              padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
+            ),
+            child: _saving
+                ? const SizedBox(
+                    width: 13,
+                    height: 13,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('完成'),
+          ),
+        ],
+      );
+    }
+    final editButton = FilledButton.tonalIcon(
+      onPressed: _enterEditing,
+      icon: const Icon(Icons.edit_outlined, size: 15),
+      label: const Text('编辑正文'),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(0, 32),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+      ),
+    );
+    return editButton;
   }
 
   /// 卡座：AI 派生产物 / 事实 / 相关待办。
@@ -1018,8 +1519,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
   }
 
   /// 冲突判定：Rust 侧乐观锁拒绝时的错误消息前缀
-  static bool _isConflictError(Object e) =>
-      e.toString().contains('编辑冲突');
+  static bool _isConflictError(Object e) => e.toString().contains('编辑冲突');
 
   /// 编辑冲突三选：重新加载（弃本地）/ 强制覆盖（盖后台）/ 取消（继续编辑）
   Future<String?> _showConflictDialog() {
@@ -1077,14 +1577,16 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
         AppTheme.space6,
-        AppTheme.space4,
+        AppTheme.space3,
         AppTheme.space6,
-        AppTheme.space4,
+        AppTheme.space2,
       ),
       decoration: BoxDecoration(
+        color: AppTheme.surface1.withValues(alpha: 0.72),
         border: Border(bottom: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
-      child: Center(
+      child: Align(
+        alignment: Alignment.centerLeft,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _kReadingMaxWidth),
           child: Column(
@@ -1116,64 +1618,33 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
                     ),
                   ),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surface3,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusFull,
-                        ),
-                      ),
-                      child: Text(
-                        widget.page.slug,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.textTertiary,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ),
+                    constraints: const BoxConstraints(maxWidth: 980),
+                    child: _buildHeaderTitle(context),
                   ),
                   Text(
-                    '证据 ${widget.page.evidenceCount} · 更新 ${_fmtDate(widget.page.updatedAt)}',
+                    '${widget.page.slug} · 采集 ${_fmtDate(widget.page.lastSeenAt)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
                       color: AppTheme.textTertiary,
                     ),
                   ),
                   if (widget.page.sourceUrl != null)
-                    _SourceChip(url: widget.page.sourceUrl!),
+                    if (widget.page.isLocalPath)
+                      _LocalPathChip(page: widget.page)
+                    else
+                      _SourceChip(url: widget.page.sourceUrl!),
                 ],
               ),
-              // 摘要：一行预览，让阅读者扫到这一页在讲什么
-              if (_hasSummary)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    widget.page.summary.trim(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.5,
-                      color: AppTheme.textTertiary,
-                    ),
-                  ),
-                ),
               if (widget.page.tags.contains('work-item')) ...[
                 const SizedBox(height: AppTheme.space2),
                 _WorkItemPanel(page: widget.page),
               ],
               // 人物关系是内容级信息，保持直接可见（空时自隐藏）
               _buildRelationsRow(context),
-              // 标签 / 别名是纯元数据，折叠进「标签 · 别名」，默认收起
-              _buildMetaFold(context),
+              // 标签直接展开，避免用户还要打开一个元数据折叠行。
+              _buildTagRow(context),
             ],
           ),
         ),
@@ -1181,40 +1652,32 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
     );
   }
 
-  /// 元数据折叠行：标签 + 别名默认收起，点击展开编辑。
-  Widget _buildMetaFold(BuildContext context) {
-    final tagCount = widget.page.tags.length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          onTap: () => setState(() => _metaExpanded = !_metaExpanded),
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _metaExpanded ? Icons.expand_less : Icons.expand_more,
-                  size: 14,
-                  color: AppTheme.textTertiary,
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  tagCount > 0 ? '标签（$tagCount）· 别名' : '标签 · 别名',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (_metaExpanded) ...[
-          const SizedBox(height: 4),
-          _buildTagRow(context),
-          _EntityAliases(slug: widget.page.slug),
-        ],
-      ],
+  /// 知识页标题：单行保留，过长省略并附 tooltip 显示完整标题。
+  Widget _buildHeaderTitle(BuildContext context) {
+    final title = widget.page.title;
+    final style = TextStyle(
+      fontSize: 23,
+      fontWeight: FontWeight.w600,
+      color: AppTheme.textPrimary,
+      height: 1.25,
+    );
+    final text = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: title, style: style),
+          maxLines: 1,
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: constraints.maxWidth);
+        // 标题在约束内能完整排入一行就不包 tooltip；溢出（省略号出现）才 hover 展示全文。
+        if (!painter.didExceedMaxLines) return text;
+        return Tooltip(message: title, child: text);
+      },
     );
   }
 
@@ -1228,6 +1691,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
         AppTheme.space3,
       ),
       decoration: BoxDecoration(
+        color: AppTheme.surface1.withValues(alpha: 0.55),
         border: Border(top: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: Center(
@@ -1235,19 +1699,12 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
           constraints: const BoxConstraints(maxWidth: _kReadingMaxWidth),
           child: Row(
             children: [
-              Icon(
-                Icons.track_changes,
-                size: 12,
-                color: AppTheme.textTertiary,
-              ),
+              Icon(Icons.track_changes, size: 12, color: AppTheme.textTertiary),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   '源于 ${widget.page.sourceEventIds.isEmpty ? "尚无事件溯源" : "${widget.page.sourceEventIds.length} 条事件"}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                 ),
               ),
             ],
@@ -1257,7 +1714,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
     );
   }
 
-/// 标签行：标签 chips + 编辑入口（标签是用户组织知识库的主要元数据）
+  /// 标签行：标签 chips + 编辑入口（标签是用户组织知识库的主要元数据）
   Widget _buildTagRow(BuildContext context) {
     return Wrap(
       spacing: 6,
@@ -1500,8 +1957,8 @@ class _WorkItemPanel extends ConsumerWidget {
             label: workItem.priority == 'high'
                 ? '高优先级'
                 : workItem.priority == 'low'
-                    ? '低优先级'
-                    : '普通优先级',
+                ? '低优先级'
+                : '普通优先级',
             color: AppTheme.textSecondary,
           ),
         ),
@@ -1571,71 +2028,6 @@ String _fmtWorkItemDate(String value) {
   final date = DateTime.tryParse(value)?.toLocal();
   if (date == null) return value;
   return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-}
-
-class _EntityAliases extends ConsumerStatefulWidget {
-  final String slug;
-  const _EntityAliases({required this.slug});
-  @override
-  ConsumerState<_EntityAliases> createState() => _EntityAliasesState();
-}
-
-class _EntityAliasesState extends ConsumerState<_EntityAliases> {
-  Future<void> _addAlias() async {
-    final controller = TextEditingController();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('添加别名'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: '例如：项目简称、常用称呼'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('添加'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (value == null || value.trim().isEmpty || !mounted) return;
-    final kind = widget.slug.split('/').first;
-    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-    await repo.addEntityAlias(kind, widget.slug, value.trim());
-    ref.invalidate(entityAliasesProvider(widget.slug));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final aliases =
-        ref.watch(entityAliasesProvider(widget.slug)).valueOrNull ?? const [];
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Wrap(
-        spacing: 6,
-        children: [
-          if (aliases.isNotEmpty) ...[
-            const Icon(Icons.alt_route, size: 14),
-            for (final alias in aliases)
-              Chip(label: Text(alias, style: const TextStyle(fontSize: 11))),
-          ],
-          ActionChip(
-            avatar: const Icon(Icons.add, size: 14),
-            label: const Text('添加别名', style: TextStyle(fontSize: 11)),
-            onPressed: _addAlias,
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _EntityMergeControls extends ConsumerWidget {
@@ -1897,7 +2289,7 @@ class _EntityRelatedTodos extends ConsumerWidget {
                         fontSize: 10.5,
                         color: AppTheme.textTertiary,
                       ),
-                      ),
+                    ),
               secondary: IconButton(
                 tooltip: '打开工作项',
                 icon: Icon(
@@ -1906,8 +2298,9 @@ class _EntityRelatedTodos extends ConsumerWidget {
                   color: AppTheme.accentPrimary,
                 ),
                 onPressed: () async {
-                  final repo = ref.read(storageRepositoryProvider)
-                      as RustBridgeRepository;
+                  final repo = ref.read(
+                    storageRepositoryProvider,
+                  ) as RustBridgeRepository;
                   final workItem = await repo.openTodoWorkItem(todo.id);
                   if (!context.mounted) return;
                   openWikiPageTab(ref, workItem);
@@ -1961,7 +2354,9 @@ class _EntityFacts extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: AppTheme.warning.withValues(alpha: .10),
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(color: AppTheme.warning.withValues(alpha: .35)),
+                border: Border.all(
+                  color: AppTheme.warning.withValues(alpha: .35),
+                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2167,6 +2562,152 @@ class _EntityFacts extends ConsumerWidget {
   }
 }
 
+/// 本地路径 chip：目录导入的项目页（sourceUrl 为 file://）。
+/// 显示解码后路径，点击复制；铅笔按钮弹出改路径对话框（目录搬家后纠正）。
+class _LocalPathChip extends ConsumerWidget {
+  final WikiPage page;
+
+  const _LocalPathChip({required this.page});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final path = page.localPath ?? page.sourceUrl!;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: path));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('项目路径已复制'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppTheme.surface2,
+              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              border: Border.all(color: AppTheme.surface3),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.folder_outlined,
+                  size: 11,
+                  color: AppTheme.textTertiary,
+                ),
+                const SizedBox(width: 4),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  child: Text(
+                    path,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.copy, size: 10, color: AppTheme.textTertiary),
+              ],
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: '修改项目路径',
+          visualDensity: VisualDensity.compact,
+          iconSize: 14,
+          onPressed: () => _showEditPathDialog(context, ref),
+          icon: Icon(Icons.edit_outlined, color: AppTheme.textTertiary),
+        ),
+      ],
+    );
+  }
+
+  /// 修改项目路径：系统目录选择器选目录 → 确认框保存。
+  /// 不用 TextField 手输：避免路径输错，也避开 dialog 退场动画期间
+  /// dispose controller 导致的已释放访问 crash。
+  Future<void> _showEditPathDialog(BuildContext context, WidgetRef ref) async {
+    final picked = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择项目目录',
+      initialDirectory: page.localPath,
+    );
+    if (picked == null || picked.trim().isEmpty) return;
+    final newPath = picked.trim();
+    if (newPath == page.localPath) return;
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('修改项目路径'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '旧路径',
+              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+            ),
+            SelectableText(
+              page.localPath ?? '',
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '新路径',
+              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+            ),
+            SelectableText(
+              newPath,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.updateProjectPath(slug: page.slug, newPath: newPath);
+      ref.invalidate(wikiPageProvider(page.slug));
+      ref.invalidate(wikiPagesProvider);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('项目路径已更新')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '路径更新失败：${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+        ),
+      );
+    }
+  }
+}
+
 /// 来源链接 chip：点击复制
 class _SourceChip extends StatelessWidget {
   final String url;
@@ -2291,7 +2832,6 @@ class _RelationChip extends ConsumerWidget {
     );
   }
 }
-
 
 // ─────────────────────────────────────────────
 // 任意网址预览 tab：内容 + 保存（点保存才入库）
@@ -2561,6 +3101,23 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
 // 推文预览 tab：内容 + 对话 + 保存
 // ─────────────────────────────────────────────
 
+/// 「AI 整理为 Markdown」固定指令：一次性整理、不进对话历史、不写库；
+/// 要求模型只输出 Markdown 正文（结果仅用于替换保存入库的正文）。
+const String _kBeautifyInstruction =
+    '请把上面的抓取内容整理为结构良好的 Markdown 文档：\n'
+    '- 保留全部事实与观点，不新增、不删减、不改写立场；\n'
+    '- 按语义合理分段；并列要点用无序列表，步骤/流程用有序列表；\n'
+    '- 内容较长时提炼 1-3 个「##」小标题；\n'
+    '- 裸露链接整理为 [文字](url) 形式；#话题# 与 @提及 原样保留；\n'
+    '- 只输出 Markdown 正文本身，不要任何解释、前言或代码围栏。';
+
+/// 剥掉模型偶尔给整段回复套上的代码围栏（```markdown ... ```），取纯正文。
+String _unwrapCodeFence(String reply) {
+  final text = reply.trim();
+  final match = RegExp(r'^```[a-zA-Z]*\s*\n([\s\S]*?)\s*```$').firstMatch(text);
+  return match == null ? text : match.group(1)!.trim();
+}
+
 class _TweetTabBody extends ConsumerStatefulWidget {
   final TweetFetch fetch;
 
@@ -2582,6 +3139,11 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
   final _chatController = TextEditingController();
   final _chatFocusNode = FocusNode();
   final _scrollController = ScrollController();
+
+  // AI 整理结果（Markdown）：一次性生成、不进对话历史；保存时优先入库此版本
+  String? _beautified;
+  bool _beautifying = false;
+  String? _beautifyError;
 
   @override
   void initState() {
@@ -2616,7 +3178,8 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final page = await repo.saveTweetPage(
         tweetId: widget.fetch.tweetId,
-        text: widget.fetch.text,
+        // 有 AI 整理版时入库整理版（原文不动，仅在预览层对照）
+        text: _beautified ?? widget.fetch.text,
         title: widget.fetch.title,
         authorName: widget.fetch.authorName,
         screenName: widget.fetch.screenName,
@@ -2703,6 +3266,38 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
     });
   }
 
+  /// 「AI 整理为 Markdown」：复用一次性内容对话入口（固定指令，不进聊天历史、
+  /// 不写库）；结果只替换「保存入库的正文」，原文卡片保持可对照。
+  Future<void> _beautify() async {
+    if (_beautifying || _saved || _saving) return;
+    setState(() {
+      _beautifying = true;
+      _beautifyError = null;
+    });
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final reply = await repo.generateContentChat(
+        content: widget.fetch.fullContent,
+        messages: const [
+          ContentChatMessage(role: 'user', content: _kBeautifyInstruction),
+        ],
+      );
+      if (!mounted) return;
+      setState(() {
+        _beautified = _unwrapCodeFence(reply);
+        _beautifying = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _beautifying = false;
+        _beautifyError =
+            'AI 整理失败：${e.toString().replaceFirst('Exception: ', '')}';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -2715,6 +3310,8 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
             padding: const EdgeInsets.all(AppTheme.space4),
             children: [
               _buildTweetCard(),
+              const SizedBox(height: AppTheme.space3),
+              _buildBeautifySection(),
               const SizedBox(height: AppTheme.space4),
               Row(
                 children: [
@@ -2785,7 +3382,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
         AppTheme.space6,
-        AppTheme.space3,
+        AppTheme.space6,
         AppTheme.space4,
         AppTheme.space3,
       ),
@@ -2922,6 +3519,87 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
     );
   }
 
+  /// 「AI 整理为 Markdown」区块：触发按钮 + 整理结果预览（MarkdownView 渲染）。
+  /// 与下方「与 AI 讨论」互不干扰：一次性整理不走对话历史、不写库。
+  Widget _buildBeautifySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            TextButton.icon(
+              onPressed: (_beautifying || _saved || _saving) ? null : _beautify,
+              icon: _beautifying
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome_outlined, size: 16),
+              label: Text(
+                _beautifying
+                    ? 'AI 整理中…'
+                    : (_beautified == null ? 'AI 整理为 Markdown' : '重新整理'),
+              ),
+            ),
+            if (_beautified != null) ...[
+              TextButton(
+                onPressed: () => setState(() => _beautified = null),
+                child: const Text('放弃整理'),
+              ),
+              const Spacer(),
+              Text(
+                '保存时将使用整理版',
+                style: TextStyle(fontSize: 11, color: AppTheme.accentPrimary),
+              ),
+            ],
+          ],
+        ),
+        if (_beautifyError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppTheme.space2),
+            child: Text(
+              _beautifyError!,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.error,
+                height: 1.5,
+              ),
+            ),
+          ),
+        if (_beautified != null) ...[
+          const SizedBox(height: AppTheme.space2),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppTheme.space4),
+            decoration: BoxDecoration(
+              color: AppTheme.surface2,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              border: Border.all(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI 整理结果（Markdown 预览）',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                MarkdownView(markdown: _beautified!),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildChatInput() {
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -2993,6 +3671,133 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _WikiBrowseTab extends ConsumerStatefulWidget {
+  const _WikiBrowseTab();
+  @override
+  ConsumerState<_WikiBrowseTab> createState() => _WikiBrowseTabState();
+}
+
+class _WikiBrowseTabState extends ConsumerState<_WikiBrowseTab> {
+  final _query = TextEditingController();
+  Set<String> _areas = <String>{};
+  Set<String> _kinds = <String>{};
+  Set<String> _tags = <String>{};
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages =
+        ref.watch(wikiPagesProvider).valueOrNull ?? const <WikiPage>[];
+    final hasSearch =
+        _query.text.trim().isNotEmpty ||
+        _areas.isNotEmpty ||
+        _kinds.isNotEmpty ||
+        _tags.isNotEmpty;
+    bool areaMatches(WikiPage page) {
+      if (_areas.isEmpty) return true;
+      return _areas.any((value) {
+        if (value == 'network:person') {
+          return page.area == 'network' && page.kind == 'person';
+        }
+        if (value == 'network:project') {
+          return page.area == 'network' && page.kind == 'project';
+        }
+        return page.area == value;
+      });
+    }
+
+    final filtered = hasSearch
+        ? (pages.where((p) {
+            final q = _query.text.trim().toLowerCase();
+            final searchable =
+                '${p.title} ${p.summary} ${p.contentMd} ${p.tags.join(' ')}';
+            return p.status != 'archived' &&
+                (q.isEmpty || searchable.toLowerCase().contains(q)) &&
+                areaMatches(p) &&
+                (_kinds.isEmpty || _kinds.contains(p.kind)) &&
+                (_tags.isEmpty || p.tags.any(_tags.contains));
+          }).toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
+        : <WikiPage>[];
+    final areas = pages.map((p) => p.area).toSet().toList()..sort();
+    final kinds = pages.map((p) => p.kind).toSet().toList()..sort();
+    final tags = pages.expand((p) => p.tags).toSet().toList()..sort();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          child: Column(
+            children: [
+              _KnowledgeBrowser(
+                queryController: _query,
+                areasSelected: _areas,
+                kindsSelected: _kinds,
+                tagsSelected: _tags,
+                query: _query.text,
+                onQueryChanged: (_) => setState(() {}),
+                onAreaChanged: (v) => setState(() => _areas = v),
+                onKindChanged: (v) => setState(() => _kinds = v),
+                onTagChanged: (v) => setState(() => _tags = v),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: !hasSearch
+              ? const Center(child: Text('输入关键词或选择筛选条件开始浏览'))
+              : filtered.isEmpty
+              ? const Center(child: Text('没有匹配的知识页'))
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final p = filtered[i];
+                    return Material(
+                      color: Colors.transparent,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        leading: Icon(
+                          p.kind == 'project'
+                              ? Icons.work_outline
+                              : Icons.description_outlined,
+                          color: AppTheme.accentPrimary,
+                        ),
+                        title: Text(
+                          p.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          p.summary.isEmpty ? p.kindLabel : p.summary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(
+                          p.kindLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textTertiary,
+                          ),
+                        ),
+                        onTap: () => openWikiPageTab(ref, p),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }

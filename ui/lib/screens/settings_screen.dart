@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_font_picker/flutter_font_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -10,6 +9,8 @@ import '../models/rule.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../bridge/generated.dart/api.dart' as api;
 import '../widgets/custom_title_bar.dart';
+import '../widgets/font_picker_dialog.dart';
+import '../utils/system_fonts.dart';
 import '../theme/app_theme.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -1260,15 +1261,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  /// 字体选择：主按钮打开 flutter_font_picker 搜索对话框（Google Fonts 全量，
-  /// 支持按名称搜索、分类/中文字形过滤、最近使用）；「系统默认」chip 单独提供。
-  /// 存值是 Google Fonts 家族名或 [AppFonts.system]，见 [AppFonts]。
+  /// 字体选择：主按钮打开自研选择框（系统默认 / 本地字体 / Google Fonts，
+  /// 每行自身字体预览）；「系统默认」chip 单独提供。存值格式见 [parseStoredFont]。
   Widget _buildFontField(AppSettings settings, SettingsNotifier notifier) {
     final fontName = settings.fontName;
     final isSystem = fontName == AppFonts.system;
-    // 预览样式：字体已全局应用，这里仅对未知家族名（历史存值）防断言
-    final previewStyle = !isSystem && GoogleFonts.asMap().containsKey(fontName)
-        ? GoogleFonts.getFont(fontName)
+    // 预览样式：google 直接取，本地字体懒加载就绪后用自身渲染
+    final parsed = parseStoredFont(fontName);
+    final previewStyle = !isSystem && parsed.kind == 'google'
+        ? GoogleFonts.getFont(parsed.family)
         : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1297,10 +1298,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        AppFonts.displayNameOf(fontName),
-                        style: previewStyle,
-                        overflow: TextOverflow.ellipsis,
+                      child: FontNameLabel(
+                        stored: fontName,
+                        fallbackStyle: previewStyle,
                       ),
                     ),
                     Icon(
@@ -1330,34 +1330,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  /// 打开字体选择对话框。注意：picker 内部「Select」按钮会自行关闭对话框，
-  /// onFontChanged 里只需更新状态，不要重复 pop。
-  void _showFontPicker(SettingsNotifier notifier, String current) {
-    final initial = GoogleFonts.asMap().containsKey(current)
-        ? current
-        : AppFonts.defaultFont;
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('选择字体'),
-        contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-        content: SizedBox(
-          width: 520,
-          height: 560,
-          child: FontPicker(
-            showInDialog: true,
-            // 全局正文字体只选家族，字重由主题管理
-            showFontVariants: false,
-            initialFontFamily: initial,
-            onFontChanged: (font) {
-              notifier
-                ..updateFontName(font.fontFamily)
-                ..saveTheme();
-            },
-          ),
-        ),
-      ),
-    );
+  /// 打开字体选择对话框：选中后先预热本地字体再落库，避免主题闪默认字体。
+  Future<void> _showFontPicker(SettingsNotifier notifier, String current) async {
+    final picked = await showFontPickerDialog(context, current: current);
+    if (picked == null || !mounted) return;
+    await notifier.setGlobalFont(picked);
+    await notifier.saveTheme();
   }
 
   Widget _buildTextField({

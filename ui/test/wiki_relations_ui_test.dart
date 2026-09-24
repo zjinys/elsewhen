@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/screens/main_screen.dart';
+import 'package:elsewhen_ui/providers/wiki_provider.dart';
 
 import 'support/isolated_bridge.dart';
 
@@ -84,14 +85,16 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [storageRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          storageRepositoryProvider.overrideWithValue(repo),
+          sidebarTabProvider.overrideWith((ref) => SidebarTab.wiki),
+        ],
         child: const MaterialApp(home: MainScreen()),
       ),
     );
     await tester.pump();
 
-    // 切到知识库 tab
-    await tester.tap(find.text('知识库'));
+    // 直接打开知识库工作区（知识库不再是并列顶层 tab）
     await tester.pump();
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 500)),

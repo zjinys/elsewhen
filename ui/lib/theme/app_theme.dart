@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/settings.dart' show AppFonts, AppThemePreset;
+import '../utils/system_fonts.dart';
 
 /// 一整套界面色板（浅 / 深两套）。应用在 `AppTheme.apply()` 时切换，
 /// 组件里继续写 `AppTheme.surface1` 就能自动跟随深浅模式。
@@ -207,13 +208,17 @@ class AppTheme {
   /// 兼容引用（等价于默认预设的深色主题）
   static ThemeData get darkTheme => buildTheme(AppThemePreset.amber, Brightness.dark);
 
-  /// 按字体选择生成 textTheme：system 不套网络字体（跟随系统），
-  /// 其余经 google_fonts 按家族名动态加载（首次使用联网下载并缓存，
-  /// 未知家族名回退默认字体）。
+  /// 按字体选择生成 textTheme：system 不套字体（跟随系统）；
+  /// google 经 google_fonts 按家族名动态加载（首次使用联网下载并缓存）；
+  /// local 是 fontconfig 本地字体（启动/切换时已预热 FontLoader）；
+  /// 未知家族名回退默认字体。见 [resolveFontFamily]。
   static TextTheme _textThemeFor(String fontName, TextTheme base) {
-    if (fontName == AppFonts.system) return base;
-    final family =
-        GoogleFonts.asMap().containsKey(fontName) ? fontName : AppFonts.defaultFont;
-    return GoogleFonts.getTextTheme(family, base);
+    final family = resolveFontFamily(fontName, fallback: AppFonts.defaultFont);
+    if (family == null) return base;
+    if (GoogleFonts.asMap().containsKey(family) &&
+        SystemFontService.instance.fileForFamilySync(family) == null) {
+      return GoogleFonts.getTextTheme(family, base);
+    }
+    return base.apply(fontFamily: family);
   }
 }

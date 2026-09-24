@@ -1278,6 +1278,20 @@ pub fn update_pending_action_args(action_id: String, args_json: String) -> Resul
     store.update_pending_action_args(&action_id, &args_json)
 }
 
+/// 从对话中的草稿预览单独保存一张知识页，不确认同会话的其他动作。
+pub fn confirm_knowledge_draft(conversation_id: String, action_id: String) -> Result<String> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    crate::ai::tool::confirm_knowledge_draft(&store, &conversation_id, &action_id)
+}
+
+/// 只拒绝这一篇待入库知识草稿，不删除已保存页面或其他待确认动作。
+pub fn decline_knowledge_draft(conversation_id: String, action_id: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    crate::ai::tool::decline_knowledge_draft(&store, &conversation_id, &action_id)
+}
+
 /// Create a new conversation
 /// 个人经验规则 DTO
 #[derive(Clone, Debug)]
@@ -1674,6 +1688,25 @@ pub fn list_wiki_page_derivatives(slug: String) -> Result<Vec<WikiPageDto>> {
     Ok(pages.into_iter().map(WikiPageDto::from).collect())
 }
 
+/// 直接把一段内容保存为某知识页的派生产物（页内 AI 聊天「保存」按钮用，跳过 AI 草拟确认）。
+pub fn create_wiki_derivative(
+    based_on_slug: String,
+    content_type: String,
+    title: String,
+    content_md: String,
+) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let page = store.create_derivative(
+        &based_on_slug,
+        &content_type,
+        &title,
+        &content_md,
+        "由页内 AI 对话直接保存为派生产物",
+    )?;
+    Ok(WikiPageDto::from(page))
+}
+
 /// Get a single wiki page by slug
 pub fn get_wiki_page(slug: String) -> Result<Option<WikiPageDto>> {
     let config = crate::config::AppConfig::load()?;
@@ -1687,6 +1720,24 @@ pub fn update_wiki_tags(slug: String, tags: Vec<String>) -> Result<WikiPageDto> 
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     let page = store.update_wiki_tags(&slug, &tags)?;
+    Ok(WikiPageDto::from(page))
+}
+
+/// 修改一张项目页关联的本地目录（目录搬家后在知识页纠正路径）。
+/// 路径记进 `source_url`（file:// 规范形式）；新路径必须存在且是目录。返回更新后的页面。
+pub fn update_project_path(slug: String, new_path: String) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let page = store.update_project_path(&slug, &new_path)?;
+    Ok(WikiPageDto::from(page))
+}
+
+/// 刷新一张目录导入的项目页：按 `source_url`（file://）重扫目录并整篇更新。
+/// 目录不存在会直接报错（提示先改路径）。返回刷新后的页面。
+pub fn refresh_project_page(slug: String) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let page = crate::local_sources::refresh_project_page(&store, &slug)?;
     Ok(WikiPageDto::from(page))
 }
 
@@ -1952,7 +2003,8 @@ pub fn find_tweet_source_page(url: String) -> Result<Option<WikiPageDto>> {
     Ok(page.map(WikiPageDto::from))
 }
 
-/// 主题偏好 DTO（设置页「外观」：模式 + 预设 + 字体 + 正文字号；存 app_meta）
+/// 主题偏好 DTO（设置页「外观」：模式 + 预设 + 字体 + 正文字号；存 app_meta。
+/// 后三项为编辑器内容区覆盖层，None = 跟随全局，见两层覆盖模型）
 #[derive(Clone, Debug)]
 pub struct ThemePrefsDto {
     /// "light" | "dark" | "system"
@@ -1963,9 +2015,16 @@ pub struct ThemePrefsDto {
     pub font: String,
     /// 知识库正文字号（12.0–24.0，默认 16.0）
     pub font_size: f64,
+    /// 编辑器（内容区）字体覆盖；None = 跟随全局
+    pub editor_font: Option<String>,
+    /// 编辑器（内容区）字号覆盖；None = 跟随全局
+    pub editor_font_size: Option<f64>,
+    /// 编辑器（内容区）行距覆盖；None = 跟随全局
+    pub editor_line_height: Option<f64>,
 }
 
-/// 读取主题偏好（默认深色 + 琥珀 + Inter + 16px，保留现有观感）
+/// 读取主题偏好（默认深色 + 琥珀 + Inter + 16px，保留现有观感；
+/// 编辑器覆盖层无则 None，UI 回落全局）
 pub fn get_theme_prefs() -> Result<ThemePrefsDto> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
@@ -1982,27 +2041,54 @@ pub fn get_theme_prefs() -> Result<ThemePrefsDto> {
         .get_meta("theme_font_size")?
         .and_then(|v| v.parse::<f64>().ok())
         .unwrap_or(16.0);
+    let editor_font = store.get_meta("theme_editor_font")?;
+    let editor_font_size = store
+        .get_meta("theme_editor_font_size")?
+        .and_then(|v| v.parse::<f64>().ok());
+    let editor_line_height = store
+        .get_meta("theme_editor_line_height")?
+        .and_then(|v| v.parse::<f64>().ok());
     Ok(ThemePrefsDto {
         mode,
         preset,
         font,
         font_size,
+        editor_font,
+        editor_font_size,
+        editor_line_height,
     })
 }
 
-/// 保存主题偏好（设置页「外观」保存）
+/// 保存主题偏好（设置页「外观」保存）。编辑器覆盖层参数 None = 跟随全局，
+/// 会从 app_meta 删除对应键（覆盖态回归继承态）。
 pub fn update_theme_prefs(
     mode: String,
     preset: String,
     font: String,
     font_size: f64,
+    editor_font: Option<String>,
+    editor_font_size: Option<f64>,
+    editor_line_height: Option<f64>,
 ) -> Result<()> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     store.set_meta("theme_mode", &mode)?;
     store.set_meta("theme_preset", &preset)?;
     store.set_meta("theme_font", &font)?;
-    store.set_meta("theme_font_size", &font_size.to_string())
+    store.set_meta("theme_font_size", &font_size.to_string())?;
+    match editor_font {
+        Some(f) => store.set_meta("theme_editor_font", &f)?,
+        None => store.remove_meta("theme_editor_font")?,
+    }
+    match editor_font_size {
+        Some(v) => store.set_meta("theme_editor_font_size", &v.to_string())?,
+        None => store.remove_meta("theme_editor_font_size")?,
+    }
+    match editor_line_height {
+        Some(v) => store.set_meta("theme_editor_line_height", &v.to_string())?,
+        None => store.remove_meta("theme_editor_line_height")?,
+    }
+    Ok(())
 }
 
 // ── 个人待办（todo） ──────────────────────────────────────────────────

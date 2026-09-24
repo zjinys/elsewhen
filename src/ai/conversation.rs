@@ -40,6 +40,13 @@ const MAX_TOOL_ROUNDS: usize = 4;
 /// 文本协议的工具调用标记（AI 独占一行输出）
 const TOOL_CALL_MARKER: &str = "[工具调用]";
 
+/// 协议修复预算：疑似调用但格式未知时的最大回炉次数。
+/// 与 MAX_TOOL_ROUNDS 独立计数，双保险防死循环。
+const MAX_PROTOCOL_REPAIRS: usize = 2;
+
+/// 回炉提示：只讲唯一合法格式，不解释、不啰嗦，让模型重发一行调用。
+const PROTOCOL_REPAIR_NUDGE: &str = "系统提示：你上一轮回复疑似包含一次工具调用，但格式无法识别，没有执行。工具调用必须独占一行，只允许唯一格式（其他任何格式都会被丢弃）：\n[工具调用]{\"name\":\"工具名\",\"arguments\":{...}}\n请重新只输出这一行调用，不要输出其他内容。";
+
 /// Generate AI reply for a conversation
 ///
 /// 流程：确认门（规则提议 + 待确认写动作）→ 构建上下文 → Agent 循环
@@ -52,9 +59,13 @@ pub fn generate_conversation_reply(
 ) -> Result<String> {
     let config = config.unwrap_or_default();
 
+    // 本轮时间窗起点：写声明核验以库内时间为准（标题→查库→卡时间窗），
+    // failover 换 provider 重试也不重置、不丢失，比内存 flag 稳定。
+    let turn_start = chrono::Utc::now();
+
     // 1) 确认门：规则提议确认/丢弃 + 写类工具待确认动作执行/丢弃
     let promoted_rules = handle_rule_proposal_confirmation(store, conversation_id)?;
-    let executed = handle_pending_action_confirmation(store, conversation_id)?;
+    let (executed, _executed_ok) = handle_pending_action_confirmation(store, conversation_id)?;
 
     // 2) 构建上下文
     let memory: Box<dyn MemoryProvider> = match config.memory_type {
@@ -65,18 +76,19 @@ pub fn generate_conversation_reply(
     let mut context = memory.prepare_context(conversation_id, store)?;
 
     // 用户确认后生效的个人规则：注入，避免 AI 重复提议同一条规则
-    if let Some(rules) = promoted_rules {
+    if let Some(rules) = &promoted_rules {
         context.push(ContextMessage::new(
             "system",
             format!("（内部记录）你刚才提议的个人规则已被用户确认并加入规则库：\n{rules}"),
         ));
     }
 
-    // 用户确认后执行成功的写操作：以内部信息注入，让 AI 在回复中确认结果
+    // 用户确认后执行写操作：以内部信息注入，让 AI 在回复中确认结果。
+    // 注意：只有真正写入成功才算数，失败项如实标注，不冒充成功。
     if let Some(summary) = executed {
         context.push(ContextMessage::new(
             "system",
-            format!("（内部记录）你刚才提议的写操作已被用户确认并执行成功：\n{summary}"),
+            format!("（内部记录）你刚才提议的写操作已被用户确认，执行结果如下：\n{summary}"),
         ));
     }
 
@@ -208,6 +220,7 @@ pub fn generate_conversation_reply(
             &registry,
             store,
             conversation_id,
+            turn_start,
         ) {
             Ok(result) => {
                 if let Some(id) = provider_id {
@@ -338,21 +351,42 @@ struct AgentOutcome {
 /// Agent 循环：最多 MAX_TOOL_ROUNDS 轮。
 /// - 首轮尝试原生 tool-calling（带 tools 清单）；失败则回落文本协议重试一次。
 /// - 原生返回 tool_calls → 回传 assistant(tool_calls) + 追加 tool 结果，进入下一轮。
-/// - 纯文本但含 `[工具调用]` 信封 → 追加 assistant + system(结果)，进入下一轮。
-/// - 无工具调用 → 收敛，返回最终文本。
+/// - 纯文本但含可解析调用 → 执行并进入下一轮。
+/// - 疑似想调但格式未知 → 回炉重发（最多 MAX_PROTOCOL_REPAIRS 次），绝不静默吞掉。
+/// - 无工具调用 → 写声明核验（标题→查库→本轮时间窗）→ 收敛，返回最终文本。
 fn run_agent_loop(
     provider: &dyn AiProvider,
     context: &mut Vec<ContextMessage>,
     registry: &ToolRegistry,
     store: &Store,
     conversation_id: &str,
+    turn_start: chrono::DateTime<chrono::Utc>,
 ) -> Result<AgentOutcome> {
+    let conversation = store.get_conversation(conversation_id)?;
+    let is_knowledge_mentor = conversation.as_ref().is_some_and(|conversation| {
+        conversation.assistant_mode == "knowledge_mentor" || conversation.wiki_page_slug.is_some()
+    });
+    let input_already_recorded = store
+        .latest_event_id_for_conversation(conversation_id)?
+        .is_some();
+    let allow_record_event = !is_knowledge_mentor && !input_already_recorded;
     let mut protocol: Option<ToolProtocol> = None;
     let mut content = String::new();
     let mut prompt_tokens: u64 = 0;
     let mut completion_tokens: u64 = 0;
     let mut model: Option<String> = None;
     let mut last_raw = String::new();
+    // 协议修复预算：疑似调用但未知格式时的回炉次数（与轮数上限独立，双保险防死循环）
+    let mut repairs_used = 0usize;
+    // 写声明核验状态：本轮调用前的用户写意图（上下文 + 库内最后一条用户消息 + 待确认存量）
+    let writes_requested = context
+        .iter()
+        .rev()
+        .find(|m| m.role == "user")
+        .is_some_and(|m| user_text_wants_write(&m.content))
+        || user_requested_write(store, conversation_id)?;
+    let mut claim_repaired = false;
+    let tool_names = registry.names();
 
     for _round in 0..MAX_TOOL_ROUNDS {
         let wants_native = match &protocol {
@@ -361,7 +395,7 @@ fn run_agent_loop(
             None => true,
         };
         let tools = if wants_native {
-            Some(registry.provider_specs())
+            Some(registry.provider_specs_for(allow_record_event))
         } else {
             None
         };
@@ -369,6 +403,12 @@ fn run_agent_loop(
         let reply = match provider.generate_reply_with_tools(context.clone(), tools.as_deref()) {
             Ok(r) => r,
             Err(e) => {
+                // 网关/上游暂时失败时不要把同一上下文改成纯文本协议；
+                // 直接交给外层 provider 轮换，避免重复请求和协议状态污染。
+                if is_transient_provider_error(&e) {
+                    eprintln!("[agent] 上游暂时失败，交给下一个 provider：{e}");
+                    return Err(e);
+                }
                 // 原生协议失败（首次尝试 or 已锁定原生）→ 回落到纯文本协议重试一次：
                 // 首轮可能是模型/网关不支持 tools 字段；后续轮可能是原生 tool_calls
                 // 回传校验失败（如 arguments 字节不一致）。历史里已有上下文，文本模式仍能组织最终回答。
@@ -414,6 +454,7 @@ fn run_agent_loop(
             protocol = Some(ToolProtocol::Native);
             context.push(ContextMessage::assistant_with_tool_calls(
                 reply.tool_calls.clone(),
+                reply.reasoning_content.clone(),
             ));
             for call in &reply.tool_calls {
                 let result = dispatch(call, registry, store, conversation_id);
@@ -447,6 +488,40 @@ fn run_agent_loop(
             continue;
         }
 
+        // 疑似想调工具但严格解析器没认出来 → 回炉重发，而不是静默吞掉。
+        // 原则1：该调的必须调。误报最多浪费一轮（有次数上限），漏报则工具永远不执行。
+        if repairs_used < MAX_PROTOCOL_REPAIRS
+            && tool_call_attempt_detected(&reply.content, &tool_names)
+        {
+            repairs_used += 1;
+            eprintln!(
+                "[agent] 疑似工具调用但无法解析，回炉重发 (repair {repairs_used})"
+            );
+            context.push(ContextMessage::new("assistant", reply.content));
+            context.push(ContextMessage::new("system", PROTOCOL_REPAIR_NUDGE));
+            continue;
+        }
+
+        // 写声明核验（接地关）：回复声称写完成 → 按标题查库，用 ID/时间戳验真。
+        // 草拟≠保存、旧页面≠本轮写入、failover 重试——全部以库内事实为准，不存谎言。
+        // 误报最多浪费一轮（修一次即止）。
+        if !claim_repaired && writes_requested && write_claim_detected(&clean) {
+            let titles = extract_claimed_titles(&clean);
+            match verify_claimed_writes(store, conversation_id, &titles, turn_start)? {
+                ClaimVerdict::Clean => {}
+                verdict => {
+                    claim_repaired = true;
+                    eprintln!("[agent] 写声明与库内事实不符，回炉纠正 ({verdict:?})");
+                    context.push(ContextMessage::new("assistant", reply.content));
+                    context.push(ContextMessage::new(
+                        "system",
+                        write_claim_repair_nudge(store, conversation_id, &verdict)?,
+                    ));
+                    continue;
+                }
+            }
+        }
+
         // 收敛
         content = clean;
         break;
@@ -465,11 +540,34 @@ fn run_agent_loop(
     })
 }
 
+fn is_transient_provider_error(error: &anyhow::Error) -> bool {
+    let text = error.to_string().to_ascii_lowercase();
+    [
+        " 429",
+        " 500",
+        " 502",
+        " 503",
+        " 504",
+        "failed dependency",
+        "bad gateway",
+        "timed out",
+        "timeout",
+    ]
+    .iter()
+    .any(|marker| text.contains(marker))
+}
+
 /// 解析文本信封中的工具调用：返回（剥离信封后的文本, 解析出的调用列表）。
 /// 支持一行内多个标记，标记所在行会从文本中移除。
+/// 再加一层兜底：任何没被识别的协议残留都会被剥掉，绝不直接见用户。
 fn parse_tool_call_envelope(content: &str) -> (String, Vec<ToolCall>) {
     if !content.contains(TOOL_CALL_MARKER) {
-        return (content.to_string(), Vec::new());
+        let (cleaned, mut calls) = parse_xml_tool_calls(content);
+        calls.extend(parse_dsml_tool_calls(&cleaned));
+        return (
+            strip_tool_protocol_residue(&strip_dsml_artifacts(&cleaned)),
+            calls,
+        );
     }
     let mut cur = content.to_string();
     let mut calls = Vec::new();
@@ -482,7 +580,474 @@ fn parse_tool_call_envelope(content: &str) -> (String, Vec<ToolCall>) {
             None => break,
         }
     }
-    (cur, calls)
+    if cur.contains("<tool_call") {
+        let (cleaned, mut xml_calls) = parse_xml_tool_calls(&cur);
+        cur = cleaned;
+        calls.append(&mut xml_calls);
+    }
+    (
+        strip_tool_protocol_residue(&strip_dsml_artifacts(&cur)),
+        calls,
+    )
+}
+
+/// 解析 XML 方言的工具调用：
+/// `<tool_call>工具名<arg_key>参数名</arg_key><arg_value>参数值</arg_value>…</tool_call>`。
+/// 部分模型无视文本协议，按自带习惯吐这种格式；认下来并执行，
+/// 而不是让它原样漏给用户。返回（剥离调用块后的文本, 调用列表）。
+/// 结构残缺（无名、无参数、无闭合）的块不解析，留给兜底清理。
+fn parse_xml_tool_calls(content: &str) -> (String, Vec<ToolCall>) {
+    const OPEN: &str = "<tool_call>";
+    const CLOSE: &str = "</tool_call>";
+    const KEY_OPEN: &str = "<arg_key>";
+    const KEY_CLOSE: &str = "</arg_key>";
+    const VAL_OPEN: &str = "<arg_value>";
+    const VAL_CLOSE: &str = "</arg_value>";
+    let mut cur = content.to_string();
+    let mut calls = Vec::new();
+    loop {
+        let Some(start) = cur.find(OPEN) else { break };
+        let after_open = start + OPEN.len();
+        // 工具名：紧跟其后的文本，直到下一个 `<`
+        let name_end_rel = cur[after_open..].find('<');
+        let Some(name_end_rel) = name_end_rel else { break };
+        let name = cur[after_open..after_open + name_end_rel].trim();
+        if name.is_empty() {
+            break;
+        }
+        // 参数对：连续的 <arg_key>K</arg_key><arg_value>V</arg_value>
+        let mut args = serde_json::Map::new();
+        let mut pos = after_open + name_end_rel;
+        loop {
+            let rest = &cur[pos..];
+            let Some(ko) = rest.find(KEY_OPEN) else { break };
+            // key 与工具名/上一对 value 之间只允许空白
+            if !rest[..ko].trim().is_empty() {
+                break;
+            }
+            let k_start = pos + ko + KEY_OPEN.len();
+            let Some(k_end_rel) = cur[k_start..].find(KEY_CLOSE) else {
+                break;
+            };
+            let key = cur[k_start..k_start + k_end_rel].trim().to_string();
+            let v_open = k_start + k_end_rel + KEY_CLOSE.len();
+            if !cur[v_open..].trim_start().starts_with(VAL_OPEN) {
+                break;
+            }
+            let v_start =
+                v_open + cur[v_open..].find(VAL_OPEN).unwrap_or(0) + VAL_OPEN.len();
+            let Some(v_end_rel) = cur[v_start..].find(VAL_CLOSE) else {
+                break;
+            };
+            let value = cur[v_start..v_start + v_end_rel].trim().to_string();
+            if key.is_empty() {
+                break;
+            }
+            args.insert(key, Value::String(value));
+            pos = v_start + v_end_rel + VAL_CLOSE.len();
+        }
+        if args.is_empty() {
+            break;
+        }
+        // 闭合标签：参数之后只允许空白
+        let tail = &cur[pos..];
+        let Some(close_rel) = tail.find(CLOSE) else { break };
+        if !tail[..close_rel].trim().is_empty() {
+            break;
+        }
+        let end = pos + close_rel + CLOSE.len();
+        calls.push(ToolCall::new(name, Value::Object(args)));
+        cur.replace_range(start..end, "");
+    }
+    (cur.trim().to_string(), calls)
+}
+
+/// 宽口径“调用意图”检测：模型疑似想调工具时返回 true。
+/// 故意比严格解析器宽得多——两者解耦：解析器负责“能执行”，这里负责“别漏调”。
+/// 漏报 = 该调的工具永远不执行（不可接受）；误报 = 最多浪费一次回炉（有次数上限）。
+/// 判定信号分两档：
+/// 1. 任一已知协议的结构标记（与具体方言无关，见一个即命中）；
+/// 2. 出现已知工具名 + 调用形态（arguments 字样，或 JSON 名值对）。
+fn tool_call_attempt_detected(content: &str, tool_names: &[&str]) -> bool {
+    const STRUCTURAL: &[&str] = &[
+        "<tool_call",
+        "</tool_call>",
+        "<arg_key",
+        "<arg_value",
+        TOOL_CALL_MARKER,
+        "<|invoke",
+        "invoke name=",
+        "parameter name=",
+        "\"tool_calls\"",
+        "\"function_call\"",
+        "<function",
+        "</function>",
+        "function name=",
+    ];
+    if STRUCTURAL.iter().any(|m| content.contains(m)) {
+        return true;
+    }
+    if !tool_names.iter().any(|n| content.contains(*n)) {
+        return false;
+    }
+    let lower = content.to_lowercase();
+    lower.contains("arguments") || (content.contains("\"name\"") && content.contains('{'))
+}
+
+/// 写声明核验结论（以库内事实为准）。
+#[derive(Debug)]
+enum ClaimVerdict {
+    /// 声明与事实一致（本轮确有写入），放行。
+    Clean,
+    /// 声称的实体只在待确认草稿里（草拟≠保存），需纠正并求确认。
+    DraftOnly(Vec<String>),
+    /// 声称的实体查无此页、是旧页面、或根本没指明——与事实不符，需纠正。
+    Unproven(Vec<String>),
+}
+
+/// 从回复中提取被声称的实体标题（「」/『』/《》/""/'' 配对引号）。
+/// 本应用的写声明几乎总是引用标题（法医语料全部命中），比动词关键词稳定得多。
+fn extract_claimed_titles(content: &str) -> Vec<String> {
+    const PAIRS: &[(char, char)] = &[('「', '」'), ('『', '』'), ('《', '》'), ('"', '"'), ('\'', '\'')];
+    let mut titles = Vec::new();
+    for &(open, close) in PAIRS {
+        let mut rest = content;
+        while let Some(start) = rest.find(open) {
+            let after = &rest[start + open.len_utf8()..];
+            if let Some(end) = after.find(close) {
+                let title = after[..end].trim();
+                // 过滤单字虚词（「好」/「不要」等多为正文引用，不是实体标题）
+                if title.chars().count() >= 2
+                    && !titles.iter().any(|t: &String| t == title)
+                {
+                    titles.push(title.to_string());
+                }
+                rest = &after[end + close.len_utf8()..];
+            } else {
+                break;
+            }
+        }
+    }
+    titles
+}
+
+/// RFC3339 时间戳是否落在 [turn_start, now] 内；解析失败则按字符串兜底比较。
+fn touched_this_turn(ts: &str, turn_start: &chrono::DateTime<chrono::Utc>) -> bool {
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts) {
+        dt.with_timezone(&chrono::Utc) >= *turn_start
+    } else {
+        ts >= turn_start.to_rfc3339().as_str()
+    }
+}
+
+/// 核验写声明：标题 → 查库（页/待办）→ 卡本轮时间窗。
+/// - 页或待办存在且创建/更新在本轮 → 写定；
+/// - 只在待确认草稿参数里 → 草稿中；
+/// - 查无此页、是旧页面 → 未证实；
+/// - 未指明任何标题 → 本轮有任意新增页/待办即放行，否则未证实。
+fn verify_claimed_writes(
+    store: &Store,
+    conversation_id: &str,
+    titles: &[String],
+    turn_start: chrono::DateTime<chrono::Utc>,
+) -> Result<ClaimVerdict> {
+    let mut draft_only = Vec::new();
+    let mut unproven = Vec::new();
+    // 本轮待确认草稿的参数快照（标题键因动作而异，兜底用全文包含判断）
+    let pendings = store.pending_actions_for_conversation(conversation_id)?;
+
+    let check_title = |title: &str| -> Result<Option<bool>> {
+        if let Some(page) = store.find_wiki_page_by_title(title)? {
+            // 旧页面≠本轮写入：创建和更新都要卡时间窗（补充修订走 updated_at）。
+            if touched_this_turn(&page.created_at, &turn_start)
+                || touched_this_turn(&page.updated_at, &turn_start)
+            {
+                return Ok(Some(true));
+            }
+            return Ok(Some(false));
+        }
+        for todo in store.list_todos(None)? {
+            if todo.title.trim() == title.trim()
+                && (touched_this_turn(&todo.created_at, &turn_start)
+                    || touched_this_turn(&todo.updated_at, &turn_start))
+            {
+                return Ok(Some(true));
+            }
+        }
+        Ok(None)
+    };
+    let in_draft = |title: &str| -> bool {
+        pendings.iter().any(|p| {
+            serde_json::from_str::<serde_json::Value>(&p.args_json)
+                .ok()
+                .and_then(|v| {
+                    v.get("title")
+                        .or_else(|| v.get("project_name"))
+                        .and_then(|t| t.as_str())
+                        .map(|t| t.trim() == title.trim())
+                        .or_else(|| {
+                            // 兜底：标题出现在参数全文里（如 content_md 首行）
+                            Some(p.args_json.contains(title))
+                        })
+                })
+                .unwrap_or(false)
+        })
+    };
+
+    if titles.is_empty() {
+        // 裸声明（“存好了”但没点名）：本轮有任意新增/更新即放行，否则未证实。
+        // NOTE：直接读库扫描，failover 重试也不丢；个人库规模下全量可接受。
+        let mut any = false;
+        for page in store.list_wiki_pages(None, None)? {
+            if touched_this_turn(&page.created_at, &turn_start)
+                || touched_this_turn(&page.updated_at, &turn_start)
+            {
+                any = true;
+                break;
+            }
+        }
+        if !any {
+            for todo in store.list_todos(None)? {
+                if touched_this_turn(&todo.created_at, &turn_start)
+                    || touched_this_turn(&todo.updated_at, &turn_start)
+                {
+                    any = true;
+                    break;
+                }
+            }
+        }
+        if any {
+            return Ok(ClaimVerdict::Clean);
+        }
+        return Ok(ClaimVerdict::Unproven(vec!["（未指明页面）".to_string()]));
+    }
+
+    for title in titles {
+        match check_title(title)? {
+            Some(true) => {}
+            Some(false) => unproven.push(format!("《{title}》是旧页面，本轮未写入")),
+            None if in_draft(title) => draft_only.push(format!("《{title}》还在待确认")),
+            None => unproven.push(format!("《{title}》库中无此页")),
+        }
+    }
+    if !unproven.is_empty() {
+        Ok(ClaimVerdict::Unproven(unproven))
+    } else if !draft_only.is_empty() {
+        Ok(ClaimVerdict::DraftOnly(draft_only))
+    } else {
+        Ok(ClaimVerdict::Clean)
+    }
+}
+
+/// 写完成声明检测：回复声称“已保存/已创建”类动作完成。
+/// 排除讲解/检索/否定语境（搜、查、没有、还没、未、失败、疑问），只抓肯定式完成声明。
+fn write_claim_detected(content: &str) -> bool {
+    const CLAIMS: &[&str] = &[
+        "存好了",
+        "保存好了",
+        "已经保存",
+        "已保存",
+        "保存成功",
+        "创建好了",
+        "已创建",
+        "新建好了",
+        "建好了",
+        "记好了",
+        "已经记下",
+        "归档好了",
+        "已归档",
+        "已生效",
+        "已经在知识库",
+        "已经在里面",
+    ];
+    // 守卫故意收窄到多字形态：单字（未/查/没）会误伤“未动/查看/没问题，存好了”等正常表述。
+    // 漏拦的代价只是一次回炉纠正，误拦则会放过谎言，所以宁可少拦。
+    const GUARDS: &[&str] = &[
+        "搜", "没有", "还没", "失败", "是否", "如果", "假如", "？", "?",
+    ];
+    CLAIMS.iter().any(|c| content.contains(c))
+        && !GUARDS.iter().any(|g| content.contains(g))
+}
+
+/// 用户文本是否表达写意图（存/建/记/归档类）。疑问句式（…吗/？）是在问状态，不是下指令。
+fn user_text_wants_write(text: &str) -> bool {
+    let t = text.trim();
+    if t.ends_with('吗') || t.ends_with('？') || t.ends_with('?') {
+        return false;
+    }
+    const WANT: &[&str] = &["存", "保存", "记住", "记下", "创建", "新建", "归档", "入库"];
+    WANT.iter().any(|w| t.contains(w))
+}
+
+/// 本轮调用前是否存在用户写意图：库内最后一条用户消息（确认/拒绝本身就是写流程
+/// 的一部分）或待确认存量。上下文里的用户消息由调用方另行检查。
+fn user_requested_write(store: &Store, conversation_id: &str) -> Result<bool> {
+    let last_user = store
+        .list_messages(conversation_id)?
+        .into_iter()
+        .rev()
+        .find(|m| m.role == "user");
+    match last_user {
+        None => Ok(false),
+        Some(m) => {
+            if is_confirmation(&m.content) || is_declination(&m.content) {
+                return Ok(true);
+            }
+            if user_text_wants_write(&m.content) {
+                return Ok(true);
+            }
+            Ok(!store
+                .pending_actions_for_conversation(conversation_id)?
+                .is_empty())
+        }
+    }
+}
+
+/// 写声明回炉提示：把库内事实（缺页/旧页/待确认）摆出来，让模型无法再编。
+fn write_claim_repair_nudge(
+    store: &Store,
+    conversation_id: &str,
+    verdict: &ClaimVerdict,
+) -> Result<String> {
+    let detail = match verdict {
+        ClaimVerdict::Clean => String::new(),
+        ClaimVerdict::DraftOnly(items) | ClaimVerdict::Unproven(items) => items.join("；"),
+    };
+    // 草稿标题一并给出（slug 要到执行落定时才生成，此处不编造），模型求确认时能点名。
+    let mut draft_slugs = Vec::new();
+    for pa in store.pending_actions_for_conversation(conversation_id)? {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&pa.args_json) {
+            if let Some(t) = v
+                .get("title")
+                .or_else(|| v.get("project_name"))
+                .and_then(|t| t.as_str())
+            {
+                draft_slugs.push(format!("《{t}》(待确认，未入库)"));
+            }
+        }
+    }
+    let drafts = if draft_slugs.is_empty() {
+        "当前没有待确认草稿".to_string()
+    } else {
+        format!("当前待确认：{}", draft_slugs.join("、"))
+    };
+    Ok(format!(
+        "系统核实（以知识库为准，你的上一句与事实不符）：{detail}。{drafts}。请区分：待确认草稿仅存于对话，尚未入库；确认执行并返回真实结果才算已保存；查到现有知识页才可说已有页面。若已有草稿，告知用户可在“今天”栏打开待入库草稿列表，查看完整内容并单独保存或删除，或回复“好”确认；不要重新草拟同名页，更不要声称草稿已在知识库。没有草稿而需保存时才调用对应工具。"
+    ))
+}
+
+/// 兜底清理：解析器没认出来的工具协议残留，绝不直接见用户。
+/// 先删整段 `<tool_call>…</tool_call>` 残块，再按行过滤其他协议行
+///（`[工具调用]` / DSML invoke 等；协议要求调用独占一行，按行删安全）。
+fn strip_tool_protocol_residue(content: &str) -> String {
+    const CLOSE: &str = "</tool_call>";
+    let mut cur = content.to_string();
+    loop {
+        let Some(start) = cur.find("<tool_call") else {
+            break;
+        };
+        let Some(rel_end) = cur[start..].find(CLOSE) else {
+            break;
+        };
+        cur.replace_range(start..start + rel_end + CLOSE.len(), "");
+    }
+    cur.lines()
+        .filter(|line| {
+            !(line.contains("<tool_call")
+                || line.contains(CLOSE)
+                || line.contains("<arg_key>")
+                || line.contains("</arg_key>")
+                || line.contains("<arg_value>")
+                || line.contains("</arg_value>")
+                || line.contains(TOOL_CALL_MARKER)
+                || line.contains("invoke name=")
+                || line.contains("<|invoke")
+                || line.contains("parameter name="))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
+}
+
+fn parse_dsml_tool_calls(content: &str) -> Vec<ToolCall> {
+    if !content.contains("DSML") {
+        return Vec::new();
+    }
+    let Some(invoke) = content.lines().find(|line| line.contains("invoke name=")) else {
+        return Vec::new();
+    };
+    let Some(name) = quoted_attribute(invoke, "name") else {
+        return Vec::new();
+    };
+    let mut arguments = serde_json::Map::new();
+    for line in content
+        .lines()
+        .filter(|line| line.contains("parameter name="))
+    {
+        let Some(mut parameter) = quoted_attribute(line, "name") else {
+            continue;
+        };
+        if name == "record_event" && parameter == "content" {
+            parameter = "raw_text".to_string();
+        }
+        let value = line
+            .split_once('>')
+            .map(|(_, value)| value)
+            .unwrap_or("")
+            .split("<|")
+            .next()
+            .unwrap_or("")
+            .split("| DSML")
+            .next()
+            .unwrap_or("")
+            .trim();
+        if !value.is_empty() {
+            arguments.insert(parameter, Value::String(value.to_string()));
+        }
+    }
+    vec![ToolCall::new(name, Value::Object(arguments))]
+}
+
+fn quoted_attribute(line: &str, attribute: &str) -> Option<String> {
+    let marker = format!("{attribute}=\"");
+    let value = line.split_once(&marker)?.1;
+    Some(value.split_once('"')?.0.to_string())
+}
+
+/// Some OpenAI-compatible gateways expose tool calls as a DSML/XML-like text
+/// protocol instead of structured `tool_calls`. Never persist that protocol in
+/// the user-facing conversation. Keep surrounding natural-language text.
+fn strip_dsml_artifacts(content: &str) -> String {
+    let mut kept = Vec::new();
+    let mut in_dsml = false;
+    for line in content.lines() {
+        let is_dsml = line.contains("DSML")
+            || line.contains("<|invoke")
+            || line.contains("</|invoke")
+            || line.contains("<|parameter")
+            || line.contains("</|parameter")
+            || line.contains("invoke name=")
+            || line.contains("parameter name=");
+        if is_dsml {
+            in_dsml = true;
+            continue;
+        }
+        if in_dsml {
+            // Continue only across adjacent protocol-looking lines. This
+            // avoids dropping a normal answer that follows a malformed block.
+            let protocolish = line.contains("<|")
+                || line.contains("|>")
+                || line.contains("parameter")
+                || line.contains("invoke");
+            if protocolish {
+                continue;
+            }
+            in_dsml = false;
+        }
+        kept.push(line);
+    }
+    kept.join("\n").trim().to_string()
 }
 
 fn extract_one_tool_call(content: &str) -> Option<(String, ToolCall)> {
@@ -582,7 +1147,8 @@ pub fn generate_content_chat(
         reply.model.as_deref(),
     )?;
 
-    Ok(reply.content)
+    // 单轮直答没有 agent 循环兜底：模型若夹带工具协议文本，至少不能原样漏给用户。
+    Ok(strip_tool_protocol_residue(&reply.content))
 }
 
 /// 从确认/否定判断中剥掉所有噪音字符（空白、引号、括号、标点），只留中文/字母。
@@ -742,13 +1308,15 @@ fn handle_rule_proposal_confirmation(
 /// 处理本会话的待确认写动作：确认则执行（写真源），明确拒绝则丢弃；
 /// 其他消息保留待确认（之后回「好」仍可生效）。
 /// 返回执行成功后的摘要（供下一轮回复确认用）。
+/// 处理写类工具待确认动作：用户确认 → 执行并返回（摘要，是否有真实写入成功）；
+/// 拒绝 → 删除（人物关系走 declined 记账）。其他消息 → 保留待确认。
 fn handle_pending_action_confirmation(
     store: &Store,
     conversation_id: &str,
-) -> Result<Option<String>> {
+) -> Result<(Option<String>, bool)> {
     let pendings = store.pending_actions_for_conversation(conversation_id)?;
     if pendings.is_empty() {
-        return Ok(None);
+        return Ok((None, false));
     }
     let last_user = store
         .list_messages(conversation_id)?
@@ -759,10 +1327,14 @@ fn handle_pending_action_confirmation(
     let declined = matches!(&last_user, Some(m) if is_declination(&m.content));
 
     let mut summaries = Vec::new();
+    let mut any_wrote = false;
     for pa in &pendings {
         if confirmed {
             match execute_pending_action(store, pa) {
-                Ok(s) => summaries.push(s),
+                Ok(s) => {
+                    any_wrote = true;
+                    summaries.push(s);
+                }
                 Err(e) => summaries.push(format!("「{}」执行失败：{e}", pa.action)),
             }
         }
@@ -778,9 +1350,9 @@ fn handle_pending_action_confirmation(
         // 其他消息：保留待确认
     }
     if summaries.is_empty() {
-        Ok(None)
+        Ok((None, any_wrote))
     } else {
-        Ok(Some(summaries.join("\n")))
+        Ok((Some(summaries.join("\n")), any_wrote))
     }
 }
 
@@ -985,11 +1557,15 @@ mod tests {
 
     #[test]
     fn parse_tool_call_envelope_broken_line_is_skipped() {
-        // 标记行不是合法 JSON（被换行打断）→ 只剥离能解析的部分，不 panic
+        // 标记行不是合法 JSON（被换行打断）→ 不解析、不 panic；
+        // 残留标记行按协议兜底规则剥掉，不见用户。
         let content = "[工具调用]{\"name\":\"get_wiki_page\"";
         let (clean, calls) = parse_tool_call_envelope(content);
         assert!(calls.is_empty(), "非法 JSON 不应被解析");
-        assert_eq!(clean, content);
+        assert!(
+            !clean.contains("[工具调用]"),
+            "残留标记应被剥离: {clean}"
+        );
     }
 
     #[test]
@@ -997,6 +1573,274 @@ mod tests {
         let (clean, calls) = parse_tool_call_envelope("随便聊聊");
         assert!(calls.is_empty());
         assert_eq!(clean, "随便聊聊");
+    }
+
+    #[test]
+    fn parse_tool_call_envelope_strips_dsml_protocol_output() {
+        let content = "我已经记录好了。\n<|DSML|>\n<|invoke name=\"record_event\">\n<|parameter name=\"content\">今天完成了\n</|parameter>\n</|invoke>\n<|DSML|>\n";
+        let (clean, calls) = parse_tool_call_envelope(content);
+        assert_eq!(clean, "我已经记录好了。");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "record_event");
+        assert_eq!(calls[0].arguments["raw_text"], "今天完成了");
+    }
+
+    #[test]
+    fn parse_tool_call_envelope_xml_dialect() {
+        // 线上真实漏出：模型无视文本协议，按自带习惯吐 XML 方言。
+        // 必须解析执行，且正文不留残留。
+        let content = "关于小生意和需求的关系说的很透彻。\n<tool_call>search_knowledge_base<arg_key>query</arg_key><arg_value>感悟</arg_value></tool_call>";
+        let (clean, calls) = parse_tool_call_envelope(content);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "search_knowledge_base");
+        assert_eq!(calls[0].arguments["query"], "感悟");
+        assert!(
+            !clean.contains("tool_call") && !clean.contains("arg_"),
+            "调用块应被整体剥离: {clean}"
+        );
+        assert!(
+            clean.contains("关于小生意"),
+            "其余文本应保留: {clean}"
+        );
+    }
+
+    #[test]
+    fn parse_tool_call_envelope_xml_multi_args_and_blocks() {
+        let content = "先搜再看。\n<tool_call>search_knowledge_base<arg_key>query</arg_key><arg_value>咖啡</arg_value><arg_key>limit</arg_key><arg_value>3</arg_value></tool_call>\n<tool_call>list_rules<arg_key>keyword</arg_key><arg_value>归档</arg_value></tool_call>";
+        let (clean, calls) = parse_tool_call_envelope(content);
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].name, "search_knowledge_base");
+        assert_eq!(calls[0].arguments["query"], "咖啡");
+        assert_eq!(calls[0].arguments["limit"], "3");
+        assert_eq!(calls[1].name, "list_rules");
+        assert_eq!(clean, "先搜再看。");
+    }
+
+    #[test]
+    fn parse_tool_call_envelope_xml_garbage_is_scrubbed() {
+        // 结构残缺（无闭合/无参数）：不解析，但也不许漏给用户。
+        for content in [
+            "正文\n<tool_call>search_knowledge_base<arg_key>query</arg_key>",
+            "正文\n<tool_call></tool_call>尾巴",
+            "正文\n<tool_call>list_rules",
+        ] {
+            let (clean, calls) = parse_tool_call_envelope(content);
+            assert!(calls.is_empty(), "残缺块不应被解析: {content}");
+            assert!(
+                !clean.contains("tool_call"),
+                "残留标记应被剥离: {clean}"
+            );
+        }
+    }
+
+    #[test]
+    fn tool_call_attempt_detected_structural_markers() {
+        let names = vec!["search_knowledge_base"];
+        // 各家方言的结构标记：见一个即命中，与严格解析器能否解析无关
+        for content in [
+            "<tool_call>search_knowledge_base<arg_key>query</arg_key><arg_value>x</arg_value></tool_call>",
+            "[工具调用]{\"name\":\"search_knowledge_base\",\"arguments\":{}}",
+            "<function name=\"search_knowledge_base\"><param>x</param></function>",
+            "{\"tool_calls\":[{\"name\":\"search_knowledge_base\"}]}",
+        ] {
+            assert!(
+                tool_call_attempt_detected(content, &names),
+                "应命中: {content}"
+            );
+        }
+    }
+
+    #[test]
+    fn tool_call_attempt_detected_tool_name_plus_shape() {
+        let names = vec!["search_knowledge_base", "list_rules"];
+        // 未知方言但含工具名 + 调用形态 → 命中（回炉），不能静默吞掉
+        assert!(tool_call_attempt_detected(
+            "[CALL] search_knowledge_base with arguments {\"query\": \"x\"}",
+            &names
+        ));
+        // 只提到工具名、没有调用形态 → 不命中（正常讲解文字，放行）
+        assert!(!tool_call_attempt_detected(
+            "你可以用 search_knowledge_base 搜一下知识库，挺方便的",
+            &names
+        ));
+        // 普通正文 → 不命中
+        assert!(!tool_call_attempt_detected("今天天气不错，适合出门", &names));
+    }
+
+    #[test]
+    fn agent_loop_unknown_dialect_is_repaired_not_swallowed() {
+        // 原则1的端到端：未知方言（严格解析器不认、意图检测认）→ 回炉 →
+        // 模型按唯一格式重发 → 工具必须执行，最终回答干净。
+        let (store, path) = temporary_database();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let mut context = vec![ContextMessage::new("user", "帮我搜点感悟")];
+        let registry = ToolRegistry::default();
+        let provider = ScriptedProvider::new(vec![
+            // 第一轮：未知方言（<function> 不在严格解析器覆盖内）
+            Ok(AiReply::text(
+                "我来搜一下。<function name=\"list_rules\"><param>归档</param></function>",
+            )),
+            // 回炉后：按唯一格式重发
+            Ok(AiReply::text(
+                "[工具调用]{\"name\":\"list_rules\",\"arguments\":{}}",
+            )),
+            Ok(AiReply::text("规则库查好了。")),
+        ]);
+        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
+        assert_eq!(outcome.content, "规则库查好了。");
+        // 回炉提示确已下发（不是静默吞掉）
+        assert!(
+            context.iter().any(|m| m.content.contains("格式无法识别")),
+            "应有回炉提示"
+        );
+        // 工具确已执行（不是跳过）
+        assert!(
+            context
+                .iter()
+                .any(|m| m.content.contains("工具「list_rules」执行结果")),
+            "回炉后工具必须执行"
+        );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn write_claim_detected_forensic_corpus() {
+        // 真实法医语料：命中 = 当初撒谎的那几句；不命中 = 诚实/检索/草拟语境。
+        let claims = [
+            "存好了 ✅ 「感悟」这页已经在知识库里了，以后这类零散想法都往里扔。",
+            "存好了 ✅ 「感悟」这页现在是两条都在里面，往后有新的接着往里攒。",
+            "已保存 ✅ 在知识库里就能看到《视频二创搬运 YouTube：Skill + Codex 工作流》。",
+            "已保存 ✅ 「售卖伪解决方案：关键信息提炼」现在挂在本页下的派生产物里，原页正文一字未动。",
+        ];
+        for c in claims {
+            assert!(write_claim_detected(c), "应识别为写声明: {c}");
+        }
+        let non_claims = [
+            "搜了一下已保存的事件和知识库，确实没有「张玮」「林小昌」的记录。",
+            "草拟好了，你看下：\n\n**标题**：一个月赚一万元（主题）",
+            "回「好」我就存 ✅",
+            "翻了下知识库，「感悟」那页其实还没真正建起来（我之前说存好了，说早了，抱歉）。",
+            "草稿这次是真的登记进系统了（状态：待确认）——之前几轮是我光说没执行。",
+            "知识库里还没有这一页，我草拟好了。",
+            "今天天气不错，适合出门",
+        ];
+        for c in non_claims {
+            // 注意：第4条含“说存好了”但被“还没”守卫拦下——它是在认错，不是在声明完成。
+            assert!(!write_claim_detected(c), "不应识别为写声明: {c}");
+        }
+    }
+
+    #[test]
+    fn agent_loop_false_save_claim_is_repaired_not_stored() {
+        // 接地关端到端：用户要求保存 → 模型撒谎“存好了”（无任何工具调用）→
+        // 回炉纠正 → 模型实际调用 save_knowledge_draft → 诚实回复收敛，谎言不入库。
+        let (store, path) = temporary_database();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let mut context = vec![ContextMessage::new("user", "把这两条感悟存一下")];
+        let registry = ToolRegistry::default();
+        let provider = ScriptedProvider::new(vec![
+            // 第一轮：撒谎（感悟事件的原文句式），无工具调用
+            Ok(AiReply::text(
+                "存好了 ✅ 「感悟」这页已经在知识库里了，以后这类想法都往里扔。",
+            )),
+            // 回炉后：实际调用写工具（只登记草稿，不算写）
+            Ok(AiReply::text(
+                "[工具调用]{\"name\":\"save_knowledge_draft\",\"arguments\":{\"title\":\"感悟\",\"content_md\":\"两条感悟正文\"}}",
+            )),
+            // 落定：诚实回复（无完成声明，直接收敛）
+            Ok(AiReply::text("草拟好了，标题「感悟」。回「好」我就存。")),
+        ]);
+        let outcome =
+            run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
+        assert_eq!(outcome.content, "草拟好了，标题「感悟」。回「好」我就存。");
+        // 纠正提示确已下发
+        assert!(
+            context.iter().any(|m| m.content.contains("系统核实")),
+            "应有写声明纠正"
+        );
+        // 草稿确已登记（纠正后真的调了工具，不是换一句谎言）
+        assert_eq!(
+            store
+                .pending_actions_for_conversation(&conv)
+                .unwrap()
+                .len(),
+            1
+        );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn extract_claimed_titles_picks_quoted_entities() {
+        let titles = extract_claimed_titles(
+            "存好了 ✅ 「感悟」这页已经在知识库里了，《视频二创》也能看到。",
+        );
+        assert!(titles.contains(&"感悟".to_string()), "{titles:?}");
+        assert!(titles.contains(&"视频二创".to_string()), "{titles:?}");
+        // 单字虚词引用不是实体
+        assert!(extract_claimed_titles("回「好」我就存").is_empty());
+        assert!(extract_claimed_titles("今天天气不错").is_empty());
+    }
+
+    #[test]
+    fn verify_claimed_writes_is_store_grounded() {
+        use crate::storage::{ContentPolicy, WikiPageDraft};
+        let (store, path) = temporary_database();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let mk = |slug: &str, title: &str| WikiPageDraft {
+            slug: slug.to_string(),
+            kind: "topic".to_string(),
+            title: title.to_string(),
+            summary: "s".to_string(),
+            content_md: "c".to_string(),
+            tags: vec![],
+            source_event_ids: vec![],
+            status: "active".to_string(),
+            reason: "test".to_string(),
+            source_url: None,
+        };
+
+        // 本轮写入：turn_start 卡在写入之前 → Clean
+        let before = chrono::Utc::now();
+        store.upsert_wiki_page(&mk("kb-new-1", "本轮新页"), ContentPolicy::Always).unwrap();
+        let v = verify_claimed_writes(&store, &conv, &["本轮新页".to_string()], before).unwrap();
+        assert!(matches!(v, ClaimVerdict::Clean), "{v:?}");
+
+        // 旧页面：turn_start 推到写入之后 → Unproven（旧页面≠本轮写入）
+        let after = chrono::Utc::now() + chrono::Duration::hours(1);
+        let v = verify_claimed_writes(&store, &conv, &["本轮新页".to_string()], after).unwrap();
+        assert!(matches!(v, ClaimVerdict::Unproven(_)), "{v:?}");
+
+        // 只有草稿：DraftOnly（草拟≠保存）
+        store
+            .create_pending_action(
+                &conv,
+                "save_knowledge_draft",
+                &serde_json::json!({"title": "草稿页", "content_md": "x"}).to_string(),
+            )
+            .unwrap();
+        let v = verify_claimed_writes(
+            &store,
+            &conv,
+            &["草稿页".to_string()],
+            chrono::Utc::now(),
+        )
+        .unwrap();
+        assert!(matches!(v, ClaimVerdict::DraftOnly(_)), "{v:?}");
+
+        // 查无此页：Unproven
+        let v = verify_claimed_writes(
+            &store,
+            &conv,
+            &["根本不存在".to_string()],
+            chrono::Utc::now(),
+        )
+        .unwrap();
+        assert!(matches!(v, ClaimVerdict::Unproven(_)), "{v:?}");
+
+        drop(store);
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]
@@ -1013,11 +1857,12 @@ mod tests {
                 tool_calls: vec![ToolCall::new("list_rules", json!({}))],
                 model: Some("fake".to_string()),
                 usage: None,
+                reasoning_content: None,
             }),
             Ok(AiReply::text("规则库查好了。")),
         ]);
 
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv).unwrap();
+        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
         assert_eq!(outcome.content, "规则库查好了。");
         assert!(
             provider.saw_tools_on_first_call(),
@@ -1059,7 +1904,7 @@ mod tests {
             Ok(AiReply::text("最近没有 AI 调用记录。")),
         ]);
 
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv).unwrap();
+        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
         assert_eq!(outcome.content, "最近没有 AI 调用记录。");
 
         // 文本协议下工具结果以 system 角色注入
@@ -1085,7 +1930,7 @@ mod tests {
         let registry = ToolRegistry::default();
 
         let provider = ScriptedProvider::new(vec![Ok(AiReply::text("你好呀。"))]);
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv).unwrap();
+        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
         assert_eq!(outcome.content, "你好呀。");
         drop(store);
         let _ = std::fs::remove_file(path);
@@ -1104,7 +1949,7 @@ mod tests {
             Ok(AiReply::text("最近没有 AI 调用记录。")),
         ]);
 
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv).unwrap();
+        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
         assert_eq!(outcome.content, "最近没有 AI 调用记录。");
         assert!(provider.saw_tools_on_first_call(), "首轮仍应尝试原生工具");
         drop(store);
@@ -1125,7 +1970,7 @@ mod tests {
         // 用户确认
         store.send_message(&conv, "user", "好", None).unwrap();
 
-        let summary = handle_pending_action_confirmation(&store, &conv).unwrap();
+        let (summary, _) = handle_pending_action_confirmation(&store, &conv).unwrap();
         let summary = summary.expect("确认后应返回执行摘要");
         assert!(summary.contains("已保存事件"), "{summary}");
         // 真源已写入，pending 已清空
@@ -1154,7 +1999,7 @@ mod tests {
             .send_message(&conv, "user", "看看我今天都做了什么", None)
             .unwrap();
 
-        let summary = handle_pending_action_confirmation(&store, &conv).unwrap();
+        let (summary, _) = handle_pending_action_confirmation(&store, &conv).unwrap();
         assert!(summary.is_none(), "未确认不应执行");
         assert!(store.list_events().unwrap().is_empty(), "真源不应被写入");
         assert_eq!(
@@ -1184,7 +2029,7 @@ mod tests {
             .unwrap();
         store.send_message(&conv, "user", "好", None).unwrap();
 
-        let summary = handle_pending_action_confirmation(&store, &conv).unwrap();
+        let (summary, _) = handle_pending_action_confirmation(&store, &conv).unwrap();
         let summary = summary.expect("确认后应执行");
         assert!(summary.contains("已保存事件"), "{summary}");
         assert_eq!(store.list_events().unwrap().len(), 1);
@@ -1211,7 +2056,7 @@ mod tests {
             .send_message(&conv, "user", "不用了，先放着", None)
             .unwrap();
 
-        let summary = handle_pending_action_confirmation(&store, &conv).unwrap();
+        let (summary, _) = handle_pending_action_confirmation(&store, &conv).unwrap();
         assert!(summary.is_none());
         assert!(
             store.list_events().unwrap().is_empty(),
@@ -1362,7 +2207,7 @@ mod tests {
             Ok(AiReply::text("最近 7 天没有 AI 调用记录。")),
         ]);
 
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv).unwrap();
+        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
         assert_eq!(outcome.content, "最近 7 天没有 AI 调用记录。");
         assert!(provider.saw_tools_on_first_call(), "首轮仍应尝试原生工具");
         drop(store);

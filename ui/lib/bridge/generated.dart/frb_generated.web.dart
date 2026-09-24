@@ -178,6 +178,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> dco_decode_list_rule_dto(dynamic raw);
 
   @protected
+  List<SystemFontFace> dco_decode_list_system_font_face(dynamic raw);
+
+  @protected
   List<TodoDto> dco_decode_list_todo_dto(dynamic raw);
 
   @protected
@@ -241,6 +244,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleDto dco_decode_rule_dto(dynamic raw);
+
+  @protected
+  SystemFontFace dco_decode_system_font_face(dynamic raw);
 
   @protected
   ThemePrefsDto dco_decode_theme_prefs_dto(dynamic raw);
@@ -452,6 +458,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> sse_decode_list_rule_dto(SseDeserializer deserializer);
 
   @protected
+  List<SystemFontFace> sse_decode_list_system_font_face(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<TodoDto> sse_decode_list_todo_dto(SseDeserializer deserializer);
 
   @protected
@@ -523,6 +534,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleDto sse_decode_rule_dto(SseDeserializer deserializer);
+
+  @protected
+  SystemFontFace sse_decode_system_font_face(SseDeserializer deserializer);
 
   @protected
   ThemePrefsDto sse_decode_theme_prefs_dto(SseDeserializer deserializer);
@@ -957,6 +971,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_system_font_face(List<SystemFontFace> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_system_font_face).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_todo_dto(List<TodoDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_todo_dto).toList().jsify()!;
@@ -1123,6 +1143,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_system_font_face(SystemFontFace raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.family),
+      cst_encode_String(raw.file),
+      cst_encode_String(raw.style),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_theme_prefs_dto(ThemePrefsDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -1130,6 +1160,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.preset),
       cst_encode_String(raw.font),
       cst_encode_f_64(raw.fontSize),
+      cst_encode_opt_String(raw.editorFont),
+      cst_encode_opt_box_autoadd_f_64(raw.editorFontSize),
+      cst_encode_opt_box_autoadd_f_64(raw.editorLineHeight),
     ].jsify()!;
   }
 
@@ -1449,6 +1482,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_rule_dto(List<RuleDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_system_font_face(
+    List<SystemFontFace> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_todo_dto(List<TodoDto> self, SseSerializer serializer);
 
   @protected
@@ -1539,6 +1578,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_rule_dto(RuleDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_system_font_face(
+    SystemFontFace self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_theme_prefs_dto(ThemePrefsDto self, SseSerializer serializer);
 
   @protected
@@ -1609,6 +1654,16 @@ class RustLibWire implements BaseWire {
     idempotency_key,
   );
 
+  void wire__crate__api__confirm_knowledge_draft(
+    NativePortType port_,
+    String conversation_id,
+    String action_id,
+  ) => wasmModule.wire__crate__api__confirm_knowledge_draft(
+    port_,
+    conversation_id,
+    action_id,
+  );
+
   void wire__crate__api__create_conversation(
     NativePortType port_,
     String? title,
@@ -1629,6 +1684,30 @@ class RustLibWire implements BaseWire {
     priority,
     related_wiki_slug,
     note,
+  );
+
+  void wire__crate__api__create_wiki_derivative(
+    NativePortType port_,
+    String based_on_slug,
+    String content_type,
+    String title,
+    String content_md,
+  ) => wasmModule.wire__crate__api__create_wiki_derivative(
+    port_,
+    based_on_slug,
+    content_type,
+    title,
+    content_md,
+  );
+
+  void wire__crate__api__decline_knowledge_draft(
+    NativePortType port_,
+    String conversation_id,
+    String action_id,
+  ) => wasmModule.wire__crate__api__decline_knowledge_draft(
+    port_,
+    conversation_id,
+    action_id,
   );
 
   void wire__crate__api__delete_ai_provider_config(
@@ -1842,6 +1921,9 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__list_rules(NativePortType port_) =>
       wasmModule.wire__crate__api__list_rules(port_);
 
+  void wire__crate__api__list_system_fonts(NativePortType port_) =>
+      wasmModule.wire__crate__api__list_system_fonts(port_);
+
   void wire__crate__api__list_todos(NativePortType port_, String? status) =>
       wasmModule.wire__crate__api__list_todos(port_, status);
 
@@ -1878,6 +1960,11 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__record_event(NativePortType port_, String raw_text) =>
       wasmModule.wire__crate__api__record_event(port_, raw_text);
+
+  void wire__crate__api__refresh_project_page(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__refresh_project_page(port_, slug);
 
   void wire__crate__api__rename_conversation(
     NativePortType port_,
@@ -2060,18 +2147,30 @@ class RustLibWire implements BaseWire {
     args_json,
   );
 
+  void wire__crate__api__update_project_path(
+    NativePortType port_,
+    String slug,
+    String new_path,
+  ) => wasmModule.wire__crate__api__update_project_path(port_, slug, new_path);
+
   void wire__crate__api__update_theme_prefs(
     NativePortType port_,
     String mode,
     String preset,
     String font,
     double font_size,
+    String? editor_font,
+    double? editor_font_size,
+    double? editor_line_height,
   ) => wasmModule.wire__crate__api__update_theme_prefs(
     port_,
     mode,
     preset,
     font,
     font_size,
+    editor_font,
+    editor_font_size,
+    editor_line_height,
   );
 
   void wire__crate__api__update_todo(
@@ -2145,6 +2244,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? idempotency_key,
   );
 
+  external void wire__crate__api__confirm_knowledge_draft(
+    NativePortType port_,
+    String conversation_id,
+    String action_id,
+  );
+
   external void wire__crate__api__create_conversation(
     NativePortType port_,
     String? title,
@@ -2158,6 +2263,20 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? priority,
     String? related_wiki_slug,
     String? note,
+  );
+
+  external void wire__crate__api__create_wiki_derivative(
+    NativePortType port_,
+    String based_on_slug,
+    String content_type,
+    String title,
+    String content_md,
+  );
+
+  external void wire__crate__api__decline_knowledge_draft(
+    NativePortType port_,
+    String conversation_id,
+    String action_id,
   );
 
   external void wire__crate__api__delete_ai_provider_config(
@@ -2345,6 +2464,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__list_rules(NativePortType port_);
 
+  external void wire__crate__api__list_system_fonts(NativePortType port_);
+
   external void wire__crate__api__list_todos(
     NativePortType port_,
     String? status,
@@ -2381,6 +2502,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__record_event(
     NativePortType port_,
     String raw_text,
+  );
+
+  external void wire__crate__api__refresh_project_page(
+    NativePortType port_,
+    String slug,
   );
 
   external void wire__crate__api__rename_conversation(
@@ -2500,12 +2626,21 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String args_json,
   );
 
+  external void wire__crate__api__update_project_path(
+    NativePortType port_,
+    String slug,
+    String new_path,
+  );
+
   external void wire__crate__api__update_theme_prefs(
     NativePortType port_,
     String mode,
     String preset,
     String font,
     double font_size,
+    String? editor_font,
+    double? editor_font_size,
+    double? editor_line_height,
   );
 
   external void wire__crate__api__update_todo(

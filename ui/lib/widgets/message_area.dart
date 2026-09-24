@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../models/conversation.dart';
@@ -13,9 +14,11 @@ import '../providers/wiki_provider.dart';
 import '../providers/todo_provider.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+import 'markdown_view.dart';
 
 String? explicitTopicName(String text) {
-  final match = RegExp(r'^/topic\s+(.+)$', caseSensitive: false).firstMatch(text) ??
+  final match =
+      RegExp(r'^/topic\s+(.+)$', caseSensitive: false).firstMatch(text) ??
       RegExp(r'^进入主题[：:]\s*(.+)$').firstMatch(text) ??
       RegExp(r'^#([^\s#].*)$').firstMatch(text);
   final name = match?.group(1)?.trim();
@@ -38,18 +41,18 @@ Future<void> runAiGeneration(
     setAiGenerating(ref, conversationId, true);
     final repo = ref.read(conversationRepositoryProvider);
     await repo.generateReply(conversationId);
-      if (isMounted == null || isMounted()) {
-        ref.invalidate(messagesProvider);
-        ref.invalidate(conversationsProvider);
-        ref.invalidate(pendingActionsProvider);
-        // AI confirmation may have created or revised a wiki page/todo.
-        // Refresh both navigation surfaces so the new object is visible
-        // immediately after the assistant response completes.
-        ref.invalidate(wikiPagesProvider);
-        ref.invalidate(todosProvider);
-        ref.invalidate(activeAiProviderProvider);
-        ref.invalidate(todayTokenUsageProvider);
-      }
+    if (isMounted == null || isMounted()) {
+      ref.invalidate(messagesProvider);
+      ref.invalidate(conversationsProvider);
+      ref.invalidate(pendingActionsProvider);
+      // AI confirmation may have created or revised a wiki page/todo.
+      // Refresh both navigation surfaces so the new object is visible
+      // immediately after the assistant response completes.
+      ref.invalidate(wikiPagesProvider);
+      ref.invalidate(todosProvider);
+      ref.invalidate(activeAiProviderProvider);
+      ref.invalidate(todayTokenUsageProvider);
+    }
   } catch (e) {
     addConversationNotice(ref, conversationId, aiFailureNotice(e));
     ref.read(scrollRequestProvider.notifier).state++;
@@ -111,6 +114,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
   bool _pendingScrollToBottom = true; // 会话刚切换/初始加载后，数据到达时滚到最新
   String _searchQuery = '';
   DateTime? _selectedDate;
+  bool _showSearch = false;
 
   @override
   void initState() {
@@ -138,9 +142,14 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         ref.watch(conversationNoticeProvider)[selectedId] ?? const <String>[];
     // 正在生成 AI 回复的会话（发送后反馈「AI 生成中」占位气泡）
     final generatingIds = ref.watch(aiGeneratingProvider);
-    final openTodos = ref.watch(todosProvider).valueOrNull
-        ?.where((todo) => !todo.isDone).length;
-    final activeTopics = ref.watch(wikiPagesProvider).valueOrNull
+    final openTodos = ref
+        .watch(todosProvider)
+        .valueOrNull
+        ?.where((todo) => !todo.isDone)
+        .length;
+    final activeTopics = ref
+        .watch(wikiPagesProvider)
+        .valueOrNull
         ?.where(
           (page) =>
               page.kind == 'topic' &&
@@ -150,6 +159,10 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         .length;
     final activeProvider = ref.watch(activeAiProviderProvider).valueOrNull;
     final tokenUsage = ref.watch(todayTokenUsageProvider).valueOrNull;
+    final draftCount =
+        (ref.watch(pendingActionsProvider).valueOrNull ?? const [])
+            .where((action) => action.action == 'save_knowledge_draft')
+            .length;
 
     // 侦听必须在 build 中注册（riverpod 2.x 约束）。
     // 切换会话：重置窗口，数据到达后回到最新消息
@@ -190,22 +203,29 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
 
     return Column(
       children: [
-        _buildSearchBar(messagesAsync.valueOrNull ?? const []),
         _NowStatus(
           messages: messagesAsync.valueOrNull ?? const [],
           openTodos: openTodos,
           activeTopics: activeTopics,
           activeProvider: activeProvider,
           tokenUsage: tokenUsage?.totalTokens,
+          showSearch: _showSearch,
+          draftCount: draftCount,
+          onOpenDrafts: () => showDialog<void>(
+            context: context,
+            builder: (_) => const _KnowledgeDraftsDialog(),
+          ),
+          onToggleSearch: () => setState(() => _showSearch = !_showSearch),
+          // 复制全部并进「今天」行：有消息时显示，无消息时隐藏。
+          onCopyAll: (messagesAsync.valueOrNull?.isNotEmpty ?? false)
+              ? () => _copyToClipboard(
+                  context,
+                  _formatConversationForCopy(messagesAsync.valueOrNull!),
+                  '对话',
+                )
+              : null,
         ),
-        // 复制全部对话（有消息时显示）
-        messagesAsync.when(
-          data: (messages) => messages.isEmpty
-              ? const SizedBox.shrink()
-              : _buildCopyAllHeader(context, messages),
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
-        ),
+        if (_showSearch) _buildSearchBar(messagesAsync.valueOrNull ?? const []),
         _PendingRelationsBanner(),
         // Messages list
         Expanded(
@@ -235,9 +255,10 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                   return false;
                 }
                 if (_searchQuery.trim().isEmpty) return true;
-                return m.isUser && m.content.toLowerCase().contains(
-                  _searchQuery.trim().toLowerCase(),
-                );
+                return m.isUser &&
+                    m.content.toLowerCase().contains(
+                      _searchQuery.trim().toLowerCase(),
+                    );
               }).toList();
               final total = matching.length;
               final shownSince = _searchQuery.trim().isNotEmpty
@@ -353,7 +374,11 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                 isDense: true,
                 hintText: '搜索你说过的话',
                 hintStyle: TextStyle(color: AppTheme.textTertiary),
-                prefixIcon: Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 18,
+                  color: AppTheme.textSecondary,
+                ),
                 suffixIcon: (_searchQuery.isNotEmpty || _selectedDate != null)
                     ? IconButton(
                         tooltip: '清除定位',
@@ -386,7 +411,11 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           const SizedBox(width: 8),
           IconButton(
             tooltip: '回到现在',
-            icon: Icon(Icons.vertical_align_bottom, size: 18, color: AppTheme.textSecondary),
+            icon: Icon(
+              Icons.vertical_align_bottom,
+              size: 18,
+              color: AppTheme.textSecondary,
+            ),
             onPressed: _returnToNow,
           ),
         ],
@@ -472,36 +501,6 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
     );
   }
 
-  /// 复制全部对话（含角色与时间，适合粘贴为记录）
-  Widget _buildCopyAllHeader(BuildContext context, List<Message> messages) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        top: AppTheme.space2,
-        right: AppTheme.space3,
-        bottom: 0,
-      ),
-      child: Row(
-        children: [
-          const Spacer(),
-          IconButton(
-            icon: Icon(
-              Icons.copy_all_rounded,
-              size: 18,
-              color: AppTheme.textSecondary,
-            ),
-            tooltip: '复制全部对话',
-            visualDensity: VisualDensity.compact,
-            onPressed: () => _copyToClipboard(
-              context,
-              _formatConversationForCopy(messages),
-              '对话',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -542,6 +541,218 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
       ),
     );
   }
+}
+
+class _KnowledgeDraftsDialog extends ConsumerWidget {
+  const _KnowledgeDraftsDialog();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final actions = ref.watch(pendingActionsProvider).valueOrNull ?? const [];
+    final drafts = actions.where(
+      (action) => action.action == 'save_knowledge_draft',
+    );
+    final conversationId = ref.watch(selectedConversationIdProvider);
+    return AlertDialog(
+      title: Text('待入库草稿（${drafts.length}）'),
+      content: SizedBox(
+        width: 540,
+        height: min(440, MediaQuery.sizeOf(context).height * .55),
+        child: drafts.isEmpty
+            ? const Center(child: Text('当前对话没有待入库草稿'))
+            : ListView(
+                children: [
+                  for (final action in drafts)
+                    Builder(
+                      builder: (context) {
+                        Map<String, dynamic> payload;
+                        try {
+                          payload = Map<String, dynamic>.from(
+                            jsonDecode(action.argsJson) as Map,
+                          );
+                        } catch (_) {
+                          return const SizedBox.shrink();
+                        }
+                        final title = payload['title']?.toString() ?? '';
+                        return ListTile(
+                          leading: const Icon(Icons.article_outlined),
+                          title: Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: const Text('待确认，未入库'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: conversationId == null
+                              ? null
+                              : () => showDialog<void>(
+                                  context: context,
+                                  builder: (_) => _KnowledgeDraftDialog(
+                                    conversationId: conversationId,
+                                    actionId: action.id,
+                                    title: title,
+                                    kind:
+                                        payload['kind']?.toString() ?? 'topic',
+                                    content:
+                                        payload['content_md']?.toString() ?? '',
+                                  ),
+                                ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('关闭'),
+        ),
+      ],
+    );
+  }
+}
+
+class _KnowledgeDraftDialog extends ConsumerStatefulWidget {
+  const _KnowledgeDraftDialog({
+    required this.conversationId,
+    required this.actionId,
+    required this.title,
+    required this.kind,
+    required this.content,
+  });
+
+  final String conversationId;
+  final String actionId;
+  final String title;
+  final String kind;
+  final String content;
+
+  @override
+  ConsumerState<_KnowledgeDraftDialog> createState() =>
+      _KnowledgeDraftDialogState();
+}
+
+class _KnowledgeDraftDialogState extends ConsumerState<_KnowledgeDraftDialog> {
+  bool _saving = false;
+  String? _error;
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('删除草稿？'),
+        content: Text('《${widget.title}》将不再等待入库。已保存的知识页不会受到影响。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('删除草稿'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(conversationRepositoryProvider)
+          .declineKnowledgeDraft(widget.conversationId, widget.actionId);
+      if (!mounted) return;
+      ref.invalidate(pendingActionsProvider);
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = '删除失败：$e';
+          _saving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final result = await ref
+          .read(conversationRepositoryProvider)
+          .confirmKnowledgeDraft(widget.conversationId, widget.actionId);
+      if (!mounted) return;
+      ref.invalidate(pendingActionsProvider);
+      ref.invalidate(wikiPagesProvider);
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).pop();
+      messenger.showSnackBar(SnackBar(content: Text(result)));
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = '保存失败：$e';
+          _saving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: SizedBox(
+      width: 620,
+      height: min(480, MediaQuery.sizeOf(context).height * .65),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '类型：${widget.kind} · 待确认，未入库',
+            style: TextStyle(color: AppTheme.textSecondary),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: SingleChildScrollView(
+              child: MarkdownView(markdown: widget.content),
+            ),
+          ),
+          if (_error != null)
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton.icon(
+        onPressed: _saving ? null : _delete,
+        icon: const Icon(Icons.delete_outline),
+        label: const Text('删除草稿'),
+      ),
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.of(context).pop(),
+        child: const Text('返回'),
+      ),
+      FilledButton.icon(
+        onPressed: _saving ? null : _save,
+        icon: _saving
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.save_outlined),
+        label: const Text('保存到知识库'),
+      ),
+    ],
+  );
 }
 
 class _PendingRelationsBanner extends ConsumerWidget {
@@ -740,21 +951,40 @@ class _NowStatus extends StatelessWidget {
   final int? activeTopics;
   final String? activeProvider;
   final int? tokenUsage;
+  final bool showSearch;
+  final int draftCount;
+  final VoidCallback? onOpenDrafts;
+  final VoidCallback? onToggleSearch;
+  final VoidCallback? onCopyAll;
   const _NowStatus({
     required this.messages,
     this.openTodos,
     this.activeTopics,
     this.activeProvider,
     this.tokenUsage,
+    this.showSearch = false,
+    this.draftCount = 0,
+    this.onOpenDrafts,
+    this.onToggleSearch,
+    this.onCopyAll,
   });
 
   @override
   Widget build(BuildContext context) {
     final today = DateTime.now();
-    final count = messages.where((m) =>
-        m.createdAt.year == today.year &&
-        m.createdAt.month == today.month &&
-        m.createdAt.day == today.day).length;
+    final count = messages
+        .where(
+          (m) =>
+              m.createdAt.year == today.year &&
+              m.createdAt.month == today.month &&
+              m.createdAt.day == today.day,
+        )
+        .length;
+    final summary =
+        '今天 $count 条交流'
+        '${activeTopics == null ? '' : ' · ${activeTopics!} 个主题'}'
+        '${openTodos == null ? '' : ' · ${openTodos!} 项待办'}'
+        '${tokenUsage == null ? '' : ' · ${_formatTokens(tokenUsage!)} tokens'}';
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -763,29 +993,106 @@ class _NowStatus extends StatelessWidget {
         border: Border.all(color: AppTheme.surface3),
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.today_outlined, size: 16, color: AppTheme.accentPrimary),
-          const SizedBox(width: 8),
-          Text('今天', style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-          const Spacer(),
-          if (activeProvider != null) ...[
-            Icon(Icons.smart_toy_outlined, size: 14, color: AppTheme.textTertiary),
-            const SizedBox(width: 5),
-            Text(
-              activeProvider!,
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(width: 12),
-          ],
-          Text(
-            '今天 $count 条交流'
-            '${activeTopics == null ? '' : ' · ${activeTopics!} 个主题'}'
-            '${openTodos == null ? '' : ' · ${openTodos!} 项待办'}'
-            '${tokenUsage == null ? '' : ' · ${_formatTokens(tokenUsage!)} tokens'}',
-            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 660;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.today_outlined,
+                    size: 16,
+                    color: AppTheme.accentPrimary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '今天',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  TextButton.icon(
+                    onPressed: onOpenDrafts,
+                    icon: const Icon(Icons.drafts_outlined, size: 16),
+                    label: Text('$draftCount 份待入库'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (!compact && activeProvider != null) ...[
+                    Icon(
+                      Icons.smart_toy_outlined,
+                      size: 14,
+                      color: AppTheme.textTertiary,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      activeProvider!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  if (!compact) ...[
+                    Flexible(
+                      child: Text(
+                        summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (onCopyAll != null)
+                    IconButton(
+                      tooltip: '复制全部对话',
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.copy_all_rounded, size: 17),
+                      color: AppTheme.textSecondary,
+                      onPressed: onCopyAll,
+                    ),
+                  IconButton(
+                    tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      showSearch ? Icons.search_off : Icons.search,
+                      size: 17,
+                    ),
+                    color: showSearch
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textSecondary,
+                    onPressed: onToggleSearch,
+                  ),
+                ],
+              ),
+              if (compact)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    summary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -905,6 +1212,11 @@ class _MessageBubble extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isUser = message.isUser;
+    final displayContent = isUser
+        ? message.content
+        // 模型常把普通换行输出成空行分隔，聊天阅读中会显得过于松散；
+        // 保留真实换行，但把连续空行收敛成单行间距。
+        : message.content.replaceAll(RegExp(r'\n{2,}'), '\n');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space4),
@@ -920,100 +1232,115 @@ class _MessageBubble extends ConsumerWidget {
           ],
 
           Flexible(
-            child: Column(
-              crossAxisAlignment: isUser
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                // Role and time + 复制按钮
-                Padding(
-                  padding: const EdgeInsets.only(
-                    left: AppTheme.space2,
-                    right: AppTheme.space2,
-                    bottom: AppTheme.space1,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${isUser ? "我" : "AI"} • ${_formatTime(message.createdAt)}',
-                        style: TextStyle(
-                          color: AppTheme.textTertiary,
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      // 整条消息复制
-                      IconButton(
-                        icon: Icon(
-                          Icons.copy_rounded,
-                          size: 13,
-                          color: AppTheme.textTertiary,
-                        ),
-                        tooltip: '复制这条消息',
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 24,
-                          minHeight: 20,
-                        ),
-                        onPressed: () =>
-                            _copyToClipboard(context, message.content, '消息'),
-                      ),
-                      if (isUser) _buildRecordability(context, ref),
-                    ],
-                  ),
-                ),
-
-                // Message bubble
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.space3,
-                    vertical: AppTheme.space3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isUser
-                        ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                        : AppTheme.surface2,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    border: Border.all(
-                      color: isUser
-                          ? AppTheme.accentPrimary.withValues(alpha: 0.3)
-                          : AppTheme.surface3,
-                      width: 1,
-                    ),
-                  ),
-                  // SelectableText：支持鼠标选中局部复制
-                  child: SelectableText(
-                    message.content,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-
-                // 生成失败/未生成：最后一条用户消息上提供「重新生成」入口
-                if (showRetry && onRetry != null)
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 820),
+              child: Column(
+                crossAxisAlignment: isUser
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  // Role and time + 复制按钮
                   Padding(
-                    padding: const EdgeInsets.only(top: AppTheme.space1),
-                    child: TextButton.icon(
-                      onPressed: onRetry,
-                      icon: const Icon(Icons.refresh_rounded, size: 15),
-                      label: const Text('重新生成'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.accentPrimary,
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.space2,
-                          vertical: 2,
+                    padding: const EdgeInsets.only(
+                      left: AppTheme.space2,
+                      right: AppTheme.space2,
+                      bottom: AppTheme.space1,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${isUser ? "我" : "AI"} • ${_formatTime(message.createdAt)}',
+                          style: TextStyle(
+                            color: AppTheme.textTertiary,
+                            fontSize: 11,
+                          ),
                         ),
-                        textStyle: const TextStyle(fontSize: 12),
-                      ),
+                        const SizedBox(width: 2),
+                        // 整条消息复制
+                        IconButton(
+                          icon: Icon(
+                            Icons.copy_rounded,
+                            size: 13,
+                            color: AppTheme.textTertiary,
+                          ),
+                          tooltip: '复制这条消息',
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 20,
+                          ),
+                          onPressed: () =>
+                              _copyToClipboard(context, message.content, '消息'),
+                        ),
+                        if (isUser) _buildRecordability(context, ref),
+                      ],
                     ),
                   ),
-              ],
+
+                  // Message bubble
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.space3,
+                      vertical: AppTheme.space3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isUser
+                          ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                          : AppTheme.surface1,
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMedium,
+                      ),
+                      border: Border.all(
+                        color: isUser
+                            ? AppTheme.accentPrimary.withValues(alpha: 0.3)
+                            : AppTheme.surface3.withValues(alpha: 0.7),
+                        width: 1,
+                      ),
+                    ),
+                    child: isUser
+                        ? SelectableText(
+                            displayContent,
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 14,
+                              height: 1.55,
+                            ),
+                          )
+                        : SelectionArea(
+                            child: MarkdownView(
+                              markdown: displayContent,
+                              baseStyle: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 15,
+                                height: 1.65,
+                              ),
+                            ),
+                          ),
+                  ),
+
+                  // 生成失败/未生成：最后一条用户消息上提供「重新生成」入口
+                  if (showRetry && onRetry != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppTheme.space1),
+                      child: TextButton.icon(
+                        onPressed: onRetry,
+                        icon: const Icon(Icons.refresh_rounded, size: 15),
+                        label: const Text('重新生成'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.accentPrimary,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppTheme.space2,
+                            vertical: 2,
+                          ),
+                          textStyle: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
 
@@ -1331,6 +1658,18 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     _focusNode.requestFocus();
   }
 
+  Future<void> _pickDirectoryForImport() async {
+    final path = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择要导入的目录',
+    );
+    if (!mounted || path == null || path.trim().isEmpty) return;
+    final prompt = '看看 `$path` 下的项目，导入到知识库';
+    _controller
+      ..text = prompt
+      ..selection = TextSelection.collapsed(offset: prompt.length);
+    _focusNode.requestFocus();
+  }
+
   Future<void> _handleSubmit() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSubmitting) return;
@@ -1415,18 +1754,19 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         break;
       }
     }
-    final page = existing ?? await bridge.saveTextPage(
-      text: '# $title\n\n',
-      title: title,
-      tags: const ['topic'],
-    );
+    final page =
+        existing ??
+        await bridge.saveTextPage(
+          text: '# $title\n\n',
+          title: title,
+          tags: const ['topic'],
+        );
     ref.invalidate(wikiPagesProvider);
     ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
     openWikiPageTab(ref, page);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已进入主题：${page.title}')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('已进入主题：${page.title}')));
     }
   }
 
@@ -1488,14 +1828,19 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     final pages = ref.watch(wikiPagesProvider).valueOrNull ?? const [];
     final completionPages = _completionMarker == null
         ? const <WikiPage>[]
-        : pages.where((page) {
-            final allowed = _completionMarker == '@'
-                ? page.kind == 'person'
-                : page.kind == 'topic' || page.kind == 'project';
-            return allowed &&
-                page.status != 'archived' &&
-                page.title.toLowerCase().contains(_completionQuery.toLowerCase());
-          }).take(6).toList();
+        : pages
+              .where((page) {
+                final allowed = _completionMarker == '@'
+                    ? page.kind == 'person'
+                    : page.kind == 'topic' || page.kind == 'project';
+                return allowed &&
+                    page.status != 'archived' &&
+                    page.title.toLowerCase().contains(
+                      _completionQuery.toLowerCase(),
+                    );
+              })
+              .take(6)
+              .toList();
 
     return Container(
       padding: const EdgeInsets.all(AppTheme.space4),
@@ -1528,66 +1873,107 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-          IconButton(
-            onPressed: () => setState(() => _showInputGuide = !_showInputGuide),
-            icon: Icon(
-              _showInputGuide ? Icons.close : Icons.help_outline,
-              size: 20,
-            ),
-            color: AppTheme.textSecondary,
-            tooltip: '输入格式',
-          ),
-          const SizedBox(width: AppTheme.space2),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              maxLines: 4,
-              minLines: 1,
-              enabled: !_isSubmitting,
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: isGenerating ? 'AI 正在思考，您可以先输入下一条消息…' : '输入消息...',
-                hintStyle: TextStyle(color: AppTheme.textTertiary),
-                filled: true,
-                fillColor: AppTheme.surface2,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  borderSide: BorderSide(color: AppTheme.surface3),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  borderSide: BorderSide(color: AppTheme.surface3),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  borderSide: BorderSide(
-                    color: AppTheme.accentPrimary,
-                    width: 2,
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  maxLines: 4,
+                  minLines: 1,
+                  enabled: !_isSubmitting,
+                  style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: isGenerating ? 'AI 正在思考，您可以先输入下一条消息…' : '输入消息...',
+                    prefixIcon: _showInputGuide
+                        ? IconButton(
+                            tooltip: '关闭输入格式',
+                            icon: const Icon(Icons.close, size: 20),
+                            color: AppTheme.textSecondary,
+                            onPressed: () =>
+                                setState(() => _showInputGuide = false),
+                          )
+                        : PopupMenuButton<String>(
+                            tooltip: '添加内容',
+                            icon: const Icon(
+                              Icons.add_circle_outline,
+                              size: 20,
+                            ),
+                            onSelected: (value) {
+                              if (value == 'directory') {
+                                _pickDirectoryForImport();
+                              } else {
+                                setState(() => _showInputGuide = true);
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'directory',
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(
+                                    Icons.folder_open_outlined,
+                                    size: 18,
+                                  ),
+                                  title: Text('选择目录'),
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'guide',
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(Icons.help_outline, size: 18),
+                                  title: Text('查看输入格式'),
+                                ),
+                              ),
+                            ],
+                          ),
+                    hintStyle: TextStyle(color: AppTheme.textTertiary),
+                    filled: true,
+                    fillColor: AppTheme.surface2,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMedium,
+                      ),
+                      borderSide: BorderSide(color: AppTheme.surface3),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMedium,
+                      ),
+                      borderSide: BorderSide(color: AppTheme.surface3),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMedium,
+                      ),
+                      borderSide: BorderSide(
+                        color: AppTheme.accentPrimary,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.space3,
+                      vertical: AppTheme.space3,
+                    ),
                   ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.space3,
-                  vertical: AppTheme.space3,
+                  onSubmitted: (_) => _handleSubmit(),
                 ),
               ),
-              onSubmitted: (_) => _handleSubmit(),
-            ),
-          ),
-          const SizedBox(width: AppTheme.space3),
-          IconButton(
-            onPressed: busy ? null : _handleSubmit,
-            icon: busy
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.send),
-            color: AppTheme.accentPrimary,
-            iconSize: 24,
-            tooltip: isGenerating ? 'AI 正在思考…' : '发送',
-          ),
+              const SizedBox(width: AppTheme.space3),
+              IconButton.filled(
+                onPressed: busy ? null : _handleSubmit,
+                style: IconButton.styleFrom(
+                  backgroundColor: AppTheme.accentPrimary,
+                  disabledBackgroundColor: AppTheme.surface3,
+                ),
+                icon: busy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.arrow_upward, size: 16),
+                tooltip: isGenerating ? 'AI 正在思考…' : '发送',
+              ),
             ],
           ),
         ],
@@ -1607,6 +1993,12 @@ class _InputGuidePanel extends StatelessWidget {
       (Icons.person_outline, '@人名', '标注人物', '@张伟 '),
       (Icons.tag_outlined, '#主题名', '进入主题', '#付款流程'),
       (Icons.link_outlined, '链接', '导入内容', 'https://'),
+      (
+        Icons.folder_open_outlined,
+        '目录',
+        '导入项目或文件',
+        '看看 `/path/to/project` 下的项目，导入到知识库',
+      ),
       (Icons.check_circle_outline, '确认 / 取消', '处理 AI 草案', '确认'),
     ];
     return Container(
@@ -1665,7 +2057,10 @@ class _InputCompletionPanel extends StatelessWidget {
                 InkWell(
                   onTap: () => onSelected(page.title),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
@@ -1679,7 +2074,10 @@ class _InputCompletionPanel extends StatelessWidget {
                         const SizedBox(width: 12),
                         Text(
                           page.kindLabel,
-                          style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textTertiary,
+                          ),
                         ),
                       ],
                     ),

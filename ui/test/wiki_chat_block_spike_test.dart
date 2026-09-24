@@ -28,7 +28,7 @@ void main() {
       await tester.pump(); // setState(_ready=true) 生效
 
       // 聊天块与输入框就位且可用
-      expect(find.text('AI 处理本页'), findsOneWidget, reason: '聊天块应渲染页内 AI 面板');
+      expect(find.text('AI对话'), findsOneWidget, reason: '聊天块应渲染页内 AI 面板');
       final input = find.byType(TextField);
       expect(input, findsOneWidget);
       expect(tester.widget<TextField>(input).enabled, isTrue);

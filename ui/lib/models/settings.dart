@@ -1,4 +1,6 @@
 /// Settings models for the application
+import '../utils/system_fonts.dart';
+
 class AiProviderSettings {
   final String providerType;
   final String baseUrl;
@@ -120,10 +122,9 @@ enum AppThemePreset {
   }
 }
 
-/// 全局字体选择（外观 tab，经 flutter_font_picker 从 Google Fonts 挑选）。
-/// 存值（app_meta `theme_font`）即 Google Fonts 家族名（如 "Inter"、
-/// "Noto Sans SC"），首次使用联网下载并缓存；特殊值 [system] 不套网络字体，
-/// 跟随系统。monospace 场景不受影响。
+/// 全局字体选择（外观 tab，自研选择框：系统默认 / fontconfig 本地字体 / Google Fonts）。
+/// 存值（app_meta `theme_font`）格式见 [parseStoredFont]：`system`、`google:<家族>`、
+/// `local:<家族>`；无前缀历史值按 Google 优先、本地兜底解析。monospace 场景不受影响。
 final class AppFonts {
   AppFonts._();
 
@@ -144,9 +145,11 @@ final class AppFonts {
         _ => stored,
       };
 
-  /// 显示名：system 取中文名，其余原样显示家族名
+  /// 显示名：system 取中文名，带前缀存值取家族名，历史裸值原样显示
   static String displayNameOf(String fontName) =>
-      fontName == system ? systemDisplayName : fontName;
+      parseStoredFont(fontName).family.isEmpty
+          ? systemDisplayName
+          : parseStoredFont(fontName).family;
 
   /// 正文字号范围与默认值（仅知识库正文，见设置页「外观」字号滑块）
   static const double minFontSize = 12.0;
@@ -156,6 +159,16 @@ final class AppFonts {
   /// 把历史/越界存值收敛到合法区间
   static double clampFontSize(double size) =>
       size.clamp(minFontSize, maxFontSize);
+
+  /// 正文行距范围与默认值（倍数；vendor `TextStyleConfiguration` 默认 1.5，
+  /// 见编辑器「AA」浮层行距滑块）
+  static const double minLineHeight = 1.0;
+  static const double maxLineHeight = 2.5;
+  static const double defaultLineHeight = 1.5;
+
+  /// 把历史/越界行距收敛到合法区间
+  static double clampLineHeight(double height) =>
+      height.clamp(minLineHeight, maxLineHeight);
 }
 
 /// Complete application settings
@@ -171,7 +184,36 @@ class AppSettings {
 
   /// 知识库正文字号（px，仅作用于 wiki 内容编辑器），见 [AppFonts]
   final double fontSize;
+
+  /// 编辑器（内容区）阅读参数覆盖层——null 即「跟随全局」。
+  /// 两层覆盖模型见 docs/notes/proposed/product/2026-09-23-editor-reading-settings-layer.md：
+  /// `实际值 = 编辑器值(可空) ?? 全局值`，三个参数各自独立可空。
+  /// 存储 app_meta：theme_editor_font / _font_size / _line_height。
+  final String? editorFontName;
+  final double? editorFontSize;
+  final double? editorLineHeight;
+
+  /// 是否设置过编辑器字体覆盖（AA 浮层需要区分「未设置」与「已重置」）
+  bool get hasEditorOverrides =>
+      editorFontName != null || editorFontSize != null || editorLineHeight != null;
+
+  /// 求值：编辑器字号覆盖 ?? 全局字号（知识库正文实际渲染字号）
+  double get contentFontSize =>
+      AppFonts.clampFontSize(editorFontSize ?? fontSize);
+
+  /// 求值：编辑器行距覆盖 ?? 全局行距（vendor 默认 1.5）
+  double get contentLineHeight =>
+      AppFonts.clampLineHeight(editorLineHeight ?? AppFonts.defaultLineHeight);
+
+  /// 编辑器实际字体来源：null / "system" 时跟随系统字体，不做家族注入
+  /// （渲染层对 null 回退主题/系统字体）；具体家族名则覆盖全局。
+  String? get contentFontName => editorFontName;
+
   final String? language;
+
+  /// copyWith 的「显式置空」哨兵（null 会被 copyWith 语义吞掉；
+  /// const 实例保证能作默认参数值）
+  static const Object _unset = _EditorUnsetSentinel();
 
   const AppSettings({
     required this.aiProvider,
@@ -181,6 +223,9 @@ class AppSettings {
     this.themePreset = AppThemePreset.amber,
     this.fontName = 'inter',
     this.fontSize = AppFonts.defaultFontSize,
+    this.editorFontName,
+    this.editorFontSize,
+    this.editorLineHeight,
     this.language,
   });
 
@@ -203,6 +248,43 @@ class AppSettings {
       fontName: fontName ?? this.fontName,
       fontSize: fontSize ?? this.fontSize,
       language: language ?? this.language,
+      editorFontName: editorFontName,
+      editorFontSize: editorFontSize,
+      editorLineHeight: editorLineHeight,
+    );
+  }
+
+  /// 只改编辑器覆盖层：参数为 [Object]，传入具体值即设置覆盖；
+  /// 传入 `null`（非 [_unset]）即「跟随全局」显式清空覆盖。
+  AppSettings copyWithEditorSettings({
+    Object? font = _unset,
+    Object? fontSizeOverride = _unset,
+    Object? lineHeightOverride = _unset,
+  }) {
+    return AppSettings(
+      aiProvider: aiProvider,
+      memory: memory,
+      storage: storage,
+      themeMode: themeMode,
+      themePreset: themePreset,
+      fontName: fontName,
+      fontSize: fontSize,
+      language: language,
+      editorFontName: identical(font, _unset)
+          ? editorFontName
+          : font as String?,
+      editorFontSize: identical(fontSizeOverride, _unset)
+          ? editorFontSize
+          : (fontSizeOverride as num?) == null
+              ? null
+              : AppFonts.clampFontSize((fontSizeOverride as num).toDouble()),
+      editorLineHeight: identical(lineHeightOverride, _unset)
+          ? editorLineHeight
+          : (lineHeightOverride as num?) == null
+              ? null
+              : AppFonts.clampLineHeight(
+                  (lineHeightOverride as num).toDouble(),
+                ),
     );
   }
 
@@ -226,4 +308,9 @@ class AppSettings {
       themePreset: AppThemePreset.amber,
     );
   }
+}
+
+/// copyWithEditorSettings 的「显式置空」哨兵类型（const 实例才能作参数默认值）
+class _EditorUnsetSentinel {
+  const _EditorUnsetSentinel();
 }

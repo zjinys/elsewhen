@@ -9,7 +9,7 @@ import '../bridge/generated.dart/api.dart'
     show EntityFactDto, EntityMergeStatusDto;
 
 /// 一级导航内容域。待办使用主工作区承载，避免在弹窗里维护持续讨论。
-enum SidebarTab { conversation, wiki, todos }
+enum SidebarTab { conversation, wiki }
 
 final sidebarTabProvider = StateProvider<SidebarTab>(
   (ref) => SidebarTab.conversation,
@@ -99,7 +99,7 @@ sealed class WikiTabEntry {
   bool get closable => true;
 }
 
-/// Tab 1（固定）：导入（粘贴链接抓取或直接文本保存）。缺省只有这一个，不可关闭。
+/// 固定首页（导入与知识库浏览）。
 class ImportTabEntry extends WikiTabEntry {
   const ImportTabEntry();
 
@@ -107,11 +107,12 @@ class ImportTabEntry extends WikiTabEntry {
   String get id => 'import';
 
   @override
-  String get title => '导入';
+  String get title => '首页';
 
   @override
   bool get closable => false;
 }
+
 
 /// 知识库页面详情 tab
 class PageTabEntry extends WikiTabEntry {

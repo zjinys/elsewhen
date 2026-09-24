@@ -23,6 +23,8 @@ pub struct ConversationSummary {
     pub archived: bool,
     /// 关联的知识页 slug（页内 AI 处理会话）；None 为普通对话
     pub wiki_page_slug: Option<String>,
+    /// AI 对话角色：personal_secretary 或 knowledge_mentor
+    pub assistant_mode: String,
 }
 
 #[derive(Debug, Clone)]
@@ -606,6 +608,26 @@ impl Store {
               INSERT OR IGNORE INTO schema_migrations(version, applied_at)
               VALUES (7, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
         )?;
+        // 版本 30：区分主对话秘书角色与知识页导师角色。
+        let has_assistant_mode = {
+            let mut statement = connection.prepare("PRAGMA table_info(conversations)")?;
+            let columns = statement
+                .query_map([], |row| row.get::<_, String>(1))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            columns.iter().any(|name| name == "assistant_mode")
+        };
+        if !has_assistant_mode {
+            connection.execute_batch(
+                "ALTER TABLE conversations ADD COLUMN assistant_mode TEXT NOT NULL DEFAULT 'personal_secretary';
+                 INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                 VALUES (30, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+            )?;
+        } else {
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (30, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+                [],
+            )?;
+        }
         // 版本 21：人物 / 项目 / 主题的最小结构化事实层，来源事件不可省略。
         connection.execute_batch(
             "CREATE TABLE IF NOT EXISTS entity_facts (
@@ -1132,10 +1154,13 @@ impl Store {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
         }
-        Ok(Self {
+        let store = Self {
             connection,
             path: path.to_path_buf(),
-        })
+        };
+        // 幂等存量回填：老项目页的 file:// 来源（只填空缺，无副作用）。
+        store.backfill_project_source_urls()?;
+        Ok(store)
     }
 
     pub fn insert_event(&self, event: NewEvent<'_>) -> Result<String> {
@@ -1320,17 +1345,19 @@ impl Store {
         &self,
         conversation_id: &str,
     ) -> Result<Option<String>> {
-        self.connection
+        let event_id = self
+            .connection
             .query_row(
-                "SELECT i.event_id FROM input_records i
-             JOIN messages m ON m.id=i.message_id
-             WHERE m.conversation_id=?1 AND i.event_id IS NOT NULL
-             ORDER BY m.created_at DESC, i.created_at DESC LIMIT 1",
+                "SELECT i.event_id FROM messages m
+             LEFT JOIN input_records i ON i.message_id=m.id
+             WHERE m.conversation_id=?1 AND m.role='user'
+             ORDER BY m.created_at DESC LIMIT 1",
                 [conversation_id],
-                |row| row.get(0),
+                |row| row.get::<_, Option<String>>(0),
             )
             .optional()
-            .map_err(Into::into)
+            .map_err(anyhow::Error::from)?;
+        Ok(event_id.flatten())
     }
 
     pub fn conversation_id_for_event(&self, event_id: &str) -> Result<Option<String>> {
@@ -2608,7 +2635,12 @@ impl Store {
         if kind == "derivative" {
             return "derivative".to_string();
         }
-        if kind == "person" || slug.starts_with("person/") || slug.starts_with("topic/") {
+        if kind == "person"
+            || kind == "project"
+            || slug.starts_with("person/")
+            || slug.starts_with("project/")
+            || slug.starts_with("topic/")
+        {
             return "network".to_string();
         }
         if kind == "source"
@@ -2662,12 +2694,7 @@ impl Store {
                     "UPDATE wiki_pages
                      SET source_event_ids=?1, evidence_count=?2, last_seen_at=?3, updated_at=?3
                      WHERE id=?4",
-                    params![
-                        sources_raw,
-                        evidence_count,
-                        now,
-                        page.id,
-                    ],
+                    params![sources_raw, evidence_count, now, page.id,],
                 )?;
                 let updated = self.get_wiki_page(&draft.slug)?.unwrap();
                 return Ok(WikiUpsertOutcome {
@@ -2783,6 +2810,107 @@ impl Store {
         self.get_wiki_page(slug)?.context("标签更新后读取失败")
     }
 
+    /// 修改一张项目页关联的本地目录（目录搬家后在这里纠正路径）。
+    /// - 仅 kind=project；新路径必须存在且是目录（否则拒绝，避免指到空处）；
+    /// - 路径记进 `source_url`（file:// 规范形式），正文里的「项目目录：`...`」快照行同步改掉；
+    /// - 留 revision + wiki_log，不置 `human_edited_at`（元数据修正，不是正文创作）。
+    pub fn update_project_path(&self, slug: &str, new_path: &str) -> Result<WikiPage> {
+        let page = self
+            .get_wiki_page(slug)?
+            .with_context(|| format!("知识页不存在: {slug}"))?;
+        if page.kind != "project" {
+            anyhow::bail!(
+                "只有项目页（kind=project）可以修改本地路径，当前 kind={}",
+                page.kind
+            );
+        }
+        let trimmed = new_path.trim();
+        if trimmed.is_empty() {
+            anyhow::bail!("新路径不能为空");
+        }
+        let raw = std::path::PathBuf::from(trimmed);
+        if !raw.is_dir() {
+            anyhow::bail!("目录不存在或不可访问: {trimmed}");
+        }
+        // 规范化（解引用符号链接）：同一目录永远得到同一 file://，去重不漂移。
+        let canonical = raw.canonicalize().unwrap_or(raw);
+        let new_url = crate::wiki::path_to_file_url(&canonical);
+        let display = canonical.display().to_string();
+        // 正文快照行同步：只换「项目目录：`...`」这一行的反引号内路径。
+        let mut content = page.content_md.clone();
+        if let Some(pos) = content.find("项目目录：") {
+            let rest = &content[pos..];
+            if let Some(open) = rest.find('`') {
+                let after_open = pos + open + 1;
+                if let Some(close_rel) = content[after_open..].find('`') {
+                    content.replace_range(after_open..after_open + close_rel, &display);
+                }
+            }
+        }
+        let old_url = page.source_url.clone().unwrap_or_default();
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "UPDATE wiki_pages SET source_url = ?1, content_md = ?2, updated_at = ?3 WHERE id = ?4",
+            params![new_url, content, now, page.id],
+        )?;
+        let reason = if old_url.is_empty() {
+            format!("项目路径设置：{display}")
+        } else {
+            format!("项目路径修改：{old_url} → {new_url}")
+        };
+        self.record_wiki_revision(&page.id, &content, &reason, None)?;
+        self.append_wiki_log(&format!("项目路径修改：{slug} → {display}"))?;
+        self.get_wiki_page(slug)?.context("项目路径修改后读取失败")
+    }
+
+    /// 存量回填（幂等）：目录导入时代久远的项目页只有正文快照、没有 `source_url`，
+    /// 从「项目目录：`...`」解析出路径并记进 `source_url`（file://）。
+    /// 只命中 `source_url IS NULL` 的 project 页，填过后不再重复执行，无副作用。
+    pub fn backfill_project_source_urls(&self) -> Result<usize> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, slug, content_md FROM wiki_pages
+             WHERE kind = 'project' AND source_url IS NULL",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?;
+        let rows = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+        drop(statement);
+        let mut filled = 0;
+        for (id, slug, content) in rows {
+            let Some(path) = Self::parse_project_dir_snapshot(&content) else {
+                continue;
+            };
+            let url = crate::wiki::path_to_file_url(&path);
+            let now = chrono::Utc::now().to_rfc3339();
+            self.connection.execute(
+                "UPDATE wiki_pages SET source_url = ?1, updated_at = ?2 WHERE id = ?3",
+                params![url, now, id],
+            )?;
+            self.append_wiki_log(&format!("项目路径回填：{slug} → {}", path.display()))?;
+            filled += 1;
+        }
+        Ok(filled)
+    }
+
+    /// 从项目页正文快照解析目录（`项目目录：` + 反引号路径，analyze_project 的固定格式）。
+    fn parse_project_dir_snapshot(content: &str) -> Option<std::path::PathBuf> {
+        let pos = content.find("项目目录：")?;
+        let rest = &content[pos..];
+        let open = rest.find('`')?;
+        let after = &rest[open + 1..];
+        let close = after.find('`')?;
+        let path = after[..close].trim();
+        if path.is_empty() || !path.starts_with('/') {
+            return None;
+        }
+        Some(std::path::PathBuf::from(path))
+    }
+
     /// 人类编辑保存一页正文（「人类直接编辑」主线入口）。
     ///
     /// - 仅允许可编辑 kind（person/project/capability/recurring_cost/topic/…）；
@@ -2844,12 +2972,23 @@ impl Store {
         self.record_wiki_revision(
             &page.id,
             &content_md,
-            &format!("[human] {}", if reason.is_empty() { "人工编辑正文" } else { reason }),
+            &format!(
+                "[human] {}",
+                if reason.is_empty() {
+                    "人工编辑正文"
+                } else {
+                    reason
+                }
+            ),
             None,
         )?;
         self.append_wiki_log(&format!(
             "人工编辑正文：{slug}（{}）",
-            if reason.is_empty() { "无备注" } else { reason }
+            if reason.is_empty() {
+                "无备注"
+            } else {
+                reason
+            }
         ))?;
         self.get_wiki_page(slug)?.context("人工编辑保存后读取失败")
     }
@@ -3067,6 +3206,13 @@ impl Store {
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             params![key, value],
         )?;
+        Ok(())
+    }
+
+    /// 删除 app_meta 键（覆盖层「跟随全局」时清除覆盖值，回落到全局层）
+    pub fn remove_meta(&self, key: &str) -> Result<()> {
+        self.connection
+            .execute("DELETE FROM app_meta WHERE key = ?1", params![key])?;
         Ok(())
     }
 
@@ -3457,6 +3603,36 @@ impl Store {
         Ok(rows)
     }
 
+    /// 判断本会话是否已有同一动作、同一标题的待确认草稿。
+    /// 标题是知识页创建的业务幂等键；正文允许在确认前继续完善，但不应因此产生第二个页面。
+    pub fn pending_action_for_title(
+        &self,
+        conversation_id: &str,
+        action: &str,
+        title: &str,
+    ) -> Result<Option<PendingAction>> {
+        let actions = self.pending_actions_for_conversation(conversation_id)?;
+        Ok(actions.into_iter().find(|pa| {
+            if pa.action != action {
+                return false;
+            }
+            serde_json::from_str::<serde_json::Value>(&pa.args_json)
+                .ok()
+                .and_then(|args| args.get("title").and_then(|v| v.as_str()).map(str::trim).map(String::from))
+                .is_some_and(|pending_title| pending_title.eq_ignore_ascii_case(title.trim()))
+        }))
+    }
+
+    pub fn pending_action_by_id(
+        &self,
+        conversation_id: &str,
+        id: &str,
+    ) -> Result<Option<PendingAction>> {
+        Ok(self.pending_actions_for_conversation(conversation_id)?
+            .into_iter()
+            .find(|action| action.id == id))
+    }
+
     pub fn action_exists_for_event(
         &self,
         conversation_id: &str,
@@ -3576,7 +3752,7 @@ impl Store {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
         self.connection.execute(
-            "INSERT INTO conversations (id, title, tag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?4)",
+            "INSERT INTO conversations (id, title, tag, assistant_mode, created_at, updated_at) VALUES (?1, ?2, ?3, 'personal_secretary', ?4, ?4)",
             params![id, title, tag, now],
         )?;
         Ok(id)
@@ -3604,8 +3780,8 @@ impl Store {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
         self.connection.execute(
-            "INSERT INTO conversations (id, title, tag, wiki_page_slug, created_at, updated_at)
-             VALUES (?1, ?2, 'idea', ?3, ?4, ?4)",
+            "INSERT INTO conversations (id, title, tag, wiki_page_slug, assistant_mode, created_at, updated_at)
+             VALUES (?1, ?2, 'idea', ?3, 'knowledge_mentor', ?4, ?4)",
             params![id, title, wiki_page_slug, now],
         )?;
         Ok(id)
@@ -3614,7 +3790,7 @@ impl Store {
     pub fn list_conversations(&self) -> Result<Vec<ConversationSummary>> {
         let mut statement = self.connection.prepare(
             "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
-                    c.wiki_page_slug,
+                    c.wiki_page_slug, c.assistant_mode,
                     COUNT(m.id) as message_count,
                     (SELECT m2.content FROM messages m2
                      WHERE m2.conversation_id = c.id
@@ -3632,10 +3808,11 @@ impl Store {
                 tag: row.get(2)?,
                 created_at: row.get(3)?,
                 updated_at: row.get(4)?,
-                message_count: row.get(7)?,
-                last_message_preview: row.get(8)?,
+                message_count: row.get(8)?,
+                last_message_preview: row.get(9)?,
                 archived: row.get(5)?,
                 wiki_page_slug: row.get(6)?,
+                assistant_mode: row.get(7)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -3646,7 +3823,7 @@ impl Store {
     pub fn list_archived_conversations(&self) -> Result<Vec<ConversationSummary>> {
         let mut statement = self.connection.prepare(
             "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
-                    c.wiki_page_slug,
+                    c.wiki_page_slug, c.assistant_mode,
                     COUNT(m.id) as message_count,
                     (SELECT m2.content FROM messages m2
                      WHERE m2.conversation_id = c.id
@@ -3664,10 +3841,11 @@ impl Store {
                 tag: row.get(2)?,
                 created_at: row.get(3)?,
                 updated_at: row.get(4)?,
-                message_count: row.get(7)?,
-                last_message_preview: row.get(8)?,
+                message_count: row.get(8)?,
+                last_message_preview: row.get(9)?,
                 archived: row.get(5)?,
                 wiki_page_slug: row.get(6)?,
+                assistant_mode: row.get(7)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -3710,7 +3888,7 @@ impl Store {
         self.connection
             .query_row(
                 "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
-                        c.wiki_page_slug,
+                        c.wiki_page_slug, c.assistant_mode,
                         COUNT(m.id) as message_count,
                         (SELECT m2.content FROM messages m2
                          WHERE m2.conversation_id = c.id
@@ -3727,10 +3905,11 @@ impl Store {
                         tag: row.get(2)?,
                         created_at: row.get(3)?,
                         updated_at: row.get(4)?,
-                        message_count: row.get(7)?,
-                        last_message_preview: row.get(8)?,
+                        message_count: row.get(8)?,
+                        last_message_preview: row.get(9)?,
                         archived: row.get(5)?,
                         wiki_page_slug: row.get(6)?,
+                        assistant_mode: row.get(7)?,
                     })
                 },
             )
@@ -4714,7 +4893,9 @@ mod tests {
             reason: "test".to_string(),
             source_url: None,
         };
-        store.upsert_wiki_page(&draft, ContentPolicy::Always).unwrap();
+        store
+            .upsert_wiki_page(&draft, ContentPolicy::Always)
+            .unwrap();
         store
             .upsert_relation(&RelationDraft {
                 from_slug: "person/谭俊".to_string(),
@@ -4796,7 +4977,9 @@ mod tests {
             reason: "test".to_string(),
             source_url: None,
         };
-        store.upsert_wiki_page(&src_draft, ContentPolicy::Always).unwrap();
+        store
+            .upsert_wiki_page(&src_draft, ContentPolicy::Always)
+            .unwrap();
         let outcome = store
             .rename_wiki_page("tweet-123", "新标题", "更正")
             .unwrap();
@@ -5407,7 +5590,10 @@ mod tests {
 
         // ② 未人工编辑的档案页：PreserveHumanEdits → 正常整篇覆盖
         store
-            .upsert_wiki_page(&wiki_draft("topic/新主题", "topic", "AI 第一版"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("topic/新主题", "topic", "AI 第一版"),
+                ContentPolicy::Always,
+            )
             .unwrap();
         let outcome2 = store
             .upsert_wiki_page(
@@ -5420,7 +5606,10 @@ mod tests {
 
         // ③ 素材页：PreserveHumanEdits → 永不覆盖（采集快照只读）
         store
-            .upsert_wiki_page(&wiki_draft("tweet-9", "source", "原始素材"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("tweet-9", "source", "原始素材"),
+                ContentPolicy::Always,
+            )
             .unwrap();
         let outcome3 = store
             .upsert_wiki_page(
@@ -5433,7 +5622,10 @@ mod tests {
 
         // ④ Always 策略 = 素材导入流程：允许刷新素材内容（仅所有者可写）
         let outcome4 = store
-            .upsert_wiki_page(&wiki_draft("tweet-9", "source", "导入流程刷新"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("tweet-9", "source", "导入流程刷新"),
+                ContentPolicy::Always,
+            )
             .unwrap();
         assert!(!outcome4.protected);
         assert_eq!(outcome4.page.content_md, "导入流程刷新");
@@ -5461,7 +5653,10 @@ mod tests {
         let path = temporary_database();
         let store = Store::open(&path).unwrap();
         store
-            .upsert_wiki_page(&wiki_draft("tweet-8", "source", "素材"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("tweet-8", "source", "素材"),
+                ContentPolicy::Always,
+            )
             .unwrap();
 
         // 认可
@@ -5481,14 +5676,77 @@ mod tests {
 
         // 非素材页拒绝（即使人工编辑过也一样）
         store
-            .upsert_wiki_page(&wiki_draft("person/王五", "person", "x"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("person/王五", "person", "x"),
+                ContentPolicy::Always,
+            )
             .unwrap();
-        assert!(store.set_wiki_opinion("person/王五", Some("endorse")).is_err());
+        assert!(store
+            .set_wiki_opinion("person/王五", Some("endorse"))
+            .is_err());
 
         // 审计日志
         let log = store.list_wiki_log(10).unwrap();
         assert!(log.iter().any(|(_, e)| e.contains("素材评价")));
 
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn update_project_path_validates_and_backfills_legacy_pages() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        // 存量页：只有正文快照、没有 source_url
+        let dir_a = std::env::temp_dir().join("elsewhen-proj-a");
+        let dir_b = std::env::temp_dir().join("elsewhen-proj-b");
+        std::fs::create_dir_all(&dir_a).unwrap();
+        std::fs::create_dir_all(&dir_b).unwrap();
+        let content = format!(
+            "# 资产档案：A\n\n## 资产边界\n- 项目目录：`{}`\n",
+            dir_a.display()
+        );
+        store
+            .upsert_wiki_page(&wiki_draft("project/a", "project", &content), ContentPolicy::Always)
+            .unwrap();
+        // 新 open 触发幂等回填
+        drop(store);
+        let store = Store::open(&path).unwrap();
+        let page = store.get_wiki_page("project/a").unwrap().unwrap();
+        let url = page.source_url.clone().unwrap();
+        assert!(url.starts_with("file://"));
+        // 回填按正文原样记录（不做 canonicalize，目录可能已搬走）
+        assert_eq!(crate::wiki::file_url_to_path(&url).unwrap(), dir_a);
+        // 二次 open 不再重复写 updated_at（幂等无副作用）
+        let updated_before = page.updated_at.clone();
+        drop(store);
+        let store = Store::open(&path).unwrap();
+        let page2 = store.get_wiki_page("project/a").unwrap().unwrap();
+        assert_eq!(page2.updated_at, updated_before);
+        // 改路径：新目录必须存在
+        assert!(store
+            .update_project_path("project/a", "/definitely/not/here")
+            .is_err());
+        let moved = store
+            .update_project_path("project/a", &dir_b.display().to_string())
+            .unwrap();
+        let new_url = moved.source_url.clone().unwrap();
+        assert!(new_url.starts_with("file://"));
+        assert_eq!(
+            crate::wiki::file_url_to_path(&new_url).unwrap(),
+            dir_b.canonicalize().unwrap()
+        );
+        // 正文快照行同步更新
+        assert!(moved.content_md.contains(&dir_b.display().to_string()));
+        assert!(!moved.content_md.contains(&dir_a.display().to_string()));
+        // 非项目页拒绝
+        store
+            .upsert_wiki_page(&wiki_draft("person/王五", "person", "x"), ContentPolicy::Always)
+            .unwrap();
+        assert!(store
+            .update_project_path("person/王五", &dir_b.display().to_string())
+            .is_err());
+        std::fs::remove_dir_all(&dir_a).ok();
+        std::fs::remove_dir_all(&dir_b).ok();
         let _ = std::fs::remove_file(path);
     }
 
@@ -5531,7 +5789,10 @@ mod tests {
 
         // opinion / human_edited_at 不受 upsert 影响
         store
-            .upsert_wiki_page(&wiki_draft("tweet-7", "source", "素材"), ContentPolicy::Always)
+            .upsert_wiki_page(
+                &wiki_draft("tweet-7", "source", "素材"),
+                ContentPolicy::Always,
+            )
             .unwrap();
         store.set_wiki_opinion("tweet-7", Some("endorse")).unwrap();
         let before = store.get_wiki_page("tweet-7").unwrap().unwrap();
@@ -5543,7 +5804,11 @@ mod tests {
             )
             .unwrap();
         let after = store.get_wiki_page("tweet-7").unwrap().unwrap();
-        assert_eq!(after.opinion, Some("endorse".to_string()), "评价不被 digest 清掉");
+        assert_eq!(
+            after.opinion,
+            Some("endorse".to_string()),
+            "评价不被 digest 清掉"
+        );
 
         let _ = std::fs::remove_file(path);
     }

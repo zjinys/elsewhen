@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 724295265;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -348546030;
 
 // Section: executor
 
@@ -184,6 +184,34 @@ fn wire__crate__api__begin_url_input_impl(
         },
     )
 }
+fn wire__crate__api__confirm_knowledge_draft_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    conversation_id: impl CstDecode<String>,
+    action_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "confirm_knowledge_draft",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_conversation_id = conversation_id.cst_decode();
+            let api_action_id = action_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::confirm_knowledge_draft(
+                            api_conversation_id,
+                            api_action_id,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__create_conversation_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     title: impl CstDecode<Option<String>>,
@@ -238,6 +266,68 @@ fn wire__crate__api__create_todo_impl(
                             api_priority,
                             api_related_wiki_slug,
                             api_note,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__create_wiki_derivative_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    based_on_slug: impl CstDecode<String>,
+    content_type: impl CstDecode<String>,
+    title: impl CstDecode<String>,
+    content_md: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_wiki_derivative",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_based_on_slug = based_on_slug.cst_decode();
+            let api_content_type = content_type.cst_decode();
+            let api_title = title.cst_decode();
+            let api_content_md = content_md.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::create_wiki_derivative(
+                            api_based_on_slug,
+                            api_content_type,
+                            api_title,
+                            api_content_md,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__decline_knowledge_draft_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    conversation_id: impl CstDecode<String>,
+    action_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "decline_knowledge_draft",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_conversation_id = conversation_id.cst_decode();
+            let api_action_id = action_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::decline_knowledge_draft(
+                            api_conversation_id,
+                            api_action_id,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -1226,6 +1316,25 @@ fn wire__crate__api__list_rules_impl(port_: flutter_rust_bridge::for_generated::
         },
     )
 }
+fn wire__crate__api__list_system_fonts_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_system_fonts",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, ()>((move || {
+                    let output_ok = Ok::<_, ()>(crate::api::list_system_fonts())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__list_todos_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     status: impl CstDecode<Option<String>>,
@@ -1390,6 +1499,29 @@ fn wire__crate__api__record_event_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::record_event(api_raw_text)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__refresh_project_page_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "refresh_project_page",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::refresh_project_page(api_slug)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1912,12 +2044,40 @@ fn wire__crate__api__update_pending_action_args_impl(
         },
     )
 }
+fn wire__crate__api__update_project_path_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+    new_path: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_project_path",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            let api_new_path = new_path.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::update_project_path(api_slug, api_new_path)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__update_theme_prefs_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     mode: impl CstDecode<String>,
     preset: impl CstDecode<String>,
     font: impl CstDecode<String>,
     font_size: impl CstDecode<f64>,
+    editor_font: impl CstDecode<Option<String>>,
+    editor_font_size: impl CstDecode<Option<f64>>,
+    editor_line_height: impl CstDecode<Option<f64>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -1930,6 +2090,9 @@ fn wire__crate__api__update_theme_prefs_impl(
             let api_preset = preset.cst_decode();
             let api_font = font.cst_decode();
             let api_font_size = font_size.cst_decode();
+            let api_editor_font = editor_font.cst_decode();
+            let api_editor_font_size = editor_font_size.cst_decode();
+            let api_editor_line_height = editor_line_height.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
@@ -1938,6 +2101,9 @@ fn wire__crate__api__update_theme_prefs_impl(
                             api_preset,
                             api_font,
                             api_font_size,
+                            api_editor_font,
+                            api_editor_font_size,
+                            api_editor_line_height,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -2686,6 +2852,18 @@ impl SseDecode for Vec<crate::api::RuleDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::SystemFontFace> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::SystemFontFace>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::TodoDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2948,6 +3126,20 @@ impl SseDecode for crate::api::RuleDto {
     }
 }
 
+impl SseDecode for crate::api::SystemFontFace {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_family = <String>::sse_decode(deserializer);
+        let mut var_file = <String>::sse_decode(deserializer);
+        let mut var_style = <String>::sse_decode(deserializer);
+        return crate::api::SystemFontFace {
+            family: var_family,
+            file: var_file,
+            style: var_style,
+        };
+    }
+}
+
 impl SseDecode for crate::api::ThemePrefsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2955,11 +3147,17 @@ impl SseDecode for crate::api::ThemePrefsDto {
         let mut var_preset = <String>::sse_decode(deserializer);
         let mut var_font = <String>::sse_decode(deserializer);
         let mut var_fontSize = <f64>::sse_decode(deserializer);
+        let mut var_editorFont = <Option<String>>::sse_decode(deserializer);
+        let mut var_editorFontSize = <Option<f64>>::sse_decode(deserializer);
+        let mut var_editorLineHeight = <Option<f64>>::sse_decode(deserializer);
         return crate::api::ThemePrefsDto {
             mode: var_mode,
             preset: var_preset,
             font: var_font,
             font_size: var_fontSize,
+            editor_font: var_editorFont,
+            editor_font_size: var_editorFontSize,
+            editor_line_height: var_editorLineHeight,
         };
     }
 }
@@ -3595,6 +3793,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::RuleDto> for crate::api::Rule
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::SystemFontFace {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.family.into_into_dart().into_dart(),
+            self.file.into_into_dart().into_dart(),
+            self.style.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::SystemFontFace {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::SystemFontFace> for crate::api::SystemFontFace {
+    fn into_into_dart(self) -> crate::api::SystemFontFace {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::ThemePrefsDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3602,6 +3817,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::ThemePrefsDto {
             self.preset.into_into_dart().into_dart(),
             self.font.into_into_dart().into_dart(),
             self.font_size.into_into_dart().into_dart(),
+            self.editor_font.into_into_dart().into_dart(),
+            self.editor_font_size.into_into_dart().into_dart(),
+            self.editor_line_height.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4096,6 +4314,16 @@ impl SseEncode for Vec<crate::api::RuleDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::SystemFontFace> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::SystemFontFace>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::TodoDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4297,6 +4525,15 @@ impl SseEncode for crate::api::RuleDto {
     }
 }
 
+impl SseEncode for crate::api::SystemFontFace {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.family, serializer);
+        <String>::sse_encode(self.file, serializer);
+        <String>::sse_encode(self.style, serializer);
+    }
+}
+
 impl SseEncode for crate::api::ThemePrefsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4304,6 +4541,9 @@ impl SseEncode for crate::api::ThemePrefsDto {
         <String>::sse_encode(self.preset, serializer);
         <String>::sse_encode(self.font, serializer);
         <f64>::sse_encode(self.font_size, serializer);
+        <Option<String>>::sse_encode(self.editor_font, serializer);
+        <Option<f64>>::sse_encode(self.editor_font_size, serializer);
+        <Option<f64>>::sse_encode(self.editor_line_height, serializer);
     }
 }
 
@@ -4868,6 +5108,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::SystemFontFace>> for *mut wire_cst_list_system_font_face {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::SystemFontFace> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::TodoDto>> for *mut wire_cst_list_todo_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::TodoDto> {
@@ -4954,6 +5204,16 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::SystemFontFace> for wire_cst_system_font_face {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::SystemFontFace {
+            crate::api::SystemFontFace {
+                family: self.family.cst_decode(),
+                file: self.file.cst_decode(),
+                style: self.style.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::ThemePrefsDto> for wire_cst_theme_prefs_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::ThemePrefsDto {
@@ -4962,6 +5222,9 @@ mod io {
                 preset: self.preset.cst_decode(),
                 font: self.font.cst_decode(),
                 font_size: self.font_size.cst_decode(),
+                editor_font: self.editor_font.cst_decode(),
+                editor_font_size: self.editor_font_size.cst_decode(),
+                editor_line_height: self.editor_line_height.cst_decode(),
             }
         }
     }
@@ -5401,6 +5664,20 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_system_font_face {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                family: core::ptr::null_mut(),
+                file: core::ptr::null_mut(),
+                style: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_system_font_face {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_theme_prefs_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -5408,6 +5685,9 @@ mod io {
                 preset: core::ptr::null_mut(),
                 font: core::ptr::null_mut(),
                 font_size: Default::default(),
+                editor_font: core::ptr::null_mut(),
+                editor_font_size: core::ptr::null_mut(),
+                editor_line_height: core::ptr::null_mut(),
             }
         }
     }
@@ -5533,6 +5813,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__confirm_knowledge_draft(
+        port_: i64,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+        action_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__confirm_knowledge_draft_impl(port_, conversation_id, action_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__create_conversation(
         port_: i64,
         title: *mut wire_cst_list_prim_u_8_strict,
@@ -5551,6 +5840,32 @@ mod io {
         note: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__create_todo_impl(port_, title, due_at, priority, related_wiki_slug, note)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__create_wiki_derivative(
+        port_: i64,
+        based_on_slug: *mut wire_cst_list_prim_u_8_strict,
+        content_type: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        content_md: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__create_wiki_derivative_impl(
+            port_,
+            based_on_slug,
+            content_type,
+            title,
+            content_md,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__decline_knowledge_draft(
+        port_: i64,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+        action_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__decline_knowledge_draft_impl(port_, conversation_id, action_id)
     }
 
     #[unsafe(no_mangle)]
@@ -5876,6 +6191,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_system_fonts(port_: i64) {
+        wire__crate__api__list_system_fonts_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_todos(
         port_: i64,
         status: *mut wire_cst_list_prim_u_8_strict,
@@ -5932,6 +6252,14 @@ mod io {
         raw_text: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__record_event_impl(port_, raw_text)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__refresh_project_page(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__refresh_project_page_impl(port_, slug)
     }
 
     #[unsafe(no_mangle)]
@@ -6143,14 +6471,35 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__update_project_path(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        new_path: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__update_project_path_impl(port_, slug, new_path)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__update_theme_prefs(
         port_: i64,
         mode: *mut wire_cst_list_prim_u_8_strict,
         preset: *mut wire_cst_list_prim_u_8_strict,
         font: *mut wire_cst_list_prim_u_8_strict,
         font_size: f64,
+        editor_font: *mut wire_cst_list_prim_u_8_strict,
+        editor_font_size: *mut f64,
+        editor_line_height: *mut f64,
     ) {
-        wire__crate__api__update_theme_prefs_impl(port_, mode, preset, font, font_size)
+        wire__crate__api__update_theme_prefs_impl(
+            port_,
+            mode,
+            preset,
+            font,
+            font_size,
+            editor_font,
+            editor_font_size,
+            editor_line_height,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -6475,6 +6824,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_system_font_face(
+        len: i32,
+    ) -> *mut wire_cst_list_system_font_face {
+        let wrap = wire_cst_list_system_font_face {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_system_font_face>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_todo_dto(
         len: i32,
     ) -> *mut wire_cst_list_todo_dto {
@@ -6775,6 +7138,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_system_font_face {
+        ptr: *mut wire_cst_system_font_face,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_todo_dto {
         ptr: *mut wire_cst_todo_dto,
         len: i32,
@@ -6838,11 +7207,21 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_system_font_face {
+        family: *mut wire_cst_list_prim_u_8_strict,
+        file: *mut wire_cst_list_prim_u_8_strict,
+        style: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_theme_prefs_dto {
         mode: *mut wire_cst_list_prim_u_8_strict,
         preset: *mut wire_cst_list_prim_u_8_strict,
         font: *mut wire_cst_list_prim_u_8_strict,
         font_size: f64,
+        editor_font: *mut wire_cst_list_prim_u_8_strict,
+        editor_font_size: *mut f64,
+        editor_line_height: *mut f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -7506,6 +7885,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::SystemFontFace>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::SystemFontFace> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::TodoDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -7655,6 +8046,27 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::SystemFontFace>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::SystemFontFace {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                3,
+                "Expected 3 elements, got {}",
+                self_.length()
+            );
+            crate::api::SystemFontFace {
+                family: self_.get(0).cst_decode(),
+                file: self_.get(1).cst_decode(),
+                style: self_.get(2).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::ThemePrefsDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -7665,8 +8077,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                4,
-                "Expected 4 elements, got {}",
+                7,
+                "Expected 7 elements, got {}",
                 self_.length()
             );
             crate::api::ThemePrefsDto {
@@ -7674,6 +8086,9 @@ mod web {
                 preset: self_.get(1).cst_decode(),
                 font: self_.get(2).cst_decode(),
                 font_size: self_.get(3).cst_decode(),
+                editor_font: self_.get(4).cst_decode(),
+                editor_font_size: self_.get(5).cst_decode(),
+                editor_line_height: self_.get(6).cst_decode(),
             }
         }
     }
@@ -7871,6 +8286,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__confirm_knowledge_draft(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        conversation_id: String,
+        action_id: String,
+    ) {
+        wire__crate__api__confirm_knowledge_draft_impl(port_, conversation_id, action_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__create_conversation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         title: Option<String>,
@@ -7889,6 +8313,32 @@ mod web {
         note: Option<String>,
     ) {
         wire__crate__api__create_todo_impl(port_, title, due_at, priority, related_wiki_slug, note)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__create_wiki_derivative(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        based_on_slug: String,
+        content_type: String,
+        title: String,
+        content_md: String,
+    ) {
+        wire__crate__api__create_wiki_derivative_impl(
+            port_,
+            based_on_slug,
+            content_type,
+            title,
+            content_md,
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__decline_knowledge_draft(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        conversation_id: String,
+        action_id: String,
+    ) {
+        wire__crate__api__decline_knowledge_draft_impl(port_, conversation_id, action_id)
     }
 
     #[wasm_bindgen]
@@ -8232,6 +8682,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__list_system_fonts(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__list_system_fonts_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__list_todos(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         status: Option<String>,
@@ -8288,6 +8745,14 @@ mod web {
         raw_text: String,
     ) {
         wire__crate__api__record_event_impl(port_, raw_text)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__refresh_project_page(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+    ) {
+        wire__crate__api__refresh_project_page_impl(port_, slug)
     }
 
     #[wasm_bindgen]
@@ -8501,14 +8966,35 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__update_project_path(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+        new_path: String,
+    ) {
+        wire__crate__api__update_project_path_impl(port_, slug, new_path)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__update_theme_prefs(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         mode: String,
         preset: String,
         font: String,
         font_size: f64,
+        editor_font: Option<String>,
+        editor_font_size: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+        editor_line_height: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__update_theme_prefs_impl(port_, mode, preset, font, font_size)
+        wire__crate__api__update_theme_prefs_impl(
+            port_,
+            mode,
+            preset,
+            font,
+            font_size,
+            editor_font,
+            editor_font_size,
+            editor_line_height,
+        )
     }
 
     #[wasm_bindgen]

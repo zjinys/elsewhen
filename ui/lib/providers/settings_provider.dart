@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../models/settings.dart';
+import '../utils/system_fonts.dart';
 
 /// Settings state notifier
 class SettingsNotifier extends StateNotifier<AppSettings> {
@@ -35,8 +36,39 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     state = state.copyWith(fontName: fontName);
   }
 
+  /// 全局字体切换：本地字体先预热 FontLoader 再落 state，避免主题闪一下默认字体。
+  Future<void> setGlobalFont(String stored) async {
+    await SystemFontService.instance.ensureLoadedForStored(stored);
+    state = state.copyWith(fontName: stored);
+  }
+
   void updateFontSize(double fontSize) {
     state = state.copyWith(fontSize: AppFonts.clampFontSize(fontSize));
+  }
+
+  /// 编辑器（内容区）覆盖层：三个参数各自可空，null = 跟随全局
+  void updateEditorFont(String? fontName) {
+    state = state.copyWithEditorSettings(font: fontName);
+  }
+
+  /// 编辑器字体覆盖切换：同全局，先预热再落 state。
+  Future<void> setEditorFont(String? stored) async {
+    await SystemFontService.instance.ensureLoadedForStored(stored);
+    state = state.copyWithEditorSettings(font: stored);
+  }
+
+  void updateEditorFontSize(double? fontSize) {
+    state = state.copyWithEditorSettings(
+      fontSizeOverride:
+          fontSize == null ? null : AppFonts.clampFontSize(fontSize),
+    );
+  }
+
+  void updateEditorLineHeight(double? lineHeight) {
+    state = state.copyWithEditorSettings(
+      lineHeightOverride:
+          lineHeight == null ? null : AppFonts.clampLineHeight(lineHeight),
+    );
   }
 
   void updateLanguage(String? language) {
@@ -58,6 +90,25 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         // 字号：老库无 theme_font_size 时 DTO 给默认 16.0，仍钳制越界值
         fontSize: AppFonts.clampFontSize(prefs.fontSize),
       );
+      // 编辑器覆盖层：None = 跟随全局（保持 null），有值则归一化/钳制
+      state = state.copyWithEditorSettings(
+        font: prefs.editorFont == null
+            ? null
+            : AppFonts.normalize(prefs.editorFont!),
+        fontSizeOverride: prefs.editorFontSize == null
+            ? null
+            : AppFonts.clampFontSize(prefs.editorFontSize!),
+        lineHeightOverride: prefs.editorLineHeight == null
+            ? null
+            : AppFonts.clampLineHeight(prefs.editorLineHeight!),
+      );
+      // 本地字体预热：先建文件索引再落 state（避免主题闪默认字体），
+      // 字体字节就绪后再触发一次重建（FontLoader 注册后需重建才生效）。
+      await SystemFontService.instance.listFonts();
+      await SystemFontService.instance.ensureLoadedForStored(state.fontName);
+      await SystemFontService.instance
+          .ensureLoadedForStored(state.editorFontName);
+      state = state.copyWith();
     } catch (e) {
       // 老库可能没有这几条 meta，保持默认即可
       debugPrint('loadThemeFromBridge failed: $e');
@@ -71,6 +122,9 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       preset: state.themePreset.name,
       font: state.fontName,
       fontSize: state.fontSize,
+      editorFont: state.editorFontName,
+      editorFontSize: state.editorFontSize,
+      editorLineHeight: state.editorLineHeight,
     );
   }
 

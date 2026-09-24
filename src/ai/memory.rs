@@ -11,6 +11,7 @@ pub struct ContextMessage {
     pub tool_calls: Option<Vec<ToolCall>>,
     /// 原生 tool-calling：tool 角色消息对应哪个工具调用
     pub tool_call_id: Option<String>,
+    pub reasoning_content: Option<String>,
 }
 
 impl ContextMessage {
@@ -20,16 +21,21 @@ impl ContextMessage {
             content: content.into(),
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
         }
     }
 
     /// assistant 消息：携带工具调用（内容通常为空，等待工具结果）
-    pub fn assistant_with_tool_calls(calls: Vec<ToolCall>) -> Self {
+    pub fn assistant_with_tool_calls(
+        calls: Vec<ToolCall>,
+        reasoning_content: Option<String>,
+    ) -> Self {
         Self {
             role: "assistant".to_string(),
             content: String::new(),
             tool_calls: Some(calls),
             tool_call_id: None,
+            reasoning_content,
         }
     }
 
@@ -40,6 +46,7 @@ impl ContextMessage {
             content,
             tool_calls: None,
             tool_call_id: Some(call_id),
+            reasoning_content: None,
         }
     }
 }
@@ -54,6 +61,7 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 - 记录与回顾：用户会随时记录工作/生活里的人和事（原始记录，不可修改，可随时回看）。
 - 知识库：把可复用的结论沉淀成知识库页面（左侧「知识库」tab 可看）；用户说「把这条存进知识库」时，是真实可做的。
 - 导入：用户把任意网址（x.com/twitter.com 推文或其他网页）粘贴到「导入」tab，或直接在对话里说「导入这个链接到知识库」→ 抓取预览 → 点「保存到知识库」确认后入库；也可以直接贴一段文本保存。用户问怎么导入时，告知这个入口。
+- 本地目录导入：用户可以直接在对话中提供本机目录路径。说「看看这个目录下的项目，导入到知识库」时调用 import_directory_as_project（一目录一张 project 页）；该工具会先做只读、有限扫描和 AI 综合分析，再创建待确认动作，确认后只保存预览中的项目摘要。说「导入这个目录下的文件到知识库」时调用 import_directory_files（每个可读文件一张 source 页）；该工具先创建待确认动作，确认后再逐文件扫描和写入。项目模式可能消耗较多 token，项目证据片段可能发送给当前 AI Provider；文件模式不调用 AI，但可能创建较多本地知识页。不要声称系统没有权限读取用户明确提供的本机目录，先调用对应工具让系统实际校验路径。
 - 个人待办：你可以从事件/对话中分析出需要后续跟进的事，用 create_todo 提议待办；用户确认后创建，「待办」tab 可查看全部。
 - 人物与关系：对话中出现的对用户重要的人物（姓名、身份、TA 参与或负责的事情/项目），你可以识别出来，草拟「人物 + 关系」；用户确认后保存为知识库「人物」页与结构化关系（在对应页面可查看）。用户说「记住这个人 / 这个人是什么角色 / 他和这个项目什么关系」时，尤其要主动做。
 - 个人规则库：你在对话中提议、用户确认后生效的规则，可在「设置 → 数据 → 个人规则库」查看和删除。
@@ -64,10 +72,10 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 - 需要查信息时优先调用工具，不要凭记忆瞎编；等待工具结果返回后，再组织最终回复。
 - 如果运行环境支持原生工具调用，直接以工具调用形式发起即可；若你无法发起原生调用，也可以在回复中**独占一行**输出文本格式调用，等结果返回后再回复最终文本：
 [工具调用]{\"name\":\"工具名\",\"arguments\":{...}}
+- 只认上面这一种文本格式，不要输出 `<tool_call>` / `<arg_key>` / `<arg_value>` / XML 等其他任何格式，也不要把调用标记混在正文里。
 - 一次只调用一个工具，等结果回来再决定下一步；结果已足够回答时就不要再调。
 - 每轮最多调用一两次，不要为了调用而调用。
-- 写类工具：记录事件（record_event）会**立即保存**到事件记录，调用后可直接告诉用户「已记下」。**记录事件直接用 record_event，绝不用 save_knowledge_draft 草拟事件**。只有客观经历、决定、行动或进展才默认记录；对 AI 回复的评价、对话过程、寒暄、纯提问和闲聊默认不记录，继续在当前 conversation 中正常回应。用户明确说「记一下 / 帮我记 / 存进事件」时按显式意图记录。不要把助手自己的解读改写成新的事件，解读只能进入分析结果。
-- 其他写类工具都是「草拟确认制」：save_knowledge_draft（存知识页）、create_todo（建待办）、import_url_to_wiki（导入网址）、save_wiki_revision（修订知识页）、propose_people_relations（人物与关系建档）、archive_conversations_by_title（归档对话）都只是登记待办草稿——调用后必须先把你草拟的内容原样告诉用户（摘要即可），并明确请用户确认（回复「好」）。**确认前绝不声称已保存/已创建**，系统会在用户确认后替你真正写入。
+- 其他写类工具都是「草拟确认制」：save_knowledge_draft（存知识页）、create_todo（建待办）、import_url_to_wiki（导入网址）、save_wiki_revision（修订知识页）、propose_people_relations（人物与关系建档）、archive_conversations_by_title（归档对话）都只是登记待办草稿。必须区分三种事实：工具调用后仅有「待确认草稿，未入库」，知识库列表尚不可见（可在「今天」栏点击待入库数量，查看草稿列表及完整内容、单独保存或删除，也可回复「好」确认）；确认执行成功且返回真实保存结果后才可说「已保存」（引用结果中的真实 slug）；查到既有页面时说「知识库已有页面」，不可把草稿说成页面。草拟后给用户内容摘要并明确提示确认；没有实际执行结果绝不声称已保存/已创建。
 - 查看某天的事件：用户说「XX（日期）有哪些事件 / 看看那天记录了什么」等 → 用 list_events_by_date 查当天事件（把自然日期解析成 YYYY-MM-DD，「昨天/前天」按当前日期推算），只读、可直接把结果念给用户。
 - 归档对话：用户说「把XX对话归档」→ 用 archive_conversations_by_title（title=精确标题 或 contains=标题包含；标题显示为「新对话」的空标题会话按「新对话」匹配）；仅归档主对话列表，不动知识页内聊天；草拟出匹配清单，用户确认后才归档。
 - 知识页改名：用户说「把 X 改名为 Y」「这个项目不叫 X 实际叫 Y」→ 用 rename_wiki_page（slug=当前页标识、new_title=新名字）；改名会连可唯一标识一起换、自动迁移人物关系引用和页内聊天会话；草拟确认制。只改正文不改名用 save_wiki_revision。
@@ -115,7 +123,15 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 /// 组装 system 消息：基础角色设定 + 当前对话语境（标题/标签）+ 已生效的个人规则
 fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMessage> {
     let mut prompt = SYSTEM_PROMPT_BASE.to_string();
+    let mut is_knowledge_mentor = false;
     if let Some(conversation) = store.get_conversation(conversation_id)? {
+        is_knowledge_mentor = conversation.assistant_mode == "knowledge_mentor"
+            || conversation.wiki_page_slug.is_some();
+        if is_knowledge_mentor {
+            prompt.push_str(
+                "\n\n你当前扮演知识页专业导师，而不是主对话秘书。只围绕当前知识页工作：主动指出矛盾、漏洞、模糊表述、未经验证的假设和缺失依据；区分事实、推断、观点和待确认项；必要时直接质疑用户并说明理由。保持尊重但不要为了陪伴或迎合而泛泛附和。默认不要把页面讨论记录为个人事件，也不要主动发起无关的人物关系或待办提议。任何页面修改只能通过确认制修订工具提出，不能直接声称已修改。",
+            );
+        }
         let title = conversation.title.as_deref().unwrap_or("未命名");
         prompt.push_str("\n\n当前对话：");
         prompt.push_str(title);
@@ -124,6 +140,19 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
             prompt.push_str(tag);
             prompt.push('）');
         }
+    }
+    let input_already_recorded = store
+        .latest_event_id_for_conversation(conversation_id)?
+        .is_some();
+    let allow_record_event = !is_knowledge_mentor && !input_already_recorded;
+    if input_already_recorded {
+        prompt.push_str(
+            "\n\n当前这条用户输入已由系统原样保存为个人事件，并已进入后台分析队列。不要再次记录，也不要把你的摘要或解读另存为事件；直接结合上下文回复即可。",
+        );
+    } else if allow_record_event {
+        prompt.push_str(
+            "\n\n当前对话没有自动事件记录。只有在用户明确要求记录，或内容是值得长期回看的客观经历、决定、行动或进展时，才调用 record_event；寒暄、纯提问、对 AI 回复的评价和页面讨论不要记录。不要把助手自己的解读改写成事件。",
+        );
     }
     // 注入已生效的个人规则，让 AI 回复时对照检查
     let active_rules = store.list_active_rules()?;
@@ -138,7 +167,11 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
         }
     }
     // 注入跨对话的近期用户消息，弥补单对话上下文断裂：让 AI 回忆起最近聊过的人与事
-    let recent = store.recent_user_messages(6, 160)?;
+    let recent = if is_knowledge_mentor {
+        Vec::new()
+    } else {
+        store.recent_user_messages(6, 160)?
+    };
     if !recent.is_empty() {
         prompt.push_str(
             "\n\n你最近和用户聊到过的事（跨对话要点，供回忆；回复时自然带入，不必逐条复述）：\n",
@@ -152,7 +185,7 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
     // 注入可用工具清单（供工具调用；与原生 tools 字段/文本协议保持一致）
     let registry = super::tool::ToolRegistry::default();
     prompt.push_str("\n\n");
-    prompt.push_str(&registry.prompt_block());
+    prompt.push_str(&registry.prompt_block_for(allow_record_event));
     Ok(ContextMessage::new("system", prompt))
 }
 
@@ -160,6 +193,9 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
 /// 让 AI 围绕抓取到的原文回答问题，不评价来源平台）
 pub fn build_content_system_prompt(content: &str) -> ContextMessage {
     let mut prompt = SYSTEM_PROMPT_BASE.to_string();
+    prompt.push_str(
+        "\n\n你当前扮演专业内容导师，而不是主对话秘书。请围绕下面的原始材料进行审阅、解释和提炼：主动区分材料中的事实、观点、推断和缺失依据；指出矛盾、模糊处和未经证实的结论；不要为了迎合用户而泛泛附和，也不要把材料内容自动记录成用户个人事件。保持尊重但可以直接提出质疑。",
+    );
     prompt.push_str("\n\n【本次要讨论的抓取内容（原始文本，请围绕它回答用户的问题）】\n");
     prompt.push_str(content);
     ContextMessage::new("system", prompt)
@@ -360,6 +396,61 @@ mod tests {
         assert!(system.contains("个人规则库"), "应描述规则库能力");
         assert!(system.contains("保存到知识库"), "应描述推文保存入库入口");
         assert!(system.contains("设置"), "应描述设置页能力");
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn auto_recorded_main_input_hides_record_event_tool() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let conversation_id = store
+            .create_conversation(Some("主对话流"), Some("diary"))
+            .unwrap();
+        store
+            .submit_conversation_input(&conversation_id, "今天完成了整理", Some("main-1"))
+            .unwrap();
+
+        let context = SimpleMemory::new(10)
+            .prepare_context(&conversation_id, &store)
+            .unwrap();
+        let system = &context[0].content;
+        assert!(system.contains("已由系统原样保存"));
+        assert!(!system.contains("record_event"));
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn legacy_conversation_without_auto_record_keeps_record_event_tool() {
+        let (store, conversation_id, path) = setup_store();
+        let context = SimpleMemory::new(10)
+            .prepare_context(&conversation_id, &store)
+            .unwrap();
+        let system = &context[0].content;
+        assert!(system.contains("- record_event："));
+        assert!(system.contains("当前对话没有自动事件记录"));
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn knowledge_mentor_hides_record_event_tool() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let conversation_id = store
+            .create_wiki_chat_conversation("topic/test", "测试主题")
+            .unwrap();
+        store
+            .send_message(&conversation_id, "user", "分析一下这页", None)
+            .unwrap();
+
+        let context = SimpleMemory::new(10)
+            .prepare_context(&conversation_id, &store)
+            .unwrap();
+        let system = &context[0].content;
+        assert!(system.contains("知识页专业导师"));
+        assert!(!system.contains("record_event"));
 
         let _ = std::fs::remove_file(path);
     }

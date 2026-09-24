@@ -24,6 +24,7 @@ import 'package:elsewhen_ui/models/relation.dart';
 import 'package:elsewhen_ui/models/wiki_page.dart';
 import 'package:elsewhen_ui/providers/wiki_provider.dart';
 import 'package:elsewhen_ui/widgets/wiki_ai_chat_panel.dart';
+import 'package:elsewhen_ui/widgets/markdown_view.dart';
 import 'package:elsewhen_ui/widgets/wiki_derivatives.dart';
 import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
@@ -114,9 +115,7 @@ void main() {
     final p = page ?? _testPage;
     repo = _FakeRepo(page: p, wikilinkTarget: _wikilinkTarget);
     container = ProviderContainer(
-      overrides: [
-        storageRepositoryProvider.overrideWithValue(repo),
-      ],
+      overrides: [storageRepositoryProvider.overrideWithValue(repo)],
     );
     container.read(wikiOpenTabsProvider.notifier).state = [
       ImportTabEntry(),
@@ -172,9 +171,16 @@ void main() {
         isFalse,
         reason: '浏览态应只读',
       );
-      // 页尾对话块（§7 Form A）：全文只有一个聊天面板，footer 不再独立渲染
+      // 对话默认缩小，展开后使用浮层，正文不再被侧栏挤窄。
+      expect(find.byType(WikiAiChatPanel), findsNothing);
+      await tester.tap(find.byTooltip('和 AI 讨论此页'));
+      await tester.pumpAndSettle();
       expect(find.byType(WikiAiChatPanel), findsOneWidget);
-      expect(find.text('AI 处理本页'), findsOneWidget);
+      expect(find.text('AI对话'), findsOneWidget);
+      expect(find.byTooltip('缩小对话窗口'), findsOneWidget);
+      await tester.tap(find.byTooltip('缩小对话窗口'));
+      await tester.pumpAndSettle();
+      expect(find.byType(WikiAiChatPanel), findsNothing);
       // 编辑入口存在
       expect(find.text('编辑正文'), findsOneWidget);
     });
@@ -183,14 +189,36 @@ void main() {
       await pumpDetail(tester, page: _sourcePage);
 
       expect(find.text('素材推文'), findsWidgets);
-      expect(
-        find.text('编辑正文'),
-        findsNothing,
-        reason: '素材采集页内容不可改，不提供人工编辑入口',
-      );
+      expect(find.text('编辑正文'), findsNothing, reason: '素材采集页内容不可改，不提供人工编辑入口');
     });
 
-    testWidgets('编辑 → 修改 → 完成：saveWikiPageContent 收到含改动的 markdown，退出编辑态', (tester) async {
+    testWidgets('浮层回复渲染 Markdown，双击展开阅读', (tester) async {
+      await pumpDetail(tester);
+      repo.chatMessages = [
+        Message(
+          id: 'reply-1',
+          conversationId: 'conv-page',
+          role: MessageRole.assistant,
+          content: '## 回答标题\n\n**重要内容**',
+          createdAt: DateTime(2026, 1, 1),
+        ),
+      ];
+      await tester.tap(find.byTooltip('和 AI 讨论此页'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MarkdownView), findsWidgets);
+      await tester.ensureVisible(find.text('回答标题').first);
+      await tester.tap(find.text('回答标题').first);
+      await tester.pump(const Duration(milliseconds: 80));
+      await tester.tap(find.text('回答标题').first);
+      await tester.pumpAndSettle();
+      expect(find.text('AI 回复'), findsOneWidget);
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.byType(MarkdownView), findsAtLeastNWidgets(2));
+    });
+
+    testWidgets('编辑 → 修改 → 完成：saveWikiPageContent 收到含改动的 markdown，退出编辑态', (
+      tester,
+    ) async {
       await pumpDetail(tester);
 
       await tester.tap(find.text('编辑正文'));
@@ -290,17 +318,14 @@ void main() {
     testWidgets('保存失败：留在编辑态并展示错误条', (tester) async {
       repo = _FakeRepo(page: _testPage)..saveThrows = true;
       container = ProviderContainer(
-        overrides: [
-          storageRepositoryProvider.overrideWithValue(repo),
-        ],
+        overrides: [storageRepositoryProvider.overrideWithValue(repo)],
       );
       container.read(wikiOpenTabsProvider.notifier).state = [
         ImportTabEntry(),
         PageTabEntry(slug: _testPage.slug, title: _testPage.title),
       ];
-      container
-          .read(wikiActiveTabIdProvider.notifier)
-          .state = 'page-${_testPage.slug}';
+      container.read(wikiActiveTabIdProvider.notifier).state =
+          'page-${_testPage.slug}';
       addTearDown(container.dispose);
       tester.view.physicalSize = const Size(1600, 2200);
       tester.view.devicePixelRatio = 1.0;
@@ -339,8 +364,9 @@ void main() {
         (w) => w is RichText && w.text.toPlainText() == '正文段落提到张三',
       );
       expect(richTextFinder, findsOneWidget);
-      final renderParagraph =
-          tester.renderObject<RenderParagraph>(richTextFinder);
+      final renderParagraph = tester.renderObject<RenderParagraph>(
+        richTextFinder,
+      );
       final localBox = renderParagraph
           .getBoxesForSelection(
             const TextSelection(baseOffset: 6, extentOffset: 8),
@@ -372,8 +398,12 @@ void main() {
           return null;
         },
       );
-      addTearDown(() => tester.binding.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform, null));
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
 
       await pumpDetail(tester, page: _codePage);
 
@@ -407,9 +437,8 @@ void main() {
         ImportTabEntry(),
         PageTabEntry(slug: _testPage.slug, title: _testPage.title),
       ];
-      container
-          .read(wikiActiveTabIdProvider.notifier)
-          .state = 'page-${_testPage.slug}';
+      container.read(wikiActiveTabIdProvider.notifier).state =
+          'page-${_testPage.slug}';
       addTearDown(container.dispose);
 
       tester.view.physicalSize = const Size(390, 844);
@@ -435,14 +464,29 @@ void main() {
       // 无溢出/布局异常（RenderFlex overflow 等会在此抛出）
       expect(tester.takeException(), isNull, reason: '窄视口不应有布局溢出');
 
-      // 正文经编辑器渲染、编辑入口可见、聊天块在页尾
+      // 正文经编辑器渲染、编辑入口可见；窄屏（<1040）聊天不内联，
+      // 入口是右下角 FAB（点开弹 bottom sheet）
       expect(find.byType(WikiContentEditor), findsOneWidget);
       expect(find.text('正文段落提到张三', findRichText: true), findsOneWidget);
       expect(find.text('编辑正文'), findsOneWidget);
+      expect(find.byType(WikiAiChatPanel), findsNothing);
+      expect(find.byIcon(Icons.auto_awesome_outlined), findsWidgets);
+      await tester.tap(find.byTooltip('和 AI 讨论此页'));
+      await tester.pumpAndSettle();
       expect(find.byType(WikiAiChatPanel), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: '窄视口展开浮层不应溢出');
+      await tester.tap(find.byTooltip('缩小对话窗口'));
+      await tester.pumpAndSettle();
 
-      // 底部卡座存在于树中（内部自滚动，窄屏也有界）
+      // 底部卡座在「产出」页签下：窄屏切换页签同样有界（内部自滚动）
+      await tester.tap(find.text('产出'));
+      await tester.pumpAndSettle();
       expect(find.byType(WikiDerivatives), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: '产出页签窄屏不应溢出');
+
+      // 回到内容页签，继续编辑
+      await tester.tap(find.text('内容'));
+      await tester.pumpAndSettle();
 
       // 编辑态在窄屏同样可用：进入 → 插入 → 保存
       await tester.tap(find.text('编辑正文'));
@@ -481,7 +525,11 @@ void main() {
       await tester.tap(find.text('放弃修改并关闭'));
       await tester.pumpAndSettle();
 
-      expect(container.read(wikiActiveTabIdProvider), 'import', reason: '确认放弃后关闭');
+      expect(
+        container.read(wikiActiveTabIdProvider),
+        'import',
+        reason: '确认放弃后关闭',
+      );
       expect(repo.savedCount, 0, reason: '放弃不触发保存');
     });
 
@@ -527,7 +575,11 @@ void main() {
 
       expect(repo.savedCount, 1, reason: '关闭前应先保存');
       expect(repo.savedContent.single.$2, contains('关前保存'));
-      expect(container.read(wikiActiveTabIdProvider), 'import', reason: '保存成功后关闭');
+      expect(
+        container.read(wikiActiveTabIdProvider),
+        'import',
+        reason: '保存成功后关闭',
+      );
       expect(
         container.read(wikiDirtyTabsProvider).contains(_testPage.slug),
         isFalse,
@@ -624,6 +676,7 @@ class _FakeRepo extends RustBridgeRepository {
   final WikiPage? wikilinkTarget;
   int savedCount = 0;
   bool saveThrows = false;
+  List<Message> chatMessages = const [];
 
   /// 模拟「编辑期间页面被后台更新」：携带乐观锁的保存一律报冲突
   bool conflictOnLockedSave = false;
@@ -639,19 +692,18 @@ class _FakeRepo extends RustBridgeRepository {
   }
 
   @override
-  Future<List<WikiPage>> listWikiPages({String? kind, String? area}) async =>
-      [page];
+  Future<List<WikiPage>> listWikiPages({String? kind, String? area}) async => [
+    page,
+  ];
 
   @override
-  Future<List<WikiPage>> listWikiPageDerivatives(String slug) async =>
-      const [];
+  Future<List<WikiPage>> listWikiPageDerivatives(String slug) async => const [];
 
   @override
   Future<List<EntityFactDto>> listEntityFacts(
     String entityKind,
     String entitySlug,
-  ) async =>
-      const [];
+  ) async => const [];
 
   @override
   Future<List<Relation>> listRelationsForPage(String slug) async => const [];
@@ -686,7 +738,7 @@ class _FakeRepo extends RustBridgeRepository {
 
   @override
   Future<List<Message>> listMessages(String conversationId) async =>
-      const [];
+      chatMessages;
 
   @override
   Future<Message> sendMessage(

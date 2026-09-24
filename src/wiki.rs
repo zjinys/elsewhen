@@ -15,7 +15,7 @@ use crate::event::{AnnotationSet, EventSummary};
 use crate::storage::{ContentPolicy, EventRecord, RelationDraft, Store, WikiPage, WikiPageDraft};
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub const WIKI_PROMPT_VERSION: &str = "wiki-digest-v1";
 
@@ -353,6 +353,67 @@ pub fn extract_tweet_id(url: &str) -> Option<String> {
         return None;
     }
     Some(id.to_string())
+}
+
+/// 是否本地文件 URL（`file://` 前缀，目录导入的项目页用它把路径记进 `source_url`）。
+/// 目录也是 URL（RFC 8089），复用来源字段即可，不必为路径另加列。
+pub fn is_file_url(url: &str) -> bool {
+    url.starts_with("file://")
+}
+
+/// 本地绝对路径 → 规范 `file://` URL（`file:///home/u/a b` 中空格等按字节百分号编码）。
+/// 存 `source_url` 前统一走这里，保证同一目录永远得到同一字符串（URL 去重免费生效）。
+pub fn path_to_file_url(path: &Path) -> String {
+    #[cfg(unix)]
+    let bytes: &[u8] = std::os::unix::ffi::OsStrExt::as_bytes(path.as_os_str());
+    #[cfg(not(unix))]
+    let bytes: &[u8] = &path.to_string_lossy().as_bytes().to_vec();
+    let mut out = String::from("file://");
+    for &b in bytes {
+        // 不编码：unreserved + `/`（分隔符）+ `:`（盘符 `C:` 宽容）。其余按字节编码。
+        if b.is_ascii_alphanumeric() || b"-._~/:".contains(&b) {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
+}
+
+/// `file://` URL → 本地路径；非 file  scheme 返回 None（调用方据此区分网页来源与本地来源）。
+/// 只接受空 host 或 `localhost`，拒绝 `file://other-host/...` 这类远端写法。
+pub fn file_url_to_path(url: &str) -> Option<PathBuf> {
+    let rest = url.strip_prefix("file://")?;
+    // 去掉 host 段（`` 或 `localhost` 才合法）
+    let path_part = if let Some(after) = rest.strip_prefix('/') {
+        format!("/{after}")
+    } else if let Some(path) = rest.strip_prefix("localhost/") {
+        format!("/{path}")
+    } else {
+        return None;
+    };
+    let mut bytes = Vec::with_capacity(path_part.len());
+    let raw = path_part.as_bytes();
+    let mut i = 0;
+    while i < raw.len() {
+        if raw[i] == b'%' {
+            let hex = std::str::from_utf8(raw.get(i + 1..i + 3)?).ok()?;
+            bytes.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            bytes.push(raw[i]);
+            i += 1;
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStringExt;
+        Some(PathBuf::from(std::ffi::OsString::from_vec(bytes)))
+    }
+    #[cfg(not(unix))]
+    {
+        Some(PathBuf::from(String::from_utf8_lossy(&bytes).into_owned()))
+    }
 }
 
 /// 从 fxtwitter 响应构造可读内容（纯解析，可单测）：
@@ -1427,7 +1488,9 @@ mod tests {
             reason: "t".into(),
             source_url: None,
         };
-        store.upsert_wiki_page(&draft, ContentPolicy::Always).unwrap();
+        store
+            .upsert_wiki_page(&draft, ContentPolicy::Always)
+            .unwrap();
 
         // 去 #、去空白、去重、忽略空串，保持顺序
         let updated = store
@@ -1461,7 +1524,10 @@ mod tests {
         let tags = vec![" #工作 ".to_string(), "Rust".to_string(), "".to_string()];
         let page =
             save_text_page("这是一段要保存的笔记正文", Some("我的笔记"), &tags, &store).unwrap();
-        assert_eq!(page.kind, "note", "用户粘贴笔记归素材档 kind=note（M1 语义拆分）");
+        assert_eq!(
+            page.kind, "note",
+            "用户粘贴笔记归素材档 kind=note（M1 语义拆分）"
+        );
         assert_eq!(page.title, "我的笔记");
         assert!(page.tags.contains(&"工作".to_string()), "{:?}", page.tags);
         assert!(page.tags.contains(&"Rust".to_string()), "{:?}", page.tags);
@@ -1641,8 +1707,7 @@ mod tests {
     }
 
     #[test]
-    fn extract_tweet_id_parses_common_urls() {
-        assert_eq!(
+    fn extract_tweet_id_parses_common_urls() {        assert_eq!(
             extract_tweet_id("https://x.com/someone/status/123456789").as_deref(),
             Some("123456789")
         );
@@ -1662,6 +1727,31 @@ mod tests {
         assert_eq!(extract_tweet_id("https://example.com/not-a-tweet"), None);
         assert_eq!(extract_tweet_id(""), None);
         assert_eq!(extract_tweet_id("https://x.com/someone/status/abc"), None);
+    }
+
+    #[test]
+    fn file_url_roundtrips_local_paths() {
+        // 普通路径原样往返
+        let p = PathBuf::from("/home/pp/playground/ai/elsewhen");
+        let url = path_to_file_url(&p);
+        assert_eq!(url, "file:///home/pp/playground/ai/elsewhen");
+        assert!(is_file_url(&url));
+        assert_eq!(file_url_to_path(&url).as_deref(), Some(p.as_path()));
+        // 空格与中文按字节编码后可还原
+        let p2 = PathBuf::from("/tmp/我的 项目/a b");
+        let url2 = path_to_file_url(&p2);
+        assert!(is_file_url(&url2));
+        assert!(!url2.contains(' '));
+        assert_eq!(file_url_to_path(&url2).as_deref(), Some(p2.as_path()));
+        // 非 file scheme 拒绝；远端 host 拒绝
+        assert!(!is_file_url("https://example.com/x"));
+        assert_eq!(file_url_to_path("https://example.com/x"), None);
+        assert_eq!(file_url_to_path("file://other-host/tmp/x"), None);
+        // localhost 宽容
+        assert_eq!(
+            file_url_to_path("file://localhost/tmp/x").as_deref(),
+            Some(Path::new("/tmp/x"))
+        );
     }
 
     #[test]

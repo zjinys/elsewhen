@@ -107,4 +107,17 @@ class WikiPage {
     if (sourceUrl != null) return 'web';
     return 'text';
   }
+
+  /// 是否本地目录来源（sourceUrl 为 file://）：目录导入的项目页把路径记在这里。
+  bool get isLocalPath => sourceUrl != null && sourceUrl!.startsWith('file://');
+
+  /// 本地目录路径（仅 isLocalPath 时非空；file:// 解码为系统路径）。
+  /// 与 Rust 侧 path_to_file_url 对应：空 host 或 localhost + 百分号解码。
+  String? get localPath {
+    final url = sourceUrl;
+    if (url == null || !url.startsWith('file://')) return null;
+    var rest = url.substring('file://'.length);
+    if (rest.startsWith('localhost/')) rest = rest.substring('localhost'.length);
+    return Uri.decodeComponent(rest);
+  }
 }

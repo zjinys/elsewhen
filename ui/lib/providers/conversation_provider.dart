@@ -25,13 +25,13 @@ class ConversationRepository {
   Future<List<Message>> getMessages(String conversationId) async {
     final active = await _bridge.listConversations();
     final archived = await _bridge.listArchivedConversations();
-    final ordinary = [...active, ...archived]
-        .where((conversation) => !conversation.isWikiChat)
-        .toList();
+    final ordinary = [
+      ...active,
+      ...archived,
+    ].where((conversation) => !conversation.isWikiChat).toList();
     final isMain = ordinary.any(
       (conversation) =>
-          conversation.id == conversationId &&
-          conversation.title == '主对话流',
+          conversation.id == conversationId && conversation.title == '主对话流',
     );
     if (!isMain) return _bridge.listMessages(conversationId);
 
@@ -95,6 +95,14 @@ class ConversationRepository {
   Future<bool> updatePendingActionArgs(String actionId, String argsJson) =>
       _bridge.updatePendingActionArgs(actionId, argsJson);
 
+  Future<String> confirmKnowledgeDraft(
+    String conversationId,
+    String actionId,
+  ) => _bridge.confirmKnowledgeDraft(conversationId, actionId);
+
+  Future<void> declineKnowledgeDraft(String conversationId, String actionId) =>
+      _bridge.declineKnowledgeDraft(conversationId, actionId);
+
   /// Send a message in a conversation
   Future<Message> sendMessage(
     String conversationId,
@@ -157,7 +165,8 @@ final todayTokenUsageProvider = FutureProvider<DailyTokenUsage?>((ref) async {
   final usage = await bridge.getDailyTokenUsage(1);
   if (usage.isEmpty) return null;
   final today = DateTime.now();
-  final key = '${today.year.toString().padLeft(4, '0')}-'
+  final key =
+      '${today.year.toString().padLeft(4, '0')}-'
       '${today.month.toString().padLeft(2, '0')}-'
       '${today.day.toString().padLeft(2, '0')}';
   for (final item in usage) {

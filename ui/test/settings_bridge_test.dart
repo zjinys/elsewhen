@@ -98,6 +98,41 @@ void main() {
     expect(back.fontSize, 16);
   });
 
+  test('theme prefs 编辑器覆盖层 roundtrip（写入 + 跟随全局清除）', () async {
+    // 写入覆盖层
+    await repo.updateThemePrefs(
+      mode: 'dark',
+      preset: 'amber',
+      font: 'system',
+      fontSize: 16,
+      editorFont: 'Noto Serif SC',
+      editorFontSize: 20,
+      editorLineHeight: 2.0,
+    );
+    final withOverride = await repo.getThemePrefs();
+    expect(withOverride.editorFont, 'Noto Serif SC');
+    expect(withOverride.editorFontSize, 20);
+    expect(withOverride.editorLineHeight, 2.0);
+
+    // 「跟随全局」= 传 null → Rust 侧删除对应 meta 键
+    await repo.updateThemePrefs(
+      mode: 'dark',
+      preset: 'amber',
+      font: 'system',
+      fontSize: 16,
+      editorFont: null,
+      editorFontSize: null,
+      editorLineHeight: null,
+    );
+    final cleared = await repo.getThemePrefs();
+    expect(cleared.editorFont, isNull, reason: '跟随全局应清掉覆盖键');
+    expect(cleared.editorFontSize, isNull);
+    expect(cleared.editorLineHeight, isNull);
+    // 清除覆盖不影响全局层
+    expect(cleared.font, 'system');
+    expect(cleared.fontSize, 16);
+  });
+
   test('analysis job stats expose durable queue statuses', () async {
     final before = await repo.getAnalysisJobStats();
     expect(before.pending, 0);

@@ -345,6 +345,20 @@ class RustBridgeRepository implements StorageRepository {
   Future<bool> updatePendingActionArgs(String actionId, String argsJson) =>
       api.updatePendingActionArgs(actionId: actionId, argsJson: argsJson);
 
+  Future<String> confirmKnowledgeDraft(
+    String conversationId,
+    String actionId,
+  ) => api.confirmKnowledgeDraft(
+    conversationId: conversationId,
+    actionId: actionId,
+  );
+
+  Future<void> declineKnowledgeDraft(String conversationId, String actionId) =>
+      api.declineKnowledgeDraft(
+        conversationId: conversationId,
+        actionId: actionId,
+      );
+
   Future<List<Message>> getChildMessages(String parentId) async {
     final dtos = await api.getChildMessages(parentId: parentId);
     return dtos
@@ -434,6 +448,22 @@ class RustBridgeRepository implements StorageRepository {
     return dtos.map(WikiPage.fromDto).toList();
   }
 
+  /// 直接把一段内容保存为某知识页的派生产物（页内 AI 聊天「保存」按钮用，跳过 AI 草拟确认）。
+  Future<WikiPage> createWikiDerivative({
+    required String basedOnSlug,
+    required String contentType,
+    required String title,
+    required String contentMd,
+  }) async {
+    final dto = await api.createWikiDerivative(
+      basedOnSlug: basedOnSlug,
+      contentType: contentType,
+      title: title,
+      contentMd: contentMd,
+    );
+    return WikiPage.fromDto(dto);
+  }
+
   /// 按 slug 获取单个知识库页面
   Future<WikiPage?> getWikiPage(String slug) async {
     final dto = await api.getWikiPage(slug: slug);
@@ -446,6 +476,21 @@ class RustBridgeRepository implements StorageRepository {
     required List<String> tags,
   }) async {
     final dto = await api.updateWikiTags(slug: slug, tags: tags);
+    return WikiPage.fromDto(dto);
+  }
+
+  /// 按项目页记录的本地目录重新扫描，并更新原知识页。
+  Future<WikiPage> refreshProjectPage(String slug) async {
+    final dto = await api.refreshProjectPage(slug: slug);
+    return WikiPage.fromDto(dto);
+  }
+
+  /// 修改一张项目页关联的本地目录（目录搬家后纠正路径；新路径须存在且是目录）。
+  Future<WikiPage> updateProjectPath({
+    required String slug,
+    required String newPath,
+  }) async {
+    final dto = await api.updateProjectPath(slug: slug, newPath: newPath);
     return WikiPage.fromDto(dto);
   }
 
@@ -565,7 +610,7 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> updateTweetFetchService(String service) =>
       api.updateTweetFetchService(service: service);
 
-  /// 主题偏好（模式 + 预设 + 字体 + 正文字号，存 app_meta）
+  /// 主题偏好（模式 + 预设 + 字体 + 正文字号 + 编辑器覆盖层，存 app_meta）
   Future<api.ThemePrefsDto> getThemePrefs() => api.getThemePrefs();
 
   Future<void> updateThemePrefs({
@@ -573,13 +618,19 @@ class RustBridgeRepository implements StorageRepository {
     required String preset,
     String font = 'inter',
     double fontSize = 16.0,
-  }) =>
-      api.updateThemePrefs(
-        mode: mode,
-        preset: preset,
-        font: font,
-        fontSize: fontSize,
-      );
+    // 编辑器（内容区）覆盖层：null = 跟随全局（Rust 侧会清掉对应 meta 键）
+    String? editorFont,
+    double? editorFontSize,
+    double? editorLineHeight,
+  }) => api.updateThemePrefs(
+    mode: mode,
+    preset: preset,
+    font: font,
+    fontSize: fontSize,
+    editorFont: editorFont,
+    editorFontSize: editorFontSize,
+    editorLineHeight: editorLineHeight,
+  );
 
   /// AI provider 配置（设置页预填/保存用，直连 Rust DB 的 ai_provider_configs）
   Future<api.AiProviderConfigDto?> getAiProviderConfig() =>

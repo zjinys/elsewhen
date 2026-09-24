@@ -7,7 +7,7 @@ import 'package:elsewhen_ui/widgets/message_area.dart';
 
 import 'support/isolated_bridge.dart';
 
-/// Headless UI verification of the left sidebar（对话 / 知识库 / 待办 tabs + 设置入口）
+/// Headless UI verification of the left sidebar（对话 / 知识库 tabs；设置入口在标题栏）
 /// and the wiki browsing flow, driven by the REAL Rust bridge and an isolated DB.
 void main() {
   testWidgets('left sidebar tabs + wiki browsing with real bridge', (
@@ -37,15 +37,21 @@ void main() {
     );
     await tester.pump();
 
-    // 1. 左侧栏结构：对话 / 知识库 + 底部工具入口
+    // 1. 左侧栏结构：主对话 + 最近页面 + 底部工作区入口
     expect(find.text('对话'), findsOneWidget, reason: '对话 tab 应在左侧栏');
-    expect(find.text('知识库'), findsOneWidget, reason: '知识库 tab 应在左侧栏');
-    expect(find.text('设置'), findsOneWidget, reason: '设置入口应在左侧栏底部');
+    expect(find.text('知识库'), findsOneWidget, reason: '知识库应在左侧统一入口');
+    expect(find.text('知识库'), findsOneWidget, reason: '知识库应在左侧快捷入口');
+    // 设置入口已移到标题栏：图标按钮（tooltip「设置」），不再出现在侧边栏
+    expect(
+      find.byTooltip('设置'),
+      findsOneWidget,
+      reason: '设置入口应在标题栏右侧',
+    );
 
     // 2. 初始为对话 Tab：右侧是 MessageArea
     expect(find.byType(MessageArea), findsOneWidget, reason: '对话 Tab 右侧应为消息区');
 
-    // 3. 切到知识库 Tab，等待桥接数据加载
+    // 3. 通过左侧快捷入口打开入库工作区
     await tester.tap(find.text('知识库'));
     await tester.pump();
     await tester.runAsync(
@@ -53,11 +59,17 @@ void main() {
     );
     await tester.pump();
 
-    // 新 UI：搜索框 + kind 过滤 chips + 分组列表
-    expect(find.text('搜索知识库…'), findsOneWidget, reason: '知识库 tab 应有搜索框');
-    expect(find.textContaining('全部'), findsWidgets, reason: '应有「全部」过滤 chip');
+    expect(find.text('首页'), findsOneWidget, reason: '知识库入口应打开首页工作区');
 
-    // 4. 用真实桥接读取页面列表，取列表里真实存在的一页做浏览验证
+    // 返回主对话后，从“最近使用”打开知识页详情
+    await tester.tap(find.text('对话'));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pump();
+
+    // 4. 用真实桥接读取页面，取最近使用列表里的页面做浏览验证
     final pages = await tester.runAsync(() => bridge.listWikiPages());
     expect(pages, isNotNull);
     final all = pages ?? [];
@@ -66,24 +78,10 @@ void main() {
     final page = all.first;
     final title = page.title;
 
-    // 手动滚动 sidebar ListView（可能被搜索框/chips 顶到屏外）直到目标可见
-    final sidebarList = find
-        .byWidgetPredicate(
-          (w) => w is ListView && w.scrollDirection == Axis.vertical,
-        )
-        .first;
-    for (var i = 0; i < 10; i++) {
-      if (find.text(title).evaluate().isNotEmpty) break;
-      await tester.drag(sidebarList, const Offset(0, -250));
-      await tester.pump();
-    }
-    expect(find.text(title), findsWidgets, reason: '滚动后应能看到列表页 $title');
+    expect(find.text(title), findsOneWidget, reason: '最近使用列表应显示页面 $title');
 
-    // 4b. 列表项应展示 tags/证据等元数据
-    expect(find.textContaining('证据'), findsWidgets, reason: '列表项应显示证据徽章');
-
-    // 5. 点击该页查看详情
-    await tester.tap(find.text(title).first);
+    // 5. 点击最近页面查看详情
+    await tester.tap(find.text(title));
     await tester.pump();
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 300)),
@@ -93,6 +91,6 @@ void main() {
     // 详情视图：标题（在头部重复出现）+ 证据 + AI 处理面板标题
     expect(find.text(title), findsWidgets, reason: '详情头应包含标题');
     expect(find.textContaining('证据'), findsWidgets, reason: '应显示证据徽章');
-    expect(find.text('AI 处理本页'), findsWidgets, reason: '页面应有 AI 处理面板');
+    expect(find.text('AI对话'), findsWidgets, reason: '页面应有 AI 处理面板');
   });
 }

@@ -5,6 +5,7 @@ pub mod ai;
 pub mod config;
 pub mod event;
 pub mod fonts;
+pub mod local_sources;
 pub mod storage;
 pub mod wiki;
 

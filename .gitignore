@@ -38,3 +38,6 @@ Thumbs.db
 
 # FVM Version Cache
 .fvm/
+.workbuddy/
+# 参考素材目录
+/ref/

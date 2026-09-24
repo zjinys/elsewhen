@@ -4,6 +4,7 @@ mod capture;
 mod config;
 mod event;
 mod fonts;
+mod local_sources;
 mod hotkey;
 mod settings;
 mod storage;
@@ -20,6 +21,51 @@ fn main() -> Result<()> {
     let store = Store::open(&config.database_path)?;
 
     match env::args().nth(1).as_deref() {
+        Some("sources") => {
+            let mode_or_dir = env::args()
+                .nth(2)
+                .context("usage: elsewhen sources [project|files] <目录>")?;
+            let (mode, dir) = match env::args().nth(3) {
+                Some(dir) => (mode_or_dir.as_str(), dir),
+                None => ("project", mode_or_dir),
+            };
+            let report = match mode {
+                "project" => local_sources::ingest_directory(&store, std::path::Path::new(&dir))?,
+                "files" => {
+                    local_sources::ingest_directory_files(&store, std::path::Path::new(&dir))?
+                }
+                other => anyhow::bail!("未知导入模式：{other}，可选 project 或 files"),
+            };
+            println!(
+                "已导入 {} 个文件，创建/更新 {} 个知识页",
+                report.files,
+                report.pages.len()
+            );
+            for page in report.pages {
+                println!("  + {}", page);
+            }
+            for skipped in report.skipped {
+                println!("  ! 跳过无法读取文件: {}", skipped);
+            }
+        }
+        Some("compact-project") => {
+            let slug = env::args()
+                .nth(2)
+                .context("usage: elsewhen compact-project <slug>")?;
+            if local_sources::compact_project_page(&store, &slug)? {
+                println!("已压缩项目页：{slug}");
+            } else {
+                println!("项目页无需压缩或不存在：{slug}");
+            }
+        }
+        Some("topic") => {
+            let topic = env::args().skip(2).collect::<Vec<_>>().join(" ");
+            let slug = local_sources::plan_topic(&store, &topic)?;
+            println!("已创建话题分析页: {}", slug);
+            if let Some(page) = store.get_wiki_page(&slug)? {
+                println!("\n{}", page.content_md);
+            }
+        }
         Some("capture") => capture::run(store)?,
         Some("daemon") => hotkey::run_daemon()?,
         Some("settings") => settings::run(config.database_path)?,
@@ -250,6 +296,8 @@ fn print_usage() {
     println!("elsewhen insight [--days N] [--max-events N]");
     println!("elsewhen insights");
     println!("elsewhen wiki list|show|digest|export|log|lint");
+    println!("elsewhen sources <目录>");
+    println!("elsewhen topic <话题>");
     println!("elsewhen analyses");
     println!("elsewhen capture");
     println!("elsewhen daemon");

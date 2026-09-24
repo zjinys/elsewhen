@@ -1,4 +1,5 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,7 +14,8 @@ void main() {
       expect(cfg.italic.fontFamily, 'Noto Sans SC');
       expect(cfg.underline.fontFamily, 'Noto Sans SC');
       expect(cfg.href.fontFamily, 'Noto Sans SC');
-      expect(cfg.code.fontFamily, 'Noto Sans SC');
+      // 行内 code 走等宽（对照 AppFlowy 观感），不跟随正文家族
+      expect(cfg.code.fontFamily, 'monospace');
       expect(cfg.autoComplete.fontFamily, 'Noto Sans SC');
       expect(cfg.text.fontSize, 16, reason: '字号保持编辑器默认不变');
       expect(cfg.bold.fontWeight, FontWeight.bold, reason: '字重保持默认');
@@ -51,13 +53,23 @@ void main() {
       expect(cfg.bold.fontWeight, FontWeight.bold, reason: '字重保持默认');
     });
 
-    test('vendor 自带语义色不被主题色覆盖（href/code/autoComplete）', () {
+    test('语义色调优：href 用主题强调色、code 用中性底（仅 autoComplete 保留灰）', () {
       const color = Color(0xFF111111);
       final cfg = fontAwareTextStyleConfiguration('Inter', color: color);
 
-      expect(cfg.href.color, Colors.lightBlue);
-      expect(cfg.code.color, Colors.red);
-      expect(cfg.autoComplete.color, Colors.grey);
+      expect(cfg.href.color, AppTheme.accentPrimary, reason: '链接色走主题强调色');
+      expect(cfg.href.decoration, TextDecoration.underline);
+      expect(cfg.code.color, AppTheme.textPrimary, reason: '行内 code 不再红字');
+      expect(
+        cfg.code.backgroundColor,
+        AppTheme.surface2,
+        reason: '行内 code 中性底',
+      );
+      expect(
+        cfg.autoComplete.color,
+        Colors.grey,
+        reason: 'autoComplete 保留 vendor 灰',
+      );
     });
 
     test('仅 color 时：基础样式着色、字体族保持默认', () {
@@ -108,7 +120,7 @@ void main() {
       expect(cfg.text.fontSize, 20);
       expect(cfg.text.fontFamily, isNull);
       expect(cfg.text.color, isNull);
-      expect(cfg.href.color, Colors.lightBlue, reason: '语义色不受影响');
+      expect(cfg.href.color, AppTheme.accentPrimary, reason: '链接色仍走主题强调色');
     });
   });
 }

@@ -176,6 +176,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> dco_decode_list_rule_dto(dynamic raw);
 
   @protected
+  List<SystemFontFace> dco_decode_list_system_font_face(dynamic raw);
+
+  @protected
   List<TodoDto> dco_decode_list_todo_dto(dynamic raw);
 
   @protected
@@ -239,6 +242,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleDto dco_decode_rule_dto(dynamic raw);
+
+  @protected
+  SystemFontFace dco_decode_system_font_face(dynamic raw);
 
   @protected
   ThemePrefsDto dco_decode_theme_prefs_dto(dynamic raw);
@@ -450,6 +456,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> sse_decode_list_rule_dto(SseDeserializer deserializer);
 
   @protected
+  List<SystemFontFace> sse_decode_list_system_font_face(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<TodoDto> sse_decode_list_todo_dto(SseDeserializer deserializer);
 
   @protected
@@ -521,6 +532,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleDto sse_decode_rule_dto(SseDeserializer deserializer);
+
+  @protected
+  SystemFontFace sse_decode_system_font_face(SseDeserializer deserializer);
 
   @protected
   ThemePrefsDto sse_decode_theme_prefs_dto(SseDeserializer deserializer);
@@ -820,6 +834,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_rule_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_rule_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_system_font_face> cst_encode_list_system_font_face(
+    List<SystemFontFace> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_system_font_face(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_system_font_face(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -1316,6 +1342,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_system_font_face(
+    SystemFontFace apiObj,
+    wire_cst_system_font_face wireObj,
+  ) {
+    wireObj.family = cst_encode_String(apiObj.family);
+    wireObj.file = cst_encode_String(apiObj.file);
+    wireObj.style = cst_encode_String(apiObj.style);
+  }
+
+  @protected
   void cst_api_fill_to_wire_theme_prefs_dto(
     ThemePrefsDto apiObj,
     wire_cst_theme_prefs_dto wireObj,
@@ -1324,6 +1360,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.preset = cst_encode_String(apiObj.preset);
     wireObj.font = cst_encode_String(apiObj.font);
     wireObj.font_size = cst_encode_f_64(apiObj.fontSize);
+    wireObj.editor_font = cst_encode_opt_String(apiObj.editorFont);
+    wireObj.editor_font_size = cst_encode_opt_box_autoadd_f_64(
+      apiObj.editorFontSize,
+    );
+    wireObj.editor_line_height = cst_encode_opt_box_autoadd_f_64(
+      apiObj.editorLineHeight,
+    );
   }
 
   @protected
@@ -1642,6 +1685,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_rule_dto(List<RuleDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_system_font_face(
+    List<SystemFontFace> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_todo_dto(List<TodoDto> self, SseSerializer serializer);
 
   @protected
@@ -1730,6 +1779,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_rule_dto(RuleDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_system_font_face(
+    SystemFontFace self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_theme_prefs_dto(ThemePrefsDto self, SseSerializer serializer);
@@ -2155,6 +2210,21 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_rule_dto = _cst_new_list_rule_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_rule_dto> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_system_font_face> cst_new_list_system_font_face(
+    int len,
+  ) {
+    return _cst_new_list_system_font_face(len);
+  }
+
+  late final _cst_new_list_system_font_facePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_system_font_face> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_system_font_face');
+  late final _cst_new_list_system_font_face = _cst_new_list_system_font_facePtr
+      .asFunction<ffi.Pointer<wire_cst_list_system_font_face> Function(int)>();
+
   ffi.Pointer<wire_cst_list_todo_dto> cst_new_list_todo_dto(int len) {
     return _cst_new_list_todo_dto(len);
   }
@@ -2350,6 +2420,38 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__confirm_knowledge_draft(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> action_id,
+  ) {
+    return _wire__crate__api__confirm_knowledge_draft(
+      port_,
+      conversation_id,
+      action_id,
+    );
+  }
+
+  late final _wire__crate__api__confirm_knowledge_draftPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__confirm_knowledge_draft');
+  late final _wire__crate__api__confirm_knowledge_draft =
+      _wire__crate__api__confirm_knowledge_draftPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__create_conversation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
@@ -2420,6 +2522,78 @@ class RustLibWire implements BaseWire {
           ffi.Pointer<wire_cst_list_prim_u_8_strict>,
         )
       >();
+
+  void wire__crate__api__create_wiki_derivative(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> based_on_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_type,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
+  ) {
+    return _wire__crate__api__create_wiki_derivative(
+      port_,
+      based_on_slug,
+      content_type,
+      title,
+      content_md,
+    );
+  }
+
+  late final _wire__crate__api__create_wiki_derivativePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__create_wiki_derivative');
+  late final _wire__crate__api__create_wiki_derivative =
+      _wire__crate__api__create_wiki_derivativePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__decline_knowledge_draft(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> action_id,
+  ) {
+    return _wire__crate__api__decline_knowledge_draft(
+      port_,
+      conversation_id,
+      action_id,
+    );
+  }
+
+  late final _wire__crate__api__decline_knowledge_draftPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__decline_knowledge_draft');
+  late final _wire__crate__api__decline_knowledge_draft =
+      _wire__crate__api__decline_knowledge_draftPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
 
   void wire__crate__api__delete_ai_provider_config(
     int port_,
@@ -3287,6 +3461,17 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__list_rules = _wire__crate__api__list_rulesPtr
       .asFunction<void Function(int)>();
 
+  void wire__crate__api__list_system_fonts(int port_) {
+    return _wire__crate__api__list_system_fonts(port_);
+  }
+
+  late final _wire__crate__api__list_system_fontsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__list_system_fonts',
+      );
+  late final _wire__crate__api__list_system_fonts =
+      _wire__crate__api__list_system_fontsPtr.asFunction<void Function(int)>();
+
   void wire__crate__api__list_todos(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
@@ -3456,6 +3641,28 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_wire__crate__api__record_event');
   late final _wire__crate__api__record_event =
       _wire__crate__api__record_eventPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__refresh_project_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__refresh_project_page(port_, slug);
+  }
+
+  late final _wire__crate__api__refresh_project_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__refresh_project_page');
+  late final _wire__crate__api__refresh_project_page =
+      _wire__crate__api__refresh_project_pagePtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -4032,12 +4239,43 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__update_project_path(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> new_path,
+  ) {
+    return _wire__crate__api__update_project_path(port_, slug, new_path);
+  }
+
+  late final _wire__crate__api__update_project_pathPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__update_project_path');
+  late final _wire__crate__api__update_project_path =
+      _wire__crate__api__update_project_pathPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__update_theme_prefs(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> preset,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> font,
     double font_size,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> editor_font,
+    ffi.Pointer<ffi.Double> editor_font_size,
+    ffi.Pointer<ffi.Double> editor_line_height,
   ) {
     return _wire__crate__api__update_theme_prefs(
       port_,
@@ -4045,6 +4283,9 @@ class RustLibWire implements BaseWire {
       preset,
       font,
       font_size,
+      editor_font,
+      editor_font_size,
+      editor_line_height,
     );
   }
 
@@ -4057,6 +4298,9 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Double,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<ffi.Double>,
+            ffi.Pointer<ffi.Double>,
           )
         >
       >('frbgen_elsewhen_ui_wire__crate__api__update_theme_prefs');
@@ -4069,6 +4313,9 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               double,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<ffi.Double>,
+              ffi.Pointer<ffi.Double>,
             )
           >();
 
@@ -5013,6 +5260,21 @@ final class wire_cst_list_rule_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_system_font_face extends ffi.Struct {
+  external ffi.Pointer<wire_cst_system_font_face> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_system_font_face> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_system_font_face> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_system_font_face>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_todo_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_todo_dto> ptr;
 
@@ -5199,6 +5461,24 @@ final class wire_cst_rule_dto extends ffi.Struct {
     ..ref.created_at = created_at;
 }
 
+final class wire_cst_system_font_face extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> family;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> file;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> style;
+
+  static ffi.Pointer<wire_cst_system_font_face> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> family,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> file,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> style,
+  }) => $allocator<wire_cst_system_font_face>()
+    ..ref.family = family
+    ..ref.file = file
+    ..ref.style = style;
+}
+
 final class wire_cst_theme_prefs_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> mode;
 
@@ -5209,17 +5489,29 @@ final class wire_cst_theme_prefs_dto extends ffi.Struct {
   @ffi.Double()
   external double font_size;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> editor_font;
+
+  external ffi.Pointer<ffi.Double> editor_font_size;
+
+  external ffi.Pointer<ffi.Double> editor_line_height;
+
   static ffi.Pointer<wire_cst_theme_prefs_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> preset,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> font,
     required double font_size,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> editor_font,
+    required ffi.Pointer<ffi.Double> editor_font_size,
+    required ffi.Pointer<ffi.Double> editor_line_height,
   }) => $allocator<wire_cst_theme_prefs_dto>()
     ..ref.mode = mode
     ..ref.preset = preset
     ..ref.font = font
-    ..ref.font_size = font_size;
+    ..ref.font_size = font_size
+    ..ref.editor_font = editor_font
+    ..ref.editor_font_size = editor_font_size
+    ..ref.editor_line_height = editor_line_height;
 }
 
 final class wire_cst_todo_dto extends ffi.Struct {

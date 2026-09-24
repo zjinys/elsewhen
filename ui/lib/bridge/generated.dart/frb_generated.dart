@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 724295265;
+  int get rustContentHash => -348546030;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -101,6 +101,11 @@ abstract class RustLibApi extends BaseApi {
     String? idempotencyKey,
   });
 
+  Future<String> crateApiConfirmKnowledgeDraft({
+    required String conversationId,
+    required String actionId,
+  });
+
   Future<ConversationDto> crateApiCreateConversation({
     String? title,
     String? tag,
@@ -112,6 +117,18 @@ abstract class RustLibApi extends BaseApi {
     String? priority,
     String? relatedWikiSlug,
     String? note,
+  });
+
+  Future<WikiPageDto> crateApiCreateWikiDerivative({
+    required String basedOnSlug,
+    required String contentType,
+    required String title,
+    required String contentMd,
+  });
+
+  Future<void> crateApiDeclineKnowledgeDraft({
+    required String conversationId,
+    required String actionId,
   });
 
   Future<void> crateApiDeleteAiProviderConfig({required String id});
@@ -238,6 +255,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<RuleDto>> crateApiListRules();
 
+  Future<List<SystemFontFace>> crateApiListSystemFonts();
+
   Future<List<TodoDto>> crateApiListTodos({String? status});
 
   Future<List<WikiPageDto>> crateApiListWikiPageDerivatives({
@@ -257,6 +276,8 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiReanalyzeEvent({required String eventId});
 
   Future<EventDto> crateApiRecordEvent({required String rawText});
+
+  Future<WikiPageDto> crateApiRefreshProjectPage({required String slug});
 
   Future<void> crateApiRenameConversation({
     required String conversationId,
@@ -354,11 +375,19 @@ abstract class RustLibApi extends BaseApi {
     required String argsJson,
   });
 
+  Future<WikiPageDto> crateApiUpdateProjectPath({
+    required String slug,
+    required String newPath,
+  });
+
   Future<void> crateApiUpdateThemePrefs({
     required String mode,
     required String preset,
     required String font,
     required double fontSize,
+    String? editorFont,
+    double? editorFontSize,
+    double? editorLineHeight,
   });
 
   Future<void> crateApiUpdateTodo({
@@ -539,6 +568,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<String> crateApiConfirmKnowledgeDraft({
+    required String conversationId,
+    required String actionId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(actionId);
+          return wire.wire__crate__api__confirm_knowledge_draft(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiConfirmKnowledgeDraftConstMeta,
+        argValues: [conversationId, actionId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiConfirmKnowledgeDraftConstMeta =>
+      const TaskConstMeta(
+        debugName: "confirm_knowledge_draft",
+        argNames: ["conversationId", "actionId"],
+      );
+
+  @override
   Future<ConversationDto> crateApiCreateConversation({
     String? title,
     String? tag,
@@ -606,6 +668,78 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "create_todo",
     argNames: ["title", "dueAt", "priority", "relatedWikiSlug", "note"],
   );
+
+  @override
+  Future<WikiPageDto> crateApiCreateWikiDerivative({
+    required String basedOnSlug,
+    required String contentType,
+    required String title,
+    required String contentMd,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(basedOnSlug);
+          var arg1 = cst_encode_String(contentType);
+          var arg2 = cst_encode_String(title);
+          var arg3 = cst_encode_String(contentMd);
+          return wire.wire__crate__api__create_wiki_derivative(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCreateWikiDerivativeConstMeta,
+        argValues: [basedOnSlug, contentType, title, contentMd],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCreateWikiDerivativeConstMeta =>
+      const TaskConstMeta(
+        debugName: "create_wiki_derivative",
+        argNames: ["basedOnSlug", "contentType", "title", "contentMd"],
+      );
+
+  @override
+  Future<void> crateApiDeclineKnowledgeDraft({
+    required String conversationId,
+    required String actionId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(actionId);
+          return wire.wire__crate__api__decline_knowledge_draft(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDeclineKnowledgeDraftConstMeta,
+        argValues: [conversationId, actionId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDeclineKnowledgeDraftConstMeta =>
+      const TaskConstMeta(
+        debugName: "decline_knowledge_draft",
+        argNames: ["conversationId", "actionId"],
+      );
 
   @override
   Future<void> crateApiDeleteAiProviderConfig({required String id}) {
@@ -1669,6 +1803,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_rules", argNames: []);
 
   @override
+  Future<List<SystemFontFace>> crateApiListSystemFonts() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__list_system_fonts(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_system_font_face,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiListSystemFontsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListSystemFontsConstMeta =>
+      const TaskConstMeta(debugName: "list_system_fonts", argNames: []);
+
+  @override
   Future<List<TodoDto>> crateApiListTodos({String? status}) {
     return handler.executeNormal(
       NormalTask(
@@ -1840,6 +1995,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecordEventConstMeta =>
       const TaskConstMeta(debugName: "record_event", argNames: ["rawText"]);
+
+  @override
+  Future<WikiPageDto> crateApiRefreshProjectPage({required String slug}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          return wire.wire__crate__api__refresh_project_page(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRefreshProjectPageConstMeta,
+        argValues: [slug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRefreshProjectPageConstMeta => const TaskConstMeta(
+    debugName: "refresh_project_page",
+    argNames: ["slug"],
+  );
 
   @override
   Future<void> crateApiRenameConversation({
@@ -2426,11 +2605,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<WikiPageDto> crateApiUpdateProjectPath({
+    required String slug,
+    required String newPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          var arg1 = cst_encode_String(newPath);
+          return wire.wire__crate__api__update_project_path(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUpdateProjectPathConstMeta,
+        argValues: [slug, newPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateProjectPathConstMeta => const TaskConstMeta(
+    debugName: "update_project_path",
+    argNames: ["slug", "newPath"],
+  );
+
+  @override
   Future<void> crateApiUpdateThemePrefs({
     required String mode,
     required String preset,
     required String font,
     required double fontSize,
+    String? editorFont,
+    double? editorFontSize,
+    double? editorLineHeight,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2439,12 +2649,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_String(preset);
           var arg2 = cst_encode_String(font);
           var arg3 = cst_encode_f_64(fontSize);
+          var arg4 = cst_encode_opt_String(editorFont);
+          var arg5 = cst_encode_opt_box_autoadd_f_64(editorFontSize);
+          var arg6 = cst_encode_opt_box_autoadd_f_64(editorLineHeight);
           return wire.wire__crate__api__update_theme_prefs(
             port_,
             arg0,
             arg1,
             arg2,
             arg3,
+            arg4,
+            arg5,
+            arg6,
           );
         },
         codec: DcoCodec(
@@ -2452,7 +2668,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiUpdateThemePrefsConstMeta,
-        argValues: [mode, preset, font, fontSize],
+        argValues: [
+          mode,
+          preset,
+          font,
+          fontSize,
+          editorFont,
+          editorFontSize,
+          editorLineHeight,
+        ],
         apiImpl: this,
       ),
     );
@@ -2460,7 +2684,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateThemePrefsConstMeta => const TaskConstMeta(
     debugName: "update_theme_prefs",
-    argNames: ["mode", "preset", "font", "fontSize"],
+    argNames: [
+      "mode",
+      "preset",
+      "font",
+      "fontSize",
+      "editorFont",
+      "editorFontSize",
+      "editorLineHeight",
+    ],
   );
 
   @override
@@ -3067,6 +3299,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SystemFontFace> dco_decode_list_system_font_face(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_system_font_face).toList();
+  }
+
+  @protected
   List<TodoDto> dco_decode_list_todo_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_todo_dto).toList();
@@ -3248,16 +3486,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SystemFontFace dco_decode_system_font_face(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return SystemFontFace(
+      family: dco_decode_String(arr[0]),
+      file: dco_decode_String(arr[1]),
+      style: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
   ThemePrefsDto dco_decode_theme_prefs_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return ThemePrefsDto(
       mode: dco_decode_String(arr[0]),
       preset: dco_decode_String(arr[1]),
       font: dco_decode_String(arr[2]),
       fontSize: dco_decode_f_64(arr[3]),
+      editorFont: dco_decode_opt_String(arr[4]),
+      editorFontSize: dco_decode_opt_box_autoadd_f_64(arr[5]),
+      editorLineHeight: dco_decode_opt_box_autoadd_f_64(arr[6]),
     );
   }
 
@@ -4018,6 +4272,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SystemFontFace> sse_decode_list_system_font_face(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SystemFontFace>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_system_font_face(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<TodoDto> sse_decode_list_todo_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -4289,17 +4557,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SystemFontFace sse_decode_system_font_face(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_family = sse_decode_String(deserializer);
+    var var_file = sse_decode_String(deserializer);
+    var var_style = sse_decode_String(deserializer);
+    return SystemFontFace(family: var_family, file: var_file, style: var_style);
+  }
+
+  @protected
   ThemePrefsDto sse_decode_theme_prefs_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_mode = sse_decode_String(deserializer);
     var var_preset = sse_decode_String(deserializer);
     var var_font = sse_decode_String(deserializer);
     var var_fontSize = sse_decode_f_64(deserializer);
+    var var_editorFont = sse_decode_opt_String(deserializer);
+    var var_editorFontSize = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_editorLineHeight = sse_decode_opt_box_autoadd_f_64(deserializer);
     return ThemePrefsDto(
       mode: var_mode,
       preset: var_preset,
       font: var_font,
       fontSize: var_fontSize,
+      editorFont: var_editorFont,
+      editorFontSize: var_editorFontSize,
+      editorLineHeight: var_editorLineHeight,
     );
   }
 
@@ -4987,6 +5270,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_system_font_face(
+    List<SystemFontFace> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_system_font_face(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_todo_dto(List<TodoDto> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
@@ -5214,6 +5509,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_system_font_face(
+    SystemFontFace self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.family, serializer);
+    sse_encode_String(self.file, serializer);
+    sse_encode_String(self.style, serializer);
+  }
+
+  @protected
   void sse_encode_theme_prefs_dto(
     ThemePrefsDto self,
     SseSerializer serializer,
@@ -5223,6 +5529,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.preset, serializer);
     sse_encode_String(self.font, serializer);
     sse_encode_f_64(self.fontSize, serializer);
+    sse_encode_opt_String(self.editorFont, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.editorFontSize, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.editorLineHeight, serializer);
   }
 
   @protected

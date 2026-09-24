@@ -57,6 +57,8 @@ pub struct ToolResultMsg {
     pub id: String,
     pub call_name: String,
     pub content: String,
+    /// 本次调用是否真实成功（写声明核验用：WriteConfirm 只登记草稿不算写，见 conversation.rs）
+    pub success: bool,
 }
 
 impl ToolResultMsg {
@@ -65,11 +67,17 @@ impl ToolResultMsg {
             id: call.id.clone(),
             call_name: call.name.clone(),
             content,
+            success: true,
         }
     }
 
     pub fn err(call: &ToolCall, err: impl std::fmt::Display) -> Self {
-        Self::ok(call, format!("工具执行失败：{err}"))
+        Self {
+            id: call.id.clone(),
+            call_name: call.name.clone(),
+            content: format!("工具执行失败：{err}"),
+            success: false,
+        }
     }
 }
 
@@ -128,9 +136,77 @@ impl Default for ToolRegistry {
             Box::new(ArchiveConversationsByTitleTool),
             Box::new(RenameWikiPageTool),
             Box::new(ImportUrlToWikiTool),
+            Box::new(ImportDirectoryProjectTool),
+            Box::new(ImportDirectoryFilesTool),
             Box::new(SaveWikiRevisionTool),
         ];
         Self { tools }
+    }
+}
+
+struct ImportDirectoryProjectTool;
+impl Tool for ImportDirectoryProjectTool {
+    fn name(&self) -> &'static str {
+        "import_directory_as_project"
+    }
+    fn description(&self) -> &'static str {
+        "将用户明确指定的本地目录作为一个项目导入知识库；先用有限证据进行 AI 综合分析，再由用户确认保存一个 project 知识页。项目文件片段可能发送给当前 AI Provider，扫描和分析可能消耗较多 token。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({"type":"object","properties":{"directory":{"type":"string","description":"本地目录绝对路径，必填"}},"required":["directory"],"additionalProperties":false})
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let directory = arg_str(args, "directory")?;
+        if !std::path::Path::new(&directory).is_dir() {
+            anyhow::bail!("目录不存在或不可访问：{directory}");
+        }
+        let preview = crate::local_sources::analyze_project_with_ai(
+            ctx.store,
+            std::path::Path::new(&directory),
+        )?;
+        // 把预览阶段的最终报告放入待确认动作，确认时直接保存同一份内容，
+        // 避免再次调用 AI 导致前后报告不一致或重复消耗 token。
+        let action_args = json!({
+            "directory": directory,
+            "project_name": preview.project_name,
+            "files": preview.files,
+            "skipped": preview.skipped,
+            "scan_truncated": preview.scan_truncated,
+            "content_md": preview.content_md,
+        });
+        store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
+        let excerpt: String = preview.content_md.chars().take(2400).collect();
+        Ok(format!("已完成目录 `{directory}` 的只读项目盘点，尚未写入知识库。\n\n{excerpt}\n\n确认后只保存这份项目摘要，不保存完整文件地图；原始目录仍是事实来源。项目证据可能已发送给当前 AI Provider。回复「好」后保存。"))
+    }
+}
+
+struct ImportDirectoryFilesTool;
+impl Tool for ImportDirectoryFilesTool {
+    fn name(&self) -> &'static str {
+        "import_directory_files"
+    }
+    fn description(&self) -> &'static str {
+        "将用户明确指定的本地目录中的可读文件逐个导入知识库，每个文件生成一张 source 知识页。文件较多时可能消耗较多 token，需要用户确认后才执行。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({"type":"object","properties":{"directory":{"type":"string","description":"本地目录绝对路径，必填"}},"required":["directory"],"additionalProperties":false})
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let directory = arg_str(args, "directory")?;
+        if !std::path::Path::new(&directory).is_dir() {
+            anyhow::bail!("目录不存在或不可访问：{directory}");
+        }
+        let action_args = json!({"directory": directory});
+        store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
+        Ok(format!(
+            "已准备导入目录 `{directory}` 下的文件，每个文件生成一张知识页。文件较多时可能消耗较多 token。回复「好」后执行。"
+        ))
     }
 }
 
@@ -148,8 +224,13 @@ impl ToolRegistry {
 
     /// 原生 tool-calling 用的工具清单
     pub fn provider_specs(&self) -> Vec<ToolSpec> {
+        self.provider_specs_for(true)
+    }
+
+    pub fn provider_specs_for(&self, allow_record_event: bool) -> Vec<ToolSpec> {
         self.tools
             .iter()
+            .filter(|tool| allow_record_event || tool.name() != "record_event")
             .map(|t| ToolSpec {
                 name: t.name().to_string(),
                 description: t.description().to_string(),
@@ -160,8 +241,12 @@ impl ToolRegistry {
 
     /// 注入 system prompt 的简短文本清单（文本协议兜底时模型也能知道可用工具）
     pub fn prompt_block(&self) -> String {
+        self.prompt_block_for(true)
+    }
+
+    pub fn prompt_block_for(&self, allow_record_event: bool) -> String {
         let mut out = String::from("可用工具（name：用途）：\n");
-        for spec in self.provider_specs() {
+        for spec in self.provider_specs_for(allow_record_event) {
             out.push_str(&format!("- {}：{}\n", spec.name, spec.description));
         }
         out
@@ -570,6 +655,11 @@ impl Tool for RecordEventTool {
         ToolPolicy::WriteDirect
     }
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        if let Some(event_id) = &ctx.source_event_id {
+            return Ok(format!(
+                "当前对话输入已自动保存为事件（{event_id}）并进入分析队列，无需重复记录"
+            ));
+        }
         insert_event_from_args(args, ctx.store)
     }
 }
@@ -625,6 +715,16 @@ impl Tool for SaveKnowledgeDraftTool {
             return Ok(format!(
                 "知识库已有《{}》（slug={}），本次没有新建或覆盖。请先结合现有页面内容，再用 save_wiki_revision 草拟补充；仍需用户确认后才保存。",
                 existing.title, existing.slug
+            ));
+        }
+        if ctx.store.pending_action_for_title(
+            ctx.conversation_id,
+            "save_knowledge_draft",
+            &title,
+        )?.is_some() {
+            return Ok(format!(
+                "《{}》已经有一份待确认草稿（尚未保存），本次不重复创建。回复「好」即可保存这一份。",
+                title
             ));
         }
         let kind = arg_str_opt(args, "kind").unwrap_or_else(|| "topic".to_string());
@@ -1300,6 +1400,14 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
         "save_knowledge_draft" => {
             let title = arg_str(&args, "title")?;
             let content_md = arg_str(&args, "content_md")?;
+            // 确认执行也必须幂等：历史版本可能已经积累了多个同名待确认动作，
+            // 或另一个请求刚刚先完成了创建。按标题复查，避免随机 slug 生成重复页面。
+            if let Some(existing) = store.find_wiki_page_by_title(&title)? {
+                return Ok(format!(
+                    "知识页「{}」已经存在（slug={}），本次确认未重复创建。",
+                    existing.title, existing.slug
+                ));
+            }
             let kind = arg_str_opt(&args, "kind").unwrap_or_else(|| "topic".to_string());
             let tags: Vec<String> = args
                 .get("tags")
@@ -1469,6 +1577,46 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 outcome.page.slug
             ))
         }
+        "import_directory_as_project" => {
+            let directory = arg_str(&args, "directory")?;
+            let project_name = arg_str(&args, "project_name")?;
+            let content_md = arg_str(&args, "content_md")?;
+            let files = args.get("files").and_then(Value::as_u64).unwrap_or(0) as usize;
+            let skipped = args.get("skipped").and_then(Value::as_u64).unwrap_or(0) as usize;
+            let scan_truncated = args
+                .get("scan_truncated")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let summary = crate::local_sources::ProjectSummary {
+                project_name,
+                files,
+                skipped,
+                scan_truncated,
+                content_md,
+            };
+            let report = crate::local_sources::ingest_project_summary(
+                store,
+                std::path::Path::new(&directory),
+                summary,
+            )?;
+            Ok(format!(
+                "已将目录作为项目导入知识库：{}（收集 {} 个有界候选文件）",
+                report.pages.join("、"),
+                report.files
+            ))
+        }
+        "import_directory_files" => {
+            let directory = arg_str(&args, "directory")?;
+            let report = crate::local_sources::ingest_directory_files(
+                store,
+                std::path::Path::new(&directory),
+            )?;
+            Ok(format!(
+                "已将目录文件导入知识库：创建 {} 张知识页，扫描 {} 个文件",
+                report.pages.len(),
+                report.files
+            ))
+        }
         "save_wiki_revision" => {
             let slug = arg_str(&args, "slug")?;
             let title = arg_str(&args, "title")?;
@@ -1540,6 +1688,41 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
     }
 }
 
+/// 用户从草稿预览中单独确认一篇知识页，其他待确认动作不受影响。
+pub fn confirm_knowledge_draft(
+    store: &Store,
+    conversation_id: &str,
+    action_id: &str,
+) -> Result<String> {
+    let pa = store
+        .pending_action_by_id(conversation_id, action_id)?
+        .context("待确认草稿不存在或已经处理")?;
+    if pa.action != "save_knowledge_draft" {
+        anyhow::bail!("只能从此入口保存知识页草稿");
+    }
+    let result = execute_pending_action(store, &pa)?;
+    store.delete_pending_action(&pa.id)?;
+    Ok(result)
+}
+
+/// 拒绝指定知识草稿，保留拒绝状态供审计，不影响其他待确认动作或知识页。
+pub fn decline_knowledge_draft(
+    store: &Store,
+    conversation_id: &str,
+    action_id: &str,
+) -> Result<()> {
+    let pa = store
+        .pending_action_by_id(conversation_id, action_id)?
+        .context("待确认草稿不存在或已经处理")?;
+    if pa.action != "save_knowledge_draft" {
+        anyhow::bail!("只能从此入口删除知识页草稿");
+    }
+    if !store.decline_pending_action(action_id)? {
+        anyhow::bail!("待确认草稿已经处理");
+    }
+    Ok(())
+}
+
 /// 由标题生成一个唯一、可读的 slug（保留中文，附加短随机后缀）
 fn kb_slug(title: &str) -> String {
     let mut base = String::new();
@@ -1578,6 +1761,55 @@ mod tests {
     }
 
     #[test]
+    fn project_import_confirmation_saves_the_previewed_report() {
+        let (store, path) = temp_db();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let directory = std::env::temp_dir().join(format!(
+            "elsewhen-project-preview-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("README.md"),
+            "# Preview fixture\nA test project.",
+        )
+        .unwrap();
+
+        let call = ToolCall::new(
+            "import_directory_as_project",
+            json!({"directory": directory.to_string_lossy()}),
+        );
+        let preview = dispatch(&call, &ToolRegistry::default(), &store, &conv);
+        assert!(
+            preview.content.contains("尚未写入知识库"),
+            "{}",
+            preview.content
+        );
+        let actions = store.pending_actions_for_conversation(&conv).unwrap();
+        assert_eq!(actions.len(), 1);
+        let args: Value = serde_json::from_str(&actions[0].args_json).unwrap();
+        let expected = args["content_md"].as_str().unwrap().to_string();
+
+        // The original directory is removed after preview; confirmation must save
+        // the captured report and must not rescan or invoke the provider again.
+        std::fs::remove_dir_all(&directory).unwrap();
+        execute_pending_action(&store, &actions[0]).unwrap();
+        let page = store
+            .list_wiki_pages(Some("project"), None)
+            .unwrap()
+            .into_iter()
+            .find(|p| p.content_md == expected)
+            .expect("confirmed project page should contain the previewed report");
+        assert_eq!(page.content_md, expected);
+
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn registry_has_builtin_tools() {
         let registry = ToolRegistry::default();
         let names = registry.names();
@@ -1603,6 +1835,19 @@ mod tests {
             assert!(names.contains(&expected), "缺少工具 {expected}");
         }
         assert_eq!(registry.provider_specs().len(), names.len());
+    }
+
+    #[test]
+    fn registry_can_hide_record_event_for_auto_recorded_conversations() {
+        let registry = ToolRegistry::default();
+        let names: Vec<_> = registry
+            .provider_specs_for(false)
+            .into_iter()
+            .map(|spec| spec.name)
+            .collect();
+        assert!(!names.iter().any(|name| name == "record_event"));
+        assert!(names.iter().any(|name| name == "list_events_by_date"));
+        assert!(!registry.prompt_block_for(false).contains("record_event"));
     }
 
     #[test]
@@ -1657,6 +1902,29 @@ mod tests {
     }
 
     #[test]
+    fn record_event_does_not_duplicate_unified_conversation_input() {
+        let (store, path) = temp_db();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        store
+            .submit_conversation_input(&conv, "今天整理了树莓派板子", Some("input-1"))
+            .unwrap();
+        let registry = ToolRegistry::default();
+        let call = ToolCall::new("record_event", json!({"raw_text": "今天整理了树莓派板子"}));
+
+        let result = dispatch(&call, &registry, &store, &conv);
+
+        assert!(
+            result.content.contains("无需重复记录"),
+            "{}",
+            result.content
+        );
+        assert_eq!(store.list_events().unwrap().len(), 1);
+        assert_eq!(store.analysis_job_stats().unwrap().pending, 1);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn execute_record_event_writes_real_source() {
         let (store, path) = temp_db();
         let conv = store.create_conversation(Some("t"), None).unwrap();
@@ -1693,6 +1961,57 @@ mod tests {
         let pages = store.list_wiki_pages(None, None).unwrap();
         assert_eq!(pages.len(), 1);
         assert_eq!(pages[0].kind, "principle");
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn confirm_knowledge_draft_only_executes_selected_action_once() {
+        let (store, path) = temp_db();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let other_conv = store.create_conversation(Some("other"), None).unwrap();
+        let draft_id = store.create_pending_action(&conv, "save_knowledge_draft",
+            &json!({"title":"闲鱼卖 CM4", "content_md":"完整正文", "kind":"topic"}).to_string()).unwrap();
+        let todo_id = store.create_pending_action(&conv, "create_todo",
+            &json!({"title":"其他待办"}).to_string()).unwrap();
+
+        assert!(confirm_knowledge_draft(&store, &other_conv, &draft_id).is_err());
+        assert!(confirm_knowledge_draft(&store, &conv, &todo_id).is_err());
+        assert_eq!(store.pending_actions_for_conversation(&conv).unwrap().len(), 2);
+
+        let result = confirm_knowledge_draft(&store, &conv, &draft_id).unwrap();
+        assert!(result.contains("slug="), "{result}");
+        assert_eq!(store.find_wiki_page_by_title("闲鱼卖 CM4").unwrap().unwrap().content_md, "完整正文");
+        assert!(confirm_knowledge_draft(&store, &conv, &draft_id).is_err());
+        let remaining = store.pending_actions_for_conversation(&conv).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, todo_id);
+        assert!(store.list_todos(None).unwrap().is_empty());
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn decline_knowledge_draft_preserves_other_actions_and_pages() {
+        let (store, path) = temp_db();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let other = store.create_conversation(Some("other"), None).unwrap();
+        let draft_id = store.create_pending_action(&conv, "save_knowledge_draft",
+            &json!({"title":"待删除草稿", "content_md":"正文"}).to_string()).unwrap();
+        let keep_id = store.create_pending_action(&conv, "save_knowledge_draft",
+            &json!({"title":"保留草稿", "content_md":"正文"}).to_string()).unwrap();
+        let todo_id = store.create_pending_action(&conv, "create_todo",
+            &json!({"title":"其他动作"}).to_string()).unwrap();
+        assert!(decline_knowledge_draft(&store, &other, &draft_id).is_err());
+        assert!(decline_knowledge_draft(&store, &conv, &todo_id).is_err());
+        decline_knowledge_draft(&store, &conv, &draft_id).unwrap();
+        assert!(decline_knowledge_draft(&store, &conv, &draft_id).is_err());
+        assert!(confirm_knowledge_draft(&store, &conv, &draft_id).is_err());
+        let pending = store.pending_actions_for_conversation(&conv).unwrap();
+        assert_eq!(pending.len(), 2);
+        assert!(pending.iter().any(|action| action.id == keep_id));
+        assert!(pending.iter().any(|action| action.id == todo_id));
+        assert!(store.list_wiki_pages(None, None).unwrap().is_empty());
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1744,6 +2063,45 @@ mod tests {
                 .content_md,
             "原有内容"
         );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn knowledge_draft_deduplicates_pending_title_and_confirmation() {
+        let (store, path) = temp_db();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let registry = ToolRegistry::default();
+        let args = json!({"title":"闲鱼卖 CM4", "content_md":"第一版内容", "kind":"topic"});
+
+        let first = dispatch(
+            &ToolCall::new("save_knowledge_draft", args.clone()),
+            &registry,
+            &store,
+            &conv,
+        );
+        assert!(first.content.contains("待确认"), "{}", first.content);
+        let second = dispatch(
+            &ToolCall::new("save_knowledge_draft", json!({
+                "title":" 闲鱼卖 CM4 ",
+                "content_md":"第二版内容",
+                "kind":"topic"
+            })),
+            &registry,
+            &store,
+            &conv,
+        );
+        assert!(second.content.contains("不重复创建"), "{}", second.content);
+        let actions = store.pending_actions_for_conversation(&conv).unwrap();
+        assert_eq!(actions.len(), 1);
+
+        execute_pending_action(&store, &actions[0]).unwrap();
+        // 即使历史/并发路径再次执行同一动作，也不会产生第二张随机 slug 页面。
+        execute_pending_action(&store, &actions[0]).unwrap();
+        let pages = store.list_wiki_pages(Some("topic"), None).unwrap();
+        assert_eq!(pages.len(), 1);
+        assert_eq!(pages[0].title, "闲鱼卖 CM4");
+
         drop(store);
         let _ = std::fs::remove_file(path);
     }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 
 /// 轻量 markdown 渲染器（面向 wiki 页正文，零依赖）
@@ -10,6 +12,65 @@ import '../theme/app_theme.dart';
 ///
 /// 排版取向：正文用高对比正文色 + 宽松行高，标题分级带留白，尽量接近
 /// 「可长时间阅读」的观感，而不是日志式的堆叠。
+/// UI 边界兜底：工具协议残留绝不渲染（原则2在界面层的最终 enforcement）。
+///
+/// 即使 Rust 侧某次没拦住（历史脏数据/未来新方言），界面也不显示协议文本。
+/// 只处理非代码围栏区——用户在代码块里讨论协议文本是合法内容，原样保留。
+String stripToolProtocolForDisplay(String markdown) {
+  final segments = <_DisplaySegment>[];
+  final buf = <String>[];
+  var inFence = false;
+  void flush() {
+    if (buf.isEmpty) return;
+    segments.add(_DisplaySegment(text: buf.join('\n'), code: inFence));
+    buf.clear();
+  }
+
+  for (final line in markdown.split('\n')) {
+    if (line.trimLeft().startsWith('```')) {
+      flush();
+      inFence = !inFence;
+      segments.add(_DisplaySegment(text: line, code: true));
+      continue;
+    }
+    buf.add(line);
+  }
+  flush();
+  return segments
+      .map((s) => s.code ? s.text : _stripProtocolFromProse(s.text))
+      .join('\n');
+}
+
+class _DisplaySegment {
+  final String text;
+  final bool code;
+  const _DisplaySegment({required this.text, required this.code});
+}
+
+/// 去掉正文段里的整段 `<tool_call>…</tool_call>` 与协议残留行。
+String _stripProtocolFromProse(String prose) {
+  var cur = prose.replaceAll(
+    RegExp(r'<tool_call>.*?</tool_call>', dotAll: true),
+    '',
+  );
+  const markers = [
+    '<tool_call',
+    '</tool_call>',
+    '<arg_key',
+    '<arg_value',
+    '[工具调用]',
+    'invoke name=',
+    '<|invoke',
+    'parameter name=',
+  ];
+  final kept = <String>[];
+  for (final line in cur.split('\n')) {
+    if (markers.any(line.contains)) continue;
+    kept.add(line);
+  }
+  return kept.join('\n').trim();
+}
+
 class MarkdownView extends StatelessWidget {
   final String markdown;
   final TextStyle? baseStyle;
@@ -22,10 +83,11 @@ class MarkdownView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // UI 边界清洗：协议残留到此为止，不进渲染。
     final base = baseStyle ??
         TextStyle(color: AppTheme.textPrimary, fontSize: 15, height: 1.8);
 
-    final lines = markdown.split('\n');
+    final lines = stripToolProtocolForDisplay(markdown).split('\n');
 
     final blocks = <_Block>[];
     var i = 0;
@@ -217,13 +279,16 @@ class _BlockWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
           border: Border.all(color: AppTheme.surface3),
         ),
-        child: SelectableText(
-          code,
-          style: TextStyle(
-            fontSize: 12.5,
-            color: AppTheme.textPrimary,
-            fontFamily: 'monospace',
-            height: 1.6,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SelectableText(
+            code,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: AppTheme.textPrimary,
+              fontFamily: 'monospace',
+              height: 1.6,
+            ),
           ),
         ),
       ),
@@ -368,6 +433,7 @@ class _BlockWidget extends StatelessWidget {
       } else if (raw.startsWith('[')) {
         // [文字](url) → 只展示文字
         final label = raw.substring(1, raw.indexOf(']'));
+        final url = raw.substring(raw.indexOf('](') + 2, raw.length - 1);
         spans.add(TextSpan(
           text: label,
           style: base.copyWith(
@@ -375,6 +441,7 @@ class _BlockWidget extends StatelessWidget {
             decoration: TextDecoration.underline,
             decorationColor: AppTheme.accentMuted,
           ),
+          recognizer: TapGestureRecognizer()..onTap = () => launchUrl(Uri.parse(url)),
         ));
       } else if (raw.startsWith('*') && raw.endsWith('*')) {
         spans.add(TextSpan(

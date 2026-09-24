@@ -21,6 +21,7 @@ pub struct AiReply {
     pub tool_calls: Vec<ToolCall>,
     pub model: Option<String>,
     pub usage: Option<TokenUsage>,
+    pub reasoning_content: Option<String>,
 }
 
 impl AiReply {
@@ -31,6 +32,7 @@ impl AiReply {
             tool_calls: Vec::new(),
             model: None,
             usage: None,
+            reasoning_content: None,
         }
     }
 }
@@ -97,6 +99,8 @@ struct OpenAiMessage {
     tool_calls: Option<Vec<OpenAiMessageToolCall>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_call_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_content: Option<String>,
 }
 
 /// assistant 回传的原生 tool_calls（OpenAI 要求原样回传）
@@ -168,6 +172,8 @@ struct OpenAiMessageResponse {
     content: Option<String>,
     #[serde(default)]
     tool_calls: Option<Vec<OpenAiResponseToolCall>>,
+    #[serde(default)]
+    reasoning_content: Option<String>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -244,6 +250,7 @@ impl AiProvider for OpenAiCompatibleProvider {
                 content: m.content,
                 tool_calls: m.tool_calls.map(|calls| openai_message_tool_calls(&calls)),
                 tool_call_id: m.tool_call_id,
+                reasoning_content: m.reasoning_content,
             })
             .collect();
 
@@ -309,6 +316,7 @@ impl AiProvider for OpenAiCompatibleProvider {
             tool_calls,
             model: ai_response.model,
             usage,
+            reasoning_content: message.reasoning_content.clone(),
         })
     }
 }
@@ -533,6 +541,7 @@ impl AiProvider for OllamaProvider {
             tool_calls,
             model: ollama_response.model,
             usage,
+            reasoning_content: None,
         })
     }
 }

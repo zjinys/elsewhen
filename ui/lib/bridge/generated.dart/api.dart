@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `decision_support_context`, `default_event_kind`, `default_recordable`, `dto_from_active`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -218,6 +218,24 @@ Future<bool> updatePendingActionArgs({
   argsJson: argsJson,
 );
 
+/// 从对话中的草稿预览单独保存一张知识页，不确认同会话的其他动作。
+Future<String> confirmKnowledgeDraft({
+  required String conversationId,
+  required String actionId,
+}) => RustLib.instance.api.crateApiConfirmKnowledgeDraft(
+  conversationId: conversationId,
+  actionId: actionId,
+);
+
+/// 只拒绝这一篇待入库知识草稿，不删除已保存页面或其他待确认动作。
+Future<void> declineKnowledgeDraft({
+  required String conversationId,
+  required String actionId,
+}) => RustLib.instance.api.crateApiDeclineKnowledgeDraft(
+  conversationId: conversationId,
+  actionId: actionId,
+);
+
 /// 列出规则库（含已生效与待确认）
 Future<List<RuleDto>> listRules() => RustLib.instance.api.crateApiListRules();
 
@@ -321,6 +339,19 @@ Future<List<WikiPageDto>> listWikiPages({String? kind, String? area}) =>
 Future<List<WikiPageDto>> listWikiPageDerivatives({required String slug}) =>
     RustLib.instance.api.crateApiListWikiPageDerivatives(slug: slug);
 
+/// 直接把一段内容保存为某知识页的派生产物（页内 AI 聊天「保存」按钮用，跳过 AI 草拟确认）。
+Future<WikiPageDto> createWikiDerivative({
+  required String basedOnSlug,
+  required String contentType,
+  required String title,
+  required String contentMd,
+}) => RustLib.instance.api.crateApiCreateWikiDerivative(
+  basedOnSlug: basedOnSlug,
+  contentType: contentType,
+  title: title,
+  contentMd: contentMd,
+);
+
 /// Get a single wiki page by slug
 Future<WikiPageDto?> getWikiPage({required String slug}) =>
     RustLib.instance.api.crateApiGetWikiPage(slug: slug);
@@ -330,6 +361,21 @@ Future<WikiPageDto> updateWikiTags({
   required String slug,
   required List<String> tags,
 }) => RustLib.instance.api.crateApiUpdateWikiTags(slug: slug, tags: tags);
+
+/// 修改一张项目页关联的本地目录（目录搬家后在知识页纠正路径）。
+/// 路径记进 `source_url`（file:// 规范形式）；新路径必须存在且是目录。返回更新后的页面。
+Future<WikiPageDto> updateProjectPath({
+  required String slug,
+  required String newPath,
+}) => RustLib.instance.api.crateApiUpdateProjectPath(
+  slug: slug,
+  newPath: newPath,
+);
+
+/// 刷新一张目录导入的项目页：按 `source_url`（file://）重扫目录并整篇更新。
+/// 目录不存在会直接报错（提示先改路径）。返回刷新后的页面。
+Future<WikiPageDto> refreshProjectPage({required String slug}) =>
+    RustLib.instance.api.crateApiRefreshProjectPage(slug: slug);
 
 /// 人类编辑保存一页正文（限可编辑 kind；素材页只读拒绝）。
 /// 保存后 `human_edited_at` 置位：该页被 AI digest 视为人工持有，不再整篇覆盖。
@@ -439,21 +485,29 @@ Future<void> updateTweetFetchService({required String service}) =>
 Future<WikiPageDto?> findTweetSourcePage({required String url}) =>
     RustLib.instance.api.crateApiFindTweetSourcePage(url: url);
 
-/// 读取主题偏好（默认深色 + 琥珀 + Inter + 16px，保留现有观感）
+/// 读取主题偏好（默认深色 + 琥珀 + Inter + 16px，保留现有观感；
+/// 编辑器覆盖层无则 None，UI 回落全局）
 Future<ThemePrefsDto> getThemePrefs() =>
     RustLib.instance.api.crateApiGetThemePrefs();
 
-/// 保存主题偏好（设置页「外观」保存）
+/// 保存主题偏好（设置页「外观」保存）。编辑器覆盖层参数 None = 跟随全局，
+/// 会从 app_meta 删除对应键（覆盖态回归继承态）。
 Future<void> updateThemePrefs({
   required String mode,
   required String preset,
   required String font,
   required double fontSize,
+  String? editorFont,
+  double? editorFontSize,
+  double? editorLineHeight,
 }) => RustLib.instance.api.crateApiUpdateThemePrefs(
   mode: mode,
   preset: preset,
   font: font,
   fontSize: fontSize,
+  editorFont: editorFont,
+  editorFontSize: editorFontSize,
+  editorLineHeight: editorLineHeight,
 );
 
 /// 列出待办（status 过滤：open/done/archived；None 时列出 open+done）
@@ -532,6 +586,10 @@ Future<ConversationDto> ensureWikiPageChat({required String pageSlug}) =>
 /// 删除一个知识页的处理会话（重建时用）
 Future<void> archiveWikiPageChat({required String pageSlug}) =>
     RustLib.instance.api.crateApiArchiveWikiPageChat(pageSlug: pageSlug);
+
+/// 枚举系统字体（Linux/macOS/Windows；fontdb 直接扫描，不 spawn 外部命令）。
+Future<List<SystemFontFace>> listSystemFonts() =>
+    RustLib.instance.api.crateApiListSystemFonts();
 
 /// AI provider config DTO for Flutter settings page
 class AiProviderConfigDto {
@@ -1437,7 +1495,33 @@ class RuleDto {
           createdAt == other.createdAt;
 }
 
-/// 主题偏好 DTO（设置页「外观」：模式 + 预设 + 字体 + 正文字号；存 app_meta）
+/// 一条系统字体字面。Dart 侧按家族去重、保留首选样式（Regular 优先）。
+class SystemFontFace {
+  final String family;
+  final String file;
+  final String style;
+
+  const SystemFontFace({
+    required this.family,
+    required this.file,
+    required this.style,
+  });
+
+  @override
+  int get hashCode => family.hashCode ^ file.hashCode ^ style.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SystemFontFace &&
+          runtimeType == other.runtimeType &&
+          family == other.family &&
+          file == other.file &&
+          style == other.style;
+}
+
+/// 主题偏好 DTO（设置页「外观」：模式 + 预设 + 字体 + 正文字号；存 app_meta。
+/// 后三项为编辑器内容区覆盖层，None = 跟随全局，见两层覆盖模型）
 class ThemePrefsDto {
   /// "light" | "dark" | "system"
   final String mode;
@@ -1451,16 +1535,34 @@ class ThemePrefsDto {
   /// 知识库正文字号（12.0–24.0，默认 16.0）
   final double fontSize;
 
+  /// 编辑器（内容区）字体覆盖；None = 跟随全局
+  final String? editorFont;
+
+  /// 编辑器（内容区）字号覆盖；None = 跟随全局
+  final double? editorFontSize;
+
+  /// 编辑器（内容区）行距覆盖；None = 跟随全局
+  final double? editorLineHeight;
+
   const ThemePrefsDto({
     required this.mode,
     required this.preset,
     required this.font,
     required this.fontSize,
+    this.editorFont,
+    this.editorFontSize,
+    this.editorLineHeight,
   });
 
   @override
   int get hashCode =>
-      mode.hashCode ^ preset.hashCode ^ font.hashCode ^ fontSize.hashCode;
+      mode.hashCode ^
+      preset.hashCode ^
+      font.hashCode ^
+      fontSize.hashCode ^
+      editorFont.hashCode ^
+      editorFontSize.hashCode ^
+      editorLineHeight.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1470,7 +1572,10 @@ class ThemePrefsDto {
           mode == other.mode &&
           preset == other.preset &&
           font == other.font &&
-          fontSize == other.fontSize;
+          fontSize == other.fontSize &&
+          editorFont == other.editorFont &&
+          editorFontSize == other.editorFontSize &&
+          editorLineHeight == other.editorLineHeight;
 }
 
 /// 待办 DTO

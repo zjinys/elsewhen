@@ -28,6 +28,8 @@ void main() {
 
     expect(find.text('对话'), findsOneWidget);
     expect(find.text('知识库'), findsOneWidget);
+    expect(find.text('知识库'), findsOneWidget);
+    expect(find.text('编辑器测试'), findsNothing);
     expect(find.byType(SvgPicture), findsOneWidget);
   });
 

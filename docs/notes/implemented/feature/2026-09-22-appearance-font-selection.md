@@ -94,3 +94,7 @@ App 字体硬编码 Inter（google_fonts），中文走系统回退；用户需�
 - 回归：font_test / font_size_test / theme_color_test / settings_screen_test / wiki_editor_integration_test（含移动端走查）全绿。
 
 **协作交接**（与并行会话）：`wiki_content_editor.dart`（fontFamily/lineHeight 参数 + fontAware lineHeight 注入）与 `wiki_page_detail_view.dart`（AA 按钮 + 两层求值接线）两文件内我的本次改动未单独提交，随并行会话的重构提交一起落库（工作区即测即用）；`src`、`settings.dart/provider`、桥接生成面、浮层组件与三个新测试文件已随本次提交。
+
+**后续修复**（随并行提交落库）：
+- `main_screen.dart` 右侧内容区原为 `Container(color: surface0, border: left)` 直接包页面——派生产物 `ExpansionTile`（其内部 ListTile `onTap: _tileController.expand` tearoff，`tilePadding: zero`）与 relations 页签 `CheckboxListTile` 等裸 ListTile 最近 Material 在 Scaffold，中间隔带底色 DecoratedBox → 运行时断言「ink splashes may be invisible」（报错 DecoratedBox 的 `surface3@0.65` 左框即该容器）。已在 `main_screen.dart` 把背景色移到内层 `Material(color: surface0)`，外层 Container 只留左边框——ListTile 有最近 Material 兜底且波纹可见，视觉不变。`wiki_ai_chat_panel.dart` 内无 ListTile 不受影响。
+- `wiki_page_detail_view.dart` 区块栏：内容页签右侧改固定组 `Row[min]`（编辑操作在左、AA「正文阅读设置」永远贴最右）——旧布局 `spaceBetween` 三子项（TabBar/AA/编辑操作）导致 `_canEdit` 显隐编辑按钮时 AA 在中线与最右之间跳。现 AA 位置恒定；`wiki_editor_integration_test` 16 项回归全绿。
