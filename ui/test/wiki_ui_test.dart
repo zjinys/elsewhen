@@ -29,6 +29,14 @@ void main() {
       ),
     );
 
+    // 主对话流是「最近使用」区块的前提：左侧栏 gate 在 mainConversationProvider
+    // 的 data 分支，主对话缺失（本测试不跑 appInit）会落到 error 分支。先用真实
+    // 桥接建一个「主对话流」会话。走真实异步的桥接写/读必须放在 runAsync 里，
+    // 在 fake-async 沙盒中直接 await 会死锁。
+    await tester.runAsync(
+      () => bridge.createConversation(title: '主对话流', tag: 'diary'),
+    );
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [storageRepositoryProvider.overrideWithValue(bridge)],
@@ -36,6 +44,17 @@ void main() {
       ),
     );
     await tester.pump();
+
+    // 真实桥接的异步 provider（mainConversation / wikiPages 等）在 fake-async 的
+    // 普通 pump 下不会 resolve——底层走 frb worker 线程的真实 Future。多轮
+    // 「runAsync 真实延时 + pump」推进：runAsync 跳出 fake-async 让真实 Future
+    // 完成，pump 把解析结果刷进 widget 树。
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)),
+      );
+      await tester.pump();
+    }
 
     // 1. 左侧栏结构：主对话 + 最近页面 + 底部工作区入口
     expect(find.text('对话'), findsOneWidget, reason: '对话 tab 应在左侧栏');
