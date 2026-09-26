@@ -1,6 +1,11 @@
 # Agent Note: deep review 剩余待改清单（backlog）
 
-Status: pending
+Status: done
+
+> **2026-09-26 收口**：C 组（Dart）经逐项核实，绝大多数已由并行会话在
+> `0636dd1` 落库时修复，本轮补齐 C1 并修复 7 个失败测试。详见文末「收口记录」。
+> 仅存的 C9（wiki_page_detail_view 3854 行拆分）与 storage.rs（6147 行）拆分
+> 属结构性重构，转为独立排期项，不再是 bug-fix backlog。
 
 来源：三路深度 review 原始报告（Rust storage/core、Rust AI、Dart），主代理复核分级
 P0 8 / P1 20 / P2 26。本文件只记录**尚未收口**的项，作为后续批次的执行依据。
@@ -112,3 +117,44 @@ P0 8 / P1 20 / P2 26。本文件只记录**尚未收口**的项，作为后续�
 3. Dart 区（C 组）多数文件为并行活跃，逐项确认 hunk 后再做。
 4. 验证基线：`cargo test --lib`（当前 177 passed / 0 failed）；`flutter test` + `flutter analyze`。
 5. 改动留工作区，不代用户提交。
+
+---
+
+## 收口记录（2026-09-26）
+
+并行会话已收工、工作区合并提交（`0636dd1`）后，主代理逐项核实 C 组并补齐测试：
+
+### C 组最终状态
+| 项 | 状态 | 说明 |
+|---|---|---|
+| C1 retry 逻辑 | ✅ 本轮修复 | 「重新生成」按钮条件 `id == latestUserMessageId` 在 user 消息已被 AI 回复后仍恒真，导致回复成功后按钮不消失。新增 `latestUserHasReply` 判断（`message_area.dart`），修复后 message_retry/enter 测试转绿。 |
+| C2 recognizer dispose | ✅ 已修 | `markdown_view.dart` 识别器登记到列表、dispose 统一释放。 |
+| C3 broad provider watch | ✅ 已修 | 头部统计下沉到 `_NowStatus` 自己订阅，不再重建整份消息列表。 |
+| C4 dialog controller | ✅ 已修 | `wiki_page_detail_view.dart` dispose 统一释放。 |
+| C5 mounted 守卫 | ✅ 已修 | `settings_provider.dart` 写 state 前查 `ref.mounted`。 |
+| C6 provider 副作用 | ✅ 已修 | `mainConversationProvider` 改纯读，写操作只在 appInit。 |
+| C7 jsonDecode/context | ✅ 已修 | `_resolveAmbiguity` jsonDecode 包 try/catch，失败渲染占位。 |
+| C8/C10 legacy screen | ✅ 已删 | `conversation_timeline_screen.dart` / `conversation_detail_screen.dart` 已删除。 |
+| C9 wiki_page_detail_view 拆分 | ⏸ 转排期 | 3854 行巨型文件，属结构性重构。 |
+
+### 测试修复（7 个失败 → 170/170 全绿）
+- **fake repo 未覆写 getMessages**（message_enter/message_retry/pending_knowledge_draft）：
+  基类 `getMessages` 现做「主对话流合并」查询真实 bridge，单测中 frb 未初始化抛
+  `StateError`。各 fake repo 补 `getMessages` 覆写。
+- **文案漂移**（pending_knowledge_draft）：状态条入口文案 `N 份待入库` → `草稿N份`，断言同步。
+- **wiki_ui_test fake-async/frb 死锁**：real-bridge 集成测试，主对话缺失使
+  `mainConversationProvider` 落到 error 分支；且真实桥接的异步 provider 在
+  fake-async 普通 pump 下不 resolve。修复：先建「主对话流」会话，再用
+  `pump → runAsync(真实延时) → pump` 循环推进 provider 解析（与
+  wiki_relations_ui_test 同模式）。
+
+### 其他本轮处理
+- **P0-1 worker CLI 命令**：查证为 commit `4d4f856` 有意移除（`ai::run_worker` 已删），
+  后台持续分析由 Flutter bridge 内置周期 worker 承担。删除 `print_usage` 与 README
+  中的 worker 残留引用，指向 `analyze-once`。
+- **P0-3 c.sh**：内容为 `codex resume <id>` 个人命令，无 API key，已被 git 追踪，不处理。
+
+### 最终验证
+- Flutter 测试 **170/170 全部通过**（此前 163/170）。
+- Rust `cargo build` 通过。
+- 提交：`0636dd1`（基线）→ `fdb260a`（6 测试+C1）→ `7f5cede`（P0-1）→ `c29e26d`（wiki_ui_test）。
