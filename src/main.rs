@@ -316,6 +316,5 @@ fn print_usage() {
     println!("elsewhen daemon");
     println!("elsewhen settings");
     println!("elsewhen analyze-once");
-    println!("elsewhen worker");
     println!("elsewhen providers");
 }
