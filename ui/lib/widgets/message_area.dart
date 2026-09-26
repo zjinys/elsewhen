@@ -299,6 +299,21 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                   break;
                 }
               }
+              // 最后一条 user 消息是否已有 AI 回复：找到它之后继续往前找，
+              // 遇见 assistant 即已回复（此时不应再提供「重新生成」）。
+              // 没有这条判断，最后一条 user 消息即使已被回复仍会一直挂着
+              // 「重新生成」按钮（message.id == latestUserMessageId 恒真）。
+              var latestUserHasReply = false;
+              if (latestUserMessageId != null) {
+                for (var i = messages.length - 1; i >= 0; i--) {
+                  final m = messages[i];
+                  if (m.id == latestUserMessageId) break;
+                  if (!m.isUser) {
+                    latestUserHasReply = true;
+                    break;
+                  }
+                }
+              }
               // 只订阅本会话的失败标记，不订阅整张 map（避免无关会话的变化
               // 重建整份消息列表）。
               final failedReplyId = ref.watch(
@@ -336,7 +351,8 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                     final needsReply =
                         message.isUser &&
                         !isAiTyping &&
-                        (message.id == latestUserMessageId ||
+                        ((message.id == latestUserMessageId &&
+                                !latestUserHasReply) ||
                             (failedReplyId != null &&
                                 message.id == failedReplyId));
                     return _MessageBubble(

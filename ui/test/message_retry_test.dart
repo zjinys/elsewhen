@@ -79,8 +79,12 @@ void main() {
     expect(find.text('重新生成'), findsNothing, reason: '生成中不显示重新生成按钮');
 
     gate.complete('收到！');
-    await tester.pump(); // generateReply 返回 + 追加 AI 消息 + invalidate
-    await tester.pump(); // 重建
+    // messagesProvider 是 async provider，普通 pump() 只推进 fake-async 一帧，
+    // 等不到它重新解析新消息列表。runAsync 跳出 fake-async 让真实异步完成，
+    // 再 pump 触发重建——最后一条变成 AI 回复，「重新生成」才消失。
+    await tester.runAsync(() async {});
+    await tester.pump();
+    await tester.pump();
     expect(repo.messages.length, 2, reason: 'AI 回复应已入库');
     expect(find.text('AI 正在思考…'), findsNothing);
     expect(find.text('重新生成'), findsNothing, reason: '最后一条已是 AI 回复，无需重新生成');
@@ -118,6 +122,11 @@ class _FakeConversationRepo extends ConversationRepository {
     messages.add(msg);
     return msg;
   }
+
+  // getMessages 必须覆写：基类实现会查询真实 bridge（主对话流合并），
+  // 单测里 frb 未初始化会抛 StateError。这里直接返回内存消息列表。
+  @override
+  Future<List<Message>> getMessages(String conversationId) async => messages;
 
   @override
   Future<String> generateReply(String conversationId) async {

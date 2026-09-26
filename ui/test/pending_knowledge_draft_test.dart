@@ -1,6 +1,7 @@
 import 'package:elsewhen_ui/bridge/generated.dart/api.dart'
     show PendingActionDto;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
+import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
 import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
@@ -29,8 +30,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('1 份待入库'), findsOneWidget);
-      await tester.tap(find.text('1 份待入库'));
+      expect(find.text('草稿1份'), findsOneWidget);
+      await tester.tap(find.text('草稿1份'));
       await tester.pumpAndSettle();
       expect(find.text('待入库草稿（1）'), findsOneWidget);
       await tester.tap(find.text('闲鱼卖 CM4'));
@@ -40,7 +41,7 @@ void main() {
       await tester.tap(find.text('保存到知识库'));
       await tester.pumpAndSettle();
       expect(repo.saved, ['conv-1:draft-1']);
-      expect(find.text('0 份待入库'), findsOneWidget);
+      expect(find.text('草稿0份'), findsOneWidget);
       expect(find.text('当前对话没有待入库草稿'), findsOneWidget);
       expect(find.textContaining('slug=kb-cm4'), findsOneWidget);
     },
@@ -63,7 +64,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('1 份待入库'));
+    await tester.tap(find.text('草稿1份'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('闲鱼卖 CM4'));
     await tester.pumpAndSettle();
@@ -96,8 +97,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('2 份待入库'), findsOneWidget);
-      await tester.tap(find.text('2 份待入库'));
+      expect(find.text('草稿2份'), findsOneWidget);
+      await tester.tap(find.text('草稿2份'));
       await tester.pumpAndSettle();
       expect(find.text('闲鱼卖 CM4'), findsOneWidget);
       expect(find.text('另一篇草稿'), findsOneWidget);
@@ -115,7 +116,7 @@ void main() {
       await tester.tap(find.text('删除草稿').last);
       await tester.pumpAndSettle();
       expect(repo.declined, ['conv-1:draft-2']);
-      expect(find.text('1 份待入库'), findsOneWidget);
+      expect(find.text('草稿1份'), findsOneWidget);
       expect(find.text('另一篇草稿'), findsNothing);
       expect(find.text('闲鱼卖 CM4'), findsOneWidget);
       expect(repo.saved, isEmpty);
@@ -141,9 +142,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('1 份待入库'), findsOneWidget);
+    expect(find.text('草稿1份'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('1 份待入库'));
+    await tester.tap(find.text('草稿1份'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('闲鱼卖 CM4'));
     await tester.pumpAndSettle();
@@ -154,6 +155,12 @@ void main() {
 
 class _DraftRepo extends ConversationRepository {
   _DraftRepo() : super(RustBridgeRepository());
+
+  // getMessages 必须覆写：基类实现会查询真实 bridge（主对话流合并），
+  // 单测里 frb 未初始化会抛 StateError。草稿测试不涉及消息列表，返回空。
+  @override
+  Future<List<Message>> getMessages(String conversationId) async =>
+      const <Message>[];
 
   bool fail = false;
   bool savedDraft = false;

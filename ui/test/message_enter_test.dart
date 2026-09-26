@@ -105,7 +105,7 @@ class _FakeConversationRepo extends ConversationRepository {
       throw Exception('写库失败(模拟)');
     }
     sentContents.add(content);
-    return Message(
+    final msg = Message(
       id: 'm${sentContents.length}',
       conversationId: conversationId,
       parentMessageId: null,
@@ -113,7 +113,17 @@ class _FakeConversationRepo extends ConversationRepository {
       content: content,
       createdAt: DateTime.now(),
     );
+    _sent.add(msg);
+    return msg;
   }
+
+  // getMessages 必须覆写：基类实现会查询真实 bridge（主对话流合并），
+  // 单测里 frb 未初始化会抛 StateError。这里返回内存消息列表。
+  @override
+  Future<List<Message>> getMessages(String conversationId) async =>
+      List.unmodifiable(_sent);
+
+  final List<Message> _sent = [];
 
   @override
   Future<String> generateReply(String conversationId) async {
