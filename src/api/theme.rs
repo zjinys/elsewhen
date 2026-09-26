@@ -1,6 +1,5 @@
 //! 主题偏好 FRB 门面。
 
-use super::*;
 use anyhow::Result;
 use crate::storage::Store;
 

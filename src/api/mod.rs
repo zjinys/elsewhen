@@ -25,7 +25,7 @@ pub use conversations::*;
 use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
 use crate::event::NewEvent;
-use crate::storage::{ContentPolicy, RelationDraft, RuleStatus, Store};
+use crate::storage::Store;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
@@ -1087,7 +1087,7 @@ mod daily_review_tests {
     use crate::ai::provider::AiReply;
     use crate::ai::tool::ToolSpec;
     use crate::event::NewEvent;
-    use crate::storage::Store;
+    use crate::storage::{ContentPolicy, RuleStatus, Store};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     struct StubProvider(&'static str);

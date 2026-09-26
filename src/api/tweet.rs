@@ -1,7 +1,6 @@
 //! 推文抓取 / 内容对话 FRB 门面。
 
 use super::*;
-use crate::ai::memory::ContextMessage;
 
 /// 抓取的推文内容 DTO（只解析，不入库）
 #[derive(Clone, Debug)]

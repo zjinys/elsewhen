@@ -1,7 +1,6 @@
 //! 会话 / 消息 / token 用量 FRB 门面。
 
 use super::*;
-use crate::ai::provider::OpenAiCompatibleConfig;
 
 /// Conversation DTO for Flutter
 #[derive(Clone, Debug)]
