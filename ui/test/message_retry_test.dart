@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
+import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
 
 /// 验证「AI 回复失败的重发入口」：『重新生成』按钮放在**最后一条用户消息**上，
@@ -23,7 +24,9 @@ void main() {
       ProviderScope(
         overrides: [
           conversationRepositoryProvider.overrideWithValue(repo),
-          selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
+          selectedConversationIdProvider.overrideWith(
+            () => StateHolder('conv-1'),
+          ),
           messagesProvider.overrideWith((ref) async => repo.messages),
         ],
         child: const MaterialApp(home: Scaffold(body: MessageArea())),
@@ -32,7 +35,8 @@ void main() {
     await tester.pump();
 
     final input = find.byWidgetPredicate(
-      (widget) => widget is TextField &&
+      (widget) =>
+          widget is TextField &&
           (widget.decoration?.hintText == '输入消息...' ||
               widget.decoration?.hintText?.startsWith('AI 正在思考') == true),
     );
@@ -81,7 +85,7 @@ void main() {
     expect(find.text('AI 正在思考…'), findsNothing);
     expect(find.text('重新生成'), findsNothing, reason: '最后一条已是 AI 回复，无需重新生成');
     expect(find.textContaining('AI 回复失败'), findsNothing);
-    expect(find.byIcon(Icons.send), findsOneWidget, reason: '生成结束后发送按钮恢复');
+    expect(find.byIcon(Icons.arrow_upward), findsOneWidget, reason: '生成结束后发送按钮恢复');
   });
 }
 

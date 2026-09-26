@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 
 class EventInput extends StatefulWidget {
   final Function(String) onSubmit;
 
-  const EventInput({
-    super.key,
-    required this.onSubmit,
-  });
+  const EventInput({super.key, required this.onSubmit});
 
   @override
   State<EventInput> createState() => _EventInputState();
@@ -48,10 +46,7 @@ class _EventInputState extends State<EventInput> {
       children: [
         Expanded(
           child: Container(
-            constraints: const BoxConstraints(
-              minHeight: 48,
-              maxHeight: 120,
-            ),
+            constraints: const BoxConstraints(minHeight: 48, maxHeight: 120),
             decoration: BoxDecoration(
               color: AppTheme.surface2,
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -85,7 +80,11 @@ class _EventInputState extends State<EventInput> {
         IconButton(
           tooltip: '对话格式',
           onPressed: () => _showConversationGuide(context),
-          icon: Icon(Icons.help_outline, size: 19, color: AppTheme.textTertiary),
+          icon: Icon(
+            Icons.help_outline,
+            size: 19,
+            color: AppTheme.textTertiary,
+          ),
         ),
         const SizedBox(width: AppTheme.space3),
         SizedBox(
@@ -96,9 +95,7 @@ class _EventInputState extends State<EventInput> {
               backgroundColor: AppTheme.accentPrimary,
               foregroundColor: AppTheme.surface0,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.space6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.space6),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppTheme.radiusFull),
               ),
@@ -117,10 +114,7 @@ class _EventInputState extends State<EventInput> {
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.send,
-                        size: 18,
-                      ),
+                      Icon(Icons.send, size: 18),
                       const SizedBox(width: AppTheme.space2),
                       const Text(
                         '记录',
@@ -156,7 +150,10 @@ class _EventInputState extends State<EventInput> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('知道了')),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('知道了'),
+        ),
       ],
     ),
   );

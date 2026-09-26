@@ -22,6 +22,24 @@ Why vendored instead of a pub/git dependency:
 - 升级上游时请重新 diff `git log -p` 中该文件与上游的差异，别丢了这个补丁。
 - 若上游正式修复（含 Linux 分支），可回退到 pub 依赖并删除本目录。
 
+## pubspec 本地改动
+
+- `file_picker` 放宽为 `>=10.3.10 <14.0.0`（上游锁 ^10.3.10；vendored 代码
+  只用 `pickFiles`/`getDirectoryPath` 两个稳定 API，11~13 主版本均未触碰，
+  随宿主升级到 13.x 无需改动代码）。
+- `device_info_plus` 放宽为 `>=12.3.0 <14.0.0`（上游锁 ^12.3.0 → win32 ^5，
+  与 file_picker 13 的 win32 ^6 冲突；仅在 mobile 键盘高度工具里用
+  `DeviceInfoPlugin()`，13.x 该 API 未变）。
+
+## 代码补丁（除上游 diff 外的本地修改）
+
+- `util/file_picker/file_picker_impl.dart`、`image_block_component/
+  image_upload_widget.dart`：适配 file_picker 13（静态方法 API；
+  `withData`/`withReadStream`/`lockParentWindow` 参数移除，字节改
+  `PlatformFile.readAsBytes()` 按需读取；取消返回空列表而非 null；
+  `saveFile` 语义变为「传字节代存」不再适配，编辑器内无调用点故移除
+  override）。升级上游时若其已适配 file_picker 13+，以上游为准。
+
 ## 结构
 
 保留发布所需最小集合：`lib/`、`pubspec.yaml`、`LICENSE`、`assets/`。

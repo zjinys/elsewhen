@@ -331,22 +331,29 @@ class _UploadImageMenuState extends State<UploadImageMenu> {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: () async {
+            // 本地补丁（file_picker 13）：withData 参数已移除，
+            // 字节改为 PlatformFile.readAsBytes() 按需异步读取。
             final result = await _filePicker.pickFiles(
               dialogTitle: '',
               type: kIsWeb ? fp.FileType.custom : fp.FileType.image,
               allowedExtensions: kIsWeb ? allowedExtensions : null,
-              withData: kIsWeb,
             );
-            if (result != null && result.files.isNotEmpty) {
-              setState(() {
-                final bytes = result.files.first.bytes;
-                if (kIsWeb && bytes != null) {
-                  _imagePathOrContent = base64String(bytes);
-                } else {
-                  _imagePathOrContent = result.files.first.path;
-                }
-              });
+            if (result == null || result.files.isEmpty) {
+              return;
             }
+            final file = result.files.first;
+            final String? content;
+            if (kIsWeb) {
+              content = base64String(await file.readAsBytes());
+            } else {
+              content = file.path;
+            }
+            if (content == null) {
+              return;
+            }
+            setState(() {
+              _imagePathOrContent = content;
+            });
           },
           child: Container(
             height: 60,

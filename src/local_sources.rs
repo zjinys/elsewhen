@@ -1151,7 +1151,25 @@ pub fn ingest_directory_files(store: &Store, directory: &Path) -> Result<IngestR
         skipped: Vec::new(),
     };
     for path in files {
-        let raw = match fs::read_to_string(&path) {
+        // 先看字节数，超出 bounded 读者上限的直接跳过并说明——不整文件读入内存
+        // （本地目录可能包含数百 MB 的 .txt/.json/.log，fs::read_to_string 会撑爆内存）。
+        let file_size = match std::fs::metadata(&path) {
+            Ok(meta) => meta.len(),
+            Err(_) => {
+                report.skipped.push(path.display().to_string());
+                continue;
+            }
+        };
+        const INGEST_MAX_BYTES: u64 = MAX_SCAN_FILE_CHARS as u64 * 4 + 4;
+        if file_size > INGEST_MAX_BYTES {
+            report.skipped.push(format!(
+                "{}（{} 字节，超过单文件导入上限）",
+                path.display(),
+                file_size
+            ));
+            continue;
+        }
+        let raw = match read_bounded_text(&path, MAX_SCAN_FILE_CHARS) {
             Ok(value) => value,
             Err(_) => {
                 report.skipped.push(path.display().to_string());

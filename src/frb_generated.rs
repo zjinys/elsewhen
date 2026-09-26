@@ -1025,10 +1025,12 @@ fn wire__crate__api__init_bridge_impl(
         move || {
             let api_database_path = database_path.cst_decode();
             move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Ok::<_, ()>(crate::api::init_bridge(api_database_path))?;
-                    std::result::Result::Ok(output_ok)
-                })())
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::init_bridge(api_database_path)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -2339,6 +2341,25 @@ impl SseDecode for crate::api::AnalysisJobStatsDto {
     }
 }
 
+impl SseDecode for crate::api::AnalysisTriggerResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::AnalysisTriggerResult::NoProvider;
+            }
+            1 => {
+                let mut var_count = <i64>::sse_decode(deserializer);
+                return crate::api::AnalysisTriggerResult::Processed { count: var_count };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2458,6 +2479,28 @@ impl SseDecode for crate::api::DailyReviewItemDto {
             text: var_text,
             source_event_ids: var_sourceEventIds,
         };
+    }
+}
+
+impl SseDecode for crate::api::DailyReviewResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::DailyReviewResult::NoProvider;
+            }
+            1 => {
+                return crate::api::DailyReviewResult::NoEntries;
+            }
+            2 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                return crate::api::DailyReviewResult::Created { id: var_id };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -3376,6 +3419,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::AnalysisJobStatsDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::AnalysisTriggerResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::AnalysisTriggerResult::NoProvider => [0.into_dart()].into_dart(),
+            crate::api::AnalysisTriggerResult::Processed { count } => {
+                [1.into_dart(), count.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::AnalysisTriggerResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::AnalysisTriggerResult>
+    for crate::api::AnalysisTriggerResult
+{
+    fn into_into_dart(self) -> crate::api::AnalysisTriggerResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::ContentChatMessageDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3502,6 +3570,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::DailyReviewItemDto>
     for crate::api::DailyReviewItemDto
 {
     fn into_into_dart(self) -> crate::api::DailyReviewItemDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::DailyReviewResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::DailyReviewResult::NoProvider => [0.into_dart()].into_dart(),
+            crate::api::DailyReviewResult::NoEntries => [1.into_dart()].into_dart(),
+            crate::api::DailyReviewResult::Created { id } => {
+                [2.into_dart(), id.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::DailyReviewResult {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::DailyReviewResult>
+    for crate::api::DailyReviewResult
+{
+    fn into_into_dart(self) -> crate::api::DailyReviewResult {
         self
     }
 }
@@ -3960,6 +4051,24 @@ impl SseEncode for crate::api::AnalysisJobStatsDto {
     }
 }
 
+impl SseEncode for crate::api::AnalysisTriggerResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::AnalysisTriggerResult::NoProvider => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::AnalysisTriggerResult::Processed { count } => {
+                <i32>::sse_encode(1, serializer);
+                <i64>::sse_encode(count, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4032,6 +4141,27 @@ impl SseEncode for crate::api::DailyReviewItemDto {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.text, serializer);
         <Vec<String>>::sse_encode(self.source_event_ids, serializer);
+    }
+}
+
+impl SseEncode for crate::api::DailyReviewResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::DailyReviewResult::NoProvider => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::DailyReviewResult::NoEntries => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::api::DailyReviewResult::Created { id } => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(id, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -4695,6 +4825,21 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::AnalysisTriggerResult> for wire_cst_analysis_trigger_result {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::AnalysisTriggerResult {
+            match self.tag {
+                0 => crate::api::AnalysisTriggerResult::NoProvider,
+                1 => {
+                    let ans = unsafe { self.kind.Processed };
+                    crate::api::AnalysisTriggerResult::Processed {
+                        count: ans.count.cst_decode(),
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
     impl CstDecode<crate::api::AiProviderConfigDto> for *mut wire_cst_ai_provider_config_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::AiProviderConfigDto {
@@ -4839,6 +4984,22 @@ mod io {
             crate::api::DailyReviewItemDto {
                 text: self.text.cst_decode(),
                 source_event_ids: self.source_event_ids.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::DailyReviewResult> for wire_cst_daily_review_result {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::DailyReviewResult {
+            match self.tag {
+                0 => crate::api::DailyReviewResult::NoProvider,
+                1 => crate::api::DailyReviewResult::NoEntries,
+                2 => {
+                    let ans = unsafe { self.kind.Created };
+                    crate::api::DailyReviewResult::Created {
+                        id: ans.id.cst_decode(),
+                    }
+                }
+                _ => unreachable!(),
             }
         }
     }
@@ -5337,6 +5498,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_analysis_trigger_result {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                tag: -1,
+                kind: AnalysisTriggerResultKind { nil__: () },
+            }
+        }
+    }
+    impl Default for wire_cst_analysis_trigger_result {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_content_chat_message_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -5431,6 +5605,19 @@ mod io {
         }
     }
     impl Default for wire_cst_daily_review_item_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_daily_review_result {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                tag: -1,
+                kind: DailyReviewResultKind { nil__: () },
+            }
+        }
+    }
+    impl Default for wire_cst_daily_review_result {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -6898,6 +7085,23 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_analysis_trigger_result {
+        tag: i32,
+        kind: AnalysisTriggerResultKind,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub union AnalysisTriggerResultKind {
+        Processed: wire_cst_AnalysisTriggerResult_Processed,
+        nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_AnalysisTriggerResult_Processed {
+        count: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_content_chat_message_dto {
         role: *mut wire_cst_list_prim_u_8_strict,
         content: *mut wire_cst_list_prim_u_8_strict,
@@ -6951,6 +7155,23 @@ mod io {
     pub struct wire_cst_daily_review_item_dto {
         text: *mut wire_cst_list_prim_u_8_strict,
         source_event_ids: *mut wire_cst_list_String,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_daily_review_result {
+        tag: i32,
+        kind: DailyReviewResultKind,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub union DailyReviewResultKind {
+        Created: wire_cst_DailyReviewResult_Created,
+        nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_DailyReviewResult_Created {
+        id: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -7383,6 +7604,21 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::AnalysisTriggerResult>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::AnalysisTriggerResult {
+            let self_ = self.unchecked_into::<flutter_rust_bridge::for_generated::js_sys::Array>();
+            match self_.get(0).unchecked_into_f64() as _ {
+                0 => crate::api::AnalysisTriggerResult::NoProvider,
+                1 => crate::api::AnalysisTriggerResult::Processed {
+                    count: self_.get(1).cst_decode(),
+                },
+                _ => unreachable!(),
+            }
+        }
+    }
     impl CstDecode<crate::api::ContentChatMessageDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -7520,6 +7756,22 @@ mod web {
             crate::api::DailyReviewItemDto {
                 text: self_.get(0).cst_decode(),
                 source_event_ids: self_.get(1).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::DailyReviewResult>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::DailyReviewResult {
+            let self_ = self.unchecked_into::<flutter_rust_bridge::for_generated::js_sys::Array>();
+            match self_.get(0).unchecked_into_f64() as _ {
+                0 => crate::api::DailyReviewResult::NoProvider,
+                1 => crate::api::DailyReviewResult::NoEntries,
+                2 => crate::api::DailyReviewResult::Created {
+                    id: self_.get(1).cst_decode(),
+                },
+                _ => unreachable!(),
             }
         }
     }

@@ -54,12 +54,13 @@ class LeftSidebar extends ConsumerWidget {
         if (ref.read(selectedConversationIdProvider) != conversation.id) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) {
-              ref.read(selectedConversationIdProvider.notifier).state =
-                  conversation.id;
+              ref
+                  .read(selectedConversationIdProvider.notifier)
+                  .set(conversation.id);
             }
           });
         }
-        final pages = ref.watch(wikiPagesProvider).valueOrNull ?? const [];
+        final pages = ref.watch(wikiPagesProvider).value ?? const [];
         final recentPages =
             pages.where((page) => page.status != 'archived').toList()
               ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
@@ -118,8 +119,9 @@ class LeftSidebar extends ConsumerWidget {
                               ),
                             ),
                             onTap: () {
-                              ref.read(sidebarTabProvider.notifier).state =
-                                  SidebarTab.wiki;
+                              ref
+                                  .read(sidebarTabProvider.notifier)
+                                  .set(SidebarTab.wiki);
                               openWikiPageTab(ref, page);
                             },
                           ),
@@ -144,16 +146,17 @@ class LeftSidebar extends ConsumerWidget {
             icon: Icons.chat_bubble_outline,
             label: '对话',
             onTap: () {
-              ref.read(sidebarTabProvider.notifier).state =
-                  SidebarTab.conversation;
+              ref
+                  .read(sidebarTabProvider.notifier)
+                  .set(SidebarTab.conversation);
             },
           ),
           _FooterAction(
             icon: Icons.menu_book_outlined,
             label: '知识库',
             onTap: () {
-              ref.read(wikiActiveTabIdProvider.notifier).state = 'import';
-              ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+              ref.read(wikiActiveTabIdProvider.notifier).set('import');
+              ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
             },
           ),
         ],
@@ -446,9 +449,7 @@ class _WikiPageItem extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(right: 4),
                       child: Icon(
-                        page.isLocalPath
-                            ? Icons.folder_outlined
-                            : Icons.link,
+                        page.isLocalPath ? Icons.folder_outlined : Icons.link,
                         size: 12,
                         color: AppTheme.textTertiary,
                       ),

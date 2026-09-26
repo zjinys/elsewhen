@@ -24,10 +24,7 @@ void main() {
       expect(wikilink.text, '刘庆霖');
       expect(wikilink.attributes![BuiltInAttributeKey.wikilink], 'person/刘庆霖');
 
-      expect(
-        wikiDocumentToMarkdown(doc),
-        '见 [[person/刘庆霖|刘庆霖]] 档案。\n',
-      );
+      expect(wikiDocumentToMarkdown(doc), '见 [[person/刘庆霖|刘庆霖]] 档案。\n');
     });
 
     test('alias == target 时省略 [[target]]', () {
@@ -86,8 +83,9 @@ void main() {
 
       // 点击 wikilink 文本中心 → 回调 slug
       // getBoxesForSelection 返回的是段落局部坐标，须 localToGlobal 转全局
-      final renderParagraph =
-          tester.renderObject<RenderParagraph>(richTextFinder);
+      final renderParagraph = tester.renderObject<RenderParagraph>(
+        richTextFinder,
+      );
       final localBox = renderParagraph
           .getBoxesForSelection(
             const TextSelection(baseOffset: 0, extentOffset: 4),

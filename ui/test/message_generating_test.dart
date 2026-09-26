@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
+import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
 
 /// 验证「发送后后台执行反馈」：
@@ -24,7 +25,9 @@ void main() {
       ProviderScope(
         overrides: [
           conversationRepositoryProvider.overrideWithValue(repo),
-          selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
+          selectedConversationIdProvider.overrideWith(
+            () => StateHolder('conv-1'),
+          ),
           messagesProvider.overrideWith((ref) async => <Message>[]),
         ],
         child: const MaterialApp(home: Scaffold(body: MessageArea())),
@@ -33,7 +36,8 @@ void main() {
     await tester.pump();
 
     final input = find.byWidgetPredicate(
-      (widget) => widget is TextField &&
+      (widget) =>
+          widget is TextField &&
           (widget.decoration?.hintText == '输入消息...' ||
               widget.decoration?.hintText?.startsWith('AI 正在思考') == true),
     );
@@ -45,7 +49,7 @@ void main() {
 
     // ① 生成中反馈：占位气泡 + 发送按钮转菊花 + 输入框提示变化
     expect(find.text('AI 正在思考…'), findsOneWidget, reason: '发送后应立即出现「生成中」占位气泡');
-    expect(find.byIcon(Icons.send), findsNothing, reason: '生成中发送按钮应转菊花（禁用）');
+    expect(find.byIcon(Icons.arrow_upward), findsNothing, reason: '生成中发送按钮应转菊花（禁用）');
     final hint = tester.widget<TextField>(input).decoration?.hintText;
     expect(hint, 'AI 正在思考，您可以先输入下一条消息…');
 
@@ -54,7 +58,7 @@ void main() {
     await tester.pump(); // generateReply 返回 + invalidate + 清除生成状态
     await tester.pump(); // 重建
     expect(find.text('AI 正在思考…'), findsNothing, reason: 'AI 回复到位后占位气泡应消失');
-    expect(find.byIcon(Icons.send), findsOneWidget, reason: '生成完成后发送按钮恢复');
+    expect(find.byIcon(Icons.arrow_upward), findsOneWidget, reason: '生成完成后发送按钮恢复');
     expect(tester.widget<TextField>(input).decoration?.hintText, '输入消息...');
   });
 }

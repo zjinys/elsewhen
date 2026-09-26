@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../models/conversation.dart';
 import '../models/tweet_fetch.dart';
+import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
@@ -144,7 +145,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
       });
       _scrollToBottom();
     } finally {
-      generatingNotifier.state = {...generatingNotifier.state}..remove(id);
+      generatingNotifier.update((current) => {...current}..remove(id));
     }
   }
 
@@ -226,30 +227,33 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
     if (_busy || _saving) return;
     final text = content.trim();
     if (text.isEmpty) return;
-    final sourcePage = await ref.read(wikiPageProvider(widget.slug).future);
-    if (!mounted) return;
-    if (sourcePage?.kind == 'project') {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('替换项目知识页正文？'),
-          content: const Text('当前 AI 回复将替换整篇正文。原内容会保留在页面修订记录中。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('替换'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true || !mounted) return;
-    }
     setState(() => _saving = true);
     try {
+      // 读页失败（DB 错误/页面在首次 build 后被删）不能被静默放弃：
+      // 与下方保存失败的异常同路径反馈。
+      final sourcePage =
+          await ref.read(wikiPageProvider(widget.slug).future);
+      if (!mounted) return;
+      if (sourcePage?.kind == 'project') {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('替换项目知识页正文？'),
+            content: const Text('当前 AI 回复将替换整篇正文。原内容会保留在页面修订记录中。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('替换'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !mounted) return;
+      }
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       if (sourcePage?.kind == 'project') {
         await repo.saveWikiPageContent(
@@ -289,9 +293,24 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
 
   Future<void> _reimport() async {
     if (_busy || _saving || _reimporting) return;
-    final page = await ref.read(wikiPageProvider(widget.slug).future);
-    final url = page?.sourceUrl;
-    if (page == null || url == null || url.trim().isEmpty) return;
+    final WikiPage page;
+    try {
+      final loaded = await ref.read(wikiPageProvider(widget.slug).future);
+      if (!mounted) return;
+      if (loaded == null) {
+        setState(() => _error = '页面不存在，可能已被删除');
+        return;
+      }
+      page = loaded;
+    } catch (e) {
+      if (!mounted) return;
+      setState(
+        () => _error = '读取页面失败：${e.toString().replaceFirst('Exception: ', '')}',
+      );
+      return;
+    }
+    final url = page.sourceUrl;
+    if (url == null || url.trim().isEmpty) return;
     // 本地目录来源（file://）：按记录路径重扫目录，不走 HTTP 抓取。
     if (page.isLocalPath) {
       setState(() {
@@ -370,7 +389,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
 
   Widget _buildMessage(Message message) {
     final isProject =
-        ref.watch(wikiPageProvider(widget.slug)).valueOrNull?.kind == 'project';
+        ref.watch(wikiPageProvider(widget.slug)).value?.kind == 'project';
     final bubble = WikiChatBubble(
       message: ContentChatMessage(
         role: message.role.name,
@@ -458,13 +477,13 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   Future<void> _returnToMainConversation() async {
     final main = await ref.read(mainConversationProvider.future);
     if (!mounted) return;
-    ref.read(selectedConversationIdProvider.notifier).state = main.id;
-    ref.read(sidebarTabProvider.notifier).state = SidebarTab.conversation;
+    ref.read(selectedConversationIdProvider.notifier).set(main.id);
+    ref.read(sidebarTabProvider.notifier).set(SidebarTab.conversation);
   }
 
   @override
   Widget build(BuildContext context) {
-    final page = ref.watch(wikiPageProvider(widget.slug)).valueOrNull;
+    final page = ref.watch(wikiPageProvider(widget.slug)).value;
     final isProject = page?.kind == 'project';
     final canReimport =
         !isProject && page?.sourceUrl?.trim().isNotEmpty == true;

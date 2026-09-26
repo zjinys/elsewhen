@@ -80,7 +80,9 @@ fn build_user_prompt(
         out.push_str("（知识库暂无相关页面）\n");
     }
     for p in pages {
-        let cost = p.content_md.len().min(3000);
+        // 统一以字符数截断：len() 是字节数，中文内容 1 字节≈0.33 字符，
+        // 直接混用会截到预期的约 3 倍长度（P2 insight byte/char）。
+        let cost = p.content_md.chars().take(3000).count();
         out.push_str(&format!(
             "\n--- {} ---\n{}",
             p.slug,
@@ -236,12 +238,18 @@ mod tests {
     fn sample() -> Vec<EventSummary> {
         vec![
             EventSummary {
+                id: "evt-1".into(),
                 recorded_at: "2026-09-04T09:00:00Z".into(),
                 raw_text: "每周从东莞往返惠州，来回过路费 60 元".into(),
+                source: "capture".into(),
+                status: "completed".into(),
             },
             EventSummary {
+                id: "evt-2".into(),
                 recorded_at: "2026-09-05T09:00:00Z".into(),
                 raw_text: "想顺便开顺风车平掉往返成本".into(),
+                source: "capture".into(),
+                status: "completed".into(),
             },
         ]
     }

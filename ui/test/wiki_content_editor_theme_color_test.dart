@@ -37,7 +37,8 @@ void main() {
             editorStyle: EditorStyle.desktop(
               textStyleConfiguration: fontAwareTextStyleConfiguration(
                 Theme.of(context).textTheme.bodyLarge?.fontFamily,
-                color: Theme.of(context).textTheme.bodyLarge?.color ??
+                color:
+                    Theme.of(context).textTheme.bodyLarge?.color ??
                     Theme.of(context).textTheme.bodyMedium?.color,
               ),
             ),

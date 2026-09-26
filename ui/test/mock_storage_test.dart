@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
 import 'package:elsewhen_ui/data/mock_storage_repository.dart';
 import 'package:elsewhen_ui/data/storage_repository.dart';
 import 'package:elsewhen_ui/models/analysis.dart';
@@ -38,28 +39,32 @@ void main() {
       expect(events[1].rawText, 'Second test event');
     });
 
-    test('trigger analysis returns success', () async {
+    test('trigger analysis returns structured no-provider result', () async {
       await repo.initialize();
       final result = await repo.triggerAnalysis();
-      expect(result, 'success');
+      expect(result, const api.AnalysisTriggerResult.noProvider());
     });
 
     test('lists analyses', () async {
       await repo.initialize();
 
-      repo.addMockAnalysis(Analysis(
-        eventType: 'meeting',
-        confidence: 0.95,
-        summary: 'Team meeting scheduled',
-        clarifications: [],
-      ));
+      repo.addMockAnalysis(
+        Analysis(
+          eventType: 'meeting',
+          confidence: 0.95,
+          summary: 'Team meeting scheduled',
+          clarifications: [],
+        ),
+      );
 
-      repo.addMockAnalysis(Analysis(
-        eventType: 'task',
-        confidence: 0.87,
-        summary: 'Code review needed',
-        clarifications: ['Which PR?'],
-      ));
+      repo.addMockAnalysis(
+        Analysis(
+          eventType: 'task',
+          confidence: 0.87,
+          summary: 'Code review needed',
+          clarifications: ['Which PR?'],
+        ),
+      );
 
       final analyses = await repo.listAnalyses();
       expect(analyses.length, 2);
@@ -71,12 +76,14 @@ void main() {
     test('clear removes all data', () async {
       await repo.initialize();
       await repo.recordEvent('Test event');
-      repo.addMockAnalysis(Analysis(
-        eventType: 'note',
-        confidence: 0.9,
-        summary: 'Quick note',
-        clarifications: [],
-      ));
+      repo.addMockAnalysis(
+        Analysis(
+          eventType: 'note',
+          confidence: 0.9,
+          summary: 'Quick note',
+          clarifications: [],
+        ),
+      );
 
       repo.clear();
 

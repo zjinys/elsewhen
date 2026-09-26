@@ -1,11 +1,23 @@
 use super::memory::{
-    estimate_tokens, ContextMessage, MemoryProvider, SimpleMemory, SlidingWindowMemory,
+    compress_context, estimate_tokens, ContextMessage, MemoryProvider, SimpleMemory,
+    SlidingWindowMemory,
 };
 use super::provider::{AiProvider, OllamaProvider, OpenAiCompatibleProvider, TokenUsage};
-use super::tool::{dispatch, execute_pending_action, ToolCall, ToolRegistry};
+use super::tool::{dispatch, execute_pending_action, ToolCall, ToolRegistry, ToolResultMsg};
 use crate::storage::{RuleStatus, Store};
 use anyhow::{Context, Result};
 use serde_json::Value;
+
+/// agent loop 诊断日志统一 gate：默认静默，仅当设置 ELSEWHEN_DEBUG 时输出。
+/// 这些日志每轮对话都会触发（含工具结果摘录与 provider 错误串，可能带个人数据），
+/// 无条件打印既不必要也会把隐私写入终端（与 insight.rs 的既有模式对齐）。
+macro_rules! debug_eprintln {
+    ($($arg:tt)*) => {
+        if std::env::var("ELSEWHEN_DEBUG").is_ok() {
+            eprintln!($($arg)*);
+        }
+    };
+}
 
 /// Configuration for AI conversation
 pub struct ConversationConfig {
@@ -43,6 +55,26 @@ const TOOL_CALL_MARKER: &str = "[工具调用]";
 /// 协议修复预算：疑似调用但格式未知时的最大回炉次数。
 /// 与 MAX_TOOL_ROUNDS 独立计数，双保险防死循环。
 const MAX_PROTOCOL_REPAIRS: usize = 2;
+
+/// 原生协议失败后回落到纯文本协议前的固定小退避（毫秒）。
+const PROTOCOL_FALLBACK_SLEEP_MS: u64 = 300;
+
+/// provider failover 轮换的 jittered backoff：第 n 次失败约 400·n ms，
+/// 叠加 ±30% 抖动。瞬时全挂时把连环重试拉开，避免 thundering herd。
+fn jitter_backoff_ms(attempt: usize) -> u64 {
+    let base = 400u64.saturating_mul(attempt as u64);
+    // 用单调时间低位做伪随机源，不进 rand 依赖；jitter ∈ [0, 0.3·base]
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as u64)
+        .unwrap_or(0);
+    let jitter = nanos % 100 * base / 100 * 3 / 10;
+    if nanos % 2 == 0 {
+        base.saturating_add(jitter)
+    } else {
+        base.saturating_sub(jitter)
+    }
+}
 
 /// 回炉提示：只讲唯一合法格式，不解释、不啰嗦，让模型重发一行调用。
 const PROTOCOL_REPAIR_NUDGE: &str = "系统提示：你上一轮回复疑似包含一次工具调用，但格式无法识别，没有执行。工具调用必须独占一行，只允许唯一格式（其他任何格式都会被丢弃）：\n[工具调用]{\"name\":\"工具名\",\"arguments\":{...}}\n请重新只输出这一行调用，不要输出其他内容。";
@@ -129,8 +161,10 @@ pub fn generate_conversation_reply(
             }
         }
     }
-    let direct_query_result: Option<(String, String)> =
-        last_user.and_then(|m| direct_query(store, &m.content));
+    let direct_query_result: Option<(String, String)> = match &last_user {
+        Some(m) => direct_query(store, &m.content)?,
+        None => None,
+    };
     if let Some((label, data)) = &direct_query_result {
         context.push(ContextMessage::new(
             "system",
@@ -165,6 +199,12 @@ pub fn generate_conversation_reply(
                 ));
             }
         }
+    }
+
+    // The memory provider only sees persisted messages. Dynamic system context
+    // above can be large, so enforce the budget once more at the final boundary.
+    if let MemoryType::SlidingWindow { max_tokens } = config.memory_type {
+        compress_context(&mut context, max_tokens);
     }
 
     // 3) 创建 AI provider
@@ -230,7 +270,16 @@ pub fn generate_conversation_reply(
                 outcome = Some(result);
                 break;
             }
-            Err(error) => errors.push(error.to_string()),
+            Err(error) => {
+                errors.push(error.to_string());
+                // 全部 provider 可能临时不可用（网关抖动/限流）：轮换前加
+                // jittered backoff，避免每次会话请求都同一瞬间锤向这批端点
+                // （P2 retry backoff；Dart 侧 5s timer 只控制 tick，拦不住
+                // 同 tick 内的连环 failover）。
+                std::thread::sleep(std::time::Duration::from_millis(
+                    jitter_backoff_ms(errors.len()),
+                ));
+            }
         }
     }
     let outcome = outcome.context(format!("所有 AI provider 均失败：{}", errors.join(" | ")))?;
@@ -294,7 +343,7 @@ enum ToolProtocol {
 /// 本机数据直查：对高频统计/清单类问题直接在本地查库并注入上下文，
 /// 不依赖模型的 tool-calling 能力（数据本就存在本地数据库）。
 /// 命中返回（查询主题, 已查好的数据文本）。
-fn direct_query(store: &Store, user_message: &str) -> Option<(String, String)> {
+fn direct_query(store: &Store, user_message: &str) -> Result<Option<(String, String)>> {
     let msg = user_message.trim().to_lowercase();
 
     // token 用量
@@ -302,7 +351,7 @@ fn direct_query(store: &Store, user_message: &str) -> Option<(String, String)> {
         || msg.contains("用量")
         || (msg.contains("统计") && (msg.contains("token") || msg.contains("用量")));
     if wants_token {
-        let daily = store.daily_token_usage(7).ok()?;
+        let daily = store.daily_token_usage(7)?;
         let mut out = String::from("每日 token 用量：\n");
         if daily.is_empty() {
             out.push_str("（最近 7 天没有 AI 调用记录）");
@@ -314,7 +363,7 @@ fn direct_query(store: &Store, user_message: &str) -> Option<(String, String)> {
                 ));
             }
         }
-        return Some(("token 用量".to_string(), out));
+        return Ok(Some(("token 用量".to_string(), out)));
     }
 
     // 规则清单
@@ -325,7 +374,7 @@ fn direct_query(store: &Store, user_message: &str) -> Option<(String, String)> {
         || msg.contains("规则清单")
         || msg.contains("看看规则");
     if wants_rules {
-        let rules = store.list_active_rules().ok()?;
+        let rules = store.list_active_rules()?;
         let mut out = String::from("已生效的个人规则：\n");
         if rules.is_empty() {
             out.push_str("（规则库为空，还没有沉淀过规则）");
@@ -334,10 +383,10 @@ fn direct_query(store: &Store, user_message: &str) -> Option<(String, String)> {
                 out.push_str(&format!("- {}\n", r.content));
             }
         }
-        return Some(("个人规则库".to_string(), out));
+        return Ok(Some(("个人规则库".to_string(), out)));
     }
 
-    None
+    Ok(None)
 }
 
 /// Agent 循环结果
@@ -354,6 +403,10 @@ struct AgentOutcome {
 /// - 纯文本但含可解析调用 → 执行并进入下一轮。
 /// - 疑似想调但格式未知 → 回炉重发（最多 MAX_PROTOCOL_REPAIRS 次），绝不静默吞掉。
 /// - 无工具调用 → 写声明核验（标题→查库→本轮时间窗）→ 收敛，返回最终文本。
+/// 轮换 provider 前的单次尝试。WriteDirect 工具（record_event）调用即写库；
+/// 若本尝试最终失败（外层交给下一个 provider 重放同一上下文），已写入的事件
+/// 会被重放重复。因此失败时回滚本尝试创建的 WriteDirect 事件——下一次重放
+/// 从无副作用的库上重新开始，保证 failover 幂等。
 fn run_agent_loop(
     provider: &dyn AiProvider,
     context: &mut Vec<ContextMessage>,
@@ -361,6 +414,51 @@ fn run_agent_loop(
     store: &Store,
     conversation_id: &str,
     turn_start: chrono::DateTime<chrono::Utc>,
+) -> Result<AgentOutcome> {
+    let mut attempt_created_events = Vec::new();
+    let outcome = run_agent_loop_inner(
+        provider,
+        context,
+        registry,
+        store,
+        conversation_id,
+        turn_start,
+        &mut attempt_created_events,
+    );
+    if outcome.is_err() && !attempt_created_events.is_empty() {
+        debug_eprintln!(
+            "[agent] 尝试失败，回滚本尝试写入的 {} 条事件（failover 重放幂等）",
+            attempt_created_events.len()
+        );
+        for id in &attempt_created_events {
+            if let Err(e) = store.delete_event(id) {
+                debug_eprintln!("[agent] 回滚事件 {id} 失败：{e}");
+            }
+        }
+    }
+    outcome
+}
+
+/// 从 WriteDirect 工具返回值里提取刚创建的事件 id。
+/// record_event 的固定返回格式：`已保存事件（{uuid}）：{text}`。
+fn tool_created_event_id(result: &ToolResultMsg) -> Option<String> {
+    if !result.success || !result.call_name.eq_ignore_ascii_case("record_event") {
+        return None;
+    }
+    let rest = result.content.strip_prefix("已保存事件（")?;
+    let end = rest.find('）')?;
+    let id = &rest[..end];
+    (id.len() == 36).then(|| id.to_string())
+}
+
+fn run_agent_loop_inner(
+    provider: &dyn AiProvider,
+    context: &mut Vec<ContextMessage>,
+    registry: &ToolRegistry,
+    store: &Store,
+    conversation_id: &str,
+    turn_start: chrono::DateTime<chrono::Utc>,
+    attempt_created_events: &mut Vec<String>,
 ) -> Result<AgentOutcome> {
     let conversation = store.get_conversation(conversation_id)?;
     let is_knowledge_mentor = conversation.as_ref().is_some_and(|conversation| {
@@ -406,7 +504,7 @@ fn run_agent_loop(
                 // 网关/上游暂时失败时不要把同一上下文改成纯文本协议；
                 // 直接交给外层 provider 轮换，避免重复请求和协议状态污染。
                 if is_transient_provider_error(&e) {
-                    eprintln!("[agent] 上游暂时失败，交给下一个 provider：{e}");
+                    debug_eprintln!("[agent] 上游暂时失败，交给下一个 provider：{e}");
                     return Err(e);
                 }
                 // 原生协议失败（首次尝试 or 已锁定原生）→ 回落到纯文本协议重试一次：
@@ -414,10 +512,13 @@ fn run_agent_loop(
                 // 回传校验失败（如 arguments 字节不一致）。历史里已有上下文，文本模式仍能组织最终回答。
                 if !matches!(protocol, Some(ToolProtocol::Text)) {
                     protocol = Some(ToolProtocol::Text);
-                    eprintln!("[agent] 请求失败({e})，回落纯文本协议重试");
+                    debug_eprintln!("[agent] 请求失败({e})，回落纯文本协议重试");
+                    // 回退前小退避：原生协议刚软失败，紧随的文本重试可能命中
+                    // 同一瞬限流；仅首次硬失败后触发，成功路径零开销（P2 backoff）。
+                    std::thread::sleep(std::time::Duration::from_millis(PROTOCOL_FALLBACK_SLEEP_MS));
                     provider.generate_reply(context.clone())?
                 } else {
-                    eprintln!("[agent] 纯文本协议请求也失败：{e}");
+                    debug_eprintln!("[agent] 纯文本协议请求也失败：{e}");
                     return Err(e);
                 }
             }
@@ -428,7 +529,7 @@ fn run_agent_loop(
             && reply.tool_calls.is_empty()
             && protocol.is_none()
         {
-            eprintln!("[agent] round {_round}: 模型返回空 content 且无 tool_calls，判定不支持原生 tools，无 tools 重试");
+            debug_eprintln!("[agent] round {_round}: 模型返回空 content 且无 tool_calls，判定不支持原生 tools，无 tools 重试");
             provider.generate_reply(context.clone())?
         } else {
             reply
@@ -441,7 +542,7 @@ fn run_agent_loop(
         if reply.model.is_some() {
             model = reply.model.clone();
         }
-        eprintln!(
+        debug_eprintln!(
             "[agent] round={_round} protocol={:?} content_len={} tool_calls={} model={:?}",
             protocol,
             reply.content.chars().count(),
@@ -458,7 +559,10 @@ fn run_agent_loop(
             ));
             for call in &reply.tool_calls {
                 let result = dispatch(call, registry, store, conversation_id);
-                eprintln!(
+                if let Some(event_id) = tool_created_event_id(&result) {
+                    attempt_created_events.push(event_id);
+                }
+                debug_eprintln!(
                     "[agent] dispatch tool={} -> {}",
                     call.name,
                     &result.content.chars().take(80).collect::<String>()
@@ -475,7 +579,10 @@ fn run_agent_loop(
             context.push(ContextMessage::new("assistant", reply.content));
             for call in &calls {
                 let result = dispatch(&call, registry, store, conversation_id);
-                eprintln!(
+                if let Some(event_id) = tool_created_event_id(&result) {
+                    attempt_created_events.push(event_id);
+                }
+                debug_eprintln!(
                     "[agent] text-protocol tool={} -> {}",
                     call.name,
                     &result.content.chars().take(80).collect::<String>()
@@ -494,7 +601,7 @@ fn run_agent_loop(
             && tool_call_attempt_detected(&reply.content, &tool_names)
         {
             repairs_used += 1;
-            eprintln!(
+            debug_eprintln!(
                 "[agent] 疑似工具调用但无法解析，回炉重发 (repair {repairs_used})"
             );
             context.push(ContextMessage::new("assistant", reply.content));
@@ -511,7 +618,7 @@ fn run_agent_loop(
                 ClaimVerdict::Clean => {}
                 verdict => {
                     claim_repaired = true;
-                    eprintln!("[agent] 写声明与库内事实不符，回炉纠正 ({verdict:?})");
+                    debug_eprintln!("[agent] 写声明与库内事实不符，回炉纠正 ({verdict:?})");
                     context.push(ContextMessage::new("assistant", reply.content));
                     context.push(ContextMessage::new(
                         "system",
@@ -1334,12 +1441,12 @@ fn handle_pending_action_confirmation(
                 Ok(s) => {
                     any_wrote = true;
                     summaries.push(s);
+                    // 仅执行成功才删除待办动作：失败的保留排队（下次确认可重试），
+                    // 否则动作内容会随删除一起永久丢失。
+                    store.delete_pending_action(&pa.id)?;
                 }
                 Err(e) => summaries.push(format!("「{}」执行失败：{e}", pa.action)),
             }
-        }
-        if confirmed {
-            store.delete_pending_action(&pa.id)?;
         } else if declined {
             if pa.action == "propose_people_relations" {
                 store.decline_pending_action(&pa.id)?;
@@ -2155,7 +2262,9 @@ mod tests {
         store
             .record_token_usage(None, 100, 50, 150, Some("fake-model"))
             .unwrap();
-        let hit = direct_query(&store, "我最近 token 用了多少？").expect("应命中 token 直查");
+        let hit = direct_query(&store, "我最近 token 用了多少？")
+            .expect("直查不报错")
+            .expect("应命中 token 直查");
         assert_eq!(hit.0, "token 用量");
         assert!(hit.1.contains("150 tokens"), "{}", hit.1);
         drop(store);
@@ -2172,7 +2281,9 @@ mod tests {
                 None,
             )
             .unwrap();
-        let hit = direct_query(&store, "我的规则库里现在有哪些规则？").expect("应命中规则直查");
+        let hit = direct_query(&store, "我的规则库里现在有哪些规则？")
+            .expect("直查不报错")
+            .expect("应命中规则直查");
         assert_eq!(hit.0, "个人规则库");
         assert!(hit.1.contains("留痕"), "{}", hit.1);
         drop(store);
@@ -2187,7 +2298,12 @@ mod tests {
             "帮我记录一下今天的事",
             "把这条存进知识库",
         ] {
-            assert!(direct_query(&store, q).is_none(), "不应命中: {q}");
+            assert!(
+                direct_query(&store, q)
+                    .expect("直查不报错")
+                    .is_none(),
+                "不应命中: {q}"
+            );
         }
         drop(store);
         let _ = std::fs::remove_file(path);

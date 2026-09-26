@@ -67,15 +67,9 @@ class StorageSettings {
   final String adapterType;
   final String? databasePath;
 
-  const StorageSettings({
-    required this.adapterType,
-    this.databasePath,
-  });
+  const StorageSettings({required this.adapterType, this.databasePath});
 
-  StorageSettings copyWith({
-    String? adapterType,
-    String? databasePath,
-  }) {
+  StorageSettings copyWith({String? adapterType, String? databasePath}) {
     return StorageSettings(
       adapterType: adapterType ?? this.adapterType,
       databasePath: databasePath ?? this.databasePath,
@@ -123,8 +117,8 @@ enum AppThemePreset {
 }
 
 /// 全局字体选择（外观 tab，自研选择框：系统默认 / fontconfig 本地字体 / Google Fonts）。
-/// 存值（app_meta `theme_font`）格式见 [parseStoredFont]：`system`、`google:<家族>`、
-/// `local:<家族>`；无前缀历史值按 Google 优先、本地兜底解析。monospace 场景不受影响。
+/// 存值（app_meta `theme_font`）格式见 [parseStoredFont]：`system`、`local:<家族>`。
+/// 旧的 `google:<家族>` 值会按本地字体兼容解析。monospace 场景不受影响。
 final class AppFonts {
   AppFonts._();
 
@@ -139,17 +133,17 @@ final class AppFonts {
   /// 归一化历史存值：旧机器名与空值映射到家族名；其它原样透传
   ///（主题层对非 Google Fonts 的未知值回退 [defaultFont]）。
   static String normalize(String stored) => switch (stored) {
-        '' || 'inter' => defaultFont,
-        'notoSansSc' => 'Noto Sans SC',
-        'notoSerifSc' => 'Noto Serif SC',
-        _ => stored,
-      };
+    '' || 'inter' => defaultFont,
+    'notoSansSc' => 'Noto Sans SC',
+    'notoSerifSc' => 'Noto Serif SC',
+    _ => stored,
+  };
 
   /// 显示名：system 取中文名，带前缀存值取家族名，历史裸值原样显示
   static String displayNameOf(String fontName) =>
       parseStoredFont(fontName).family.isEmpty
-          ? systemDisplayName
-          : parseStoredFont(fontName).family;
+      ? systemDisplayName
+      : parseStoredFont(fontName).family;
 
   /// 正文字号范围与默认值（仅知识库正文，见设置页「外观」字号滑块）
   static const double minFontSize = 12.0;
@@ -195,7 +189,9 @@ class AppSettings {
 
   /// 是否设置过编辑器字体覆盖（AA 浮层需要区分「未设置」与「已重置」）
   bool get hasEditorOverrides =>
-      editorFontName != null || editorFontSize != null || editorLineHeight != null;
+      editorFontName != null ||
+      editorFontSize != null ||
+      editorLineHeight != null;
 
   /// 求值：编辑器字号覆盖 ?? 全局字号（知识库正文实际渲染字号）
   double get contentFontSize =>
@@ -276,15 +272,13 @@ class AppSettings {
       editorFontSize: identical(fontSizeOverride, _unset)
           ? editorFontSize
           : (fontSizeOverride as num?) == null
-              ? null
-              : AppFonts.clampFontSize((fontSizeOverride as num).toDouble()),
+          ? null
+          : AppFonts.clampFontSize((fontSizeOverride as num).toDouble()),
       editorLineHeight: identical(lineHeightOverride, _unset)
           ? editorLineHeight
           : (lineHeightOverride as num?) == null
-              ? null
-              : AppFonts.clampLineHeight(
-                  (lineHeightOverride as num).toDouble(),
-                ),
+          ? null
+          : AppFonts.clampLineHeight((lineHeightOverride as num).toDouble()),
     );
   }
 
@@ -297,13 +291,8 @@ class AppSettings {
         apiKey: '',
         temperature: 0.7,
       ),
-      memory: const MemorySettings(
-        strategyType: 'simple',
-        maxMessages: 20,
-      ),
-      storage: const StorageSettings(
-        adapterType: 'sqlite',
-      ),
+      memory: const MemorySettings(strategyType: 'simple', maxMessages: 20),
+      storage: const StorageSettings(adapterType: 'sqlite'),
       themeMode: AppThemeMode.dark,
       themePreset: AppThemePreset.amber,
     );

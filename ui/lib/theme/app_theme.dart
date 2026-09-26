@@ -1,6 +1,5 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../models/settings.dart' show AppFonts, AppThemePreset;
 import '../utils/system_fonts.dart';
@@ -206,19 +205,15 @@ class AppTheme {
   }
 
   /// 兼容引用（等价于默认预设的深色主题）
-  static ThemeData get darkTheme => buildTheme(AppThemePreset.amber, Brightness.dark);
+  static ThemeData get darkTheme =>
+      buildTheme(AppThemePreset.amber, Brightness.dark);
 
   /// 按字体选择生成 textTheme：system 不套字体（跟随系统）；
-  /// google 经 google_fonts 按家族名动态加载（首次使用联网下载并缓存）；
   /// local 是 fontconfig 本地字体（启动/切换时已预热 FontLoader）；
   /// 未知家族名回退默认字体。见 [resolveFontFamily]。
   static TextTheme _textThemeFor(String fontName, TextTheme base) {
     final family = resolveFontFamily(fontName, fallback: AppFonts.defaultFont);
     if (family == null) return base;
-    if (GoogleFonts.asMap().containsKey(family) &&
-        SystemFontService.instance.fileForFamilySync(family) == null) {
-      return GoogleFonts.getTextTheme(family, base);
-    }
     return base.apply(fontFamily: family);
   }
 }

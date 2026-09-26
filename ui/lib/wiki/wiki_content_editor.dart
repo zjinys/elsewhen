@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../models/settings.dart';
 import '../theme/app_theme.dart';
@@ -178,20 +177,15 @@ class WikiContentEditorState extends State<WikiContentEditor> {
 
   /// 两层覆盖求值：编辑器字体覆盖(system→不注入) ?? 全局（主题 textTheme 已按
   /// 全局字体解析）。null 表示不注入家族（跟随系统字体）。
-  /// 覆盖值经 [resolveFontFamily] 解析：google 走 GoogleFonts 注册，
-  /// local 走启动/切换时预热的 FontLoader，历史裸值沿用旧逻辑。
+  /// 覆盖值经 [resolveFontFamily] 解析；本地字体在启动/切换时预热。
   String? _effectiveFontFamily(BuildContext context) {
     final override = widget.fontFamily;
     if (override != null && override.isNotEmpty) {
-      final family =
-          resolveFontFamily(override, fallback: AppFonts.defaultFont);
+      final family = resolveFontFamily(
+        override,
+        fallback: AppFonts.defaultFont,
+      );
       if (family == null) return null;
-      // google 显式走 getFont 触发下载注册；本地/历史值直接用家族名
-      //（本地字体选择时已预热，未就绪则引擎回退，覆盖层就绪后重建生效）。
-      final parsed = parseStoredFont(override);
-      if (parsed.kind == 'google') {
-        return GoogleFonts.getFont(family).fontFamily;
-      }
       return family;
     }
     final fallback = Theme.of(context).textTheme.bodyLarge?.fontFamily;

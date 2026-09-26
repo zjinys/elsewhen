@@ -38,8 +38,7 @@ void main() {
     );
 
     // 真实桥接读取当前生效的 provider（demo 副本里有 hub.oaifree.com / gpt-4o）
-    final expected =
-        await tester.runAsync(() => repo.getAiProviderConfig());
+    final expected = await tester.runAsync(() => repo.getAiProviderConfig());
     expect(expected, isNotNull, reason: '测试库副本应含 provider 配置');
     final expectedUrl = expected!.baseUrl;
     final expectedModel = expected.model;

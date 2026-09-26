@@ -2,6 +2,7 @@ import 'package:elsewhen_ui/bridge/generated.dart/api.dart'
     show PendingActionDto;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
+import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,7 +19,9 @@ void main() {
         ProviderScope(
           overrides: [
             conversationRepositoryProvider.overrideWithValue(repo),
-            selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
+            selectedConversationIdProvider.overrideWith(
+              () => StateHolder('conv-1'),
+            ),
             messagesProvider.overrideWith((ref) async => []),
           ],
           child: const MaterialApp(home: Scaffold(body: MessageArea())),
@@ -51,7 +54,9 @@ void main() {
       ProviderScope(
         overrides: [
           conversationRepositoryProvider.overrideWithValue(repo),
-          selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
+          selectedConversationIdProvider.overrideWith(
+            () => StateHolder('conv-1'),
+          ),
           messagesProvider.overrideWith((ref) async => []),
         ],
         child: const MaterialApp(home: Scaffold(body: MessageArea())),
@@ -82,7 +87,9 @@ void main() {
         ProviderScope(
           overrides: [
             conversationRepositoryProvider.overrideWithValue(repo),
-            selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
+            selectedConversationIdProvider.overrideWith(
+              () => StateHolder('conv-1'),
+            ),
             messagesProvider.overrideWith((ref) async => []),
           ],
           child: const MaterialApp(home: Scaffold(body: MessageArea())),
@@ -125,7 +132,9 @@ void main() {
       ProviderScope(
         overrides: [
           conversationRepositoryProvider.overrideWithValue(repo),
-          selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
+          selectedConversationIdProvider.overrideWith(
+            () => StateHolder('conv-1'),
+          ),
           messagesProvider.overrideWith((ref) async => []),
         ],
         child: const MaterialApp(home: Scaffold(body: MessageArea())),

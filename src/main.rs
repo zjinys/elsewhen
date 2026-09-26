@@ -245,7 +245,10 @@ fn main() -> Result<()> {
                         println!("wiki 尚无操作日志");
                     }
                     for (ts, entry) in log {
-                        println!("{} {}", &ts[..19.min(ts.len())], entry);
+                        // 只取前 19 字符（rfc3339 秒级前缀）。用 chars 而非字节切片，
+                        // 避免非 ASCII 时间戳触发 mid-char 边界 panic。
+                        let prefix: String = ts.chars().take(19).collect();
+                        println!("{} {}", prefix, entry);
                     }
                 }
                 Some("lint") => {
@@ -282,6 +285,16 @@ fn main() -> Result<()> {
                     analysis.raw_text,
                     analysis.clarifications
                 );
+            }
+        }
+        // capture 窗口保存事件后 spawn 的后台分析进程（stdout/stderr 被丢弃，
+        // 这里只跑队列，结果落库由 process_analysis_queue 写回）。
+        Some("analyze-once") => {
+            let result = crate::api::trigger_analysis()?;
+            if result == "no_provider" {
+                println!("未配置 AI provider，跳过分析。");
+            } else {
+                println!("{result}");
             }
         }
         _ => print_usage(),

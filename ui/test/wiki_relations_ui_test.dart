@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/screens/main_screen.dart';
 import 'package:elsewhen_ui/providers/wiki_provider.dart';
+import 'package:elsewhen_ui/providers/state_holder.dart';
 
 import 'support/isolated_bridge.dart';
 
@@ -87,7 +88,7 @@ void main() {
       ProviderScope(
         overrides: [
           storageRepositoryProvider.overrideWithValue(repo),
-          sidebarTabProvider.overrideWith((ref) => SidebarTab.wiki),
+          sidebarTabProvider.overrideWith(() => StateHolder(SidebarTab.wiki)),
         ],
         child: const MaterialApp(home: MainScreen()),
       ),

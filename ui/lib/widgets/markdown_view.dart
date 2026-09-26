@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../theme/app_theme.dart';
 
 /// 轻量 markdown 渲染器（面向 wiki 页正文，零依赖）
@@ -71,108 +72,40 @@ String _stripProtocolFromProse(String prose) {
   return kept.join('\n').trim();
 }
 
-class MarkdownView extends StatelessWidget {
+class MarkdownView extends StatefulWidget {
   final String markdown;
   final TextStyle? baseStyle;
 
-  const MarkdownView({
-    super.key,
-    required this.markdown,
-    this.baseStyle,
-  });
+  const MarkdownView({super.key, required this.markdown, this.baseStyle});
+
+  @override
+  State<MarkdownView> createState() => _MarkdownViewState();
+}
+
+/// 分块结果按正文缓存（P12）：父级任意一次重建都会把同一份正文带进来，
+/// 而「清洗 + 逐行分块」全是正则与字符串拼接的纯 CPU 活。只在正文真正变化
+/// 时重算，命中则复用上一次的分块——block 只承载文本与结构、样式在 build
+/// 期才叠加，所以按正文做键是安全的。
+class _MarkdownViewState extends State<MarkdownView> {
+  String? _parsedSource;
+  List<_Block>? _parsedBlocks;
+
+  List<_Block> _blocksOf(String markdown) {
+    final cached = _parsedBlocks;
+    if (cached != null && _parsedSource == markdown) return cached;
+    final parsed = _parseBlocks(markdown);
+    _parsedBlocks = parsed;
+    _parsedSource = markdown;
+    return parsed;
+  }
 
   @override
   Widget build(BuildContext context) {
     // UI 边界清洗：协议残留到此为止，不进渲染。
-    final base = baseStyle ??
+    final base =
+        widget.baseStyle ??
         TextStyle(color: AppTheme.textPrimary, fontSize: 15, height: 1.8);
-
-    final lines = stripToolProtocolForDisplay(markdown).split('\n');
-
-    final blocks = <_Block>[];
-    var i = 0;
-    while (i < lines.length) {
-      final line = lines[i];
-
-      // 代码块
-      if (line.trimLeft().startsWith('```')) {
-        final buf = <String>[];
-        i++;
-        while (i < lines.length && !lines[i].trimLeft().startsWith('```')) {
-          buf.add(lines[i]);
-          i++;
-        }
-        i++; // 跳过闭合 ```
-        blocks.add(_CodeBlock(code: buf.join('\n')));
-        continue;
-      }
-
-      // 分隔线
-      if (RegExp(r'^\s*([-*_])\s*(\1\s*){2,}$').hasMatch(line)) {
-        blocks.add(_Rule());
-        i++;
-        continue;
-      }
-
-      // 标题
-      final headingMatch = RegExp(r'^(#{1,6})\s+(.*)$').firstMatch(line);
-      if (headingMatch != null) {
-        blocks.add(_Heading(
-          level: headingMatch.group(1)!.length,
-          text: headingMatch.group(2)!.trim(),
-        ));
-        i++;
-        continue;
-      }
-
-      // 引用
-      if (line.trimLeft().startsWith('>')) {
-        final buf = <String>[line.trimLeft().substring(1).trim()];
-        i++;
-        while (i < lines.length && lines[i].trimLeft().startsWith('>')) {
-          buf.add(lines[i].trimLeft().substring(1).trim());
-          i++;
-        }
-        blocks.add(_Quote(text: buf.join('\n')));
-        continue;
-      }
-
-      // 无序列表
-      if (RegExp(r'^\s*[-*]\s+').hasMatch(line)) {
-        final buf = <String>[];
-        while (i < lines.length && RegExp(r'^\s*[-*]\s+').hasMatch(lines[i])) {
-          buf.add(lines[i].replaceFirst(RegExp(r'^\s*[-*]\s+'), ''));
-          i++;
-        }
-        blocks.add(_List(items: buf, ordered: false));
-        continue;
-      }
-
-      // 有序列表
-      if (RegExp(r'^\s*\d+[.)]\s+').hasMatch(line)) {
-        final buf = <String>[];
-        while (i < lines.length && RegExp(r'^\s*\d+[.)]\s+').hasMatch(lines[i])) {
-          buf.add(lines[i].replaceFirst(RegExp(r'^\s*\d+[.)]\s+'), ''));
-          i++;
-        }
-        blocks.add(_List(items: buf, ordered: true));
-        continue;
-      }
-
-      // 空行：段落分隔
-      if (line.trim().isEmpty) {
-        i++;
-        continue;
-      }
-
-      // 普通段落（合并连续非空行）
-      final buf = <String>[];
-      while (i < lines.length && lines[i].trim().isNotEmpty) {
-        buf.add(lines[i]);
-        i++;
-      }
-      blocks.add(_Paragraph(text: buf.join(' ')));
-    }
+    final blocks = _blocksOf(widget.markdown);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,6 +114,100 @@ class MarkdownView extends StatelessWidget {
       ],
     );
   }
+}
+
+/// 把清洗后的正文切成渲染块（标题/列表/引用/代码块/分隔线/段落）。
+List<_Block> _parseBlocks(String markdown) {
+  final lines = stripToolProtocolForDisplay(markdown).split('\n');
+
+  final blocks = <_Block>[];
+  var i = 0;
+  while (i < lines.length) {
+    final line = lines[i];
+
+    // 代码块
+    if (line.trimLeft().startsWith('```')) {
+      final buf = <String>[];
+      i++;
+      while (i < lines.length && !lines[i].trimLeft().startsWith('```')) {
+        buf.add(lines[i]);
+        i++;
+      }
+      i++; // 跳过闭合 ```
+      blocks.add(_CodeBlock(code: buf.join('\n')));
+      continue;
+    }
+
+    // 分隔线
+    if (RegExp(r'^\s*([-*_])\s*(\1\s*){2,}$').hasMatch(line)) {
+      blocks.add(_Rule());
+      i++;
+      continue;
+    }
+
+    // 标题
+    final headingMatch = RegExp(r'^(#{1,6})\s+(.*)$').firstMatch(line);
+    if (headingMatch != null) {
+      blocks.add(
+        _Heading(
+          level: headingMatch.group(1)!.length,
+          text: headingMatch.group(2)!.trim(),
+        ),
+      );
+      i++;
+      continue;
+    }
+
+    // 引用
+    if (line.trimLeft().startsWith('>')) {
+      final buf = <String>[line.trimLeft().substring(1).trim()];
+      i++;
+      while (i < lines.length && lines[i].trimLeft().startsWith('>')) {
+        buf.add(lines[i].trimLeft().substring(1).trim());
+        i++;
+      }
+      blocks.add(_Quote(text: buf.join('\n')));
+      continue;
+    }
+
+    // 无序列表
+    if (RegExp(r'^\s*[-*]\s+').hasMatch(line)) {
+      final buf = <String>[];
+      while (i < lines.length && RegExp(r'^\s*[-*]\s+').hasMatch(lines[i])) {
+        buf.add(lines[i].replaceFirst(RegExp(r'^\s*[-*]\s+'), ''));
+        i++;
+      }
+      blocks.add(_List(items: buf, ordered: false));
+      continue;
+    }
+
+    // 有序列表
+    if (RegExp(r'^\s*\d+[.)]\s+').hasMatch(line)) {
+      final buf = <String>[];
+      while (i < lines.length && RegExp(r'^\s*\d+[.)]\s+').hasMatch(lines[i])) {
+        buf.add(lines[i].replaceFirst(RegExp(r'^\s*\d+[.)]\s+'), ''));
+        i++;
+      }
+      blocks.add(_List(items: buf, ordered: true));
+      continue;
+    }
+
+    // 空行：段落分隔
+    if (line.trim().isEmpty) {
+      i++;
+      continue;
+    }
+
+    // 普通段落（合并连续非空行）
+    final buf = <String>[];
+    while (i < lines.length && lines[i].trim().isNotEmpty) {
+      buf.add(lines[i]);
+      i++;
+    }
+    blocks.add(_Paragraph(text: buf.join(' ')));
+  }
+
+  return blocks;
 }
 
 // ---- 内部块模型 ----
@@ -216,14 +243,53 @@ class _CodeBlock extends _Block {
 
 class _Rule extends _Block {}
 
-class _BlockWidget extends StatelessWidget {
+class _BlockWidget extends StatefulWidget {
   final _Block block;
   final TextStyle base;
 
   const _BlockWidget({required this.block, required this.base});
 
   @override
+  State<_BlockWidget> createState() => _BlockWidgetState();
+}
+
+/// 链接 span 的 [TapGestureRecognizer] 会把手势竞技场注册留在这份列表里，
+/// 必须随 element 一起释放。此前识别器在解析函数里就地 new、从不 dispose，
+/// 每一次重建都往竞技场多挂一份，长文页尤甚（P12）。
+class _BlockWidgetState extends State<_BlockWidget> {
+  final List<TapGestureRecognizer> _recognizers = [];
+
+  /// 供下方解析方法取样式：block 的样式在每次 build 由父级重新下发。
+  TextStyle get base => widget.base;
+
+  void _releaseRecognizers() {
+    if (_recognizers.isEmpty) return;
+    for (final recognizer in _recognizers) {
+      recognizer.dispose();
+    }
+    _recognizers.clear();
+  }
+
+  /// 链接用：登记到本 element 的识别器表，dispose 时统一释放。
+  TapGestureRecognizer _linkRecognizer(String url) {
+    final recognizer = TapGestureRecognizer()
+      ..onTap = () => launchUrl(Uri.parse(url));
+    _recognizers.add(recognizer);
+    return recognizer;
+  }
+
+  @override
+  void dispose() {
+    _releaseRecognizers();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // 上一轮 build 产出的 span 已随本次更新整体失效，此刻回收其识别器，
+    // 避免长驻 element 上按重建次数累积。
+    _releaseRecognizers();
+    final block = widget.block;
     return switch (block) {
       _Rule() => Padding(
         padding: const EdgeInsets.symmetric(vertical: AppTheme.space4),
@@ -406,48 +472,58 @@ class _BlockWidget extends StatelessWidget {
       }
       final raw = m.group(0)!;
       if (raw.startsWith('**') && raw.endsWith('**')) {
-        spans.add(TextSpan(
-          text: raw.substring(2, raw.length - 2),
-          style: base.copyWith(fontWeight: FontWeight.w700),
-        ));
+        spans.add(
+          TextSpan(
+            text: raw.substring(2, raw.length - 2),
+            style: base.copyWith(fontWeight: FontWeight.w700),
+          ),
+        );
       } else if (raw.startsWith('`')) {
-        spans.add(TextSpan(
-          text: raw.substring(1, raw.length - 1),
-          style: base.copyWith(
-            fontFamily: 'monospace',
-            fontSize: (base.fontSize ?? 15) - 1,
-            color: AppTheme.accentPrimary,
-            backgroundColor: AppTheme.surface3,
+        spans.add(
+          TextSpan(
+            text: raw.substring(1, raw.length - 1),
+            style: base.copyWith(
+              fontFamily: 'monospace',
+              fontSize: (base.fontSize ?? 15) - 1,
+              color: AppTheme.accentPrimary,
+              backgroundColor: AppTheme.surface3,
+            ),
           ),
-        ));
+        );
       } else if (raw.startsWith('[[')) {
-        spans.add(TextSpan(
-          text: raw.substring(2, raw.length - 2),
-          style: base.copyWith(
-            color: AppTheme.accentPrimary,
-            decoration: TextDecoration.underline,
-            decorationColor: AppTheme.accentMuted,
-            fontWeight: FontWeight.w600,
+        spans.add(
+          TextSpan(
+            text: raw.substring(2, raw.length - 2),
+            style: base.copyWith(
+              color: AppTheme.accentPrimary,
+              decoration: TextDecoration.underline,
+              decorationColor: AppTheme.accentMuted,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ));
+        );
       } else if (raw.startsWith('[')) {
         // [文字](url) → 只展示文字
         final label = raw.substring(1, raw.indexOf(']'));
         final url = raw.substring(raw.indexOf('](') + 2, raw.length - 1);
-        spans.add(TextSpan(
-          text: label,
-          style: base.copyWith(
-            color: AppTheme.accentPrimary,
-            decoration: TextDecoration.underline,
-            decorationColor: AppTheme.accentMuted,
+        spans.add(
+          TextSpan(
+            text: label,
+            style: base.copyWith(
+              color: AppTheme.accentPrimary,
+              decoration: TextDecoration.underline,
+              decorationColor: AppTheme.accentMuted,
+            ),
+            recognizer: _linkRecognizer(url),
           ),
-          recognizer: TapGestureRecognizer()..onTap = () => launchUrl(Uri.parse(url)),
-        ));
+        );
       } else if (raw.startsWith('*') && raw.endsWith('*')) {
-        spans.add(TextSpan(
-          text: raw.substring(1, raw.length - 1),
-          style: base.copyWith(fontStyle: FontStyle.italic),
-        ));
+        spans.add(
+          TextSpan(
+            text: raw.substring(1, raw.length - 1),
+            style: base.copyWith(fontStyle: FontStyle.italic),
+          ),
+        );
       }
       last = m.end;
     }

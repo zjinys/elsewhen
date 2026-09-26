@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart'
+    show ExternalLibrary;
 
 import '../data/storage_repository.dart';
 import '../models/event.dart';
@@ -26,16 +29,32 @@ class RustBridgeRepository implements StorageRepository {
   bool _disposed = false;
   Timer? _analysisTimer;
 
+  /// 打包成 .app（macOS DMG）后，frb 默认加载路径（CWD 相对的 ioDirectory /
+  /// elsewhen.framework）在 Finder 启动时找不到 dylib——CWD 是 `/`。
+  /// 这里显式从 app 包内 Frameworks 目录加载（打包脚本会把 libelsewhen.dylib
+  /// 拷到 Contents/Frameworks/）。开发/测试环境下该文件不存在，返回 null
+  /// 走 frb 默认加载链（ioDirectory = ../target/release/）。
+  ExternalLibrary? _bundledRustLibrary() {
+    if (!Platform.isMacOS) return null;
+    final dylib =
+        '${File(Platform.resolvedExecutable).parent.path}'
+        '/../Frameworks/libelsewhen.dylib';
+    return File(dylib).existsSync() ? ExternalLibrary.open(dylib) : null;
+  }
+
   RustBridgeRepository({this.databasePath});
 
   @override
   Future<void> initialize() async {
     if (_initialized) return;
 
-    await RustLib.init();
-    final initializedPath = await api.initBridge(databasePath: databasePath);
-    if (initializedPath.startsWith('Error ')) {
-      throw StateError(initializedPath);
+    await RustLib.init(externalLibrary: _bundledRustLibrary());
+    // initBridge 走 Result<String> 契约：失败以异常上抛（P2-9），
+    // 取代原先 startsWith('Error ') 的字符串判断。
+    try {
+      await api.initBridge(databasePath: databasePath);
+    } catch (e) {
+      throw StateError('初始化存储失败: $e');
     }
     _initialized = true;
     // Resume durable work after process restart. The timer also covers retry
@@ -121,7 +140,7 @@ class RustBridgeRepository implements StorageRepository {
   Future<api.DailyOverviewDto> getDailyOverview(String date) =>
       api.getDailyOverview(date: date);
 
-  Future<String> generateDailyReview(String date) =>
+  Future<api.DailyReviewResult> generateDailyReview(String date) =>
       api.generateDailyReview(date: date);
 
   Future<List<api.EntityFactDto>> listEntityFacts(
@@ -208,7 +227,7 @@ class RustBridgeRepository implements StorageRepository {
   }
 
   @override
-  Future<String> triggerAnalysis() async {
+  Future<api.AnalysisTriggerResult> triggerAnalysis() async {
     return await api.triggerAnalysis();
   }
 
@@ -234,9 +253,9 @@ class RustBridgeRepository implements StorageRepository {
           // available_at expires.
           while (!_disposed) {
             final result = await triggerAnalysis();
-            if (result == 'no_provider' || !result.startsWith('processed:')) {
-              break;
-            }
+            // 结构化结果取代字符串契约（P2-9）：只有明确“已处理”才继续
+            // 排空下一批；NoProvider 停表，交给启动/周期 5s timer 重唤。
+            if (result is! api.AnalysisTriggerResult_Processed) break;
             final stats = await getAnalysisJobStats();
             if (stats.pending == 0) break;
           }

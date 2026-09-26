@@ -54,7 +54,9 @@ void main() {
     });
 
     test('copyWith 原子性：改全局不冲掉编辑器覆盖', () {
-      final s = AppSettings.defaults().copyWithEditorSettings(fontSizeOverride: 20);
+      final s = AppSettings.defaults().copyWithEditorSettings(
+        fontSizeOverride: 20,
+      );
       final changed = s.copyWith(fontSize: 12);
       expect(changed.editorFontSize, 20, reason: '编辑器覆盖独立保留');
       expect(changed.contentFontSize, 20, reason: '渲染取值仍以覆盖为准');

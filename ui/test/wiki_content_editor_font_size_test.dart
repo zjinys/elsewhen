@@ -32,7 +32,8 @@ void main() {
             editorStyle: EditorStyle.desktop(
               textStyleConfiguration: fontAwareTextStyleConfiguration(
                 Theme.of(context).textTheme.bodyLarge?.fontFamily,
-                color: Theme.of(context).textTheme.bodyLarge?.color ??
+                color:
+                    Theme.of(context).textTheme.bodyLarge?.color ??
                     Theme.of(context).textTheme.bodyMedium?.color,
                 fontSize: fontSize,
               ),
@@ -70,26 +71,20 @@ void main() {
     await tester.pump();
     final paragraph = tester
         .renderObjectList<RenderParagraph>(find.byType(RichText))
-        .firstWhere(
-      (w) => w.text.toPlainText().contains('字号验证正文'),
-    );
+        .firstWhere((w) => w.text.toPlainText().contains('字号验证正文'));
     // 粗体是段内的子 span（paragraph 基础样式自身无字重），递归找出来
     TextSpan? boldSpan;
     void walk(TextSpan span) {
-      if (span.text == '加粗' ||
-          (span.text?.contains('加粗') ?? false)) {
+      if (span.text == '加粗' || (span.text?.contains('加粗') ?? false)) {
         boldSpan = span;
       }
-      span.children?.forEach(
-        (c) => c is TextSpan ? walk(c) : null,
-      );
+      span.children?.forEach((c) => c is TextSpan ? walk(c) : null);
     }
 
     final root = paragraph.text as TextSpan;
     walk(root);
     expect(boldSpan, isNotNull, reason: '应存在加粗 span');
-    expect(boldSpan!.style!.fontSize, 20,
-        reason: '加粗经 combine 继承基础字号');
+    expect(boldSpan!.style!.fontSize, 20, reason: '加粗经 combine 继承基础字号');
     expect(boldSpan!.style!.fontWeight, FontWeight.bold);
   });
 }

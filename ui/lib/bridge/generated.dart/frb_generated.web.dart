@@ -39,6 +39,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisJobStatsDto dco_decode_analysis_job_stats_dto(dynamic raw);
 
   @protected
+  AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -99,6 +102,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DailyReviewItemDto dco_decode_daily_review_item_dto(dynamic raw);
+
+  @protected
+  DailyReviewResult dco_decode_daily_review_result(dynamic raw);
 
   @protected
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
@@ -289,6 +295,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AnalysisTriggerResult sse_decode_analysis_trigger_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -357,6 +368,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DailyReviewItemDto sse_decode_daily_review_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DailyReviewResult sse_decode_daily_review_result(
     SseDeserializer deserializer,
   );
 
@@ -612,6 +628,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_analysis_trigger_result(AnalysisTriggerResult raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    if (raw is AnalysisTriggerResult_NoProvider) {
+      return [0].jsify()!;
+    }
+    if (raw is AnalysisTriggerResult_Processed) {
+      return [1, cst_encode_i_64(raw.count)].jsify()!;
+    }
+
+    throw Exception('unreachable');
+  }
+
+  @protected
   JSAny cst_encode_box_autoadd_ai_provider_config_dto(AiProviderConfigDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_ai_provider_config_dto(raw);
@@ -755,6 +784,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.text),
       cst_encode_list_String(raw.sourceEventIds),
     ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_daily_review_result(DailyReviewResult raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    if (raw is DailyReviewResult_NoProvider) {
+      return [0].jsify()!;
+    }
+    if (raw is DailyReviewResult_NoEntries) {
+      return [1].jsify()!;
+    }
+    if (raw is DailyReviewResult_Created) {
+      return [2, cst_encode_String(raw.id)].jsify()!;
+    }
+
+    throw Exception('unreachable');
   }
 
   @protected
@@ -1266,6 +1311,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_analysis_trigger_result(
+    AnalysisTriggerResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -1355,6 +1406,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_daily_review_item_dto(
     DailyReviewItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_daily_review_result(
+    DailyReviewResult self,
     SseSerializer serializer,
   );
 

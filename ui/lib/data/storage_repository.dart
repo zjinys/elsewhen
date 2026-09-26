@@ -1,5 +1,6 @@
 import '../models/event.dart';
 import '../models/analysis.dart';
+import '../bridge/generated.dart/api.dart' as api;
 
 /// 存储仓库抽象接口
 /// 定义所有存储操作，方便未来切换实现
@@ -29,6 +30,7 @@ abstract class StorageRepository {
   Future<String?> getAiProvider();
 
   /// 触发 AI 分析
-  /// 返回 "success" 或错误消息
-  Future<String> triggerAnalysis();
+  /// 返回结构化结果：NoProvider 表示尚未配置 provider（不做分析）；
+  /// Processed 携带本轮处理条数（0 表示队列已空或全部等待重试）。
+  Future<api.AnalysisTriggerResult> triggerAnalysis();
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/settings_provider.dart';
 import '../models/settings.dart';
@@ -28,6 +27,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   late TextEditingController _maxMessagesController;
 
+  late TextEditingController _maxTokensController;
+
   List<DailyTokenUsage> _dailyUsage = [];
   bool _usageLoading = true;
   api.AnalysisJobStatsDto? _analysisJobStats;
@@ -52,6 +53,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     _maxMessagesController = TextEditingController(
       text: settings.memory.maxMessages?.toString() ?? '20',
+    );
+
+    _maxTokensController = TextEditingController(
+      text: settings.memory.maxTokens?.toString() ?? '4096',
     );
 
     // 从 Rust 侧读取各区块数据（AI provider 多配置 / token 用量 / 推文服务 / 规则库）
@@ -156,6 +161,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   void dispose() {
     _tabController.dispose();
     _maxMessagesController.dispose();
+    _maxTokensController.dispose();
     super.dispose();
   }
 
@@ -201,23 +207,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               child: SafeArea(
                 child: Form(
                   key: _formKey,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildVerticalTabBar(),
-                      Expanded(
-                        child: TabBarView(
-                          controller: _tabController,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 700;
+                      final content = TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildModelTab(settings),
+                          _buildAppearanceTab(settings),
+                          _buildServiceTab(),
+                          _buildStorageTab(settings),
+                          _buildDataTab(),
+                        ],
+                      );
+                      if (compact) {
+                        return Column(
                           children: [
-                            _buildModelTab(settings),
-                            _buildAppearanceTab(settings),
-                            _buildServiceTab(),
-                            _buildStorageTab(settings),
-                            _buildDataTab(),
+                            _buildCompactTabBar(),
+                            Expanded(child: content),
                           ],
-                        ),
-                      ),
-                    ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildVerticalTabBar(),
+                          Expanded(child: content),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -251,6 +269,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             _buildSettingsTabItem(4, '数据', Icons.dataset_outlined),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCompactTabBar() {
+    return Material(
+      color: AppTheme.surface1,
+      child: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        labelColor: AppTheme.accentPrimary,
+        unselectedLabelColor: AppTheme.textTertiary,
+        indicatorColor: AppTheme.accentPrimary,
+        labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+        tabs: const [
+          Tab(text: '模型', icon: Icon(Icons.smart_toy_outlined, size: 17)),
+          Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
+          Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
+          Tab(text: '存储', icon: Icon(Icons.storage_outlined, size: 17)),
+          Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
+        ],
       ),
     );
   }
@@ -853,6 +893,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ),
       ),
     );
+    // 对话框关闭后释放全部输入控制器（草稿值已在 pop 时读取完毕）。
+    for (final controller in [
+      nameCtrl,
+      baseUrlCtrl,
+      modelCtrl,
+      apiKeyCtrl,
+      temperatureCtrl,
+      maxTokensCtrl,
+    ]) {
+      controller.dispose();
+    }
     if (saved == null || !mounted) return;
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
@@ -911,9 +962,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         if (settings.memory.strategyType == 'sliding-window')
           _buildTextField(
             label: '最大 Token 数',
-            controller: TextEditingController(
-              text: settings.memory.maxTokens?.toString() ?? '4096',
-            ),
+            controller: _maxTokensController,
             hint: '4096',
             keyboardType: TextInputType.number,
           ),
@@ -1249,8 +1298,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           value: size,
           min: AppFonts.minFontSize,
           max: AppFonts.maxFontSize,
-          divisions:
-              (AppFonts.maxFontSize - AppFonts.minFontSize).round(),
+          divisions: (AppFonts.maxFontSize - AppFonts.minFontSize).round(),
           label: size.toStringAsFixed(0),
           onChanged: (v) => notifier.updateFontSize(v),
           onChangeEnd: (v) => notifier
@@ -1261,16 +1309,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  /// 字体选择：主按钮打开自研选择框（系统默认 / 本地字体 / Google Fonts，
+  /// 字体选择：主按钮打开自研选择框（系统默认 / 本地字体，
   /// 每行自身字体预览）；「系统默认」chip 单独提供。存值格式见 [parseStoredFont]。
   Widget _buildFontField(AppSettings settings, SettingsNotifier notifier) {
     final fontName = settings.fontName;
     final isSystem = fontName == AppFonts.system;
-    // 预览样式：google 直接取，本地字体懒加载就绪后用自身渲染
-    final parsed = parseStoredFont(fontName);
-    final previewStyle = !isSystem && parsed.kind == 'google'
-        ? GoogleFonts.getFont(parsed.family)
-        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1300,7 +1343,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     Expanded(
                       child: FontNameLabel(
                         stored: fontName,
-                        fallbackStyle: previewStyle,
+                        fallbackStyle: null,
                       ),
                     ),
                     Icon(
@@ -1331,7 +1374,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   /// 打开字体选择对话框：选中后先预热本地字体再落库，避免主题闪默认字体。
-  Future<void> _showFontPicker(SettingsNotifier notifier, String current) async {
+  Future<void> _showFontPicker(
+    SettingsNotifier notifier,
+    String current,
+  ) async {
     final picked = await showFontPickerDialog(context, current: current);
     if (picked == null || !mounted) return;
     await notifier.setGlobalFont(picked);
@@ -1458,6 +1504,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           .updateMemory(
             currentSettings.memory.copyWith(
               maxMessages: int.tryParse(_maxMessagesController.text),
+              maxTokens: int.tryParse(_maxTokensController.text),
             ),
           );
 

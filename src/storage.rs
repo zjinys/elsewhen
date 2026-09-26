@@ -793,19 +793,28 @@ impl Store {
         // 列结构（ALTER 需判存在）与数据 backfill（幂等规则，每次执行无副作用：只命中
         // `kind='topic' AND slug LIKE 'note-%'` 这一条确定性分类，新建页本身就是 note）分开处理。
         {
-            let has_human_edited_at = {
+            let has_column = |name: &str| -> rusqlite::Result<bool> {
                 let mut statement = connection.prepare("PRAGMA table_info(wiki_pages)")?;
                 let columns = statement
                     .query_map([], |row| row.get::<_, String>(1))?
                     .collect::<rusqlite::Result<Vec<_>>>()?;
-                columns.iter().any(|name| name == "human_edited_at")
+                Ok(columns.iter().any(|c| c == name))
             };
+            let has_human_edited_at = has_column("human_edited_at")?;
+            let has_opinion = has_column("opinion")?;
+            // 两列分开判存在再各自 ALTER：execute_batch 中途崩溃只会丢
+            // 未执行的那列，下次 open 不会因第一列已存在而永久跳过第二列。
             if !has_human_edited_at {
-                connection.execute_batch(
-                    "ALTER TABLE wiki_pages ADD COLUMN human_edited_at TEXT;
-                     ALTER TABLE wiki_pages ADD COLUMN opinion TEXT;
-                     INSERT OR IGNORE INTO schema_migrations(version, applied_at)
-                     VALUES (29, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));",
+                connection.execute("ALTER TABLE wiki_pages ADD COLUMN human_edited_at TEXT", [])?;
+            }
+            if !has_opinion {
+                connection.execute("ALTER TABLE wiki_pages ADD COLUMN opinion TEXT", [])?;
+            }
+            if !has_human_edited_at || !has_opinion {
+                connection.execute(
+                    "INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                     VALUES (29, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+                    [],
                 )?;
             }
         }
@@ -1160,6 +1169,12 @@ impl Store {
         };
         // 幂等存量回填：老项目页的 file:// 来源（只填空缺，无副作用）。
         store.backfill_project_source_urls()?;
+        // WAL checkpoint：迁移与回填完成后立即把 WAL 收进主库文件，
+        // 避免长驻 GUI + spawn-per-call 写入导致 WAL 无限增长（P2-8）。
+        // PASSIVE 不阻塞其他连接；TRUNCATE 只能在无并发读者时收尾，这里用 PASSIVE 最安全。
+        let _ = store
+            .connection
+            .execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
         Ok(store)
     }
 
@@ -1205,9 +1220,25 @@ impl Store {
         }
         let key = idempotency_key.map(str::trim).filter(|key| !key.is_empty());
         if let Some(key) = key {
-            if let Some(existing) = self.get_input_record_by_idempotency_key(key)? {
-                return Ok(existing);
-            }
+            // 幂等写入原子化（P2-3）：不做「先查后插」（check-then-insert 有并发窗口，
+            // 两个同键请求会同时判定不存在并双双 INSERT），直接用部分唯一索引兜底——
+            // 同名键并发时 INSERT OR IGNORE 让后写者静默跳过，再回读既有记录返回，
+            // 且首个请求按 pending 落库，与原来的插入行为一致。
+            self.connection.execute(
+                "INSERT OR IGNORE INTO input_records
+                 (id,raw_text,source,route_status,idempotency_key,created_at,updated_at)
+                 VALUES (?1,?2,?3,'pending',?4,?5,?5)",
+                params![
+                    Uuid::new_v4().to_string(),
+                    raw_text,
+                    source,
+                    key,
+                    chrono::Utc::now().to_rfc3339()
+                ],
+            )?;
+            return self
+                .get_input_record_by_idempotency_key(key)?
+                .context("input record 幂等键写入后读取既有记录失败");
         }
 
         let id = Uuid::new_v4().to_string();
@@ -1259,12 +1290,27 @@ impl Store {
              VALUES (?1,?2,'pending',0,?3,?3,?3)",
             params![Uuid::new_v4().to_string(), event_id, now_text],
         )?;
-        transaction.execute(
+        // 幂等键的并发窗口（先查后插存在时间差）由部分唯一索引兜底：后到的
+        // 重复键在这里触发 UNIQUE 冲突——必须回滚整个事务（否则 event+job 已成
+        // 孤儿行），再按幂等键回读既有记录返回（P2-3）。
+        let inserted = transaction.execute(
             "INSERT INTO input_records
              (id,raw_text,source,route_status,idempotency_key,event_id,created_at,updated_at)
              VALUES (?1,?2,?3,'routed',?4,?5,?6,?6)",
             params![input_id, raw_text, source, key, event_id, now_text],
-        )?;
+        );
+        match inserted {
+            Ok(_) => {}
+            Err(e)
+                if e.to_string().contains("input_records.idempotency_key") && key.is_some() =>
+            {
+                transaction.rollback()?;
+                return self
+                    .get_input_record_by_idempotency_key(key.unwrap())?
+                    .context("并发重复提交：回滚后读取既有 input record 失败");
+            }
+            Err(e) => return Err(e.into()),
+        }
         transaction.commit()?;
         self.get_input_record(&input_id)?
             .context("统一输入提交后读取失败")
@@ -1317,12 +1363,26 @@ impl Store {
             "UPDATE conversations SET updated_at=?1 WHERE id=?2",
             params![now, conversation_id],
         )?;
-        transaction.execute(
+        // 与 submit_input_as_event 相同的幂等并发兜底（P2-3）：重复键冲突时
+        // 回滚整个事务（event+job+message 一并撤销），再回读既有记录。
+        let inserted = transaction.execute(
             "INSERT INTO input_records
              (id,raw_text,source,route_status,idempotency_key,event_id,message_id,created_at,updated_at)
              VALUES (?1,?2,'conversation','routed',?3,?4,?5,?6,?6)",
             params![input_id, raw_text, key, event_id, message_id, now],
-        )?;
+        );
+        match inserted {
+            Ok(_) => {}
+            Err(e)
+                if e.to_string().contains("input_records.idempotency_key") && key.is_some() =>
+            {
+                transaction.rollback()?;
+                return self
+                    .get_input_record_by_idempotency_key(key.unwrap())?
+                    .context("并发重复提交：回滚后读取既有 input record 失败");
+            }
+            Err(e) => return Err(e.into()),
+        }
         transaction.commit()?;
         self.get_input_record(&input_id)?
             .context("对话统一输入提交后读取失败")
@@ -2183,15 +2243,19 @@ impl Store {
                 return Ok(pid.to_string());
             }
         }
-        // 新建：若库中尚无激活配置，则自动激活（保证始终存在激活项）
-        let has_active: i64 = self.connection.query_row(
+        // 新建：若库中尚无激活配置，则自动激活（保证始终存在激活项）。
+        // count 与 insert 必须同属一个写事务：两个并发「首次新建」若各自
+        // 先查后写，会同时算出 has_active=0 并双双写入 is_active=1（P2-2）。
+        let transaction =
+            Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        let has_active: i64 = transaction.query_row(
             "SELECT COUNT(*) FROM ai_provider_configs WHERE is_active=1",
             [],
             |r| r.get(0),
         )?;
         let new_id = Uuid::new_v4().to_string();
         let new_active = if has_active == 0 { 1 } else { 0 };
-        self.connection
+        transaction
             .execute(
                 "INSERT INTO ai_provider_configs
                  (id,name,provider_type,base_url,model,api_key_source,api_key,is_active,temperature,max_tokens,created_at,updated_at)
@@ -2199,20 +2263,26 @@ impl Store {
                 params![new_id, name, provider_type, base_url, model, api_key, new_active, temperature, max_tokens, now],
             )
             .map_err(|e| {
-                if e.to_string()
-                    .contains("UNIQUE constraint failed: ai_provider_configs.name")
-                {
+                let msg = e.to_string();
+                if msg.contains("UNIQUE constraint failed: ai_provider_configs.name") {
                     anyhow::anyhow!("配置名「{name}」已存在，请换一个名称")
+                } else if msg.contains("UNIQUE constraint failed: ai_provider_configs.is_active") {
+                    // IMMEDIATE 串行化后正常极难触发，保留友好映射兜底
+                    anyhow::anyhow!("已有激活配置，新建配置默认停用，可稍后手动激活")
                 } else {
                     anyhow::anyhow!("{e}")
                 }
             })?;
+        transaction.commit()?;
         Ok(new_id)
     }
 
     /// 把指定配置设为激活（其余全部取消激活），保证有且仅有一个激活项
     pub fn set_active_ai_provider_config(&self, id: &str) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        // IMMEDIATE：先置全零再点亮目标行，两步写必须在拿到写锁后一次性完成，
+        // 避免 DEFERRED 在 WAL 并发下升级锁时撞上 worker 的写事务报 database is locked。
+        let transaction =
+            Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
         transaction.execute(
             "UPDATE ai_provider_configs SET is_active=0, updated_at=?1",
             params![chrono::Utc::now().to_rfc3339()],
@@ -2281,17 +2351,30 @@ impl Store {
     }
 
     pub fn list_events(&self) -> Result<Vec<EventSummary>> {
-        let mut statement = self
-            .connection
-            .prepare("SELECT recorded_at, raw_text FROM events ORDER BY recorded_at DESC")?;
+        let mut statement = self.connection.prepare(
+            "SELECT id, recorded_at, raw_text, source, status
+             FROM events ORDER BY recorded_at DESC, id DESC",
+        )?;
         let rows = statement.query_map([], |row| {
             Ok(EventSummary {
-                recorded_at: row.get(0)?,
-                raw_text: row.get(1)?,
+                id: row.get(0)?,
+                recorded_at: row.get(1)?,
+                raw_text: row.get(2)?,
+                source: row.get(3)?,
+                status: row.get(4)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
+    }
+
+    /// 按 id 删除事件（AI 尝试失败时回滚 WriteDirect 写入用，见 conversation.rs）。
+    /// events 的防改触发器只拦 UPDATE 特定列，不拦 DELETE。
+    pub fn delete_event(&self, id: &str) -> Result<bool> {
+        let n = self
+            .connection
+            .execute("DELETE FROM events WHERE id=?1", [id])?;
+        Ok(n > 0)
     }
 
     /// 查某个「本地日历日」记录的事件（按 recorded_at，本地时区日界 → UTC 区间，倒序）。
@@ -2313,14 +2396,17 @@ impl Store {
         let start_utc = day_edges(date);
         let end_utc = day_edges(date + chrono::Duration::days(1));
         let mut statement = self.connection.prepare(
-            "SELECT recorded_at, raw_text FROM events
+            "SELECT id, recorded_at, raw_text, source, status FROM events
              WHERE recorded_at >= ?1 AND recorded_at < ?2
-             ORDER BY recorded_at DESC",
+             ORDER BY recorded_at DESC, id DESC",
         )?;
         let rows = statement.query_map(params![start_utc, end_utc], |row| {
             Ok(EventSummary {
-                recorded_at: row.get(0)?,
-                raw_text: row.get(1)?,
+                id: row.get(0)?,
+                recorded_at: row.get(1)?,
+                raw_text: row.get(2)?,
+                source: row.get(3)?,
+                status: row.get(4)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -2367,13 +2453,16 @@ impl Store {
     pub fn recent_events(&self, days: i64, limit: usize) -> Result<Vec<EventSummary>> {
         let since = (chrono::Utc::now() - chrono::Duration::days(days)).to_rfc3339();
         let mut statement = self.connection.prepare(
-            "SELECT recorded_at, raw_text FROM events
-             WHERE recorded_at >= ?1 ORDER BY recorded_at DESC LIMIT ?2",
+            "SELECT id, recorded_at, raw_text, source, status FROM events
+             WHERE recorded_at >= ?1 ORDER BY recorded_at DESC, id DESC LIMIT ?2",
         )?;
         let rows = statement.query_map(params![since, limit as i64], |row| {
             Ok(EventSummary {
-                recorded_at: row.get(0)?,
-                raw_text: row.get(1)?,
+                id: row.get(0)?,
+                recorded_at: row.get(1)?,
+                raw_text: row.get(2)?,
+                source: row.get(3)?,
+                status: row.get(4)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -2446,7 +2535,7 @@ impl Store {
         let since = (chrono::Utc::now() - chrono::Duration::days(days)).to_rfc3339();
         let mut statement = self.connection.prepare(
             "SELECT id, recorded_at, raw_text FROM events
-             WHERE recorded_at >= ?1 ORDER BY recorded_at ASC LIMIT ?2",
+             WHERE recorded_at >= ?1 ORDER BY recorded_at ASC, id ASC LIMIT ?2",
         )?;
         let rows = statement.query_map(params![since, limit as i64], |row| {
             Ok(EventRecord {
@@ -2573,6 +2662,22 @@ impl Store {
         let rows = statement.query_map(params![based_on], map_wiki_page)?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
+    }
+
+    /// 按标签精确匹配定位知识页（tags 为 JSON 数组字符串，用 instr 做含有匹配，
+    /// 避免路径分隔字符演义的 LIKE 转义问题）。上限取最近更新的一页。
+    pub fn find_wiki_page_by_tag(&self, tag: &str) -> Result<Option<WikiPage>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,
+                    evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
+                    source_url, COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion
+             FROM wiki_pages
+             WHERE instr(tags, ?1) > 0
+             ORDER BY updated_at DESC LIMIT 1",
+        )?;
+        let rows = statement.query_map(params![tag], map_wiki_page)?;
+        let mut pages = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(pages.pop())
     }
 
     /// 创建一个「派生产物」页：对某页加工（总结/提炼观点/文案…）的成果。
@@ -2712,7 +2817,9 @@ impl Store {
             }
             let evidence_count = all_ids.len() as i64;
             let sources_raw = serde_json::to_string(&all_ids)?;
-            self.connection.execute(
+            // 页面写入与 revision 同事务提交：审计链与内容不脱节
+            let tx = self.connection.unchecked_transaction()?;
+            tx.execute(
                 "UPDATE wiki_pages
                  SET title=?1, summary=?2, content_md=?3, tags=?4, source_event_ids=?5,
                      evidence_count=?6, last_seen_at=?7, status=?8, updated_at=?7,
@@ -2731,7 +2838,8 @@ impl Store {
                     draft.source_url,
                 ],
             )?;
-            self.record_wiki_revision(&page.id, &draft.content_md, &draft.reason, None)?;
+            Self::record_wiki_revision_on(&tx, &page.id, &draft.content_md, &draft.reason, None)?;
+            tx.commit()?;
             let updated = self.get_wiki_page(&draft.slug)?.unwrap();
             Ok(WikiUpsertOutcome {
                 created: false,
@@ -2745,7 +2853,9 @@ impl Store {
             // 新建页自动推导分区（旧页保留原分区，见上方 UPDATE 分支）
             let area =
                 Self::derive_wiki_area(&draft.kind, &draft.slug, draft.source_url.as_deref());
-            self.connection.execute(
+            // 建页与首条 revision 同事务提交
+            let tx = self.connection.unchecked_transaction()?;
+            tx.execute(
                 "INSERT INTO wiki_pages
                  (id, slug, kind, title, summary, content_md, tags, source_event_ids,
                   evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at,
@@ -2767,7 +2877,8 @@ impl Store {
                     area,
                 ],
             )?;
-            self.record_wiki_revision(&id, &draft.content_md, &draft.reason, None)?;
+            Self::record_wiki_revision_on(&tx, &id, &draft.content_md, &draft.reason, None)?;
+            tx.commit()?;
             Ok(WikiUpsertOutcome {
                 created: true,
                 page: self.get_wiki_page(&draft.slug)?.unwrap(),
@@ -3143,7 +3254,26 @@ impl Store {
         reason: &str,
         source_event_id: Option<&str>,
     ) -> Result<()> {
-        self.connection.execute(
+        Self::record_wiki_revision_on(
+            &self.connection,
+            page_id,
+            content_md,
+            reason,
+            source_event_id,
+        )
+    }
+
+    /// 在指定连接上追加一条 wiki revision；事务通过 Deref 传入 `&Transaction` 亦可。
+    /// upsert_wiki_page 把「页面写入 + revision」放进同一事务原子提交，
+    /// 避免页面改了但 revision 没记（或反之）导致审计断链。
+    fn record_wiki_revision_on(
+        conn: &rusqlite::Connection,
+        page_id: &str,
+        content_md: &str,
+        reason: &str,
+        source_event_id: Option<&str>,
+    ) -> Result<()> {
+        conn.execute(
             "INSERT INTO wiki_revisions
              (id, page_id, content_md, reason, source_event_id, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -3418,9 +3548,31 @@ impl Store {
     /// Fetch a todo by id, including archived history. Used by on-demand
     /// work-item migration so archived todos are never silently lost.
     pub fn get_todo(&self, id: &str) -> Result<Option<Todo>> {
-        let mut todos = self.list_todos(Some("archived"))?;
-        todos.extend(self.list_todos(None)?);
-        Ok(todos.into_iter().find(|todo| todo.id == id))
+        // 单行直查：不做两遍全表 list 再内存 find（P2-5）
+        let mapper = |row: &rusqlite::Row| -> rusqlite::Result<Todo> {
+            Ok(Todo {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                status: TodoStatus::parse(&row.get::<_, String>(2)?),
+                priority: row.get(3)?,
+                due_at: row.get(4)?,
+                related_event_id: row.get(5)?,
+                related_wiki_slug: row.get(6)?,
+                note: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        };
+        self.connection
+            .query_row(
+                "SELECT id, title, status, priority, due_at, related_event_id,
+                        related_wiki_slug, note, created_at, updated_at
+                 FROM todos WHERE id = ?1",
+                [id],
+                mapper,
+            )
+            .optional()
+            .map_err(Into::into)
     }
 
     pub fn update_todo_status(&self, id: &str, status: TodoStatus) -> Result<()> {
@@ -3794,12 +3946,12 @@ impl Store {
                     COUNT(m.id) as message_count,
                     (SELECT m2.content FROM messages m2
                      WHERE m2.conversation_id = c.id
-                     ORDER BY m2.created_at DESC LIMIT 1) as last_message
+                     ORDER BY m2.created_at DESC, m2.rowid DESC LIMIT 1) as last_message
              FROM conversations c
              LEFT JOIN messages m ON m.conversation_id = c.id
              WHERE c.archived = 0 AND c.wiki_page_slug IS NULL
              GROUP BY c.id
-             ORDER BY c.updated_at DESC",
+             ORDER BY c.updated_at DESC, c.id DESC",
         )?;
         let rows = statement.query_map([], |row| {
             Ok(ConversationSummary {
@@ -3827,12 +3979,12 @@ impl Store {
                     COUNT(m.id) as message_count,
                     (SELECT m2.content FROM messages m2
                      WHERE m2.conversation_id = c.id
-                     ORDER BY m2.created_at DESC LIMIT 1) as last_message
+                     ORDER BY m2.created_at DESC, m2.rowid DESC LIMIT 1) as last_message
              FROM conversations c
              LEFT JOIN messages m ON m.conversation_id = c.id
              WHERE c.archived = 1 AND c.wiki_page_slug IS NULL
              GROUP BY c.id
-             ORDER BY c.updated_at DESC",
+             ORDER BY c.updated_at DESC, c.id DESC",
         )?;
         let rows = statement.query_map([], |row| {
             Ok(ConversationSummary {
@@ -3892,7 +4044,7 @@ impl Store {
                         COUNT(m.id) as message_count,
                         (SELECT m2.content FROM messages m2
                          WHERE m2.conversation_id = c.id
-                         ORDER BY m2.created_at DESC LIMIT 1) as last_message
+                         ORDER BY m2.created_at DESC, m2.rowid DESC LIMIT 1) as last_message
                  FROM conversations c
                  LEFT JOIN messages m ON m.conversation_id = c.id
                  WHERE c.id = ?1
@@ -4002,7 +4154,7 @@ impl Store {
             "SELECT id, conversation_id, parent_message_id, role, content, created_at
              FROM messages
              WHERE conversation_id = ?1
-             ORDER BY created_at ASC",
+             ORDER BY created_at ASC, id ASC",
         )?;
         let rows = statement.query_map([conversation_id], |row| {
             Ok(MessageSummary {
@@ -4024,7 +4176,7 @@ impl Store {
             "SELECT id, conversation_id, parent_message_id, role, content, created_at
              FROM messages
              WHERE parent_message_id = ?1
-             ORDER BY created_at ASC",
+             ORDER BY created_at ASC, id ASC",
         )?;
         let rows = statement.query_map([parent_id], |row| {
             Ok(MessageSummary {
@@ -4143,6 +4295,16 @@ impl StorageAdapter for Store {
 
     fn delete_ai_provider_config(&self, id: &str) -> Result<()> {
         Store::delete_ai_provider_config(self, id)
+    }
+}
+
+impl Drop for Store {
+    fn drop(&mut self) {
+        // 关闭时再 checkpoint 一次：进程退出前把未合并的 WAL 页写回主库，
+        // 让 -wal 文件保持接近空的状态（P2-8）。
+        let _ = self
+            .connection
+            .execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
     }
 }
 
@@ -4281,6 +4443,68 @@ mod tests {
         assert_eq!(store.list_messages(&conversation_id).unwrap().len(), 1);
         assert_eq!(store.analysis_job_stats().unwrap().pending, 1);
 
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn idempotency_conflict_error_message_matches_column() {
+        // P2-3 兜底分支依赖错误串识别幂等冲突；用裸 SQL 触发唯一冲突验证
+        // SQLite 实际报「UNIQUE constraint failed: input_records.idempotency_key」
+        // （纯列索引不报索引名），catch 分支的匹配串必须与此一致才有机会命中。
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let now = chrono::Utc::now().to_rfc3339();
+        store
+            .connection
+            .execute(
+                "INSERT INTO input_records
+                 (id,raw_text,source,route_status,idempotency_key,created_at,updated_at)
+                 VALUES (?1,'第一次','main_input','pending',?2,?3,?3)",
+                params![Uuid::new_v4().to_string(), "dup-key", now],
+            )
+            .unwrap();
+        let err = store
+            .connection
+            .execute(
+                "INSERT INTO input_records
+                 (id,raw_text,source,route_status,idempotency_key,created_at,updated_at)
+                 VALUES (?1,'第二次','main_input','pending',?2,?3,?3)",
+                params![Uuid::new_v4().to_string(), "dup-key", now],
+            )
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("input_records.idempotency_key"),
+            "错误串应含幂等键列：{err}"
+        );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn single_active_config_conflict_error_message_matches_column() {
+        // P2-2 兜底分支依赖识别「同一时刻两条 is_active=1」冲突；裸 SQL 触发
+        // 部分唯一索引冲突，确认错误串按列报（同 index 的名字不出现）。
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let now = chrono::Utc::now().to_rfc3339();
+        let insert = |name: &str| {
+            store
+                .connection
+                .execute(
+                    "INSERT INTO ai_provider_configs
+                     (id,name,provider_type,base_url,model,api_key_source,is_active,temperature,max_tokens,created_at,updated_at)
+                     VALUES (?1,?2,'openai','http://x','gpt','env',1,0.7,NULL,?3,?3)",
+                    params![Uuid::new_v4().to_string(), name, now],
+                )
+                .map(|_| ())
+        };
+        insert("cfg-a").unwrap();
+        let err = insert("cfg-b").unwrap_err();
+        assert!(
+            err.to_string().contains("ai_provider_configs.is_active"),
+            "错误串应含激活标记列：{err}"
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -4842,6 +5066,36 @@ mod tests {
         let found = store.get_todo(&todo.id).unwrap().unwrap();
         assert_eq!(found.status, TodoStatus::Archived);
         assert!(store.list_todos(None).unwrap().is_empty());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn find_wiki_page_by_tag_exact_matches_json_array_member() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        // tag 精确落在 JSON 数组的一个成员里（P2-5 直查替代全表扫描）
+        store
+            .upsert_wiki_page(
+                &wiki_draft("topic/target", "topic", "命中页"),
+                ContentPolicy::Always,
+            )
+            .unwrap();
+        let target = store.get_wiki_page("topic/target").unwrap().unwrap();
+        store
+            .update_wiki_tags(&target.slug, &["work-item-id:abc".to_string()])
+            .unwrap();
+        let found = store
+            .find_wiki_page_by_tag("work-item-id:abc")
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.slug, "topic/target");
+
+        // 不存在的 tag 返回 None
+        assert!(store
+            .find_wiki_page_by_tag("work-item-id:nope")
+            .unwrap()
+            .is_none());
+
         let _ = std::fs::remove_file(path);
     }
 
@@ -5810,6 +6064,84 @@ mod tests {
             "评价不被 digest 清掉"
         );
 
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn message_ordering_is_deterministic_on_same_timestamp() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let conversation_id = store.create_conversation(None, None).unwrap();
+        // 两条消息刻意用完全相同的 created_at（旧实现没有 id tiebreak，
+        // 同毫秒时 SQLite 返回顺序不确定，跨调用会翻转）。
+        let same_ts = "2026-09-25T10:00:00.000000000Z";
+        for (index, (id, content)) in [("msg-tie-2", "b"), ("msg-tie-1", "a")]
+            .into_iter()
+            .enumerate()
+        {
+            store
+                .connection
+                .execute(
+                    "INSERT INTO messages (id, conversation_id, parent_message_id, role, content, created_at)
+                     VALUES (?1, ?2, NULL, 'user', ?3, ?4)",
+                    params![id, conversation_id, content, same_ts],
+                )
+                .unwrap();
+        }
+        // list_messages / get_child_messages 都应按 id ASC 破平，顺序稳定。
+        let messages = store.list_messages(&conversation_id).unwrap();
+        let ids: Vec<&str> = messages.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec!["msg-tie-1", "msg-tie-2"],
+            "同时间戳消息按 id ASC 稳定排序"
+        );
+        let child = store.get_child_messages("msg-tie-1").unwrap();
+        assert!(child.is_empty());
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn migration_v29_recovers_when_only_second_column_is_missing() {
+        let path = temporary_database();
+        // 完整迁移建库（human_edited_at 与 opinion 两列都在）
+        {
+            let store = Store::open(&path).unwrap();
+            store
+                .upsert_wiki_page(&wiki_draft("note-abc", "topic", "x"), ContentPolicy::Always)
+                .unwrap();
+        }
+        // 模拟 v29 中断：human_edited_at 已加、opinion 未加（旧实现用 execute_batch
+        // 一次性 ALTER 两列，中途崩溃会留下只加了第一列的死状态；且守卫只看第一列，
+        // 下次 open 永久跳过第二列 → 所有 wiki SELECT 报 no such column）。
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute("ALTER TABLE wiki_pages DROP COLUMN opinion", [])
+            .unwrap();
+        // 模拟中断：v29 尚未落记录（旧实现中 ALTER 与版本记录在同一条
+        // execute_batch 里，两列间崩溃则两者都未提交）。
+        conn.execute("DELETE FROM schema_migrations WHERE version = 29", [])
+            .unwrap();
+        drop(conn);
+
+        // 重新打开：第二列应被单独补上，不再被第一列的存在性挡住。
+        let store = Store::open(&path).unwrap();
+        let has_opinion = {
+            let mut statement = store
+                .connection
+                .prepare("PRAGMA table_info(wiki_pages)")
+                .unwrap();
+            statement
+                .query_map([], |row| row.get::<_, String>(1))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap()
+                .iter()
+                .any(|name| name == "opinion")
+        };
+        assert!(has_opinion, "中断后重开应补齐 opinion 列");
+        // 补齐后正常读取 wiki 页不再报错
+        let page = store.get_wiki_page("note-abc").unwrap().unwrap();
+        assert_eq!(page.opinion, None);
         let _ = std::fs::remove_file(path);
     }
 }

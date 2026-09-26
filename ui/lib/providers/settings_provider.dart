@@ -2,15 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../bridge/rust_bridge_repository.dart';
 import '../models/settings.dart';
 import '../utils/system_fonts.dart';
 
 /// Settings state notifier
-class SettingsNotifier extends StateNotifier<AppSettings> {
-  SettingsNotifier(this._repo) : super(AppSettings.defaults());
+class SettingsNotifier extends Notifier<AppSettings> {
+  late final RustBridgeRepository _repo =
+      ref.read(storageRepositoryProvider) as RustBridgeRepository;
 
-  final RustBridgeRepository _repo;
+  @override
+  AppSettings build() => AppSettings.defaults();
 
   void updateAiProvider(AiProviderSettings provider) {
     state = state.copyWith(aiProvider: provider);
@@ -59,15 +62,17 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   void updateEditorFontSize(double? fontSize) {
     state = state.copyWithEditorSettings(
-      fontSizeOverride:
-          fontSize == null ? null : AppFonts.clampFontSize(fontSize),
+      fontSizeOverride: fontSize == null
+          ? null
+          : AppFonts.clampFontSize(fontSize),
     );
   }
 
   void updateEditorLineHeight(double? lineHeight) {
     state = state.copyWithEditorSettings(
-      lineHeightOverride:
-          lineHeight == null ? null : AppFonts.clampLineHeight(lineHeight),
+      lineHeightOverride: lineHeight == null
+          ? null
+          : AppFonts.clampLineHeight(lineHeight),
     );
   }
 
@@ -79,6 +84,9 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   Future<void> loadThemeFromBridge() async {
     try {
       final prefs = await _repo.getThemePrefs();
+      // 异步 gap 后写 state 前查 mounted：容器销毁后再写会抛
+      // UnmountedRefException（热重载/退出时正枚举字体会命中）。
+      if (!ref.mounted) return;
       state = state.copyWith(
         themeMode: AppThemeMode.values.firstWhere(
           (m) => m.name == prefs.mode,
@@ -104,10 +112,13 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       );
       // 本地字体预热：先建文件索引再落 state（避免主题闪默认字体），
       // 字体字节就绪后再触发一次重建（FontLoader 注册后需重建才生效）。
+      // fontName 先存局部变量：后面的多次 await 期间容器可能被销毁。
+      final fontName = state.fontName;
+      final editorFontName = state.editorFontName;
       await SystemFontService.instance.listFonts();
-      await SystemFontService.instance.ensureLoadedForStored(state.fontName);
-      await SystemFontService.instance
-          .ensureLoadedForStored(state.editorFontName);
+      await SystemFontService.instance.ensureLoadedForStored(fontName);
+      await SystemFontService.instance.ensureLoadedForStored(editorFontName);
+      if (!ref.mounted) return;
       state = state.copyWith();
     } catch (e) {
       // 老库可能没有这几条 meta，保持默认即可
@@ -147,9 +158,6 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 }
 
 /// Global settings provider
-final settingsProvider =
-    StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
-  return SettingsNotifier(
-    ref.read(storageRepositoryProvider) as RustBridgeRepository,
-  );
-});
+final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(
+  SettingsNotifier.new,
+);

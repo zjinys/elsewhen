@@ -20,7 +20,7 @@ pub fn run(store: Store) -> Result<()> {
         .title("Elsewhen")
         .theme(capture_theme)
         .subscription(subscription)
-        .window_size((720.0, 82.0))
+        .window_size((720.0, 108.0))
         .centered()
         .resizable(false)
         .decorations(false)
@@ -31,6 +31,7 @@ pub fn run(store: Store) -> Result<()> {
 struct Capture {
     text: String,
     store: Store,
+    error: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +49,7 @@ impl Capture {
             Self {
                 text: String::new(),
                 store,
+                error: None,
             },
             operation::focus(INPUT_ID),
         )
@@ -59,9 +61,18 @@ fn update(state: &mut Capture, message: Message) -> Task<Message> {
         Message::Changed(value) => state.text = value,
         Message::Submit => {
             let value = state.text.trim();
-            if !value.is_empty() && state.store.insert_event(NewEvent::now(value)).is_ok() {
-                spawn_background_analysis();
-                std::process::exit(0);
+            if value.is_empty() {
+                return Task::none();
+            }
+            match state.store.insert_event(NewEvent::now(value)) {
+                // 写库失败必须在窗口内显示原因，否则用户以为已记录、事件静默丢失。
+                Err(e) => {
+                    state.error = Some(format!("保存失败：{e}"));
+                }
+                Ok(_) => {
+                    spawn_background_analysis();
+                    std::process::exit(0);
+                }
             }
         }
         Message::Cancel => std::process::exit(0),
@@ -124,7 +135,20 @@ fn view(state: &Capture) -> Element<'_, Message> {
     let bar = row![field, settings]
         .spacing(10)
         .align_y(iced::Alignment::Center);
-    container(bar)
+    let mut column = iced::widget::column![bar].spacing(6);
+    if let Some(error) = &state.error {
+        column = column.push(
+            container(iced::widget::text(error).size(12))
+                .padding([0, 4])
+                .style(|theme: &Theme| {
+                    container::Style {
+                        text_color: Some(theme.extended_palette().danger.base),
+                        ..Default::default()
+                    }
+                }),
+        );
+    }
+    container(column)
         .padding(10)
         .width(Length::Fill)
         .height(Length::Fill)

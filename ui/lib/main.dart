@@ -32,7 +32,14 @@ void main(List<String> args) async {
     }
   }
 
-  runApp(ProviderScope(child: ElsewhenApp(config: config)));
+  runApp(
+    // Riverpod 3 默认对失败 provider 指数退避自动重试；桥接/DB 失败多为
+    // 确定性错误，重试只会刷日志，关闭以保持 v2 的失败即停行为。
+    ProviderScope(
+      retry: (retryCount, error) => null,
+      child: ElsewhenApp(config: config),
+    ),
+  );
 }
 
 class ElsewhenApp extends ConsumerStatefulWidget {

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
+import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
 
 /// 验证：
@@ -18,7 +19,9 @@ void main() {
       ProviderScope(
         overrides: [
           conversationRepositoryProvider.overrideWithValue(repo),
-          selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
+          selectedConversationIdProvider.overrideWith(
+            () => StateHolder('conv-1'),
+          ),
           messagesProvider.overrideWith((ref) async => <Message>[]),
         ],
         child: const MaterialApp(home: Scaffold(body: MessageArea())),
@@ -27,7 +30,8 @@ void main() {
     await tester.pump();
 
     final input = find.byWidgetPredicate(
-      (widget) => widget is TextField &&
+      (widget) =>
+          widget is TextField &&
           (widget.decoration?.hintText == '输入消息...' ||
               widget.decoration?.hintText?.startsWith('AI 正在思考') == true),
     );

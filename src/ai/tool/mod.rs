@@ -525,10 +525,7 @@ fn fetch_page_plain_text(url: &str) -> Result<String> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
         anyhow::bail!("仅支持 http/https 链接");
     }
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .context("创建 HTTP 客户端失败")?;
+    let client = super::provider::shared_blocking_client(20)?;
     let resp = client
         .get(url)
         .header("User-Agent", "Mozilla/5.0 (elsewhen/0.1)")
@@ -595,7 +592,7 @@ pub(crate) fn strip_blocks(s: &str, open: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
     while !rest.is_empty() {
-        match rest.to_lowercase().find(open) {
+        match find_case_insensitive(rest, open) {
             None => {
                 out.push_str(rest);
                 break;
@@ -627,6 +624,30 @@ pub(crate) fn strip_blocks(s: &str, open: &str) -> String {
         }
     }
     out
+}
+
+/// 在 haystack 中定位 needle 首次出现（忽略 ASCII 大小写），返回的字节偏移
+/// 落在 UTF-8 字符边界上，可直接对原串切片。
+/// 不能用 `haystack.to_lowercase().find(needle)`：to_lowercase 会改变编码长度
+/// （如 İ→i̇ 从 2 字节变 3 字节），换算回的索引套到原串上会越界或切中字符
+/// 中间，导致 panic。
+fn find_case_insensitive(haystack: &str, needle: &str) -> Option<usize> {
+    let needle_chars: Vec<char> = needle.chars().map(|c| c.to_ascii_lowercase()).collect();
+    if needle_chars.is_empty() {
+        return Some(0);
+    }
+    let n = needle_chars.len();
+    for (idx, _) in haystack.char_indices() {
+        let fragment: Vec<char> = haystack[idx..]
+            .chars()
+            .take(n)
+            .map(|c| c.to_ascii_lowercase())
+            .collect();
+        if fragment.len() == n && fragment == needle_chars {
+            return Some(idx);
+        }
+    }
+    None
 }
 
 // ── 写类工具（事件直接入库；知识页走 WriteConfirm：草拟 → 用户确认 → 执行） ───
@@ -2512,5 +2533,21 @@ mod tests {
         assert!(text.contains("标题"), "{text}");
         assert!(text.contains("正文内容"), "{text}");
         assert!(!text.contains("<"), "{text}");
+    }
+
+    #[test]
+    fn strip_blocks_survives_unicode_prefix_and_case_variant() {
+        // to_lowercase 会让 İ（2 字节）变成 i̇（3 字节）：旧实现按小写化后的索引
+        // 切原串会 panic，新实现按字符边界定位。
+        assert_eq!(
+            strip_blocks("İstanbul <search>x</search>", "<search>"),
+            "İstanbul "
+        );
+        // 大小写变体应被识别并按原字节推进。
+        assert_eq!(
+            strip_blocks("前缀 <Search>内容</Search>", "<search>"),
+            "前缀 "
+        );
+        assert_eq!(strip_blocks("没有标签", "<search>"), "没有标签");
     }
 }

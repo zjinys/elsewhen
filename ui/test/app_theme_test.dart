@@ -1,14 +1,12 @@
 import 'dart:async';
 
-import 'package:elsewhen_ui/models/settings.dart'
-    show AppFonts, AppThemePreset;
+import 'package:elsewhen_ui/models/settings.dart' show AppFonts, AppThemePreset;
 import 'package:elsewhen_ui/theme/app_theme.dart';
+import 'package:elsewhen_ui/utils/system_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-/// 测试环境无字体资产也无网络：google_fonts 的异步加载失败属预期。
-/// 在独立 zone 里执行并吞掉字体加载错误，避免异步异常逃逸、污染同文件其它测试。
+/// 在独立 zone 中运行主题测试，避免异步异常污染其它测试。
 Future<void> swallowFontLoadErrors(FutureOr<void> Function() body) {
   return runZonedGuarded(
     () async {
@@ -27,9 +25,7 @@ Future<void> swallowFontLoadErrors(FutureOr<void> Function() body) {
 }
 
 void main() {
-  // google_fonts 在构建 textTheme 时走 ServicesBinding；禁止测试内联网拉字体
   TestWidgetsFlutterBinding.ensureInitialized();
-  GoogleFonts.config.allowRuntimeFetching = false;
 
   test('对话框圆角跟随设计令牌（radiusMedium=12），不用 M3 默认 28', () async {
     await swallowFontLoadErrors(() {
@@ -45,20 +41,27 @@ void main() {
     });
   });
 
-  test('字体选择作用于 textTheme：system 不套网络字体，未知值回退 Inter', () async {
+  test('字体选择作用于 textTheme：system 不套字体，未知值回退 Inter', () async {
+    // 测试环境不枚举真实字体（SystemFontService 里 [listFonts] 特判跳过），
+    // 播种“本机已安装”索引，让 Noto 双字体走「已安装 → 生效」路径。
+    SystemFontService.instance.debugSeedFileIndex({
+      'Noto Sans SC': '/fake/system/NotoSansSC.otf',
+      'Noto Serif SC': '/fake/system/NotoSerifSC.otf',
+    });
     await swallowFontLoadErrors(() {
-      TextStyle? bodyOf(String fontName) =>
-          AppTheme.buildTheme(AppThemePreset.amber, Brightness.dark, fontName)
-              .textTheme
-              .bodyLarge;
+      TextStyle? bodyOf(String fontName) => AppTheme.buildTheme(
+        AppThemePreset.amber,
+        Brightness.dark,
+        fontName,
+      ).textTheme.bodyLarge;
 
       expect(
         bodyOf('Inter')!.fontFamily,
         contains('Inter'),
         reason: '默认 Inter（现状保持）',
       );
-      expect(bodyOf('Noto Sans SC')!.fontFamily, contains('NotoSansSC'));
-      expect(bodyOf('Noto Serif SC')!.fontFamily, contains('NotoSerifSC'));
+      expect(bodyOf('Noto Sans SC')!.fontFamily, contains('Noto Sans SC'));
+      expect(bodyOf('Noto Serif SC')!.fontFamily, contains('Noto Serif SC'));
       expect(
         bodyOf('system')!.fontFamily,
         'Roboto',

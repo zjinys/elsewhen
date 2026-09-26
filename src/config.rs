@@ -20,7 +20,7 @@ impl AppConfig {
                 .with_context(|| format!("create data directory {}", data_dir.display()))?;
             secure_directory(&data_dir)?;
             return Ok(Self {
-                database_path: migrate_db_file(&data_dir),
+                database_path: migrate_db_file(&data_dir)?,
             });
         }
         let dirs = ProjectDirs::from("dev", "elsewhen", "elsewhen")
@@ -30,44 +30,50 @@ impl AppConfig {
             .with_context(|| format!("create data directory {}", data_dir.display()))?;
         secure_directory(data_dir)?;
         Ok(Self {
-            database_path: migrate_db_file(data_dir),
+            database_path: migrate_db_file(data_dir)?,
         })
     }
 }
 
 /// 数据库文件名统一为 elsewhen.db。首次启动时若发现旧文件 events.db，
 /// 自动重命名迁过去（含 -wal / -shm 副产物），保证已有数据不丢。
-fn migrate_db_file(data_dir: &Path) -> PathBuf {
+fn migrate_db_file(data_dir: &Path) -> Result<PathBuf> {
     let new_path = data_dir.join(DB_FILE_NAME);
     let legacy_path = data_dir.join(LEGACY_DB_FILE_NAME);
     if !new_path.exists() && legacy_path.exists() {
-        match std::fs::rename(&legacy_path, &new_path) {
-            Ok(()) => {
-                for suffix in ["-wal", "-shm"] {
-                    let legacy_side = data_dir.join(format!("{LEGACY_DB_FILE_NAME}{suffix}"));
-                    if legacy_side.exists() {
-                        let _ = std::fs::rename(
-                            &legacy_side,
-                            data_dir.join(format!("{DB_FILE_NAME}{suffix}")),
-                        );
-                    }
-                }
-                eprintln!(
-                    "migrated database {} -> {}",
+        // 主文件迁移失败必须上抛：否则调用方会继续用「不存在的新路径」建出
+        // 一个空库，legacy 数据从此滞留丢失。
+        std::fs::rename(&legacy_path, &new_path)
+            .with_context(|| {
+                format!(
+                    "migrate database {} -> {}",
                     legacy_path.display(),
                     new_path.display()
-                );
-            }
-            Err(e) => {
-                eprintln!(
-                    "failed to migrate {} to {}: {e}",
-                    legacy_path.display(),
-                    new_path.display()
-                );
+                )
+            })?;
+        for suffix in ["-wal", "-shm"] {
+            let legacy_side = data_dir.join(format!("{LEGACY_DB_FILE_NAME}{suffix}"));
+            if legacy_side.exists() {
+                // WAL 里可能还有未 checkpoint 的已提交事务，副产物迁移失败同样上抛
+                std::fs::rename(
+                    &legacy_side,
+                    data_dir.join(format!("{DB_FILE_NAME}{suffix}")),
+                )
+                .with_context(|| {
+                    format!(
+                        "migrate database sidecar {suffix} {}",
+                        legacy_side.display()
+                    )
+                })?;
             }
         }
+        eprintln!(
+            "migrated database {} -> {}",
+            legacy_path.display(),
+            new_path.display()
+        );
     }
-    new_path
+    Ok(new_path)
 }
 
 fn secure_directory(path: &std::path::Path) -> Result<()> {

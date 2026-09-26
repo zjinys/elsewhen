@@ -9,6 +9,9 @@ const EVENT_ANALYSIS_VERSION: &str = "event-analysis";
 const LEGACY_EVENT_ANALYSIS_V1: &str = "event-analysis-v1";
 const LEGACY_EVENT_ANALYSIS_V2: &str = "event-analysis-v2";
 const DAILY_REVIEW_VERSION: &str = "daily-review-v1";
+/// 单次队列排空的总墙钟时间上限（秒）。provider 单次超时可达 60s，
+/// 一批最多 50 条，若无上限会长时间占住分析 worker（P2 worker 限时）。
+const ANALYSIS_BATCH_MAX_SECS: u64 = 120;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -287,8 +290,27 @@ impl From<crate::storage::InputRecord> for InputRecordDto {
     }
 }
 
+/// 触发 AI 分析的桥接结果：结构化状态取代字符串契约（P2-9），
+/// 避免 Dart 侧解析 "no_provider"/"processed:{n}" 字符串。
+#[derive(Clone, Debug)]
+pub enum AnalysisTriggerResult {
+    /// 尚未配置 AI provider：不做分析，等待配置后再唤醒
+    NoProvider,
+    /// 本轮成功处理了 count 条事件（含 0：队列为空或全部等待重试）
+    Processed { count: i64 },
+}
+
+/// 生成每日回顾的桥接结果。
+#[derive(Clone, Debug)]
+pub enum DailyReviewResult {
+    NoProvider,
+    /// 当天没有可记录内容，未生成回顾
+    NoEntries,
+    Created { id: String },
+}
+
 /// Initialize the bridge with database path
-pub fn init_bridge(database_path: Option<String>) -> String {
+pub fn init_bridge(database_path: Option<String>) -> Result<String> {
     // Bridge API calls independently open Store instances through AppConfig.
     // Persist an explicit override in the process environment so every later
     // call uses the same database selected at initialization. This is also the
@@ -297,17 +319,12 @@ pub fn init_bridge(database_path: Option<String>) -> String {
         std::env::set_var("ELSEWHEN_DATA_DIR", path);
     }
 
-    let config = match crate::config::AppConfig::load() {
-        Ok(c) => c,
-        Err(e) => return format!("Error loading config: {}", e),
-    };
-    match Store::open(&config.database_path)
+    let config = crate::config::AppConfig::load()
+        .map_err(|e| anyhow::anyhow!("Error loading config: {e}"))?;
+    Store::open(&config.database_path)
         .and_then(|store| store.recover_interrupted_analysis_jobs().map(|_| ()))
-    {
-        Ok(()) => {}
-        Err(e) => return format!("Error recovering analysis queue: {}", e),
-    }
-    config.database_path.display().to_string()
+        .map_err(|e| anyhow::anyhow!("Error recovering analysis queue: {e}"))?;
+    Ok(config.database_path.display().to_string())
 }
 
 /// Record a new event
@@ -315,21 +332,28 @@ pub fn record_event(raw_text: String) -> Result<EventDto> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
 
-    let new_event = NewEvent::now(&raw_text);
+    // GUI 快录路径：source 显式对齐 DTO（"flutter_gui"），避免与 capture/hotkey
+    // 窗口路径（NewEvent::now 默认 "capture"）语义混同——list_events 如实读库后
+    // event_card 的 source badge 才能正确显示 GUI。
+    let new_event = NewEvent {
+        raw_text: &raw_text,
+        occurred_at: chrono::Utc::now(),
+        recorded_at: chrono::Utc::now(),
+        source: "flutter_gui",
+    };
+    // 先取出 DTO 字段再 move 进 insert_event（否则 move 后无法读取）。
+    // 不再全表扫描 + 按 raw_text 回找：相同文本重复记录时会取到错误行，
+    // 且 list_events 是 O(n) 全表遍历。
+    let raw_text_owned = new_event.raw_text.to_string();
+    let recorded_at = new_event.recorded_at.to_rfc3339();
+    let occurred_at = new_event.occurred_at.to_rfc3339();
     let id = store.insert_event(new_event)?;
-
-    // Query back the created event
-    let events = store.list_events()?;
-    let event = events
-        .into_iter()
-        .find(|e| e.raw_text == raw_text)
-        .ok_or_else(|| anyhow::anyhow!("Event not found after insert"))?;
 
     Ok(EventDto {
         id,
-        raw_text: event.raw_text,
-        recorded_at: event.recorded_at.clone(),
-        occurred_at: event.recorded_at,
+        raw_text: raw_text_owned,
+        recorded_at,
+        occurred_at,
         source: "flutter_gui".to_string(),
         status: "pending".to_string(),
     })
@@ -579,13 +603,13 @@ pub fn save_daily_review(
     store.save_daily_review(date, DAILY_REVIEW_VERSION, &result_json, &source_event_ids)
 }
 
-pub fn generate_daily_review(date: String) -> Result<String> {
+pub fn generate_daily_review(date: String) -> Result<DailyReviewResult> {
     let date = chrono::NaiveDate::parse_from_str(date.trim(), "%Y-%m-%d")
         .map_err(|_| anyhow::anyhow!("日期必须是 YYYY-MM-DD"))?;
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     let Some(provider_config) = store.active_ai_provider_config()? else {
-        return Ok("no_provider".to_string());
+        return Ok(DailyReviewResult::NoProvider);
     };
     let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
         base_url: provider_config.base_url,
@@ -601,14 +625,14 @@ fn generate_daily_review_with_provider(
     store: &Store,
     date: chrono::NaiveDate,
     provider: &dyn AiProvider,
-) -> Result<String> {
+) -> Result<DailyReviewResult> {
     let entries = store
         .daily_entries(date)?
         .into_iter()
         .filter(|entry| entry_is_recordable(store, &entry.event_id))
         .collect::<Vec<_>>();
     if entries.is_empty() {
-        return Ok("no_entries".to_string());
+        return Ok(DailyReviewResult::NoEntries);
     }
     let date_text = date.format("%Y-%m-%d").to_string();
     let source_event_ids = entries
@@ -634,7 +658,7 @@ fn generate_daily_review_with_provider(
     let parsed = DailyReviewV1::parse(&reply.content, &date_text, &source_event_ids)?;
     let normalized = serde_json::to_string(&parsed)?;
     let id = store.save_daily_review(date, DAILY_REVIEW_VERSION, &normalized, &source_event_ids)?;
-    Ok(format!("created:{id}"))
+    Ok(DailyReviewResult::Created { id })
 }
 
 pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysisDetailDto>> {
@@ -832,12 +856,12 @@ pub fn list_events() -> Result<Vec<EventDto>> {
     Ok(events
         .into_iter()
         .map(|e| EventDto {
-            id: uuid::Uuid::new_v4().to_string(), // TODO: Store should return ID
+            id: e.id,
             raw_text: e.raw_text,
             recorded_at: e.recorded_at.clone(),
             occurred_at: e.recorded_at,
-            source: "unknown".to_string(),
-            status: "completed".to_string(),
+            source: e.source,
+            status: e.status,
         })
         .collect())
 }
@@ -1007,13 +1031,13 @@ pub fn update_ai_provider_config(base_url: String, model: String, api_key: Strin
 }
 
 /// Trigger AI analysis for pending events
-/// Returns "no_provider" or "processed:<successful count>".
-pub fn trigger_analysis() -> Result<String> {
+/// Returns `AnalysisTriggerResult`（结构化状态，取代字符串契约）。
+pub fn trigger_analysis() -> Result<AnalysisTriggerResult> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     let provider_config = store.active_ai_provider_config()?;
     let Some(provider_config) = provider_config else {
-        return Ok("no_provider".to_string());
+        return Ok(AnalysisTriggerResult::NoProvider);
     };
     let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
         base_url: provider_config.base_url,
@@ -1022,19 +1046,38 @@ pub fn trigger_analysis() -> Result<String> {
         temperature: provider_config.temperature as f32,
         max_tokens: provider_config.max_tokens.map(|v| v as u32),
     })?;
-    process_analysis_queue(&store, &provider)
+    // 每次 worker tick 先重新清扫遗留的 running 任务：GUI 只在启动时恢复一次，
+    // 若上一次队列运行中途退出，被 claim 的任务会孤悬到下次启动。
+    store.recover_interrupted_analysis_jobs()?;
+    let processed = process_analysis_queue(&store, &provider)?;
+    Ok(AnalysisTriggerResult::Processed { count: processed })
 }
 
-fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<String> {
+fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i64> {
     let mut processed = 0;
     // Bound each invocation even when producers keep adding work or retries
     // become available while a slow provider is processing other records.
     let stats = store.analysis_job_stats()?;
+    // 总墙钟时间上限：provider 单次超时可到 60s，若一批 50 条全部超时，
+    // 无上限会占住 worker 约 50 分钟且中途无中断（P2 worker 限时）。
+    // 每完成一条记录后检查，超限即停，余量留待下次 tick。
+    let batch_start = std::time::Instant::now();
     for _ in 0..(stats.pending + stats.retry).min(50) {
+        if batch_start.elapsed().as_secs() >= ANALYSIS_BATCH_MAX_SECS {
+            break;
+        }
         let Some(job) = store.claim_analysis_job()? else {
             break;
         };
-        let context = decision_support_context(store)?;
+        // 上下文构建属于分析任务的一部分：失败不能把已 claim 的 job
+        // 孤悬为 running（否则要等下次启动才 recover），记入 last_error 放回重试。
+        let context = match decision_support_context(store) {
+            Ok(context) => context,
+            Err(error) => {
+                store.fail_analysis(&job, &format!("决策上下文构建失败：{error}"))?;
+                continue;
+            }
+        };
         let prompt = format!(
             "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织；付款流程、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}",
             context,
@@ -1099,7 +1142,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<St
             Err(error) => store.fail_analysis(&job, &error.to_string())?,
         }
     }
-    Ok(format!("processed:{processed}"))
+    Ok(processed as i64)
 }
 
 /// Build bounded, read-only context for Phase 4C. This makes existing rules and
@@ -1166,13 +1209,13 @@ mod analysis_tests {
         ));
         assert_eq!(
             process_analysis_queue(&store, &provider).unwrap(),
-            "processed:2"
+            2
         );
         assert_eq!(store.analysis_job_stats().unwrap().succeeded, 2);
         assert_eq!(store.list_analyses().unwrap().len(), 2);
         assert_eq!(
             process_analysis_queue(&store, &provider).unwrap(),
-            "processed:0"
+            0
         );
         assert_eq!(store.list_analyses().unwrap().len(), 2);
         drop(store);
@@ -1197,7 +1240,7 @@ mod analysis_tests {
             store.insert_event(NewEvent::now("original")).unwrap();
             assert_eq!(
                 process_analysis_queue(&store, &StubProvider(reply)).unwrap(),
-                "processed:0"
+                0
             );
             let stats = store.analysis_job_stats().unwrap();
             assert_eq!(stats.retry, 1);
@@ -2178,11 +2221,7 @@ pub fn open_todo_work_item(id: String) -> Result<WikiPageDto> {
             .ok_or_else(|| anyhow::anyhow!("待办关联页面不存在（slug={slug}）"));
     }
     let marker = format!("work-item-id:{}", todo.id);
-    if let Some(existing) = store
-        .list_wiki_pages(None, None)?
-        .into_iter()
-        .find(|page| page.tags.iter().any(|tag| tag == &marker))
-    {
+    if let Some(existing) = store.find_wiki_page_by_tag(&marker)? {
         store.set_todo_related_wiki_slug(&todo.id, &existing.slug)?;
         return Ok(WikiPageDto::from(existing));
     }
@@ -2451,7 +2490,10 @@ mod daily_review_tests {
             &StubProvider(Box::leak(reply.into_boxed_str())),
         )
         .unwrap();
-        assert!(result.starts_with("created:"));
+        assert!(
+            matches!(result, DailyReviewResult::Created { .. }),
+            "应返回 Created，实际：{result:?}"
+        );
         assert!(store
             .latest_daily_review(chrono::Local::now().date_naive())
             .unwrap()
@@ -2505,6 +2547,61 @@ mod daily_review_tests {
         assert!(context.contains("付款检查"));
         drop(store);
         let _ = std::fs::remove_file(path);
+    }
+}
+
+#[cfg(test)]
+mod record_event_tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    /// 仅在测试内把 ELSEWHEN_DATA_DIR 指向临时目录，Drop 时恢复原值，
+    /// 避免并行测试读到被污染的全局环境变量。Rust 测试默认并行运行。
+    struct DataDirGuard(Option<String>);
+    impl DataDirGuard {
+        fn set(dir: &std::path::Path) -> Self {
+            let prev = std::env::var("ELSEWHEN_DATA_DIR").ok();
+            std::env::set_var("ELSEWHEN_DATA_DIR", dir);
+            Self(prev)
+        }
+    }
+    impl Drop for DataDirGuard {
+        fn drop(&mut self) {
+            match &self.0 {
+                Some(v) => std::env::set_var("ELSEWHEN_DATA_DIR", v),
+                None => std::env::remove_var("ELSEWHEN_DATA_DIR"),
+            }
+        }
+    }
+
+    #[test]
+    fn record_event_persists_dto_source_so_badge_renders_consistently() {
+        let dir = std::env::temp_dir().join(format!(
+            "elsewhen-record-event-{}.db",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let guard = DataDirGuard::set(&dir);
+
+        let dto = record_event("GUI 快录一条事件".to_string()).unwrap();
+        assert_eq!(dto.source, "flutter_gui", "record_event DTO 应声明 GUI 快录路径");
+        assert_eq!(dto.status, "pending");
+
+        let rows = list_events().unwrap();
+        let row = rows
+            .iter()
+            .find(|e| e.id == dto.id)
+            .expect("应能读回刚插入的事件");
+        assert_eq!(
+            row.source, "flutter_gui",
+            "落库 source 应与 DTO 对齐（list_events 如实读库后 event_card 的 source badge 才能显示 GUI）"
+        );
+
+        drop(guard);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 

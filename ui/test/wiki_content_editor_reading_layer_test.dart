@@ -1,16 +1,21 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/models/settings.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
+import 'package:elsewhen_ui/utils/system_fonts.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// WikiContentEditor 两层覆盖模型的渲染验证：
 /// - fontFamily 覆盖 → 渲染字体族被覆盖（AppFonts.system 不注入）；
 /// - lineHeight 覆盖 → 渲染 height 随覆盖；未覆盖回落 vendor 默认 1.5。
 void main() {
+  // 测试环境不枚举真实字体，播种 Noto Serif SC 让字体覆盖断言走“已安装”路径。
+  SystemFontService.instance.debugSeedFileIndex({
+    'Noto Serif SC': '/fake/system/NotoSerifSC.otf',
+  });
+
   Widget harness({String? fontFamily, double? fontSize, double? lineHeight}) {
     return MaterialApp(
       theme: AppTheme.buildTheme(AppThemePreset.amber, Brightness.dark),
@@ -42,11 +47,7 @@ void main() {
     await tester.pumpWidget(harness(fontFamily: 'Noto Serif SC'));
     await tester.pump();
     final style = firstParagraph(tester).text.style!;
-    expect(
-      style.fontFamily,
-      GoogleFonts.getFont('Noto Serif SC').fontFamily,
-      reason: '编辑器字体覆盖应经 GoogleFonts 解析并注入渲染字体族',
-    );
+    expect(style.fontFamily, 'Noto Serif SC', reason: '编辑器字体覆盖应注入本机字体族');
     expect(style.fontFamily, isNotNull);
   });
 

@@ -242,9 +242,93 @@ pub struct SlidingWindowMemory {
     max_tokens: usize,
 }
 
-/// Rough token estimate: 1 token ≈ 4 characters（本地估算兜底）
+/// Rough token estimate：ASCII 约 4 字符/token，CJK/宽字符约 2 字符/token。
+/// （本地估算兜底：`chars()/4` 会严重低估中文——1 个汉字在主流 tokenizer 里
+/// 实际约占 1 token，这里改为按 2 字符/token 加权，2× 低估已是压缩预算下
+/// 可接受的折中，避免请求体硬超 provider 上限。）
 pub fn estimate_tokens(text: &str) -> usize {
-    text.chars().count() / 4
+    let mut ascii = 0usize;
+    let mut wide = 0usize;
+    for c in text.chars() {
+        if c.is_ascii() {
+            ascii += 1;
+        } else {
+            wide += 1;
+        }
+    }
+    ascii / 4 + wide / 2
+}
+
+/// Keep the final request within the configured budget after callers have
+/// appended page content, rules, tool results, and other system context.
+/// Older turns are represented by a compact transcript instead of being
+/// silently dropped from the middle of the conversation.
+pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
+    if max_tokens == 0 {
+        return;
+    }
+    let total: usize = context.iter().map(|m| estimate_tokens(&m.content)).sum();
+    if total <= max_tokens {
+        return;
+    }
+
+    let mut systems = context.iter().filter(|m| m.role == "system");
+    let Some(primary) = systems.next().cloned() else { return };
+    let mut history: Vec<_> = context.iter().filter(|m| m.role != "system").cloned().collect();
+    // The latest user request is non-negotiable; never let a long page body
+    // or a subsequent system injection displace it.
+    let Some(latest_user) = history.iter().rposition(|m| m.role == "user") else { return };
+    let current = history.split_off(latest_user);
+    let current_tokens: usize = current.iter().map(|m| estimate_tokens(&m.content)).sum();
+    let mut remaining = max_tokens
+        .saturating_sub(estimate_tokens(&primary.content))
+        .saturating_sub(current_tokens);
+    let mut rebuilt = vec![primary];
+
+    // Dynamic system messages carry page data and execution results. Give them
+    // at most half the remaining budget, preserving the start of each message.
+    let mut dynamic_budget = remaining / 2;
+    for source in systems {
+        if dynamic_budget == 0 { break; }
+        let mut message = source.clone();
+        let tokens = estimate_tokens(&message.content);
+        if tokens > dynamic_budget {
+            // 与 estimate_tokens 的加权口径保持一致：CJK 按 2 字符/token 截断。
+            message.content = message.content.chars().take(dynamic_budget * 2).collect();
+        }
+        let used = estimate_tokens(&message.content);
+        dynamic_budget = dynamic_budget.saturating_sub(used);
+        remaining = remaining.saturating_sub(used);
+        rebuilt.push(message);
+    }
+
+    let mut kept = Vec::new();
+    while let Some(message) = history.pop() {
+        let cost = estimate_tokens(&message.content);
+        if cost > remaining { history.push(message); break; }
+        remaining -= cost;
+        kept.push(message);
+    }
+    if !history.is_empty() && remaining >= 24 {
+        let prefix = "（自动压缩的较早对话，仅供回忆）\n";
+        let mut summary = prefix.to_string();
+        for message in history {
+            let label = if message.role == "user" { "用户：" } else { "助手：" };
+            let room = remaining.saturating_sub(estimate_tokens(&summary) + 2);
+            if room < 8 { break; }
+            summary.push_str(label);
+            summary.extend(message.content.chars().take((room * 2).min(160)));
+            summary.push('\n');
+        }
+        if summary.len() > prefix.len() {
+            summary = summary.chars().take(remaining * 2).collect();
+            rebuilt.push(ContextMessage::new("system", summary));
+        }
+    }
+    kept.reverse();
+    rebuilt.extend(kept);
+    rebuilt.extend(current);
+    *context = rebuilt;
 }
 
 impl SlidingWindowMemory {
@@ -252,7 +336,7 @@ impl SlidingWindowMemory {
         Self { max_tokens }
     }
 
-    /// Estimate token count (rough approximation: 1 token ≈ 4 characters)
+    /// Token 估算（ASCII 约 4 字符/token，CJK 约 2 字符/token）
     fn estimate_tokens(text: &str) -> usize {
         estimate_tokens(text)
     }
@@ -321,6 +405,69 @@ mod tests {
     }
 
     #[test]
+    fn compress_context_preserves_system_and_latest_turns() {
+        let mut context = vec![
+            ContextMessage::new("system", "system prompt"),
+            ContextMessage::new("user", "很早以前的背景 " .repeat(80)),
+            ContextMessage::new("assistant", "很早以前的回答 " .repeat(80)),
+            ContextMessage::new("user", "当前问题"),
+        ];
+
+        compress_context(&mut context, 40);
+
+        assert_eq!(context.first().map(|m| m.content.as_str()), Some("system prompt"));
+        assert!(context.iter().any(|m| m.content == "当前问题"));
+        assert!(context.iter().any(|m| m.content.contains("自动压缩")));
+        assert!(context
+            .iter()
+            .map(|m| estimate_tokens(&m.content))
+            .sum::<usize>()
+            <= 40);
+    }
+
+    #[test]
+    fn compress_context_keeps_primary_prompt_and_current_question_with_large_page() {
+        let primary = "核心指令和工具协议".repeat(10);
+        let question = "请根据这页给出决策";
+        let mut context = vec![
+            ContextMessage::new("system", primary.clone()),
+            ContextMessage::new("user", "旧对话".repeat(100)),
+            ContextMessage::new("user", question),
+            ContextMessage::new("system", format!("页面正文：{}", "内容".repeat(500))),
+        ];
+
+        compress_context(&mut context, 80);
+
+        assert_eq!(context[0].content, primary);
+        assert_eq!(context.last().unwrap().content, question);
+        assert!(context.iter().any(|m| m.content.starts_with("页面正文：")));
+        assert!(context.iter().map(|m| estimate_tokens(&m.content)).sum::<usize>() <= 80);
+    }
+
+    #[test]
+    fn compress_context_never_truncates_primary_prompt_even_if_over_budget() {
+        let primary = "核心指令".repeat(100);
+        let mut context = vec![
+            ContextMessage::new("system", primary.clone()),
+            ContextMessage::new("user", "当前问题"),
+        ];
+
+        compress_context(&mut context, 10);
+
+        assert_eq!(context[0].content, primary);
+        assert_eq!(context.last().unwrap().content, "当前问题");
+    }
+
+    #[test]
+    fn compress_context_does_nothing_when_within_budget() {
+        let mut context = vec![ContextMessage::new("user", "短消息")];
+        let before = context.clone();
+        compress_context(&mut context, 40);
+        assert_eq!(context.len(), before.len());
+        assert_eq!(context[0].content, before[0].content);
+    }
+
+    #[test]
     fn simple_memory_limits_message_count() {
         let memory = SimpleMemory::new(10);
         assert_eq!(memory.max_messages, 10);
@@ -332,6 +479,24 @@ mod tests {
         let tokens = SlidingWindowMemory::estimate_tokens(text);
         assert!(tokens > 0);
         assert!(tokens < text.len()); // Should be less than character count
+    }
+
+    #[test]
+    fn estimate_tokens_weights_cjk_more_than_ascii() {
+        // 中文在主流 tokenizer 中约 1 字/token：同字符数的中文估算必须明显高于
+        // ASCII（此前 chars()/4 对 CJK 低估 4 倍，请求体易硬超 provider 上限）。
+        let cjk = "事件记录与任务跟进".repeat(10); // 90 个 CJK 字符
+        let ascii = "a".repeat(90);
+        assert!(cjk.chars().count() == ascii.chars().count());
+        assert!(
+            estimate_tokens(&cjk) > estimate_tokens(&ascii),
+            "CJK 估算 {} 应高于 ASCII 估算 {}",
+            estimate_tokens(&cjk),
+            estimate_tokens(&ascii)
+        );
+        // 2 字符/token 加权：90 中文 ⇒ 45；同字符 ASCII ⇒ 22
+        assert_eq!(estimate_tokens(&cjk), 45);
+        assert_eq!(estimate_tokens(&ascii), 22);
     }
 
     #[test]

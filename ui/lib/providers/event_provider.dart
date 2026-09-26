@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'state_holder.dart';
 import '../models/event.dart';
 import '../bridge/rust_bridge_repository.dart';
 
@@ -8,4 +10,6 @@ final eventsProvider = FutureProvider<List<Event>>((ref) async {
   return repo.listEvents();
 });
 
-final eventInputProvider = StateProvider<String>((ref) => '');
+final eventInputProvider = NotifierProvider<StateHolder<String>, String>(
+  () => StateHolder(''),
+);

@@ -27,9 +27,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: MarkdownView(markdown: sample),
-          ),
+          body: SingleChildScrollView(child: MarkdownView(markdown: sample)),
         ),
       ),
     );
@@ -60,8 +58,8 @@ void main() {
 }
 
 Finder _richTextContaining(String needle) => find.byWidgetPredicate(
-      (w) => w is RichText && w.text.toPlainText().contains(needle),
-    );
+  (w) => w is RichText && w.text.toPlainText().contains(needle),
+);
 
 bool _hasBoldFor(String needle) {
   for (final element in find.byType(RichText).evaluate()) {

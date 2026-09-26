@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
+import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
+import 'package:elsewhen_ui/widgets/markdown_view.dart';
 
 /// 复制能力验证：每条消息可复制、可一键复制全部对话（含角色/时间）。
 /// 用假 repo + 假消息列表，拦截系统剪贴板通道，全程无需 FFI。
@@ -47,7 +49,9 @@ void main() {
       ProviderScope(
         overrides: [
           conversationRepositoryProvider.overrideWithValue(repo),
-          selectedConversationIdProvider.overrideWith((ref) => 'conv-1'),
+          selectedConversationIdProvider.overrideWith(
+            () => StateHolder('conv-1'),
+          ),
           messagesProvider.overrideWith((ref) async => messages),
         ],
         child: const MaterialApp(home: Scaffold(body: MessageArea())),
@@ -55,8 +59,9 @@ void main() {
     );
     await tester.pump();
 
-    // 界面元素：2 条消息气泡（SelectableText）+ 2 个单条复制按钮 + 1 个复制全部
-    expect(find.byType(SelectableText), findsNWidgets(2));
+    // 界面元素：用户气泡 SelectableText + AI 气泡 MarkdownView + 2 个单条复制按钮 + 1 个复制全部
+    expect(find.byType(SelectableText), findsOneWidget, reason: '用户气泡为 SelectableText');
+    expect(find.byType(MarkdownView), findsOneWidget, reason: 'AI 气泡经 MarkdownView 渲染');
     expect(find.byIcon(Icons.copy_rounded), findsNWidgets(2));
     expect(find.byIcon(Icons.copy_all_rounded), findsOneWidget);
 

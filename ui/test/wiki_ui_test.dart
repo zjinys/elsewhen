@@ -42,11 +42,7 @@ void main() {
     expect(find.text('知识库'), findsOneWidget, reason: '知识库应在左侧统一入口');
     expect(find.text('知识库'), findsOneWidget, reason: '知识库应在左侧快捷入口');
     // 设置入口已移到标题栏：图标按钮（tooltip「设置」），不再出现在侧边栏
-    expect(
-      find.byTooltip('设置'),
-      findsOneWidget,
-      reason: '设置入口应在标题栏右侧',
-    );
+    expect(find.byTooltip('设置'), findsOneWidget, reason: '设置入口应在标题栏右侧');
 
     // 2. 初始为对话 Tab：右侧是 MessageArea
     expect(find.byType(MessageArea), findsOneWidget, reason: '对话 Tab 右侧应为消息区');
@@ -88,9 +84,15 @@ void main() {
     );
     await tester.pump();
 
-    // 详情视图：标题（在头部重复出现）+ 证据 + AI 处理面板标题
+    // 详情视图：标题（在头部重复出现）+ 证据 + AI 处理面板（由右下角 FAB 展开）
     expect(find.text(title), findsWidgets, reason: '详情头应包含标题');
     expect(find.textContaining('证据'), findsWidgets, reason: '应显示证据徽章');
+    await tester.tap(find.byTooltip('和 AI 讨论此页'));
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pump();
     expect(find.text('AI对话'), findsWidgets, reason: '页面应有 AI 处理面板');
   });
 }

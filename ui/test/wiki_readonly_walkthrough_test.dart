@@ -142,8 +142,7 @@ void main() {
       expect(span.style?.decoration, TextDecoration.underline);
     });
 
-    testWidgets('code 块：生产编辑器注册降级组件，只读展示 + 复制按钮（§11 Q4）',
-        (tester) async {
+    testWidgets('code 块：生产编辑器注册降级组件，只读展示 + 复制按钮（§11 Q4）', (tester) async {
       tester.view.physicalSize = const Size(1600, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);

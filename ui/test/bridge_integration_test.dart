@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 
+import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
 import 'support/isolated_bridge.dart';
 
 void main() {
@@ -53,7 +54,11 @@ void main() {
     expect(await repo.listEvents(), hasLength(2));
     await repo.recordUnifiedInput('Capture 统一输入测试');
     expect(await repo.listEvents(), hasLength(3));
-    expect(await repo.triggerAnalysis(), 'no_provider');
+    // 未配置 provider 时应返回 NoProvider（而非字符串 no_provider，P2-9）
+    expect(
+      await repo.triggerAnalysis(),
+      isA<api.AnalysisTriggerResult_NoProvider>(),
+    );
     expect((await repo.getAnalysisJobStats()).pending, 3);
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final daily = await repo.listDailyEntries(today);

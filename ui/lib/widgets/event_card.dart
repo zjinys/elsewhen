@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../theme/app_theme.dart';
 import '../models/event.dart';
 
 class EventCard extends StatelessWidget {
   final Event event;
 
-  const EventCard({
-    super.key,
-    required this.event,
-  });
+  const EventCard({super.key, required this.event});
 
   @override
   Widget build(BuildContext context) {
@@ -59,11 +57,7 @@ class EventCard extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.access_time,
-                size: 12,
-                color: AppTheme.textTertiary,
-              ),
+              Icon(Icons.access_time, size: 12, color: AppTheme.textTertiary),
               const SizedBox(width: 4),
               Text(
                 timeFormat.format(event.recordedAt),
@@ -79,10 +73,7 @@ class EventCard extends StatelessWidget {
         const SizedBox(width: AppTheme.space2),
         Text(
           dateFormat.format(event.recordedAt),
-          style: TextStyle(
-            color: AppTheme.textTertiary,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
         ),
         const Spacer(),
         _buildSourceBadge(),
@@ -124,11 +115,7 @@ class EventCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 11,
-            color: AppTheme.textTertiary,
-          ),
+          Icon(icon, size: 11, color: AppTheme.textTertiary),
           const SizedBox(width: 4),
           Text(
             label,
@@ -146,11 +133,7 @@ class EventCard extends StatelessWidget {
   Widget _buildContent() {
     return Text(
       event.rawText,
-      style: TextStyle(
-        color: AppTheme.textPrimary,
-        fontSize: 15,
-        height: 1.6,
-      ),
+      style: TextStyle(color: AppTheme.textPrimary, fontSize: 15, height: 1.6),
     );
   }
 
@@ -172,11 +155,7 @@ class EventCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.auto_awesome,
-                size: 14,
-                color: AppTheme.accentPrimary,
-              ),
+              Icon(Icons.auto_awesome, size: 14, color: AppTheme.accentPrimary),
               const SizedBox(width: AppTheme.space1),
               Text(
                 'AI 分析',

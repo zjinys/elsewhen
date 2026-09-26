@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Elsewhen MSI 定义（WiX Toolset v3.11 schema）。
+
+  文件清单不写死：scripts/package-msi.ps1 用 heat 从 Flutter Release 目录
+  现场收集（-cg ProductComponents -dr INSTALLFOLDER），本文件只负责
+  安装目录、开始菜单快捷方式和升级策略。
+
+  本地化：Language="1033"（en-US 是 WiX 各版本都内置的 UI 语言；要中文安装
+  界面可改 2052 并在 light 命令加 -cultures:zh-CN）。
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="Elsewhen"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="Elsewhen"
+           UpgradeCode="E06CEF46-4B13-4730-9E56-0D536A98A69A">
+
+    <Package InstallerVersion="200"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Description="Local-first personal event recorder with global hotkey capture" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Elsewhen is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- 控制面板「程序和功能」里的图标 -->
+    <Icon Id="AppIcon" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+
+    <UIRef Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Elsewhen" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder" />
+    </Directory>
+
+    <!-- 开始菜单快捷方式（heat 收集的文件全部进 INSTALLFOLDER，
+         快捷方式组件自带 GUID，固定值保证卸载/升级时可追踪） -->
+    <DirectoryRef Id="ProgramMenuFolder">
+      <Component Id="AppShortcut" Guid="2D72285D-C1D7-49B1-8490-620C209F6B06">
+        <Shortcut Id="ElsewhenStartMenuShortcut"
+                  Name="Elsewhen"
+                  Description="Local-first personal event recorder"
+                  Target="[INSTALLFOLDER]elsewhen_ui.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="CleanupProgramMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\Elsewhen"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="Elsewhen" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="AppShortcut" />
+    </Feature>
+  </Product>
+</Wix>

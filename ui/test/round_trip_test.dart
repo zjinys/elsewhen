@@ -41,7 +41,8 @@ const _knownDriftSnapshots = <String, String>{
 };
 
 /// 生产管线：wiki codec（解码注册 WikilinkInlineSyntax，§5.2）。
-String roundTrip(String md) => wikiDocumentToMarkdown(wikiMarkdownToDocument(md));
+String roundTrip(String md) =>
+    wikiDocumentToMarkdown(wikiMarkdownToDocument(md));
 
 /// 仅归一化文件尾换行（\n+ 结尾 → 单个 \n；无结尾 → 补 \n）。
 String _t1(String s) => '${s.replaceAll(RegExp(r'\n+$'), '')}\n';
@@ -97,22 +98,22 @@ String _ast(md.Node n, {bool inCode = false}) {
 }
 
 bool _semanticallyEqual(String a, String b) {
-  String parse(String s) => md
-      .Document(extensionSet: md.ExtensionSet.gitHubFlavored, encodeHtml: false)
-      .parse(s)
-      .map((n) => _ast(n))
-      .join('</>');
+  String parse(String s) => md.Document(
+    extensionSet: md.ExtensionSet.gitHubFlavored,
+    encodeHtml: false,
+  ).parse(s).map((n) => _ast(n)).join('</>');
   return parse(a) == parse(b);
 }
 
 void main() {
   final dir = Directory(_fixtureDir);
-  final files = dir
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.md'))
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final files =
+      dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.md'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
 
   test('fixture 目录非空', () {
     expect(files, isNotEmpty, reason: 'fixture 目录不应为空');
@@ -134,18 +135,30 @@ void main() {
 
       switch (gate) {
         case Gate.bytes:
-          expect(exact, isTrue,
-              reason: '$name 必须逐字节收敛，实际漂移：\n${diff.join('\n')}');
+          expect(
+            exact,
+            isTrue,
+            reason: '$name 必须逐字节收敛，实际漂移：\n${diff.join('\n')}',
+          );
         case Gate.spaced:
-          expect(semanticOk, isTrue,
-              reason: '$name（spaced 门）语义必须相等：\n${diff.join('\n')}');
+          expect(
+            semanticOk,
+            isTrue,
+            reason: '$name（spaced 门）语义必须相等：\n${diff.join('\n')}',
+          );
         case Gate.knownDrift:
           final snapshot = _knownDriftSnapshots[name];
           expect(snapshot, isNotNull, reason: '$name 缺 knownDrift 快照');
-          expect(_t1(out), _t1(snapshot!),
-              reason: '$name 快照漂移（行为不应改变）：\n${diff.join('\n')}');
-          expect(semanticOk, isFalse,
-              reason: '$name 应被记录为语义漂移（若已收敛请移出 knownDrift）');
+          expect(
+            _t1(out),
+            _t1(snapshot!),
+            reason: '$name 快照漂移（行为不应改变）：\n${diff.join('\n')}',
+          );
+          expect(
+            semanticOk,
+            isFalse,
+            reason: '$name 应被记录为语义漂移（若已收敛请移出 knownDrift）',
+          );
       }
     });
   }

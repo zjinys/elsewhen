@@ -40,7 +40,11 @@ void main() {
       await tester.pumpAndSettle(); // 滚到底动画 + ripple
 
       expect(repo.aiCalls, 1, reason: 'AI 应被调用一次');
-      expect(find.text('模拟回复'), findsOneWidget, reason: 'AI 回复气泡应出现');
+      expect(
+        find.text('模拟回复', findRichText: true),
+        findsOneWidget,
+        reason: 'AI 回复气泡应出现',
+      );
       expect(
         editorState.document.toJson(),
         _editorWithChat().document.toJson(),
@@ -97,7 +101,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.aiCalls, 1, reason: '只读模式聊天块仍可发消息');
-      expect(find.text('模拟回复'), findsOneWidget, reason: '只读模式回复应出现');
+      expect(
+        find.text('模拟回复', findRichText: true),
+        findsOneWidget,
+        reason: '只读模式回复应出现',
+      );
       expect(
         editorState.document.toJson(),
         _editorWithChat().document.toJson(),

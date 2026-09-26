@@ -4,15 +4,15 @@
 ///
 /// 存值格式（app_meta `theme_font` 不透明字符串，Rust 侧不动）：
 /// - `system`：跟随系统默认字体；
-/// - `google:<family>`：Google Fonts（联网下载，沿用旧行为）；
+/// - 旧的 `google:<family>`：兼容解析为本地字体，不再联网下载；
 /// - `local:<family>`：fontconfig 本地字体（如 `LXGW WenKai Mono`）；
-/// - 无前缀历史值：Google 表里有 → google，否则按本地解析（旧逻辑回退 Inter）。
+/// - 无前缀历史值：按本地字体解析。
 library;
 
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../bridge/generated.dart/api.dart' as api;
 
@@ -29,13 +29,10 @@ class StoredFont {
 StoredFont parseStoredFont(String stored) {
   if (stored == 'system') return const StoredFont('system', '');
   if (stored.startsWith('google:')) {
-    return StoredFont('google', stored.substring('google:'.length));
+    return StoredFont('local', stored.substring('google:'.length));
   }
   if (stored.startsWith('local:')) {
     return StoredFont('local', stored.substring('local:'.length));
-  }
-  if (GoogleFonts.asMap().containsKey(stored)) {
-    return StoredFont('google', stored);
   }
   return StoredFont('local', stored);
 }
@@ -51,10 +48,6 @@ String? resolveFontFamily(String? stored, {required String fallback}) {
   switch (parsed.kind) {
     case 'system':
       return null;
-    case 'google':
-      return GoogleFonts.asMap().containsKey(parsed.family)
-          ? parsed.family
-          : fallback;
     default:
       return SystemFontService.instance.fileForFamilySync(parsed.family) != null
           ? parsed.family
@@ -160,6 +153,17 @@ class SystemFontService {
       return 1;
     }
     return 2;
+  }
+
+  /// 测试专用：注入“本机已安装”的字体文件索引，绕过真实枚举。
+  /// 测试环境（flutter test）下枚举恒为空（见 [_isTestEnvironment]），
+  /// 让本地字体解析测试能确定地验证「已安装 → 生效」路径。
+  @visibleForTesting
+  void debugSeedFileIndex(Map<String, String> familyToFile) {
+    _fileIndex
+      ..clear()
+      ..addAll(familyToFile);
+    _entries ??= <SystemFontEntry>[];
   }
 
   /// 同步查文件（索引未就绪返回 null）。精确匹配优先，其次忽略大小写。

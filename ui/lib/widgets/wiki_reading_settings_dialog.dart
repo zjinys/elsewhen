@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../models/settings.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
-import '../utils/system_fonts.dart';
 import 'font_picker_dialog.dart';
 
 /// 知识页「AA」浮层：编辑器（内容区）阅读参数覆盖层。
@@ -30,11 +28,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(
-            Icons.format_size,
-            size: 20,
-            color: AppTheme.accentPrimary,
-          ),
+          Icon(Icons.format_size, size: 20, color: AppTheme.accentPrimary),
           const SizedBox(width: 8),
           const Text('正文阅读设置'),
           const Spacer(),
@@ -71,16 +65,13 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
   }
 
   /// 字体覆盖：当前值 + 点按打开 FontPicker + 「跟随全局」重置
-  Widget _buildFontField(BuildContext context, AppSettings settings,
-      SettingsNotifier notifier) {
+  Widget _buildFontField(
+    BuildContext context,
+    AppSettings settings,
+    SettingsNotifier notifier,
+  ) {
     final override = settings.editorFontName;
     final following = override == null;
-    final parsed = !following ? parseStoredFont(override) : null;
-    final previewStyle = !following &&
-            parsed!.kind == 'google' &&
-            GoogleFonts.asMap().containsKey(parsed.family)
-        ? GoogleFonts.getFont(parsed.family)
-        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -118,13 +109,10 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: following
-                          ? const Text(
-                              '跟随全局',
-                              overflow: TextOverflow.ellipsis,
-                            )
+                          ? const Text('跟随全局', overflow: TextOverflow.ellipsis)
                           : FontNameLabel(
                               stored: override,
-                              fallbackStyle: previewStyle,
+                              fallbackStyle: null,
                             ),
                     ),
                     Icon(
@@ -213,7 +201,10 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
   }
 
   /// 行距覆盖：滑块 1.0–2.5（步进 0.1）
-  Widget _buildLineHeightSlider(AppSettings settings, SettingsNotifier notifier) {
+  Widget _buildLineHeightSlider(
+    AppSettings settings,
+    SettingsNotifier notifier,
+  ) {
     final following = settings.editorLineHeight == null;
     final height = settings.contentLineHeight;
     return Column(
@@ -272,7 +263,10 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
   /// 打开字体选择对话框（同设置页：picker 内部「Select」自关闭，onFontChanged
   /// 只更新状态、不重复 pop）。
   Future<void> _showFontPicker(
-    BuildContext context, SettingsNotifier notifier, String? current) async {
+    BuildContext context,
+    SettingsNotifier notifier,
+    String? current,
+  ) async {
     final picked = await showFontPickerDialog(
       context,
       current: current,

@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/app_theme.dart';
 import '../providers/wiki_provider.dart';
+import '../providers/app_provider.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/left_sidebar.dart';
 import '../widgets/message_area.dart';
 import '../widgets/wiki_page_detail_view.dart';
 import '../widgets/custom_title_bar.dart';
+import '../widgets/ai_provider_setup_hint.dart';
 
 class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
@@ -15,31 +17,47 @@ class MainScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(sidebarTabProvider);
+    final compact = MediaQuery.sizeOf(context).width < 700;
 
     return Scaffold(
       backgroundColor: AppTheme.surface0,
+      drawer: compact ? const Drawer(child: LeftSidebar()) : null,
       body: Column(
         children: [
           // 设置入口：图标按钮放标题栏右侧（窗口按钮左边）
           CustomTitleBar(
             title: 'Elsewhen',
             actions: [
+              if (compact)
+                Builder(
+                  builder: (context) => IconButton(
+                    icon: const Icon(Icons.menu_outlined),
+                    tooltip: '打开导航',
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                  ),
+                ),
               IconButton(
                 icon: const Icon(Icons.settings_outlined),
                 iconSize: 16,
                 color: const Color(0xFF6C7A89),
                 tooltip: '设置',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                ),
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  );
+                  // 从设置页返回后刷新首次运行探测（横幅是否该消失）
+                  ref.invalidate(aiProviderConfiguredProvider);
+                },
               ),
             ],
           ),
+          // 首次运行引导：未配置 AI Provider 时提示去设置页
+          const AiProviderSetupHint(),
           Expanded(
             child: Row(
               children: [
                 // Left: sidebar（对话 / 知识库 + 设置入口）
-                const LeftSidebar(),
+                if (!compact) const LeftSidebar(),
 
                 // Right: 按当前 Tab 切换内容区
                 // 背景色放在 Material 上而非外层 Container：右侧内容区里的裸

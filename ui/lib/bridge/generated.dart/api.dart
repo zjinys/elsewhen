@@ -6,10 +6,12 @@
 import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `decision_support_context`, `default_event_kind`, `default_recordable`, `dto_from_active`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -82,7 +84,7 @@ Future<String> saveDailyReview({
   sourceEventIds: sourceEventIds,
 );
 
-Future<String> generateDailyReview({required String date}) =>
+Future<DailyReviewResult> generateDailyReview({required String date}) =>
     RustLib.instance.api.crateApiGenerateDailyReview(date: date);
 
 Future<EventAnalysisDetailDto?> getEventAnalysisDetail({
@@ -200,8 +202,8 @@ Future<void> updateAiProviderConfig({
 );
 
 /// Trigger AI analysis for pending events
-/// Returns "no_provider" or "processed:<successful count>".
-Future<String> triggerAnalysis() =>
+/// Returns `AnalysisTriggerResult`（结构化状态，取代字符串契约）。
+Future<AnalysisTriggerResult> triggerAnalysis() =>
     RustLib.instance.api.crateApiTriggerAnalysis();
 
 Future<List<PendingActionDto>> listPendingActions({
@@ -717,6 +719,20 @@ class AnalysisJobStatsDto {
           failed == other.failed;
 }
 
+@freezed
+sealed class AnalysisTriggerResult with _$AnalysisTriggerResult {
+  const AnalysisTriggerResult._();
+
+  /// 尚未配置 AI provider：不做分析，等待配置后再唤醒
+  const factory AnalysisTriggerResult.noProvider() =
+      AnalysisTriggerResult_NoProvider;
+
+  /// 本轮成功处理了 count 条事件（含 0：队列为空或全部等待重试）
+  const factory AnalysisTriggerResult.processed({
+    required PlatformInt64 count,
+  }) = AnalysisTriggerResult_Processed;
+}
+
 /// 内容对话消息 DTO（临时讨论的一条消息）
 class ContentChatMessageDto {
   final String role;
@@ -922,6 +938,18 @@ class DailyReviewItemDto {
           runtimeType == other.runtimeType &&
           text == other.text &&
           sourceEventIds == other.sourceEventIds;
+}
+
+@freezed
+sealed class DailyReviewResult with _$DailyReviewResult {
+  const DailyReviewResult._();
+
+  const factory DailyReviewResult.noProvider() = DailyReviewResult_NoProvider;
+
+  /// 当天没有可记录内容，未生成回顾
+  const factory DailyReviewResult.noEntries() = DailyReviewResult_NoEntries;
+  const factory DailyReviewResult.created({required String id}) =
+      DailyReviewResult_Created;
 }
 
 /// Daily token usage DTO for Flutter（每日 token 使用统计）

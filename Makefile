@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: build release check test install-desktop deb rpm pacman package clean
+.PHONY: build release check test install-desktop deb rpm pacman package appimage dmg msi clean
 
 build:
 	cargo build
@@ -27,6 +27,15 @@ pacman:
 	./scripts/package-pacman.sh
 
 package: deb rpm pacman
+
+appimage:
+	./scripts/package-appimage.sh
+
+dmg:
+	./scripts/package-dmg.sh
+
+msi:
+	powershell -File scripts/package-msi.ps1
 
 clean:
 	cargo clean

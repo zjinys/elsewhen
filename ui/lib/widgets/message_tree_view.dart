@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/conversation.dart';
 
 /// A tree node representing a message and its children
@@ -170,10 +171,12 @@ class _MessageTreeNodeWidget extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE9A568).withValues(alpha: 0.2),
+                              color: const Color(0xFFE9A568)
+                                  .withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: const Color(0xFFE9A568).withValues(alpha: 0.3),
+                                color: const Color(0xFFE9A568)
+                                    .withValues(alpha: 0.3),
                               ),
                             ),
                             child: Row(
@@ -225,12 +228,14 @@ class _MessageTreeNodeWidget extends StatelessWidget {
           ),
         ),
         // Child messages
-        ...node.children.map((child) => _MessageTreeNodeWidget(
-          node: child,
-          selectedMessageId: selectedMessageId,
-          onMessageTap: onMessageTap,
-          onBranchTap: onBranchTap,
-        )),
+        ...node.children.map(
+          (child) => _MessageTreeNodeWidget(
+            node: child,
+            selectedMessageId: selectedMessageId,
+            onMessageTap: onMessageTap,
+            onBranchTap: onBranchTap,
+          ),
+        ),
       ],
     );
   }

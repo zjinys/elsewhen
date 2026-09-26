@@ -3,6 +3,43 @@ use super::tool::{ToolCall, ToolSpec};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::{Mutex, OnceLock};
+
+/// 服务端错误体透传前截断：完整 body 可能含用户对话内容或敏感报错堆栈，
+/// 直接落库/展示会给下游（错误聚合、重试原因）引入不必要的信息暴露（P2）。
+const PROVIDER_ERROR_BODY_MAX_CHARS: usize = 300;
+
+/// 按 timeout 分档复用的 blocking HTTP client（P2 client 复用）。
+/// provider 每次 `new` 都重建 client 会反复建立连接池；这里按超时档
+/// 缓存一份全局实例，调用方共享连接池与 DNS 缓存。
+pub(crate) fn shared_blocking_client(timeout_secs: u64) -> Result<reqwest::blocking::Client> {
+    static CLIENTS: OnceLock<Mutex<Vec<(u64, reqwest::blocking::Client)>>> = OnceLock::new();
+    let clients = CLIENTS.get_or_init(|| Mutex::new(Vec::new()));
+    let mut clients = clients.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, client)) = clients.iter().find(|(t, _)| *t == timeout_secs) {
+        return Ok(client.clone());
+    }
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .build()
+        .context("Failed to create HTTP client")?;
+    clients.push((timeout_secs, client.clone()));
+    Ok(client)
+}
+
+/// 截断 provider 错误描述：只保留可诊断的前缀，避免完整服务端 body 泄漏。
+pub(crate) fn provider_error_body(status: impl std::fmt::Display, body: &str) -> String {
+    let trimmed = body.trim();
+    if trimmed.chars().count() <= PROVIDER_ERROR_BODY_MAX_CHARS {
+        format!("{status}: {trimmed}")
+    } else {
+        let prefix: String = trimmed
+            .chars()
+            .take(PROVIDER_ERROR_BODY_MAX_CHARS)
+            .collect();
+        format!("{status}: {prefix}…（已截断）")
+    }
+}
 
 /// Token usage reported by an AI provider
 #[derive(Debug, Clone, Default)]
@@ -82,10 +119,7 @@ pub struct OpenAiCompatibleProvider {
 
 impl OpenAiCompatibleProvider {
     pub fn new(config: OpenAiCompatibleConfig) -> Result<Self> {
-        let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(60))
-            .build()
-            .context("Failed to create HTTP client")?;
+        let client = shared_blocking_client(60)?;
 
         Ok(Self { config, client })
     }
@@ -269,7 +303,10 @@ impl AiProvider for OpenAiCompatibleProvider {
             }
         }
 
-        let url = format!("{}/chat/completions", self.config.base_url);
+        let url = format!(
+            "{}/chat/completions",
+            self.config.base_url.trim_end_matches('/')
+        );
 
         let response = self
             .client
@@ -283,7 +320,10 @@ impl AiProvider for OpenAiCompatibleProvider {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().unwrap_or_default();
-            anyhow::bail!("AI provider returned error {}: {}", status, body);
+            anyhow::bail!(
+                "AI provider returned error {}",
+                provider_error_body(status, &body)
+            );
         }
 
         let ai_response: OpenAiResponse = response
@@ -347,10 +387,7 @@ pub struct OllamaProvider {
 
 impl OllamaProvider {
     pub fn new(config: OllamaConfig) -> Result<Self> {
-        let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
-            .build()
-            .context("Failed to create HTTP client")?;
+        let client = shared_blocking_client(120)?;
 
         Ok(Self { config, client })
     }
@@ -495,7 +532,7 @@ impl AiProvider for OllamaProvider {
             }
         }
 
-        let url = format!("{}/api/chat", self.config.base_url);
+        let url = format!("{}/api/chat", self.config.base_url.trim_end_matches('/'));
 
         let response = self
             .client
@@ -508,7 +545,10 @@ impl AiProvider for OllamaProvider {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().unwrap_or_default();
-            anyhow::bail!("Ollama returned error {}: {}", status, body);
+            anyhow::bail!(
+                "Ollama returned error {}",
+                provider_error_body(status, &body)
+            );
         }
 
         let ollama_response: OllamaResponse =
@@ -639,5 +679,20 @@ mod tests {
         assert_eq!(resp.model.as_deref(), Some("llama3"));
         assert_eq!(resp.prompt_eval_count, Some(20));
         assert_eq!(resp.eval_count, Some(8));
+    }
+
+    #[test]
+    fn provider_error_body_truncates_long_bodies() {
+        // 短 body 原样保留（含关键诊断信息）
+        let short = provider_error_body(429, "rate limit exceeded");
+        assert_eq!(short, "429: rate limit exceeded");
+        // 长 body 截断到上限并标记，避免完整服务端报错堆栈落库/回显
+        let long_body = "x".repeat(1000);
+        let truncated = provider_error_body(500, &long_body);
+        assert!(truncated.chars().count() < 400);
+        assert!(truncated.ends_with("…（已截断）"));
+        assert!(!truncated.contains(&long_body));
+        // 空白 body 不做无意义截断
+        assert_eq!(provider_error_body(500, "   "), "500: ");
     }
 }

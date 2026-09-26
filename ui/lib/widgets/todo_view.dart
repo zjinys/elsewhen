@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../bridge/rust_bridge_repository.dart';
 import '../models/todo.dart';
 import '../providers/todo_provider.dart';
@@ -33,10 +34,7 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final note = _noteController.text.trim();
-      await repo.createTodo(
-        title: title,
-        note: note.isEmpty ? null : note,
-      );
+      await repo.createTodo(title: title, note: note.isEmpty ? null : note);
       if (!mounted) return;
       _inputController.clear();
       _noteController.clear();
@@ -66,7 +64,10 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(e.toString()),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -81,8 +82,7 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
   Future<void> _edit(Todo todo) async {
     final saved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) =>
-          _TodoEditDialog(todo: todo),
+      builder: (dialogContext) => _TodoEditDialog(todo: todo),
     );
     if (saved == true && mounted) ref.invalidate(todosProvider);
   }
@@ -225,32 +225,48 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
             ),
           ),
         ),
-        for (final todo in todos) _TodoItem(
-          todo: todo,
-          onToggle: () => _toggle(todo),
-          onDelete: () => _delete(todo),
-          onEdit: () => _edit(todo),
-          onOpenWiki: todo.relatedWikiSlug == null
-              ? null
-              : () {
-                  final repo = ref
-                      .read(storageRepositoryProvider) as RustBridgeRepository;
-                  repo.getWikiPage(todo.relatedWikiSlug!).then((page) {
-                    if (page == null || !mounted) return;
-                    ref.read(sidebarTabProvider.notifier).state =
-                        SidebarTab.wiki;
-                    openWikiPageTab(ref, page);
-                });
-              },
-          onOpenWorkItem: () async {
-            final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-            final page = await repo.openTodoWorkItem(todo.id);
-            if (!mounted) return;
-            ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
-            openWikiPageTab(ref, page);
-            ref.invalidate(todosProvider);
-          },
-        ),
+        for (final todo in todos)
+          _TodoItem(
+            todo: todo,
+            onToggle: () => _toggle(todo),
+            onDelete: () => _delete(todo),
+            onEdit: () => _edit(todo),
+            onOpenWiki: todo.relatedWikiSlug == null
+                ? null
+                : () {
+                    final repo = ref.read(
+                      storageRepositoryProvider,
+                    ) as RustBridgeRepository;
+                    repo.getWikiPage(todo.relatedWikiSlug!).then((page) {
+                      if (page == null || !mounted) return;
+                      ref
+                          .read(sidebarTabProvider.notifier)
+                          .set(SidebarTab.wiki);
+                      openWikiPageTab(ref, page);
+                    });
+                  },
+            onOpenWorkItem: () async {
+              // FFI 失败（打开工作项对应知识页失败等）不能变成 unhandled rejection：
+              // 用 SnackBar 反馈，与 _add/_toggle 的错误路径保持一致。
+              try {
+                final repo =
+                    ref.read(storageRepositoryProvider) as RustBridgeRepository;
+                final page = await repo.openTodoWorkItem(todo.id);
+                if (!mounted) return;
+                ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
+                openWikiPageTab(ref, page);
+                ref.invalidate(todosProvider);
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(e.toString()),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+          ),
       ],
     );
   }
@@ -361,8 +377,11 @@ class _TodoItem extends StatelessWidget {
                                 padding: const EdgeInsets.only(right: 8),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.menu_book_outlined,
-                                        size: 12, color: AppTheme.accentPrimary),
+                                    Icon(
+                                      Icons.menu_book_outlined,
+                                      size: 12,
+                                      color: AppTheme.accentPrimary,
+                                    ),
                                     const SizedBox(width: 3),
                                     Text(
                                       '知识页',
@@ -405,7 +424,11 @@ class _TodoItem extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 splashRadius: 16,
-                icon: Icon(Icons.more_horiz, size: 16, color: AppTheme.textTertiary),
+                icon: Icon(
+                  Icons.more_horiz,
+                  size: 16,
+                  color: AppTheme.textTertiary,
+                ),
                 color: AppTheme.surface2,
                 onSelected: (action) {
                   switch (action) {
@@ -420,9 +443,16 @@ class _TodoItem extends StatelessWidget {
                     value: 'edit',
                     child: Row(
                       children: [
-                        Icon(Icons.edit_outlined, size: 16, color: AppTheme.accentPrimary),
+                        Icon(
+                          Icons.edit_outlined,
+                          size: 16,
+                          color: AppTheme.accentPrimary,
+                        ),
                         const SizedBox(width: AppTheme.space2),
-                        Text('编辑', style: TextStyle(color: AppTheme.textPrimary)),
+                        Text(
+                          '编辑',
+                          style: TextStyle(color: AppTheme.textPrimary),
+                        ),
                       ],
                     ),
                   ),
@@ -430,9 +460,16 @@ class _TodoItem extends StatelessWidget {
                     value: 'delete',
                     child: Row(
                       children: [
-                        Icon(Icons.delete_outline, size: 16, color: AppTheme.error),
+                        Icon(
+                          Icons.delete_outline,
+                          size: 16,
+                          color: AppTheme.error,
+                        ),
                         const SizedBox(width: AppTheme.space2),
-                        Text('删除', style: TextStyle(color: AppTheme.textPrimary)),
+                        Text(
+                          '删除',
+                          style: TextStyle(color: AppTheme.textPrimary),
+                        ),
                       ],
                     ),
                   ),
@@ -519,7 +556,10 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppTheme.surface1,
-      title: Text('编辑待办', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16)),
+      title: Text(
+        '编辑待办',
+        style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
+      ),
       content: SizedBox(
         width: 360,
         child: Column(
@@ -545,12 +585,13 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
               controller: _due,
               style: TextStyle(color: AppTheme.textPrimary),
               cursorColor: AppTheme.accentPrimary,
-              decoration: _inputDecoration(
-                  '截止日期（可选，YYYY-MM-DD，留空清除）'),
+              decoration: _inputDecoration('截止日期（可选，YYYY-MM-DD，留空清除）'),
             ),
             const SizedBox(height: AppTheme.space3),
-            Text('优先级',
-                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+            Text(
+              '优先级',
+              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+            ),
             const SizedBox(height: AppTheme.space1),
             Row(
               children: [
@@ -562,13 +603,15 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
                   Padding(
                     padding: const EdgeInsets.only(right: AppTheme.space2),
                     child: ChoiceChip(
-                      label: Text(p.$2,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _priority == p.$1
-                                ? Colors.black
-                                : AppTheme.textSecondary,
-                          )),
+                      label: Text(
+                        p.$2,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _priority == p.$1
+                              ? Colors.black
+                              : AppTheme.textSecondary,
+                        ),
+                      ),
                       selected: _priority == p.$1,
                       showCheckmark: false,
                       selectedColor: AppTheme.accentPrimary,
@@ -584,13 +627,13 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _saving
-              ? null
-              : () => Navigator.of(context).pop(false),
+          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
           child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppTheme.accentPrimary),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppTheme.accentPrimary,
+          ),
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(
@@ -605,19 +648,19 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
   }
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: AppTheme.textTertiary),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        filled: true,
-        fillColor: AppTheme.surface2,
-        enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.surface3),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.accentPrimary),
-        ),
-      );
+    hintText: hint,
+    hintStyle: TextStyle(color: AppTheme.textTertiary),
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+    filled: true,
+    fillColor: AppTheme.surface2,
+    enabledBorder: OutlineInputBorder(
+      borderSide: BorderSide(color: AppTheme.surface3),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderSide: BorderSide(color: AppTheme.accentPrimary),
+    ),
+  );
 }
 
 class _EmptyHint extends StatelessWidget {

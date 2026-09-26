@@ -15,6 +15,7 @@ import '../providers/todo_provider.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
 import 'markdown_view.dart';
+import 'todo_view.dart';
 
 String? explicitTopicName(String text) {
   final match =
@@ -41,6 +42,7 @@ Future<void> runAiGeneration(
     setAiGenerating(ref, conversationId, true);
     final repo = ref.read(conversationRepositoryProvider);
     await repo.generateReply(conversationId);
+    clearReplyFailed(ref, conversationId);
     if (isMounted == null || isMounted()) {
       ref.invalidate(messagesProvider);
       ref.invalidate(conversationsProvider);
@@ -54,13 +56,40 @@ Future<void> runAiGeneration(
       ref.invalidate(todayTokenUsageProvider);
     }
   } catch (e) {
-    addConversationNotice(ref, conversationId, aiFailureNotice(e));
-    ref.read(scrollRequestProvider.notifier).state++;
-    if (isMounted == null || isMounted()) onError?.call();
+    // 失败补充界面（错误气泡 + 上滑）同样依赖 ref，卸载后调用会抛异常，
+    // 与成功路径一致用 isMounted 守住。
+    if (isMounted == null || isMounted()) {
+      addConversationNotice(ref, conversationId, aiFailureNotice(e));
+      ref.read(scrollRequestProvider.notifier).update((v) => v + 1);
+      // 记下失败的是**哪一条**消息：重新生成的入口跟着消息 id 走，不再依赖
+      // 列表位置——后续追加消息或搜索/日期筛选都会让位置条件失效（P9）。
+      final failedMessageId = await latestUserMessageId(ref, conversationId);
+      if (failedMessageId != null && (isMounted == null || isMounted())) {
+        markReplyFailed(ref, conversationId, failedMessageId);
+      }
+      onError?.call();
+    }
   } finally {
-    final next = {...generatingNotifier.state}..remove(conversationId);
-    generatingNotifier.state = next;
+    // 缓存 notifier 是 StateHolder：异步 gap 后 ref 不可用，走 update 原子改写
+    generatingNotifier.update(
+      (current) => {...current}..remove(conversationId),
+    );
   }
+}
+
+/// 会话里最后一条 user 消息的 id：生成失败时用它把「重新生成」入口钉在
+/// 那条消息上（Rust 侧 generateReply 始终回复最新一条 user 消息）。
+Future<String?> latestUserMessageId(
+  WidgetRef ref,
+  String conversationId,
+) async {
+  final messages = await ref
+      .read(conversationRepositoryProvider)
+      .getMessages(conversationId);
+  for (final message in messages.reversed) {
+    if (message.isUser) return message.id;
+  }
+  return null;
 }
 
 /// 把 AI 生成失败整理成**一行可读文案**，不展示 Anyhow 的 Caused by 调用链。
@@ -142,22 +171,9 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         ref.watch(conversationNoticeProvider)[selectedId] ?? const <String>[];
     // 正在生成 AI 回复的会话（发送后反馈「AI 生成中」占位气泡）
     final generatingIds = ref.watch(aiGeneratingProvider);
-    final openTodos = ref
-        .watch(todosProvider)
-        .valueOrNull
-        ?.where((todo) => !todo.isDone)
-        .length;
-    final activeTopics = ref
-        .watch(wikiPagesProvider)
-        .valueOrNull
-        ?.where((page) => page.kind == 'topic' && page.status != 'archived')
-        .length;
-    final activeProvider = ref.watch(activeAiProviderProvider).valueOrNull;
-    final tokenUsage = ref.watch(todayTokenUsageProvider).valueOrNull;
-    final draftCount =
-        (ref.watch(pendingActionsProvider).valueOrNull ?? const [])
-            .where((action) => action.action == 'save_knowledge_draft')
-            .length;
+    // 待办 / provider / token / 待入库草稿等头部统计一律由 _NowStatus 自己
+    // 订阅：放在这里 watch 会让这些与消息无关的状态每次变化都重建整份消息
+    // 列表（P13）。
 
     // 侦听必须在 build 中注册（riverpod 2.x 约束）。
     // 切换会话：重置窗口，数据到达后回到最新消息
@@ -199,28 +215,38 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
     return Column(
       children: [
         _NowStatus(
-          messages: messagesAsync.valueOrNull ?? const [],
-          openTodos: openTodos,
-          activeTopics: activeTopics,
-          activeProvider: activeProvider,
-          tokenUsage: tokenUsage?.totalTokens,
+          messages: messagesAsync.value ?? const [],
           showSearch: _showSearch,
-          draftCount: draftCount,
           onOpenDrafts: () => showDialog<void>(
             context: context,
             builder: (_) => const _KnowledgeDraftsDialog(),
           ),
+          onOpenTodos: () => showDialog<void>(
+            context: context,
+            builder: (_) => Dialog(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 620, maxHeight: 560),
+                child: const SizedBox(
+                  width: 620,
+                  height: 560,
+                  child: TodoListView(),
+                ),
+              ),
+            ),
+          ),
+          onOpenTopics: () =>
+              ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki),
           onToggleSearch: () => setState(() => _showSearch = !_showSearch),
           // 复制全部并进「今天」行：有消息时显示，无消息时隐藏。
-          onCopyAll: (messagesAsync.valueOrNull?.isNotEmpty ?? false)
+          onCopyAll: (messagesAsync.value?.isNotEmpty ?? false)
               ? () => _copyToClipboard(
                   context,
-                  _formatConversationForCopy(messagesAsync.valueOrNull!),
+                  _formatConversationForCopy(messagesAsync.value!),
                   '对话',
                 )
               : null,
         ),
-        if (_showSearch) _buildSearchBar(messagesAsync.valueOrNull ?? const []),
+        if (_showSearch) _buildSearchBar(messagesAsync.value ?? const []),
         _PendingRelationsBanner(),
         // Messages list
         Expanded(
@@ -262,6 +288,22 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                   ? _shownSince
                   : (total > _windowSize ? total - _windowSize : 0);
               final hasMore = shownSince > 0;
+              // 「重新生成」的目标 = 会话里最后一条 user 消息（Rust 侧
+              // generateReply 始终回复最新那条 user 消息）。按 **id** 判定而
+              // 不是「是不是列表最后一条」：列表尾部追加任何消息、或搜索/日期
+              // 筛选把尾部挡掉，位置条件都会失效，失败就再也点不到（P9）。
+              String? latestUserMessageId;
+              for (final candidate in messages.reversed) {
+                if (candidate.isUser) {
+                  latestUserMessageId = candidate.id;
+                  break;
+                }
+              }
+              // 只订阅本会话的失败标记，不订阅整张 map（避免无关会话的变化
+              // 重建整份消息列表）。
+              final failedReplyId = ref.watch(
+                failedReplyMessageIdProvider.select((map) => map[selectedId]),
+              );
               final tailCount = notices.length + (isAiTyping ? 1 : 0);
               final rows = <Object>[];
               String? previousDay;
@@ -288,11 +330,15 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                     final row = rows[libIndex];
                     if (row is String) return _DayDivider(label: row);
                     final message = row as Message;
-                    // 「重新生成」只出现在最后一条消息上：它必须是用户消息
-                    // （即后面没有 AI 回复 —— 生成失败、或还没生成），
-                    // 且当前不在生成中（生成期间以「AI 正在思考…」占位反馈）。
-                    final isLast = identical(message, messages.last);
-                    final needsReply = isLast && message.isUser && !isAiTyping;
+                    // 「重新生成」出现在**待回复的那条用户消息**上：会话最后一条
+                    // user 消息（生成失败、或还没生成），或上一轮被记为失败的那条。
+                    // 生成期间不显示（此时以「AI 正在思考…」占位反馈）。
+                    final needsReply =
+                        message.isUser &&
+                        !isAiTyping &&
+                        (message.id == latestUserMessageId ||
+                            (failedReplyId != null &&
+                                message.id == failedReplyId));
                     return _MessageBubble(
                       message: message,
                       showRetry: needsReply,
@@ -361,8 +407,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
             onPressed: () => _pickDate(messages),
           ),
           const SizedBox(width: 8),
-          SizedBox(
-            width: 360,
+          Expanded(
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -543,7 +588,7 @@ class _KnowledgeDraftsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final actions = ref.watch(pendingActionsProvider).valueOrNull ?? const [];
+    final actions = ref.watch(pendingActionsProvider).value ?? const [];
     final drafts = actions.where(
       (action) => action.action == 'save_knowledge_draft',
     );
@@ -753,13 +798,23 @@ class _KnowledgeDraftDialogState extends ConsumerState<_KnowledgeDraftDialog> {
 class _PendingRelationsBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final actions = ref.watch(pendingActionsProvider).valueOrNull ?? const [];
+    final actions = ref.watch(pendingActionsProvider).value ?? const [];
     final relation = actions
         .cast<dynamic>()
         .where((a) => a.action == 'propose_people_relations')
         .toList();
     if (relation.isEmpty) return const SizedBox.shrink();
-    final payload = jsonDecode(relation.first.argsJson) as Map<String, dynamic>;
+    // argsJson 来自 DB，可能因旧数据/截断/版本迁移而非法：build 中 bare
+    // jsonDecode 一旦抛错会拖垮整个消息列表渲染，解析失败改为渲染占位。
+    Map<String, dynamic> payload = const <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(relation.first.argsJson);
+      if (decoded is Map<String, dynamic>) {
+        payload = decoded;
+      }
+    } catch (_) {
+      // 保持默认空 payload：badge 渲染"无法解析"占位，不崩消息列表。
+    }
     final people = (payload['people'] as List? ?? const [])
         .map((item) => (item as Map)['name']?.toString() ?? '')
         .where((name) => name.isNotEmpty)
@@ -769,6 +824,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
         .where((name) => name.isNotEmpty)
         .toSet()
         .join('、');
+    final degraded = payload.isEmpty && people.isEmpty && targets.isEmpty;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -787,11 +843,13 @@ class _PendingRelationsBanner extends ConsumerWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '发现人物：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。',
+              degraded
+                  ? '有一条人物关联建议，但数据无法解析。'
+                  : '发现人物：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。',
               style: const TextStyle(fontSize: 12, height: 1.5),
             ),
           ),
-          if (_hasAmbiguity(ref, payload))
+          if (!degraded && _hasAmbiguity(ref, payload))
             TextButton(
               onPressed: () => _resolveAmbiguity(context, ref, relation.first),
               child: const Text('选择'),
@@ -802,7 +860,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
   }
 
   bool _hasAmbiguity(WidgetRef ref, Map<String, dynamic> payload) {
-    final pages = ref.read(wikiPagesProvider).valueOrNull ?? const [];
+    final pages = ref.read(wikiPagesProvider).value ?? const [];
     final people = (payload['people'] as List? ?? const []).map(
       (item) => (item as Map)['name']?.toString() ?? '',
     );
@@ -822,13 +880,30 @@ class _PendingRelationsBanner extends ConsumerWidget {
     );
   }
 
+  /// 人物/事项同名歧义的选择流程（P19）：
+  /// - `argsJson` 来自库里存的动作参数，历史脏数据或未来方言都可能让它不是
+  ///   JSON 对象——直接 `jsonDecode` 抛出会把整条流程炸掉，这里收口成提示。
+  /// - 选择全部收集完再**一次性**落库：中途 return 会让用户已经点过的选择被
+  ///   静默丢弃，所以取消时明确提示「未保存」，而不是无声退出。
+  /// - 每个对话框前查 `mounted`：前一个对话框本身就是一次异步 gap。
   Future<void> _resolveAmbiguity(
     BuildContext context,
     WidgetRef ref,
     dynamic action,
   ) async {
-    final payload = jsonDecode(action.argsJson) as Map<String, dynamic>;
-    final pages = ref.read(wikiPagesProvider).valueOrNull ?? const [];
+    final Map<String, dynamic> payload;
+    try {
+      final decoded = jsonDecode(action.argsJson);
+      if (decoded is! Map) {
+        _notifyAmbiguity(context, '动作参数格式异常，无法选择人物');
+        return;
+      }
+      payload = Map<String, dynamic>.from(decoded);
+    } catch (_) {
+      _notifyAmbiguity(context, '动作参数无法解析，无法选择人物');
+      return;
+    }
+    final pages = ref.read(wikiPagesProvider).value ?? const [];
     final relations = (payload['relations'] as List? ?? const [])
         .map((item) => Map<String, dynamic>.from(item as Map))
         .toList();
@@ -842,12 +917,17 @@ class _PendingRelationsBanner extends ConsumerWidget {
           )
           .toList();
       if (peopleMatches.length > 1) {
+        if (!context.mounted) return;
         final selected = await _pickPage(
           context,
           '选择人物「$person」',
           peopleMatches,
         );
-        if (selected == null) return;
+        if (selected == null) {
+          if (!context.mounted) return;
+          _notifyAmbiguity(context, '已取消选择，未保存本次修改');
+          return;
+        }
         relation['from_slug'] = selected.slug;
       }
       final targetMatches = pages
@@ -857,20 +937,34 @@ class _PendingRelationsBanner extends ConsumerWidget {
           )
           .toList();
       if (targetMatches.length > 1) {
+        if (!context.mounted) return;
         final selected = await _pickPage(
           context,
           '选择事项「$target」',
           targetMatches,
         );
-        if (selected == null) return;
+        if (selected == null) {
+          if (!context.mounted) return;
+          _notifyAmbiguity(context, '已取消选择，未保存本次修改');
+          return;
+        }
         relation['to_slug'] = selected.slug;
       }
     }
+    if (!context.mounted) return;
     payload['relations'] = relations;
     await ref
         .read(conversationRepositoryProvider)
         .updatePendingActionArgs(action.id, jsonEncode(payload));
+    if (!context.mounted) return;
     ref.invalidate(pendingActionsProvider);
+  }
+
+  /// 歧义选择流程的失败/取消提示（context 失效后静默丢弃，避免用已销毁的 context）。
+  void _notifyAmbiguity(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<WikiPage?> _pickPage(
@@ -940,46 +1034,52 @@ class _DayDivider extends StatelessWidget {
   }
 }
 
-class _NowStatus extends StatelessWidget {
+/// 会话顶部状态条。统计项（待办 / 话题 / provider / token / 待入库草稿）
+/// 一律在**这里**订阅，而不是在消息列表所在的 State 里 watch：它们与消息
+/// 内容无关，放在父级 build 里会让每次 todo/wiki/token 变化都重建整份消息
+/// 列表（P13）。
+class _NowStatus extends ConsumerWidget {
   final List<Message> messages;
-  final int? openTodos;
-  final int? activeTopics;
-  final String? activeProvider;
-  final int? tokenUsage;
   final bool showSearch;
-  final int draftCount;
   final VoidCallback? onOpenDrafts;
+  final VoidCallback? onOpenTodos;
+  final VoidCallback? onOpenTopics;
   final VoidCallback? onToggleSearch;
   final VoidCallback? onCopyAll;
   const _NowStatus({
     required this.messages,
-    this.openTodos,
-    this.activeTopics,
-    this.activeProvider,
-    this.tokenUsage,
     this.showSearch = false,
-    this.draftCount = 0,
     this.onOpenDrafts,
+    this.onOpenTodos,
+    this.onOpenTopics,
     this.onToggleSearch,
     this.onCopyAll,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final openTodos = ref
+        .watch(todosProvider)
+        .value
+        ?.where((todo) => !todo.isDone)
+        .length;
+    final activeProvider = ref.watch(activeAiProviderProvider).value;
+    final tokenUsage = ref.watch(todayTokenUsageProvider).value;
+    final draftCount = (ref.watch(pendingActionsProvider).value ?? const [])
+        .where((action) => action.action == 'save_knowledge_draft')
+        .length;
+
     final today = DateTime.now();
     final count = messages
         .where(
           (m) =>
+              m.isUser &&
               m.createdAt.year == today.year &&
               m.createdAt.month == today.month &&
               m.createdAt.day == today.day,
         )
         .length;
-    final summary =
-        '今天 $count 条交流'
-        '${activeTopics == null ? '' : ' · ${activeTopics!} 个主题'}'
-        '${openTodos == null ? '' : ' · ${openTodos!} 项待办'}'
-        '${tokenUsage == null ? '' : ' · ${_formatTokens(tokenUsage!)} tokens'}';
+    final summary = '对话${count}次';
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1014,13 +1114,82 @@ class _NowStatus extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onOpenDrafts,
                     icon: const Icon(Icons.drafts_outlined, size: 16),
-                    label: Text('$draftCount 份待入库'),
+                    label: Text('草稿$draftCount份'),
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
                   if (!compact) ...[
+                    //const SizedBox(width: 14),
+                    // TextButton(
+                    //   onPressed: onOpenTopics,
+                    //   style: TextButton.styleFrom(
+                    //     visualDensity: VisualDensity.compact,
+                    //   ),
+                    //   child: Text(
+                    //     '主题 (${topicCreatedToday ?? 0}/${topicUpdatedToday ?? 0}）',
+                    //     style: TextStyle(
+                    //       fontSize: 12,
+                    //       color: AppTheme.textSecondary,
+                    //     ),
+                    //   ),
+                    // ),
+                    const SizedBox(width: 6),
+                    TextButton.icon(
+                      onPressed: onOpenTodos,
+                      icon: const Icon(Icons.check_circle_outlined, size: 16),
+                      label: Text(
+                        '待办${openTodos ?? 0}项',
+                        // style: TextStyle(
+                        //   fontSize: 12,
+                        //   color: AppTheme.textSecondary,
+                        // ),
+                      ),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
                     const Spacer(),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.forum_outlined,
+                          size: 14,
+                          color: AppTheme.textTertiary,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          summary,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (tokenUsage != null) ...[
+                      const SizedBox(width: 12),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.data_usage_outlined,
+                            size: 14,
+                            color: AppTheme.textTertiary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Token${_formatTokens(tokenUsage.totalTokens)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(width: 12),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1032,7 +1201,7 @@ class _NowStatus extends StatelessWidget {
                           ),
                           const SizedBox(width: 5),
                           Text(
-                            activeProvider!,
+                            activeProvider,
                             style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.textSecondary,
@@ -1040,18 +1209,7 @@ class _NowStatus extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
                         ],
-                        Flexible(
-                          child: Text(
-                            summary,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
+                        //const SizedBox(width: 8),
                         if (onCopyAll != null)
                           IconButton(
                             tooltip: '复制全部对话',
@@ -1074,20 +1232,66 @@ class _NowStatus extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ] else ...[
+                    const SizedBox(width: 6),
+                    TextButton.icon(
+                      onPressed: onOpenTodos,
+                      icon: const Icon(Icons.check_circle_outlined, size: 16),
+                      label: Text('待办${openTodos ?? 0}'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
                   ],
                 ],
               ),
               if (compact)
                 Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    summary,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    children: [
+                      if (activeProvider != null) ...[
+                        Icon(Icons.smart_toy_outlined, size: 14, color: AppTheme.textTertiary),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            activeProvider,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Icon(Icons.forum_outlined, size: 14, color: AppTheme.textTertiary),
+                      const SizedBox(width: 5),
+                      Text(summary, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                      if (tokenUsage != null) ...[
+                        const SizedBox(width: 10),
+                        Icon(Icons.data_usage_outlined, size: 14, color: AppTheme.textTertiary),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Token ${_formatTokens(tokenUsage.totalTokens)}',
+                          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        ),
+                      ],
+                      const Spacer(),
+                      if (onCopyAll != null)
+                        IconButton(
+                          tooltip: '复制全部对话',
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.copy_all_rounded, size: 17),
+                          color: AppTheme.textSecondary,
+                          onPressed: onCopyAll,
+                        ),
+                      IconButton(
+                        tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(showSearch ? Icons.search_off : Icons.search, size: 17),
+                        color: showSearch ? AppTheme.accentPrimary : AppTheme.textSecondary,
+                        onPressed: onToggleSearch,
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -1355,7 +1559,7 @@ class _MessageBubble extends ConsumerWidget {
 
   Widget _buildRecordability(BuildContext context, WidgetRef ref) {
     final state = ref.watch(messageRecordabilityProvider(message.id));
-    final value = state.valueOrNull;
+    final value = state.value;
     if (state.isLoading && value == null) {
       return const SizedBox(
         width: 20,
@@ -1659,9 +1863,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
   }
 
   Future<void> _pickDirectoryForImport() async {
-    final path = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择要导入的目录',
-    );
+    final path = await FilePicker.getDirectoryPath(dialogTitle: '选择要导入的目录');
     if (!mounted || path == null || path.trim().isEmpty) return;
     final prompt = '看看 `$path` 下的项目，导入到知识库';
     _controller
@@ -1718,6 +1920,9 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
 
       // 新消息发出，清掉该会话之前的临时错误提示
       clearConversationNotices(ref, conversationId);
+      // 新的 user 消息取代了上一轮的失败目标：清掉标记，避免「重新生成」
+      // 入口继续挂在那条已被后续消息取代的消息上（P9）。
+      clearReplyFailed(ref, conversationId);
       if (mounted) setState(() {});
 
       _controller.clear();
@@ -1732,8 +1937,10 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
+        // FocusNode 与 State 同生命周期：卸载后 requestFocus 会抛
+        // "A FocusNode was used after being disposed"，必须与 mounted 同守卫。
+        _focusNode.requestFocus();
       }
-      _focusNode.requestFocus();
     }
 
     if (!mounted) return;
@@ -1745,7 +1952,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
 
   Future<void> _enterTopic(String title) async {
     final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-    final pages = ref.read(wikiPagesProvider).valueOrNull ?? const [];
+    final pages = ref.read(wikiPagesProvider).value ?? const [];
     WikiPage? existing;
     for (final page in pages) {
       if (page.kind == 'topic' &&
@@ -1762,7 +1969,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
           tags: const ['topic'],
         );
     ref.invalidate(wikiPagesProvider);
-    ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+    ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
     openWikiPageTab(ref, page);
     if (mounted) {
       ScaffoldMessenger.of(context)
@@ -1785,17 +1992,17 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         final existing = await bridge.findTweetSourcePage(url);
         if (existing != null) {
           await bridge.finishUrlInput(input.id, wikiPageSlug: existing.slug);
-          ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+          ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
           openWikiPageTab(ref, existing);
           return;
         }
         final fetch = (await bridge.fetchTweet(url)).withInputRecord(input.id);
-        ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
         openWikiTweetTab(ref, fetch);
       } else {
         final fetch = (await bridge.fetchImportUrl(url))
             .withInputRecord(input.id);
-        ref.read(sidebarTabProvider.notifier).state = SidebarTab.wiki;
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
         openWikiImportFetchTab(ref, fetch);
       }
     } catch (_) {
@@ -1825,7 +2032,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         ref.watch(aiGeneratingProvider).contains(selectedId);
     // 三态：写库中（_isSubmitting）或 AI 生成中 → 忙碌
     final busy = _isSubmitting || isGenerating;
-    final pages = ref.watch(wikiPagesProvider).valueOrNull ?? const [];
+    final pages = ref.watch(wikiPagesProvider).value ?? const [];
     final completionPages = _completionMarker == null
         ? const <WikiPage>[]
         : pages

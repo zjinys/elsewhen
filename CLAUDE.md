@@ -114,6 +114,13 @@ Or use scripts directly:
 ./scripts/install-linux-desktop.sh  # Install desktop metadata once
 ```
 
+Desktop UI app packages（Flutter UI + Rust bridge lib；先跑 ./regen.sh 保证桥 hash 一致）:
+```bash
+./scripts/package-appimage.sh      # Linux → dist/Elsewhen-*-x86_64.AppImage
+./scripts/package-dmg.sh           # macOS → dist/Elsewhen-*.dmg（ad-hoc 签名；分发需 Developer ID + 公证）
+powershell -File scripts/package-msi.ps1   # Windows → dist/Elsewhen-*-x64.msi（需 WiX Toolset v3.11）
+```
+
 ## Database Schema
 
 Three core tables in `elsewhen.db`:

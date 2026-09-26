@@ -486,3 +486,24 @@ fn provider_multi_config_single_active() {
 
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn list_events_carries_real_identity_and_meta() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+
+    let id = store
+        .insert_event(crate::event::NewEvent::now("测试事件"))
+        .unwrap();
+    let rows = store.list_events().unwrap();
+    assert_eq!(rows.len(), 1, "应只有刚插入的一条事件");
+    let e = &rows[0];
+    assert_eq!(e.id, id, "事件 id 应来自数据库真实 id，而非伪造 UUID");
+    assert!(!e.id.is_empty());
+    assert_eq!(e.raw_text, "测试事件");
+    assert_eq!(e.status, "pending", "新事件默认 status 应为 pending，而非硬编码 completed");
+    assert_eq!(e.source, "capture", "NewEvent::now 的 source 应如实读出，而非 unknown");
+    assert!(!e.recorded_at.is_empty());
+
+    let _ = std::fs::remove_file(path);
+}

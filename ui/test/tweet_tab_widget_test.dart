@@ -21,18 +21,16 @@ void main() {
 
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    container.read(wikiOpenTabsProvider.notifier).state = [
+    container.read(wikiOpenTabsProvider.notifier).set([
       const ImportTabEntry(),
       const TweetTabEntry(fetch: fetch),
-    ];
-    container.read(wikiActiveTabIdProvider.notifier).state = 'tweet-20';
+    ]);
+    container.read(wikiActiveTabIdProvider.notifier).set('tweet-20');
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(
-          home: Scaffold(body: WikiPageDetailView()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: WikiPageDetailView())),
       ),
     );
     await tester.pump();
@@ -44,8 +42,11 @@ void main() {
     // 内容区：作者标题 + 原文卡片 + 原文文本 + 保存按钮
     expect(find.text('jack 的推文'), findsOneWidget);
     expect(find.text('抓取内容（原文）'), findsOneWidget);
-    expect(find.textContaining('just setting up my twttr'), findsOneWidget,
-        reason: '抓取到的原文应展示在 tab 内');
+    expect(
+      find.textContaining('just setting up my twttr'),
+      findsOneWidget,
+      reason: '抓取到的原文应展示在 tab 内',
+    );
     expect(find.text('保存到知识库'), findsOneWidget);
 
     // 对话区：引导语 + 输入框 + 发送按钮
@@ -66,18 +67,18 @@ void main() {
 
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    container.read(wikiOpenTabsProvider.notifier).state = [
+    container.read(wikiOpenTabsProvider.notifier).set([
       const ImportTabEntry(),
       const TweetTabEntry(fetch: fetch),
-    ];
-    container.read(wikiActiveTabIdProvider.notifier).state = 'tweet-2099411545117831668';
+    ]);
+    container
+        .read(wikiActiveTabIdProvider.notifier)
+        .set('tweet-2099411545117831668');
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(
-          home: Scaffold(body: WikiPageDetailView()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: WikiPageDetailView())),
       ),
     );
     await tester.pump();
@@ -87,7 +88,11 @@ void main() {
     expect(find.text('伟大 的推文'), findsNothing);
     expect(find.textContaining('过去，一个人赚不到钱'), findsOneWidget);
     expect(find.textContaining('这些理由过去确实成立'), findsOneWidget);
-    expect(find.textContaining('x.com/i/article'), findsNothing, reason: '不应显示文章链接');
+    expect(
+      find.textContaining('x.com/i/article'),
+      findsNothing,
+      reason: '不应显示文章链接',
+    );
   });
 
   testWidgets('AI 整理为 Markdown：预览整理版，保存入库整理后的正文', (tester) async {
@@ -104,18 +109,16 @@ void main() {
       overrides: [storageRepositoryProvider.overrideWithValue(repo)],
     );
     addTearDown(container.dispose);
-    container.read(wikiOpenTabsProvider.notifier).state = [
+    container.read(wikiOpenTabsProvider.notifier).set([
       const ImportTabEntry(),
       const TweetTabEntry(fetch: fetch),
-    ];
-    container.read(wikiActiveTabIdProvider.notifier).state = 'tweet-20';
+    ]);
+    container.read(wikiActiveTabIdProvider.notifier).set('tweet-20');
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(
-          home: Scaffold(body: WikiPageDetailView()),
-        ),
+        child: const MaterialApp(home: Scaffold(body: WikiPageDetailView())),
       ),
     );
     await tester.pump();
@@ -135,8 +138,11 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(repo.savedTweetId, '20');
-    expect(repo.savedText, _FakeBeautifyRepo.beautified,
-        reason: '有整理版时保存应入库整理后的 Markdown');
+    expect(
+      repo.savedText,
+      _FakeBeautifyRepo.beautified,
+      reason: '有整理版时保存应入库整理后的 Markdown',
+    );
   });
 }
 

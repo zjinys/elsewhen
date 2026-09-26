@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../providers/wiki_provider.dart';
 import '../models/wiki_page.dart';
 import 'markdown_view.dart';
@@ -16,22 +17,26 @@ class WikiDerivatives extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          const Expanded(child: Text('派生产物')),
-          IconButton(
-            tooltip: '刷新派生产物',
-            onPressed: () => ref.invalidate(wikiDerivativesProvider(slug)),
-            icon: const Icon(Icons.refresh, size: 18),
-          ),
-        ]),
+        Row(
+          children: [
+            const Expanded(child: Text('派生产物')),
+            IconButton(
+              tooltip: '刷新派生产物',
+              onPressed: () => ref.invalidate(wikiDerivativesProvider(slug)),
+              icon: const Icon(Icons.refresh, size: 18),
+            ),
+          ],
+        ),
         pages.when(
           loading: () => const LinearProgressIndicator(),
           error: (error, _) => const Text('加载失败，请点击刷新重试'),
           data: (items) => items.isEmpty
               ? const Text('暂无产物。让 AI 加工本页，确认保存后将在这里展示；原文不变。')
-              : Column(children: [
-                  for (final page in items) _DerivativeTile(page: page),
-                ]),
+              : Column(
+                  children: [
+                    for (final page in items) _DerivativeTile(page: page),
+                  ],
+                ),
         ),
       ],
     );
@@ -78,7 +83,10 @@ class _DerivativeTile extends StatelessWidget {
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
       childrenPadding: const EdgeInsets.only(bottom: 8),
-      title: Text(page.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      title: Text(
+        page.title,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
       subtitle: Text('${page.contentType ?? 'AI 加工'} · $_timeLabel'),
       children: [
         Align(
@@ -91,9 +99,8 @@ class _DerivativeTile extends StatelessWidget {
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: page.contentMd));
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('已复制完整正文')),
-                );
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(const SnackBar(content: Text('已复制完整正文')));
               }
             },
             icon: const Icon(Icons.copy_outlined, size: 16),

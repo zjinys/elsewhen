@@ -20,8 +20,11 @@ impl<'a> NewEvent<'a> {
 }
 
 pub struct EventSummary {
+    pub id: String,
     pub recorded_at: String,
     pub raw_text: String,
+    pub source: String,
+    pub status: String,
 }
 
 /// 从一条文本里解析出的「规范标注」实体：@人名 = 人物，#事情 = 事情/项目。

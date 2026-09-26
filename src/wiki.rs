@@ -1252,8 +1252,10 @@ pub fn export_wiki(store: &Store, dir: &Path) -> Result<ExportReport> {
     for page in pages {
         let sub = dir.join(kind_dir(&page.kind));
         std::fs::create_dir_all(&sub)?;
-        let tail = page.slug.rsplit('/').next().unwrap_or(&page.slug);
-        let path = sub.join(format!("{}.md", tail));
+        // 完整 slug 转文件名（`/` → `-`）：slug 前缀不必等于 kind，
+        // 只取最后一段会让 `person/a` 与 `misc/a` 落到同名文件互相覆盖。
+        let file_name = page.slug.replace('/', "-");
+        let path = sub.join(format!("{}.md", file_name));
         let sources: Vec<String> = page
             .source_event_ids
             .iter()

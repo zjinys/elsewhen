@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'state_holder.dart';
+
 import '../models/wiki_page.dart';
 import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
@@ -11,9 +13,10 @@ import '../bridge/generated.dart/api.dart'
 /// 一级导航内容域。待办使用主工作区承载，避免在弹窗里维护持续讨论。
 enum SidebarTab { conversation, wiki }
 
-final sidebarTabProvider = StateProvider<SidebarTab>(
-  (ref) => SidebarTab.conversation,
-);
+final sidebarTabProvider =
+    NotifierProvider<StateHolder<SidebarTab>, SidebarTab>(
+      () => StateHolder(SidebarTab.conversation),
+    );
 
 /// wiki 页面列表（全部，UI 按 kind 分组展示）
 final wikiPagesProvider = FutureProvider<List<WikiPage>>((ref) async {
@@ -76,7 +79,8 @@ final entityMergeStatusProvider =
     });
 
 /// 当前选中查看的 wiki 页 slug（保留：左侧列表高亮 + 兼容引用）
-final selectedWikiSlugProvider = StateProvider<String?>((ref) => null);
+final selectedWikiSlugProvider =
+    NotifierProvider<StateHolder<String?>, String?>(() => StateHolder(null));
 
 /// 选中页详情（保留兼容，已不再驱动右侧面板）
 final wikiPageDetailProvider = FutureProvider<WikiPage?>((ref) async {
@@ -113,7 +117,6 @@ class ImportTabEntry extends WikiTabEntry {
   bool get closable => false;
 }
 
-
 /// 知识库页面详情 tab
 class PageTabEntry extends WikiTabEntry {
   final String slug;
@@ -148,7 +151,7 @@ class ImportFetchTabEntry extends WikiTabEntry {
   const ImportFetchTabEntry({required this.fetch});
 
   @override
-  String get id => 'import-${fetch.sourceUrl.hashCode}';
+  String get id => wikiImportTabId(fetch);
 
   @override
   String get title {
@@ -158,22 +161,31 @@ class ImportFetchTabEntry extends WikiTabEntry {
 }
 
 /// 已打开的 tab 列表（第一个固定为导入 tab）
-final wikiOpenTabsProvider = StateProvider<List<WikiTabEntry>>(
-  (ref) => const [ImportTabEntry()],
-);
+final wikiOpenTabsProvider =
+    NotifierProvider<StateHolder<List<WikiTabEntry>>, List<WikiTabEntry>>(
+      () => StateHolder(const [ImportTabEntry()]),
+    );
 
 /// 当前激活的 tab id
-final wikiActiveTabIdProvider = StateProvider<String>((ref) => 'import');
+final wikiActiveTabIdProvider = NotifierProvider<StateHolder<String>, String>(
+  () => StateHolder('import'),
+);
 
 /// 正在编辑且未保存改动的页面 slug 集合（§6.3：关闭/离开前确认）。
 /// 由详情页编辑器在事务变更/保存/放弃时维护。
-final wikiDirtyTabsProvider = StateProvider<Set<String>>((ref) => <String>{});
+final wikiDirtyTabsProvider =
+    NotifierProvider<StateHolder<Set<String>>, Set<String>>(
+      () => StateHolder(<String>{}),
+    );
 
 /// 各打开页面 tab 的保存回调（v1.5：关闭脏 tab 时支持「保存并关闭」）。
 /// 由详情页 body 挂载时按 slug 注册、卸载时移除；回调返回是否保存成功
 /// （无改动/编辑器未就绪视为成功）。tab bar 关闭流程只读此表。
 final wikiSaveCallbacksProvider =
-    StateProvider<Map<String, Future<bool> Function()>>((ref) => {});
+    NotifierProvider<
+      StateHolder<Map<String, Future<bool> Function()>>,
+      Map<String, Future<bool> Function()>
+    >(() => StateHolder({}));
 
 const _maxWikiTabs = 8;
 
@@ -193,15 +205,15 @@ void openWikiTab(WidgetRef ref, WikiTabEntry entry) {
       tabs.removeAt(removable);
     }
   }
-  ref.read(wikiOpenTabsProvider.notifier).state = tabs;
-  ref.read(wikiActiveTabIdProvider.notifier).state = entry.id;
+  ref.read(wikiOpenTabsProvider.notifier).set(tabs);
+  ref.read(wikiActiveTabIdProvider.notifier).set(entry.id);
 }
 
 /// 从左侧列表打开知识库页面 tab（同时更新左侧高亮）。
 /// 每次都使 family provider 失效，确保重新从数据库读取最新内容
 /// （否则同一 slug 一旦被解析过一次就缓存旧内容，保存再打开会看到旧页）。
 void openWikiPageTab(WidgetRef ref, WikiPage page) {
-  ref.read(selectedWikiSlugProvider.notifier).state = page.slug;
+  ref.read(selectedWikiSlugProvider.notifier).set(page.slug);
   ref.invalidate(wikiPageProvider(page.slug));
   ref.invalidate(pageRelationsProvider(page.slug));
   openWikiTab(ref, PageTabEntry(slug: page.slug, title: page.title));
@@ -211,6 +223,11 @@ void openWikiPageTab(WidgetRef ref, WikiPage page) {
 void openWikiTweetTab(WidgetRef ref, TweetFetch fetch) {
   openWikiTab(ref, TweetTabEntry(fetch: fetch));
 }
+
+/// 抓取预览 tab 的稳定 id。打开（tab 入口的 id getter）与保存后关闭共用
+/// 这一处计算，避免两处分别拼前缀导致 id 漂移（`import-` 前缀漏拼曾使
+/// 保存后关不掉预览 tab）。
+String wikiImportTabId(ImportFetch fetch) => 'import-${fetch.sourceUrl.hashCode}';
 
 /// 打开一个已抓取任意网址内容的预览 tab（网页/推文通用）
 void openWikiImportFetchTab(WidgetRef ref, ImportFetch fetch) {
@@ -223,11 +240,11 @@ void closeWikiTab(WidgetRef ref, String id) {
   final index = tabs.indexWhere((t) => t.id == id);
   if (index < 0 || !tabs[index].closable) return;
   tabs.removeAt(index);
-  ref.read(wikiOpenTabsProvider.notifier).state = tabs;
+  ref.read(wikiOpenTabsProvider.notifier).set(tabs);
   if (ref.read(wikiActiveTabIdProvider) == id) {
     final fallback = index.clamp(0, tabs.length - 1);
-    ref.read(wikiActiveTabIdProvider.notifier).state = tabs.isEmpty
-        ? 'import'
-        : tabs[fallback].id;
+    ref
+        .read(wikiActiveTabIdProvider.notifier)
+        .set(tabs.isEmpty ? 'import' : tabs[fallback].id);
   }
 }

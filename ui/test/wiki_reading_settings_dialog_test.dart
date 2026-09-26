@@ -43,17 +43,14 @@ void main() {
   }
 
   // 当前状态里的编辑器覆盖层取值
-  double? editorFontSize() =>
-      container.read(settingsProvider).editorFontSize;
+  double? editorFontSize() => container.read(settingsProvider).editorFontSize;
   double? editorLineHeight() =>
       container.read(settingsProvider).editorLineHeight;
 
   // key 挂在包装组件 _FollowGlobalChip 上；取其内部 ActionChip 读选中态
-  ActionChip chipByKey(WidgetTester tester, Key key) => tester.widget<ActionChip>(
-        find.descendant(
-          of: find.byKey(key),
-          matching: find.byType(ActionChip),
-        ),
+  ActionChip chipByKey(WidgetTester tester, Key key) =>
+      tester.widget<ActionChip>(
+        find.descendant(of: find.byKey(key), matching: find.byType(ActionChip)),
       );
 
   testWidgets('渲染：三项控件 + 默认全部「跟随全局」', (tester) async {

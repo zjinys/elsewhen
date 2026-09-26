@@ -117,11 +117,11 @@ void main() {
     container = ProviderContainer(
       overrides: [storageRepositoryProvider.overrideWithValue(repo)],
     );
-    container.read(wikiOpenTabsProvider.notifier).state = [
+    container.read(wikiOpenTabsProvider.notifier).set([
       ImportTabEntry(),
       PageTabEntry(slug: p.slug, title: p.title),
-    ];
-    container.read(wikiActiveTabIdProvider.notifier).state = 'page-${p.slug}';
+    ]);
+    container.read(wikiActiveTabIdProvider.notifier).set('page-${p.slug}');
     addTearDown(container.dispose);
 
     tester.view.physicalSize = const Size(1600, 2200);
@@ -320,12 +320,13 @@ void main() {
       container = ProviderContainer(
         overrides: [storageRepositoryProvider.overrideWithValue(repo)],
       );
-      container.read(wikiOpenTabsProvider.notifier).state = [
+      container.read(wikiOpenTabsProvider.notifier).set([
         ImportTabEntry(),
         PageTabEntry(slug: _testPage.slug, title: _testPage.title),
-      ];
-      container.read(wikiActiveTabIdProvider.notifier).state =
-          'page-${_testPage.slug}';
+      ]);
+      container
+          .read(wikiActiveTabIdProvider.notifier)
+          .set('page-${_testPage.slug}');
       addTearDown(container.dispose);
       tester.view.physicalSize = const Size(1600, 2200);
       tester.view.devicePixelRatio = 1.0;
@@ -433,12 +434,13 @@ void main() {
       container = ProviderContainer(
         overrides: [storageRepositoryProvider.overrideWithValue(repo)],
       );
-      container.read(wikiOpenTabsProvider.notifier).state = [
+      container.read(wikiOpenTabsProvider.notifier).set([
         ImportTabEntry(),
         PageTabEntry(slug: _testPage.slug, title: _testPage.title),
-      ];
-      container.read(wikiActiveTabIdProvider.notifier).state =
-          'page-${_testPage.slug}';
+      ]);
+      container
+          .read(wikiActiveTabIdProvider.notifier)
+          .set('page-${_testPage.slug}');
       addTearDown(container.dispose);
 
       tester.view.physicalSize = const Size(390, 844);

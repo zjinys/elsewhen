@@ -37,6 +37,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisJobStatsDto dco_decode_analysis_job_stats_dto(dynamic raw);
 
   @protected
+  AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -97,6 +100,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DailyReviewItemDto dco_decode_daily_review_item_dto(dynamic raw);
+
+  @protected
+  DailyReviewResult dco_decode_daily_review_result(dynamic raw);
 
   @protected
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
@@ -287,6 +293,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AnalysisTriggerResult sse_decode_analysis_trigger_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -355,6 +366,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DailyReviewItemDto sse_decode_daily_review_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DailyReviewResult sse_decode_daily_review_result(
     SseDeserializer deserializer,
   );
 
@@ -1017,6 +1033,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_analysis_trigger_result(
+    AnalysisTriggerResult apiObj,
+    wire_cst_analysis_trigger_result wireObj,
+  ) {
+    if (apiObj is AnalysisTriggerResult_NoProvider) {
+      wireObj.tag = 0;
+      return;
+    }
+    if (apiObj is AnalysisTriggerResult_Processed) {
+      var pre_count = cst_encode_i_64(apiObj.count);
+      wireObj.tag = 1;
+      wireObj.kind.Processed.count = pre_count;
+      return;
+    }
+  }
+
+  @protected
   void cst_api_fill_to_wire_box_autoadd_ai_provider_config_dto(
     AiProviderConfigDto apiObj,
     ffi.Pointer<wire_cst_ai_provider_config_dto> wireObj,
@@ -1154,6 +1187,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.text = cst_encode_String(apiObj.text);
     wireObj.source_event_ids = cst_encode_list_String(apiObj.sourceEventIds);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_daily_review_result(
+    DailyReviewResult apiObj,
+    wire_cst_daily_review_result wireObj,
+  ) {
+    if (apiObj is DailyReviewResult_NoProvider) {
+      wireObj.tag = 0;
+      return;
+    }
+    if (apiObj is DailyReviewResult_NoEntries) {
+      wireObj.tag = 1;
+      return;
+    }
+    if (apiObj is DailyReviewResult_Created) {
+      var pre_id = cst_encode_String(apiObj.id);
+      wireObj.tag = 2;
+      wireObj.kind.Created.id = pre_id;
+      return;
+    }
   }
 
   @protected
@@ -1469,6 +1523,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_analysis_trigger_result(
+    AnalysisTriggerResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -1558,6 +1618,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_daily_review_item_dto(
     DailyReviewItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_daily_review_result(
+    DailyReviewResult self,
     SseSerializer serializer,
   );
 
@@ -4441,6 +4507,14 @@ class RustLibWire implements BaseWire {
           >();
 }
 
+final class AnalysisTriggerResultKind extends ffi.Union {
+  external wire_cst_AnalysisTriggerResult_Processed Processed;
+}
+
+final class DailyReviewResultKind extends ffi.Union {
+  external wire_cst_DailyReviewResult_Created Created;
+}
+
 typedef DartPort = ffi.Int64;
 typedef DartDartPort = int;
 typedef DartPostCObjectFnType =
@@ -4453,6 +4527,26 @@ typedef DartDartPostCObjectFnTypeFunction = bool Function(
   DartDartPort port_id,
   ffi.Pointer<ffi.Void> message,
 );
+
+final class wire_cst_AnalysisTriggerResult_Processed extends ffi.Struct {
+  @ffi.Int64()
+  external int count;
+
+  static ffi.Pointer<wire_cst_AnalysisTriggerResult_Processed> $allocate(
+    ffi.Allocator $allocator, {
+    required int count,
+  }) =>
+      $allocator<wire_cst_AnalysisTriggerResult_Processed>()..ref.count = count;
+}
+
+final class wire_cst_DailyReviewResult_Created extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  static ffi.Pointer<wire_cst_DailyReviewResult_Created> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  }) => $allocator<wire_cst_DailyReviewResult_Created>()..ref.id = id;
+}
 
 final class wire_cst_ai_provider_config_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
@@ -4554,6 +4648,13 @@ final class wire_cst_analysis_job_stats_dto extends ffi.Struct {
     ..ref.retry = retry
     ..ref.succeeded = succeeded
     ..ref.failed = failed;
+}
+
+final class wire_cst_analysis_trigger_result extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external AnalysisTriggerResultKind kind;
 }
 
 final class wire_cst_content_chat_message_dto extends ffi.Struct {
@@ -4720,6 +4821,13 @@ final class wire_cst_daily_review_item_dto extends ffi.Struct {
   }) => $allocator<wire_cst_daily_review_item_dto>()
     ..ref.text = text
     ..ref.source_event_ids = source_event_ids;
+}
+
+final class wire_cst_daily_review_result extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external DailyReviewResultKind kind;
 }
 
 final class wire_cst_daily_token_usage_dto extends ffi.Struct {

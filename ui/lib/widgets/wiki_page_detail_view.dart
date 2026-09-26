@@ -15,6 +15,7 @@ import '../models/import_fetch.dart';
 import '../models/wiki_page.dart';
 import '../providers/wiki_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/state_holder.dart';
 import '../providers/todo_provider.dart';
 import '../models/todo.dart';
 import '../theme/app_theme.dart';
@@ -77,11 +78,30 @@ class _HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 560;
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-          child: Row(
+          child: narrow
+              ? Column(
+                  children: [
+                    _HomeAction(
+                      icon: Icons.link_outlined,
+                      title: '网址导入',
+                      subtitle: '抓取网页或推文，确认后保存',
+                      onTap: () => _showImportDialog(context, urlMode: true),
+                    ),
+                    const SizedBox(height: 8),
+                    _HomeAction(
+                      icon: Icons.notes_outlined,
+                      title: '直接文本',
+                      subtitle: '粘贴内容并创建知识页',
+                      onTap: () => _showImportDialog(context, urlMode: false),
+                    ),
+                  ],
+                )
+              : Row(
             children: [
               Expanded(
                 child: _HomeAction(
@@ -209,8 +229,7 @@ class _KnowledgeBrowser extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pages =
-        ref.watch(wikiPagesProvider).valueOrNull ?? const <WikiPage>[];
+    final pages = ref.watch(wikiPagesProvider).value ?? const <WikiPage>[];
     final areas =
         pages.map((p) => p.area).where((v) => v.isNotEmpty).toSet().toList()
           ..sort();
@@ -422,7 +441,7 @@ class _WikiTabBar extends ConsumerWidget {
             tab: tab,
             active: tab.id == activeId,
             onTap: () {
-              ref.read(wikiActiveTabIdProvider.notifier).state = tab.id;
+              ref.read(wikiActiveTabIdProvider.notifier).set(tab.id);
             },
             onClose: tab.closable ? () => _closeTab(context, ref, tab) : null,
           );
@@ -1077,8 +1096,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
   Offset? _chatPosition;
 
   /// 保存回调注册表的 notifier 引用：dispose 后 `ref` 不可用，须提前缓存。
-  late final StateController<Map<String, Future<bool> Function()>>
-  _saveCallbacks;
+  late final StateHolder<Map<String, Future<bool> Function()>> _saveCallbacks;
 
   @override
   void initState() {
@@ -1102,6 +1120,10 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
     final notifier = _saveCallbacks;
     final slug = widget.page.slug;
     scheduleMicrotask(() {
+      // provider 已随容器销毁（如测试 teardown）则无需注销；
+      // Riverpod 3 下销毁后写 state 抛 UnmountedRefException（内部类型），
+      // 用 mounted 守卫而不是捕获。
+      if (!notifier.isMounted) return;
       try {
         notifier.update((map) => {...map}..remove(slug));
       } on StateError {
@@ -1764,7 +1786,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
   /// 双侧方向都以当前页为中心展示（出→ 人·事；入← 人·事）。
   Widget _buildRelationsRow(BuildContext context) {
     final relationsAsync = ref.watch(pageRelationsProvider(widget.page.slug));
-    final relations = relationsAsync.valueOrNull ?? const [];
+    final relations = relationsAsync.value ?? const [];
     if (relations.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1845,6 +1867,8 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
         ],
       ),
     );
+    // 对话框已关闭（controller.text 已在 pop 时取过），立即释放，避免泄漏。
+    controller.dispose();
     if (submitted == null || !context.mounted) return;
 
     final tags = submitted
@@ -1898,7 +1922,7 @@ class _WorkItemPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final todos = ref.watch(todosProvider).valueOrNull ?? const <Todo>[];
+    final todos = ref.watch(todosProvider).value ?? const <Todo>[];
     Todo? todo;
     for (final item in todos) {
       if (item.relatedWikiSlug == page.slug) {
@@ -1911,14 +1935,43 @@ class _WorkItemPanel extends ConsumerWidget {
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
 
     Future<void> updateFields({String? priority, String? dueAt}) async {
-      await repo.updateTodo(
-        id: workItem.id,
-        title: workItem.title,
-        note: workItem.note,
-        priority: priority ?? workItem.priority,
-        dueAt: dueAt ?? workItem.dueAt,
-      );
-      ref.invalidate(todosProvider);
+      // FFI 失败不能静默丢弃：SnackBar 反馈，成功后刷新（ConsumerWidget 无
+      // State.mounted，用 context.mounted 守住 post-await 的 context 使用）。
+      try {
+        await repo.updateTodo(
+          id: workItem.id,
+          title: workItem.title,
+          note: workItem.note,
+          priority: priority ?? workItem.priority,
+          dueAt: dueAt ?? workItem.dueAt,
+        );
+        if (!context.mounted) return;
+        ref.invalidate(todosProvider);
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('更新待办失败：${e.toString()}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
+    Future<void> updateStatus(String status) async {
+      try {
+        await repo.updateTodoStatus(workItem.id, status);
+        if (!context.mounted) return;
+        ref.invalidate(todosProvider);
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('更新状态失败：${e.toString()}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
 
     return Wrap(
@@ -1928,10 +1981,7 @@ class _WorkItemPanel extends ConsumerWidget {
       children: [
         PopupMenuButton<String>(
           tooltip: '更新状态',
-          onSelected: (status) async {
-            await repo.updateTodoStatus(workItem.id, status);
-            ref.invalidate(todosProvider);
-          },
+          onSelected: (status) => updateStatus(status),
           itemBuilder: (_) => [
             for (final status in TodoStatus.values)
               PopupMenuItem(value: status.wire, child: Text(status.label)),
@@ -2040,7 +2090,7 @@ class _EntityMergeControls extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (!_isEntity) return const SizedBox.shrink();
-    final merge = ref.watch(entityMergeStatusProvider(page.slug)).valueOrNull;
+    final merge = ref.watch(entityMergeStatusProvider(page.slug)).value;
     if (merge != null || page.status == 'merged') {
       return Container(
         width: double.infinity,
@@ -2245,7 +2295,7 @@ class _EntityRelatedTodos extends ConsumerWidget {
     if (!const ['person', 'project', 'topic'].contains(page.kind)) {
       return const SizedBox.shrink();
     }
-    final todos = (ref.watch(todosProvider).valueOrNull ?? const <Todo>[])
+    final todos = (ref.watch(todosProvider).value ?? const <Todo>[])
         .where((todo) => todo.relatedWikiSlug == page.slug)
         .toList();
     if (todos.isEmpty) return const SizedBox.shrink();
@@ -2331,7 +2381,7 @@ class _EntityFacts extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final facts = ref.watch(entityFactsProvider(slug)).valueOrNull ?? const [];
+    final facts = ref.watch(entityFactsProvider(slug)).value ?? const [];
     if (facts.isEmpty) return const SizedBox.shrink();
     final conflicts = _conflictingFactIds(facts);
     return Padding(
@@ -2635,7 +2685,7 @@ class _LocalPathChip extends ConsumerWidget {
   /// 不用 TextField 手输：避免路径输错，也避开 dialog 退场动画期间
   /// dispose controller 导致的已释放访问 crash。
   Future<void> _showEditPathDialog(BuildContext context, WidgetRef ref) async {
-    final picked = await FilePicker.platform.getDirectoryPath(
+    final picked = await FilePicker.getDirectoryPath(
       dialogTitle: '选择项目目录',
       initialDirectory: page.localPath,
     );
@@ -2771,7 +2821,7 @@ class _RelationChip extends ConsumerWidget {
     final outbound = relation.fromSlug == pageSlug;
     final otherSlug = outbound ? relation.toSlug : relation.fromSlug;
     final otherAsync = ref.watch(wikiPageProvider(otherSlug));
-    final other = otherAsync.valueOrNull;
+    final other = otherAsync.value;
     final otherTitle = other?.title ?? otherSlug;
     final arrow = outbound ? '→' : '←';
 
@@ -2889,7 +2939,7 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
       setState(() => _saved = true);
       ref.invalidate(wikiPagesProvider);
       openWikiPageTab(ref, page);
-      closeWikiTab(ref, widget.fetch.sourceUrl.hashCode.toString());
+      closeWikiTab(ref, wikiImportTabId(widget.fetch));
     } catch (e) {
       if (!mounted) return;
       setState(() => _saveError = e.toString().replaceFirst('Exception: ', ''));
@@ -3695,8 +3745,7 @@ class _WikiBrowseTabState extends ConsumerState<_WikiBrowseTab> {
 
   @override
   Widget build(BuildContext context) {
-    final pages =
-        ref.watch(wikiPagesProvider).valueOrNull ?? const <WikiPage>[];
+    final pages = ref.watch(wikiPagesProvider).value ?? const <WikiPage>[];
     final hasSearch =
         _query.text.trim().isNotEmpty ||
         _areas.isNotEmpty ||

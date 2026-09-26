@@ -188,3 +188,9 @@ Rust API 发生变化后运行根目录的 `./regen.sh`，它会重新生成 Flu
 - [Flutter UI README](ui/README.md) - Flutter GUI 开发指南
 - [CLAUDE.md](CLAUDE.md) - Claude Code 开发指南
 - [需求文档](docs/requirements/) - 产品需求和架构设计
+
+## 许可证
+
+项目本体以 [MIT License](LICENSE) 发布。第三方组件与依赖的许可说明见 [NOTICE.md](NOTICE.md)，
+其中 vendored 编辑器 `ui/third_party/appflowy_editor` 采用上游双许可（AGPL-3.0 OR MPL-2.0）
+中的 **MPL-2.0** 分支。

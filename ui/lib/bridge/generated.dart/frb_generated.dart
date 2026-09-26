@@ -166,7 +166,7 @@ abstract class RustLibApi extends BaseApi {
     required List<ContentChatMessageDto> messages,
   });
 
-  Future<String> crateApiGenerateDailyReview({required String date});
+  Future<DailyReviewResult> crateApiGenerateDailyReview({required String date});
 
   Future<String> crateApiGenerateReply({
     required String conversationId,
@@ -360,7 +360,7 @@ abstract class RustLibApi extends BaseApi {
     String? idempotencyKey,
   });
 
-  Future<String> crateApiTriggerAnalysis();
+  Future<AnalysisTriggerResult> crateApiTriggerAnalysis();
 
   Future<bool> crateApiUndoEntityMerge({required String sourceSlug});
 
@@ -1048,7 +1048,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<String> crateApiGenerateDailyReview({required String date}) {
+  Future<DailyReviewResult> crateApiGenerateDailyReview({
+    required String date,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -1056,7 +1058,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return wire.wire__crate__api__generate_daily_review(port_, arg0);
         },
         codec: DcoCodec(
-          decodeSuccessData: dco_decode_String,
+          decodeSuccessData: dco_decode_daily_review_result,
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiGenerateDailyReviewConstMeta,
@@ -1483,7 +1485,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_String,
-          decodeErrorData: null,
+          decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiInitBridgeConstMeta,
         argValues: [databasePath],
@@ -2491,14 +2493,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<String> crateApiTriggerAnalysis() {
+  Future<AnalysisTriggerResult> crateApiTriggerAnalysis() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           return wire.wire__crate__api__trigger_analysis(port_);
         },
         codec: DcoCodec(
-          decodeSuccessData: dco_decode_String,
+          decodeSuccessData: dco_decode_analysis_trigger_result,
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiTriggerAnalysisConstMeta,
@@ -2879,6 +2881,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    switch (dcoDecodePrimitiveInt(arr[0])) {
+      case 0:
+        return AnalysisTriggerResult_NoProvider();
+      case 1:
+        return AnalysisTriggerResult_Processed(count: dco_decode_i_64(arr[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
@@ -3048,6 +3064,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       text: dco_decode_String(arr[0]),
       sourceEventIds: dco_decode_list_String(arr[1]),
     );
+  }
+
+  @protected
+  DailyReviewResult dco_decode_daily_review_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    switch (dcoDecodePrimitiveInt(arr[0])) {
+      case 0:
+        return DailyReviewResult_NoProvider();
+      case 1:
+        return DailyReviewResult_NoEntries();
+      case 2:
+        return DailyReviewResult_Created(id: dco_decode_String(arr[1]));
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -3677,6 +3709,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AnalysisTriggerResult sse_decode_analysis_trigger_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return AnalysisTriggerResult_NoProvider();
+      case 1:
+        var var_count = sse_decode_i_64(deserializer);
+        return AnalysisTriggerResult_Processed(count: var_count);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
@@ -3873,6 +3923,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       text: var_text,
       sourceEventIds: var_sourceEventIds,
     );
+  }
+
+  @protected
+  DailyReviewResult sse_decode_daily_review_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return DailyReviewResult_NoProvider();
+      case 1:
+        return DailyReviewResult_NoEntries();
+      case 2:
+        var var_id = sse_decode_String(deserializer);
+        return DailyReviewResult_Created(id: var_id);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -4788,6 +4858,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_analysis_trigger_result(
+    AnalysisTriggerResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case AnalysisTriggerResult_NoProvider():
+        sse_encode_i_32(0, serializer);
+      case AnalysisTriggerResult_Processed(count: final count):
+        sse_encode_i_32(1, serializer);
+        sse_encode_i_64(count, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
@@ -4961,6 +5046,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.text, serializer);
     sse_encode_list_String(self.sourceEventIds, serializer);
+  }
+
+  @protected
+  void sse_encode_daily_review_result(
+    DailyReviewResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case DailyReviewResult_NoProvider():
+        sse_encode_i_32(0, serializer);
+      case DailyReviewResult_NoEntries():
+        sse_encode_i_32(1, serializer);
+      case DailyReviewResult_Created(id: final id):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(id, serializer);
+    }
   }
 
   @protected

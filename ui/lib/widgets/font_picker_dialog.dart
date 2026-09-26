@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../models/settings.dart';
 import '../theme/app_theme.dart';
@@ -8,8 +7,8 @@ import '../utils/system_fonts.dart';
 /// 「跟随全局」哨兵：编辑器字体覆盖用，调用方映射回 null。
 const String kFontFollowGlobal = '__follow_global__';
 
-/// 自研字体选择框：系统默认 + fontconfig 本地字体 + Google Fonts，
-/// 每行用自身字体实时预览。返回存值（`system` / `google:X` / `local:X`），
+/// 自研字体选择框：系统默认 + fontconfig 本地字体，
+/// 每行用自身字体实时预览。返回存值（`system` / `local:X`），
 /// 取消返回 null；[includeFollowGlobal] 为 true 时首行是「跟随全局」，
 /// 点按返回 [kFontFollowGlobal]。
 Future<String?> showFontPickerDialog(
@@ -52,13 +51,11 @@ class _FontPickerBodyState extends State<_FontPickerBody> {
   final _searchController = TextEditingController();
   String _query = '';
   late final Future<List<SystemFontEntry>> _localFuture;
-  late final List<String> _googleFamilies;
 
   @override
   void initState() {
     super.initState();
     _localFuture = SystemFontService.instance.listFonts();
-    _googleFamilies = GoogleFonts.asMap().keys.toList()..sort();
   }
 
   @override
@@ -119,12 +116,6 @@ class _FontPickerBodyState extends State<_FontPickerBody> {
     final matchLocal = q.isEmpty
         ? local
         : local.where((e) => e.family.toLowerCase().contains(q)).toList();
-    final matchGoogle = (q.isEmpty
-        ? _googleFamilies
-        : _googleFamilies.where((f) => f.toLowerCase().contains(q)).toList());
-    const googleCap = 80;
-    final showGoogle = matchGoogle.take(googleCap).toList();
-    final hiddenGoogle = matchGoogle.length - showGoogle.length;
 
     // 展平为轻量条目交给 builder 懒构建：本机可能上千个字体，
     // 直接 for 循环会在每次搜索重建上千个行 widget。
@@ -133,13 +124,7 @@ class _FontPickerBodyState extends State<_FontPickerBody> {
       _SystemDefaultItem(),
       if (matchLocal.isNotEmpty) _HeaderItem('本地字体 (${matchLocal.length})'),
       for (final e in matchLocal) _LocalItem(e),
-      if (showGoogle.isNotEmpty)
-        _HeaderItem('Google Fonts (${matchGoogle.length})'),
-      for (final f in showGoogle) _GoogleItem(f),
-      if (hiddenGoogle > 0) _HintItem('…还有 $hiddenGoogle 个，输入关键词缩小范围'),
-      if (matchLocal.isEmpty &&
-          showGoogle.isEmpty &&
-          !widget.includeFollowGlobal)
+      if (matchLocal.isEmpty && !widget.includeFollowGlobal)
         _HintItem('没有匹配的字体'),
     ];
 
@@ -168,13 +153,6 @@ class _FontPickerBodyState extends State<_FontPickerBody> {
             entry: entry,
             selected: _selected('local', entry.family),
             onTap: () => Navigator.of(context).pop('local:${entry.family}'),
-          ),
-          _GoogleItem(:final family) => _Row(
-            title: family,
-            subtitle: '在线字体 · 首次使用需联网下载',
-            preview: GoogleFonts.getFont(family, fontSize: 15),
-            selected: _selected('google', family),
-            onTap: () => Navigator.of(context).pop('google:$family'),
           ),
           _HintItem(:final text) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -208,11 +186,6 @@ final class _HeaderItem extends _Item {
 final class _LocalItem extends _Item {
   const _LocalItem(this.entry);
   final SystemFontEntry entry;
-}
-
-final class _GoogleItem extends _Item {
-  const _GoogleItem(this.family);
-  final String family;
 }
 
 final class _HintItem extends _Item {

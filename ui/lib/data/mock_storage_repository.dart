@@ -1,6 +1,7 @@
 import 'storage_repository.dart';
 import '../models/event.dart';
 import '../models/analysis.dart';
+import '../bridge/generated.dart/api.dart' as api;
 
 /// Mock implementation of StorageRepository for testing
 class MockStorageRepository implements StorageRepository {
@@ -58,9 +59,9 @@ class MockStorageRepository implements StorageRepository {
   }
 
   @override
-  Future<String> triggerAnalysis() async {
+  Future<api.AnalysisTriggerResult> triggerAnalysis() async {
     if (!_initialized) await initialize();
-    return 'success';
+    return const api.AnalysisTriggerResult.noProvider();
   }
 
   // Test helpers

@@ -32,13 +32,12 @@ dependencies:
     sdk: flutter
 
   # State management
-  flutter_riverpod: ^2.6.1
+  flutter_riverpod: ^3.4.3
 
   # Rust FFI bridge
   flutter_rust_bridge: 2.14.0-beta.2
 
   # UI utilities
-  google_fonts: ^6.2.1
   intl: ^0.20.1
   # wiki md⇄JSON codec 行内语法（[[wikilink]] 等，vendored 编辑器同款协议）
   markdown: ^7.3.1
@@ -50,10 +49,12 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.8
-  freezed_annotation: ^2.4.4
+  freezed_annotation: ^3.1.0
+  # 9.x 基于 material_ui 包重构（FlexThemeData 返回 material_ui.ThemeData，
+  # 与 Flutter 3.47 自带 material 的 ThemeData 不兼容），等生态稳定后再升。
   flex_color_scheme: ^8.4.0
   flutter_svg: ^2.2.1
-  file_picker: ^10.3.10
+  file_picker: ^13.1.0
   url_launcher: ^6.3.2
 
   # Editor 块组件运行依赖（自定义 block 与 vendored 编辑器共享，版本对齐其 pubspec）
@@ -80,8 +81,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   ffigen: ^22.0.0
-  freezed: ^2.5.7
-  build_runner: ^2.4.13
+  freezed: ^4.0.2
+  build_runner: ^2.16.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
