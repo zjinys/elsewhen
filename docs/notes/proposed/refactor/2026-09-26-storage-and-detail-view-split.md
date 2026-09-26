@@ -1,6 +1,6 @@
 # 结构性重构排期：storage.rs 与 wiki_page_detail_view.dart 拆分
 
-Status: proposed（待排期，非本轮 bug-fix）
+Status: partially done（storage.rs 拆分已完成 2026-09-26；wiki_page_detail_view 待排期）
 
 来源：deep review P1-1 / C9。两项均为「单文件巨型化」的结构性问题，不影响正确性，
 但抬高后续改动的心智负担与冲突面（本仓库有并行会话，大文件合并冲突风险高）。
@@ -49,6 +49,35 @@ Rust 允许同一类型跨文件多个 `impl Store` 块（同 crate 内），无
    迁移逻辑自成一体、可单独加单元测试。
 2. 再按域抽 events/conversations/wiki/entities/todos/provider（机械搬运，可分批）。
 3. `mod tests` 最后处理：可整体留 `mod.rs`，或按域拆 `*_tests.rs`。
+
+### ✅ 实际落地记录（2026-09-26，7 个 commit，逐步全绿）
+采用「`src/storage.rs` 保留为模块根 + `src/storage/` 子模块」结构，最后 `git mv`
+为 `mod.rs` 规范化。每步独立 commit + `cargo build` + `cargo test --all-targets`
+（180/180 全绿）验证，零行为/SQL 变化：
+
+| commit | 子模块 | 行数 | storage 主文件 |
+|---|---|---|---|
+| `e588cee` | `migrations.rs`（ensure_schema，30 版本迁移） | 706 | 6147 → 5462 |
+| `f503a74` | `provider.rs` + `entities.rs` | 232 + 356 | → 4904 |
+| `a8b6c06` | `wiki.rs`（wiki_pages/revisions/log + record_wiki_revision） | 786 | → 4136 |
+| `b83f285` | `conversations.rs`（会话/消息/token_usage） | 357 | → 3790 |
+| `3076503` | `records.rs`（rules/todos/relations/pending_actions/meta） | 523 | → 3285 |
+| `0b24d71` | `events.rs`（insert_event/input_records/analysis_jobs/insights） | 827 | → 2479 |
+| `46bba0e` | `storage.rs` → `src/storage/mod.rs` | — | — |
+
+**关键操作点**：
+- `Store` 字段 `connection`/`path` 提为 `pub(crate)`，使同 crate 拆分 impl 块可访问。
+- 共享行映射 `map_wiki_page`/`map_input_record` 与常量 `WIKI_PAGE_COLS` 提为 `pub(crate)`。
+- 跨域自调用（如 `merge_entity` 调 `self.get_wiki_page`、事件域调 `self.get_conversation`）
+  在同 crate 的多 `impl Store` 块间仍有效，无需改签名。
+- 仅测试用的 `OptionalExtension`/`Transaction`/`Uuid` import 移入 `mod tests`，lib 零警告。
+
+**最终结构**：`mod.rs` 2479 行（其中 ~1835 行为 `mod tests`，业务代码仅 ~640 行：
+Store 核心 open/search_knowledge_base/StorageAdapter/Drop + 类型定义）。
+113 个公开方法全部归入 7 个领域子模块。
+
+**未做（按计划保留）**：`mod tests`（1835 行）整体留 `mod.rs`，可按域再拆 `*_tests.rs`；
+`impl Clone` 的 `expect`（P1-2）单独评估。
 
 ### 验证门
 - 每步后 `cargo test --all-targets` 全绿（180 项含迁移幂等/并发/不可变 trigger 测试）。
