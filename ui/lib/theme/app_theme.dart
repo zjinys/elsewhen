@@ -2,7 +2,6 @@ import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 
 import '../models/settings.dart' show AppFonts, AppThemePreset;
-import '../utils/system_fonts.dart';
 
 /// 一整套界面色板（浅 / 深两套）。应用在 `AppTheme.apply()` 时切换，
 /// 组件里继续写 `AppTheme.surface1` 就能自动跟随深浅模式。
@@ -133,13 +132,9 @@ class AppTheme {
   }
 
   /// 用 flex_color_scheme 搭 Material 主题（浅 / 深都由设定色卡派生）。
-  /// [fontName]：Google Fonts 家族名，或 [AppFonts.system] 跟随系统；
-  /// 未知值回退 [AppFonts.defaultFont]。
-  static ThemeData buildTheme(
-    AppThemePreset preset,
-    Brightness brightness, [
-    String fontName = AppFonts.defaultFont,
-  ]) {
+  /// 界面文案字体固定（[AppFonts.uiFont] + 中文回退链），不随用户设置变化；
+  /// 用户内容的字体由 [ContentFont] 作用域单独注入（见 content_font.dart）。
+  static ThemeData buildTheme(AppThemePreset preset, Brightness brightness) {
     final scheme = flexSchemeOf(preset);
     final flex = brightness == Brightness.dark
         ? FlexThemeData.dark(
@@ -156,7 +151,7 @@ class AppTheme {
           );
 
     // 字体 + 行高微调（沿用现有 typography 习惯）
-    final textTheme = _textThemeFor(fontName, flex.textTheme);
+    final textTheme = _uiTextTheme(flex.textTheme);
     return flex.copyWith(
       scaffoldBackgroundColor: _current.surface0,
       colorScheme: flex.colorScheme.copyWith(
@@ -208,12 +203,16 @@ class AppTheme {
   static ThemeData get darkTheme =>
       buildTheme(AppThemePreset.amber, Brightness.dark);
 
-  /// 按字体选择生成 textTheme：system 不套字体（跟随系统）；
-  /// local 是 fontconfig 本地字体（启动/切换时已预热 FontLoader）；
-  /// 未知家族名回退默认字体。见 [resolveFontFamily]。
-  static TextTheme _textThemeFor(String fontName, TextTheme base) {
-    final family = resolveFontFamily(fontName, fallback: AppFonts.defaultFont);
-    if (family == null) return base;
-    return base.apply(fontFamily: family);
+  /// 界面固定字体：[AppFonts.uiFont] 打头；回退链 = 平台西文回退（Linux 的
+  /// Ubuntu/Cantarell 等）+ [AppFonts.cjkFallback]。显式列出中文字体，避免
+  /// 各平台引擎自选回退（如 Windows 上汉字落到日文字形）。
+  static TextTheme _uiTextTheme(TextTheme base) {
+    return base.apply(
+      fontFamily: AppFonts.uiFont,
+      fontFamilyFallback: [
+        ...?base.bodyMedium?.fontFamilyFallback,
+        ...AppFonts.cjkFallback,
+      ],
+    );
   }
 }

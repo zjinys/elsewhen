@@ -116,17 +116,34 @@ enum AppThemePreset {
   }
 }
 
-/// 全局字体选择（外观 tab，自研选择框：系统默认 / fontconfig 本地字体 / Google Fonts）。
-/// 存值（app_meta `theme_font`）格式见 [parseStoredFont]：`system`、`local:<家族>`。
-/// 旧的 `google:<家族>` 值会按本地字体兼容解析。monospace 场景不受影响。
+/// 字体约定：界面文案固定用 [uiFont]（主题层注入，不可设置）；
+/// 「外观 → 内容字体」只作用于用户内容区（知识库正文、对话消息、事件原文等，
+/// 见 theme/content_font.dart）。monospace 场景不受影响。
+/// 内容字体存值（app_meta `theme_font`）格式见 [parseStoredFont]：`system`、`local:<家族>`。
+/// 旧的 `google:<家族>` 值会按本地字体兼容解析。
 final class AppFonts {
   AppFonts._();
 
   /// 特殊存值：跟随系统默认字体
   static const String system = 'system';
 
-  /// 默认字体家族名
+  /// 默认字体家族名（内容字体的默认值 / 未知存值的回退）
   static const String defaultFont = 'Inter';
+
+  /// 界面文案固定字体
+  static const String uiFont = defaultFont;
+
+  /// 界面与内容共用的中文回退链：macOS → Windows → Linux 常见简中字体，
+  /// 按序取第一个本机存在且含该字形的字体。
+  static const List<String> cjkFallback = [
+    'PingFang SC',
+    'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    'Noto Sans CJK SC',
+    'Noto Sans SC',
+    'Source Han Sans SC',
+    'WenQuanYi Micro Hei',
+  ];
 
   static const String systemDisplayName = '系统默认';
 
@@ -173,7 +190,8 @@ class AppSettings {
   final AppThemeMode themeMode;
   final AppThemePreset themePreset;
 
-  /// 字体机器名：内建值见 [AppFontFamily]，其余按系统字体族名解析
+  /// 内容字体存值（「外观 → 内容字体」）：内建值见 [AppFontFamily]，其余按系统
+  /// 字体族名解析。界面文案不受影响（固定 [AppFonts.uiFont]）。
   final String fontName;
 
   /// 知识库正文字号（px，仅作用于 wiki 内容编辑器），见 [AppFonts]
@@ -201,9 +219,9 @@ class AppSettings {
   double get contentLineHeight =>
       AppFonts.clampLineHeight(editorLineHeight ?? AppFonts.defaultLineHeight);
 
-  /// 编辑器实际字体来源：null / "system" 时跟随系统字体，不做家族注入
-  /// （渲染层对 null 回退主题/系统字体）；具体家族名则覆盖全局。
-  String? get contentFontName => editorFontName;
+  /// 求值：编辑器字体覆盖 ?? 全局内容字体（存值，解析见 [resolveFontFamily]；
+  /// "system" 时渲染层不注入家族、跟随系统字体）。
+  String get contentFontName => editorFontName ?? fontName;
 
   final String? language;
 
