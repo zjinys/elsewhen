@@ -3,6 +3,8 @@
 > 状态：设计定案，**未实现** · 日期：2026-09-15
 > 关联：`docs/llm-wiki.md`——已实现的 v1（事件 → wiki 页 → 认知推微）；本文是知识库 **v2 路线图**
 > 性质：多轮用户交流的结论存档，后续实现以本文为准
+>
+> **2026-09-27：部分已被取代。** 实施以 [FR-PES-004](requirements/product/FR-PES-004-LLM-Wiki知识库闭环.md) 与 [ARCH-002](requirements/architecture/FR-PES-ARCH-002-LLM-Wiki知识库闭环技术设计.md) 为准：URL/文本导入已落地为 `source` 页、对话已有 `search_knowledge_base` 工具（§6「完全不注入」已过时）；CLI（含下文 `elsewhen wiki ingest`）已移除。本文保留为方法论/案例/规律与 `applicable_when`/`strength` 的设计讨论存档。
 
 ## 1. 背景：这几轮问的是什么
 

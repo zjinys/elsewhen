@@ -10,30 +10,32 @@ Elsewhen is a local-first personal event system with a **Rust core** and **Flutt
 
 ### Project Structure
 
-- **Rust core** (project root): Event storage, AI analysis, SQLite database, legacy Iced GUI
+- **Rust core** (project root): Event storage, AI analysis, knowledge digest, SQLite database — built only as the Flutter bridge library (no CLI binary)
 - **Flutter UI** (`ui/` directory): Modern cross-platform GUI for desktop (Linux/macOS/Windows) and mobile (Android/iOS)
 
 ## Key Architecture
 
 ### Data Flow
 
-1. **Event capture** → `Store::insert_event()` atomically commits both:
+1. **Event capture** → `Store::insert_event()` (and the other event write paths in `src/storage/events.rs`) atomically commit:
    - An immutable raw event record
    - A pending analysis job
+   - A pending knowledge digest job (`knowledge_digest_jobs`, available after a 10-minute settle window)
 
-2. **Analysis** → Background worker (`analyze-once` or `worker`) claims jobs, calls AI provider, stores structured results
+2. **Analysis** → The Flutter app's background worker (`RustBridgeRepository._wakeAnalysisWorker`, 5s timer) calls `trigger_analysis()`, which claims jobs, calls the AI provider and stores structured results
 
-3. **Database is the single source of truth** for AI provider config after first import from `.env`
+3. **Knowledge digest** (FR-PES-004 phase 1) → After the analysis queue drains, the same worker calls `trigger_knowledge_digest()`: skips non-recordable events, claims a bounded batch, asks the model for wiki page proposals, validates the whole batch, and commits page changes + `wiki_log` + job confirmation in one transaction. Failures back off; after 5 attempts a job cools down (6h) and is re-queued automatically. There is no manual trigger; the queue and run log (`knowledge_digest_runs`) are viewable read-only in Settings → 数据.
+
+4. **Database is the single source of truth** for AI provider config (configured in the app's settings)
 
 ### Module Responsibilities
 
-- `storage.rs`: SQLite schema, transactions, job queue management. Enforces raw event immutability via trigger.
-- `ai.rs`: OpenAI-compatible provider client, JSON parsing with fallback for markdown-wrapped responses
-- `capture.rs`: Iced GUI for quick text entry (Enter to submit, Escape to cancel)
-- `hotkey.rs`: Global keyboard listener (double-tap Left Ctrl) using `rdev` — X11 only, blocked on Wayland
+- `storage/`: SQLite schema and migrations, transactions, analysis and knowledge digest queues (`storage/digest.rs`). Enforces raw event immutability via trigger.
+- `ai/`: OpenAI-compatible provider client, conversation memory and tools, JSON parsing with fallback for markdown-wrapped responses
+- `wiki.rs`: LLM wiki knowledge base — digest worker (`process_digest_queue`), validation, index, export
+- `api/`: flutter_rust_bridge facade (business-facing APIs only)
 - `event.rs`: Domain types for new events
 - `config.rs`: Platform-specific data directory resolution, respects `ELSEWHEN_DATA_DIR` override
-- `settings.rs`: Iced GUI showing capture command and database path
 
 ## Development Commands
 
@@ -41,7 +43,7 @@ Elsewhen is a local-first personal event system with a **Rust core** and **Flutt
 
 #### Build and test
 ```bash
-cargo build --release          # Release binary → target/release/elsewhen
+cargo build --release          # Bridge library → target/release/libelsewhen.so
 cargo test                      # Run all Rust unit/integration targets
 cargo test --test <name>        # Run specific test
 ```
@@ -73,30 +75,6 @@ fvm flutter doctor             # Check Flutter environment status
 fvm flutter doctor -v          # Verbose output
 ```
 
-### Rust Core Application
-
-```bash
-cargo run -- record "事件文本"   # CLI: save event directly
-cargo run -- list               # List all raw events
-cargo run -- analyses           # List completed structured analyses
-cargo run -- capture            # Launch GUI capture window
-cargo run -- daemon             # Start hotkey listener (X11 only)
-cargo run -- settings           # Show settings window
-cargo run -- providers          # Show active AI provider config
-```
-```
-
-### AI analysis workflow
-```bash
-# First time: configure provider (will import from .env if database has none)
-export ELSEWHEN_AI_BASE_URL="https://api.openai.com/v1"
-export ELSEWHEN_AI_MODEL="gpt-4.1-mini"
-export ELSEWHEN_AI_API_KEY="sk-..."
-
-cargo run -- analyze-once       # Process one pending job
-cargo run -- worker             # Continuous worker with retry loop
-```
-
 ### Packaging
 ```bash
 make release                    # Build release binary
@@ -123,28 +101,25 @@ powershell -File scripts/package-msi.ps1   # Windows → dist/Elsewhen-*-x64.msi
 
 ## Database Schema
 
-Three core tables in `elsewhen.db`:
+Core tables in `elsewhen.db`:
 
 1. **events**: Immutable raw entries with trigger preventing mutation of `raw_text`, `recorded_at`, `source`
 2. **analysis_jobs**: Queue with status (`pending`/`running`/`retry`/`succeeded`/`failed`), exponential backoff via `available_at`
 3. **event_analyses**: JSON results keyed by `prompt_version`
+4. **knowledge_digest_jobs**: Per-event digest queue keyed by `(event_id, digest_version)`, status adds `skipped`; progress is per event, never a time cursor
+5. **knowledge_digest_runs**: One row per claimed batch (status, duration, created/updated/protected page slugs, error — no raw event text)
 
-Additional table: **ai_provider_configs** stores base URL, model, API key after first import from environment.
+Additional tables: **ai_provider_configs** (base URL, model, API key), **wiki_pages** / **wiki_revisions** / **wiki_log** (knowledge base).
 
 ## Testing Notes
 
 - Tests create temporary databases in system temp dir
 - Storage tests verify immutability trigger, concurrent inserts, job lifecycle
+- Digest tests (`src/digest_tests.rs`) cover backlog/same-timestamp/late events, whole-batch rollback, retry/cool-down, recovery and human-edit protection
 - AI tests verify JSON parsing with markdown fence fallback
-- Hotkey tests verify double-press timing window (80-300ms) and chord rejection
 - Run tests with `cargo test` (no special setup needed)
 
 ## Platform-Specific Behavior
-
-### Linux
-- **X11**: Full global hotkey support via `rdev`
-- **Wayland**: Hotkey blocked by compositor security. Users must bind `Meta+Space` → `elsewhen capture` in system settings
-- GUI dependencies required: `libxkbcommon-dev libwayland-dev libx11-dev libxi-dev libxtst-dev`
 
 ### Data Directory
 Default follows platform conventions via `directories` crate:
@@ -158,13 +133,13 @@ Override with `ELSEWHEN_DATA_DIR=/custom/path` for testing or portable installs.
 
 1. **Never bypass `Store::insert_event()`** — all event sources must use this single commit boundary
 2. **Raw events are append-only** — the immutability trigger will abort any UPDATE attempt
-3. **Analysis failure never blocks event storage** — jobs enter retry state, raw event persists
-4. **Database is authoritative for AI config** — after first import, `.env` is ignored
-5. **Iced theme is `TokyoNight`** for both capture and settings windows
+3. **Analysis and knowledge digest failures never block event storage** — jobs enter retry state, raw event persists
+4. **Database is authoritative for AI config** — configured in the app's settings
+5. **Knowledge digest has no manual trigger** — it runs only from the background worker; do not add CLI or button entry points
 
 ## Flutter GUI Development
 
-The project is transitioning from Iced to Flutter for unified desktop and mobile GUI (see `docs/requirements/product/FR-PES-003-Flutter统一GUI.md`).
+The Flutter app is the only GUI (see `docs/requirements/product/FR-PES-003-Flutter统一GUI.md`); the legacy Iced GUI and CLI have been removed.
 
 ### FVM Setup
 Flutter is managed via FVM (Flutter Version Manager):
@@ -184,7 +159,7 @@ The Flutter GUI communicates with Rust core via `flutter_rust_bridge`. The bridg
 - `create_conversation()` / `list_conversations()` / `list_messages()`
 - `send_message(conversation_id, text)`
 - `set_capture_mode(enabled)`
-- wiki import, tags, relations, derivatives, todos, rules, provider settings, and analysis queue status
+- wiki import, tags, relations, derivatives, todos, rules, provider settings, analysis queue status, and knowledge digest queue/run log (read-only)
 
 After changing a public Rust API, run `./regen.sh` from the repository root. It regenerates Dart/Rust bindings and rebuilds `target/release/libelsewhen.so` so content hashes stay synchronized.
 
@@ -204,6 +179,4 @@ The active implementation plan is `docs/roadmap/2026-09-17-personal-cognition-ma
 
 GitHub Actions workflow (`.github/workflows/ci.yml`) runs on Ubuntu, macOS, Windows:
 - `cargo test --all-targets`
-- `cargo build --release --bins`
-
-Linux runner installs GUI dependencies before build.
+- `cargo build --release`

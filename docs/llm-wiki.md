@@ -3,6 +3,8 @@
 > 状态：实现完成（v1） · 日期：2026-09-14
 > 概念来源：Karpathy《[LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)》
 > 工程参考：ColinThompson1/llm-wiki（Agent Skills 实现）
+>
+> **2026-09-27 更新**：CLI 已移除。Ingest（digest）改为应用后台自动运行的事件级队列（FR-PES-004 阶段 1，见 [需求](requirements/product/FR-PES-004-LLM-Wiki知识库闭环.md) / [技术设计](requirements/architecture/FR-PES-ARCH-002-LLM-Wiki知识库闭环技术设计.md)）；本文中的 `elsewhen wiki …` / `elsewhen insight` 命令均已不存在，洞察将在阶段 3 自动化。
 
 ## 1. 为什么是这个方案
 
@@ -36,10 +38,10 @@ AI 基于长期积累的"关于你的事实"反推反常识认知（例：每周
 
 | LLM wiki（Karpathy） | elsewhen 实现 |
 |---|---|
-| **Ingest** 消化源写回 wiki | `elsewhen wiki digest`：新事件 → LLM 提议页面变更 → 核心合并入库 → 追加 `wiki_log` |
-| **Query** 读 index 导航 + 引用回答 | `elsewhen insight`：读索引 → 按四透镜选页 → 反常识认知 + `source_slugs` 溯源 |
+| **Ingest** 消化源写回 wiki | 后台知识消化队列（`knowledge_digest_jobs`）：新事件 → 沉淀窗后成批 → LLM 提议页面变更 → 整批校验 → 与 `wiki_log`、任务确认同事务入库 |
+| **Query** 读 index 导航 + 引用回答 | 对话 `search_knowledge_base` 工具；洞察（`src/ai/insight.rs`，阶段 3 接入自动化）按四透镜选页 + `source_slugs` 溯源 |
 | **好答案归档回 wiki**（探索复利） | 洞察写回 `insight/*` 页，`[[wikilink]]` 指向来源页 |
-| **Lint** 健康检查 | `elsewhen wiki lint`：无溯源 / 无入链孤儿页（确定性） |
+| **Lint** 健康检查 | `lint_wiki`（库函数，确定性：无溯源 / 无入链孤儿页），维护闭环见 FR-PES-004 阶段 4 |
 | index.md / log.md 导航 | `build_index_md` 按 kind 分组一行摘要 + 证据数；`wiki_log` 追加式可 parse 记录 |
 
 ## 3. 数据模型（迁移 v6）
@@ -54,7 +56,7 @@ AI 基于长期积累的"关于你的事实"反推反常识认知（例：每周
 
 ### 4.1 证据复利（核心）
 同一个事实被 N 条事件支持 → `evidence_count = ∪ source_event_ids 的长度`。
-`wiki digest` 第二次跑同类事件走 **update 合并**路径（不是新建重复页）——
+第二次消化同类事件走 **update 合并**路径（不是新建重复页）——
 demo 中 `dongguan-huizhou-commute` 从证据 1 → 证据 2，溯源事件自动追加。
 
 ### 4.2 确定性合并（AI 不越权）
@@ -86,11 +88,11 @@ demo 中 `dongguan-huizhou-commute` 从证据 1 → 证据 2，溯源事件自�
 ## 5. 文件清单
 
 ```
-src/wiki.rs            digest 写回 / 索引 / 导出 / lint / 校验（新）
-src/ai/insight.rs      认知推微 v2：wiki 导航 + 归档写回（重写）
-src/storage.rs         wiki_pages / wiki_revisions / wiki_log / app_meta + 方法（迁移 v6）
-src/main.rs            wiki 子命令 + insight 命令 + .env provider 首次导入
-src/lib.rs             pub mod wiki
+src/wiki.rs              消化 worker（process_digest_queue）/ 校验 / 索引 / 导出 / lint
+src/storage/digest.rs    知识消化队列与运行日志（迁移 v31）
+src/storage/wiki.rs      wiki_pages / wiki_revisions / wiki_log 存取（upsert 含事务内版本）
+src/api/knowledge_digest.rs  后台 tick + 只读队列/日志 FRB 门面
+src/ai/insight.rs        认知推微 v2：wiki 导航 + 归档写回（阶段 3 接入自动化）
 ```
 
 ## 6. 已知边界 / 后续可做
