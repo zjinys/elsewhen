@@ -4,6 +4,19 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/conversations.dart';
+import 'api/entities.dart';
+import 'api/fonts.dart';
+import 'api/import.dart';
+import 'api/knowledge_digest.dart';
+import 'api/provider_config.dart';
+import 'api/relations.dart';
+import 'api/rules.dart';
+import 'api/theme.dart';
+import 'api/todos.dart';
+import 'api/tweet.dart';
+import 'api/wiki.dart';
+import 'api/wiki_chat.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -67,7 +80,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -348546030;
+  int get rustContentHash => 158415240;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -79,39 +92,39 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<void> crateApiAddEntityAlias({
+  Future<void> crateApiEntitiesAddEntityAlias({
     required String entityKind,
     required String entitySlug,
     required String alias,
   });
 
-  Future<RelationDto> crateApiAddRelation({
+  Future<RelationDto> crateApiRelationsAddRelation({
     required String fromSlug,
     required String toSlug,
     required String relation,
     String? note,
   });
 
-  Future<String> crateApiAddRule({required String content});
+  Future<String> crateApiRulesAddRule({required String content});
 
-  Future<void> crateApiArchiveWikiPageChat({required String pageSlug});
+  Future<void> crateApiWikiChatArchiveWikiPageChat({required String pageSlug});
 
   Future<InputRecordDto> crateApiBeginUrlInput({
     required String rawText,
     String? idempotencyKey,
   });
 
-  Future<String> crateApiConfirmKnowledgeDraft({
+  Future<String> crateApiConversationsConfirmKnowledgeDraft({
     required String conversationId,
     required String actionId,
   });
 
-  Future<ConversationDto> crateApiCreateConversation({
+  Future<ConversationDto> crateApiConversationsCreateConversation({
     String? title,
     String? tag,
   });
 
-  Future<TodoDto> crateApiCreateTodo({
+  Future<TodoDto> crateApiTodosCreateTodo({
     required String title,
     String? dueAt,
     String? priority,
@@ -119,41 +132,43 @@ abstract class RustLibApi extends BaseApi {
     String? note,
   });
 
-  Future<WikiPageDto> crateApiCreateWikiDerivative({
+  Future<WikiPageDto> crateApiWikiCreateWikiDerivative({
     required String basedOnSlug,
     required String contentType,
     required String title,
     required String contentMd,
   });
 
-  Future<void> crateApiDeclineKnowledgeDraft({
+  Future<void> crateApiConversationsDeclineKnowledgeDraft({
     required String conversationId,
     required String actionId,
   });
 
-  Future<void> crateApiDeleteAiProviderConfig({required String id});
+  Future<void> crateApiProviderConfigDeleteAiProviderConfig({
+    required String id,
+  });
 
-  Future<bool> crateApiDeleteArchivedConversation({
+  Future<bool> crateApiConversationsDeleteArchivedConversation({
     required String conversationId,
   });
 
-  Future<bool> crateApiDeleteEntityFact({required String id});
+  Future<bool> crateApiEntitiesDeleteEntityFact({required String id});
 
-  Future<bool> crateApiDeleteRelation({required String id});
+  Future<bool> crateApiRelationsDeleteRelation({required String id});
 
-  Future<void> crateApiDeleteRule({required String ruleId});
+  Future<void> crateApiRulesDeleteRule({required String ruleId});
 
-  Future<bool> crateApiDeleteTodo({required String id});
+  Future<bool> crateApiTodosDeleteTodo({required String id});
 
-  Future<ConversationDto> crateApiEnsureWikiPageChat({
+  Future<ConversationDto> crateApiWikiChatEnsureWikiPageChat({
     required String pageSlug,
   });
 
-  Future<ImportUrlDto> crateApiFetchImportUrl({required String url});
+  Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url});
 
-  Future<TweetFetchDto> crateApiFetchTweet({required String url});
+  Future<TweetFetchDto> crateApiTweetFetchTweet({required String url});
 
-  Future<WikiPageDto?> crateApiFindTweetSourcePage({required String url});
+  Future<WikiPageDto?> crateApiTweetFindTweetSourcePage({required String url});
 
   Future<InputRecordDto> crateApiFinishUrlInput({
     required String inputId,
@@ -161,39 +176,41 @@ abstract class RustLibApi extends BaseApi {
     required bool failed,
   });
 
-  Future<String> crateApiGenerateContentChat({
+  Future<String> crateApiTweetGenerateContentChat({
     required String content,
     required List<ContentChatMessageDto> messages,
   });
 
   Future<DailyReviewResult> crateApiGenerateDailyReview({required String date});
 
-  Future<String> crateApiGenerateReply({
+  Future<String> crateApiConversationsGenerateReply({
     required String conversationId,
     String? providerType,
     String? memoryType,
     int? memoryWindowSize,
   });
 
-  Future<String?> crateApiGetAiProvider();
+  Future<String?> crateApiProviderConfigGetAiProvider();
 
-  Future<AiProviderConfigDto?> crateApiGetAiProviderConfig();
+  Future<AiProviderConfigDto?> crateApiProviderConfigGetAiProviderConfig();
 
   Future<AnalysisJobStatsDto> crateApiGetAnalysisJobStats();
 
-  Future<List<MessageDto>> crateApiGetChildMessages({required String parentId});
+  Future<List<MessageDto>> crateApiConversationsGetChildMessages({
+    required String parentId,
+  });
 
-  Future<ConversationDto?> crateApiGetConversation({
+  Future<ConversationDto?> crateApiConversationsGetConversation({
     required String conversationId,
   });
 
   Future<DailyOverviewDto> crateApiGetDailyOverview({required String date});
 
-  Future<List<DailyTokenUsageDto>> crateApiGetDailyTokenUsage({
+  Future<List<DailyTokenUsageDto>> crateApiConversationsGetDailyTokenUsage({
     required int days,
   });
 
-  Future<EntityMergeStatusDto?> crateApiGetEntityMergeStatus({
+  Future<EntityMergeStatusDto?> crateApiEntitiesGetEntityMergeStatus({
     required String sourceSlug,
   });
 
@@ -201,90 +218,109 @@ abstract class RustLibApi extends BaseApi {
     required String eventId,
   });
 
-  Future<List<MessageDto>> crateApiGetMessageChain({required String messageId});
+  Future<KnowledgeDigestStatsDto>
+  crateApiKnowledgeDigestGetKnowledgeDigestStats();
+
+  Future<List<MessageDto>> crateApiConversationsGetMessageChain({
+    required String messageId,
+  });
 
   Future<MessageRecordabilityDto?> crateApiGetMessageRecordability({
     required String messageId,
   });
 
-  Future<ThemePrefsDto> crateApiGetThemePrefs();
+  Future<ThemePrefsDto> crateApiThemeGetThemePrefs();
 
-  Future<String> crateApiGetTweetFetchService();
+  Future<String> crateApiTweetGetTweetFetchService();
 
-  Future<WikiPageDto?> crateApiGetWikiPage({required String slug});
+  Future<WikiPageDto?> crateApiWikiGetWikiPage({required String slug});
 
-  Future<String> crateApiGuessImportKind({required String url});
+  Future<String> crateApiTweetGuessImportKind({required String url});
 
   Future<String> crateApiInitBridge({String? databasePath});
 
-  Future<List<AiProviderConfigDto>> crateApiListAiProviderConfigs();
+  Future<List<AiProviderConfigDto>>
+  crateApiProviderConfigListAiProviderConfigs();
 
   Future<List<AnalysisDto>> crateApiListAnalyses();
 
-  Future<List<ConversationDto>> crateApiListArchivedConversations();
+  Future<List<ConversationDto>>
+  crateApiConversationsListArchivedConversations();
 
-  Future<List<ConversationDto>> crateApiListConversations();
+  Future<List<ConversationDto>> crateApiConversationsListConversations();
 
   Future<List<DailyEntryDto>> crateApiListDailyEntries({required String date});
 
-  Future<List<String>> crateApiListEntityAliases({
+  Future<List<String>> crateApiEntitiesListEntityAliases({
     required String entityKind,
     required String entitySlug,
   });
 
-  Future<List<EntityFactDto>> crateApiListEntityFacts({
+  Future<List<EntityFactDto>> crateApiEntitiesListEntityFacts({
     required String entityKind,
     required String entitySlug,
   });
 
   Future<List<EventDto>> crateApiListEvents();
 
-  Future<List<MessageDto>> crateApiListMessages({
+  Future<List<KnowledgeDigestJobDto>>
+  crateApiKnowledgeDigestListKnowledgeDigestJobs({
+    String? status,
+    required int limit,
+  });
+
+  Future<List<KnowledgeDigestRunDto>>
+  crateApiKnowledgeDigestListKnowledgeDigestRuns({required int limit});
+
+  Future<List<MessageDto>> crateApiConversationsListMessages({
     required String conversationId,
   });
 
-  Future<List<PendingActionDto>> crateApiListPendingActions({
+  Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
   });
 
-  Future<List<RelationDto>> crateApiListRelations();
+  Future<List<RelationDto>> crateApiRelationsListRelations();
 
-  Future<List<RelationDto>> crateApiListRelationsForPage({
+  Future<List<RelationDto>> crateApiRelationsListRelationsForPage({
     required String slug,
   });
 
-  Future<List<RuleDto>> crateApiListRules();
+  Future<List<RuleDto>> crateApiRulesListRules();
 
-  Future<List<SystemFontFace>> crateApiListSystemFonts();
+  Future<List<SystemFontFace>> crateApiFontsListSystemFonts();
 
-  Future<List<TodoDto>> crateApiListTodos({String? status});
+  Future<List<TodoDto>> crateApiTodosListTodos({String? status});
 
-  Future<List<WikiPageDto>> crateApiListWikiPageDerivatives({
+  Future<List<WikiPageDto>> crateApiWikiListWikiPageDerivatives({
     required String slug,
   });
 
-  Future<List<WikiPageDto>> crateApiListWikiPages({String? kind, String? area});
+  Future<List<WikiPageDto>> crateApiWikiListWikiPages({
+    String? kind,
+    String? area,
+  });
 
-  Future<bool> crateApiMergeEntity({
+  Future<bool> crateApiEntitiesMergeEntity({
     required String entityKind,
     required String sourceSlug,
     required String targetSlug,
   });
 
-  Future<WikiPageDto> crateApiOpenTodoWorkItem({required String id});
+  Future<WikiPageDto> crateApiTodosOpenTodoWorkItem({required String id});
 
   Future<bool> crateApiReanalyzeEvent({required String eventId});
 
   Future<EventDto> crateApiRecordEvent({required String rawText});
 
-  Future<WikiPageDto> crateApiRefreshProjectPage({required String slug});
+  Future<WikiPageDto> crateApiWikiRefreshProjectPage({required String slug});
 
-  Future<void> crateApiRenameConversation({
+  Future<void> crateApiConversationsRenameConversation({
     required String conversationId,
     required String title,
   });
 
-  Future<String> crateApiSaveAiProviderConfig({
+  Future<String> crateApiProviderConfigSaveAiProviderConfig({
     required AiProviderConfigDto provider,
   });
 
@@ -295,7 +331,7 @@ abstract class RustLibApi extends BaseApi {
     required List<String> sourceEventIds,
   });
 
-  Future<WikiPageDto> crateApiSaveImportedPage({
+  Future<WikiPageDto> crateApiImportSaveImportedPage({
     required String title,
     required String contentMd,
     required String sourceUrl,
@@ -303,13 +339,13 @@ abstract class RustLibApi extends BaseApi {
     required List<String> tags,
   });
 
-  Future<WikiPageDto> crateApiSaveTextPage({
+  Future<WikiPageDto> crateApiTweetSaveTextPage({
     required String text,
     String? title,
     required List<String> tags,
   });
 
-  Future<WikiPageDto> crateApiSaveTweetPage({
+  Future<WikiPageDto> crateApiTweetSaveTweetPage({
     required String tweetId,
     required String text,
     String? title,
@@ -317,23 +353,25 @@ abstract class RustLibApi extends BaseApi {
     String? screenName,
   });
 
-  Future<WikiPageDto> crateApiSaveWikiPageContent({
+  Future<WikiPageDto> crateApiWikiSaveWikiPageContent({
     required String slug,
     required String contentMd,
     required String reason,
     String? expectedUpdatedAt,
   });
 
-  Future<MessageDto> crateApiSendMessage({
+  Future<MessageDto> crateApiConversationsSendMessage({
     required String conversationId,
     required String role,
     required String content,
     String? parentMessageId,
   });
 
-  Future<void> crateApiSetActiveAiProviderConfig({required String id});
+  Future<void> crateApiProviderConfigSetActiveAiProviderConfig({
+    required String id,
+  });
 
-  Future<void> crateApiSetConversationArchived({
+  Future<void> crateApiConversationsSetConversationArchived({
     required String conversationId,
     required bool archived,
   });
@@ -343,7 +381,7 @@ abstract class RustLibApi extends BaseApi {
     required bool recordable,
   });
 
-  Future<WikiPageDto> crateApiSetWikiOpinion({
+  Future<WikiPageDto> crateApiWikiSetWikiOpinion({
     required String slug,
     String? opinion,
   });
@@ -362,25 +400,28 @@ abstract class RustLibApi extends BaseApi {
 
   Future<AnalysisTriggerResult> crateApiTriggerAnalysis();
 
-  Future<bool> crateApiUndoEntityMerge({required String sourceSlug});
+  Future<KnowledgeDigestTickResult>
+  crateApiKnowledgeDigestTriggerKnowledgeDigest();
 
-  Future<void> crateApiUpdateAiProviderConfig({
+  Future<bool> crateApiEntitiesUndoEntityMerge({required String sourceSlug});
+
+  Future<void> crateApiProviderConfigUpdateAiProviderConfig({
     required String baseUrl,
     required String model,
     required String apiKey,
   });
 
-  Future<bool> crateApiUpdatePendingActionArgs({
+  Future<bool> crateApiConversationsUpdatePendingActionArgs({
     required String actionId,
     required String argsJson,
   });
 
-  Future<WikiPageDto> crateApiUpdateProjectPath({
+  Future<WikiPageDto> crateApiWikiUpdateProjectPath({
     required String slug,
     required String newPath,
   });
 
-  Future<void> crateApiUpdateThemePrefs({
+  Future<void> crateApiThemeUpdateThemePrefs({
     required String mode,
     required String preset,
     required String font,
@@ -390,7 +431,7 @@ abstract class RustLibApi extends BaseApi {
     double? editorLineHeight,
   });
 
-  Future<void> crateApiUpdateTodo({
+  Future<void> crateApiTodosUpdateTodo({
     required String id,
     required String title,
     String? note,
@@ -398,14 +439,14 @@ abstract class RustLibApi extends BaseApi {
     String? dueAt,
   });
 
-  Future<void> crateApiUpdateTodoStatus({
+  Future<void> crateApiTodosUpdateTodoStatus({
     required String id,
     required String status,
   });
 
-  Future<void> crateApiUpdateTweetFetchService({required String service});
+  Future<void> crateApiTweetUpdateTweetFetchService({required String service});
 
-  Future<WikiPageDto> crateApiUpdateWikiTags({
+  Future<WikiPageDto> crateApiWikiUpdateWikiTags({
     required String slug,
     required List<String> tags,
   });
@@ -420,7 +461,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<void> crateApiAddEntityAlias({
+  Future<void> crateApiEntitiesAddEntityAlias({
     required String entityKind,
     required String entitySlug,
     required String alias,
@@ -431,7 +472,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(entityKind);
           var arg1 = cst_encode_String(entitySlug);
           var arg2 = cst_encode_String(alias);
-          return wire.wire__crate__api__add_entity_alias(
+          return wire.wire__crate__api__entities__add_entity_alias(
             port_,
             arg0,
             arg1,
@@ -442,20 +483,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiAddEntityAliasConstMeta,
+        constMeta: kCrateApiEntitiesAddEntityAliasConstMeta,
         argValues: [entityKind, entitySlug, alias],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiAddEntityAliasConstMeta => const TaskConstMeta(
-    debugName: "add_entity_alias",
-    argNames: ["entityKind", "entitySlug", "alias"],
-  );
+  TaskConstMeta get kCrateApiEntitiesAddEntityAliasConstMeta =>
+      const TaskConstMeta(
+        debugName: "add_entity_alias",
+        argNames: ["entityKind", "entitySlug", "alias"],
+      );
 
   @override
-  Future<RelationDto> crateApiAddRelation({
+  Future<RelationDto> crateApiRelationsAddRelation({
     required String fromSlug,
     required String toSlug,
     required String relation,
@@ -468,7 +510,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_String(toSlug);
           var arg2 = cst_encode_String(relation);
           var arg3 = cst_encode_opt_String(note);
-          return wire.wire__crate__api__add_relation(
+          return wire.wire__crate__api__relations__add_relation(
             port_,
             arg0,
             arg1,
@@ -480,60 +522,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_relation_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiAddRelationConstMeta,
+        constMeta: kCrateApiRelationsAddRelationConstMeta,
         argValues: [fromSlug, toSlug, relation, note],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiAddRelationConstMeta => const TaskConstMeta(
-    debugName: "add_relation",
-    argNames: ["fromSlug", "toSlug", "relation", "note"],
-  );
+  TaskConstMeta get kCrateApiRelationsAddRelationConstMeta =>
+      const TaskConstMeta(
+        debugName: "add_relation",
+        argNames: ["fromSlug", "toSlug", "relation", "note"],
+      );
 
   @override
-  Future<String> crateApiAddRule({required String content}) {
+  Future<String> crateApiRulesAddRule({required String content}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(content);
-          return wire.wire__crate__api__add_rule(port_, arg0);
+          return wire.wire__crate__api__rules__add_rule(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiAddRuleConstMeta,
+        constMeta: kCrateApiRulesAddRuleConstMeta,
         argValues: [content],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiAddRuleConstMeta =>
+  TaskConstMeta get kCrateApiRulesAddRuleConstMeta =>
       const TaskConstMeta(debugName: "add_rule", argNames: ["content"]);
 
   @override
-  Future<void> crateApiArchiveWikiPageChat({required String pageSlug}) {
+  Future<void> crateApiWikiChatArchiveWikiPageChat({required String pageSlug}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(pageSlug);
-          return wire.wire__crate__api__archive_wiki_page_chat(port_, arg0);
+          return wire.wire__crate__api__wiki_chat__archive_wiki_page_chat(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiArchiveWikiPageChatConstMeta,
+        constMeta: kCrateApiWikiChatArchiveWikiPageChatConstMeta,
         argValues: [pageSlug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiArchiveWikiPageChatConstMeta =>
+  TaskConstMeta get kCrateApiWikiChatArchiveWikiPageChatConstMeta =>
       const TaskConstMeta(
         debugName: "archive_wiki_page_chat",
         argNames: ["pageSlug"],
@@ -568,7 +614,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<String> crateApiConfirmKnowledgeDraft({
+  Future<String> crateApiConversationsConfirmKnowledgeDraft({
     required String conversationId,
     required String actionId,
   }) {
@@ -577,7 +623,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
           var arg1 = cst_encode_String(actionId);
-          return wire.wire__crate__api__confirm_knowledge_draft(
+          return wire.wire__crate__api__conversations__confirm_knowledge_draft(
             port_,
             arg0,
             arg1,
@@ -587,21 +633,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiConfirmKnowledgeDraftConstMeta,
+        constMeta: kCrateApiConversationsConfirmKnowledgeDraftConstMeta,
         argValues: [conversationId, actionId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiConfirmKnowledgeDraftConstMeta =>
+  TaskConstMeta get kCrateApiConversationsConfirmKnowledgeDraftConstMeta =>
       const TaskConstMeta(
         debugName: "confirm_knowledge_draft",
         argNames: ["conversationId", "actionId"],
       );
 
   @override
-  Future<ConversationDto> crateApiCreateConversation({
+  Future<ConversationDto> crateApiConversationsCreateConversation({
     String? title,
     String? tag,
   }) {
@@ -610,26 +656,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_opt_String(title);
           var arg1 = cst_encode_opt_String(tag);
-          return wire.wire__crate__api__create_conversation(port_, arg0, arg1);
+          return wire.wire__crate__api__conversations__create_conversation(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_conversation_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiCreateConversationConstMeta,
+        constMeta: kCrateApiConversationsCreateConversationConstMeta,
         argValues: [title, tag],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiCreateConversationConstMeta => const TaskConstMeta(
-    debugName: "create_conversation",
-    argNames: ["title", "tag"],
-  );
+  TaskConstMeta get kCrateApiConversationsCreateConversationConstMeta =>
+      const TaskConstMeta(
+        debugName: "create_conversation",
+        argNames: ["title", "tag"],
+      );
 
   @override
-  Future<TodoDto> crateApiCreateTodo({
+  Future<TodoDto> crateApiTodosCreateTodo({
     required String title,
     String? dueAt,
     String? priority,
@@ -644,7 +695,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg2 = cst_encode_opt_String(priority);
           var arg3 = cst_encode_opt_String(relatedWikiSlug);
           var arg4 = cst_encode_opt_String(note);
-          return wire.wire__crate__api__create_todo(
+          return wire.wire__crate__api__todos__create_todo(
             port_,
             arg0,
             arg1,
@@ -657,20 +708,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_todo_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiCreateTodoConstMeta,
+        constMeta: kCrateApiTodosCreateTodoConstMeta,
         argValues: [title, dueAt, priority, relatedWikiSlug, note],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiCreateTodoConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiTodosCreateTodoConstMeta => const TaskConstMeta(
     debugName: "create_todo",
     argNames: ["title", "dueAt", "priority", "relatedWikiSlug", "note"],
   );
 
   @override
-  Future<WikiPageDto> crateApiCreateWikiDerivative({
+  Future<WikiPageDto> crateApiWikiCreateWikiDerivative({
     required String basedOnSlug,
     required String contentType,
     required String title,
@@ -683,7 +734,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_String(contentType);
           var arg2 = cst_encode_String(title);
           var arg3 = cst_encode_String(contentMd);
-          return wire.wire__crate__api__create_wiki_derivative(
+          return wire.wire__crate__api__wiki__create_wiki_derivative(
             port_,
             arg0,
             arg1,
@@ -695,21 +746,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiCreateWikiDerivativeConstMeta,
+        constMeta: kCrateApiWikiCreateWikiDerivativeConstMeta,
         argValues: [basedOnSlug, contentType, title, contentMd],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiCreateWikiDerivativeConstMeta =>
+  TaskConstMeta get kCrateApiWikiCreateWikiDerivativeConstMeta =>
       const TaskConstMeta(
         debugName: "create_wiki_derivative",
         argNames: ["basedOnSlug", "contentType", "title", "contentMd"],
       );
 
   @override
-  Future<void> crateApiDeclineKnowledgeDraft({
+  Future<void> crateApiConversationsDeclineKnowledgeDraft({
     required String conversationId,
     required String actionId,
   }) {
@@ -718,7 +769,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
           var arg1 = cst_encode_String(actionId);
-          return wire.wire__crate__api__decline_knowledge_draft(
+          return wire.wire__crate__api__conversations__decline_knowledge_draft(
             port_,
             arg0,
             arg1,
@@ -728,53 +779,88 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiDeclineKnowledgeDraftConstMeta,
+        constMeta: kCrateApiConversationsDeclineKnowledgeDraftConstMeta,
         argValues: [conversationId, actionId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDeclineKnowledgeDraftConstMeta =>
+  TaskConstMeta get kCrateApiConversationsDeclineKnowledgeDraftConstMeta =>
       const TaskConstMeta(
         debugName: "decline_knowledge_draft",
         argNames: ["conversationId", "actionId"],
       );
 
   @override
-  Future<void> crateApiDeleteAiProviderConfig({required String id}) {
+  Future<void> crateApiProviderConfigDeleteAiProviderConfig({
+    required String id,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
-          return wire.wire__crate__api__delete_ai_provider_config(port_, arg0);
+          return wire
+              .wire__crate__api__provider_config__delete_ai_provider_config(
+                port_,
+                arg0,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiDeleteAiProviderConfigConstMeta,
+        constMeta: kCrateApiProviderConfigDeleteAiProviderConfigConstMeta,
         argValues: [id],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDeleteAiProviderConfigConstMeta =>
+  TaskConstMeta get kCrateApiProviderConfigDeleteAiProviderConfigConstMeta =>
       const TaskConstMeta(
         debugName: "delete_ai_provider_config",
         argNames: ["id"],
       );
 
   @override
-  Future<bool> crateApiDeleteArchivedConversation({
+  Future<bool> crateApiConversationsDeleteArchivedConversation({
     required String conversationId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
-          return wire.wire__crate__api__delete_archived_conversation(
+          return wire
+              .wire__crate__api__conversations__delete_archived_conversation(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiConversationsDeleteArchivedConversationConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiConversationsDeleteArchivedConversationConstMeta =>
+      const TaskConstMeta(
+        debugName: "delete_archived_conversation",
+        argNames: ["conversationId"],
+      );
+
+  @override
+  Future<bool> crateApiEntitiesDeleteEntityFact({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__entities__delete_entity_fact(
             port_,
             arg0,
           );
@@ -783,197 +869,179 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiDeleteArchivedConversationConstMeta,
-        argValues: [conversationId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDeleteArchivedConversationConstMeta =>
-      const TaskConstMeta(
-        debugName: "delete_archived_conversation",
-        argNames: ["conversationId"],
-      );
-
-  @override
-  Future<bool> crateApiDeleteEntityFact({required String id}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(id);
-          return wire.wire__crate__api__delete_entity_fact(port_, arg0);
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_bool,
-          decodeErrorData: dco_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiDeleteEntityFactConstMeta,
+        constMeta: kCrateApiEntitiesDeleteEntityFactConstMeta,
         argValues: [id],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDeleteEntityFactConstMeta =>
+  TaskConstMeta get kCrateApiEntitiesDeleteEntityFactConstMeta =>
       const TaskConstMeta(debugName: "delete_entity_fact", argNames: ["id"]);
 
   @override
-  Future<bool> crateApiDeleteRelation({required String id}) {
+  Future<bool> crateApiRelationsDeleteRelation({required String id}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
-          return wire.wire__crate__api__delete_relation(port_, arg0);
+          return wire.wire__crate__api__relations__delete_relation(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiDeleteRelationConstMeta,
+        constMeta: kCrateApiRelationsDeleteRelationConstMeta,
         argValues: [id],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDeleteRelationConstMeta =>
+  TaskConstMeta get kCrateApiRelationsDeleteRelationConstMeta =>
       const TaskConstMeta(debugName: "delete_relation", argNames: ["id"]);
 
   @override
-  Future<void> crateApiDeleteRule({required String ruleId}) {
+  Future<void> crateApiRulesDeleteRule({required String ruleId}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(ruleId);
-          return wire.wire__crate__api__delete_rule(port_, arg0);
+          return wire.wire__crate__api__rules__delete_rule(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiDeleteRuleConstMeta,
+        constMeta: kCrateApiRulesDeleteRuleConstMeta,
         argValues: [ruleId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDeleteRuleConstMeta =>
+  TaskConstMeta get kCrateApiRulesDeleteRuleConstMeta =>
       const TaskConstMeta(debugName: "delete_rule", argNames: ["ruleId"]);
 
   @override
-  Future<bool> crateApiDeleteTodo({required String id}) {
+  Future<bool> crateApiTodosDeleteTodo({required String id}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
-          return wire.wire__crate__api__delete_todo(port_, arg0);
+          return wire.wire__crate__api__todos__delete_todo(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiDeleteTodoConstMeta,
+        constMeta: kCrateApiTodosDeleteTodoConstMeta,
         argValues: [id],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDeleteTodoConstMeta =>
+  TaskConstMeta get kCrateApiTodosDeleteTodoConstMeta =>
       const TaskConstMeta(debugName: "delete_todo", argNames: ["id"]);
 
   @override
-  Future<ConversationDto> crateApiEnsureWikiPageChat({
+  Future<ConversationDto> crateApiWikiChatEnsureWikiPageChat({
     required String pageSlug,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(pageSlug);
-          return wire.wire__crate__api__ensure_wiki_page_chat(port_, arg0);
+          return wire.wire__crate__api__wiki_chat__ensure_wiki_page_chat(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_conversation_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiEnsureWikiPageChatConstMeta,
+        constMeta: kCrateApiWikiChatEnsureWikiPageChatConstMeta,
         argValues: [pageSlug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiEnsureWikiPageChatConstMeta => const TaskConstMeta(
-    debugName: "ensure_wiki_page_chat",
-    argNames: ["pageSlug"],
-  );
+  TaskConstMeta get kCrateApiWikiChatEnsureWikiPageChatConstMeta =>
+      const TaskConstMeta(
+        debugName: "ensure_wiki_page_chat",
+        argNames: ["pageSlug"],
+      );
 
   @override
-  Future<ImportUrlDto> crateApiFetchImportUrl({required String url}) {
+  Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(url);
-          return wire.wire__crate__api__fetch_import_url(port_, arg0);
+          return wire.wire__crate__api__import__fetch_import_url(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_import_url_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiFetchImportUrlConstMeta,
+        constMeta: kCrateApiImportFetchImportUrlConstMeta,
         argValues: [url],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiFetchImportUrlConstMeta =>
+  TaskConstMeta get kCrateApiImportFetchImportUrlConstMeta =>
       const TaskConstMeta(debugName: "fetch_import_url", argNames: ["url"]);
 
   @override
-  Future<TweetFetchDto> crateApiFetchTweet({required String url}) {
+  Future<TweetFetchDto> crateApiTweetFetchTweet({required String url}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(url);
-          return wire.wire__crate__api__fetch_tweet(port_, arg0);
+          return wire.wire__crate__api__tweet__fetch_tweet(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_tweet_fetch_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiFetchTweetConstMeta,
+        constMeta: kCrateApiTweetFetchTweetConstMeta,
         argValues: [url],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiFetchTweetConstMeta =>
+  TaskConstMeta get kCrateApiTweetFetchTweetConstMeta =>
       const TaskConstMeta(debugName: "fetch_tweet", argNames: ["url"]);
 
   @override
-  Future<WikiPageDto?> crateApiFindTweetSourcePage({required String url}) {
+  Future<WikiPageDto?> crateApiTweetFindTweetSourcePage({required String url}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(url);
-          return wire.wire__crate__api__find_tweet_source_page(port_, arg0);
+          return wire.wire__crate__api__tweet__find_tweet_source_page(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_opt_box_autoadd_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiFindTweetSourcePageConstMeta,
+        constMeta: kCrateApiTweetFindTweetSourcePageConstMeta,
         argValues: [url],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiFindTweetSourcePageConstMeta =>
+  TaskConstMeta get kCrateApiTweetFindTweetSourcePageConstMeta =>
       const TaskConstMeta(
         debugName: "find_tweet_source_page",
         argNames: ["url"],
@@ -1015,7 +1083,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<String> crateApiGenerateContentChat({
+  Future<String> crateApiTweetGenerateContentChat({
     required String content,
     required List<ContentChatMessageDto> messages,
   }) {
@@ -1024,7 +1092,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(content);
           var arg1 = cst_encode_list_content_chat_message_dto(messages);
-          return wire.wire__crate__api__generate_content_chat(
+          return wire.wire__crate__api__tweet__generate_content_chat(
             port_,
             arg0,
             arg1,
@@ -1034,14 +1102,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGenerateContentChatConstMeta,
+        constMeta: kCrateApiTweetGenerateContentChatConstMeta,
         argValues: [content, messages],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGenerateContentChatConstMeta =>
+  TaskConstMeta get kCrateApiTweetGenerateContentChatConstMeta =>
       const TaskConstMeta(
         debugName: "generate_content_chat",
         argNames: ["content", "messages"],
@@ -1075,7 +1143,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<String> crateApiGenerateReply({
+  Future<String> crateApiConversationsGenerateReply({
     required String conversationId,
     String? providerType,
     String? memoryType,
@@ -1088,7 +1156,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_opt_String(providerType);
           var arg2 = cst_encode_opt_String(memoryType);
           var arg3 = cst_encode_opt_box_autoadd_u_32(memoryWindowSize);
-          return wire.wire__crate__api__generate_reply(
+          return wire.wire__crate__api__conversations__generate_reply(
             port_,
             arg0,
             arg1,
@@ -1100,63 +1168,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGenerateReplyConstMeta,
+        constMeta: kCrateApiConversationsGenerateReplyConstMeta,
         argValues: [conversationId, providerType, memoryType, memoryWindowSize],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGenerateReplyConstMeta => const TaskConstMeta(
-    debugName: "generate_reply",
-    argNames: [
-      "conversationId",
-      "providerType",
-      "memoryType",
-      "memoryWindowSize",
-    ],
-  );
+  TaskConstMeta get kCrateApiConversationsGenerateReplyConstMeta =>
+      const TaskConstMeta(
+        debugName: "generate_reply",
+        argNames: [
+          "conversationId",
+          "providerType",
+          "memoryType",
+          "memoryWindowSize",
+        ],
+      );
 
   @override
-  Future<String?> crateApiGetAiProvider() {
+  Future<String?> crateApiProviderConfigGetAiProvider() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__get_ai_provider(port_);
+          return wire.wire__crate__api__provider_config__get_ai_provider(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_opt_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetAiProviderConstMeta,
+        constMeta: kCrateApiProviderConfigGetAiProviderConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetAiProviderConstMeta =>
+  TaskConstMeta get kCrateApiProviderConfigGetAiProviderConstMeta =>
       const TaskConstMeta(debugName: "get_ai_provider", argNames: []);
 
   @override
-  Future<AiProviderConfigDto?> crateApiGetAiProviderConfig() {
+  Future<AiProviderConfigDto?> crateApiProviderConfigGetAiProviderConfig() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__get_ai_provider_config(port_);
+          return wire.wire__crate__api__provider_config__get_ai_provider_config(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_opt_box_autoadd_ai_provider_config_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetAiProviderConfigConstMeta,
+        constMeta: kCrateApiProviderConfigGetAiProviderConfigConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetAiProviderConfigConstMeta =>
+  TaskConstMeta get kCrateApiProviderConfigGetAiProviderConfigConstMeta =>
       const TaskConstMeta(debugName: "get_ai_provider_config", argNames: []);
 
   @override
@@ -1181,56 +1252,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_analysis_job_stats", argNames: []);
 
   @override
-  Future<List<MessageDto>> crateApiGetChildMessages({
+  Future<List<MessageDto>> crateApiConversationsGetChildMessages({
     required String parentId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(parentId);
-          return wire.wire__crate__api__get_child_messages(port_, arg0);
+          return wire.wire__crate__api__conversations__get_child_messages(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_message_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetChildMessagesConstMeta,
+        constMeta: kCrateApiConversationsGetChildMessagesConstMeta,
         argValues: [parentId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetChildMessagesConstMeta => const TaskConstMeta(
-    debugName: "get_child_messages",
-    argNames: ["parentId"],
-  );
+  TaskConstMeta get kCrateApiConversationsGetChildMessagesConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_child_messages",
+        argNames: ["parentId"],
+      );
 
   @override
-  Future<ConversationDto?> crateApiGetConversation({
+  Future<ConversationDto?> crateApiConversationsGetConversation({
     required String conversationId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
-          return wire.wire__crate__api__get_conversation(port_, arg0);
+          return wire.wire__crate__api__conversations__get_conversation(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_opt_box_autoadd_conversation_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetConversationConstMeta,
+        constMeta: kCrateApiConversationsGetConversationConstMeta,
         argValues: [conversationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetConversationConstMeta => const TaskConstMeta(
-    debugName: "get_conversation",
-    argNames: ["conversationId"],
-  );
+  TaskConstMeta get kCrateApiConversationsGetConversationConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_conversation",
+        argNames: ["conversationId"],
+      );
 
   @override
   Future<DailyOverviewDto> crateApiGetDailyOverview({required String date}) {
@@ -1255,53 +1334,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_daily_overview", argNames: ["date"]);
 
   @override
-  Future<List<DailyTokenUsageDto>> crateApiGetDailyTokenUsage({
+  Future<List<DailyTokenUsageDto>> crateApiConversationsGetDailyTokenUsage({
     required int days,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_u_32(days);
-          return wire.wire__crate__api__get_daily_token_usage(port_, arg0);
+          return wire.wire__crate__api__conversations__get_daily_token_usage(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_daily_token_usage_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetDailyTokenUsageConstMeta,
+        constMeta: kCrateApiConversationsGetDailyTokenUsageConstMeta,
         argValues: [days],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetDailyTokenUsageConstMeta => const TaskConstMeta(
-    debugName: "get_daily_token_usage",
-    argNames: ["days"],
-  );
+  TaskConstMeta get kCrateApiConversationsGetDailyTokenUsageConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_daily_token_usage",
+        argNames: ["days"],
+      );
 
   @override
-  Future<EntityMergeStatusDto?> crateApiGetEntityMergeStatus({
+  Future<EntityMergeStatusDto?> crateApiEntitiesGetEntityMergeStatus({
     required String sourceSlug,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(sourceSlug);
-          return wire.wire__crate__api__get_entity_merge_status(port_, arg0);
+          return wire.wire__crate__api__entities__get_entity_merge_status(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_opt_box_autoadd_entity_merge_status_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetEntityMergeStatusConstMeta,
+        constMeta: kCrateApiEntitiesGetEntityMergeStatusConstMeta,
         argValues: [sourceSlug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetEntityMergeStatusConstMeta =>
+  TaskConstMeta get kCrateApiEntitiesGetEntityMergeStatusConstMeta =>
       const TaskConstMeta(
         debugName: "get_entity_merge_status",
         argNames: ["sourceSlug"],
@@ -1336,30 +1422,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<MessageDto>> crateApiGetMessageChain({
+  Future<KnowledgeDigestStatsDto>
+  crateApiKnowledgeDigestGetKnowledgeDigestStats() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire
+              .wire__crate__api__knowledge_digest__get_knowledge_digest_stats(
+                port_,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_knowledge_digest_stats_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeDigestGetKnowledgeDigestStatsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeDigestGetKnowledgeDigestStatsConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_knowledge_digest_stats",
+        argNames: [],
+      );
+
+  @override
+  Future<List<MessageDto>> crateApiConversationsGetMessageChain({
     required String messageId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(messageId);
-          return wire.wire__crate__api__get_message_chain(port_, arg0);
+          return wire.wire__crate__api__conversations__get_message_chain(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_message_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetMessageChainConstMeta,
+        constMeta: kCrateApiConversationsGetMessageChainConstMeta,
         argValues: [messageId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetMessageChainConstMeta => const TaskConstMeta(
-    debugName: "get_message_chain",
-    argNames: ["messageId"],
-  );
+  TaskConstMeta get kCrateApiConversationsGetMessageChainConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_message_chain",
+        argNames: ["messageId"],
+      );
 
   @override
   Future<MessageRecordabilityDto?> crateApiGetMessageRecordability({
@@ -1390,89 +1508,89 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<ThemePrefsDto> crateApiGetThemePrefs() {
+  Future<ThemePrefsDto> crateApiThemeGetThemePrefs() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__get_theme_prefs(port_);
+          return wire.wire__crate__api__theme__get_theme_prefs(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_theme_prefs_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetThemePrefsConstMeta,
+        constMeta: kCrateApiThemeGetThemePrefsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetThemePrefsConstMeta =>
+  TaskConstMeta get kCrateApiThemeGetThemePrefsConstMeta =>
       const TaskConstMeta(debugName: "get_theme_prefs", argNames: []);
 
   @override
-  Future<String> crateApiGetTweetFetchService() {
+  Future<String> crateApiTweetGetTweetFetchService() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__get_tweet_fetch_service(port_);
+          return wire.wire__crate__api__tweet__get_tweet_fetch_service(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetTweetFetchServiceConstMeta,
+        constMeta: kCrateApiTweetGetTweetFetchServiceConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetTweetFetchServiceConstMeta =>
+  TaskConstMeta get kCrateApiTweetGetTweetFetchServiceConstMeta =>
       const TaskConstMeta(debugName: "get_tweet_fetch_service", argNames: []);
 
   @override
-  Future<WikiPageDto?> crateApiGetWikiPage({required String slug}) {
+  Future<WikiPageDto?> crateApiWikiGetWikiPage({required String slug}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(slug);
-          return wire.wire__crate__api__get_wiki_page(port_, arg0);
+          return wire.wire__crate__api__wiki__get_wiki_page(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_opt_box_autoadd_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetWikiPageConstMeta,
+        constMeta: kCrateApiWikiGetWikiPageConstMeta,
         argValues: [slug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetWikiPageConstMeta =>
+  TaskConstMeta get kCrateApiWikiGetWikiPageConstMeta =>
       const TaskConstMeta(debugName: "get_wiki_page", argNames: ["slug"]);
 
   @override
-  Future<String> crateApiGuessImportKind({required String url}) {
+  Future<String> crateApiTweetGuessImportKind({required String url}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(url);
-          return wire.wire__crate__api__guess_import_kind(port_, arg0);
+          return wire.wire__crate__api__tweet__guess_import_kind(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGuessImportKindConstMeta,
+        constMeta: kCrateApiTweetGuessImportKindConstMeta,
         argValues: [url],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGuessImportKindConstMeta =>
+  TaskConstMeta get kCrateApiTweetGuessImportKindConstMeta =>
       const TaskConstMeta(debugName: "guess_import_kind", argNames: ["url"]);
 
   @override
@@ -1498,24 +1616,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_bridge", argNames: ["databasePath"]);
 
   @override
-  Future<List<AiProviderConfigDto>> crateApiListAiProviderConfigs() {
+  Future<List<AiProviderConfigDto>>
+  crateApiProviderConfigListAiProviderConfigs() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__list_ai_provider_configs(port_);
+          return wire
+              .wire__crate__api__provider_config__list_ai_provider_configs(
+                port_,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_ai_provider_config_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListAiProviderConfigsConstMeta,
+        constMeta: kCrateApiProviderConfigListAiProviderConfigsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListAiProviderConfigsConstMeta =>
+  TaskConstMeta get kCrateApiProviderConfigListAiProviderConfigsConstMeta =>
       const TaskConstMeta(debugName: "list_ai_provider_configs", argNames: []);
 
   @override
@@ -1540,48 +1662,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_analyses", argNames: []);
 
   @override
-  Future<List<ConversationDto>> crateApiListArchivedConversations() {
+  Future<List<ConversationDto>>
+  crateApiConversationsListArchivedConversations() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__list_archived_conversations(port_);
+          return wire
+              .wire__crate__api__conversations__list_archived_conversations(
+                port_,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_conversation_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListArchivedConversationsConstMeta,
+        constMeta: kCrateApiConversationsListArchivedConversationsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListArchivedConversationsConstMeta =>
+  TaskConstMeta get kCrateApiConversationsListArchivedConversationsConstMeta =>
       const TaskConstMeta(
         debugName: "list_archived_conversations",
         argNames: [],
       );
 
   @override
-  Future<List<ConversationDto>> crateApiListConversations() {
+  Future<List<ConversationDto>> crateApiConversationsListConversations() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__list_conversations(port_);
+          return wire.wire__crate__api__conversations__list_conversations(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_conversation_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListConversationsConstMeta,
+        constMeta: kCrateApiConversationsListConversationsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListConversationsConstMeta =>
+  TaskConstMeta get kCrateApiConversationsListConversationsConstMeta =>
       const TaskConstMeta(debugName: "list_conversations", argNames: []);
 
   @override
@@ -1607,7 +1735,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_daily_entries", argNames: ["date"]);
 
   @override
-  Future<List<String>> crateApiListEntityAliases({
+  Future<List<String>> crateApiEntitiesListEntityAliases({
     required String entityKind,
     required String entitySlug,
   }) {
@@ -1616,26 +1744,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(entityKind);
           var arg1 = cst_encode_String(entitySlug);
-          return wire.wire__crate__api__list_entity_aliases(port_, arg0, arg1);
+          return wire.wire__crate__api__entities__list_entity_aliases(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListEntityAliasesConstMeta,
+        constMeta: kCrateApiEntitiesListEntityAliasesConstMeta,
         argValues: [entityKind, entitySlug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListEntityAliasesConstMeta => const TaskConstMeta(
-    debugName: "list_entity_aliases",
-    argNames: ["entityKind", "entitySlug"],
-  );
+  TaskConstMeta get kCrateApiEntitiesListEntityAliasesConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_entity_aliases",
+        argNames: ["entityKind", "entitySlug"],
+      );
 
   @override
-  Future<List<EntityFactDto>> crateApiListEntityFacts({
+  Future<List<EntityFactDto>> crateApiEntitiesListEntityFacts({
     required String entityKind,
     required String entitySlug,
   }) {
@@ -1644,23 +1777,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(entityKind);
           var arg1 = cst_encode_String(entitySlug);
-          return wire.wire__crate__api__list_entity_facts(port_, arg0, arg1);
+          return wire.wire__crate__api__entities__list_entity_facts(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_entity_fact_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListEntityFactsConstMeta,
+        constMeta: kCrateApiEntitiesListEntityFactsConstMeta,
         argValues: [entityKind, entitySlug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListEntityFactsConstMeta => const TaskConstMeta(
-    debugName: "list_entity_facts",
-    argNames: ["entityKind", "entitySlug"],
-  );
+  TaskConstMeta get kCrateApiEntitiesListEntityFactsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_entity_facts",
+        argNames: ["entityKind", "entitySlug"],
+      );
 
   @override
   Future<List<EventDto>> crateApiListEvents() {
@@ -1684,198 +1822,277 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_events", argNames: []);
 
   @override
-  Future<List<MessageDto>> crateApiListMessages({
+  Future<List<KnowledgeDigestJobDto>>
+  crateApiKnowledgeDigestListKnowledgeDigestJobs({
+    String? status,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(status);
+          var arg1 = cst_encode_u_32(limit);
+          return wire
+              .wire__crate__api__knowledge_digest__list_knowledge_digest_jobs(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_knowledge_digest_job_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeDigestListKnowledgeDigestJobsConstMeta,
+        argValues: [status, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeDigestListKnowledgeDigestJobsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_knowledge_digest_jobs",
+        argNames: ["status", "limit"],
+      );
+
+  @override
+  Future<List<KnowledgeDigestRunDto>>
+  crateApiKnowledgeDigestListKnowledgeDigestRuns({required int limit}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_u_32(limit);
+          return wire
+              .wire__crate__api__knowledge_digest__list_knowledge_digest_runs(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_knowledge_digest_run_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeDigestListKnowledgeDigestRunsConstMeta,
+        argValues: [limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeDigestListKnowledgeDigestRunsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_knowledge_digest_runs",
+        argNames: ["limit"],
+      );
+
+  @override
+  Future<List<MessageDto>> crateApiConversationsListMessages({
     required String conversationId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
-          return wire.wire__crate__api__list_messages(port_, arg0);
+          return wire.wire__crate__api__conversations__list_messages(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_message_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListMessagesConstMeta,
+        constMeta: kCrateApiConversationsListMessagesConstMeta,
         argValues: [conversationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListMessagesConstMeta => const TaskConstMeta(
-    debugName: "list_messages",
-    argNames: ["conversationId"],
-  );
+  TaskConstMeta get kCrateApiConversationsListMessagesConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_messages",
+        argNames: ["conversationId"],
+      );
 
   @override
-  Future<List<PendingActionDto>> crateApiListPendingActions({
+  Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
-          return wire.wire__crate__api__list_pending_actions(port_, arg0);
+          return wire.wire__crate__api__conversations__list_pending_actions(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_pending_action_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListPendingActionsConstMeta,
+        constMeta: kCrateApiConversationsListPendingActionsConstMeta,
         argValues: [conversationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListPendingActionsConstMeta => const TaskConstMeta(
-    debugName: "list_pending_actions",
-    argNames: ["conversationId"],
-  );
+  TaskConstMeta get kCrateApiConversationsListPendingActionsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_pending_actions",
+        argNames: ["conversationId"],
+      );
 
   @override
-  Future<List<RelationDto>> crateApiListRelations() {
+  Future<List<RelationDto>> crateApiRelationsListRelations() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__list_relations(port_);
+          return wire.wire__crate__api__relations__list_relations(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_relation_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListRelationsConstMeta,
+        constMeta: kCrateApiRelationsListRelationsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListRelationsConstMeta =>
+  TaskConstMeta get kCrateApiRelationsListRelationsConstMeta =>
       const TaskConstMeta(debugName: "list_relations", argNames: []);
 
   @override
-  Future<List<RelationDto>> crateApiListRelationsForPage({
+  Future<List<RelationDto>> crateApiRelationsListRelationsForPage({
     required String slug,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(slug);
-          return wire.wire__crate__api__list_relations_for_page(port_, arg0);
+          return wire.wire__crate__api__relations__list_relations_for_page(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_relation_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListRelationsForPageConstMeta,
+        constMeta: kCrateApiRelationsListRelationsForPageConstMeta,
         argValues: [slug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListRelationsForPageConstMeta =>
+  TaskConstMeta get kCrateApiRelationsListRelationsForPageConstMeta =>
       const TaskConstMeta(
         debugName: "list_relations_for_page",
         argNames: ["slug"],
       );
 
   @override
-  Future<List<RuleDto>> crateApiListRules() {
+  Future<List<RuleDto>> crateApiRulesListRules() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__list_rules(port_);
+          return wire.wire__crate__api__rules__list_rules(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_rule_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListRulesConstMeta,
+        constMeta: kCrateApiRulesListRulesConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListRulesConstMeta =>
+  TaskConstMeta get kCrateApiRulesListRulesConstMeta =>
       const TaskConstMeta(debugName: "list_rules", argNames: []);
 
   @override
-  Future<List<SystemFontFace>> crateApiListSystemFonts() {
+  Future<List<SystemFontFace>> crateApiFontsListSystemFonts() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__list_system_fonts(port_);
+          return wire.wire__crate__api__fonts__list_system_fonts(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_system_font_face,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiListSystemFontsConstMeta,
+        constMeta: kCrateApiFontsListSystemFontsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListSystemFontsConstMeta =>
+  TaskConstMeta get kCrateApiFontsListSystemFontsConstMeta =>
       const TaskConstMeta(debugName: "list_system_fonts", argNames: []);
 
   @override
-  Future<List<TodoDto>> crateApiListTodos({String? status}) {
+  Future<List<TodoDto>> crateApiTodosListTodos({String? status}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_opt_String(status);
-          return wire.wire__crate__api__list_todos(port_, arg0);
+          return wire.wire__crate__api__todos__list_todos(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_todo_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListTodosConstMeta,
+        constMeta: kCrateApiTodosListTodosConstMeta,
         argValues: [status],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListTodosConstMeta =>
+  TaskConstMeta get kCrateApiTodosListTodosConstMeta =>
       const TaskConstMeta(debugName: "list_todos", argNames: ["status"]);
 
   @override
-  Future<List<WikiPageDto>> crateApiListWikiPageDerivatives({
+  Future<List<WikiPageDto>> crateApiWikiListWikiPageDerivatives({
     required String slug,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(slug);
-          return wire.wire__crate__api__list_wiki_page_derivatives(port_, arg0);
+          return wire.wire__crate__api__wiki__list_wiki_page_derivatives(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListWikiPageDerivativesConstMeta,
+        constMeta: kCrateApiWikiListWikiPageDerivativesConstMeta,
         argValues: [slug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListWikiPageDerivativesConstMeta =>
+  TaskConstMeta get kCrateApiWikiListWikiPageDerivativesConstMeta =>
       const TaskConstMeta(
         debugName: "list_wiki_page_derivatives",
         argNames: ["slug"],
       );
 
   @override
-  Future<List<WikiPageDto>> crateApiListWikiPages({
+  Future<List<WikiPageDto>> crateApiWikiListWikiPages({
     String? kind,
     String? area,
   }) {
@@ -1884,26 +2101,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_opt_String(kind);
           var arg1 = cst_encode_opt_String(area);
-          return wire.wire__crate__api__list_wiki_pages(port_, arg0, arg1);
+          return wire.wire__crate__api__wiki__list_wiki_pages(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListWikiPagesConstMeta,
+        constMeta: kCrateApiWikiListWikiPagesConstMeta,
         argValues: [kind, area],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListWikiPagesConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiWikiListWikiPagesConstMeta => const TaskConstMeta(
     debugName: "list_wiki_pages",
     argNames: ["kind", "area"],
   );
 
   @override
-  Future<bool> crateApiMergeEntity({
+  Future<bool> crateApiEntitiesMergeEntity({
     required String entityKind,
     required String sourceSlug,
     required String targetSlug,
@@ -1914,44 +2135,50 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(entityKind);
           var arg1 = cst_encode_String(sourceSlug);
           var arg2 = cst_encode_String(targetSlug);
-          return wire.wire__crate__api__merge_entity(port_, arg0, arg1, arg2);
+          return wire.wire__crate__api__entities__merge_entity(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiMergeEntityConstMeta,
+        constMeta: kCrateApiEntitiesMergeEntityConstMeta,
         argValues: [entityKind, sourceSlug, targetSlug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiMergeEntityConstMeta => const TaskConstMeta(
-    debugName: "merge_entity",
-    argNames: ["entityKind", "sourceSlug", "targetSlug"],
-  );
+  TaskConstMeta get kCrateApiEntitiesMergeEntityConstMeta =>
+      const TaskConstMeta(
+        debugName: "merge_entity",
+        argNames: ["entityKind", "sourceSlug", "targetSlug"],
+      );
 
   @override
-  Future<WikiPageDto> crateApiOpenTodoWorkItem({required String id}) {
+  Future<WikiPageDto> crateApiTodosOpenTodoWorkItem({required String id}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
-          return wire.wire__crate__api__open_todo_work_item(port_, arg0);
+          return wire.wire__crate__api__todos__open_todo_work_item(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiOpenTodoWorkItemConstMeta,
+        constMeta: kCrateApiTodosOpenTodoWorkItemConstMeta,
         argValues: [id],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiOpenTodoWorkItemConstMeta =>
+  TaskConstMeta get kCrateApiTodosOpenTodoWorkItemConstMeta =>
       const TaskConstMeta(debugName: "open_todo_work_item", argNames: ["id"]);
 
   @override
@@ -1999,31 +2226,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "record_event", argNames: ["rawText"]);
 
   @override
-  Future<WikiPageDto> crateApiRefreshProjectPage({required String slug}) {
+  Future<WikiPageDto> crateApiWikiRefreshProjectPage({required String slug}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(slug);
-          return wire.wire__crate__api__refresh_project_page(port_, arg0);
+          return wire.wire__crate__api__wiki__refresh_project_page(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiRefreshProjectPageConstMeta,
+        constMeta: kCrateApiWikiRefreshProjectPageConstMeta,
         argValues: [slug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiRefreshProjectPageConstMeta => const TaskConstMeta(
-    debugName: "refresh_project_page",
-    argNames: ["slug"],
-  );
+  TaskConstMeta get kCrateApiWikiRefreshProjectPageConstMeta =>
+      const TaskConstMeta(
+        debugName: "refresh_project_page",
+        argNames: ["slug"],
+      );
 
   @override
-  Future<void> crateApiRenameConversation({
+  Future<void> crateApiConversationsRenameConversation({
     required String conversationId,
     required String title,
   }) {
@@ -2032,46 +2260,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
           var arg1 = cst_encode_String(title);
-          return wire.wire__crate__api__rename_conversation(port_, arg0, arg1);
+          return wire.wire__crate__api__conversations__rename_conversation(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiRenameConversationConstMeta,
+        constMeta: kCrateApiConversationsRenameConversationConstMeta,
         argValues: [conversationId, title],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiRenameConversationConstMeta => const TaskConstMeta(
-    debugName: "rename_conversation",
-    argNames: ["conversationId", "title"],
-  );
+  TaskConstMeta get kCrateApiConversationsRenameConversationConstMeta =>
+      const TaskConstMeta(
+        debugName: "rename_conversation",
+        argNames: ["conversationId", "title"],
+      );
 
   @override
-  Future<String> crateApiSaveAiProviderConfig({
+  Future<String> crateApiProviderConfigSaveAiProviderConfig({
     required AiProviderConfigDto provider,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_box_autoadd_ai_provider_config_dto(provider);
-          return wire.wire__crate__api__save_ai_provider_config(port_, arg0);
+          return wire
+              .wire__crate__api__provider_config__save_ai_provider_config(
+                port_,
+                arg0,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSaveAiProviderConfigConstMeta,
+        constMeta: kCrateApiProviderConfigSaveAiProviderConfigConstMeta,
         argValues: [provider],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSaveAiProviderConfigConstMeta =>
+  TaskConstMeta get kCrateApiProviderConfigSaveAiProviderConfigConstMeta =>
       const TaskConstMeta(
         debugName: "save_ai_provider_config",
         argNames: ["provider"],
@@ -2116,7 +2353,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<WikiPageDto> crateApiSaveImportedPage({
+  Future<WikiPageDto> crateApiImportSaveImportedPage({
     required String title,
     required String contentMd,
     required String sourceUrl,
@@ -2131,7 +2368,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg2 = cst_encode_String(sourceUrl);
           var arg3 = cst_encode_String(sourceKind);
           var arg4 = cst_encode_list_String(tags);
-          return wire.wire__crate__api__save_imported_page(
+          return wire.wire__crate__api__import__save_imported_page(
             port_,
             arg0,
             arg1,
@@ -2144,20 +2381,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSaveImportedPageConstMeta,
+        constMeta: kCrateApiImportSaveImportedPageConstMeta,
         argValues: [title, contentMd, sourceUrl, sourceKind, tags],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSaveImportedPageConstMeta => const TaskConstMeta(
-    debugName: "save_imported_page",
-    argNames: ["title", "contentMd", "sourceUrl", "sourceKind", "tags"],
-  );
+  TaskConstMeta get kCrateApiImportSaveImportedPageConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_imported_page",
+        argNames: ["title", "contentMd", "sourceUrl", "sourceKind", "tags"],
+      );
 
   @override
-  Future<WikiPageDto> crateApiSaveTextPage({
+  Future<WikiPageDto> crateApiTweetSaveTextPage({
     required String text,
     String? title,
     required List<String> tags,
@@ -2168,26 +2406,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(text);
           var arg1 = cst_encode_opt_String(title);
           var arg2 = cst_encode_list_String(tags);
-          return wire.wire__crate__api__save_text_page(port_, arg0, arg1, arg2);
+          return wire.wire__crate__api__tweet__save_text_page(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSaveTextPageConstMeta,
+        constMeta: kCrateApiTweetSaveTextPageConstMeta,
         argValues: [text, title, tags],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSaveTextPageConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiTweetSaveTextPageConstMeta => const TaskConstMeta(
     debugName: "save_text_page",
     argNames: ["text", "title", "tags"],
   );
 
   @override
-  Future<WikiPageDto> crateApiSaveTweetPage({
+  Future<WikiPageDto> crateApiTweetSaveTweetPage({
     required String tweetId,
     required String text,
     String? title,
@@ -2202,7 +2445,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg2 = cst_encode_opt_String(title);
           var arg3 = cst_encode_opt_String(authorName);
           var arg4 = cst_encode_opt_String(screenName);
-          return wire.wire__crate__api__save_tweet_page(
+          return wire.wire__crate__api__tweet__save_tweet_page(
             port_,
             arg0,
             arg1,
@@ -2215,20 +2458,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSaveTweetPageConstMeta,
+        constMeta: kCrateApiTweetSaveTweetPageConstMeta,
         argValues: [tweetId, text, title, authorName, screenName],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSaveTweetPageConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiTweetSaveTweetPageConstMeta => const TaskConstMeta(
     debugName: "save_tweet_page",
     argNames: ["tweetId", "text", "title", "authorName", "screenName"],
   );
 
   @override
-  Future<WikiPageDto> crateApiSaveWikiPageContent({
+  Future<WikiPageDto> crateApiWikiSaveWikiPageContent({
     required String slug,
     required String contentMd,
     required String reason,
@@ -2241,7 +2484,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_String(contentMd);
           var arg2 = cst_encode_String(reason);
           var arg3 = cst_encode_opt_String(expectedUpdatedAt);
-          return wire.wire__crate__api__save_wiki_page_content(
+          return wire.wire__crate__api__wiki__save_wiki_page_content(
             port_,
             arg0,
             arg1,
@@ -2253,21 +2496,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSaveWikiPageContentConstMeta,
+        constMeta: kCrateApiWikiSaveWikiPageContentConstMeta,
         argValues: [slug, contentMd, reason, expectedUpdatedAt],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSaveWikiPageContentConstMeta =>
+  TaskConstMeta get kCrateApiWikiSaveWikiPageContentConstMeta =>
       const TaskConstMeta(
         debugName: "save_wiki_page_content",
         argNames: ["slug", "contentMd", "reason", "expectedUpdatedAt"],
       );
 
   @override
-  Future<MessageDto> crateApiSendMessage({
+  Future<MessageDto> crateApiConversationsSendMessage({
     required String conversationId,
     required String role,
     required String content,
@@ -2280,7 +2523,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_String(role);
           var arg2 = cst_encode_String(content);
           var arg3 = cst_encode_opt_String(parentMessageId);
-          return wire.wire__crate__api__send_message(
+          return wire.wire__crate__api__conversations__send_message(
             port_,
             arg0,
             arg1,
@@ -2292,48 +2535,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_message_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSendMessageConstMeta,
+        constMeta: kCrateApiConversationsSendMessageConstMeta,
         argValues: [conversationId, role, content, parentMessageId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSendMessageConstMeta => const TaskConstMeta(
-    debugName: "send_message",
-    argNames: ["conversationId", "role", "content", "parentMessageId"],
-  );
+  TaskConstMeta get kCrateApiConversationsSendMessageConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_message",
+        argNames: ["conversationId", "role", "content", "parentMessageId"],
+      );
 
   @override
-  Future<void> crateApiSetActiveAiProviderConfig({required String id}) {
+  Future<void> crateApiProviderConfigSetActiveAiProviderConfig({
+    required String id,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
-          return wire.wire__crate__api__set_active_ai_provider_config(
-            port_,
-            arg0,
-          );
+          return wire
+              .wire__crate__api__provider_config__set_active_ai_provider_config(
+                port_,
+                arg0,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSetActiveAiProviderConfigConstMeta,
+        constMeta: kCrateApiProviderConfigSetActiveAiProviderConfigConstMeta,
         argValues: [id],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSetActiveAiProviderConfigConstMeta =>
+  TaskConstMeta get kCrateApiProviderConfigSetActiveAiProviderConfigConstMeta =>
       const TaskConstMeta(
         debugName: "set_active_ai_provider_config",
         argNames: ["id"],
       );
 
   @override
-  Future<void> crateApiSetConversationArchived({
+  Future<void> crateApiConversationsSetConversationArchived({
     required String conversationId,
     required bool archived,
   }) {
@@ -2342,24 +2589,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
           var arg1 = cst_encode_bool(archived);
-          return wire.wire__crate__api__set_conversation_archived(
-            port_,
-            arg0,
-            arg1,
-          );
+          return wire
+              .wire__crate__api__conversations__set_conversation_archived(
+                port_,
+                arg0,
+                arg1,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSetConversationArchivedConstMeta,
+        constMeta: kCrateApiConversationsSetConversationArchivedConstMeta,
         argValues: [conversationId, archived],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSetConversationArchivedConstMeta =>
+  TaskConstMeta get kCrateApiConversationsSetConversationArchivedConstMeta =>
       const TaskConstMeta(
         debugName: "set_conversation_archived",
         argNames: ["conversationId", "archived"],
@@ -2399,7 +2647,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<WikiPageDto> crateApiSetWikiOpinion({
+  Future<WikiPageDto> crateApiWikiSetWikiOpinion({
     required String slug,
     String? opinion,
   }) {
@@ -2408,20 +2656,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(slug);
           var arg1 = cst_encode_opt_String(opinion);
-          return wire.wire__crate__api__set_wiki_opinion(port_, arg0, arg1);
+          return wire.wire__crate__api__wiki__set_wiki_opinion(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSetWikiOpinionConstMeta,
+        constMeta: kCrateApiWikiSetWikiOpinionConstMeta,
         argValues: [slug, opinion],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSetWikiOpinionConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiWikiSetWikiOpinionConstMeta => const TaskConstMeta(
     debugName: "set_wiki_opinion",
     argNames: ["slug", "opinion"],
   );
@@ -2514,31 +2766,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "trigger_analysis", argNames: []);
 
   @override
-  Future<bool> crateApiUndoEntityMerge({required String sourceSlug}) {
+  Future<KnowledgeDigestTickResult>
+  crateApiKnowledgeDigestTriggerKnowledgeDigest() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire
+              .wire__crate__api__knowledge_digest__trigger_knowledge_digest(
+                port_,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_knowledge_digest_tick_result,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeDigestTriggerKnowledgeDigestConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeDigestTriggerKnowledgeDigestConstMeta =>
+      const TaskConstMeta(debugName: "trigger_knowledge_digest", argNames: []);
+
+  @override
+  Future<bool> crateApiEntitiesUndoEntityMerge({required String sourceSlug}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(sourceSlug);
-          return wire.wire__crate__api__undo_entity_merge(port_, arg0);
+          return wire.wire__crate__api__entities__undo_entity_merge(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiUndoEntityMergeConstMeta,
+        constMeta: kCrateApiEntitiesUndoEntityMergeConstMeta,
         argValues: [sourceSlug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiUndoEntityMergeConstMeta => const TaskConstMeta(
-    debugName: "undo_entity_merge",
-    argNames: ["sourceSlug"],
-  );
+  TaskConstMeta get kCrateApiEntitiesUndoEntityMergeConstMeta =>
+      const TaskConstMeta(
+        debugName: "undo_entity_merge",
+        argNames: ["sourceSlug"],
+      );
 
   @override
-  Future<void> crateApiUpdateAiProviderConfig({
+  Future<void> crateApiProviderConfigUpdateAiProviderConfig({
     required String baseUrl,
     required String model,
     required String apiKey,
@@ -2549,32 +2830,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(baseUrl);
           var arg1 = cst_encode_String(model);
           var arg2 = cst_encode_String(apiKey);
-          return wire.wire__crate__api__update_ai_provider_config(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-          );
+          return wire
+              .wire__crate__api__provider_config__update_ai_provider_config(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiUpdateAiProviderConfigConstMeta,
+        constMeta: kCrateApiProviderConfigUpdateAiProviderConfigConstMeta,
         argValues: [baseUrl, model, apiKey],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiUpdateAiProviderConfigConstMeta =>
+  TaskConstMeta get kCrateApiProviderConfigUpdateAiProviderConfigConstMeta =>
       const TaskConstMeta(
         debugName: "update_ai_provider_config",
         argNames: ["baseUrl", "model", "apiKey"],
       );
 
   @override
-  Future<bool> crateApiUpdatePendingActionArgs({
+  Future<bool> crateApiConversationsUpdatePendingActionArgs({
     required String actionId,
     required String argsJson,
   }) {
@@ -2583,31 +2865,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(actionId);
           var arg1 = cst_encode_String(argsJson);
-          return wire.wire__crate__api__update_pending_action_args(
-            port_,
-            arg0,
-            arg1,
-          );
+          return wire
+              .wire__crate__api__conversations__update_pending_action_args(
+                port_,
+                arg0,
+                arg1,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiUpdatePendingActionArgsConstMeta,
+        constMeta: kCrateApiConversationsUpdatePendingActionArgsConstMeta,
         argValues: [actionId, argsJson],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiUpdatePendingActionArgsConstMeta =>
+  TaskConstMeta get kCrateApiConversationsUpdatePendingActionArgsConstMeta =>
       const TaskConstMeta(
         debugName: "update_pending_action_args",
         argNames: ["actionId", "argsJson"],
       );
 
   @override
-  Future<WikiPageDto> crateApiUpdateProjectPath({
+  Future<WikiPageDto> crateApiWikiUpdateProjectPath({
     required String slug,
     required String newPath,
   }) {
@@ -2616,26 +2899,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(slug);
           var arg1 = cst_encode_String(newPath);
-          return wire.wire__crate__api__update_project_path(port_, arg0, arg1);
+          return wire.wire__crate__api__wiki__update_project_path(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiUpdateProjectPathConstMeta,
+        constMeta: kCrateApiWikiUpdateProjectPathConstMeta,
         argValues: [slug, newPath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiUpdateProjectPathConstMeta => const TaskConstMeta(
-    debugName: "update_project_path",
-    argNames: ["slug", "newPath"],
-  );
+  TaskConstMeta get kCrateApiWikiUpdateProjectPathConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_project_path",
+        argNames: ["slug", "newPath"],
+      );
 
   @override
-  Future<void> crateApiUpdateThemePrefs({
+  Future<void> crateApiThemeUpdateThemePrefs({
     required String mode,
     required String preset,
     required String font,
@@ -2654,7 +2942,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg4 = cst_encode_opt_String(editorFont);
           var arg5 = cst_encode_opt_box_autoadd_f_64(editorFontSize);
           var arg6 = cst_encode_opt_box_autoadd_f_64(editorLineHeight);
-          return wire.wire__crate__api__update_theme_prefs(
+          return wire.wire__crate__api__theme__update_theme_prefs(
             port_,
             arg0,
             arg1,
@@ -2669,7 +2957,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiUpdateThemePrefsConstMeta,
+        constMeta: kCrateApiThemeUpdateThemePrefsConstMeta,
         argValues: [
           mode,
           preset,
@@ -2684,21 +2972,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
   }
 
-  TaskConstMeta get kCrateApiUpdateThemePrefsConstMeta => const TaskConstMeta(
-    debugName: "update_theme_prefs",
-    argNames: [
-      "mode",
-      "preset",
-      "font",
-      "fontSize",
-      "editorFont",
-      "editorFontSize",
-      "editorLineHeight",
-    ],
-  );
+  TaskConstMeta get kCrateApiThemeUpdateThemePrefsConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_theme_prefs",
+        argNames: [
+          "mode",
+          "preset",
+          "font",
+          "fontSize",
+          "editorFont",
+          "editorFontSize",
+          "editorLineHeight",
+        ],
+      );
 
   @override
-  Future<void> crateApiUpdateTodo({
+  Future<void> crateApiTodosUpdateTodo({
     required String id,
     required String title,
     String? note,
@@ -2713,7 +3002,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg2 = cst_encode_opt_String(note);
           var arg3 = cst_encode_opt_String(priority);
           var arg4 = cst_encode_opt_String(dueAt);
-          return wire.wire__crate__api__update_todo(
+          return wire.wire__crate__api__todos__update_todo(
             port_,
             arg0,
             arg1,
@@ -2726,20 +3015,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiUpdateTodoConstMeta,
+        constMeta: kCrateApiTodosUpdateTodoConstMeta,
         argValues: [id, title, note, priority, dueAt],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiUpdateTodoConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiTodosUpdateTodoConstMeta => const TaskConstMeta(
     debugName: "update_todo",
     argNames: ["id", "title", "note", "priority", "dueAt"],
   );
 
   @override
-  Future<void> crateApiUpdateTodoStatus({
+  Future<void> crateApiTodosUpdateTodoStatus({
     required String id,
     required String status,
   }) {
@@ -2748,51 +3037,59 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
           var arg1 = cst_encode_String(status);
-          return wire.wire__crate__api__update_todo_status(port_, arg0, arg1);
+          return wire.wire__crate__api__todos__update_todo_status(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiUpdateTodoStatusConstMeta,
+        constMeta: kCrateApiTodosUpdateTodoStatusConstMeta,
         argValues: [id, status],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiUpdateTodoStatusConstMeta => const TaskConstMeta(
-    debugName: "update_todo_status",
-    argNames: ["id", "status"],
-  );
+  TaskConstMeta get kCrateApiTodosUpdateTodoStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_todo_status",
+        argNames: ["id", "status"],
+      );
 
   @override
-  Future<void> crateApiUpdateTweetFetchService({required String service}) {
+  Future<void> crateApiTweetUpdateTweetFetchService({required String service}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(service);
-          return wire.wire__crate__api__update_tweet_fetch_service(port_, arg0);
+          return wire.wire__crate__api__tweet__update_tweet_fetch_service(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiUpdateTweetFetchServiceConstMeta,
+        constMeta: kCrateApiTweetUpdateTweetFetchServiceConstMeta,
         argValues: [service],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiUpdateTweetFetchServiceConstMeta =>
+  TaskConstMeta get kCrateApiTweetUpdateTweetFetchServiceConstMeta =>
       const TaskConstMeta(
         debugName: "update_tweet_fetch_service",
         argNames: ["service"],
       );
 
   @override
-  Future<WikiPageDto> crateApiUpdateWikiTags({
+  Future<WikiPageDto> crateApiWikiUpdateWikiTags({
     required String slug,
     required List<String> tags,
   }) {
@@ -2801,20 +3098,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(slug);
           var arg1 = cst_encode_list_String(tags);
-          return wire.wire__crate__api__update_wiki_tags(port_, arg0, arg1);
+          return wire.wire__crate__api__wiki__update_wiki_tags(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_wiki_page_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiUpdateWikiTagsConstMeta,
+        constMeta: kCrateApiWikiUpdateWikiTagsConstMeta,
         argValues: [slug, tags],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiUpdateWikiTagsConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiWikiUpdateWikiTagsConstMeta => const TaskConstMeta(
     debugName: "update_wiki_tags",
     argNames: ["slug", "tags"],
   );
@@ -3237,6 +3538,96 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KnowledgeDigestJobDto dco_decode_knowledge_digest_job_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    return KnowledgeDigestJobDto(
+      jobId: dco_decode_String(arr[0]),
+      eventId: dco_decode_String(arr[1]),
+      eventExcerpt: dco_decode_String(arr[2]),
+      recordedAt: dco_decode_String(arr[3]),
+      status: dco_decode_String(arr[4]),
+      attempts: dco_decode_i_64(arr[5]),
+      failedRounds: dco_decode_i_64(arr[6]),
+      availableAt: dco_decode_String(arr[7]),
+      lastError: dco_decode_opt_String(arr[8]),
+      skipReason: dco_decode_opt_String(arr[9]),
+      batchId: dco_decode_opt_String(arr[10]),
+      updatedAt: dco_decode_String(arr[11]),
+    );
+  }
+
+  @protected
+  KnowledgeDigestRunDto dco_decode_knowledge_digest_run_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return KnowledgeDigestRunDto(
+      id: dco_decode_String(arr[0]),
+      startedAt: dco_decode_String(arr[1]),
+      finishedAt: dco_decode_opt_String(arr[2]),
+      status: dco_decode_String(arr[3]),
+      eventCount: dco_decode_i_64(arr[4]),
+      model: dco_decode_opt_String(arr[5]),
+      durationMs: dco_decode_opt_box_autoadd_i_64(arr[6]),
+      createdSlugs: dco_decode_list_String(arr[7]),
+      updatedSlugs: dco_decode_list_String(arr[8]),
+      protectedSlugs: dco_decode_list_String(arr[9]),
+      error: dco_decode_opt_String(arr[10]),
+    );
+  }
+
+  @protected
+  KnowledgeDigestStatsDto dco_decode_knowledge_digest_stats_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return KnowledgeDigestStatsDto(
+      pending: dco_decode_i_64(arr[0]),
+      running: dco_decode_i_64(arr[1]),
+      retry: dco_decode_i_64(arr[2]),
+      succeeded: dco_decode_i_64(arr[3]),
+      failed: dco_decode_i_64(arr[4]),
+      skipped: dco_decode_i_64(arr[5]),
+      lastSuccessAt: dco_decode_opt_String(arr[6]),
+      lastError: dco_decode_opt_String(arr[7]),
+      lastErrorAt: dco_decode_opt_String(arr[8]),
+    );
+  }
+
+  @protected
+  KnowledgeDigestTickResult dco_decode_knowledge_digest_tick_result(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    switch (dcoDecodePrimitiveInt(arr[0])) {
+      case 0:
+        return KnowledgeDigestTickResult_NoProvider();
+      case 1:
+        return KnowledgeDigestTickResult_Idle();
+      case 2:
+        return KnowledgeDigestTickResult_Processed(
+          events: dco_decode_i_64(arr[1]),
+          createdSlugs: dco_decode_list_String(arr[2]),
+          updatedSlugs: dco_decode_list_String(arr[3]),
+          protectedSlugs: dco_decode_list_String(arr[4]),
+        );
+      case 3:
+        return KnowledgeDigestTickResult_Failed(
+          events: dco_decode_i_64(arr[1]),
+          error: dco_decode_String(arr[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_String).toList();
@@ -3298,6 +3689,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<EventDto> dco_decode_list_event_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_event_dto).toList();
+  }
+
+  @protected
+  List<KnowledgeDigestJobDto> dco_decode_list_knowledge_digest_job_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_knowledge_digest_job_dto).toList();
+  }
+
+  @protected
+  List<KnowledgeDigestRunDto> dco_decode_list_knowledge_digest_run_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_knowledge_digest_run_dto).toList();
   }
 
   @protected
@@ -4151,6 +4558,132 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KnowledgeDigestJobDto sse_decode_knowledge_digest_job_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_jobId = sse_decode_String(deserializer);
+    var var_eventId = sse_decode_String(deserializer);
+    var var_eventExcerpt = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_attempts = sse_decode_i_64(deserializer);
+    var var_failedRounds = sse_decode_i_64(deserializer);
+    var var_availableAt = sse_decode_String(deserializer);
+    var var_lastError = sse_decode_opt_String(deserializer);
+    var var_skipReason = sse_decode_opt_String(deserializer);
+    var var_batchId = sse_decode_opt_String(deserializer);
+    var var_updatedAt = sse_decode_String(deserializer);
+    return KnowledgeDigestJobDto(
+      jobId: var_jobId,
+      eventId: var_eventId,
+      eventExcerpt: var_eventExcerpt,
+      recordedAt: var_recordedAt,
+      status: var_status,
+      attempts: var_attempts,
+      failedRounds: var_failedRounds,
+      availableAt: var_availableAt,
+      lastError: var_lastError,
+      skipReason: var_skipReason,
+      batchId: var_batchId,
+      updatedAt: var_updatedAt,
+    );
+  }
+
+  @protected
+  KnowledgeDigestRunDto sse_decode_knowledge_digest_run_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_startedAt = sse_decode_String(deserializer);
+    var var_finishedAt = sse_decode_opt_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_eventCount = sse_decode_i_64(deserializer);
+    var var_model = sse_decode_opt_String(deserializer);
+    var var_durationMs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_createdSlugs = sse_decode_list_String(deserializer);
+    var var_updatedSlugs = sse_decode_list_String(deserializer);
+    var var_protectedSlugs = sse_decode_list_String(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    return KnowledgeDigestRunDto(
+      id: var_id,
+      startedAt: var_startedAt,
+      finishedAt: var_finishedAt,
+      status: var_status,
+      eventCount: var_eventCount,
+      model: var_model,
+      durationMs: var_durationMs,
+      createdSlugs: var_createdSlugs,
+      updatedSlugs: var_updatedSlugs,
+      protectedSlugs: var_protectedSlugs,
+      error: var_error,
+    );
+  }
+
+  @protected
+  KnowledgeDigestStatsDto sse_decode_knowledge_digest_stats_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pending = sse_decode_i_64(deserializer);
+    var var_running = sse_decode_i_64(deserializer);
+    var var_retry = sse_decode_i_64(deserializer);
+    var var_succeeded = sse_decode_i_64(deserializer);
+    var var_failed = sse_decode_i_64(deserializer);
+    var var_skipped = sse_decode_i_64(deserializer);
+    var var_lastSuccessAt = sse_decode_opt_String(deserializer);
+    var var_lastError = sse_decode_opt_String(deserializer);
+    var var_lastErrorAt = sse_decode_opt_String(deserializer);
+    return KnowledgeDigestStatsDto(
+      pending: var_pending,
+      running: var_running,
+      retry: var_retry,
+      succeeded: var_succeeded,
+      failed: var_failed,
+      skipped: var_skipped,
+      lastSuccessAt: var_lastSuccessAt,
+      lastError: var_lastError,
+      lastErrorAt: var_lastErrorAt,
+    );
+  }
+
+  @protected
+  KnowledgeDigestTickResult sse_decode_knowledge_digest_tick_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return KnowledgeDigestTickResult_NoProvider();
+      case 1:
+        return KnowledgeDigestTickResult_Idle();
+      case 2:
+        var var_events = sse_decode_i_64(deserializer);
+        var var_createdSlugs = sse_decode_list_String(deserializer);
+        var var_updatedSlugs = sse_decode_list_String(deserializer);
+        var var_protectedSlugs = sse_decode_list_String(deserializer);
+        return KnowledgeDigestTickResult_Processed(
+          events: var_events,
+          createdSlugs: var_createdSlugs,
+          updatedSlugs: var_updatedSlugs,
+          protectedSlugs: var_protectedSlugs,
+        );
+      case 3:
+        var var_events = sse_decode_i_64(deserializer);
+        var var_error = sse_decode_String(deserializer);
+        return KnowledgeDigestTickResult_Failed(
+          events: var_events,
+          error: var_error,
+        );
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -4280,6 +4813,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <EventDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_event_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<KnowledgeDigestJobDto> sse_decode_list_knowledge_digest_job_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <KnowledgeDigestJobDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_knowledge_digest_job_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<KnowledgeDigestRunDto> sse_decode_list_knowledge_digest_run_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <KnowledgeDigestRunDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_knowledge_digest_run_dto(deserializer));
     }
     return ans_;
   }
@@ -5200,6 +5761,94 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_knowledge_digest_job_dto(
+    KnowledgeDigestJobDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.jobId, serializer);
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.eventExcerpt, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_i_64(self.attempts, serializer);
+    sse_encode_i_64(self.failedRounds, serializer);
+    sse_encode_String(self.availableAt, serializer);
+    sse_encode_opt_String(self.lastError, serializer);
+    sse_encode_opt_String(self.skipReason, serializer);
+    sse_encode_opt_String(self.batchId, serializer);
+    sse_encode_String(self.updatedAt, serializer);
+  }
+
+  @protected
+  void sse_encode_knowledge_digest_run_dto(
+    KnowledgeDigestRunDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.startedAt, serializer);
+    sse_encode_opt_String(self.finishedAt, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_i_64(self.eventCount, serializer);
+    sse_encode_opt_String(self.model, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.durationMs, serializer);
+    sse_encode_list_String(self.createdSlugs, serializer);
+    sse_encode_list_String(self.updatedSlugs, serializer);
+    sse_encode_list_String(self.protectedSlugs, serializer);
+    sse_encode_opt_String(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_knowledge_digest_stats_dto(
+    KnowledgeDigestStatsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.pending, serializer);
+    sse_encode_i_64(self.running, serializer);
+    sse_encode_i_64(self.retry, serializer);
+    sse_encode_i_64(self.succeeded, serializer);
+    sse_encode_i_64(self.failed, serializer);
+    sse_encode_i_64(self.skipped, serializer);
+    sse_encode_opt_String(self.lastSuccessAt, serializer);
+    sse_encode_opt_String(self.lastError, serializer);
+    sse_encode_opt_String(self.lastErrorAt, serializer);
+  }
+
+  @protected
+  void sse_encode_knowledge_digest_tick_result(
+    KnowledgeDigestTickResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case KnowledgeDigestTickResult_NoProvider():
+        sse_encode_i_32(0, serializer);
+      case KnowledgeDigestTickResult_Idle():
+        sse_encode_i_32(1, serializer);
+      case KnowledgeDigestTickResult_Processed(
+        events: final events,
+        createdSlugs: final createdSlugs,
+        updatedSlugs: final updatedSlugs,
+        protectedSlugs: final protectedSlugs,
+      ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_i_64(events, serializer);
+        sse_encode_list_String(createdSlugs, serializer);
+        sse_encode_list_String(updatedSlugs, serializer);
+        sse_encode_list_String(protectedSlugs, serializer);
+      case KnowledgeDigestTickResult_Failed(
+        events: final events,
+        error: final error,
+      ):
+        sse_encode_i_32(3, serializer);
+        sse_encode_i_64(events, serializer);
+        sse_encode_String(error, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
@@ -5313,6 +5962,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_event_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_knowledge_digest_job_dto(
+    List<KnowledgeDigestJobDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_knowledge_digest_job_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_knowledge_digest_run_dto(
+    List<KnowledgeDigestRunDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_knowledge_digest_run_dto(item, serializer);
     }
   }
 

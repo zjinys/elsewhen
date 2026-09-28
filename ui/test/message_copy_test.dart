@@ -60,8 +60,16 @@ void main() {
     await tester.pump();
 
     // 界面元素：用户气泡 SelectableText + AI 气泡 MarkdownView + 2 个单条复制按钮 + 1 个复制全部
-    expect(find.byType(SelectableText), findsOneWidget, reason: '用户气泡为 SelectableText');
-    expect(find.byType(MarkdownView), findsOneWidget, reason: 'AI 气泡经 MarkdownView 渲染');
+    expect(
+      find.byType(SelectableText),
+      findsOneWidget,
+      reason: '用户气泡为 SelectableText',
+    );
+    expect(
+      find.byType(MarkdownView),
+      findsOneWidget,
+      reason: 'AI 气泡经 MarkdownView 渲染',
+    );
     expect(find.byIcon(Icons.copy_rounded), findsNWidgets(2));
     expect(find.byIcon(Icons.copy_all_rounded), findsOneWidget);
 

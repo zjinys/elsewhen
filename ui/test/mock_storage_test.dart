@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
-import 'package:elsewhen_ui/data/mock_storage_repository.dart';
 import 'package:elsewhen_ui/data/storage_repository.dart';
 import 'package:elsewhen_ui/models/analysis.dart';
+
+import 'support/mock_storage_repository.dart';
 
 void main() {
   group('MockStorageRepository', () {

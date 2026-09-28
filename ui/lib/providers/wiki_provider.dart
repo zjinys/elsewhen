@@ -227,7 +227,8 @@ void openWikiTweetTab(WidgetRef ref, TweetFetch fetch) {
 /// 抓取预览 tab 的稳定 id。打开（tab 入口的 id getter）与保存后关闭共用
 /// 这一处计算，避免两处分别拼前缀导致 id 漂移（`import-` 前缀漏拼曾使
 /// 保存后关不掉预览 tab）。
-String wikiImportTabId(ImportFetch fetch) => 'import-${fetch.sourceUrl.hashCode}';
+String wikiImportTabId(ImportFetch fetch) =>
+    'import-${fetch.sourceUrl.hashCode}';
 
 /// 打开一个已抓取任意网址内容的预览 tab（网页/推文通用）
 void openWikiImportFetchTab(WidgetRef ref, ImportFetch fetch) {

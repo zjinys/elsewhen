@@ -66,7 +66,11 @@ class MainScreen extends ConsumerWidget {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      border: Border(left: BorderSide(color: AppTheme.surface3.withValues(alpha: 0.65))),
+                      border: Border(
+                        left: BorderSide(
+                          color: AppTheme.surface3.withValues(alpha: 0.65),
+                        ),
+                      ),
                     ),
                     child: Material(
                       color: AppTheme.surface0,

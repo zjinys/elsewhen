@@ -89,7 +89,11 @@ void main() {
     expect(find.text('AI 正在思考…'), findsNothing);
     expect(find.text('重新生成'), findsNothing, reason: '最后一条已是 AI 回复，无需重新生成');
     expect(find.textContaining('AI 回复失败'), findsNothing);
-    expect(find.byIcon(Icons.arrow_upward), findsOneWidget, reason: '生成结束后发送按钮恢复');
+    expect(
+      find.byIcon(Icons.arrow_upward),
+      findsOneWidget,
+      reason: '生成结束后发送按钮恢复',
+    );
   });
 }
 

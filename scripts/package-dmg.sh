@@ -30,7 +30,7 @@ echo "[1/5] 构建 Rust 桥接库 (cargo build --release) ..."
 (cd "$root" && cargo build --release)
 
 echo "[2/5] 构建 Flutter macOS release ..."
-(cd "$root/ui" && "$flutter" build macos --release)
+(cd "$root/ui" && "$flutter" build macos --release --target=lib/main_desktop.dart)
 
 app="$root/ui/build/macos/Build/Products/Release/Elsewhen.app"
 [ -d "$app" ] || { echo "未找到 $app" >&2; exit 1; }

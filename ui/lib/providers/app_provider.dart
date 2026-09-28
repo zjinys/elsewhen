@@ -1,15 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../utils/hotkey_service.dart';
 import '../utils/window_service.dart';
 import '../bridge/rust_bridge_repository.dart';
 import 'conversation_provider.dart';
-
-// Hotkey service provider
-final hotkeyServiceProvider = Provider<HotkeyService>((ref) {
-  return HotkeyService();
-});
 
 // Window service provider
 final windowServiceProvider = Provider<WindowService>((ref) {
@@ -29,7 +23,6 @@ final aiProviderConfiguredProvider = FutureProvider<bool>((ref) async {
 // Application initialization provider
 final appInitializationProvider = FutureProvider<bool>((ref) async {
   final windowService = ref.read(windowServiceProvider);
-  final hotkeyService = ref.read(hotkeyServiceProvider);
 
   // Initialize window manager
   await windowService.initialize();
@@ -38,16 +31,11 @@ final appInitializationProvider = FutureProvider<bool>((ref) async {
   final rustBridge = ref.read(storageRepositoryProvider);
   await rustBridge.initialize();
 
-  // Initialize hotkey service (stub mode)
-  await hotkeyService.initialize();
-
   // 主对话流在首次运行时还不存在：建会话/改名是**写操作**，只在这里显式做
   // 一次；mainConversationProvider 保持纯读，不会因 invalidate 重跑写路径（P18）。
   await ref.read(conversationRepositoryProvider).ensureMainConversation();
 
   debugPrint('App initialized');
-  debugPrint('Session type: ${hotkeyService.sessionType}');
-  debugPrint('\n${hotkeyService.getSetupInstructions()}');
 
   return true;
 });

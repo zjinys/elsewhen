@@ -27,6 +27,26 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Rust 核心只编 arm64（见 scripts/build-android-rust.sh）
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    // 预编译的 Rust cdylib（libelsewhen.so），由仓库根 scripts/build-android-rust.sh 产出。
+    // Gradle 自动把 sourceSets main jniLibs.srcDir 下的 .so 打进 APK 的 lib/<abi>/。
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDir("../../rustLibs")
+        }
+    }
+
+    // 预编译 .so 没有 strip 任务，避免打包期 strip 报错。
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 
     buildTypes {

@@ -45,11 +45,17 @@ fvm flutter pub get
 fvm flutter run -d linux
 
 # Capture 模式
-fvm flutter run -d linux --dart-define=mode=capture
-
-# 或者传递参数
 fvm flutter run -d linux --dart-entrypoint-args "--mode=capture"
 ```
+
+Capture 模式是一个独立的快速录入窗口。想用全局快捷键随时唤起它，需要在**系统层面**绑定
+快捷键指向下面这条命令（应用内不再注册全局热键：Linux 上 `hotkey_manager` 一类插件在
+X11/Wayland 下有编译与抢键问题，因此没有内置实现）：
+
+| 桌面环境 | 做法 |
+| --- | --- |
+| GNOME / KDE | 系统设置 → 键盘 → 自定义快捷键 → 命令填 `elsewhen --mode=capture` |
+| 独立使用 | 终端常驻跑 `fvm flutter run -d linux --dart-entrypoint-args "--mode=capture"`，或用仓库根目录的 `./elsewhen-capture.sh` |
 
 ### 开发
 
@@ -169,7 +175,7 @@ radiusFull: 999px
 - [ ] 桥接 Rust 核心 (flutter_rust_bridge)
 - [ ] 实现会话系统
 - [ ] 实现 AI 分析状态显示
-- [ ] 全局快捷键集成 (hotkey_manager)
+- [ ] 全局快捷键集成 (hotkey_manager) — 见上文「Capture 模式」，当前需系统级配置
 - [ ] 窗口显示/隐藏动画
 - [ ] Android/iOS 支持
 - [ ] 设置界面

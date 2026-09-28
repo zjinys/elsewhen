@@ -9,6 +9,7 @@ import '../bridge/rust_bridge_repository.dart';
 import '../bridge/generated.dart/api.dart' as api;
 import '../widgets/custom_title_bar.dart';
 import '../widgets/font_picker_dialog.dart';
+import '../widgets/knowledge_digest_dialog.dart';
 import '../utils/system_fonts.dart';
 import '../theme/app_theme.dart';
 
@@ -33,6 +34,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   bool _usageLoading = true;
   api.AnalysisJobStatsDto? _analysisJobStats;
   bool _analysisJobStatsLoading = true;
+  api.KnowledgeDigestStatsDto? _digestStats;
+  bool _digestStatsLoading = true;
 
   // 个人经验规则库
   List<Rule> _rules = [];
@@ -44,6 +47,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   // 推文抓取服务（当前仅支持 fxtwitter）
   String _tweetService = 'fxtwitter';
+
+  // 启动期各区块读取失败的原因（区块名 → 异常文本）。
+  //
+  // 空列表区分不了「本来就没有」和「读取失败」：后者原本被 catch 掉后只 debugPrint，
+  // 于是渲染成「还没有规则」「未配置」这类**正常空状态**，把故障说成了没数据。
+  // 这里单独记下原因，空状态分支先判它，失败与真空才分得开。
+  final Map<String, String> _loadErrors = {};
+
+  static const _secProviders = 'AI Provider 配置';
+  static const _secTokenUsage = '每日 Token 用量';
+  static const _secAnalysisJobs = '事件分析队列';
+  static const _secDigest = '知识消化';
+  static const _secRules = '规则库';
+  static const _secTweetService = '推文抓取服务';
+
+  /// 失败提示文案；null 表示该区块读取成功（或还在读）。
+  ///
+  /// 只取异常的首行：Rust 侧 `anyhow` 的 `toString()` 会带 "Caused by:" 多行细节，
+  /// 整段塞进单行 Text 很难读。
+  String? _loadErrorOf(String section) {
+    final raw = _loadErrors[section];
+    if (raw == null) return null;
+    final firstLine = raw
+        .split('\n')
+        .map((s) => s.trim())
+        .firstWhere((s) => s.isNotEmpty, orElse: () => raw.trim());
+    return '$section读取失败：$firstLine';
+  }
+
+  /// 区块级失败提示控件。各区块的「空状态」分支应先判它再决定是否显示空状态。
+  Widget? _buildLoadErrorHint(String section) {
+    final message = _loadErrorOf(section);
+    if (message == null) return null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.space3),
+      child: Text(
+        message,
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: AppTheme.error, fontSize: 12),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -64,6 +110,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       _loadProviders();
       _loadTokenUsage();
       _loadAnalysisJobStats();
+      _loadDigestStats();
       _loadTweetService();
       _loadRules();
     });
@@ -80,7 +127,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _providersLoading = false);
+      setState(() {
+        _providersLoading = false;
+        _loadErrors[_secProviders] = '$e';
+      });
       debugPrint('listAiProviderConfigs failed: $e');
     }
   }
@@ -96,7 +146,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _usageLoading = false);
+      setState(() {
+        _usageLoading = false;
+        _loadErrors[_secTokenUsage] = '$e';
+      });
       debugPrint('loadTokenUsage failed: $e');
     }
   }
@@ -112,8 +165,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _analysisJobStatsLoading = false);
+      setState(() {
+        _analysisJobStatsLoading = false;
+        _loadErrors[_secAnalysisJobs] = '$e';
+      });
       debugPrint('loadAnalysisJobStats failed: $e');
+    }
+  }
+
+  Future<void> _loadDigestStats() async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final stats = await repo.getKnowledgeDigestStats();
+      if (!mounted) return;
+      setState(() {
+        _digestStats = stats;
+        _digestStatsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _digestStatsLoading = false;
+        _loadErrors[_secDigest] = '$e';
+      });
+      debugPrint('loadDigestStats failed: $e');
     }
   }
 
@@ -124,6 +199,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (!mounted) return;
       setState(() => _tweetService = svc);
     } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadErrors[_secTweetService] = '$e');
       debugPrint('loadTweetService failed: $e');
     }
   }
@@ -139,7 +216,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _rulesLoading = false);
+      setState(() {
+        _rulesLoading = false;
+        _loadErrors[_secRules] = '$e';
+      });
       debugPrint('loadRules failed: $e');
     }
   }
@@ -361,6 +441,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (_analysisJobStatsLoading) {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
+    // 失败优先于「没有数据」：否则读取失败会被渲染成空队列，看不出是故障。
+    final jobsError = _buildLoadErrorHint(_secAnalysisJobs);
+    if (jobsError != null) return jobsError;
     final stats = _analysisJobStats;
     if (stats == null) {
       return Text(
@@ -379,6 +462,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         _buildUsageMetric(label: '等待重试', value: '${stats.retry}'),
         _buildUsageMetric(label: '已完成', value: '${stats.succeeded}'),
         _buildUsageMetric(label: '失败', value: '${stats.failed}'),
+      ],
+    );
+  }
+
+  Widget _buildDigestStatsContent() {
+    if (_digestStatsLoading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    final digestError = _buildLoadErrorHint(_secDigest);
+    if (digestError != null) return digestError;
+    final stats = _digestStats;
+    if (stats == null) {
+      return Text(
+        '知识消化状态读取失败',
+        style: TextStyle(color: AppTheme.textSecondary),
+      );
+    }
+    String when(String? rfc3339) {
+      final parsed = rfc3339 == null ? null : DateTime.tryParse(rfc3339);
+      if (parsed == null) return '—';
+      final local = parsed.toLocal();
+      String two(int v) => v.toString().padLeft(2, '0');
+      return '${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}';
+    }
+
+    final waiting = stats.pending + stats.running + stats.retry;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '记录的事件会在后台自动整理进知识库；失败项冷却后会自动重试。',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+            height: 1.6,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        Wrap(
+          spacing: AppTheme.space4,
+          runSpacing: AppTheme.space3,
+          children: [
+            _buildUsageMetric(label: '待处理', value: '$waiting'),
+            _buildUsageMetric(label: '已完成', value: '${stats.succeeded}'),
+            _buildUsageMetric(label: '失败', value: '${stats.failed}'),
+            _buildUsageMetric(label: '跳过', value: '${stats.skipped}'),
+            _buildUsageMetric(label: '最近成功', value: when(stats.lastSuccessAt)),
+          ],
+        ),
+        if (stats.lastError != null && stats.lastError!.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.space3),
+          Text(
+            '最近失败（${when(stats.lastErrorAt)}）：${stats.lastError}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: AppTheme.error, fontSize: 12),
+          ),
+        ],
+        const SizedBox(height: AppTheme.space3),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.list_alt_outlined, size: 16),
+          label: const Text('查看队列与运行日志'),
+          onPressed: () async {
+            await showKnowledgeDigestDialog(context);
+            if (mounted) _loadDigestStats();
+          },
+        ),
       ],
     );
   }
@@ -444,6 +594,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(
+            title: '知识消化',
+            icon: Icons.auto_stories_outlined,
+            child: _buildDigestStatsContent(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
             title: '每日 Token 使用',
             icon: Icons.analytics_outlined,
             child: _buildTokenUsageContent(),
@@ -472,6 +628,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ),
       );
     }
+    // 读取失败时不能落进下面的「还没有规则」引导——那会把故障说成用户没沉淀过经验。
+    final rulesError = _buildLoadErrorHint(_secRules);
+    if (rulesError != null) return rulesError;
     if (_rules.isEmpty) {
       return Text(
         '还没有规则。在对话里分享踩坑或心得时，AI 会建议把其中的经验沉淀成规则，你回复「好」确认后就会出现在这里，以后遇到类似情况 AI 会主动引用并提醒你。',
@@ -567,6 +726,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   Widget _buildAiProviderSettings(AppSettings settings) {
+    // 读取失败时不能落进 `_buildEmptyProviders()`（那里写着「尚未配置」）——
+    // 那会让「配置读不出来」显示成「用户没配」，与首次运行引导横幅的判断相矛盾。
+    final providersError = _providersLoading
+        ? null
+        : _buildLoadErrorHint(_secProviders);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -595,6 +759,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             padding: EdgeInsets.all(24),
             child: Center(child: CircularProgressIndicator()),
           )
+        else if (providersError != null)
+          providersError
         else if (_providers.isEmpty)
           _buildEmptyProviders()
         else
@@ -1013,6 +1179,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ),
       );
     }
+    // 读取失败时不能落进「暂无 AI 调用记录」——那会把故障说成从没调用过 AI。
+    final usageError = _buildLoadErrorHint(_secTokenUsage);
+    if (usageError != null) return usageError;
     if (_dailyUsage.isEmpty) {
       return Text(
         '暂无 AI 调用记录。发起对话并生成 AI 回复后，这里会按天统计 token 用量。',
@@ -1201,6 +1370,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             }
           },
         ),
+        // 这块没有 loading 态，字段值默认 'fxtwitter'：读取失败时若不提示，
+        // 用户会以为库里就是这个值，而实际是读失败了。
+        if (_buildLoadErrorHint(_secTweetService) case final tweetError?) ...[
+          tweetError,
+          const SizedBox(height: 12),
+        ],
         const SizedBox(height: 12),
         Text(
           '当前支持的抓取服务：fxTwitter —— 把 x.com 推文链接自动解析为长文，\n接口 https://api.fxtwitter.com/status/{推文id}',
@@ -1309,8 +1484,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  /// 字体选择：主按钮打开自研选择框（系统默认 / 本地字体，
+  /// 内容字体选择：主按钮打开自研选择框（系统默认 / 本地字体，
   /// 每行自身字体预览）；「系统默认」chip 单独提供。存值格式见 [parseStoredFont]。
+  /// 界面文案字体固定，不在此设置（见 [AppFonts.uiFont]）。
   Widget _buildFontField(AppSettings settings, SettingsNotifier notifier) {
     final fontName = settings.fontName;
     final isSystem = fontName == AppFonts.system;
@@ -1318,12 +1494,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '字体',
+          '内容字体',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: AppTheme.textSecondary,
           ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '作用于知识库正文、对话消息等内容区；界面文字使用固定字体',
+          style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
         ),
         const SizedBox(height: 8),
         Row(

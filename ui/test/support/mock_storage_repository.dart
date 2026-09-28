@@ -1,7 +1,9 @@
-import 'storage_repository.dart';
-import '../models/event.dart';
-import '../models/analysis.dart';
-import '../bridge/generated.dart/api.dart' as api;
+// 测试用的假实现，放在 test/support/ 而非 lib/：生产代码没有任何地方用得上
+// 它，留在 lib/ 只是让「死代码」扫描和 review 都得多过滤一个目录。
+import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
+import 'package:elsewhen_ui/data/storage_repository.dart';
+import 'package:elsewhen_ui/models/analysis.dart';
+import 'package:elsewhen_ui/models/event.dart';
 
 /// Mock implementation of StorageRepository for testing
 class MockStorageRepository implements StorageRepository {

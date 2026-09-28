@@ -31,9 +31,8 @@ class _AiProviderSetupHintState extends ConsumerState<AiProviderSetupHint> {
     }
 
     Future<void> openSettings() async {
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SettingsScreen()),
-      );
+      await Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
       // 从设置页返回后重新探测：配好则横幅消失，没配则继续提示
       if (!mounted) return;
       ref.invalidate(aiProviderConfiguredProvider);
@@ -67,19 +66,14 @@ class _AiProviderSetupHintState extends ConsumerState<AiProviderSetupHint> {
           Expanded(
             child: Text(
               '首次使用提示：尚未配置 AI Provider，AI 对话与自动分析暂不可用。',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12.5,
-              ),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
             ),
           ),
           TextButton(
             onPressed: openSettings,
             style: TextButton.styleFrom(
               foregroundColor: AppTheme.accentPrimary,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.space3,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.space3),
               minimumSize: const Size(0, 32),
             ),
             child: const Text('去配置'),

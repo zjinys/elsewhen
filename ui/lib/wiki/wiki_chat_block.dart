@@ -48,7 +48,8 @@ class WikiChatBlockComponentBuilder extends BlockComponentBuilder {
   }
 
   @override
-  BlockComponentValidate get validate => (node) => node.children.isEmpty;
+  BlockComponentValidate get validate =>
+      (node) => node.children.isEmpty;
 }
 
 class WikiChatBlockComponent extends BlockComponentStatefulWidget {
@@ -81,7 +82,7 @@ class _WikiChatBlockComponentState extends State<WikiChatBlockComponent>
   Widget build(BuildContext context) {
     final slug =
         widget.node.attributes[WikiChatBlockKeys.slugAttribute]?.toString() ??
-            '';
+        '';
 
     Widget child = Container(
       // 块自身带边距，避免与正文段落贴死；面板内部样式由 WikiAiChatPanel 负责
@@ -89,11 +90,7 @@ class _WikiChatBlockComponentState extends State<WikiChatBlockComponent>
       child: WikiAiChatPanel(slug: slug),
     );
 
-    child = Padding(
-      key: _panelKey,
-      padding: padding,
-      child: child,
-    );
+    child = Padding(key: _panelKey, padding: padding, child: child);
 
     final editorState = context.read<EditorState>();
 
@@ -122,10 +119,7 @@ class _WikiChatBlockComponentState extends State<WikiChatBlockComponent>
       );
     }
 
-    child = Padding(
-      padding: margin,
-      child: child,
-    );
+    child = Padding(padding: margin, child: child);
 
     return child;
   }
@@ -146,9 +140,7 @@ class _WikiChatBlockComponentState extends State<WikiChatBlockComponent>
   CursorStyle get cursorStyle => CursorStyle.cover;
 
   @override
-  Rect getBlockRect({
-    bool shiftWithBaseOffset = false,
-  }) {
+  Rect getBlockRect({bool shiftWithBaseOffset = false}) {
     return getRectsInSelection(Selection.invalid()).first;
   }
 
@@ -189,17 +181,11 @@ class _WikiChatBlockComponentState extends State<WikiChatBlockComponent>
   }
 
   @override
-  Selection getSelectionInRange(Offset start, Offset end) => Selection.single(
-        path: widget.node.path,
-        startOffset: 0,
-        endOffset: 1,
-      );
+  Selection getSelectionInRange(Offset start, Offset end) =>
+      Selection.single(path: widget.node.path, startOffset: 0, endOffset: 1);
 
   @override
-  Offset localToGlobal(
-    Offset offset, {
-    bool shiftWithBaseOffset = false,
-  }) =>
+  Offset localToGlobal(Offset offset, {bool shiftWithBaseOffset = false}) =>
       _renderBox!.localToGlobal(offset);
 
   @override

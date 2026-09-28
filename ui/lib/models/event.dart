@@ -56,11 +56,7 @@ class EventAnalysis {
   final List<String>? tags;
   final Map<String, dynamic>? metadata;
 
-  EventAnalysis({
-    required this.summary,
-    this.tags,
-    this.metadata,
-  });
+  EventAnalysis({required this.summary, this.tags, this.metadata});
 
   factory EventAnalysis.fromJson(Map<String, dynamic> json) {
     return EventAnalysis(
@@ -78,4 +74,3 @@ class EventAnalysis {
     };
   }
 }
-

@@ -4,6 +4,19 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/conversations.dart';
+import 'api/entities.dart';
+import 'api/fonts.dart';
+import 'api/import.dart';
+import 'api/knowledge_digest.dart';
+import 'api/provider_config.dart';
+import 'api/relations.dart';
+import 'api/rules.dart';
+import 'api/theme.dart';
+import 'api/todos.dart';
+import 'api/tweet.dart';
+import 'api/wiki.dart';
+import 'api/wiki_chat.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -135,6 +148,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   InputRecordDto dco_decode_input_record_dto(dynamic raw);
 
   @protected
+  KnowledgeDigestJobDto dco_decode_knowledge_digest_job_dto(dynamic raw);
+
+  @protected
+  KnowledgeDigestRunDto dco_decode_knowledge_digest_run_dto(dynamic raw);
+
+  @protected
+  KnowledgeDigestStatsDto dco_decode_knowledge_digest_stats_dto(dynamic raw);
+
+  @protected
+  KnowledgeDigestTickResult dco_decode_knowledge_digest_tick_result(
+    dynamic raw,
+  );
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -165,6 +192,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventDto> dco_decode_list_event_dto(dynamic raw);
+
+  @protected
+  List<KnowledgeDigestJobDto> dco_decode_list_knowledge_digest_job_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<KnowledgeDigestRunDto> dco_decode_list_knowledge_digest_run_dto(
+    dynamic raw,
+  );
 
   @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
@@ -411,6 +448,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   InputRecordDto sse_decode_input_record_dto(SseDeserializer deserializer);
 
   @protected
+  KnowledgeDigestJobDto sse_decode_knowledge_digest_job_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeDigestRunDto sse_decode_knowledge_digest_run_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeDigestStatsDto sse_decode_knowledge_digest_stats_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeDigestTickResult sse_decode_knowledge_digest_tick_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -453,6 +510,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventDto> sse_decode_list_event_dto(SseDeserializer deserializer);
+
+  @protected
+  List<KnowledgeDigestJobDto> sse_decode_list_knowledge_digest_job_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<KnowledgeDigestRunDto> sse_decode_list_knowledge_digest_run_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
@@ -793,6 +860,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_event_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_event_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_knowledge_digest_job_dto>
+  cst_encode_list_knowledge_digest_job_dto(List<KnowledgeDigestJobDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_knowledge_digest_job_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_knowledge_digest_job_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_knowledge_digest_run_dto>
+  cst_encode_list_knowledge_digest_run_dto(List<KnowledgeDigestRunDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_knowledge_digest_run_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_knowledge_digest_run_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -1330,6 +1419,94 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_knowledge_digest_job_dto(
+    KnowledgeDigestJobDto apiObj,
+    wire_cst_knowledge_digest_job_dto wireObj,
+  ) {
+    wireObj.job_id = cst_encode_String(apiObj.jobId);
+    wireObj.event_id = cst_encode_String(apiObj.eventId);
+    wireObj.event_excerpt = cst_encode_String(apiObj.eventExcerpt);
+    wireObj.recorded_at = cst_encode_String(apiObj.recordedAt);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.attempts = cst_encode_i_64(apiObj.attempts);
+    wireObj.failed_rounds = cst_encode_i_64(apiObj.failedRounds);
+    wireObj.available_at = cst_encode_String(apiObj.availableAt);
+    wireObj.last_error = cst_encode_opt_String(apiObj.lastError);
+    wireObj.skip_reason = cst_encode_opt_String(apiObj.skipReason);
+    wireObj.batch_id = cst_encode_opt_String(apiObj.batchId);
+    wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_knowledge_digest_run_dto(
+    KnowledgeDigestRunDto apiObj,
+    wire_cst_knowledge_digest_run_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.started_at = cst_encode_String(apiObj.startedAt);
+    wireObj.finished_at = cst_encode_opt_String(apiObj.finishedAt);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.event_count = cst_encode_i_64(apiObj.eventCount);
+    wireObj.model = cst_encode_opt_String(apiObj.model);
+    wireObj.duration_ms = cst_encode_opt_box_autoadd_i_64(apiObj.durationMs);
+    wireObj.created_slugs = cst_encode_list_String(apiObj.createdSlugs);
+    wireObj.updated_slugs = cst_encode_list_String(apiObj.updatedSlugs);
+    wireObj.protected_slugs = cst_encode_list_String(apiObj.protectedSlugs);
+    wireObj.error = cst_encode_opt_String(apiObj.error);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_knowledge_digest_stats_dto(
+    KnowledgeDigestStatsDto apiObj,
+    wire_cst_knowledge_digest_stats_dto wireObj,
+  ) {
+    wireObj.pending = cst_encode_i_64(apiObj.pending);
+    wireObj.running = cst_encode_i_64(apiObj.running);
+    wireObj.retry = cst_encode_i_64(apiObj.retry);
+    wireObj.succeeded = cst_encode_i_64(apiObj.succeeded);
+    wireObj.failed = cst_encode_i_64(apiObj.failed);
+    wireObj.skipped = cst_encode_i_64(apiObj.skipped);
+    wireObj.last_success_at = cst_encode_opt_String(apiObj.lastSuccessAt);
+    wireObj.last_error = cst_encode_opt_String(apiObj.lastError);
+    wireObj.last_error_at = cst_encode_opt_String(apiObj.lastErrorAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_knowledge_digest_tick_result(
+    KnowledgeDigestTickResult apiObj,
+    wire_cst_knowledge_digest_tick_result wireObj,
+  ) {
+    if (apiObj is KnowledgeDigestTickResult_NoProvider) {
+      wireObj.tag = 0;
+      return;
+    }
+    if (apiObj is KnowledgeDigestTickResult_Idle) {
+      wireObj.tag = 1;
+      return;
+    }
+    if (apiObj is KnowledgeDigestTickResult_Processed) {
+      var pre_events = cst_encode_i_64(apiObj.events);
+      var pre_created_slugs = cst_encode_list_String(apiObj.createdSlugs);
+      var pre_updated_slugs = cst_encode_list_String(apiObj.updatedSlugs);
+      var pre_protected_slugs = cst_encode_list_String(apiObj.protectedSlugs);
+      wireObj.tag = 2;
+      wireObj.kind.Processed.events = pre_events;
+      wireObj.kind.Processed.created_slugs = pre_created_slugs;
+      wireObj.kind.Processed.updated_slugs = pre_updated_slugs;
+      wireObj.kind.Processed.protected_slugs = pre_protected_slugs;
+      return;
+    }
+    if (apiObj is KnowledgeDigestTickResult_Failed) {
+      var pre_events = cst_encode_i_64(apiObj.events);
+      var pre_error = cst_encode_String(apiObj.error);
+      wireObj.tag = 3;
+      wireObj.kind.Failed.events = pre_events;
+      wireObj.kind.Failed.error = pre_error;
+      return;
+    }
+  }
+
+  @protected
   void cst_api_fill_to_wire_message_dto(
     MessageDto apiObj,
     wire_cst_message_dto wireObj,
@@ -1670,6 +1847,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_knowledge_digest_job_dto(
+    KnowledgeDigestJobDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_digest_run_dto(
+    KnowledgeDigestRunDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_digest_stats_dto(
+    KnowledgeDigestStatsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_digest_tick_result(
+    KnowledgeDigestTickResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -1722,6 +1923,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_event_dto(List<EventDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_knowledge_digest_job_dto(
+    List<KnowledgeDigestJobDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_knowledge_digest_run_dto(
+    List<KnowledgeDigestRunDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_message_dto(
@@ -2204,6 +2417,44 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_event_dto = _cst_new_list_event_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_event_dto> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_knowledge_digest_job_dto>
+  cst_new_list_knowledge_digest_job_dto(int len) {
+    return _cst_new_list_knowledge_digest_job_dto(len);
+  }
+
+  late final _cst_new_list_knowledge_digest_job_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_knowledge_digest_job_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_knowledge_digest_job_dto');
+  late final _cst_new_list_knowledge_digest_job_dto =
+      _cst_new_list_knowledge_digest_job_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_knowledge_digest_job_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_knowledge_digest_run_dto>
+  cst_new_list_knowledge_digest_run_dto(int len) {
+    return _cst_new_list_knowledge_digest_run_dto(len);
+  }
+
+  late final _cst_new_list_knowledge_digest_run_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_knowledge_digest_run_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_knowledge_digest_run_dto');
+  late final _cst_new_list_knowledge_digest_run_dto =
+      _cst_new_list_knowledge_digest_run_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_knowledge_digest_run_dto> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_message_dto> cst_new_list_message_dto(int len) {
     return _cst_new_list_message_dto(len);
   }
@@ -2339,125 +2590,6 @@ class RustLibWire implements BaseWire {
   late final _store_dart_post_cobject = _store_dart_post_cobjectPtr
       .asFunction<void Function(DartPostCObjectFnType)>();
 
-  void wire__crate__api__add_entity_alias(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> alias,
-  ) {
-    return _wire__crate__api__add_entity_alias(
-      port_,
-      entity_kind,
-      entity_slug,
-      alias,
-    );
-  }
-
-  late final _wire__crate__api__add_entity_aliasPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__add_entity_alias');
-  late final _wire__crate__api__add_entity_alias =
-      _wire__crate__api__add_entity_aliasPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__add_relation(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> from_slug,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> to_slug,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> relation,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
-  ) {
-    return _wire__crate__api__add_relation(
-      port_,
-      from_slug,
-      to_slug,
-      relation,
-      note,
-    );
-  }
-
-  late final _wire__crate__api__add_relationPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__add_relation');
-  late final _wire__crate__api__add_relation =
-      _wire__crate__api__add_relationPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__add_rule(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
-  ) {
-    return _wire__crate__api__add_rule(port_, content);
-  }
-
-  late final _wire__crate__api__add_rulePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__add_rule');
-  late final _wire__crate__api__add_rule = _wire__crate__api__add_rulePtr
-      .asFunction<
-        void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-      >();
-
-  void wire__crate__api__archive_wiki_page_chat(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
-  ) {
-    return _wire__crate__api__archive_wiki_page_chat(port_, page_slug);
-  }
-
-  late final _wire__crate__api__archive_wiki_page_chatPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__archive_wiki_page_chat');
-  late final _wire__crate__api__archive_wiki_page_chat =
-      _wire__crate__api__archive_wiki_page_chatPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
   void wire__crate__api__begin_url_input(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_text,
@@ -2486,19 +2618,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__confirm_knowledge_draft(
+  void wire__crate__api__conversations__confirm_knowledge_draft(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> action_id,
   ) {
-    return _wire__crate__api__confirm_knowledge_draft(
+    return _wire__crate__api__conversations__confirm_knowledge_draft(
       port_,
       conversation_id,
       action_id,
     );
   }
 
-  late final _wire__crate__api__confirm_knowledge_draftPtr =
+  late final _wire__crate__api__conversations__confirm_knowledge_draftPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -2507,9 +2639,11 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__confirm_knowledge_draft');
-  late final _wire__crate__api__confirm_knowledge_draft =
-      _wire__crate__api__confirm_knowledge_draftPtr
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__confirm_knowledge_draft',
+      );
+  late final _wire__crate__api__conversations__confirm_knowledge_draft =
+      _wire__crate__api__conversations__confirm_knowledge_draftPtr
           .asFunction<
             void Function(
               int,
@@ -2518,15 +2652,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__create_conversation(
+  void wire__crate__api__conversations__create_conversation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> tag,
   ) {
-    return _wire__crate__api__create_conversation(port_, title, tag);
+    return _wire__crate__api__conversations__create_conversation(
+      port_,
+      title,
+      tag,
+    );
   }
 
-  late final _wire__crate__api__create_conversationPtr =
+  late final _wire__crate__api__conversations__create_conversationPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -2535,9 +2673,11 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__create_conversation');
-  late final _wire__crate__api__create_conversation =
-      _wire__crate__api__create_conversationPtr
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__create_conversation',
+      );
+  late final _wire__crate__api__conversations__create_conversation =
+      _wire__crate__api__conversations__create_conversationPtr
           .asFunction<
             void Function(
               int,
@@ -2546,102 +2686,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__create_todo(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> due_at,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> priority,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> related_wiki_slug,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
-  ) {
-    return _wire__crate__api__create_todo(
-      port_,
-      title,
-      due_at,
-      priority,
-      related_wiki_slug,
-      note,
-    );
-  }
-
-  late final _wire__crate__api__create_todoPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__create_todo');
-  late final _wire__crate__api__create_todo = _wire__crate__api__create_todoPtr
-      .asFunction<
-        void Function(
-          int,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-        )
-      >();
-
-  void wire__crate__api__create_wiki_derivative(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> based_on_slug,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_type,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
-  ) {
-    return _wire__crate__api__create_wiki_derivative(
-      port_,
-      based_on_slug,
-      content_type,
-      title,
-      content_md,
-    );
-  }
-
-  late final _wire__crate__api__create_wiki_derivativePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__create_wiki_derivative');
-  late final _wire__crate__api__create_wiki_derivative =
-      _wire__crate__api__create_wiki_derivativePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__decline_knowledge_draft(
+  void wire__crate__api__conversations__decline_knowledge_draft(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> action_id,
   ) {
-    return _wire__crate__api__decline_knowledge_draft(
+    return _wire__crate__api__conversations__decline_knowledge_draft(
       port_,
       conversation_id,
       action_id,
     );
   }
 
-  late final _wire__crate__api__decline_knowledge_draftPtr =
+  late final _wire__crate__api__conversations__decline_knowledge_draftPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -2650,9 +2707,11 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__decline_knowledge_draft');
-  late final _wire__crate__api__decline_knowledge_draft =
-      _wire__crate__api__decline_knowledge_draftPtr
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__decline_knowledge_draft',
+      );
+  late final _wire__crate__api__conversations__decline_knowledge_draft =
+      _wire__crate__api__conversations__decline_knowledge_draftPtr
           .asFunction<
             void Function(
               int,
@@ -2661,39 +2720,17 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__delete_ai_provider_config(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
-  ) {
-    return _wire__crate__api__delete_ai_provider_config(port_, id);
-  }
-
-  late final _wire__crate__api__delete_ai_provider_configPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__delete_ai_provider_config');
-  late final _wire__crate__api__delete_ai_provider_config =
-      _wire__crate__api__delete_ai_provider_configPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__delete_archived_conversation(
+  void wire__crate__api__conversations__delete_archived_conversation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
   ) {
-    return _wire__crate__api__delete_archived_conversation(
+    return _wire__crate__api__conversations__delete_archived_conversation(
       port_,
       conversation_id,
     );
   }
 
-  late final _wire__crate__api__delete_archived_conversationPtr =
+  late final _wire__crate__api__conversations__delete_archived_conversationPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -2701,21 +2738,407 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__delete_archived_conversation');
-  late final _wire__crate__api__delete_archived_conversation =
-      _wire__crate__api__delete_archived_conversationPtr
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__delete_archived_conversation',
+      );
+  late final _wire__crate__api__conversations__delete_archived_conversation =
+      _wire__crate__api__conversations__delete_archived_conversationPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__delete_entity_fact(
+  void wire__crate__api__conversations__generate_reply(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> provider_type,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> memory_type,
+    ffi.Pointer<ffi.Uint32> memory_window_size,
+  ) {
+    return _wire__crate__api__conversations__generate_reply(
+      port_,
+      conversation_id,
+      provider_type,
+      memory_type,
+      memory_window_size,
+    );
+  }
+
+  late final _wire__crate__api__conversations__generate_replyPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<ffi.Uint32>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__conversations__generate_reply');
+  late final _wire__crate__api__conversations__generate_reply =
+      _wire__crate__api__conversations__generate_replyPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<ffi.Uint32>,
+            )
+          >();
+
+  void wire__crate__api__conversations__get_child_messages(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> parent_id,
+  ) {
+    return _wire__crate__api__conversations__get_child_messages(
+      port_,
+      parent_id,
+    );
+  }
+
+  late final _wire__crate__api__conversations__get_child_messagesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__get_child_messages',
+      );
+  late final _wire__crate__api__conversations__get_child_messages =
+      _wire__crate__api__conversations__get_child_messagesPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__conversations__get_conversation(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__conversations__get_conversation(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__conversations__get_conversationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__conversations__get_conversation');
+  late final _wire__crate__api__conversations__get_conversation =
+      _wire__crate__api__conversations__get_conversationPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__conversations__get_daily_token_usage(
+    int port_,
+    int days,
+  ) {
+    return _wire__crate__api__conversations__get_daily_token_usage(port_, days);
+  }
+
+  late final _wire__crate__api__conversations__get_daily_token_usagePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__get_daily_token_usage',
+      );
+  late final _wire__crate__api__conversations__get_daily_token_usage =
+      _wire__crate__api__conversations__get_daily_token_usagePtr
+          .asFunction<void Function(int, int)>();
+
+  void wire__crate__api__conversations__get_message_chain(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+  ) {
+    return _wire__crate__api__conversations__get_message_chain(
+      port_,
+      message_id,
+    );
+  }
+
+  late final _wire__crate__api__conversations__get_message_chainPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__get_message_chain',
+      );
+  late final _wire__crate__api__conversations__get_message_chain =
+      _wire__crate__api__conversations__get_message_chainPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__conversations__list_archived_conversations(int port_) {
+    return _wire__crate__api__conversations__list_archived_conversations(port_);
+  }
+
+  late final _wire__crate__api__conversations__list_archived_conversationsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__list_archived_conversations',
+      );
+  late final _wire__crate__api__conversations__list_archived_conversations =
+      _wire__crate__api__conversations__list_archived_conversationsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__conversations__list_conversations(int port_) {
+    return _wire__crate__api__conversations__list_conversations(port_);
+  }
+
+  late final _wire__crate__api__conversations__list_conversationsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__list_conversations',
+      );
+  late final _wire__crate__api__conversations__list_conversations =
+      _wire__crate__api__conversations__list_conversationsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__conversations__list_messages(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__conversations__list_messages(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__conversations__list_messagesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__conversations__list_messages');
+  late final _wire__crate__api__conversations__list_messages =
+      _wire__crate__api__conversations__list_messagesPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__conversations__list_pending_actions(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__conversations__list_pending_actions(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__conversations__list_pending_actionsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__list_pending_actions',
+      );
+  late final _wire__crate__api__conversations__list_pending_actions =
+      _wire__crate__api__conversations__list_pending_actionsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__conversations__rename_conversation(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+  ) {
+    return _wire__crate__api__conversations__rename_conversation(
+      port_,
+      conversation_id,
+      title,
+    );
+  }
+
+  late final _wire__crate__api__conversations__rename_conversationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__rename_conversation',
+      );
+  late final _wire__crate__api__conversations__rename_conversation =
+      _wire__crate__api__conversations__rename_conversationPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__conversations__send_message(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> role,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> parent_message_id,
+  ) {
+    return _wire__crate__api__conversations__send_message(
+      port_,
+      conversation_id,
+      role,
+      content,
+      parent_message_id,
+    );
+  }
+
+  late final _wire__crate__api__conversations__send_messagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__conversations__send_message');
+  late final _wire__crate__api__conversations__send_message =
+      _wire__crate__api__conversations__send_messagePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__conversations__set_conversation_archived(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    bool archived,
+  ) {
+    return _wire__crate__api__conversations__set_conversation_archived(
+      port_,
+      conversation_id,
+      archived,
+    );
+  }
+
+  late final _wire__crate__api__conversations__set_conversation_archivedPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__set_conversation_archived',
+      );
+  late final _wire__crate__api__conversations__set_conversation_archived =
+      _wire__crate__api__conversations__set_conversation_archivedPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
+  void wire__crate__api__conversations__update_pending_action_args(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> action_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
+  ) {
+    return _wire__crate__api__conversations__update_pending_action_args(
+      port_,
+      action_id,
+      args_json,
+    );
+  }
+
+  late final _wire__crate__api__conversations__update_pending_action_argsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__conversations__update_pending_action_args',
+      );
+  late final _wire__crate__api__conversations__update_pending_action_args =
+      _wire__crate__api__conversations__update_pending_action_argsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__entities__add_entity_alias(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> alias,
+  ) {
+    return _wire__crate__api__entities__add_entity_alias(
+      port_,
+      entity_kind,
+      entity_slug,
+      alias,
+    );
+  }
+
+  late final _wire__crate__api__entities__add_entity_aliasPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__entities__add_entity_alias');
+  late final _wire__crate__api__entities__add_entity_alias =
+      _wire__crate__api__entities__add_entity_aliasPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__entities__delete_entity_fact(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
   ) {
-    return _wire__crate__api__delete_entity_fact(port_, id);
+    return _wire__crate__api__entities__delete_entity_fact(port_, id);
   }
 
-  late final _wire__crate__api__delete_entity_factPtr =
+  late final _wire__crate__api__entities__delete_entity_factPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -2723,21 +3146,24 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__delete_entity_fact');
-  late final _wire__crate__api__delete_entity_fact =
-      _wire__crate__api__delete_entity_factPtr
+      >('frbgen_elsewhen_ui_wire__crate__api__entities__delete_entity_fact');
+  late final _wire__crate__api__entities__delete_entity_fact =
+      _wire__crate__api__entities__delete_entity_factPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__delete_relation(
+  void wire__crate__api__entities__get_entity_merge_status(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
   ) {
-    return _wire__crate__api__delete_relation(port_, id);
+    return _wire__crate__api__entities__get_entity_merge_status(
+      port_,
+      source_slug,
+    );
   }
 
-  late final _wire__crate__api__delete_relationPtr =
+  late final _wire__crate__api__entities__get_entity_merge_statusPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -2745,107 +3171,123 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__delete_relation');
-  late final _wire__crate__api__delete_relation =
-      _wire__crate__api__delete_relationPtr
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__entities__get_entity_merge_status',
+      );
+  late final _wire__crate__api__entities__get_entity_merge_status =
+      _wire__crate__api__entities__get_entity_merge_statusPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__delete_rule(
+  void wire__crate__api__entities__list_entity_aliases(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
   ) {
-    return _wire__crate__api__delete_rule(port_, rule_id);
+    return _wire__crate__api__entities__list_entity_aliases(
+      port_,
+      entity_kind,
+      entity_slug,
+    );
   }
 
-  late final _wire__crate__api__delete_rulePtr =
+  late final _wire__crate__api__entities__list_entity_aliasesPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__delete_rule');
-  late final _wire__crate__api__delete_rule = _wire__crate__api__delete_rulePtr
-      .asFunction<
-        void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-      >();
-
-  void wire__crate__api__delete_todo(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
-  ) {
-    return _wire__crate__api__delete_todo(port_, id);
-  }
-
-  late final _wire__crate__api__delete_todoPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__delete_todo');
-  late final _wire__crate__api__delete_todo = _wire__crate__api__delete_todoPtr
-      .asFunction<
-        void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-      >();
-
-  void wire__crate__api__ensure_wiki_page_chat(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
-  ) {
-    return _wire__crate__api__ensure_wiki_page_chat(port_, page_slug);
-  }
-
-  late final _wire__crate__api__ensure_wiki_page_chatPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__ensure_wiki_page_chat');
-  late final _wire__crate__api__ensure_wiki_page_chat =
-      _wire__crate__api__ensure_wiki_page_chatPtr
+      >('frbgen_elsewhen_ui_wire__crate__api__entities__list_entity_aliases');
+  late final _wire__crate__api__entities__list_entity_aliases =
+      _wire__crate__api__entities__list_entity_aliasesPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
-  void wire__crate__api__fetch_import_url(
+  void wire__crate__api__entities__list_entity_facts(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
   ) {
-    return _wire__crate__api__fetch_import_url(port_, url);
+    return _wire__crate__api__entities__list_entity_facts(
+      port_,
+      entity_kind,
+      entity_slug,
+    );
   }
 
-  late final _wire__crate__api__fetch_import_urlPtr =
+  late final _wire__crate__api__entities__list_entity_factsPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__fetch_import_url');
-  late final _wire__crate__api__fetch_import_url =
-      _wire__crate__api__fetch_import_urlPtr
+      >('frbgen_elsewhen_ui_wire__crate__api__entities__list_entity_facts');
+  late final _wire__crate__api__entities__list_entity_facts =
+      _wire__crate__api__entities__list_entity_factsPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
-  void wire__crate__api__fetch_tweet(
+  void wire__crate__api__entities__merge_entity(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> target_slug,
   ) {
-    return _wire__crate__api__fetch_tweet(port_, url);
+    return _wire__crate__api__entities__merge_entity(
+      port_,
+      entity_kind,
+      source_slug,
+      target_slug,
+    );
   }
 
-  late final _wire__crate__api__fetch_tweetPtr =
+  late final _wire__crate__api__entities__merge_entityPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__entities__merge_entity');
+  late final _wire__crate__api__entities__merge_entity =
+      _wire__crate__api__entities__merge_entityPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__entities__undo_entity_merge(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
+  ) {
+    return _wire__crate__api__entities__undo_entity_merge(port_, source_slug);
+  }
+
+  late final _wire__crate__api__entities__undo_entity_mergePtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -2853,30 +3295,9 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__fetch_tweet');
-  late final _wire__crate__api__fetch_tweet = _wire__crate__api__fetch_tweetPtr
-      .asFunction<
-        void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-      >();
-
-  void wire__crate__api__find_tweet_source_page(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
-  ) {
-    return _wire__crate__api__find_tweet_source_page(port_, url);
-  }
-
-  late final _wire__crate__api__find_tweet_source_pagePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__find_tweet_source_page');
-  late final _wire__crate__api__find_tweet_source_page =
-      _wire__crate__api__find_tweet_source_pagePtr
+      >('frbgen_elsewhen_ui_wire__crate__api__entities__undo_entity_merge');
+  late final _wire__crate__api__entities__undo_entity_merge =
+      _wire__crate__api__entities__undo_entity_mergePtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -2917,33 +3338,17 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__generate_content_chat(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
-    ffi.Pointer<wire_cst_list_content_chat_message_dto> messages,
-  ) {
-    return _wire__crate__api__generate_content_chat(port_, content, messages);
+  void wire__crate__api__fonts__list_system_fonts(int port_) {
+    return _wire__crate__api__fonts__list_system_fonts(port_);
   }
 
-  late final _wire__crate__api__generate_content_chatPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_content_chat_message_dto>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__generate_content_chat');
-  late final _wire__crate__api__generate_content_chat =
-      _wire__crate__api__generate_content_chatPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_content_chat_message_dto>,
-            )
-          >();
+  late final _wire__crate__api__fonts__list_system_fontsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__fonts__list_system_fonts',
+      );
+  late final _wire__crate__api__fonts__list_system_fonts =
+      _wire__crate__api__fonts__list_system_fontsPtr
+          .asFunction<void Function(int)>();
 
   void wire__crate__api__generate_daily_review(
     int port_,
@@ -2967,69 +3372,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__generate_reply(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> provider_type,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> memory_type,
-    ffi.Pointer<ffi.Uint32> memory_window_size,
-  ) {
-    return _wire__crate__api__generate_reply(
-      port_,
-      conversation_id,
-      provider_type,
-      memory_type,
-      memory_window_size,
-    );
-  }
-
-  late final _wire__crate__api__generate_replyPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<ffi.Uint32>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__generate_reply');
-  late final _wire__crate__api__generate_reply =
-      _wire__crate__api__generate_replyPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<ffi.Uint32>,
-            )
-          >();
-
-  void wire__crate__api__get_ai_provider(int port_) {
-    return _wire__crate__api__get_ai_provider(port_);
-  }
-
-  late final _wire__crate__api__get_ai_providerPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__get_ai_provider',
-      );
-  late final _wire__crate__api__get_ai_provider =
-      _wire__crate__api__get_ai_providerPtr.asFunction<void Function(int)>();
-
-  void wire__crate__api__get_ai_provider_config(int port_) {
-    return _wire__crate__api__get_ai_provider_config(port_);
-  }
-
-  late final _wire__crate__api__get_ai_provider_configPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__get_ai_provider_config',
-      );
-  late final _wire__crate__api__get_ai_provider_config =
-      _wire__crate__api__get_ai_provider_configPtr
-          .asFunction<void Function(int)>();
-
   void wire__crate__api__get_analysis_job_stats(int port_) {
     return _wire__crate__api__get_analysis_job_stats(port_);
   }
@@ -3041,50 +3383,6 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__get_analysis_job_stats =
       _wire__crate__api__get_analysis_job_statsPtr
           .asFunction<void Function(int)>();
-
-  void wire__crate__api__get_child_messages(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> parent_id,
-  ) {
-    return _wire__crate__api__get_child_messages(port_, parent_id);
-  }
-
-  late final _wire__crate__api__get_child_messagesPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__get_child_messages');
-  late final _wire__crate__api__get_child_messages =
-      _wire__crate__api__get_child_messagesPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__get_conversation(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
-  ) {
-    return _wire__crate__api__get_conversation(port_, conversation_id);
-  }
-
-  late final _wire__crate__api__get_conversationPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__get_conversation');
-  late final _wire__crate__api__get_conversation =
-      _wire__crate__api__get_conversationPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
 
   void wire__crate__api__get_daily_overview(
     int port_,
@@ -3104,40 +3402,6 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_wire__crate__api__get_daily_overview');
   late final _wire__crate__api__get_daily_overview =
       _wire__crate__api__get_daily_overviewPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__get_daily_token_usage(int port_, int days) {
-    return _wire__crate__api__get_daily_token_usage(port_, days);
-  }
-
-  late final _wire__crate__api__get_daily_token_usagePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__get_daily_token_usage',
-      );
-  late final _wire__crate__api__get_daily_token_usage =
-      _wire__crate__api__get_daily_token_usagePtr
-          .asFunction<void Function(int, int)>();
-
-  void wire__crate__api__get_entity_merge_status(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
-  ) {
-    return _wire__crate__api__get_entity_merge_status(port_, source_slug);
-  }
-
-  late final _wire__crate__api__get_entity_merge_statusPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__get_entity_merge_status');
-  late final _wire__crate__api__get_entity_merge_status =
-      _wire__crate__api__get_entity_merge_statusPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -3164,28 +3428,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__get_message_chain(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
-  ) {
-    return _wire__crate__api__get_message_chain(port_, message_id);
-  }
-
-  late final _wire__crate__api__get_message_chainPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__get_message_chain');
-  late final _wire__crate__api__get_message_chain =
-      _wire__crate__api__get_message_chainPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
   void wire__crate__api__get_message_recordability(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
@@ -3208,37 +3450,14 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__get_theme_prefs(int port_) {
-    return _wire__crate__api__get_theme_prefs(port_);
-  }
-
-  late final _wire__crate__api__get_theme_prefsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__get_theme_prefs',
-      );
-  late final _wire__crate__api__get_theme_prefs =
-      _wire__crate__api__get_theme_prefsPtr.asFunction<void Function(int)>();
-
-  void wire__crate__api__get_tweet_fetch_service(int port_) {
-    return _wire__crate__api__get_tweet_fetch_service(port_);
-  }
-
-  late final _wire__crate__api__get_tweet_fetch_servicePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__get_tweet_fetch_service',
-      );
-  late final _wire__crate__api__get_tweet_fetch_service =
-      _wire__crate__api__get_tweet_fetch_servicePtr
-          .asFunction<void Function(int)>();
-
-  void wire__crate__api__get_wiki_page(
+  void wire__crate__api__import__fetch_import_url(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
   ) {
-    return _wire__crate__api__get_wiki_page(port_, slug);
+    return _wire__crate__api__import__fetch_import_url(port_, url);
   }
 
-  late final _wire__crate__api__get_wiki_pagePtr =
+  late final _wire__crate__api__import__fetch_import_urlPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -3246,33 +3465,55 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__get_wiki_page');
-  late final _wire__crate__api__get_wiki_page =
-      _wire__crate__api__get_wiki_pagePtr
+      >('frbgen_elsewhen_ui_wire__crate__api__import__fetch_import_url');
+  late final _wire__crate__api__import__fetch_import_url =
+      _wire__crate__api__import__fetch_import_urlPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__guess_import_kind(
+  void wire__crate__api__import__save_imported_page(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_url,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_kind,
+    ffi.Pointer<wire_cst_list_String> tags,
   ) {
-    return _wire__crate__api__guess_import_kind(port_, url);
+    return _wire__crate__api__import__save_imported_page(
+      port_,
+      title,
+      content_md,
+      source_url,
+      source_kind,
+      tags,
+    );
   }
 
-  late final _wire__crate__api__guess_import_kindPtr =
+  late final _wire__crate__api__import__save_imported_pagePtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_String>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__guess_import_kind');
-  late final _wire__crate__api__guess_import_kind =
-      _wire__crate__api__guess_import_kindPtr
+      >('frbgen_elsewhen_ui_wire__crate__api__import__save_imported_page');
+  late final _wire__crate__api__import__save_imported_page =
+      _wire__crate__api__import__save_imported_pagePtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_String>,
+            )
           >();
 
   void wire__crate__api__init_bridge(
@@ -3296,16 +3537,80 @@ class RustLibWire implements BaseWire {
         void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
       >();
 
-  void wire__crate__api__list_ai_provider_configs(int port_) {
-    return _wire__crate__api__list_ai_provider_configs(port_);
+  void wire__crate__api__knowledge_digest__get_knowledge_digest_stats(
+    int port_,
+  ) {
+    return _wire__crate__api__knowledge_digest__get_knowledge_digest_stats(
+      port_,
+    );
   }
 
-  late final _wire__crate__api__list_ai_provider_configsPtr =
+  late final _wire__crate__api__knowledge_digest__get_knowledge_digest_statsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__list_ai_provider_configs',
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_digest__get_knowledge_digest_stats',
       );
-  late final _wire__crate__api__list_ai_provider_configs =
-      _wire__crate__api__list_ai_provider_configsPtr
+  late final _wire__crate__api__knowledge_digest__get_knowledge_digest_stats =
+      _wire__crate__api__knowledge_digest__get_knowledge_digest_statsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__knowledge_digest__list_knowledge_digest_jobs(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    int limit,
+  ) {
+    return _wire__crate__api__knowledge_digest__list_knowledge_digest_jobs(
+      port_,
+      status,
+      limit,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_digest__list_knowledge_digest_jobsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_digest__list_knowledge_digest_jobs',
+      );
+  late final _wire__crate__api__knowledge_digest__list_knowledge_digest_jobs =
+      _wire__crate__api__knowledge_digest__list_knowledge_digest_jobsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+          >();
+
+  void wire__crate__api__knowledge_digest__list_knowledge_digest_runs(
+    int port_,
+    int limit,
+  ) {
+    return _wire__crate__api__knowledge_digest__list_knowledge_digest_runs(
+      port_,
+      limit,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_digest__list_knowledge_digest_runsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_digest__list_knowledge_digest_runs',
+      );
+  late final _wire__crate__api__knowledge_digest__list_knowledge_digest_runs =
+      _wire__crate__api__knowledge_digest__list_knowledge_digest_runsPtr
+          .asFunction<void Function(int, int)>();
+
+  void wire__crate__api__knowledge_digest__trigger_knowledge_digest(int port_) {
+    return _wire__crate__api__knowledge_digest__trigger_knowledge_digest(port_);
+  }
+
+  late final _wire__crate__api__knowledge_digest__trigger_knowledge_digestPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_digest__trigger_knowledge_digest',
+      );
+  late final _wire__crate__api__knowledge_digest__trigger_knowledge_digest =
+      _wire__crate__api__knowledge_digest__trigger_knowledge_digestPtr
           .asFunction<void Function(int)>();
 
   void wire__crate__api__list_analyses(int port_) {
@@ -3318,29 +3623,6 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__list_analyses =
       _wire__crate__api__list_analysesPtr.asFunction<void Function(int)>();
-
-  void wire__crate__api__list_archived_conversations(int port_) {
-    return _wire__crate__api__list_archived_conversations(port_);
-  }
-
-  late final _wire__crate__api__list_archived_conversationsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__list_archived_conversations',
-      );
-  late final _wire__crate__api__list_archived_conversations =
-      _wire__crate__api__list_archived_conversationsPtr
-          .asFunction<void Function(int)>();
-
-  void wire__crate__api__list_conversations(int port_) {
-    return _wire__crate__api__list_conversations(port_);
-  }
-
-  late final _wire__crate__api__list_conversationsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__list_conversations',
-      );
-  late final _wire__crate__api__list_conversations =
-      _wire__crate__api__list_conversationsPtr.asFunction<void Function(int)>();
 
   void wire__crate__api__list_daily_entries(
     int port_,
@@ -3364,70 +3646,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__list_entity_aliases(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
-  ) {
-    return _wire__crate__api__list_entity_aliases(
-      port_,
-      entity_kind,
-      entity_slug,
-    );
-  }
-
-  late final _wire__crate__api__list_entity_aliasesPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__list_entity_aliases');
-  late final _wire__crate__api__list_entity_aliases =
-      _wire__crate__api__list_entity_aliasesPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__list_entity_facts(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_slug,
-  ) {
-    return _wire__crate__api__list_entity_facts(
-      port_,
-      entity_kind,
-      entity_slug,
-    );
-  }
-
-  late final _wire__crate__api__list_entity_factsPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__list_entity_facts');
-  late final _wire__crate__api__list_entity_facts =
-      _wire__crate__api__list_entity_factsPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
   void wire__crate__api__list_events(int port_) {
     return _wire__crate__api__list_events(port_);
   }
@@ -3439,220 +3657,17 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__list_events = _wire__crate__api__list_eventsPtr
       .asFunction<void Function(int)>();
 
-  void wire__crate__api__list_messages(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
-  ) {
-    return _wire__crate__api__list_messages(port_, conversation_id);
-  }
-
-  late final _wire__crate__api__list_messagesPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__list_messages');
-  late final _wire__crate__api__list_messages =
-      _wire__crate__api__list_messagesPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__list_pending_actions(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
-  ) {
-    return _wire__crate__api__list_pending_actions(port_, conversation_id);
-  }
-
-  late final _wire__crate__api__list_pending_actionsPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__list_pending_actions');
-  late final _wire__crate__api__list_pending_actions =
-      _wire__crate__api__list_pending_actionsPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__list_relations(int port_) {
-    return _wire__crate__api__list_relations(port_);
-  }
-
-  late final _wire__crate__api__list_relationsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__list_relations',
-      );
-  late final _wire__crate__api__list_relations =
-      _wire__crate__api__list_relationsPtr.asFunction<void Function(int)>();
-
-  void wire__crate__api__list_relations_for_page(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
-  ) {
-    return _wire__crate__api__list_relations_for_page(port_, slug);
-  }
-
-  late final _wire__crate__api__list_relations_for_pagePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__list_relations_for_page');
-  late final _wire__crate__api__list_relations_for_page =
-      _wire__crate__api__list_relations_for_pagePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__list_rules(int port_) {
-    return _wire__crate__api__list_rules(port_);
-  }
-
-  late final _wire__crate__api__list_rulesPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__list_rules',
-      );
-  late final _wire__crate__api__list_rules = _wire__crate__api__list_rulesPtr
-      .asFunction<void Function(int)>();
-
-  void wire__crate__api__list_system_fonts(int port_) {
-    return _wire__crate__api__list_system_fonts(port_);
-  }
-
-  late final _wire__crate__api__list_system_fontsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__list_system_fonts',
-      );
-  late final _wire__crate__api__list_system_fonts =
-      _wire__crate__api__list_system_fontsPtr.asFunction<void Function(int)>();
-
-  void wire__crate__api__list_todos(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
-  ) {
-    return _wire__crate__api__list_todos(port_, status);
-  }
-
-  late final _wire__crate__api__list_todosPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__list_todos');
-  late final _wire__crate__api__list_todos = _wire__crate__api__list_todosPtr
-      .asFunction<
-        void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-      >();
-
-  void wire__crate__api__list_wiki_page_derivatives(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
-  ) {
-    return _wire__crate__api__list_wiki_page_derivatives(port_, slug);
-  }
-
-  late final _wire__crate__api__list_wiki_page_derivativesPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__list_wiki_page_derivatives');
-  late final _wire__crate__api__list_wiki_page_derivatives =
-      _wire__crate__api__list_wiki_page_derivativesPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__list_wiki_pages(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> area,
-  ) {
-    return _wire__crate__api__list_wiki_pages(port_, kind, area);
-  }
-
-  late final _wire__crate__api__list_wiki_pagesPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__list_wiki_pages');
-  late final _wire__crate__api__list_wiki_pages =
-      _wire__crate__api__list_wiki_pagesPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__merge_entity(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> target_slug,
-  ) {
-    return _wire__crate__api__merge_entity(
-      port_,
-      entity_kind,
-      source_slug,
-      target_slug,
-    );
-  }
-
-  late final _wire__crate__api__merge_entityPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__merge_entity');
-  late final _wire__crate__api__merge_entity =
-      _wire__crate__api__merge_entityPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__open_todo_work_item(
+  void wire__crate__api__provider_config__delete_ai_provider_config(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
   ) {
-    return _wire__crate__api__open_todo_work_item(port_, id);
+    return _wire__crate__api__provider_config__delete_ai_provider_config(
+      port_,
+      id,
+    );
   }
 
-  late final _wire__crate__api__open_todo_work_itemPtr =
+  late final _wire__crate__api__provider_config__delete_ai_provider_configPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -3660,11 +3675,141 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__open_todo_work_item');
-  late final _wire__crate__api__open_todo_work_item =
-      _wire__crate__api__open_todo_work_itemPtr
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_config__delete_ai_provider_config',
+      );
+  late final _wire__crate__api__provider_config__delete_ai_provider_config =
+      _wire__crate__api__provider_config__delete_ai_provider_configPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__provider_config__get_ai_provider(int port_) {
+    return _wire__crate__api__provider_config__get_ai_provider(port_);
+  }
+
+  late final _wire__crate__api__provider_config__get_ai_providerPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_config__get_ai_provider',
+      );
+  late final _wire__crate__api__provider_config__get_ai_provider =
+      _wire__crate__api__provider_config__get_ai_providerPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__provider_config__get_ai_provider_config(int port_) {
+    return _wire__crate__api__provider_config__get_ai_provider_config(port_);
+  }
+
+  late final _wire__crate__api__provider_config__get_ai_provider_configPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_config__get_ai_provider_config',
+      );
+  late final _wire__crate__api__provider_config__get_ai_provider_config =
+      _wire__crate__api__provider_config__get_ai_provider_configPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__provider_config__list_ai_provider_configs(int port_) {
+    return _wire__crate__api__provider_config__list_ai_provider_configs(port_);
+  }
+
+  late final _wire__crate__api__provider_config__list_ai_provider_configsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_config__list_ai_provider_configs',
+      );
+  late final _wire__crate__api__provider_config__list_ai_provider_configs =
+      _wire__crate__api__provider_config__list_ai_provider_configsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__provider_config__save_ai_provider_config(
+    int port_,
+    ffi.Pointer<wire_cst_ai_provider_config_dto> provider,
+  ) {
+    return _wire__crate__api__provider_config__save_ai_provider_config(
+      port_,
+      provider,
+    );
+  }
+
+  late final _wire__crate__api__provider_config__save_ai_provider_configPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_ai_provider_config_dto>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_config__save_ai_provider_config',
+      );
+  late final _wire__crate__api__provider_config__save_ai_provider_config =
+      _wire__crate__api__provider_config__save_ai_provider_configPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_ai_provider_config_dto>)
+          >();
+
+  void wire__crate__api__provider_config__set_active_ai_provider_config(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__provider_config__set_active_ai_provider_config(
+      port_,
+      id,
+    );
+  }
+
+  late final _wire__crate__api__provider_config__set_active_ai_provider_configPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_config__set_active_ai_provider_config',
+      );
+  late final _wire__crate__api__provider_config__set_active_ai_provider_config =
+      _wire__crate__api__provider_config__set_active_ai_provider_configPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__provider_config__update_ai_provider_config(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> model,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key,
+  ) {
+    return _wire__crate__api__provider_config__update_ai_provider_config(
+      port_,
+      base_url,
+      model,
+      api_key,
+    );
+  }
+
+  late final _wire__crate__api__provider_config__update_ai_provider_configPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_config__update_ai_provider_config',
+      );
+  late final _wire__crate__api__provider_config__update_ai_provider_config =
+      _wire__crate__api__provider_config__update_ai_provider_configPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__reanalyze_event(
@@ -3711,81 +3856,158 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__refresh_project_page(
+  void wire__crate__api__relations__add_relation(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> from_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> to_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> relation,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
   ) {
-    return _wire__crate__api__refresh_project_page(port_, slug);
-  }
-
-  late final _wire__crate__api__refresh_project_pagePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__refresh_project_page');
-  late final _wire__crate__api__refresh_project_page =
-      _wire__crate__api__refresh_project_pagePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__rename_conversation(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
-  ) {
-    return _wire__crate__api__rename_conversation(
+    return _wire__crate__api__relations__add_relation(
       port_,
-      conversation_id,
-      title,
+      from_slug,
+      to_slug,
+      relation,
+      note,
     );
   }
 
-  late final _wire__crate__api__rename_conversationPtr =
+  late final _wire__crate__api__relations__add_relationPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__rename_conversation');
-  late final _wire__crate__api__rename_conversation =
-      _wire__crate__api__rename_conversationPtr
+      >('frbgen_elsewhen_ui_wire__crate__api__relations__add_relation');
+  late final _wire__crate__api__relations__add_relation =
+      _wire__crate__api__relations__add_relationPtr
           .asFunction<
             void Function(
               int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
 
-  void wire__crate__api__save_ai_provider_config(
+  void wire__crate__api__relations__delete_relation(
     int port_,
-    ffi.Pointer<wire_cst_ai_provider_config_dto> provider,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
   ) {
-    return _wire__crate__api__save_ai_provider_config(port_, provider);
+    return _wire__crate__api__relations__delete_relation(port_, id);
   }
 
-  late final _wire__crate__api__save_ai_provider_configPtr =
+  late final _wire__crate__api__relations__delete_relationPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
-            ffi.Pointer<wire_cst_ai_provider_config_dto>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__save_ai_provider_config');
-  late final _wire__crate__api__save_ai_provider_config =
-      _wire__crate__api__save_ai_provider_configPtr
+      >('frbgen_elsewhen_ui_wire__crate__api__relations__delete_relation');
+  late final _wire__crate__api__relations__delete_relation =
+      _wire__crate__api__relations__delete_relationPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_ai_provider_config_dto>)
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
+
+  void wire__crate__api__relations__list_relations(int port_) {
+    return _wire__crate__api__relations__list_relations(port_);
+  }
+
+  late final _wire__crate__api__relations__list_relationsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__relations__list_relations',
+      );
+  late final _wire__crate__api__relations__list_relations =
+      _wire__crate__api__relations__list_relationsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__relations__list_relations_for_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__relations__list_relations_for_page(port_, slug);
+  }
+
+  late final _wire__crate__api__relations__list_relations_for_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__relations__list_relations_for_page',
+      );
+  late final _wire__crate__api__relations__list_relations_for_page =
+      _wire__crate__api__relations__list_relations_for_pagePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__rules__add_rule(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+  ) {
+    return _wire__crate__api__rules__add_rule(port_, content);
+  }
+
+  late final _wire__crate__api__rules__add_rulePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__rules__add_rule');
+  late final _wire__crate__api__rules__add_rule =
+      _wire__crate__api__rules__add_rulePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__rules__delete_rule(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_id,
+  ) {
+    return _wire__crate__api__rules__delete_rule(port_, rule_id);
+  }
+
+  late final _wire__crate__api__rules__delete_rulePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__rules__delete_rule');
+  late final _wire__crate__api__rules__delete_rule =
+      _wire__crate__api__rules__delete_rulePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__rules__list_rules(int port_) {
+    return _wire__crate__api__rules__list_rules(port_);
+  }
+
+  late final _wire__crate__api__rules__list_rulesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__rules__list_rules',
+      );
+  late final _wire__crate__api__rules__list_rules =
+      _wire__crate__api__rules__list_rulesPtr.asFunction<void Function(int)>();
 
   void wire__crate__api__save_daily_review(
     int port_,
@@ -3827,255 +4049,6 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__save_imported_page(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_url,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_kind,
-    ffi.Pointer<wire_cst_list_String> tags,
-  ) {
-    return _wire__crate__api__save_imported_page(
-      port_,
-      title,
-      content_md,
-      source_url,
-      source_kind,
-      tags,
-    );
-  }
-
-  late final _wire__crate__api__save_imported_pagePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_String>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__save_imported_page');
-  late final _wire__crate__api__save_imported_page =
-      _wire__crate__api__save_imported_pagePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_String>,
-            )
-          >();
-
-  void wire__crate__api__save_text_page(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> text,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
-    ffi.Pointer<wire_cst_list_String> tags,
-  ) {
-    return _wire__crate__api__save_text_page(port_, text, title, tags);
-  }
-
-  late final _wire__crate__api__save_text_pagePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_String>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__save_text_page');
-  late final _wire__crate__api__save_text_page =
-      _wire__crate__api__save_text_pagePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_String>,
-            )
-          >();
-
-  void wire__crate__api__save_tweet_page(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> tweet_id,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> text,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> author_name,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> screen_name,
-  ) {
-    return _wire__crate__api__save_tweet_page(
-      port_,
-      tweet_id,
-      text,
-      title,
-      author_name,
-      screen_name,
-    );
-  }
-
-  late final _wire__crate__api__save_tweet_pagePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__save_tweet_page');
-  late final _wire__crate__api__save_tweet_page =
-      _wire__crate__api__save_tweet_pagePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__save_wiki_page_content(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_updated_at,
-  ) {
-    return _wire__crate__api__save_wiki_page_content(
-      port_,
-      slug,
-      content_md,
-      reason,
-      expected_updated_at,
-    );
-  }
-
-  late final _wire__crate__api__save_wiki_page_contentPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__save_wiki_page_content');
-  late final _wire__crate__api__save_wiki_page_content =
-      _wire__crate__api__save_wiki_page_contentPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__send_message(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> role,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> parent_message_id,
-  ) {
-    return _wire__crate__api__send_message(
-      port_,
-      conversation_id,
-      role,
-      content,
-      parent_message_id,
-    );
-  }
-
-  late final _wire__crate__api__send_messagePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__send_message');
-  late final _wire__crate__api__send_message =
-      _wire__crate__api__send_messagePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__set_active_ai_provider_config(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
-  ) {
-    return _wire__crate__api__set_active_ai_provider_config(port_, id);
-  }
-
-  late final _wire__crate__api__set_active_ai_provider_configPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__set_active_ai_provider_config');
-  late final _wire__crate__api__set_active_ai_provider_config =
-      _wire__crate__api__set_active_ai_provider_configPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__set_conversation_archived(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
-    bool archived,
-  ) {
-    return _wire__crate__api__set_conversation_archived(
-      port_,
-      conversation_id,
-      archived,
-    );
-  }
-
-  late final _wire__crate__api__set_conversation_archivedPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Bool,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__set_conversation_archived');
-  late final _wire__crate__api__set_conversation_archived =
-      _wire__crate__api__set_conversation_archivedPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
-          >();
-
   void wire__crate__api__set_event_recordability(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
@@ -4102,34 +4075,6 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__set_event_recordabilityPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
-          >();
-
-  void wire__crate__api__set_wiki_opinion(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> opinion,
-  ) {
-    return _wire__crate__api__set_wiki_opinion(port_, slug, opinion);
-  }
-
-  late final _wire__crate__api__set_wiki_opinionPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__set_wiki_opinion');
-  late final _wire__crate__api__set_wiki_opinion =
-      _wire__crate__api__set_wiki_opinionPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
           >();
 
   void wire__crate__api__submit_conversation_input(
@@ -4204,136 +4149,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__trigger_analysis(int port_) {
-    return _wire__crate__api__trigger_analysis(port_);
+  void wire__crate__api__theme__get_theme_prefs(int port_) {
+    return _wire__crate__api__theme__get_theme_prefs(port_);
   }
 
-  late final _wire__crate__api__trigger_analysisPtr =
+  late final _wire__crate__api__theme__get_theme_prefsPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__trigger_analysis',
+        'frbgen_elsewhen_ui_wire__crate__api__theme__get_theme_prefs',
       );
-  late final _wire__crate__api__trigger_analysis =
-      _wire__crate__api__trigger_analysisPtr.asFunction<void Function(int)>();
+  late final _wire__crate__api__theme__get_theme_prefs =
+      _wire__crate__api__theme__get_theme_prefsPtr
+          .asFunction<void Function(int)>();
 
-  void wire__crate__api__undo_entity_merge(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
-  ) {
-    return _wire__crate__api__undo_entity_merge(port_, source_slug);
-  }
-
-  late final _wire__crate__api__undo_entity_mergePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__undo_entity_merge');
-  late final _wire__crate__api__undo_entity_merge =
-      _wire__crate__api__undo_entity_mergePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__update_ai_provider_config(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> model,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key,
-  ) {
-    return _wire__crate__api__update_ai_provider_config(
-      port_,
-      base_url,
-      model,
-      api_key,
-    );
-  }
-
-  late final _wire__crate__api__update_ai_provider_configPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__update_ai_provider_config');
-  late final _wire__crate__api__update_ai_provider_config =
-      _wire__crate__api__update_ai_provider_configPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__update_pending_action_args(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> action_id,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
-  ) {
-    return _wire__crate__api__update_pending_action_args(
-      port_,
-      action_id,
-      args_json,
-    );
-  }
-
-  late final _wire__crate__api__update_pending_action_argsPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__update_pending_action_args');
-  late final _wire__crate__api__update_pending_action_args =
-      _wire__crate__api__update_pending_action_argsPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__update_project_path(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> new_path,
-  ) {
-    return _wire__crate__api__update_project_path(port_, slug, new_path);
-  }
-
-  late final _wire__crate__api__update_project_pathPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__update_project_path');
-  late final _wire__crate__api__update_project_path =
-      _wire__crate__api__update_project_pathPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void wire__crate__api__update_theme_prefs(
+  void wire__crate__api__theme__update_theme_prefs(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> preset,
@@ -4343,7 +4171,7 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<ffi.Double> editor_font_size,
     ffi.Pointer<ffi.Double> editor_line_height,
   ) {
-    return _wire__crate__api__update_theme_prefs(
+    return _wire__crate__api__theme__update_theme_prefs(
       port_,
       mode,
       preset,
@@ -4355,7 +4183,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__update_theme_prefsPtr =
+  late final _wire__crate__api__theme__update_theme_prefsPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -4369,9 +4197,9 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<ffi.Double>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__update_theme_prefs');
-  late final _wire__crate__api__update_theme_prefs =
-      _wire__crate__api__update_theme_prefsPtr
+      >('frbgen_elsewhen_ui_wire__crate__api__theme__update_theme_prefs');
+  late final _wire__crate__api__theme__update_theme_prefs =
+      _wire__crate__api__theme__update_theme_prefsPtr
           .asFunction<
             void Function(
               int,
@@ -4385,7 +4213,117 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__update_todo(
+  void wire__crate__api__todos__create_todo(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> due_at,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> priority,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> related_wiki_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+  ) {
+    return _wire__crate__api__todos__create_todo(
+      port_,
+      title,
+      due_at,
+      priority,
+      related_wiki_slug,
+      note,
+    );
+  }
+
+  late final _wire__crate__api__todos__create_todoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__create_todo');
+  late final _wire__crate__api__todos__create_todo =
+      _wire__crate__api__todos__create_todoPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__todos__delete_todo(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__todos__delete_todo(port_, id);
+  }
+
+  late final _wire__crate__api__todos__delete_todoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__delete_todo');
+  late final _wire__crate__api__todos__delete_todo =
+      _wire__crate__api__todos__delete_todoPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__todos__list_todos(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+  ) {
+    return _wire__crate__api__todos__list_todos(port_, status);
+  }
+
+  late final _wire__crate__api__todos__list_todosPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__list_todos');
+  late final _wire__crate__api__todos__list_todos =
+      _wire__crate__api__todos__list_todosPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__todos__open_todo_work_item(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__todos__open_todo_work_item(port_, id);
+  }
+
+  late final _wire__crate__api__todos__open_todo_work_itemPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__open_todo_work_item');
+  late final _wire__crate__api__todos__open_todo_work_item =
+      _wire__crate__api__todos__open_todo_work_itemPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__todos__update_todo(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
@@ -4393,7 +4331,7 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> priority,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> due_at,
   ) {
-    return _wire__crate__api__update_todo(
+    return _wire__crate__api__todos__update_todo(
       port_,
       id,
       title,
@@ -4403,7 +4341,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__update_todoPtr =
+  late final _wire__crate__api__todos__update_todoPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -4415,28 +4353,29 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__update_todo');
-  late final _wire__crate__api__update_todo = _wire__crate__api__update_todoPtr
-      .asFunction<
-        void Function(
-          int,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-        )
-      >();
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__update_todo');
+  late final _wire__crate__api__todos__update_todo =
+      _wire__crate__api__todos__update_todoPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
 
-  void wire__crate__api__update_todo_status(
+  void wire__crate__api__todos__update_todo_status(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
   ) {
-    return _wire__crate__api__update_todo_status(port_, id, status);
+    return _wire__crate__api__todos__update_todo_status(port_, id, status);
   }
 
-  late final _wire__crate__api__update_todo_statusPtr =
+  late final _wire__crate__api__todos__update_todo_statusPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -4445,9 +4384,9 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__update_todo_status');
-  late final _wire__crate__api__update_todo_status =
-      _wire__crate__api__update_todo_statusPtr
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__update_todo_status');
+  late final _wire__crate__api__todos__update_todo_status =
+      _wire__crate__api__todos__update_todo_statusPtr
           .asFunction<
             void Function(
               int,
@@ -4456,14 +4395,25 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__update_tweet_fetch_service(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> service,
-  ) {
-    return _wire__crate__api__update_tweet_fetch_service(port_, service);
+  void wire__crate__api__trigger_analysis(int port_) {
+    return _wire__crate__api__trigger_analysis(port_);
   }
 
-  late final _wire__crate__api__update_tweet_fetch_servicePtr =
+  late final _wire__crate__api__trigger_analysisPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__trigger_analysis',
+      );
+  late final _wire__crate__api__trigger_analysis =
+      _wire__crate__api__trigger_analysisPtr.asFunction<void Function(int)>();
+
+  void wire__crate__api__tweet__fetch_tweet(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
+  ) {
+    return _wire__crate__api__tweet__fetch_tweet(port_, url);
+  }
+
+  late final _wire__crate__api__tweet__fetch_tweetPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -4471,22 +4421,441 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__update_tweet_fetch_service');
-  late final _wire__crate__api__update_tweet_fetch_service =
-      _wire__crate__api__update_tweet_fetch_servicePtr
+      >('frbgen_elsewhen_ui_wire__crate__api__tweet__fetch_tweet');
+  late final _wire__crate__api__tweet__fetch_tweet =
+      _wire__crate__api__tweet__fetch_tweetPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__update_wiki_tags(
+  void wire__crate__api__tweet__find_tweet_source_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
+  ) {
+    return _wire__crate__api__tweet__find_tweet_source_page(port_, url);
+  }
+
+  late final _wire__crate__api__tweet__find_tweet_source_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__tweet__find_tweet_source_page');
+  late final _wire__crate__api__tweet__find_tweet_source_page =
+      _wire__crate__api__tweet__find_tweet_source_pagePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__tweet__generate_content_chat(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+    ffi.Pointer<wire_cst_list_content_chat_message_dto> messages,
+  ) {
+    return _wire__crate__api__tweet__generate_content_chat(
+      port_,
+      content,
+      messages,
+    );
+  }
+
+  late final _wire__crate__api__tweet__generate_content_chatPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_content_chat_message_dto>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__tweet__generate_content_chat');
+  late final _wire__crate__api__tweet__generate_content_chat =
+      _wire__crate__api__tweet__generate_content_chatPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_content_chat_message_dto>,
+            )
+          >();
+
+  void wire__crate__api__tweet__get_tweet_fetch_service(int port_) {
+    return _wire__crate__api__tweet__get_tweet_fetch_service(port_);
+  }
+
+  late final _wire__crate__api__tweet__get_tweet_fetch_servicePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__tweet__get_tweet_fetch_service',
+      );
+  late final _wire__crate__api__tweet__get_tweet_fetch_service =
+      _wire__crate__api__tweet__get_tweet_fetch_servicePtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__tweet__guess_import_kind(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
+  ) {
+    return _wire__crate__api__tweet__guess_import_kind(port_, url);
+  }
+
+  late final _wire__crate__api__tweet__guess_import_kindPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__tweet__guess_import_kind');
+  late final _wire__crate__api__tweet__guess_import_kind =
+      _wire__crate__api__tweet__guess_import_kindPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__tweet__save_text_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> text,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_String> tags,
+  ) {
+    return _wire__crate__api__tweet__save_text_page(port_, text, title, tags);
+  }
+
+  late final _wire__crate__api__tweet__save_text_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_String>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__tweet__save_text_page');
+  late final _wire__crate__api__tweet__save_text_page =
+      _wire__crate__api__tweet__save_text_pagePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_String>,
+            )
+          >();
+
+  void wire__crate__api__tweet__save_tweet_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> tweet_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> text,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> author_name,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> screen_name,
+  ) {
+    return _wire__crate__api__tweet__save_tweet_page(
+      port_,
+      tweet_id,
+      text,
+      title,
+      author_name,
+      screen_name,
+    );
+  }
+
+  late final _wire__crate__api__tweet__save_tweet_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__tweet__save_tweet_page');
+  late final _wire__crate__api__tweet__save_tweet_page =
+      _wire__crate__api__tweet__save_tweet_pagePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__tweet__update_tweet_fetch_service(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> service,
+  ) {
+    return _wire__crate__api__tweet__update_tweet_fetch_service(port_, service);
+  }
+
+  late final _wire__crate__api__tweet__update_tweet_fetch_servicePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__tweet__update_tweet_fetch_service',
+      );
+  late final _wire__crate__api__tweet__update_tweet_fetch_service =
+      _wire__crate__api__tweet__update_tweet_fetch_servicePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__wiki__create_wiki_derivative(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> based_on_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_type,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
+  ) {
+    return _wire__crate__api__wiki__create_wiki_derivative(
+      port_,
+      based_on_slug,
+      content_type,
+      title,
+      content_md,
+    );
+  }
+
+  late final _wire__crate__api__wiki__create_wiki_derivativePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__create_wiki_derivative');
+  late final _wire__crate__api__wiki__create_wiki_derivative =
+      _wire__crate__api__wiki__create_wiki_derivativePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__wiki__get_wiki_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__wiki__get_wiki_page(port_, slug);
+  }
+
+  late final _wire__crate__api__wiki__get_wiki_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__get_wiki_page');
+  late final _wire__crate__api__wiki__get_wiki_page =
+      _wire__crate__api__wiki__get_wiki_pagePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__wiki__list_wiki_page_derivatives(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__wiki__list_wiki_page_derivatives(port_, slug);
+  }
+
+  late final _wire__crate__api__wiki__list_wiki_page_derivativesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__wiki__list_wiki_page_derivatives',
+      );
+  late final _wire__crate__api__wiki__list_wiki_page_derivatives =
+      _wire__crate__api__wiki__list_wiki_page_derivativesPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__wiki__list_wiki_pages(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> area,
+  ) {
+    return _wire__crate__api__wiki__list_wiki_pages(port_, kind, area);
+  }
+
+  late final _wire__crate__api__wiki__list_wiki_pagesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__list_wiki_pages');
+  late final _wire__crate__api__wiki__list_wiki_pages =
+      _wire__crate__api__wiki__list_wiki_pagesPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__wiki__refresh_project_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__wiki__refresh_project_page(port_, slug);
+  }
+
+  late final _wire__crate__api__wiki__refresh_project_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__refresh_project_page');
+  late final _wire__crate__api__wiki__refresh_project_page =
+      _wire__crate__api__wiki__refresh_project_pagePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__wiki__save_wiki_page_content(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_updated_at,
+  ) {
+    return _wire__crate__api__wiki__save_wiki_page_content(
+      port_,
+      slug,
+      content_md,
+      reason,
+      expected_updated_at,
+    );
+  }
+
+  late final _wire__crate__api__wiki__save_wiki_page_contentPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__save_wiki_page_content');
+  late final _wire__crate__api__wiki__save_wiki_page_content =
+      _wire__crate__api__wiki__save_wiki_page_contentPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__wiki__set_wiki_opinion(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> opinion,
+  ) {
+    return _wire__crate__api__wiki__set_wiki_opinion(port_, slug, opinion);
+  }
+
+  late final _wire__crate__api__wiki__set_wiki_opinionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__set_wiki_opinion');
+  late final _wire__crate__api__wiki__set_wiki_opinion =
+      _wire__crate__api__wiki__set_wiki_opinionPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__wiki__update_project_path(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> new_path,
+  ) {
+    return _wire__crate__api__wiki__update_project_path(port_, slug, new_path);
+  }
+
+  late final _wire__crate__api__wiki__update_project_pathPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__update_project_path');
+  late final _wire__crate__api__wiki__update_project_path =
+      _wire__crate__api__wiki__update_project_pathPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__wiki__update_wiki_tags(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
     ffi.Pointer<wire_cst_list_String> tags,
   ) {
-    return _wire__crate__api__update_wiki_tags(port_, slug, tags);
+    return _wire__crate__api__wiki__update_wiki_tags(port_, slug, tags);
   }
 
-  late final _wire__crate__api__update_wiki_tagsPtr =
+  late final _wire__crate__api__wiki__update_wiki_tagsPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -4495,9 +4864,9 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_String>,
           )
         >
-      >('frbgen_elsewhen_ui_wire__crate__api__update_wiki_tags');
-  late final _wire__crate__api__update_wiki_tags =
-      _wire__crate__api__update_wiki_tagsPtr
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__update_wiki_tags');
+  late final _wire__crate__api__wiki__update_wiki_tags =
+      _wire__crate__api__wiki__update_wiki_tagsPtr
           .asFunction<
             void Function(
               int,
@@ -4505,11 +4874,71 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_String>,
             )
           >();
+
+  void wire__crate__api__wiki_chat__archive_wiki_page_chat(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+  ) {
+    return _wire__crate__api__wiki_chat__archive_wiki_page_chat(
+      port_,
+      page_slug,
+    );
+  }
+
+  late final _wire__crate__api__wiki_chat__archive_wiki_page_chatPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__wiki_chat__archive_wiki_page_chat',
+      );
+  late final _wire__crate__api__wiki_chat__archive_wiki_page_chat =
+      _wire__crate__api__wiki_chat__archive_wiki_page_chatPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+  ) {
+    return _wire__crate__api__wiki_chat__ensure_wiki_page_chat(
+      port_,
+      page_slug,
+    );
+  }
+
+  late final _wire__crate__api__wiki_chat__ensure_wiki_page_chatPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__wiki_chat__ensure_wiki_page_chat',
+      );
+  late final _wire__crate__api__wiki_chat__ensure_wiki_page_chat =
+      _wire__crate__api__wiki_chat__ensure_wiki_page_chatPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 }
 
 final class AnalysisTriggerResultKind extends ffi.Union {
   external wire_cst_AnalysisTriggerResult_Processed Processed;
 }
+
+const int DIGEST_FAILED_COOLDOWN_SECS = 21600;
+
+const int DIGEST_MAX_ATTEMPTS = 5;
+
+const int DIGEST_SETTLE_SECS = 600;
 
 final class DailyReviewResultKind extends ffi.Union {
   external wire_cst_DailyReviewResult_Created Created;
@@ -4527,6 +4956,12 @@ typedef DartDartPostCObjectFnTypeFunction = bool Function(
   DartDartPort port_id,
   ffi.Pointer<ffi.Void> message,
 );
+
+final class KnowledgeDigestTickResultKind extends ffi.Union {
+  external wire_cst_KnowledgeDigestTickResult_Processed Processed;
+
+  external wire_cst_KnowledgeDigestTickResult_Failed Failed;
+}
 
 final class wire_cst_AnalysisTriggerResult_Processed extends ffi.Struct {
   @ffi.Int64()
@@ -4546,6 +4981,44 @@ final class wire_cst_DailyReviewResult_Created extends ffi.Struct {
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
   }) => $allocator<wire_cst_DailyReviewResult_Created>()..ref.id = id;
+}
+
+final class wire_cst_KnowledgeDigestTickResult_Failed extends ffi.Struct {
+  @ffi.Int64()
+  external int events;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> error;
+
+  static ffi.Pointer<wire_cst_KnowledgeDigestTickResult_Failed> $allocate(
+    ffi.Allocator $allocator, {
+    required int events,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> error,
+  }) => $allocator<wire_cst_KnowledgeDigestTickResult_Failed>()
+    ..ref.events = events
+    ..ref.error = error;
+}
+
+final class wire_cst_KnowledgeDigestTickResult_Processed extends ffi.Struct {
+  @ffi.Int64()
+  external int events;
+
+  external ffi.Pointer<wire_cst_list_String> created_slugs;
+
+  external ffi.Pointer<wire_cst_list_String> updated_slugs;
+
+  external ffi.Pointer<wire_cst_list_String> protected_slugs;
+
+  static ffi.Pointer<wire_cst_KnowledgeDigestTickResult_Processed> $allocate(
+    ffi.Allocator $allocator, {
+    required int events,
+    required ffi.Pointer<wire_cst_list_String> created_slugs,
+    required ffi.Pointer<wire_cst_list_String> updated_slugs,
+    required ffi.Pointer<wire_cst_list_String> protected_slugs,
+  }) => $allocator<wire_cst_KnowledgeDigestTickResult_Processed>()
+    ..ref.events = events
+    ..ref.created_slugs = created_slugs
+    ..ref.updated_slugs = updated_slugs
+    ..ref.protected_slugs = protected_slugs;
 }
 
 final class wire_cst_ai_provider_config_dto extends ffi.Struct {
@@ -5143,6 +5616,168 @@ final class wire_cst_input_record_dto extends ffi.Struct {
     ..ref.updated_at = updated_at;
 }
 
+final class wire_cst_knowledge_digest_job_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> job_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_excerpt;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  @ffi.Int64()
+  external int attempts;
+
+  @ffi.Int64()
+  external int failed_rounds;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> available_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_error;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> skip_reason;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> batch_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
+
+  static ffi.Pointer<wire_cst_knowledge_digest_job_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> job_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_excerpt,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required int attempts,
+    required int failed_rounds,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> available_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_error,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> skip_reason,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> batch_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
+  }) => $allocator<wire_cst_knowledge_digest_job_dto>()
+    ..ref.job_id = job_id
+    ..ref.event_id = event_id
+    ..ref.event_excerpt = event_excerpt
+    ..ref.recorded_at = recorded_at
+    ..ref.status = status
+    ..ref.attempts = attempts
+    ..ref.failed_rounds = failed_rounds
+    ..ref.available_at = available_at
+    ..ref.last_error = last_error
+    ..ref.skip_reason = skip_reason
+    ..ref.batch_id = batch_id
+    ..ref.updated_at = updated_at;
+}
+
+final class wire_cst_knowledge_digest_run_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> started_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> finished_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  @ffi.Int64()
+  external int event_count;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> model;
+
+  external ffi.Pointer<ffi.Int64> duration_ms;
+
+  external ffi.Pointer<wire_cst_list_String> created_slugs;
+
+  external ffi.Pointer<wire_cst_list_String> updated_slugs;
+
+  external ffi.Pointer<wire_cst_list_String> protected_slugs;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> error;
+
+  static ffi.Pointer<wire_cst_knowledge_digest_run_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> started_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> finished_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required int event_count,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> model,
+    required ffi.Pointer<ffi.Int64> duration_ms,
+    required ffi.Pointer<wire_cst_list_String> created_slugs,
+    required ffi.Pointer<wire_cst_list_String> updated_slugs,
+    required ffi.Pointer<wire_cst_list_String> protected_slugs,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> error,
+  }) => $allocator<wire_cst_knowledge_digest_run_dto>()
+    ..ref.id = id
+    ..ref.started_at = started_at
+    ..ref.finished_at = finished_at
+    ..ref.status = status
+    ..ref.event_count = event_count
+    ..ref.model = model
+    ..ref.duration_ms = duration_ms
+    ..ref.created_slugs = created_slugs
+    ..ref.updated_slugs = updated_slugs
+    ..ref.protected_slugs = protected_slugs
+    ..ref.error = error;
+}
+
+final class wire_cst_knowledge_digest_stats_dto extends ffi.Struct {
+  @ffi.Int64()
+  external int pending;
+
+  @ffi.Int64()
+  external int running;
+
+  @ffi.Int64()
+  external int retry;
+
+  @ffi.Int64()
+  external int succeeded;
+
+  @ffi.Int64()
+  external int failed;
+
+  @ffi.Int64()
+  external int skipped;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_success_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_error;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_error_at;
+
+  static ffi.Pointer<wire_cst_knowledge_digest_stats_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required int pending,
+    required int running,
+    required int retry,
+    required int succeeded,
+    required int failed,
+    required int skipped,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_success_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_error,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_error_at,
+  }) => $allocator<wire_cst_knowledge_digest_stats_dto>()
+    ..ref.pending = pending
+    ..ref.running = running
+    ..ref.retry = retry
+    ..ref.succeeded = succeeded
+    ..ref.failed = failed
+    ..ref.skipped = skipped
+    ..ref.last_success_at = last_success_at
+    ..ref.last_error = last_error
+    ..ref.last_error_at = last_error_at;
+}
+
+final class wire_cst_knowledge_digest_tick_result extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external KnowledgeDigestTickResultKind kind;
+}
+
 final class wire_cst_list_String extends ffi.Struct {
   external ffi.Pointer<ffi.Pointer<wire_cst_list_prim_u_8_strict>> ptr;
 
@@ -5289,6 +5924,36 @@ final class wire_cst_list_event_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_event_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_event_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_knowledge_digest_job_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_knowledge_digest_job_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_knowledge_digest_job_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_knowledge_digest_job_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_knowledge_digest_job_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_knowledge_digest_run_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_knowledge_digest_run_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_knowledge_digest_run_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_knowledge_digest_run_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_knowledge_digest_run_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }

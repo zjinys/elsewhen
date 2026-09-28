@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:elsewhen_ui/models/settings.dart' show AppFonts, AppThemePreset;
 import 'package:elsewhen_ui/theme/app_theme.dart';
+import 'package:elsewhen_ui/theme/content_font.dart';
 import 'package:elsewhen_ui/utils/system_fonts.dart';
+import 'package:elsewhen_ui/widgets/markdown_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -41,37 +43,80 @@ void main() {
     });
   });
 
-  test('字体选择作用于 textTheme：system 不套字体，未知值回退 Inter', () async {
-    // 测试环境不枚举真实字体（SystemFontService 里 [listFonts] 特判跳过），
-    // 播种“本机已安装”索引，让 Noto 双字体走「已安装 → 生效」路径。
-    SystemFontService.instance.debugSeedFileIndex({
-      'Noto Sans SC': '/fake/system/NotoSansSC.otf',
-      'Noto Serif SC': '/fake/system/NotoSerifSC.otf',
-    });
+  test('界面字体固定：textTheme 恒为 uiFont，回退链含中文字体', () async {
     await swallowFontLoadErrors(() {
-      TextStyle? bodyOf(String fontName) => AppTheme.buildTheme(
+      final body = AppTheme.buildTheme(
         AppThemePreset.amber,
         Brightness.dark,
-        fontName,
-      ).textTheme.bodyLarge;
+      ).textTheme.bodyLarge!;
+      expect(body.fontFamily, AppFonts.uiFont);
+      expect(
+        body.fontFamilyFallback,
+        containsAll(AppFonts.cjkFallback),
+        reason: '显式中文回退，避免平台自选回退字体',
+      );
+    });
+  });
 
-      expect(
-        bodyOf('Inter')!.fontFamily,
-        contains('Inter'),
-        reason: '默认 Inter（现状保持）',
+  group('内容字体作用域', () {
+    // 测试环境不枚举真实字体（SystemFontService 里 [listFonts] 特判跳过），
+    // 播种“本机已安装”索引，让 Noto 字体走「已安装 → 生效」路径。
+    setUp(() {
+      SystemFontService.instance.debugSeedFileIndex({
+        'Noto Serif SC': '/fake/system/NotoSerifSC.otf',
+      });
+    });
+
+    Future<({String? content, String? ui, String? markdown})> pump(
+      WidgetTester tester,
+      String stored,
+    ) async {
+      await tester.pumpWidget(
+        ContentFont(
+          family: resolveFontFamily(stored, fallback: AppFonts.defaultFont),
+          child: MaterialApp(
+            theme: AppTheme.buildTheme(AppThemePreset.amber, Brightness.dark),
+            home: Scaffold(
+              body: Column(
+                children: [
+                  const Text('界面'),
+                  const ContentFontScope(child: Text('内容')),
+                  const MarkdownView(markdown: 'Markdown 段落'),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
-      expect(bodyOf('Noto Sans SC')!.fontFamily, contains('Noto Sans SC'));
-      expect(bodyOf('Noto Serif SC')!.fontFamily, contains('Noto Serif SC'));
-      expect(
-        bodyOf('system')!.fontFamily,
-        'Roboto',
-        reason: 'system 不套网络字体，保持 flex 默认（Roboto 由系统字体回退解析）',
+      String? familyOf(String text) {
+        final el = tester.element(find.text(text));
+        return DefaultTextStyle.of(el).style.fontFamily;
+      }
+
+      final rich = tester.widget<RichText>(
+        find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().contains('Markdown 段落'),
+        ),
       );
-      expect(
-        bodyOf('不存在的字体')!.fontFamily,
-        contains('Inter'),
-        reason: '非 Google Fonts 的未知值回退默认字体',
+      return (
+        content: familyOf('内容'),
+        ui: familyOf('界面'),
+        markdown: rich.text.style?.fontFamily,
       );
+    }
+
+    testWidgets('本地字体：内容区与 Markdown 生效，界面不变', (tester) async {
+      final r = await pump(tester, 'local:Noto Serif SC');
+      expect(r.content, 'Noto Serif SC');
+      expect(r.markdown, 'Noto Serif SC');
+      expect(r.ui, AppFonts.uiFont, reason: '界面文案不受内容字体影响');
+    });
+
+    testWidgets('system：内容区回到平台字体，界面仍为 uiFont', (tester) async {
+      final r = await pump(tester, AppFonts.system);
+      expect(r.content, 'Roboto', reason: '平台 typography 的默认字体族');
+      expect(r.markdown, 'Roboto');
+      expect(r.ui, AppFonts.uiFont);
     });
   });
 

@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/content_font.dart';
 
 /// 轻量 markdown 渲染器（面向 wiki 页正文，零依赖）
 ///
@@ -102,9 +103,13 @@ class _MarkdownViewState extends State<MarkdownView> {
   @override
   Widget build(BuildContext context) {
     // UI 边界清洗：协议残留到此为止，不进渲染。
-    final base =
+    final baseStyle =
         widget.baseStyle ??
         TextStyle(color: AppTheme.textPrimary, fontSize: 15, height: 1.8);
+    // Markdown 渲染的都是内容（AI 回复 / 知识库 / 草稿预览）→ 内容字体。
+    // 块内多用 RichText（不继承 DefaultTextStyle），需并进 base 显式传递。
+    final contentFont = ContentFont.styleOf(context);
+    final base = contentFont == null ? baseStyle : baseStyle.merge(contentFont);
     final blocks = _blocksOf(widget.markdown);
 
     return Column(

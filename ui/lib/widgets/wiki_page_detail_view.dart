@@ -19,6 +19,7 @@ import '../providers/state_holder.dart';
 import '../providers/todo_provider.dart';
 import '../models/todo.dart';
 import '../theme/app_theme.dart';
+import '../theme/content_font.dart';
 import '../wiki/wiki_content_editor.dart';
 import 'wiki_reading_settings_dialog.dart';
 import 'wiki_ai_chat_panel.dart';
@@ -102,26 +103,26 @@ class _HomeTab extends StatelessWidget {
                   ],
                 )
               : Row(
-            children: [
-              Expanded(
-                child: _HomeAction(
-                  icon: Icons.link_outlined,
-                  title: '网址导入',
-                  subtitle: '抓取网页或推文，确认后保存',
-                  onTap: () => _showImportDialog(context, urlMode: true),
+                  children: [
+                    Expanded(
+                      child: _HomeAction(
+                        icon: Icons.link_outlined,
+                        title: '网址导入',
+                        subtitle: '抓取网页或推文，确认后保存',
+                        onTap: () => _showImportDialog(context, urlMode: true),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _HomeAction(
+                        icon: Icons.notes_outlined,
+                        title: '直接文本',
+                        subtitle: '粘贴内容并创建知识页',
+                        onTap: () => _showImportDialog(context, urlMode: false),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _HomeAction(
-                  icon: Icons.notes_outlined,
-                  title: '直接文本',
-                  subtitle: '粘贴内容并创建知识页',
-                  onTap: () => _showImportDialog(context, urlMode: false),
-                ),
-              ),
-            ],
-          ),
         ),
         Divider(height: 1, color: AppTheme.surface3),
         const Expanded(child: _WikiBrowseTab()),
@@ -1325,10 +1326,9 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
                 setState(() => _editError = _errText(e));
               },
               onDirtyChanged: _setDirty,
-              // 两层覆盖模型：编辑器覆盖 ?? 全局；font 覆盖层原样传入，
-              // 编辑器内回退主题解析的全局字体（system = 跟随系统字体）
+              // 两层覆盖模型：编辑器覆盖 ?? 全局内容字体（system = 跟随系统字体）
               fontFamily: ref.watch(
-                settingsProvider.select((s) => s.editorFontName),
+                settingsProvider.select((s) => s.contentFontName),
               ),
               fontSize: ref.watch(
                 settingsProvider.select((s) => s.contentFontSize),
@@ -2578,7 +2578,7 @@ class _EntityFacts extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SelectableText(detail.rawText),
+                ContentFontScope(child: SelectableText(detail.rawText)),
                 if ((detail.summary ?? '').isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Text(
@@ -2590,7 +2590,7 @@ class _EntityFacts extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  SelectableText(detail.summary!),
+                  ContentFontScope(child: SelectableText(detail.summary!)),
                 ],
                 const SizedBox(height: 16),
                 Text(
@@ -3132,12 +3132,14 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppTheme.space4),
-            child: SelectableText(
-              fetch.contentMd,
-              style: TextStyle(
-                fontSize: 13.5,
-                color: AppTheme.textPrimary,
-                height: 1.7,
+            child: ContentFontScope(
+              child: SelectableText(
+                fetch.contentMd,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: AppTheme.textPrimary,
+                  height: 1.7,
+                ),
               ),
             ),
           ),
@@ -3556,12 +3558,14 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
             ],
           ),
           const SizedBox(height: 8),
-          SelectableText(
-            fetch.text,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.7,
-              color: AppTheme.textPrimary,
+          ContentFontScope(
+            child: SelectableText(
+              fetch.text,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.7,
+                color: AppTheme.textPrimary,
+              ),
             ),
           ),
         ],

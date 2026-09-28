@@ -25,7 +25,7 @@ echo "[1/4] 构建 Rust 桥接库 (cargo build --release) ..."
 (cd "$root" && cargo build --release)
 
 echo "[2/4] 构建 Flutter Linux release ..."
-(cd "$root/ui" && "$flutter" build linux --release)
+(cd "$root/ui" && "$flutter" build linux --release --target=lib/main_desktop.dart)
 
 bundle="$root/ui/build/linux/x64/release/bundle"
 [ -x "$bundle/elsewhen_ui" ] || { echo "未找到 $bundle/elsewhen_ui" >&2; exit 1; }

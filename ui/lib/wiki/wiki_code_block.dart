@@ -40,7 +40,8 @@ class WikiCodeBlockComponentBuilder extends BlockComponentBuilder {
   }
 
   @override
-  BlockComponentValidate get validate => (node) => node.children.isEmpty;
+  BlockComponentValidate get validate =>
+      (node) => node.children.isEmpty;
 }
 
 class WikiCodeBlockComponent extends BlockComponentStatefulWidget {
@@ -173,18 +174,11 @@ class _WikiCodeBlockComponentState extends State<WikiCodeBlockComponent>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.copy_rounded,
-              size: 14,
-              color: AppTheme.textSecondary,
-            ),
+            Icon(Icons.copy_rounded, size: 14, color: AppTheme.textSecondary),
             const SizedBox(width: AppTheme.space1),
             Text(
               '复制',
-              style: TextStyle(
-                fontSize: 11,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
             ),
           ],
         ),
@@ -240,17 +234,11 @@ class _WikiCodeBlockComponentState extends State<WikiCodeBlockComponent>
   }
 
   @override
-  Selection getSelectionInRange(Offset start, Offset end) => Selection.single(
-        path: widget.node.path,
-        startOffset: 0,
-        endOffset: 1,
-      );
+  Selection getSelectionInRange(Offset start, Offset end) =>
+      Selection.single(path: widget.node.path, startOffset: 0, endOffset: 1);
 
   @override
-  Offset localToGlobal(
-    Offset offset, {
-    bool shiftWithBaseOffset = false,
-  }) =>
+  Offset localToGlobal(Offset offset, {bool shiftWithBaseOffset = false}) =>
       _renderBox!.localToGlobal(offset);
 
   @override

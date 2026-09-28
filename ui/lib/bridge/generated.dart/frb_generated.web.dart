@@ -7,6 +7,19 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api.dart';
+import 'api/conversations.dart';
+import 'api/entities.dart';
+import 'api/fonts.dart';
+import 'api/import.dart';
+import 'api/knowledge_digest.dart';
+import 'api/provider_config.dart';
+import 'api/relations.dart';
+import 'api/rules.dart';
+import 'api/theme.dart';
+import 'api/todos.dart';
+import 'api/tweet.dart';
+import 'api/wiki.dart';
+import 'api/wiki_chat.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -137,6 +150,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   InputRecordDto dco_decode_input_record_dto(dynamic raw);
 
   @protected
+  KnowledgeDigestJobDto dco_decode_knowledge_digest_job_dto(dynamic raw);
+
+  @protected
+  KnowledgeDigestRunDto dco_decode_knowledge_digest_run_dto(dynamic raw);
+
+  @protected
+  KnowledgeDigestStatsDto dco_decode_knowledge_digest_stats_dto(dynamic raw);
+
+  @protected
+  KnowledgeDigestTickResult dco_decode_knowledge_digest_tick_result(
+    dynamic raw,
+  );
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -167,6 +194,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventDto> dco_decode_list_event_dto(dynamic raw);
+
+  @protected
+  List<KnowledgeDigestJobDto> dco_decode_list_knowledge_digest_job_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<KnowledgeDigestRunDto> dco_decode_list_knowledge_digest_run_dto(
+    dynamic raw,
+  );
 
   @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
@@ -413,6 +450,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   InputRecordDto sse_decode_input_record_dto(SseDeserializer deserializer);
 
   @protected
+  KnowledgeDigestJobDto sse_decode_knowledge_digest_job_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeDigestRunDto sse_decode_knowledge_digest_run_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeDigestStatsDto sse_decode_knowledge_digest_stats_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeDigestTickResult sse_decode_knowledge_digest_tick_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -455,6 +512,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventDto> sse_decode_list_event_dto(SseDeserializer deserializer);
+
+  @protected
+  List<KnowledgeDigestJobDto> sse_decode_list_knowledge_digest_job_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<KnowledgeDigestRunDto> sse_decode_list_knowledge_digest_run_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
@@ -924,6 +991,88 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_knowledge_digest_job_dto(KnowledgeDigestJobDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.jobId),
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.eventExcerpt),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_String(raw.status),
+      cst_encode_i_64(raw.attempts),
+      cst_encode_i_64(raw.failedRounds),
+      cst_encode_String(raw.availableAt),
+      cst_encode_opt_String(raw.lastError),
+      cst_encode_opt_String(raw.skipReason),
+      cst_encode_opt_String(raw.batchId),
+      cst_encode_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_digest_run_dto(KnowledgeDigestRunDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.startedAt),
+      cst_encode_opt_String(raw.finishedAt),
+      cst_encode_String(raw.status),
+      cst_encode_i_64(raw.eventCount),
+      cst_encode_opt_String(raw.model),
+      cst_encode_opt_box_autoadd_i_64(raw.durationMs),
+      cst_encode_list_String(raw.createdSlugs),
+      cst_encode_list_String(raw.updatedSlugs),
+      cst_encode_list_String(raw.protectedSlugs),
+      cst_encode_opt_String(raw.error),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_digest_stats_dto(KnowledgeDigestStatsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.pending),
+      cst_encode_i_64(raw.running),
+      cst_encode_i_64(raw.retry),
+      cst_encode_i_64(raw.succeeded),
+      cst_encode_i_64(raw.failed),
+      cst_encode_i_64(raw.skipped),
+      cst_encode_opt_String(raw.lastSuccessAt),
+      cst_encode_opt_String(raw.lastError),
+      cst_encode_opt_String(raw.lastErrorAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_digest_tick_result(KnowledgeDigestTickResult raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    if (raw is KnowledgeDigestTickResult_NoProvider) {
+      return [0].jsify()!;
+    }
+    if (raw is KnowledgeDigestTickResult_Idle) {
+      return [1].jsify()!;
+    }
+    if (raw is KnowledgeDigestTickResult_Processed) {
+      return [
+        2,
+        cst_encode_i_64(raw.events),
+        cst_encode_list_String(raw.createdSlugs),
+        cst_encode_list_String(raw.updatedSlugs),
+        cst_encode_list_String(raw.protectedSlugs),
+      ].jsify()!;
+    }
+    if (raw is KnowledgeDigestTickResult_Failed) {
+      return [
+        3,
+        cst_encode_i_64(raw.events),
+        cst_encode_String(raw.error),
+      ].jsify()!;
+    }
+
+    throw Exception('unreachable');
+  }
+
+  @protected
   JSAny cst_encode_list_String(List<String> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_String).toList().jsify()!;
@@ -983,6 +1132,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_event_dto(List<EventDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_event_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_knowledge_digest_job_dto(
+    List<KnowledgeDigestJobDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_knowledge_digest_job_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_knowledge_digest_run_dto(
+    List<KnowledgeDigestRunDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_knowledge_digest_run_dto).toList().jsify()!;
   }
 
   @protected
@@ -1458,6 +1623,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_knowledge_digest_job_dto(
+    KnowledgeDigestJobDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_digest_run_dto(
+    KnowledgeDigestRunDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_digest_stats_dto(
+    KnowledgeDigestStatsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_digest_tick_result(
+    KnowledgeDigestTickResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -1510,6 +1699,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_event_dto(List<EventDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_knowledge_digest_job_dto(
+    List<KnowledgeDigestJobDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_knowledge_digest_run_dto(
+    List<KnowledgeDigestRunDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_message_dto(
@@ -1667,25 +1868,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
 
-  void wire__crate__api__add_entity_alias(
+  void wire__crate__api__entities__add_entity_alias(
     NativePortType port_,
     String entity_kind,
     String entity_slug,
     String alias,
-  ) => wasmModule.wire__crate__api__add_entity_alias(
+  ) => wasmModule.wire__crate__api__entities__add_entity_alias(
     port_,
     entity_kind,
     entity_slug,
     alias,
   );
 
-  void wire__crate__api__add_relation(
+  void wire__crate__api__relations__add_relation(
     NativePortType port_,
     String from_slug,
     String to_slug,
     String relation,
     String? note,
-  ) => wasmModule.wire__crate__api__add_relation(
+  ) => wasmModule.wire__crate__api__relations__add_relation(
     port_,
     from_slug,
     to_slug,
@@ -1693,13 +1894,18 @@ class RustLibWire implements BaseWire {
     note,
   );
 
-  void wire__crate__api__add_rule(NativePortType port_, String content) =>
-      wasmModule.wire__crate__api__add_rule(port_, content);
+  void wire__crate__api__rules__add_rule(
+    NativePortType port_,
+    String content,
+  ) => wasmModule.wire__crate__api__rules__add_rule(port_, content);
 
-  void wire__crate__api__archive_wiki_page_chat(
+  void wire__crate__api__wiki_chat__archive_wiki_page_chat(
     NativePortType port_,
     String page_slug,
-  ) => wasmModule.wire__crate__api__archive_wiki_page_chat(port_, page_slug);
+  ) => wasmModule.wire__crate__api__wiki_chat__archive_wiki_page_chat(
+    port_,
+    page_slug,
+  );
 
   void wire__crate__api__begin_url_input(
     NativePortType port_,
@@ -1711,30 +1917,34 @@ class RustLibWire implements BaseWire {
     idempotency_key,
   );
 
-  void wire__crate__api__confirm_knowledge_draft(
+  void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
-  ) => wasmModule.wire__crate__api__confirm_knowledge_draft(
+  ) => wasmModule.wire__crate__api__conversations__confirm_knowledge_draft(
     port_,
     conversation_id,
     action_id,
   );
 
-  void wire__crate__api__create_conversation(
+  void wire__crate__api__conversations__create_conversation(
     NativePortType port_,
     String? title,
     String? tag,
-  ) => wasmModule.wire__crate__api__create_conversation(port_, title, tag);
+  ) => wasmModule.wire__crate__api__conversations__create_conversation(
+    port_,
+    title,
+    tag,
+  );
 
-  void wire__crate__api__create_todo(
+  void wire__crate__api__todos__create_todo(
     NativePortType port_,
     String title,
     String? due_at,
     String? priority,
     String? related_wiki_slug,
     String? note,
-  ) => wasmModule.wire__crate__api__create_todo(
+  ) => wasmModule.wire__crate__api__todos__create_todo(
     port_,
     title,
     due_at,
@@ -1743,13 +1953,13 @@ class RustLibWire implements BaseWire {
     note,
   );
 
-  void wire__crate__api__create_wiki_derivative(
+  void wire__crate__api__wiki__create_wiki_derivative(
     NativePortType port_,
     String based_on_slug,
     String content_type,
     String title,
     String content_md,
-  ) => wasmModule.wire__crate__api__create_wiki_derivative(
+  ) => wasmModule.wire__crate__api__wiki__create_wiki_derivative(
     port_,
     based_on_slug,
     content_type,
@@ -1757,56 +1967,70 @@ class RustLibWire implements BaseWire {
     content_md,
   );
 
-  void wire__crate__api__decline_knowledge_draft(
+  void wire__crate__api__conversations__decline_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
-  ) => wasmModule.wire__crate__api__decline_knowledge_draft(
+  ) => wasmModule.wire__crate__api__conversations__decline_knowledge_draft(
     port_,
     conversation_id,
     action_id,
   );
 
-  void wire__crate__api__delete_ai_provider_config(
+  void wire__crate__api__provider_config__delete_ai_provider_config(
     NativePortType port_,
     String id,
-  ) => wasmModule.wire__crate__api__delete_ai_provider_config(port_, id);
+  ) => wasmModule.wire__crate__api__provider_config__delete_ai_provider_config(
+    port_,
+    id,
+  );
 
-  void wire__crate__api__delete_archived_conversation(
+  void wire__crate__api__conversations__delete_archived_conversation(
     NativePortType port_,
     String conversation_id,
-  ) => wasmModule.wire__crate__api__delete_archived_conversation(
+  ) => wasmModule.wire__crate__api__conversations__delete_archived_conversation(
     port_,
     conversation_id,
   );
 
-  void wire__crate__api__delete_entity_fact(NativePortType port_, String id) =>
-      wasmModule.wire__crate__api__delete_entity_fact(port_, id);
+  void wire__crate__api__entities__delete_entity_fact(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__entities__delete_entity_fact(port_, id);
 
-  void wire__crate__api__delete_relation(NativePortType port_, String id) =>
-      wasmModule.wire__crate__api__delete_relation(port_, id);
+  void wire__crate__api__relations__delete_relation(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__relations__delete_relation(port_, id);
 
-  void wire__crate__api__delete_rule(NativePortType port_, String rule_id) =>
-      wasmModule.wire__crate__api__delete_rule(port_, rule_id);
+  void wire__crate__api__rules__delete_rule(
+    NativePortType port_,
+    String rule_id,
+  ) => wasmModule.wire__crate__api__rules__delete_rule(port_, rule_id);
 
-  void wire__crate__api__delete_todo(NativePortType port_, String id) =>
-      wasmModule.wire__crate__api__delete_todo(port_, id);
+  void wire__crate__api__todos__delete_todo(NativePortType port_, String id) =>
+      wasmModule.wire__crate__api__todos__delete_todo(port_, id);
 
-  void wire__crate__api__ensure_wiki_page_chat(
+  void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
     NativePortType port_,
     String page_slug,
-  ) => wasmModule.wire__crate__api__ensure_wiki_page_chat(port_, page_slug);
+  ) => wasmModule.wire__crate__api__wiki_chat__ensure_wiki_page_chat(
+    port_,
+    page_slug,
+  );
 
-  void wire__crate__api__fetch_import_url(NativePortType port_, String url) =>
-      wasmModule.wire__crate__api__fetch_import_url(port_, url);
-
-  void wire__crate__api__fetch_tweet(NativePortType port_, String url) =>
-      wasmModule.wire__crate__api__fetch_tweet(port_, url);
-
-  void wire__crate__api__find_tweet_source_page(
+  void wire__crate__api__import__fetch_import_url(
     NativePortType port_,
     String url,
-  ) => wasmModule.wire__crate__api__find_tweet_source_page(port_, url);
+  ) => wasmModule.wire__crate__api__import__fetch_import_url(port_, url);
+
+  void wire__crate__api__tweet__fetch_tweet(NativePortType port_, String url) =>
+      wasmModule.wire__crate__api__tweet__fetch_tweet(port_, url);
+
+  void wire__crate__api__tweet__find_tweet_source_page(
+    NativePortType port_,
+    String url,
+  ) => wasmModule.wire__crate__api__tweet__find_tweet_source_page(port_, url);
 
   void wire__crate__api__finish_url_input(
     NativePortType port_,
@@ -1820,11 +2044,11 @@ class RustLibWire implements BaseWire {
     failed,
   );
 
-  void wire__crate__api__generate_content_chat(
+  void wire__crate__api__tweet__generate_content_chat(
     NativePortType port_,
     String content,
     JSAny messages,
-  ) => wasmModule.wire__crate__api__generate_content_chat(
+  ) => wasmModule.wire__crate__api__tweet__generate_content_chat(
     port_,
     content,
     messages,
@@ -1835,13 +2059,13 @@ class RustLibWire implements BaseWire {
     String date,
   ) => wasmModule.wire__crate__api__generate_daily_review(port_, date);
 
-  void wire__crate__api__generate_reply(
+  void wire__crate__api__conversations__generate_reply(
     NativePortType port_,
     String conversation_id,
     String? provider_type,
     String? memory_type,
     int? memory_window_size,
-  ) => wasmModule.wire__crate__api__generate_reply(
+  ) => wasmModule.wire__crate__api__conversations__generate_reply(
     port_,
     conversation_id,
     provider_type,
@@ -1849,49 +2073,73 @@ class RustLibWire implements BaseWire {
     memory_window_size,
   );
 
-  void wire__crate__api__get_ai_provider(NativePortType port_) =>
-      wasmModule.wire__crate__api__get_ai_provider(port_);
+  void wire__crate__api__provider_config__get_ai_provider(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__provider_config__get_ai_provider(port_);
 
-  void wire__crate__api__get_ai_provider_config(NativePortType port_) =>
-      wasmModule.wire__crate__api__get_ai_provider_config(port_);
+  void wire__crate__api__provider_config__get_ai_provider_config(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__provider_config__get_ai_provider_config(
+    port_,
+  );
 
   void wire__crate__api__get_analysis_job_stats(NativePortType port_) =>
       wasmModule.wire__crate__api__get_analysis_job_stats(port_);
 
-  void wire__crate__api__get_child_messages(
+  void wire__crate__api__conversations__get_child_messages(
     NativePortType port_,
     String parent_id,
-  ) => wasmModule.wire__crate__api__get_child_messages(port_, parent_id);
+  ) => wasmModule.wire__crate__api__conversations__get_child_messages(
+    port_,
+    parent_id,
+  );
 
-  void wire__crate__api__get_conversation(
+  void wire__crate__api__conversations__get_conversation(
     NativePortType port_,
     String conversation_id,
-  ) => wasmModule.wire__crate__api__get_conversation(port_, conversation_id);
+  ) => wasmModule.wire__crate__api__conversations__get_conversation(
+    port_,
+    conversation_id,
+  );
 
   void wire__crate__api__get_daily_overview(
     NativePortType port_,
     String date,
   ) => wasmModule.wire__crate__api__get_daily_overview(port_, date);
 
-  void wire__crate__api__get_daily_token_usage(
+  void wire__crate__api__conversations__get_daily_token_usage(
     NativePortType port_,
     int days,
-  ) => wasmModule.wire__crate__api__get_daily_token_usage(port_, days);
+  ) => wasmModule.wire__crate__api__conversations__get_daily_token_usage(
+    port_,
+    days,
+  );
 
-  void wire__crate__api__get_entity_merge_status(
+  void wire__crate__api__entities__get_entity_merge_status(
     NativePortType port_,
     String source_slug,
-  ) => wasmModule.wire__crate__api__get_entity_merge_status(port_, source_slug);
+  ) => wasmModule.wire__crate__api__entities__get_entity_merge_status(
+    port_,
+    source_slug,
+  );
 
   void wire__crate__api__get_event_analysis_detail(
     NativePortType port_,
     String event_id,
   ) => wasmModule.wire__crate__api__get_event_analysis_detail(port_, event_id);
 
-  void wire__crate__api__get_message_chain(
+  void wire__crate__api__knowledge_digest__get_knowledge_digest_stats(
+    NativePortType port_,
+  ) => wasmModule
+      .wire__crate__api__knowledge_digest__get_knowledge_digest_stats(port_);
+
+  void wire__crate__api__conversations__get_message_chain(
     NativePortType port_,
     String message_id,
-  ) => wasmModule.wire__crate__api__get_message_chain(port_, message_id);
+  ) => wasmModule.wire__crate__api__conversations__get_message_chain(
+    port_,
+    message_id,
+  );
 
   void wire__crate__api__get_message_recordability(
     NativePortType port_,
@@ -1899,55 +2147,66 @@ class RustLibWire implements BaseWire {
   ) =>
       wasmModule.wire__crate__api__get_message_recordability(port_, message_id);
 
-  void wire__crate__api__get_theme_prefs(NativePortType port_) =>
-      wasmModule.wire__crate__api__get_theme_prefs(port_);
+  void wire__crate__api__theme__get_theme_prefs(NativePortType port_) =>
+      wasmModule.wire__crate__api__theme__get_theme_prefs(port_);
 
-  void wire__crate__api__get_tweet_fetch_service(NativePortType port_) =>
-      wasmModule.wire__crate__api__get_tweet_fetch_service(port_);
+  void wire__crate__api__tweet__get_tweet_fetch_service(NativePortType port_) =>
+      wasmModule.wire__crate__api__tweet__get_tweet_fetch_service(port_);
 
-  void wire__crate__api__get_wiki_page(NativePortType port_, String slug) =>
-      wasmModule.wire__crate__api__get_wiki_page(port_, slug);
+  void wire__crate__api__wiki__get_wiki_page(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__wiki__get_wiki_page(port_, slug);
 
-  void wire__crate__api__guess_import_kind(NativePortType port_, String url) =>
-      wasmModule.wire__crate__api__guess_import_kind(port_, url);
+  void wire__crate__api__tweet__guess_import_kind(
+    NativePortType port_,
+    String url,
+  ) => wasmModule.wire__crate__api__tweet__guess_import_kind(port_, url);
 
   void wire__crate__api__init_bridge(
     NativePortType port_,
     String? database_path,
   ) => wasmModule.wire__crate__api__init_bridge(port_, database_path);
 
-  void wire__crate__api__list_ai_provider_configs(NativePortType port_) =>
-      wasmModule.wire__crate__api__list_ai_provider_configs(port_);
+  void wire__crate__api__provider_config__list_ai_provider_configs(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__provider_config__list_ai_provider_configs(
+    port_,
+  );
 
   void wire__crate__api__list_analyses(NativePortType port_) =>
       wasmModule.wire__crate__api__list_analyses(port_);
 
-  void wire__crate__api__list_archived_conversations(NativePortType port_) =>
-      wasmModule.wire__crate__api__list_archived_conversations(port_);
+  void wire__crate__api__conversations__list_archived_conversations(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__conversations__list_archived_conversations(
+    port_,
+  );
 
-  void wire__crate__api__list_conversations(NativePortType port_) =>
-      wasmModule.wire__crate__api__list_conversations(port_);
+  void wire__crate__api__conversations__list_conversations(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__conversations__list_conversations(port_);
 
   void wire__crate__api__list_daily_entries(
     NativePortType port_,
     String date,
   ) => wasmModule.wire__crate__api__list_daily_entries(port_, date);
 
-  void wire__crate__api__list_entity_aliases(
+  void wire__crate__api__entities__list_entity_aliases(
     NativePortType port_,
     String entity_kind,
     String entity_slug,
-  ) => wasmModule.wire__crate__api__list_entity_aliases(
+  ) => wasmModule.wire__crate__api__entities__list_entity_aliases(
     port_,
     entity_kind,
     entity_slug,
   );
 
-  void wire__crate__api__list_entity_facts(
+  void wire__crate__api__entities__list_entity_facts(
     NativePortType port_,
     String entity_kind,
     String entity_slug,
-  ) => wasmModule.wire__crate__api__list_entity_facts(
+  ) => wasmModule.wire__crate__api__entities__list_entity_facts(
     port_,
     entity_kind,
     entity_slug,
@@ -1956,59 +2215,94 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__list_events(NativePortType port_) =>
       wasmModule.wire__crate__api__list_events(port_);
 
-  void wire__crate__api__list_messages(
+  void wire__crate__api__knowledge_digest__list_knowledge_digest_jobs(
     NativePortType port_,
-    String conversation_id,
-  ) => wasmModule.wire__crate__api__list_messages(port_, conversation_id);
-
-  void wire__crate__api__list_pending_actions(
-    NativePortType port_,
-    String conversation_id,
+    String? status,
+    int limit,
   ) =>
-      wasmModule.wire__crate__api__list_pending_actions(port_, conversation_id);
+      wasmModule.wire__crate__api__knowledge_digest__list_knowledge_digest_jobs(
+        port_,
+        status,
+        limit,
+      );
 
-  void wire__crate__api__list_relations(NativePortType port_) =>
-      wasmModule.wire__crate__api__list_relations(port_);
+  void wire__crate__api__knowledge_digest__list_knowledge_digest_runs(
+    NativePortType port_,
+    int limit,
+  ) =>
+      wasmModule.wire__crate__api__knowledge_digest__list_knowledge_digest_runs(
+        port_,
+        limit,
+      );
 
-  void wire__crate__api__list_relations_for_page(
+  void wire__crate__api__conversations__list_messages(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__conversations__list_messages(
+    port_,
+    conversation_id,
+  );
+
+  void wire__crate__api__conversations__list_pending_actions(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__conversations__list_pending_actions(
+    port_,
+    conversation_id,
+  );
+
+  void wire__crate__api__relations__list_relations(NativePortType port_) =>
+      wasmModule.wire__crate__api__relations__list_relations(port_);
+
+  void wire__crate__api__relations__list_relations_for_page(
     NativePortType port_,
     String slug,
-  ) => wasmModule.wire__crate__api__list_relations_for_page(port_, slug);
+  ) => wasmModule.wire__crate__api__relations__list_relations_for_page(
+    port_,
+    slug,
+  );
 
-  void wire__crate__api__list_rules(NativePortType port_) =>
-      wasmModule.wire__crate__api__list_rules(port_);
+  void wire__crate__api__rules__list_rules(NativePortType port_) =>
+      wasmModule.wire__crate__api__rules__list_rules(port_);
 
-  void wire__crate__api__list_system_fonts(NativePortType port_) =>
-      wasmModule.wire__crate__api__list_system_fonts(port_);
+  void wire__crate__api__fonts__list_system_fonts(NativePortType port_) =>
+      wasmModule.wire__crate__api__fonts__list_system_fonts(port_);
 
-  void wire__crate__api__list_todos(NativePortType port_, String? status) =>
-      wasmModule.wire__crate__api__list_todos(port_, status);
+  void wire__crate__api__todos__list_todos(
+    NativePortType port_,
+    String? status,
+  ) => wasmModule.wire__crate__api__todos__list_todos(port_, status);
 
-  void wire__crate__api__list_wiki_page_derivatives(
+  void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
-  ) => wasmModule.wire__crate__api__list_wiki_page_derivatives(port_, slug);
+  ) => wasmModule.wire__crate__api__wiki__list_wiki_page_derivatives(
+    port_,
+    slug,
+  );
 
-  void wire__crate__api__list_wiki_pages(
+  void wire__crate__api__wiki__list_wiki_pages(
     NativePortType port_,
     String? kind,
     String? area,
-  ) => wasmModule.wire__crate__api__list_wiki_pages(port_, kind, area);
+  ) => wasmModule.wire__crate__api__wiki__list_wiki_pages(port_, kind, area);
 
-  void wire__crate__api__merge_entity(
+  void wire__crate__api__entities__merge_entity(
     NativePortType port_,
     String entity_kind,
     String source_slug,
     String target_slug,
-  ) => wasmModule.wire__crate__api__merge_entity(
+  ) => wasmModule.wire__crate__api__entities__merge_entity(
     port_,
     entity_kind,
     source_slug,
     target_slug,
   );
 
-  void wire__crate__api__open_todo_work_item(NativePortType port_, String id) =>
-      wasmModule.wire__crate__api__open_todo_work_item(port_, id);
+  void wire__crate__api__todos__open_todo_work_item(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__todos__open_todo_work_item(port_, id);
 
   void wire__crate__api__reanalyze_event(
     NativePortType port_,
@@ -2018,25 +2312,28 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__record_event(NativePortType port_, String raw_text) =>
       wasmModule.wire__crate__api__record_event(port_, raw_text);
 
-  void wire__crate__api__refresh_project_page(
+  void wire__crate__api__wiki__refresh_project_page(
     NativePortType port_,
     String slug,
-  ) => wasmModule.wire__crate__api__refresh_project_page(port_, slug);
+  ) => wasmModule.wire__crate__api__wiki__refresh_project_page(port_, slug);
 
-  void wire__crate__api__rename_conversation(
+  void wire__crate__api__conversations__rename_conversation(
     NativePortType port_,
     String conversation_id,
     String title,
-  ) => wasmModule.wire__crate__api__rename_conversation(
+  ) => wasmModule.wire__crate__api__conversations__rename_conversation(
     port_,
     conversation_id,
     title,
   );
 
-  void wire__crate__api__save_ai_provider_config(
+  void wire__crate__api__provider_config__save_ai_provider_config(
     NativePortType port_,
     JSAny provider,
-  ) => wasmModule.wire__crate__api__save_ai_provider_config(port_, provider);
+  ) => wasmModule.wire__crate__api__provider_config__save_ai_provider_config(
+    port_,
+    provider,
+  );
 
   void wire__crate__api__save_daily_review(
     NativePortType port_,
@@ -2052,14 +2349,14 @@ class RustLibWire implements BaseWire {
     source_event_ids,
   );
 
-  void wire__crate__api__save_imported_page(
+  void wire__crate__api__import__save_imported_page(
     NativePortType port_,
     String title,
     String content_md,
     String source_url,
     String source_kind,
     JSAny tags,
-  ) => wasmModule.wire__crate__api__save_imported_page(
+  ) => wasmModule.wire__crate__api__import__save_imported_page(
     port_,
     title,
     content_md,
@@ -2068,21 +2365,26 @@ class RustLibWire implements BaseWire {
     tags,
   );
 
-  void wire__crate__api__save_text_page(
+  void wire__crate__api__tweet__save_text_page(
     NativePortType port_,
     String text,
     String? title,
     JSAny tags,
-  ) => wasmModule.wire__crate__api__save_text_page(port_, text, title, tags);
+  ) => wasmModule.wire__crate__api__tweet__save_text_page(
+    port_,
+    text,
+    title,
+    tags,
+  );
 
-  void wire__crate__api__save_tweet_page(
+  void wire__crate__api__tweet__save_tweet_page(
     NativePortType port_,
     String tweet_id,
     String text,
     String? title,
     String? author_name,
     String? screen_name,
-  ) => wasmModule.wire__crate__api__save_tweet_page(
+  ) => wasmModule.wire__crate__api__tweet__save_tweet_page(
     port_,
     tweet_id,
     text,
@@ -2091,13 +2393,13 @@ class RustLibWire implements BaseWire {
     screen_name,
   );
 
-  void wire__crate__api__save_wiki_page_content(
+  void wire__crate__api__wiki__save_wiki_page_content(
     NativePortType port_,
     String slug,
     String content_md,
     String reason,
     String? expected_updated_at,
-  ) => wasmModule.wire__crate__api__save_wiki_page_content(
+  ) => wasmModule.wire__crate__api__wiki__save_wiki_page_content(
     port_,
     slug,
     content_md,
@@ -2105,13 +2407,13 @@ class RustLibWire implements BaseWire {
     expected_updated_at,
   );
 
-  void wire__crate__api__send_message(
+  void wire__crate__api__conversations__send_message(
     NativePortType port_,
     String conversation_id,
     String role,
     String content,
     String? parent_message_id,
-  ) => wasmModule.wire__crate__api__send_message(
+  ) => wasmModule.wire__crate__api__conversations__send_message(
     port_,
     conversation_id,
     role,
@@ -2119,16 +2421,20 @@ class RustLibWire implements BaseWire {
     parent_message_id,
   );
 
-  void wire__crate__api__set_active_ai_provider_config(
+  void wire__crate__api__provider_config__set_active_ai_provider_config(
     NativePortType port_,
     String id,
-  ) => wasmModule.wire__crate__api__set_active_ai_provider_config(port_, id);
+  ) => wasmModule
+      .wire__crate__api__provider_config__set_active_ai_provider_config(
+        port_,
+        id,
+      );
 
-  void wire__crate__api__set_conversation_archived(
+  void wire__crate__api__conversations__set_conversation_archived(
     NativePortType port_,
     String conversation_id,
     bool archived,
-  ) => wasmModule.wire__crate__api__set_conversation_archived(
+  ) => wasmModule.wire__crate__api__conversations__set_conversation_archived(
     port_,
     conversation_id,
     archived,
@@ -2144,11 +2450,12 @@ class RustLibWire implements BaseWire {
     recordable,
   );
 
-  void wire__crate__api__set_wiki_opinion(
+  void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
     String slug,
     String? opinion,
-  ) => wasmModule.wire__crate__api__set_wiki_opinion(port_, slug, opinion);
+  ) =>
+      wasmModule.wire__crate__api__wiki__set_wiki_opinion(port_, slug, opinion);
 
   void wire__crate__api__submit_conversation_input(
     NativePortType port_,
@@ -2177,40 +2484,53 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__trigger_analysis(NativePortType port_) =>
       wasmModule.wire__crate__api__trigger_analysis(port_);
 
-  void wire__crate__api__undo_entity_merge(
+  void wire__crate__api__knowledge_digest__trigger_knowledge_digest(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__knowledge_digest__trigger_knowledge_digest(
+    port_,
+  );
+
+  void wire__crate__api__entities__undo_entity_merge(
     NativePortType port_,
     String source_slug,
-  ) => wasmModule.wire__crate__api__undo_entity_merge(port_, source_slug);
+  ) => wasmModule.wire__crate__api__entities__undo_entity_merge(
+    port_,
+    source_slug,
+  );
 
-  void wire__crate__api__update_ai_provider_config(
+  void wire__crate__api__provider_config__update_ai_provider_config(
     NativePortType port_,
     String base_url,
     String model,
     String api_key,
-  ) => wasmModule.wire__crate__api__update_ai_provider_config(
+  ) => wasmModule.wire__crate__api__provider_config__update_ai_provider_config(
     port_,
     base_url,
     model,
     api_key,
   );
 
-  void wire__crate__api__update_pending_action_args(
+  void wire__crate__api__conversations__update_pending_action_args(
     NativePortType port_,
     String action_id,
     String args_json,
-  ) => wasmModule.wire__crate__api__update_pending_action_args(
+  ) => wasmModule.wire__crate__api__conversations__update_pending_action_args(
     port_,
     action_id,
     args_json,
   );
 
-  void wire__crate__api__update_project_path(
+  void wire__crate__api__wiki__update_project_path(
     NativePortType port_,
     String slug,
     String new_path,
-  ) => wasmModule.wire__crate__api__update_project_path(port_, slug, new_path);
+  ) => wasmModule.wire__crate__api__wiki__update_project_path(
+    port_,
+    slug,
+    new_path,
+  );
 
-  void wire__crate__api__update_theme_prefs(
+  void wire__crate__api__theme__update_theme_prefs(
     NativePortType port_,
     String mode,
     String preset,
@@ -2219,7 +2539,7 @@ class RustLibWire implements BaseWire {
     String? editor_font,
     double? editor_font_size,
     double? editor_line_height,
-  ) => wasmModule.wire__crate__api__update_theme_prefs(
+  ) => wasmModule.wire__crate__api__theme__update_theme_prefs(
     port_,
     mode,
     preset,
@@ -2230,14 +2550,14 @@ class RustLibWire implements BaseWire {
     editor_line_height,
   );
 
-  void wire__crate__api__update_todo(
+  void wire__crate__api__todos__update_todo(
     NativePortType port_,
     String id,
     String title,
     String? note,
     String? priority,
     String? due_at,
-  ) => wasmModule.wire__crate__api__update_todo(
+  ) => wasmModule.wire__crate__api__todos__update_todo(
     port_,
     id,
     title,
@@ -2246,22 +2566,26 @@ class RustLibWire implements BaseWire {
     due_at,
   );
 
-  void wire__crate__api__update_todo_status(
+  void wire__crate__api__todos__update_todo_status(
     NativePortType port_,
     String id,
     String status,
-  ) => wasmModule.wire__crate__api__update_todo_status(port_, id, status);
+  ) =>
+      wasmModule.wire__crate__api__todos__update_todo_status(port_, id, status);
 
-  void wire__crate__api__update_tweet_fetch_service(
+  void wire__crate__api__tweet__update_tweet_fetch_service(
     NativePortType port_,
     String service,
-  ) => wasmModule.wire__crate__api__update_tweet_fetch_service(port_, service);
+  ) => wasmModule.wire__crate__api__tweet__update_tweet_fetch_service(
+    port_,
+    service,
+  );
 
-  void wire__crate__api__update_wiki_tags(
+  void wire__crate__api__wiki__update_wiki_tags(
     NativePortType port_,
     String slug,
     JSAny tags,
-  ) => wasmModule.wire__crate__api__update_wiki_tags(port_, slug, tags);
+  ) => wasmModule.wire__crate__api__wiki__update_wiki_tags(port_, slug, tags);
 }
 
 @JS('wasm_bindgen')
@@ -2270,14 +2594,14 @@ external RustLibWasmModule get wasmModule;
 @JS()
 @anonymous
 extension type RustLibWasmModule._(JSObject _) implements JSObject {
-  external void wire__crate__api__add_entity_alias(
+  external void wire__crate__api__entities__add_entity_alias(
     NativePortType port_,
     String entity_kind,
     String entity_slug,
     String alias,
   );
 
-  external void wire__crate__api__add_relation(
+  external void wire__crate__api__relations__add_relation(
     NativePortType port_,
     String from_slug,
     String to_slug,
@@ -2285,12 +2609,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? note,
   );
 
-  external void wire__crate__api__add_rule(
+  external void wire__crate__api__rules__add_rule(
     NativePortType port_,
     String content,
   );
 
-  external void wire__crate__api__archive_wiki_page_chat(
+  external void wire__crate__api__wiki_chat__archive_wiki_page_chat(
     NativePortType port_,
     String page_slug,
   );
@@ -2301,19 +2625,19 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? idempotency_key,
   );
 
-  external void wire__crate__api__confirm_knowledge_draft(
+  external void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
   );
 
-  external void wire__crate__api__create_conversation(
+  external void wire__crate__api__conversations__create_conversation(
     NativePortType port_,
     String? title,
     String? tag,
   );
 
-  external void wire__crate__api__create_todo(
+  external void wire__crate__api__todos__create_todo(
     NativePortType port_,
     String title,
     String? due_at,
@@ -2322,7 +2646,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? note,
   );
 
-  external void wire__crate__api__create_wiki_derivative(
+  external void wire__crate__api__wiki__create_wiki_derivative(
     NativePortType port_,
     String based_on_slug,
     String content_type,
@@ -2330,52 +2654,58 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content_md,
   );
 
-  external void wire__crate__api__decline_knowledge_draft(
+  external void wire__crate__api__conversations__decline_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
   );
 
-  external void wire__crate__api__delete_ai_provider_config(
+  external void wire__crate__api__provider_config__delete_ai_provider_config(
     NativePortType port_,
     String id,
   );
 
-  external void wire__crate__api__delete_archived_conversation(
+  external void wire__crate__api__conversations__delete_archived_conversation(
     NativePortType port_,
     String conversation_id,
   );
 
-  external void wire__crate__api__delete_entity_fact(
+  external void wire__crate__api__entities__delete_entity_fact(
     NativePortType port_,
     String id,
   );
 
-  external void wire__crate__api__delete_relation(
+  external void wire__crate__api__relations__delete_relation(
     NativePortType port_,
     String id,
   );
 
-  external void wire__crate__api__delete_rule(
+  external void wire__crate__api__rules__delete_rule(
     NativePortType port_,
     String rule_id,
   );
 
-  external void wire__crate__api__delete_todo(NativePortType port_, String id);
+  external void wire__crate__api__todos__delete_todo(
+    NativePortType port_,
+    String id,
+  );
 
-  external void wire__crate__api__ensure_wiki_page_chat(
+  external void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
     NativePortType port_,
     String page_slug,
   );
 
-  external void wire__crate__api__fetch_import_url(
+  external void wire__crate__api__import__fetch_import_url(
     NativePortType port_,
     String url,
   );
 
-  external void wire__crate__api__fetch_tweet(NativePortType port_, String url);
+  external void wire__crate__api__tweet__fetch_tweet(
+    NativePortType port_,
+    String url,
+  );
 
-  external void wire__crate__api__find_tweet_source_page(
+  external void wire__crate__api__tweet__find_tweet_source_page(
     NativePortType port_,
     String url,
   );
@@ -2387,7 +2717,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool failed,
   );
 
-  external void wire__crate__api__generate_content_chat(
+  external void wire__crate__api__tweet__generate_content_chat(
     NativePortType port_,
     String content,
     JSAny messages,
@@ -2398,7 +2728,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String date,
   );
 
-  external void wire__crate__api__generate_reply(
+  external void wire__crate__api__conversations__generate_reply(
     NativePortType port_,
     String conversation_id,
     String? provider_type,
@@ -2406,18 +2736,22 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     int? memory_window_size,
   );
 
-  external void wire__crate__api__get_ai_provider(NativePortType port_);
+  external void wire__crate__api__provider_config__get_ai_provider(
+    NativePortType port_,
+  );
 
-  external void wire__crate__api__get_ai_provider_config(NativePortType port_);
+  external void wire__crate__api__provider_config__get_ai_provider_config(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__get_analysis_job_stats(NativePortType port_);
 
-  external void wire__crate__api__get_child_messages(
+  external void wire__crate__api__conversations__get_child_messages(
     NativePortType port_,
     String parent_id,
   );
 
-  external void wire__crate__api__get_conversation(
+  external void wire__crate__api__conversations__get_conversation(
     NativePortType port_,
     String conversation_id,
   );
@@ -2427,12 +2761,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String date,
   );
 
-  external void wire__crate__api__get_daily_token_usage(
+  external void wire__crate__api__conversations__get_daily_token_usage(
     NativePortType port_,
     int days,
   );
 
-  external void wire__crate__api__get_entity_merge_status(
+  external void wire__crate__api__entities__get_entity_merge_status(
     NativePortType port_,
     String source_slug,
   );
@@ -2442,7 +2776,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String event_id,
   );
 
-  external void wire__crate__api__get_message_chain(
+  external void wire__crate__api__knowledge_digest__get_knowledge_digest_stats(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__conversations__get_message_chain(
     NativePortType port_,
     String message_id,
   );
@@ -2452,16 +2790,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String message_id,
   );
 
-  external void wire__crate__api__get_theme_prefs(NativePortType port_);
+  external void wire__crate__api__theme__get_theme_prefs(NativePortType port_);
 
-  external void wire__crate__api__get_tweet_fetch_service(NativePortType port_);
+  external void wire__crate__api__tweet__get_tweet_fetch_service(
+    NativePortType port_,
+  );
 
-  external void wire__crate__api__get_wiki_page(
+  external void wire__crate__api__wiki__get_wiki_page(
     NativePortType port_,
     String slug,
   );
 
-  external void wire__crate__api__guess_import_kind(
+  external void wire__crate__api__tweet__guess_import_kind(
     NativePortType port_,
     String url,
   );
@@ -2471,30 +2811,32 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? database_path,
   );
 
-  external void wire__crate__api__list_ai_provider_configs(
+  external void wire__crate__api__provider_config__list_ai_provider_configs(
     NativePortType port_,
   );
 
   external void wire__crate__api__list_analyses(NativePortType port_);
 
-  external void wire__crate__api__list_archived_conversations(
+  external void wire__crate__api__conversations__list_archived_conversations(
     NativePortType port_,
   );
 
-  external void wire__crate__api__list_conversations(NativePortType port_);
+  external void wire__crate__api__conversations__list_conversations(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__list_daily_entries(
     NativePortType port_,
     String date,
   );
 
-  external void wire__crate__api__list_entity_aliases(
+  external void wire__crate__api__entities__list_entity_aliases(
     NativePortType port_,
     String entity_kind,
     String entity_slug,
   );
 
-  external void wire__crate__api__list_entity_facts(
+  external void wire__crate__api__entities__list_entity_facts(
     NativePortType port_,
     String entity_kind,
     String entity_slug,
@@ -2502,51 +2844,66 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__list_events(NativePortType port_);
 
-  external void wire__crate__api__list_messages(
+  external void wire__crate__api__knowledge_digest__list_knowledge_digest_jobs(
+    NativePortType port_,
+    String? status,
+    int limit,
+  );
+
+  external void wire__crate__api__knowledge_digest__list_knowledge_digest_runs(
+    NativePortType port_,
+    int limit,
+  );
+
+  external void wire__crate__api__conversations__list_messages(
     NativePortType port_,
     String conversation_id,
   );
 
-  external void wire__crate__api__list_pending_actions(
+  external void wire__crate__api__conversations__list_pending_actions(
     NativePortType port_,
     String conversation_id,
   );
 
-  external void wire__crate__api__list_relations(NativePortType port_);
+  external void wire__crate__api__relations__list_relations(
+    NativePortType port_,
+  );
 
-  external void wire__crate__api__list_relations_for_page(
+  external void wire__crate__api__relations__list_relations_for_page(
     NativePortType port_,
     String slug,
   );
 
-  external void wire__crate__api__list_rules(NativePortType port_);
+  external void wire__crate__api__rules__list_rules(NativePortType port_);
 
-  external void wire__crate__api__list_system_fonts(NativePortType port_);
+  external void wire__crate__api__fonts__list_system_fonts(
+    NativePortType port_,
+  );
 
-  external void wire__crate__api__list_todos(
+  external void wire__crate__api__todos__list_todos(
     NativePortType port_,
     String? status,
   );
 
-  external void wire__crate__api__list_wiki_page_derivatives(
+  external void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
   );
 
-  external void wire__crate__api__list_wiki_pages(
+  external void wire__crate__api__wiki__list_wiki_pages(
     NativePortType port_,
     String? kind,
     String? area,
   );
 
-  external void wire__crate__api__merge_entity(
+  external void wire__crate__api__entities__merge_entity(
     NativePortType port_,
     String entity_kind,
     String source_slug,
     String target_slug,
   );
 
-  external void wire__crate__api__open_todo_work_item(
+  external void wire__crate__api__todos__open_todo_work_item(
     NativePortType port_,
     String id,
   );
@@ -2561,18 +2918,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String raw_text,
   );
 
-  external void wire__crate__api__refresh_project_page(
+  external void wire__crate__api__wiki__refresh_project_page(
     NativePortType port_,
     String slug,
   );
 
-  external void wire__crate__api__rename_conversation(
+  external void wire__crate__api__conversations__rename_conversation(
     NativePortType port_,
     String conversation_id,
     String title,
   );
 
-  external void wire__crate__api__save_ai_provider_config(
+  external void wire__crate__api__provider_config__save_ai_provider_config(
     NativePortType port_,
     JSAny provider,
   );
@@ -2585,7 +2942,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny source_event_ids,
   );
 
-  external void wire__crate__api__save_imported_page(
+  external void wire__crate__api__import__save_imported_page(
     NativePortType port_,
     String title,
     String content_md,
@@ -2594,14 +2951,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny tags,
   );
 
-  external void wire__crate__api__save_text_page(
+  external void wire__crate__api__tweet__save_text_page(
     NativePortType port_,
     String text,
     String? title,
     JSAny tags,
   );
 
-  external void wire__crate__api__save_tweet_page(
+  external void wire__crate__api__tweet__save_tweet_page(
     NativePortType port_,
     String tweet_id,
     String text,
@@ -2610,7 +2967,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? screen_name,
   );
 
-  external void wire__crate__api__save_wiki_page_content(
+  external void wire__crate__api__wiki__save_wiki_page_content(
     NativePortType port_,
     String slug,
     String content_md,
@@ -2618,7 +2975,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? expected_updated_at,
   );
 
-  external void wire__crate__api__send_message(
+  external void wire__crate__api__conversations__send_message(
     NativePortType port_,
     String conversation_id,
     String role,
@@ -2626,12 +2983,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? parent_message_id,
   );
 
-  external void wire__crate__api__set_active_ai_provider_config(
+  external void
+  wire__crate__api__provider_config__set_active_ai_provider_config(
     NativePortType port_,
     String id,
   );
 
-  external void wire__crate__api__set_conversation_archived(
+  external void wire__crate__api__conversations__set_conversation_archived(
     NativePortType port_,
     String conversation_id,
     bool archived,
@@ -2643,7 +3001,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool recordable,
   );
 
-  external void wire__crate__api__set_wiki_opinion(
+  external void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
     String slug,
     String? opinion,
@@ -2665,31 +3023,35 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__trigger_analysis(NativePortType port_);
 
-  external void wire__crate__api__undo_entity_merge(
+  external void wire__crate__api__knowledge_digest__trigger_knowledge_digest(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__entities__undo_entity_merge(
     NativePortType port_,
     String source_slug,
   );
 
-  external void wire__crate__api__update_ai_provider_config(
+  external void wire__crate__api__provider_config__update_ai_provider_config(
     NativePortType port_,
     String base_url,
     String model,
     String api_key,
   );
 
-  external void wire__crate__api__update_pending_action_args(
+  external void wire__crate__api__conversations__update_pending_action_args(
     NativePortType port_,
     String action_id,
     String args_json,
   );
 
-  external void wire__crate__api__update_project_path(
+  external void wire__crate__api__wiki__update_project_path(
     NativePortType port_,
     String slug,
     String new_path,
   );
 
-  external void wire__crate__api__update_theme_prefs(
+  external void wire__crate__api__theme__update_theme_prefs(
     NativePortType port_,
     String mode,
     String preset,
@@ -2700,7 +3062,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     double? editor_line_height,
   );
 
-  external void wire__crate__api__update_todo(
+  external void wire__crate__api__todos__update_todo(
     NativePortType port_,
     String id,
     String title,
@@ -2709,18 +3071,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? due_at,
   );
 
-  external void wire__crate__api__update_todo_status(
+  external void wire__crate__api__todos__update_todo_status(
     NativePortType port_,
     String id,
     String status,
   );
 
-  external void wire__crate__api__update_tweet_fetch_service(
+  external void wire__crate__api__tweet__update_tweet_fetch_service(
     NativePortType port_,
     String service,
   );
 
-  external void wire__crate__api__update_wiki_tags(
+  external void wire__crate__api__wiki__update_wiki_tags(
     NativePortType port_,
     String slug,
     JSAny tags,

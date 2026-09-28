@@ -26,7 +26,8 @@ TextSpanDecoratorForAttribute wikiTextSpanDecorator({
             fontWeight: FontWeight.w600,
           ),
           text: text.text,
-          recognizer: TapGestureRecognizer()..onTap = () => onTapWikiLink(target),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => onTapWikiLink(target),
           mouseCursor: SystemMouseCursors.click,
         );
       }

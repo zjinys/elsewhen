@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../models/settings.dart';
 import '../theme/app_theme.dart';
+import '../theme/content_font.dart';
 import '../utils/system_fonts.dart';
 import 'wiki_code_block.dart';
 import 'wiki_markdown_codec.dart';
@@ -63,9 +64,9 @@ class WikiContentEditor extends StatefulWidget {
   /// 正文字号（px）：跟随「外观 → 正文字号」，仅作用于正文
   final double fontSize;
 
-  /// 编辑器（内容区）字体覆盖：null = 跟随全局（回退主题 textTheme 的
-  /// 全局字体解析值）；[AppFonts.system] = 跟随系统字体（不注入家族）。
-  /// 由知识页详情页从「AA」浮层写入。
+  /// 正文字体存值（知识页详情页传 [AppSettings.contentFontName]，即
+  /// 编辑器覆盖 ?? 全局内容字体）：null = 回退 [ContentFont] 作用域；
+  /// [AppFonts.system] = 跟随系统字体（不注入家族）。
   final String? fontFamily;
 
   /// 编辑器（内容区）行距覆盖（倍数）：null = 跟随全局（vendor 默认 1.5）。
@@ -175,8 +176,9 @@ class WikiContentEditorState extends State<WikiContentEditor> {
     _initEditor(widget.contentMd, widget.slug);
   }
 
-  /// 两层覆盖求值：编辑器字体覆盖(system→不注入) ?? 全局（主题 textTheme 已按
-  /// 全局字体解析）。null 表示不注入家族（跟随系统字体）。
+  /// 两层覆盖求值（调用方传 `编辑器覆盖 ?? 全局内容字体` 的存值）：
+  /// system → null（不注入家族，跟随系统字体）；未传时回退 [ContentFont]
+  /// 作用域的内容字体（主题 textTheme 是固定界面字体，不能作回退）。
   /// 覆盖值经 [resolveFontFamily] 解析；本地字体在启动/切换时预热。
   String? _effectiveFontFamily(BuildContext context) {
     final override = widget.fontFamily;
@@ -188,7 +190,7 @@ class WikiContentEditorState extends State<WikiContentEditor> {
       if (family == null) return null;
       return family;
     }
-    final fallback = Theme.of(context).textTheme.bodyLarge?.fontFamily;
+    final fallback = ContentFont.styleOf(context)?.fontFamily;
     return (fallback == null || fallback.isEmpty) ? null : fallback;
   }
 

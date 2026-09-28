@@ -35,7 +35,7 @@ try {
     cargo build --release
 
     Write-Host "[2/4] 构建 Flutter Windows release ..."
-    & $flutter build windows --release
+    & $flutter build windows --release --target=lib/main_desktop.dart
     if ($LASTEXITCODE -ne 0) { throw "flutter build windows 失败" }
 
     $releaseDir = Join-Path $root "ui\build\windows\x64\runner\Release"

@@ -10,10 +10,7 @@ import 'wikilink_syntax.dart';
 /// 编码：vendored DeltaMarkdownEncoder 把该属性还原回 `[[target|alias]]`，
 /// 无需自定义 NodeParser。
 Document wikiMarkdownToDocument(String markdown) {
-  return markdownToDocument(
-    markdown,
-    inlineSyntaxes: [WikilinkInlineSyntax()],
-  );
+  return markdownToDocument(markdown, inlineSyntaxes: [WikilinkInlineSyntax()]);
 }
 
 String wikiDocumentToMarkdown(Document document) {

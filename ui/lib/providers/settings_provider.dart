@@ -39,7 +39,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = state.copyWith(fontName: fontName);
   }
 
-  /// 全局字体切换：本地字体先预热 FontLoader 再落 state，避免主题闪一下默认字体。
+  /// 全局内容字体切换：本地字体先预热 FontLoader 再落 state，避免内容区闪一下默认字体。
   Future<void> setGlobalFont(String stored) async {
     await SystemFontService.instance.ensureLoadedForStored(stored);
     state = state.copyWith(fontName: stored);

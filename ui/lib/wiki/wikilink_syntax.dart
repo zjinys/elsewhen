@@ -13,8 +13,7 @@ import 'package:markdown/markdown.dart' as md;
 /// ⚠️ `onMatch` 永不返回 false：markdown 包中只要正则匹配 `tryMatch` 即
 /// 返回 true，`onMatch` 返回 false 会让 parse 循环不复位位置 → 死循环。
 class WikilinkInlineSyntax extends md.InlineSyntax {
-  WikilinkInlineSyntax()
-      : super(r'\[\[([^\[\]|]+(?:\|[^\[\]|]+)?)\]\]');
+  WikilinkInlineSyntax() : super(r'\[\[([^\[\]|]+(?:\|[^\[\]|]+)?)\]\]');
 
   @override
   bool onMatch(md.InlineParser parser, Match match) {

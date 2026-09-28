@@ -8,6 +8,7 @@ import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/content_font.dart';
 import 'markdown_view.dart';
 
 /// 页内 AI 处理面板：围绕当前页面聊天（总结/补充/改写）。
@@ -231,8 +232,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
     try {
       // 读页失败（DB 错误/页面在首次 build 后被删）不能被静默放弃：
       // 与下方保存失败的异常同路径反馈。
-      final sourcePage =
-          await ref.read(wikiPageProvider(widget.slug).future);
+      final sourcePage = await ref.read(wikiPageProvider(widget.slug).future);
       if (!mounted) return;
       if (sourcePage?.kind == 'project') {
         final confirmed = await showDialog<bool>(
@@ -803,12 +803,14 @@ class WikiChatBubble extends StatelessWidget {
                         ],
                       )
                     : isUser
-                    ? SelectableText(
-                        message.content,
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.55,
-                          color: AppTheme.textPrimary,
+                    ? ContentFontScope(
+                        child: SelectableText(
+                          message.content,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.55,
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
                       )
                     : MarkdownView(

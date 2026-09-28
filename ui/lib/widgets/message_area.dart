@@ -14,6 +14,7 @@ import '../providers/wiki_provider.dart';
 import '../providers/todo_provider.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+import '../theme/content_font.dart';
 import 'markdown_view.dart';
 import 'todo_view.dart';
 
@@ -225,7 +226,10 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
             context: context,
             builder: (_) => Dialog(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 620, maxHeight: 560),
+                constraints: const BoxConstraints(
+                  maxWidth: 620,
+                  maxHeight: 560,
+                ),
                 child: const SizedBox(
                   width: 620,
                   height: 560,
@@ -371,9 +375,13 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Center(
-              child: Text(
-                '加载消息失败',
-                style: TextStyle(color: AppTheme.textSecondary),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  '加载消息失败\n$error',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                ),
               ),
             ),
           ),
@@ -1267,28 +1275,52 @@ class _NowStatus extends ConsumerWidget {
                   child: Row(
                     children: [
                       if (activeProvider != null) ...[
-                        Icon(Icons.smart_toy_outlined, size: 14, color: AppTheme.textTertiary),
+                        Icon(
+                          Icons.smart_toy_outlined,
+                          size: 14,
+                          color: AppTheme.textTertiary,
+                        ),
                         const SizedBox(width: 5),
                         Flexible(
                           child: Text(
                             activeProvider,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
                       ],
-                      Icon(Icons.forum_outlined, size: 14, color: AppTheme.textTertiary),
+                      Icon(
+                        Icons.forum_outlined,
+                        size: 14,
+                        color: AppTheme.textTertiary,
+                      ),
                       const SizedBox(width: 5),
-                      Text(summary, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                      Text(
+                        summary,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
                       if (tokenUsage != null) ...[
                         const SizedBox(width: 10),
-                        Icon(Icons.data_usage_outlined, size: 14, color: AppTheme.textTertiary),
+                        Icon(
+                          Icons.data_usage_outlined,
+                          size: 14,
+                          color: AppTheme.textTertiary,
+                        ),
                         const SizedBox(width: 5),
                         Text(
                           'Token ${_formatTokens(tokenUsage.totalTokens)}',
-                          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
                       ],
                       const Spacer(),
@@ -1303,8 +1335,13 @@ class _NowStatus extends ConsumerWidget {
                       IconButton(
                         tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
                         visualDensity: VisualDensity.compact,
-                        icon: Icon(showSearch ? Icons.search_off : Icons.search, size: 17),
-                        color: showSearch ? AppTheme.accentPrimary : AppTheme.textSecondary,
+                        icon: Icon(
+                          showSearch ? Icons.search_off : Icons.search,
+                          size: 17,
+                        ),
+                        color: showSearch
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textSecondary,
                         onPressed: onToggleSearch,
                       ),
                     ],
@@ -1520,12 +1557,14 @@ class _MessageBubble extends ConsumerWidget {
                       ),
                     ),
                     child: isUser
-                        ? SelectableText(
-                            displayContent,
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 14,
-                              height: 1.55,
+                        ? ContentFontScope(
+                            child: SelectableText(
+                              displayContent,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 14,
+                                height: 1.55,
+                              ),
                             ),
                           )
                         : SelectionArea(

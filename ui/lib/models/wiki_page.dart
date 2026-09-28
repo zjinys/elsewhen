@@ -117,7 +117,8 @@ class WikiPage {
     final url = sourceUrl;
     if (url == null || !url.startsWith('file://')) return null;
     var rest = url.substring('file://'.length);
-    if (rest.startsWith('localhost/')) rest = rest.substring('localhost'.length);
+    if (rest.startsWith('localhost/'))
+      rest = rest.substring('localhost'.length);
     return Uri.decodeComponent(rest);
   }
 }

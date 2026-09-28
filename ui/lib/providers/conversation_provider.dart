@@ -37,9 +37,14 @@ class ConversationRepository {
     );
     if (!isMain) return _bridge.listMessages(conversationId);
 
-    final batches = await Future.wait(
-      ordinary.map((conversation) => _bridge.listMessages(conversation.id)),
-    );
+    // 串行而非 Future.wait 并发：每次 listMessages 在 Rust 侧都会 Store::open
+    // 新连接，而 Store::open 会跑 ensure_schema（稳态仍抢写锁，见
+    // migrations.rs 已知缺陷）+ backfill 写操作 + wal_checkpoint。并发 N 个
+    // 连接同时抢写锁 → database is locked（知识库单次查询不并发故不受影响）。
+    final batches = <List<Message>>[];
+    for (final conversation in ordinary) {
+      batches.add(await _bridge.listMessages(conversation.id));
+    }
     final messages = batches.expand((batch) => batch).toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return messages;
@@ -160,7 +165,9 @@ final conversationsProvider = FutureProvider<List<Conversation>>((ref) async {
 /// 里显式调一次），provider 自身不再改库——否则任意 invalidate 都会重跑
 /// 一次写路径，且其完成时机脱离 widget 生命周期（P18）。
 final mainConversationProvider = FutureProvider<Conversation>((ref) async {
-  final main = await ref.read(conversationRepositoryProvider).findMainConversation();
+  final main = await ref
+      .read(conversationRepositoryProvider)
+      .findMainConversation();
   if (main == null) {
     // 正常路径到不了这里：启动期已 ensure 过。落到这里说明初始化未完成
     // 或主对话被删除——显式报错，不在 provider 内静默补建。

@@ -11,9 +11,7 @@ Widget _app({required bool configured}) {
     overrides: [
       aiProviderConfiguredProvider.overrideWith((ref) async => configured),
     ],
-    child: const MaterialApp(
-      home: Scaffold(body: AiProviderSetupHint()),
-    ),
+    child: const MaterialApp(home: Scaffold(body: AiProviderSetupHint())),
   );
 }
 

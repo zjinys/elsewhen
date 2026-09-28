@@ -19,3 +19,13 @@ dart_root: ui
 #   CPATH=/usr/lib/clang/22/include flutter_rust_bridge_codegen generate
 # 否则 libclang 解析 C 头失败，会在 frb_generated.io.dart 里生成污染性的
 # `typedef bool = ffi.NativeFunction<...>`，导致全部 bool 类型编译报错。
+#
+# ⚠️ 不要用「只拷一个 stdbool.h 的隔离目录」当 CPATH：那样 clang 找不到自己的
+# stddef.h，ffigen 会报 SEVERE 后半途产出残缺的 Dart（症状同样是大批 undefined，
+# 但 Rust 侧照样编过，极易误判成成功）。必须给整个 clang include 目录。
+#
+# ⚠️ frb 2.14.0-beta.2 自身的 bug：crate::api 下有多个子模块时，它会把 API 拆到
+# `api/<module>.dart`，但生成的 barrel `api.dart` 只 import 其中一个模块、且漏掉
+# 十几个函数与 DTO 类的定义，表现为下游上百个 undefined_function/undefined_class。
+# 目前靠手工在 `api.dart` 顶部补 export 解决（那里有注释说明）。重跑 codegen 后如果
+# `flutter analyze` 冒出一大批 undefined，先看是不是这段 export 被覆盖了。

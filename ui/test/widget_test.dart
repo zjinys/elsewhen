@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:elsewhen_ui/main.dart';
 import 'package:elsewhen_ui/models/app_config.dart';
 import 'package:elsewhen_ui/providers/app_provider.dart';
+import 'package:elsewhen_ui/screens/capture_screen.dart';
 
 void main() {
   testWidgets('App launches successfully', (WidgetTester tester) async {
@@ -44,7 +45,13 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: ElsewhenApp(config: AppConfig(mode: AppMode.capture)),
+        child: ElsewhenApp(
+          config: AppConfig(mode: AppMode.capture),
+          // CaptureScreen 已从 main.dart 移到桌面入口（其 window_service →
+          // nativeapi 依赖不能进 Android 可达图），改为构造器注入。不传则
+          // capture 模式会回退到 MainScreen，测不到快速记录界面。
+          captureScreenBuilder: () => const CaptureScreen(),
+        ),
       ),
     );
 

@@ -49,7 +49,11 @@ void main() {
 
     // ① 生成中反馈：占位气泡 + 发送按钮转菊花 + 输入框提示变化
     expect(find.text('AI 正在思考…'), findsOneWidget, reason: '发送后应立即出现「生成中」占位气泡');
-    expect(find.byIcon(Icons.arrow_upward), findsNothing, reason: '生成中发送按钮应转菊花（禁用）');
+    expect(
+      find.byIcon(Icons.arrow_upward),
+      findsNothing,
+      reason: '生成中发送按钮应转菊花（禁用）',
+    );
     final hint = tester.widget<TextField>(input).decoration?.hintText;
     expect(hint, 'AI 正在思考，您可以先输入下一条消息…');
 
@@ -58,7 +62,11 @@ void main() {
     await tester.pump(); // generateReply 返回 + invalidate + 清除生成状态
     await tester.pump(); // 重建
     expect(find.text('AI 正在思考…'), findsNothing, reason: 'AI 回复到位后占位气泡应消失');
-    expect(find.byIcon(Icons.arrow_upward), findsOneWidget, reason: '生成完成后发送按钮恢复');
+    expect(
+      find.byIcon(Icons.arrow_upward),
+      findsOneWidget,
+      reason: '生成完成后发送按钮恢复',
+    );
     expect(tester.widget<TextField>(input).decoration?.hintText, '输入消息...');
   });
 }

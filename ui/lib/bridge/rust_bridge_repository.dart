@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart'
     show ExternalLibrary;
@@ -22,6 +23,15 @@ import 'generated.dart/frb_generated.dart';
 /// Rust bridge implementation of storage repository
 class RustBridgeRepository implements StorageRepository {
   final String? databasePath;
+
+  /// 是否启动周期性后台 worker（分析排空 + 知识消化）。
+  ///
+  /// 生产恒为 true。集成测试应传 false：worker 会在测试自己的 FFI 调用之间插入
+  /// `triggerAnalysis` / `_drainKnowledgeDigest` 等**写**操作，而每个 API 调用都各自
+  /// `Store::open` 一个新连接，于是两者抢同一个 SQLite 文件的锁，随事件循环交错
+  /// 时序随机撞出 `SQLITE_BUSY`——表现为「每次失败的用例和调用点都不同」。
+  /// 测试要推进队列时显式调 `triggerAnalysis()` 即可，不需要后台线程代替它。
+  final bool runBackgroundWorker;
   bool _initialized = false;
   bool _analysisWorkerRunning = false;
   bool _analysisWorkerScheduled = false;
@@ -29,12 +39,20 @@ class RustBridgeRepository implements StorageRepository {
   bool _disposed = false;
   Timer? _analysisTimer;
 
+  /// 后台知识消化进行中（标题栏 AI 活动指示订阅，见 [knowledgeDigestBusyProvider]）。
+  final ValueNotifier<bool> knowledgeDigestBusy = ValueNotifier(false);
+
   /// 打包成 .app（macOS DMG）后，frb 默认加载路径（CWD 相对的 ioDirectory /
   /// elsewhen.framework）在 Finder 启动时找不到 dylib——CWD 是 `/`。
   /// 这里显式从 app 包内 Frameworks 目录加载（打包脚本会把 libelsewhen.dylib
   /// 拷到 Contents/Frameworks/）。开发/测试环境下该文件不存在，返回 null
   /// 走 frb 默认加载链（ioDirectory = ../target/release/）。
   ExternalLibrary? _bundledRustLibrary() {
+    // Android：APK 内的 .so 不在文件系统上，dlopen 由系统 linker 完成
+    // （libelsewhen.so 打包在 APK lib/<abi>/ 下，见 android/app/build.gradle.kts）。
+    if (Platform.isAndroid) {
+      return ExternalLibrary.open('libelsewhen.so');
+    }
     if (!Platform.isMacOS) return null;
     final dylib =
         '${File(Platform.resolvedExecutable).parent.path}'
@@ -42,7 +60,7 @@ class RustBridgeRepository implements StorageRepository {
     return File(dylib).existsSync() ? ExternalLibrary.open(dylib) : null;
   }
 
-  RustBridgeRepository({this.databasePath});
+  RustBridgeRepository({this.databasePath, this.runBackgroundWorker = true});
 
   @override
   Future<void> initialize() async {
@@ -57,6 +75,7 @@ class RustBridgeRepository implements StorageRepository {
       throw StateError('初始化存储失败: $e');
     }
     _initialized = true;
+    if (!runBackgroundWorker) return;
     // Resume durable work after process restart. The timer also covers retry
     // backoff expiry and the Rust-side 50-job invocation bound.
     _analysisTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -221,6 +240,20 @@ class RustBridgeRepository implements StorageRepository {
   Future<api.AnalysisJobStatsDto> getAnalysisJobStats() =>
       api.getAnalysisJobStats();
 
+  Future<api.KnowledgeDigestStatsDto> getKnowledgeDigestStats() =>
+      api.getKnowledgeDigestStats();
+
+  /// 知识消化队列明细（只读）。[status] 为 null 时返回全部状态。
+  Future<List<api.KnowledgeDigestJobDto>> listKnowledgeDigestJobs({
+    String? status,
+    int limit = 200,
+  }) => api.listKnowledgeDigestJobs(status: status, limit: limit);
+
+  /// 知识消化运行日志（只读），按开始时间倒序。
+  Future<List<api.KnowledgeDigestRunDto>> listKnowledgeDigestRuns({
+    int limit = 100,
+  }) => api.listKnowledgeDigestRuns(limit: limit);
+
   @override
   Future<String?> getAiProvider() async {
     return await api.getAiProvider();
@@ -234,7 +267,7 @@ class RustBridgeRepository implements StorageRepository {
   /// Schedule analysis without making input persistence wait for the network.
   /// Multiple saves coalesce into one in-flight invocation.
   void _wakeAnalysisWorker() {
-    if (!_initialized || _disposed) return;
+    if (!_initialized || _disposed || !runBackgroundWorker) return;
     if (_analysisWorkerRunning) {
       _analysisRerunRequested = true;
       return;
@@ -260,14 +293,35 @@ class RustBridgeRepository implements StorageRepository {
             if (stats.pending == 0) break;
           }
         } while (_analysisRerunRequested && !_disposed);
-      } catch (_) {
+        // 分析排空后再做知识消化：同一 worker 串行，避免与分析并发调用 provider；
+        // 消化依赖分析结果（可记录性），先分析后消化也最省重试。
+        await _drainKnowledgeDigest();
+      } catch (e) {
         // Queue state remains durable; the next wake retries after startup or
         // the periodic timer without surfacing an error in the save path.
+        //
+        // 不上抛是有意的（保存路径不该被后台 worker 的失败带崩），但**完全静默**
+        // 不好：若每 tick 都因同一个原因失败（比如抢锁 BUSY），就会永远查不出来。
+        // 这里只记不抛，让问题在日志里留下痕迹。
+        debugPrint('analysis worker failed: $e');
       } finally {
+        knowledgeDigestBusy.value = false;
         _analysisWorkerRunning = false;
         if (_analysisRerunRequested) _wakeAnalysisWorker();
       }
     });
+  }
+
+  /// 逐批排空到期的知识消化任务（没有手动触发入口，只由 worker 调用）。
+  /// 有新输入时让位给分析队列（finally 会重新唤醒 worker）。
+  Future<void> _drainKnowledgeDigest() async {
+    while (!_disposed && !_analysisRerunRequested) {
+      knowledgeDigestBusy.value = true;
+      final result = await api.triggerKnowledgeDigest();
+      knowledgeDigestBusy.value = false;
+      // Idle / NoProvider / Failed 都停：失败已退避回队，由 timer 在到期后重试。
+      if (result is! api.KnowledgeDigestTickResult_Processed) break;
+    }
   }
 
   /// Stop lifecycle polling. Production keeps the repository for the process
@@ -776,4 +830,15 @@ class RustBridgeRepository implements StorageRepository {
 /// Storage repository provider
 final storageRepositoryProvider = Provider<StorageRepository>((ref) {
   return RustBridgeRepository();
+});
+
+/// 后台知识消化是否进行中（标题栏 AI 活动指示）。非桥接仓库（mock）恒为 false。
+final knowledgeDigestBusyProvider = Provider<bool>((ref) {
+  final repo = ref.watch(storageRepositoryProvider);
+  if (repo is! RustBridgeRepository) return false;
+  final busy = repo.knowledgeDigestBusy;
+  void onChange() => ref.invalidateSelf();
+  busy.addListener(onChange);
+  ref.onDispose(() => busy.removeListener(onChange));
+  return busy.value;
 });
