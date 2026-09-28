@@ -996,6 +996,7 @@ const DIGEST_SYSTEM_PROMPT: &str = r#"你是 elsewhen 个人知识库的 wiki �
 - slug：小写 kebab-case，格式 <kind 去下划线>/<简短名>，例如 recurring-cost/dongguan-huizhou-commute。
 - 已有页面需要更新时 op=update，给出【全文新内容】（基于旧内容增量修补，不丢失旧事实）。
 - 若事件没有产生任何新事实，返回空数组。
+- 每个页面变更的 source_event_ids 必须列出支撑它的事件编号（至少一个，只能用本次给出的编号）。
 - 宁缺毋滥：一条事件通常 0~1 个页面变更，最多 2 个。"#;
 
 /// LLM 返回的页面变更提议
@@ -1017,29 +1018,24 @@ pub struct DigestProposal {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Default)]
-pub struct DigestResult {
-    pub created: Vec<String>,
-    pub updated: Vec<String>,
-    pub skipped: Vec<String>,
-}
+/// 单批最多事件数与事件原文字符预算（提示词里还会附带索引与相关页全文）。
+const DIGEST_BATCH_MAX_EVENTS: usize = 20;
+const DIGEST_BATCH_MAX_CHARS: usize = 6000;
+/// 单条事件在提示词里的展示上限（超长事件单独成批时防止上下文失控）。
+const DIGEST_EVENT_MAX_CHARS: usize = 4000;
 
-pub struct DigestOptions {
-    pub days: i64,
-    pub max_events: usize,
-    pub dry_run: bool,
-    pub force: bool, // 忽略上次 digest 游标
-}
-
-impl Default for DigestOptions {
-    fn default() -> Self {
-        Self {
-            days: 7,
-            max_events: 80,
-            dry_run: false,
-            force: false,
-        }
-    }
+/// 后台知识消化一次 tick 的结果。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DigestTick {
+    /// 没有到期可消化的事件
+    Idle,
+    /// 一批事件消化成功（页面变更已与任务确认同事务落库）
+    Processed {
+        events: usize,
+        outcome: crate::storage::DigestBatchOutcome,
+    },
+    /// 本批失败：任务已按退避回队，原因已写入运行日志
+    Failed { events: usize, error: String },
 }
 
 fn build_digest_user_prompt(
@@ -1049,7 +1045,8 @@ fn build_digest_user_prompt(
 ) -> Result<String> {
     let mut out = String::from("这是等待消化的新事件（[编号] 时间 | 内容）：\n");
     for (i, e) in events.iter().enumerate() {
-        out.push_str(&format!("[{}] {} | {}\n", i + 1, e.recorded_at, e.raw_text));
+        let text: String = e.raw_text.chars().take(DIGEST_EVENT_MAX_CHARS).collect();
+        out.push_str(&format!("[{}] {} | {}\n", i + 1, e.recorded_at, text));
     }
 
     let pages = store.list_wiki_pages(None, None)?;
@@ -1108,117 +1105,113 @@ fn parse_proposals(reply: &str) -> Result<Vec<DigestProposal>> {
     )
 }
 
-/// 执行一次 digest：把最近事件消化成 wiki 页面变更（LLM 提议 + 核心确定性合并）。
-pub fn generate_digest(store: &Store, opts: &DigestOptions) -> Result<DigestResult> {
-    let days = opts.days;
-    let events = store.recent_event_records(days, opts.max_events)?;
-
-    // 只处理上次 digest 之后的事件（用游标；force 或没有游标时全量）
-    let cursor = store.get_meta("last_digest_at")?;
-    let fresh: Vec<EventRecord> = if opts.force || cursor.is_none() {
-        events
-    } else {
-        let cursor = cursor.unwrap();
-        events
-            .into_iter()
-            .filter(|e| e.recorded_at.as_str() > cursor.as_str())
-            .collect()
+/// 后台知识消化的一次 tick：整理队列 → 领取一批 → 模型提议 → 整批校验 → 单事务落库。
+///
+/// 由 GUI 的后台 worker 周期调用（见 `api::trigger_knowledge_digest`），没有手动触发入口。
+/// 模型失败、JSON 非法或任一提议不合法时整批不写入，任务按退避回队并记入运行日志。
+pub fn process_digest_queue(
+    store: &Store,
+    provider: &dyn AiProvider,
+    model: Option<&str>,
+) -> Result<DigestTick> {
+    store.settle_digest_queue()?;
+    let Some(batch) =
+        store.claim_digest_batch(DIGEST_BATCH_MAX_EVENTS, DIGEST_BATCH_MAX_CHARS, model)?
+    else {
+        return Ok(DigestTick::Idle);
     };
-
-    if fresh.is_empty() {
-        return Ok(DigestResult {
-            created: vec!["__no_new_events__".to_string()],
-            updated: Vec::new(),
-            skipped: Vec::new(),
-        });
-    }
-
-    let user = build_digest_user_prompt(&fresh, store, 8000)?;
-    let reply = call_provider(store, DIGEST_SYSTEM_PROMPT, &user, 3000)?;
-    if std::env::var("ELSEWHEN_DEBUG").is_ok() {
-        eprintln!("[debug] digest raw reply:\n{}", reply);
-    }
-    let proposals = parse_proposals(&reply)?;
-
-    let mut result = DigestResult::default();
-    if opts.dry_run {
-        // 预览模式：只展示提议，不写库
-        for p in &proposals {
-            let label = match validate_kind(&p.kind) && validate_slug(&p.slug) {
-                true => "OK",
-                false => "SKIP(非法 kind/slug)",
-            };
-            result
-                .skipped
-                .push(format!("[{}] {} {} {}", label, p.op, p.slug, p.title));
-        }
-        return Ok(result);
-    }
-
-    for p in &proposals {
-        if !validate_kind(&p.kind) || !validate_slug(&p.slug) || p.content.trim().is_empty() {
-            result
-                .skipped
-                .push(format!("非法提议: kind={} slug={}", p.kind, p.slug));
-            continue;
-        }
-        // 事件编号 → 真实事件 id（溯源）
-        let ids: Vec<String> = p
-            .source_event_ids
-            .iter()
-            .filter_map(|idx| {
-                idx.trim()
-                    .parse::<usize>()
-                    .ok()
-                    .and_then(|i| i.checked_sub(1))
+    let events = batch.events.len();
+    let applied = digest_batch_drafts(store, provider, &batch.events)
+        .and_then(|drafts| store.apply_digest_batch(&batch, &drafts));
+    match applied {
+        Ok(outcome) => Ok(DigestTick::Processed { events, outcome }),
+        Err(error) => {
+            let message = format!("{error:#}");
+            store.fail_digest_batch(&batch, &message)?;
+            Ok(DigestTick::Failed {
+                events,
+                error: message,
             })
-            .filter_map(|i| fresh.get(i))
-            .map(|e| e.id.clone())
-            .collect();
-
-        let draft = WikiPageDraft {
-            slug: p.slug.clone(),
-            kind: p.kind.clone(),
-            title: p.title.clone(),
-            summary: p.summary.clone(),
-            content_md: p.content.clone(),
-            tags: p.tags.clone(),
-            source_event_ids: ids.clone(),
-            status: "active".to_string(),
-            reason: p
-                .reason
-                .clone()
-                .unwrap_or_else(|| "digest 消化新事件".to_string()),
-            source_url: None,
-        };
-        let outcome = store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
-        if outcome.protected {
-            result
-                .skipped
-                .push(format!("human-edited, 仅累加证据: {}", p.slug));
-        } else if outcome.created {
-            result.created.push(p.slug.clone());
-        } else {
-            result.updated.push(p.slug.clone());
         }
     }
+}
 
-    if !result.created.is_empty() || !result.updated.is_empty() {
-        let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-        let created = result.created.join(", ");
-        let updated = result.updated.join(", ");
-        let mut entry = format!(
-            "## [{}] digest | created: {}; updated: {}",
-            date, created, updated
-        );
-        if updated.is_empty() {
-            entry = format!("## [{}] digest | created: {}", date, created);
-        }
-        store.append_wiki_log(&entry)?;
+/// 调模型取提议并整批校验，转换为页面草案；任一提议不合法即整批报错。
+fn digest_batch_drafts(
+    store: &Store,
+    provider: &dyn AiProvider,
+    events: &[EventRecord],
+) -> Result<Vec<WikiPageDraft>> {
+    let user = build_digest_user_prompt(events, store, 8000)?;
+    let reply = provider
+        .generate_reply(vec![
+            ContextMessage::new("system", DIGEST_SYSTEM_PROMPT.to_string()),
+            ContextMessage::new("user", user),
+        ])
+        .context("调用模型失败")?
+        .content;
+    let proposals = parse_proposals(&reply)?;
+    proposals
+        .iter()
+        .map(|p| proposal_to_draft(p, events))
+        .collect()
+}
+
+/// 单条提议 → 页面草案。来源编号必须全部落在本批且非空，禁止零来源页。
+fn proposal_to_draft(p: &DigestProposal, events: &[EventRecord]) -> Result<WikiPageDraft> {
+    if !validate_kind(&p.kind) || !validate_slug(&p.slug) || p.content.trim().is_empty() {
+        anyhow::bail!("提议不合法：kind={} slug={}", p.kind, p.slug);
     }
-    store.set_meta("last_digest_at", &chrono::Utc::now().to_rfc3339())?;
+    if p.source_event_ids.is_empty() {
+        anyhow::bail!("提议缺少来源事件编号：{}", p.slug);
+    }
+    let mut ids: Vec<String> = Vec::new();
+    for raw in &p.source_event_ids {
+        let event = raw
+            .trim()
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .parse::<usize>()
+            .ok()
+            .and_then(|n| n.checked_sub(1))
+            .and_then(|i| events.get(i))
+            .with_context(|| format!("提议 {} 引用了本批之外的事件编号：{raw}", p.slug))?;
+        if !ids.contains(&event.id) {
+            ids.push(event.id.clone());
+        }
+    }
+    Ok(WikiPageDraft {
+        slug: p.slug.clone(),
+        kind: p.kind.clone(),
+        title: p.title.clone(),
+        summary: p.summary.clone(),
+        content_md: p.content.clone(),
+        tags: p.tags.clone(),
+        source_event_ids: ids,
+        status: "active".to_string(),
+        reason: p
+            .reason
+            .clone()
+            .unwrap_or_else(|| "digest 消化新事件".to_string()),
+        source_url: None,
+    })
+}
 
-    Ok(result)
+/// 知识消化用的 provider：沿用当前启用配置，温度与输出上限固定为 digest 调参。
+/// 没有可用配置时返回 None（事件照常保存，任务等待）。
+pub fn digest_provider(store: &Store) -> Result<Option<(OpenAiCompatibleProvider, String)>> {
+    let Some(config) = store.active_ai_provider_config()? else {
+        return Ok(None);
+    };
+    let model = config.model.clone();
+    let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
+        base_url: config.base_url,
+        api_key: config.api_key,
+        model: config.model,
+        temperature: 0.3,
+        max_tokens: Some(3000),
+    })?;
+    Ok(Some((provider, model)))
 }
 
 // ── export：物化 markdown 树（可接 Obsidian）──────────────────────────────
@@ -1709,7 +1702,8 @@ mod tests {
     }
 
     #[test]
-    fn extract_tweet_id_parses_common_urls() {        assert_eq!(
+    fn extract_tweet_id_parses_common_urls() {
+        assert_eq!(
             extract_tweet_id("https://x.com/someone/status/123456789").as_deref(),
             Some("123456789")
         );

@@ -1186,12 +1186,14 @@ fn entity_merge_rejects_invalid_targets_and_undo_is_atomic_after_changes() {
     let _ = std::fs::remove_file(path);
 }
 
+/// `entity_merges` 对 `(entity_kind, source_slug)` **不设** UNIQUE。
+///
+/// 早期结构带这个唯一约束，导致同一个源实体第二次合并时插入直接失败。
+/// 约束是历史迁移拆表去掉的，现在固化在 `schema.sql` 里，所以这个测试盯住
+/// 「约束没被加回来」+「审计快照仍在」两件事。
 #[test]
-fn legacy_entity_merge_unique_constraint_is_migrated_without_losing_audit() {
+fn entity_merges_allows_repeated_merge_of_same_source_and_keeps_audit() {
     let path = temporary_database();
-    let connection = Connection::open(&path).unwrap();
-    connection.execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE entity_merges (id TEXT PRIMARY KEY,entity_kind TEXT NOT NULL,source_slug TEXT NOT NULL,target_slug TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(entity_kind,source_slug)); CREATE TABLE entity_merge_snapshots (merge_id TEXT NOT NULL,table_name TEXT NOT NULL,row_id TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(merge_id,table_name,row_id),FOREIGN KEY(merge_id) REFERENCES entity_merges(id) ON DELETE CASCADE); INSERT INTO entity_merges VALUES ('m1','person','person/a','person/b','2026-09-21'); INSERT INTO entity_merge_snapshots VALUES ('m1','entity_aliases','a1','{}');").unwrap();
-    drop(connection);
     let store = Store::open(&path).unwrap();
     let schema: String = store
         .connection
@@ -1204,22 +1206,29 @@ fn legacy_entity_merge_unique_constraint_is_migrated_without_losing_audit() {
     assert!(!schema
         .replace(' ', "")
         .contains("UNIQUE(entity_kind,source_slug)"));
-    assert_eq!(
-        store
+
+    // 同一源实体合并到两个不同目标，都应成功
+    store
+        .connection
+        .execute_batch(
+            "INSERT INTO entity_merges (id,entity_kind,source_slug,target_slug,created_at)
+               VALUES ('m1','person','person/a','person/b','2026-09-21');
+             INSERT INTO entity_merges (id,entity_kind,source_slug,target_slug,created_at)
+               VALUES ('m2','person','person/a','person/c','2026-09-22');
+             INSERT INTO entity_merge_snapshots (merge_id,table_name,row_id,payload)
+               VALUES ('m1','entity_aliases','a1','{}');
+             INSERT INTO entity_merge_snapshots (merge_id,table_name,row_id,payload)
+               VALUES ('m2','entity_aliases','a1','{}');",
+        )
+        .unwrap();
+
+    for (table, expected) in [("entity_merges", 2), ("entity_merge_snapshots", 2)] {
+        let n: i64 = store
             .connection
-            .query_row("SELECT count(*) FROM entity_merges", [], |r| r
-                .get::<_, i64>(0))
-            .unwrap(),
-        1
-    );
-    assert_eq!(
-        store
-            .connection
-            .query_row("SELECT count(*) FROM entity_merge_snapshots", [], |r| r
-                .get::<_, i64>(0))
-            .unwrap(),
-        1
-    );
+            .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(n, expected, "{table} 行数不对");
+    }
     drop(store);
     let _ = std::fs::remove_file(path);
 }
@@ -1295,43 +1304,36 @@ fn wiki_draft(slug: &str, kind: &str, content_md: &str) -> WikiPageDraft {
     }
 }
 
+/// 粘贴文本导入的笔记页：`note-` 前缀 + `kind='note'` + `area='imported'`。
+///
+/// 旧结构靠 v29 迁移回填存量页的 kind；现在没有版本链了，这个不变量改由
+/// `save_text_page` 的写入路径直接保证，所以测试也跟着移到写入侧。
 #[test]
-fn migration_v29_splits_note_kind_and_adds_columns() {
+fn imported_note_page_gets_note_prefix_kind_and_imported_area() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();
-    // 预置一条旧语义数据：note- 前缀但 kind=topic（升级前属于「用户粘贴笔记」）
-    store
-        .upsert_wiki_page(
-            &WikiPageDraft {
-                slug: "note-abc".to_string(),
-                kind: "topic".to_string(),
-                title: "旧笔记".to_string(),
-                summary: "s".to_string(),
-                content_md: "旧内容".to_string(),
-                tags: vec![],
-                source_event_ids: vec![],
-                status: "active".to_string(),
-                reason: "test".to_string(),
-                source_url: None,
-            },
-            ContentPolicy::Always,
-        )
-        .unwrap();
-    drop(store);
 
-    // 重新打开（触发 v29 迁移），存量数据应被修正为 kind='note'
-    let store = Store::open(&path).unwrap();
-    let page = store.get_wiki_page("note-abc").unwrap().unwrap();
-    assert_eq!(page.kind, "note", "note- 前缀旧页应被迁移为 note kind");
+    let page = crate::wiki::save_text_page(
+        "第一行标题\n\n正文内容",
+        None,
+        &["随手".to_string()],
+        &store,
+    )
+    .unwrap();
+
+    assert!(
+        page.slug.starts_with("note-"),
+        "笔记页 slug 应带 note- 前缀，实际 {}",
+        page.slug
+    );
+    assert_eq!(page.kind, "note", "笔记页 kind 应为 note");
+    assert_eq!(page.area, "imported", "note- 前缀应归入 imported 分区");
+    // 人工编辑时间与观点列存在且初始为空（v29 引入的两列）
     assert_eq!(page.human_edited_at, None);
     assert_eq!(page.opinion, None);
-    // 非 note- 前缀的 topic 页不受影响
-    store
-        .upsert_wiki_page(
-            &wiki_draft("topic/subject", "topic", "x"),
-            ContentPolicy::Always,
-        )
-        .unwrap();
+    assert!(page.tags.contains(&"note".to_string()), "note 锚点标签");
+
+    drop(store);
     let _ = std::fs::remove_file(path);
 }
 
@@ -1653,7 +1655,10 @@ fn update_project_path_validates_and_backfills_legacy_pages() {
         dir_a.display()
     );
     store
-        .upsert_wiki_page(&wiki_draft("project/a", "project", &content), ContentPolicy::Always)
+        .upsert_wiki_page(
+            &wiki_draft("project/a", "project", &content),
+            ContentPolicy::Always,
+        )
         .unwrap();
     // 新 open 触发幂等回填
     drop(store);
@@ -1687,7 +1692,10 @@ fn update_project_path_validates_and_backfills_legacy_pages() {
     assert!(!moved.content_md.contains(&dir_a.display().to_string()));
     // 非项目页拒绝
     store
-        .upsert_wiki_page(&wiki_draft("person/王五", "person", "x"), ContentPolicy::Always)
+        .upsert_wiki_page(
+            &wiki_draft("person/王五", "person", "x"),
+            ContentPolicy::Always,
+        )
         .unwrap();
     assert!(store
         .update_project_path("person/王五", &dir_b.display().to_string())
@@ -1795,30 +1803,11 @@ fn message_ordering_is_deterministic_on_same_timestamp() {
 }
 
 #[test]
-fn migration_v29_recovers_when_only_second_column_is_missing() {
+fn wiki_pages_schema_exposes_human_edited_at_and_opinion() {
     let path = temporary_database();
-    // 完整迁移建库（human_edited_at 与 opinion 两列都在）
-    {
-        let store = Store::open(&path).unwrap();
-        store
-            .upsert_wiki_page(&wiki_draft("note-abc", "topic", "x"), ContentPolicy::Always)
-            .unwrap();
-    }
-    // 模拟 v29 中断：human_edited_at 已加、opinion 未加（旧实现用 execute_batch
-    // 一次性 ALTER 两列，中途崩溃会留下只加了第一列的死状态；且守卫只看第一列，
-    // 下次 open 永久跳过第二列 → 所有 wiki SELECT 报 no such column）。
-    let conn = rusqlite::Connection::open(&path).unwrap();
-    conn.execute("ALTER TABLE wiki_pages DROP COLUMN opinion", [])
-        .unwrap();
-    // 模拟中断：v29 尚未落记录（旧实现中 ALTER 与版本记录在同一条
-    // execute_batch 里，两列间崩溃则两者都未提交）。
-    conn.execute("DELETE FROM schema_migrations WHERE version = 29", [])
-        .unwrap();
-    drop(conn);
-
-    // 重新打开：第二列应被单独补上，不再被第一列的存在性挡住。
     let store = Store::open(&path).unwrap();
-    let has_opinion = {
+    // v29 引入的这两列已固化进 schema.sql，读取路径不得因缺列而报错
+    let columns = {
         let mut statement = store
             .connection
             .prepare("PRAGMA table_info(wiki_pages)")
@@ -1828,12 +1817,22 @@ fn migration_v29_recovers_when_only_second_column_is_missing() {
             .unwrap()
             .collect::<rusqlite::Result<Vec<_>>>()
             .unwrap()
-            .iter()
-            .any(|name| name == "opinion")
     };
-    assert!(has_opinion, "中断后重开应补齐 opinion 列");
-    // 补齐后正常读取 wiki 页不再报错
-    let page = store.get_wiki_page("note-abc").unwrap().unwrap();
+    for expected in ["human_edited_at", "opinion"] {
+        assert!(
+            columns.iter().any(|name| name == expected),
+            "wiki_pages 缺 {expected} 列，现有列：{columns:?}"
+        );
+    }
+    store
+        .upsert_wiki_page(
+            &wiki_draft("topic/subject", "topic", "x"),
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    let page = store.get_wiki_page("topic/subject").unwrap().unwrap();
+    assert_eq!(page.human_edited_at, None);
     assert_eq!(page.opinion, None);
+    drop(store);
     let _ = std::fs::remove_file(path);
 }

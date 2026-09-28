@@ -501,8 +501,14 @@ fn list_events_carries_real_identity_and_meta() {
     assert_eq!(e.id, id, "事件 id 应来自数据库真实 id，而非伪造 UUID");
     assert!(!e.id.is_empty());
     assert_eq!(e.raw_text, "测试事件");
-    assert_eq!(e.status, "pending", "新事件默认 status 应为 pending，而非硬编码 completed");
-    assert_eq!(e.source, "capture", "NewEvent::now 的 source 应如实读出，而非 unknown");
+    assert_eq!(
+        e.status, "pending",
+        "新事件默认 status 应为 pending，而非硬编码 completed"
+    );
+    assert_eq!(
+        e.source, "capture",
+        "NewEvent::now 的 source 应如实读出，而非 unknown"
+    );
     assert!(!e.recorded_at.is_empty());
 
     let _ = std::fs::remove_file(path);

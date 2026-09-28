@@ -1,19 +1,31 @@
 mod adapter;
-mod migrations;
-mod provider;
-mod entities;
-mod wiki;
 mod conversations;
-mod records;
+mod digest;
+mod entities;
 mod events;
+mod new_migrations;
+mod provider;
+mod records;
+mod wiki;
 
 use crate::event::{EventSummary, NewEvent};
 use anyhow::{Context, Result};
-use rusqlite::{Connection, params};
-use std::path::Path;
+use rusqlite::{params, Connection};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+
+// Schema initialization is process-scoped, not API-call-scoped.  API entry
+// points still open short-lived connections, but only the first connection for
+// a database path performs migrations/backfills/checkpointing.
+static INITIALIZED_DATABASES: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
 pub use adapter::{
     AiProviderConfig, AiProviderConfigRow, AnalysisJob, AnalysisSummary, StorageAdapter,
+};
+pub use digest::{
+    DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
+    DIGEST_FAILED_COOLDOWN_SECS, DIGEST_MAX_ATTEMPTS, DIGEST_SETTLE_SECS, DIGEST_VERSION,
 };
 
 // Conversation and Message summary structs
@@ -456,7 +468,8 @@ pub(crate) fn map_wiki_page(row: &rusqlite::Row) -> rusqlite::Result<WikiPage> {
 
 /// wiki_pages 行 → WikiPage 的公共列清单。
 /// 顺序必须与 `map_wiki_page` 的按位取值（0..=19）严格一致。
-pub(crate) const WIKI_PAGE_COLS: &str = "id, slug, kind, title, summary, content_md, tags, source_event_ids, \
+pub(crate) const WIKI_PAGE_COLS: &str =
+    "id, slug, kind, title, summary, content_md, tags, source_event_ids, \
      evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at, source_url, \
      COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion";
 
@@ -475,35 +488,48 @@ impl Clone for Store {
 
 impl Store {
     pub fn open(path: &Path) -> Result<Self> {
-        let connection = Connection::open(path)
+        let mut connection = Connection::open(path)
             .with_context(|| format!("open SQLite database {}", path.display()))?;
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
-        // schema 与 30 个版本迁移抽到 storage::migrations（幂等、防中途崩溃）。
-        migrations::ensure_schema(&connection)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+        let initialized = INITIALIZED_DATABASES
+            .get_or_init(|| Mutex::new(HashSet::new()))
+            .lock()
+            .map_err(|_| anyhow::anyhow!("database initialization lock poisoned"))?;
+        let first_open = !initialized.contains(path);
+        if first_open {
+            // All databases use the embedded, transactional migration set.
+            new_migrations::initialize(&mut connection)?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+            }
         }
         let store = Self {
             connection,
             path: path.to_path_buf(),
         };
-        // 幂等存量回填：老项目页的 file:// 来源（只填空缺，无副作用）。
-        store.backfill_project_source_urls()?;
-        // WAL checkpoint：迁移与回填完成后立即把 WAL 收进主库文件，
-        // 避免长驻 GUI + spawn-per-call 写入导致 WAL 无限增长（P2-8）。
-        // PASSIVE 不阻塞其他连接；TRUNCATE 只能在无并发读者时收尾，这里用 PASSIVE 最安全。
-        let _ = store
-            .connection
-            .execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
+        if first_open {
+            // 启动期一次性完成存量回填和 WAL 收敛；普通 API 打开连接不再写库。
+            store.backfill_project_source_urls()?;
+            let _ = store
+                .connection
+                .execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
+        }
         Ok(store)
     }
 
+    /// Mark a database as initialized after the bridge startup sequence.
+    pub fn mark_initialized(path: &Path) -> Result<()> {
+        INITIALIZED_DATABASES
+            .get_or_init(|| Mutex::new(HashSet::new()))
+            .lock()
+            .map_err(|_| anyhow::anyhow!("database initialization lock poisoned"))?
+            .insert(path.to_path_buf());
+        Ok(())
+    }
 
     // ── LLM wiki：页面 / 修订 / 日志 / meta ────────────────────────────────
-
-
 
     /// 在知识库页面与个人事件记录中按关键词搜索
     pub fn search_knowledge_base(&self, query: &str, limit: usize) -> Result<Vec<KnowledgeHit>> {

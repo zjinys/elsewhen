@@ -3,7 +3,7 @@ name = "elsewhen"
 version = "0.1.0"
 edition = "2021"
 autobins = false
-description = "Local-first personal event recorder with global hotkey capture"
+description = "Local-first personal event system (Rust core for the Flutter app)"
 license = "MIT"
 # Flutter bridge library
 [lib]
@@ -14,11 +14,9 @@ anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 fontdb = "0.23"
 directories = "5"
-dotenvy = "0.15"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.39", features = ["bundled"] }
+rusqlite_migration = "2.5"
 uuid = { version = "1", features = ["v4", "serde"] }
-iced = { version = "0.14", default-features = true, features = ["svg"] }
-rdev = "0.5"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

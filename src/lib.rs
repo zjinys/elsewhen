@@ -16,4 +16,6 @@ pub mod api;
 
 // Tests
 #[cfg(test)]
+mod digest_tests;
+#[cfg(test)]
 mod storage_tests;

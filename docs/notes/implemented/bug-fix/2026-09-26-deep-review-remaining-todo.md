@@ -627,3 +627,71 @@ context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是�
 它们会切到 Skia，而 Skia 在本机同样失败，等于主动绕开唯一能工作的那条路。
 
 诊断代码已全部撤销（`lib/` 与 `my_application.cc` 均无残留，`flutter analyze` 干净）。
+
+## 迁移重写后的失败测试处置（2026-09-28）
+
+### 背景
+
+`migrations.rs`（v1–v31 版本链）已废弃，改为 `schema.sql` 全量建库 +
+`rusqlite_migration` 管理版本；`schema.sql` 由 `include_str!` 引入，是**构建必需
+文件**（此前一直未跟踪，等于构建依赖一个不在库里的文件）。`Store::open` 改为
+按库路径进程级只初始化一次（`INITIALIZED_DATABASES`）。
+
+废弃后 `cargo test` 194 passed / 4 failed。这 4 个失败全部是**测已删除的迁移过程**，
+不是测最终结构——`schema.sql` 已正确固化最终形态（`entity_merges` 无 UNIQUE、
+`wiki_pages` 含 `human_edited_at` / `opinion`）。
+
+### 处置原则
+
+不直接删测试。先判断每条断言的不变量**今天是否还成立**：成立就改写为对当前
+写入路径/当前 schema 的断言（保住回归网），不成立才删。
+
+| 测试 | 断言的不变量 | 处置 |
+|---|---|---|
+| `migration_v29_splits_note_kind_and_adds_columns` | `note-` 页 kind 应为 note | 改写 → `imported_note_page_gets_note_prefix_kind_and_imported_area`（改测 `save_text_page` 写入侧） |
+| `legacy_entity_merge_unique_constraint_is_migrated_without_losing_audit` | `entity_merges` 不得有 UNIQUE | 改写 → `entity_merges_allows_repeated_merge_of_same_source_and_keeps_audit` |
+| `migration_v29_recovers_when_only_second_column_is_missing` | 迁移中断后重开补齐第二列 | 删除（无版本链即无「中断」可言），仅保留列存在性 → `wiki_pages_schema_exposes_human_edited_at_and_opinion` |
+| `digest migration_backfills_existing_events_once` | 存量事件开库时全量入队 | 改写 → `every_event_is_enqueued_once_at_insert_and_open_never_duplicates` |
+
+两删两改写，净 194 → 198，全绿。
+
+### 改写过程中被测试纠正的三处认知
+
+1. `note-` 前缀 + `kind='note'` 现在由 `save_text_page`（`src/wiki.rs:572`）写入时
+   直接指定，不再依赖迁移回填。测试跟着移到写入侧才是真的。
+2. `digest` 队列表**有沉淀窗**：事件落库即入队，但 `available_at` 在未来，不立即
+   可领取。原测试那句「立即可领取」是针对 v31 回填路径的，抄到新路径上就错。
+3. `TempStore` 实现了 `Drop`（连带删文件），不能 `drop(t.store)` 再重开；直接并存
+   两个连接即可验证「重复开库不重复入队」。
+
+### 回归网有效性：变异测试
+
+改写后的测试必须能抓回归，否则只是把断言搬了个地方。做了两次变异确认：
+- `schema.sql` 把 `UNIQUE(entity_kind, source_slug)` 加回 → 新测试 **FAILED**
+- `save_text_page` 的 `kind` 改成 `"topic"` → 新测试 **FAILED**
+
+两次变异均已还原（`schema.sql` 匹配数 0、`wiki.rs:572` 恢复为 `"note"`）。
+
+### 提交范围：用 worktree 验证闭包，而不是猜
+
+本次提交要含「迁移重写 + digest 功能 + 测试修复」，但工作区有 99 个文件被改
+（含并行会话的 api 拆分、Flutter 生成物、脚本等）。**按文件列表猜闭包会错**——
+第一版按 digest 符号引用猜，漏了 `src/config.rs`（`pin`/`unpin`/`test_env_guard`），
+`cargo check` 报 3 个 `E0425`。
+
+改用实测：`git worktree add --detach` 到 HEAD，逐批叠加候选文件并跑
+`cargo check --all-targets`，直到零错误。最终闭包 = **22 个路径**
+（13 改 / 5 删 / 4 新 + `schema.sql`），`cargo test --all-targets` 198/198。
+
+**留在工作区未提交**（闭包外）：`src/ai/*`、`src/api/theme.rs`、`src/fonts.rs`、
+`src/local_sources.rs`、`src/storage/{conversations,entities,provider,records}.rs`、
+全部 `ui/**`、`docs/**`、`scripts/**`、`Cargo.toml` 之外的构建脚本改动。
+
+### 遗留
+
+- `schema.sql` 现已入库（它此前未跟踪却是构建必需——本 commit 修掉了这个隐患）。
+- 旧库（`user_version=0` 且已有表）在新 bootstrap 下会因 `schema.sql` 裸 `CREATE`
+  报错。**用户明确表示不考虑旧库**（计划走导出/导入重建）。若日后要支持，
+  正确做法是让 `schema.sql` 自身幂等（加 `IF NOT EXISTS`），而**不是**在 Rust 侧
+  自建「这是新库还是旧库」的判断去绕开 `rusqlite_migration`——后者是本轮走过的弯路。
+

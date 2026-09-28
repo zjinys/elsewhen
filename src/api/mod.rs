@@ -1,33 +1,35 @@
-pub mod fonts;
-pub mod todos;
-pub mod theme;
-pub mod wiki;
-pub mod relations;
-pub mod tweet;
-pub mod import;
-pub mod wiki_chat;
-pub mod provider_config;
-pub mod entities;
-pub mod rules;
 pub mod conversations;
-pub use fonts::*;
-pub use todos::*;
-pub use theme::*;
-pub use wiki::*;
-pub use relations::*;
-pub use tweet::*;
-pub use import::*;
-pub use wiki_chat::*;
-pub use provider_config::*;
-pub use entities::*;
-pub use rules::*;
-pub use conversations::*;
+pub mod entities;
+pub mod fonts;
+pub mod import;
+pub mod knowledge_digest;
+pub mod provider_config;
+pub mod relations;
+pub mod rules;
+pub mod theme;
+pub mod todos;
+pub mod tweet;
+pub mod wiki;
+pub mod wiki_chat;
 use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
 use crate::event::NewEvent;
 use crate::storage::Store;
 use anyhow::{Context, Result};
+pub use conversations::*;
+pub use entities::*;
+pub use fonts::*;
+pub use import::*;
+pub use knowledge_digest::*;
+pub use provider_config::*;
+pub use relations::*;
+pub use rules::*;
 use serde::{Deserialize, Serialize};
+pub use theme::*;
+pub use todos::*;
+pub use tweet::*;
+pub use wiki::*;
+pub use wiki_chat::*;
 
 const EVENT_ANALYSIS_VERSION: &str = "event-analysis";
 const LEGACY_EVENT_ANALYSIS_V1: &str = "event-analysis-v1";
@@ -330,24 +332,27 @@ pub enum DailyReviewResult {
     NoProvider,
     /// 当天没有可记录内容，未生成回顾
     NoEntries,
-    Created { id: String },
+    Created {
+        id: String,
+    },
 }
 
 /// Initialize the bridge with database path
 pub fn init_bridge(database_path: Option<String>) -> Result<String> {
-    // Bridge API calls independently open Store instances through AppConfig.
-    // Persist an explicit override in the process environment so every later
-    // call uses the same database selected at initialization. This is also the
-    // isolation boundary used by Flutter integration tests.
-    if let Some(path) = database_path.as_deref() {
-        std::env::set_var("ELSEWHEN_DATA_DIR", path);
-    }
-
-    let config = crate::config::AppConfig::load()
-        .map_err(|e| anyhow::anyhow!("Error loading config: {e}"))?;
+    // 库路径在进程内钉死（见 config::AppConfig::pin）：早前这里是
+    // `std::env::set_var("ELSEWHEN_DATA_DIR", ...)`，而每个 API 函数都重读该环境变量，
+    // 于是运行时任何代码都能改写数据源，且 `flutter test` 下并发 suite 会互相覆盖
+    // 路径、打开同一个库并随机撞出 SQLITE_BUSY。
+    let config = crate::config::AppConfig::pin(database_path.as_deref())
+        .map_err(|e| anyhow::anyhow!("Error resolving data directory: {e}"))?;
     Store::open(&config.database_path)
-        .and_then(|store| store.recover_interrupted_analysis_jobs().map(|_| ()))
-        .map_err(|e| anyhow::anyhow!("Error recovering analysis queue: {e}"))?;
+        .and_then(|store| {
+            store.recover_interrupted_analysis_jobs()?;
+            store.recover_interrupted_digest_jobs()?;
+            Store::mark_initialized(&config.database_path)?;
+            Ok(())
+        })
+        .map_err(|e| anyhow::anyhow!("Error recovering background queues: {e}"))?;
     Ok(config.database_path.display().to_string())
 }
 
@@ -1022,16 +1027,10 @@ mod analysis_tests {
         let provider = StubProvider(Some(
             r#"{"schema_version":"event-analysis-v1","event_type":"note","confidence":0.8,"summary":"test","clarifications":[],"people":[],"projects":[],"follow_ups":[]}"#,
         ));
-        assert_eq!(
-            process_analysis_queue(&store, &provider).unwrap(),
-            2
-        );
+        assert_eq!(process_analysis_queue(&store, &provider).unwrap(), 2);
         assert_eq!(store.analysis_job_stats().unwrap().succeeded, 2);
         assert_eq!(store.list_analyses().unwrap().len(), 2);
-        assert_eq!(
-            process_analysis_queue(&store, &provider).unwrap(),
-            0
-        );
+        assert_eq!(process_analysis_queue(&store, &provider).unwrap(), 0);
         assert_eq!(store.list_analyses().unwrap().len(), 2);
         drop(store);
         let _ = std::fs::remove_file(path);
@@ -1223,17 +1222,27 @@ mod record_event_tests {
 
     /// 仅在测试内把 ELSEWHEN_DATA_DIR 指向临时目录，Drop 时恢复原值，
     /// 避免并行测试读到被污染的全局环境变量。Rust 测试默认并行运行。
-    struct DataDirGuard(Option<String>);
+    ///
+    /// 同时清掉 `config` 的钉死值：`AppConfig::pin` 之后库路径在进程内固定，而
+    /// 这里每个用例都要换目录，不清就会静默读到上一个用例的库。
+    struct DataDirGuard {
+        prev: Option<String>,
+        /// 持有 config 的测试锁到 Drop：见 `config::test_env_guard`。
+        _lock: std::sync::MutexGuard<'static, ()>,
+    }
     impl DataDirGuard {
         fn set(dir: &std::path::Path) -> Self {
+            let lock = crate::config::test_env_guard();
+            crate::config::unpin();
             let prev = std::env::var("ELSEWHEN_DATA_DIR").ok();
             std::env::set_var("ELSEWHEN_DATA_DIR", dir);
-            Self(prev)
+            Self { prev, _lock: lock }
         }
     }
     impl Drop for DataDirGuard {
         fn drop(&mut self) {
-            match &self.0 {
+            crate::config::unpin();
+            match &self.prev {
                 Some(v) => std::env::set_var("ELSEWHEN_DATA_DIR", v),
                 None => std::env::remove_var("ELSEWHEN_DATA_DIR"),
             }
@@ -1253,7 +1262,10 @@ mod record_event_tests {
         let guard = DataDirGuard::set(&dir);
 
         let dto = record_event("GUI 快录一条事件".to_string()).unwrap();
-        assert_eq!(dto.source, "flutter_gui", "record_event DTO 应声明 GUI 快录路径");
+        assert_eq!(
+            dto.source, "flutter_gui",
+            "record_event DTO 应声明 GUI 快录路径"
+        );
         assert_eq!(dto.status, "pending");
 
         let rows = list_events().unwrap();
