@@ -276,9 +276,9 @@ pub fn generate_conversation_reply(
                 // jittered backoff，避免每次会话请求都同一瞬间锤向这批端点
                 // （P2 retry backoff；Dart 侧 5s timer 只控制 tick，拦不住
                 // 同 tick 内的连环 failover）。
-                std::thread::sleep(std::time::Duration::from_millis(
-                    jitter_backoff_ms(errors.len()),
-                ));
+                std::thread::sleep(std::time::Duration::from_millis(jitter_backoff_ms(
+                    errors.len(),
+                )));
             }
         }
     }
@@ -384,6 +384,24 @@ fn direct_query(store: &Store, user_message: &str) -> Result<Option<(String, Str
             }
         }
         return Ok(Some(("个人规则库".to_string(), out)));
+    }
+
+    // 人生目标/主要任务是本地知识库中的稳定事实，不能依赖模型自行决定
+    // 是否调用搜索工具，更不能受当前对话记忆窗口限制。
+    let wants_goals = ["人生目标", "主要目标", "当前目标", "主要任务", "长期目标", "我想做什么", "搞钱"]
+        .iter()
+        .any(|keyword| msg.contains(keyword));
+    if wants_goals {
+        let hits = store.search_knowledge_base("目标", 8)?;
+        let mut out = String::from("知识库中的目标相关页面：\n");
+        if hits.is_empty() {
+            out.push_str("（暂未找到目标页面）");
+        } else {
+            for hit in hits {
+                out.push_str(&format!("- 《{}》：{}\n", hit.title, hit.snippet));
+            }
+        }
+        return Ok(Some(("当前目标".to_string(), out)));
     }
 
     Ok(None)
@@ -515,7 +533,9 @@ fn run_agent_loop_inner(
                     debug_eprintln!("[agent] 请求失败({e})，回落纯文本协议重试");
                     // 回退前小退避：原生协议刚软失败，紧随的文本重试可能命中
                     // 同一瞬限流；仅首次硬失败后触发，成功路径零开销（P2 backoff）。
-                    std::thread::sleep(std::time::Duration::from_millis(PROTOCOL_FALLBACK_SLEEP_MS));
+                    std::thread::sleep(std::time::Duration::from_millis(
+                        PROTOCOL_FALLBACK_SLEEP_MS,
+                    ));
                     provider.generate_reply(context.clone())?
                 } else {
                     debug_eprintln!("[agent] 纯文本协议请求也失败：{e}");
@@ -601,9 +621,7 @@ fn run_agent_loop_inner(
             && tool_call_attempt_detected(&reply.content, &tool_names)
         {
             repairs_used += 1;
-            debug_eprintln!(
-                "[agent] 疑似工具调用但无法解析，回炉重发 (repair {repairs_used})"
-            );
+            debug_eprintln!("[agent] 疑似工具调用但无法解析，回炉重发 (repair {repairs_used})");
             context.push(ContextMessage::new("assistant", reply.content));
             context.push(ContextMessage::new("system", PROTOCOL_REPAIR_NUDGE));
             continue;
@@ -717,7 +735,9 @@ fn parse_xml_tool_calls(content: &str) -> (String, Vec<ToolCall>) {
         let after_open = start + OPEN.len();
         // 工具名：紧跟其后的文本，直到下一个 `<`
         let name_end_rel = cur[after_open..].find('<');
-        let Some(name_end_rel) = name_end_rel else { break };
+        let Some(name_end_rel) = name_end_rel else {
+            break;
+        };
         let name = cur[after_open..after_open + name_end_rel].trim();
         if name.is_empty() {
             break;
@@ -741,8 +761,7 @@ fn parse_xml_tool_calls(content: &str) -> (String, Vec<ToolCall>) {
             if !cur[v_open..].trim_start().starts_with(VAL_OPEN) {
                 break;
             }
-            let v_start =
-                v_open + cur[v_open..].find(VAL_OPEN).unwrap_or(0) + VAL_OPEN.len();
+            let v_start = v_open + cur[v_open..].find(VAL_OPEN).unwrap_or(0) + VAL_OPEN.len();
             let Some(v_end_rel) = cur[v_start..].find(VAL_CLOSE) else {
                 break;
             };
@@ -758,7 +777,9 @@ fn parse_xml_tool_calls(content: &str) -> (String, Vec<ToolCall>) {
         }
         // 闭合标签：参数之后只允许空白
         let tail = &cur[pos..];
-        let Some(close_rel) = tail.find(CLOSE) else { break };
+        let Some(close_rel) = tail.find(CLOSE) else {
+            break;
+        };
         if !tail[..close_rel].trim().is_empty() {
             break;
         }
@@ -815,7 +836,13 @@ enum ClaimVerdict {
 /// 从回复中提取被声称的实体标题（「」/『』/《》/""/'' 配对引号）。
 /// 本应用的写声明几乎总是引用标题（法医语料全部命中），比动词关键词稳定得多。
 fn extract_claimed_titles(content: &str) -> Vec<String> {
-    const PAIRS: &[(char, char)] = &[('「', '」'), ('『', '』'), ('《', '》'), ('"', '"'), ('\'', '\'')];
+    const PAIRS: &[(char, char)] = &[
+        ('「', '」'),
+        ('『', '』'),
+        ('《', '》'),
+        ('"', '"'),
+        ('\'', '\''),
+    ];
     let mut titles = Vec::new();
     for &(open, close) in PAIRS {
         let mut rest = content;
@@ -824,9 +851,7 @@ fn extract_claimed_titles(content: &str) -> Vec<String> {
             if let Some(end) = after.find(close) {
                 let title = after[..end].trim();
                 // 过滤单字虚词（「好」/「不要」等多为正文引用，不是实体标题）
-                if title.chars().count() >= 2
-                    && !titles.iter().any(|t: &String| t == title)
-                {
+                if title.chars().count() >= 2 && !titles.iter().any(|t: &String| t == title) {
                     titles.push(title.to_string());
                 }
                 rest = &after[end + close.len_utf8()..];
@@ -972,8 +997,7 @@ fn write_claim_detected(content: &str) -> bool {
     const GUARDS: &[&str] = &[
         "搜", "没有", "还没", "失败", "是否", "如果", "假如", "？", "?",
     ];
-    CLAIMS.iter().any(|c| content.contains(c))
-        && !GUARDS.iter().any(|g| content.contains(g))
+    CLAIMS.iter().any(|c| content.contains(c)) && !GUARDS.iter().any(|g| content.contains(g))
 }
 
 /// 用户文本是否表达写意图（存/建/记/归档类）。疑问句式（…吗/？）是在问状态，不是下指令。
@@ -1669,10 +1693,7 @@ mod tests {
         let content = "[工具调用]{\"name\":\"get_wiki_page\"";
         let (clean, calls) = parse_tool_call_envelope(content);
         assert!(calls.is_empty(), "非法 JSON 不应被解析");
-        assert!(
-            !clean.contains("[工具调用]"),
-            "残留标记应被剥离: {clean}"
-        );
+        assert!(!clean.contains("[工具调用]"), "残留标记应被剥离: {clean}");
     }
 
     #[test]
@@ -1705,10 +1726,7 @@ mod tests {
             !clean.contains("tool_call") && !clean.contains("arg_"),
             "调用块应被整体剥离: {clean}"
         );
-        assert!(
-            clean.contains("关于小生意"),
-            "其余文本应保留: {clean}"
-        );
+        assert!(clean.contains("关于小生意"), "其余文本应保留: {clean}");
     }
 
     #[test]
@@ -1733,10 +1751,7 @@ mod tests {
         ] {
             let (clean, calls) = parse_tool_call_envelope(content);
             assert!(calls.is_empty(), "残缺块不应被解析: {content}");
-            assert!(
-                !clean.contains("tool_call"),
-                "残留标记应被剥离: {clean}"
-            );
+            assert!(!clean.contains("tool_call"), "残留标记应被剥离: {clean}");
         }
     }
 
@@ -1771,7 +1786,10 @@ mod tests {
             &names
         ));
         // 普通正文 → 不命中
-        assert!(!tool_call_attempt_detected("今天天气不错，适合出门", &names));
+        assert!(!tool_call_attempt_detected(
+            "今天天气不错，适合出门",
+            &names
+        ));
     }
 
     #[test]
@@ -1793,7 +1811,15 @@ mod tests {
             )),
             Ok(AiReply::text("规则库查好了。")),
         ]);
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
         assert_eq!(outcome.content, "规则库查好了。");
         // 回炉提示确已下发（不是静默吞掉）
         assert!(
@@ -1858,8 +1884,15 @@ mod tests {
             // 落定：诚实回复（无完成声明，直接收敛）
             Ok(AiReply::text("草拟好了，标题「感悟」。回「好」我就存。")),
         ]);
-        let outcome =
-            run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
         assert_eq!(outcome.content, "草拟好了，标题「感悟」。回「好」我就存。");
         // 纠正提示确已下发
         assert!(
@@ -1868,10 +1901,7 @@ mod tests {
         );
         // 草稿确已登记（纠正后真的调了工具，不是换一句谎言）
         assert_eq!(
-            store
-                .pending_actions_for_conversation(&conv)
-                .unwrap()
-                .len(),
+            store.pending_actions_for_conversation(&conv).unwrap().len(),
             1
         );
         drop(store);
@@ -1910,7 +1940,9 @@ mod tests {
 
         // 本轮写入：turn_start 卡在写入之前 → Clean
         let before = chrono::Utc::now();
-        store.upsert_wiki_page(&mk("kb-new-1", "本轮新页"), ContentPolicy::Always).unwrap();
+        store
+            .upsert_wiki_page(&mk("kb-new-1", "本轮新页"), ContentPolicy::Always)
+            .unwrap();
         let v = verify_claimed_writes(&store, &conv, &["本轮新页".to_string()], before).unwrap();
         assert!(matches!(v, ClaimVerdict::Clean), "{v:?}");
 
@@ -1927,13 +1959,8 @@ mod tests {
                 &serde_json::json!({"title": "草稿页", "content_md": "x"}).to_string(),
             )
             .unwrap();
-        let v = verify_claimed_writes(
-            &store,
-            &conv,
-            &["草稿页".to_string()],
-            chrono::Utc::now(),
-        )
-        .unwrap();
+        let v = verify_claimed_writes(&store, &conv, &["草稿页".to_string()], chrono::Utc::now())
+            .unwrap();
         assert!(matches!(v, ClaimVerdict::DraftOnly(_)), "{v:?}");
 
         // 查无此页：Unproven
@@ -1969,7 +1996,15 @@ mod tests {
             Ok(AiReply::text("规则库查好了。")),
         ]);
 
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
         assert_eq!(outcome.content, "规则库查好了。");
         assert!(
             provider.saw_tools_on_first_call(),
@@ -2011,7 +2046,15 @@ mod tests {
             Ok(AiReply::text("最近没有 AI 调用记录。")),
         ]);
 
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
         assert_eq!(outcome.content, "最近没有 AI 调用记录。");
 
         // 文本协议下工具结果以 system 角色注入
@@ -2037,7 +2080,15 @@ mod tests {
         let registry = ToolRegistry::default();
 
         let provider = ScriptedProvider::new(vec![Ok(AiReply::text("你好呀。"))]);
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
         assert_eq!(outcome.content, "你好呀。");
         drop(store);
         let _ = std::fs::remove_file(path);
@@ -2056,7 +2107,15 @@ mod tests {
             Ok(AiReply::text("最近没有 AI 调用记录。")),
         ]);
 
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
         assert_eq!(outcome.content, "最近没有 AI 调用记录。");
         assert!(provider.saw_tools_on_first_call(), "首轮仍应尝试原生工具");
         drop(store);
@@ -2299,9 +2358,7 @@ mod tests {
             "把这条存进知识库",
         ] {
             assert!(
-                direct_query(&store, q)
-                    .expect("直查不报错")
-                    .is_none(),
+                direct_query(&store, q).expect("直查不报错").is_none(),
                 "不应命中: {q}"
             );
         }
@@ -2323,7 +2380,15 @@ mod tests {
             Ok(AiReply::text("最近 7 天没有 AI 调用记录。")),
         ]);
 
-        let outcome = run_agent_loop(&provider, &mut context, &registry, &store, &conv, chrono::Utc::now()).unwrap();
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
         assert_eq!(outcome.content, "最近 7 天没有 AI 调用记录。");
         assert!(provider.saw_tools_on_first_call(), "首轮仍应尝试原生工具");
         drop(store);
