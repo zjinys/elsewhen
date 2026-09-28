@@ -738,11 +738,11 @@ impl Tool for SaveKnowledgeDraftTool {
                 existing.title, existing.slug
             ));
         }
-        if ctx.store.pending_action_for_title(
-            ctx.conversation_id,
-            "save_knowledge_draft",
-            &title,
-        )?.is_some() {
+        if ctx
+            .store
+            .pending_action_for_title(ctx.conversation_id, "save_knowledge_draft", &title)?
+            .is_some()
+        {
             return Ok(format!(
                 "《{}》已经有一份待确认草稿（尚未保存），本次不重复创建。回复「好」即可保存这一份。",
                 title

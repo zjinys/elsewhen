@@ -1053,7 +1053,10 @@ pub fn refresh_project_page(store: &Store, slug: &str) -> Result<WikiPage> {
         .get_wiki_page(slug)?
         .with_context(|| format!("知识页不存在：{slug}"))?;
     if page.kind != "project" {
-        anyhow::bail!("只有项目页（kind=project）支持刷新重扫，当前 kind={}", page.kind);
+        anyhow::bail!(
+            "只有项目页（kind=project）支持刷新重扫，当前 kind={}",
+            page.kind
+        );
     }
     let url = page.source_url.clone().unwrap_or_default();
     let Some(directory) = crate::wiki::file_url_to_path(&url) else {

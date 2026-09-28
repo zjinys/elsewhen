@@ -1,7 +1,7 @@
 //! 主题偏好 FRB 门面。
 
-use anyhow::Result;
 use crate::storage::Store;
+use anyhow::Result;
 
 /// 主题偏好 DTO（设置页「外观」：模式 + 预设 + 字体 + 正文字号；存 app_meta。
 /// 后三项为编辑器内容区覆盖层，None = 跟随全局，见两层覆盖模型）

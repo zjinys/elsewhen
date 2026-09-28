@@ -273,11 +273,19 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
     }
 
     let mut systems = context.iter().filter(|m| m.role == "system");
-    let Some(primary) = systems.next().cloned() else { return };
-    let mut history: Vec<_> = context.iter().filter(|m| m.role != "system").cloned().collect();
+    let Some(primary) = systems.next().cloned() else {
+        return;
+    };
+    let mut history: Vec<_> = context
+        .iter()
+        .filter(|m| m.role != "system")
+        .cloned()
+        .collect();
     // The latest user request is non-negotiable; never let a long page body
     // or a subsequent system injection displace it.
-    let Some(latest_user) = history.iter().rposition(|m| m.role == "user") else { return };
+    let Some(latest_user) = history.iter().rposition(|m| m.role == "user") else {
+        return;
+    };
     let current = history.split_off(latest_user);
     let current_tokens: usize = current.iter().map(|m| estimate_tokens(&m.content)).sum();
     let mut remaining = max_tokens
@@ -289,7 +297,9 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
     // at most half the remaining budget, preserving the start of each message.
     let mut dynamic_budget = remaining / 2;
     for source in systems {
-        if dynamic_budget == 0 { break; }
+        if dynamic_budget == 0 {
+            break;
+        }
         let mut message = source.clone();
         let tokens = estimate_tokens(&message.content);
         if tokens > dynamic_budget {
@@ -305,7 +315,10 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
     let mut kept = Vec::new();
     while let Some(message) = history.pop() {
         let cost = estimate_tokens(&message.content);
-        if cost > remaining { history.push(message); break; }
+        if cost > remaining {
+            history.push(message);
+            break;
+        }
         remaining -= cost;
         kept.push(message);
     }
@@ -313,9 +326,15 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
         let prefix = "（自动压缩的较早对话，仅供回忆）\n";
         let mut summary = prefix.to_string();
         for message in history {
-            let label = if message.role == "user" { "用户：" } else { "助手：" };
+            let label = if message.role == "user" {
+                "用户："
+            } else {
+                "助手："
+            };
             let room = remaining.saturating_sub(estimate_tokens(&summary) + 2);
-            if room < 8 { break; }
+            if room < 8 {
+                break;
+            }
             summary.push_str(label);
             summary.extend(message.content.chars().take((room * 2).min(160)));
             summary.push('\n');
@@ -408,21 +427,26 @@ mod tests {
     fn compress_context_preserves_system_and_latest_turns() {
         let mut context = vec![
             ContextMessage::new("system", "system prompt"),
-            ContextMessage::new("user", "很早以前的背景 " .repeat(80)),
-            ContextMessage::new("assistant", "很早以前的回答 " .repeat(80)),
+            ContextMessage::new("user", "很早以前的背景 ".repeat(80)),
+            ContextMessage::new("assistant", "很早以前的回答 ".repeat(80)),
             ContextMessage::new("user", "当前问题"),
         ];
 
         compress_context(&mut context, 40);
 
-        assert_eq!(context.first().map(|m| m.content.as_str()), Some("system prompt"));
+        assert_eq!(
+            context.first().map(|m| m.content.as_str()),
+            Some("system prompt")
+        );
         assert!(context.iter().any(|m| m.content == "当前问题"));
         assert!(context.iter().any(|m| m.content.contains("自动压缩")));
-        assert!(context
-            .iter()
-            .map(|m| estimate_tokens(&m.content))
-            .sum::<usize>()
-            <= 40);
+        assert!(
+            context
+                .iter()
+                .map(|m| estimate_tokens(&m.content))
+                .sum::<usize>()
+                <= 40
+        );
     }
 
     #[test]
@@ -441,7 +465,13 @@ mod tests {
         assert_eq!(context[0].content, primary);
         assert_eq!(context.last().unwrap().content, question);
         assert!(context.iter().any(|m| m.content.starts_with("页面正文：")));
-        assert!(context.iter().map(|m| estimate_tokens(&m.content)).sum::<usize>() <= 80);
+        assert!(
+            context
+                .iter()
+                .map(|m| estimate_tokens(&m.content))
+                .sum::<usize>()
+                <= 80
+        );
     }
 
     #[test]

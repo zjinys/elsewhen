@@ -226,18 +226,38 @@ fn confirm_knowledge_draft_only_executes_selected_action_once() {
     let (store, path) = temp_db();
     let conv = store.create_conversation(Some("t"), None).unwrap();
     let other_conv = store.create_conversation(Some("other"), None).unwrap();
-    let draft_id = store.create_pending_action(&conv, "save_knowledge_draft",
-        &json!({"title":"闲鱼卖 CM4", "content_md":"完整正文", "kind":"topic"}).to_string()).unwrap();
-    let todo_id = store.create_pending_action(&conv, "create_todo",
-        &json!({"title":"其他待办"}).to_string()).unwrap();
+    let draft_id = store
+        .create_pending_action(
+            &conv,
+            "save_knowledge_draft",
+            &json!({"title":"闲鱼卖 CM4", "content_md":"完整正文", "kind":"topic"}).to_string(),
+        )
+        .unwrap();
+    let todo_id = store
+        .create_pending_action(
+            &conv,
+            "create_todo",
+            &json!({"title":"其他待办"}).to_string(),
+        )
+        .unwrap();
 
     assert!(confirm_knowledge_draft(&store, &other_conv, &draft_id).is_err());
     assert!(confirm_knowledge_draft(&store, &conv, &todo_id).is_err());
-    assert_eq!(store.pending_actions_for_conversation(&conv).unwrap().len(), 2);
+    assert_eq!(
+        store.pending_actions_for_conversation(&conv).unwrap().len(),
+        2
+    );
 
     let result = confirm_knowledge_draft(&store, &conv, &draft_id).unwrap();
     assert!(result.contains("slug="), "{result}");
-    assert_eq!(store.find_wiki_page_by_title("闲鱼卖 CM4").unwrap().unwrap().content_md, "完整正文");
+    assert_eq!(
+        store
+            .find_wiki_page_by_title("闲鱼卖 CM4")
+            .unwrap()
+            .unwrap()
+            .content_md,
+        "完整正文"
+    );
     assert!(confirm_knowledge_draft(&store, &conv, &draft_id).is_err());
     let remaining = store.pending_actions_for_conversation(&conv).unwrap();
     assert_eq!(remaining.len(), 1);
@@ -252,12 +272,27 @@ fn decline_knowledge_draft_preserves_other_actions_and_pages() {
     let (store, path) = temp_db();
     let conv = store.create_conversation(Some("t"), None).unwrap();
     let other = store.create_conversation(Some("other"), None).unwrap();
-    let draft_id = store.create_pending_action(&conv, "save_knowledge_draft",
-        &json!({"title":"待删除草稿", "content_md":"正文"}).to_string()).unwrap();
-    let keep_id = store.create_pending_action(&conv, "save_knowledge_draft",
-        &json!({"title":"保留草稿", "content_md":"正文"}).to_string()).unwrap();
-    let todo_id = store.create_pending_action(&conv, "create_todo",
-        &json!({"title":"其他动作"}).to_string()).unwrap();
+    let draft_id = store
+        .create_pending_action(
+            &conv,
+            "save_knowledge_draft",
+            &json!({"title":"待删除草稿", "content_md":"正文"}).to_string(),
+        )
+        .unwrap();
+    let keep_id = store
+        .create_pending_action(
+            &conv,
+            "save_knowledge_draft",
+            &json!({"title":"保留草稿", "content_md":"正文"}).to_string(),
+        )
+        .unwrap();
+    let todo_id = store
+        .create_pending_action(
+            &conv,
+            "create_todo",
+            &json!({"title":"其他动作"}).to_string(),
+        )
+        .unwrap();
     assert!(decline_knowledge_draft(&store, &other, &draft_id).is_err());
     assert!(decline_knowledge_draft(&store, &conv, &todo_id).is_err());
     decline_knowledge_draft(&store, &conv, &draft_id).unwrap();
@@ -338,11 +373,14 @@ fn knowledge_draft_deduplicates_pending_title_and_confirmation() {
     );
     assert!(first.content.contains("待确认"), "{}", first.content);
     let second = dispatch(
-        &ToolCall::new("save_knowledge_draft", json!({
-            "title":" 闲鱼卖 CM4 ",
-            "content_md":"第二版内容",
-            "kind":"topic"
-        })),
+        &ToolCall::new(
+            "save_knowledge_draft",
+            json!({
+                "title":" 闲鱼卖 CM4 ",
+                "content_md":"第二版内容",
+                "kind":"topic"
+            }),
+        ),
         &registry,
         &store,
         &conv,
@@ -764,7 +802,9 @@ fn save_wiki_revision_rejects_missing_slug_and_never_creates_ghost_page() {
 
 #[test]
 fn fetch_page_strips_html() {
-    let text = html_to_text("<html><head><style>.x{}</style></head><body><h1>标题</h1><p>正文内容</p></body></html>");
+    let text = html_to_text(
+        "<html><head><style>.x{}</style></head><body><h1>标题</h1><p>正文内容</p></body></html>",
+    );
     assert!(text.contains("标题"), "{text}");
     assert!(text.contains("正文内容"), "{text}");
     assert!(!text.contains("<"), "{text}");
