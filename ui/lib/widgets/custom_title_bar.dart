@@ -1,26 +1,40 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nativeapi/nativeapi.dart';
 
 import 'dart:ui';
 
+import '../bridge/rust_bridge_repository.dart';
 import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/window_service.dart';
 
-/// 当前平台窗口（nativeapi 统一接口，取代 window_manager 单例调用）。
-Window? get _window => WindowManager.instance.getCurrent();
-
-/// Custom title bar for frameless window
+/// Custom title bar。
+///
+/// 桌面端（无边框窗口）：显示窗口控制按钮（最小化/最大化/关闭）+ 拖拽移动。
+/// 移动端：仅显示标题与 actions（移动窗口由系统管理，无窗口控制概念）。
+///
+/// 窗口操作通过 [WindowService]（桌面实现由 main_desktop.dart 注册），
+/// 本文件不 import nativeapi——其 FFI 结构会让 Android release AOT 崩溃。
 class CustomTitleBar extends ConsumerWidget {
   final String title;
   final List<Widget>? actions;
 
   const CustomTitleBar({super.key, required this.title, this.actions});
 
+  static bool get _isDesktop =>
+      !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final aiBusy = ref.watch(aiGeneratingProvider).isNotEmpty;
+    // 对话生成中，或后台正在把事件消化进知识库
+    final aiBusy =
+        ref.watch(aiGeneratingProvider).isNotEmpty ||
+        ref.watch(knowledgeDigestBusyProvider);
+    final windowService = WindowService();
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
@@ -39,10 +53,9 @@ class CustomTitleBar extends ConsumerWidget {
               Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
-                  onPanStart: (details) {
-                    // Linux 原生层已实现（gdk_window_begin_move_drag_for_device）。
-                    _window?.startDragging();
-                  },
+                  onPanStart: _isDesktop
+                      ? (details) => windowService.startDragging()
+                      : null,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -73,30 +86,24 @@ class CustomTitleBar extends ConsumerWidget {
               ),
               if (aiBusy) const _AiActivityIndicator(),
               ...?actions,
-              const SizedBox(width: 8),
-              _WindowButton(
-                icon: Icons.minimize,
-                onPressed: () => _window?.minimize(),
-              ),
-              _WindowButton(
-                icon: Icons.crop_square,
-                onPressed: () {
-                  final w = _window;
-                  if (w == null) return;
-                  if (w.isMaximized) {
-                    w.unmaximize();
-                  } else {
-                    w.maximize();
-                  }
-                },
-              ),
-              _WindowButton(
-                icon: Icons.close,
-                // 关闭即隐藏：窗口 isClosable=false 已拦截原生关闭，
-                // 这里直接 hide（应用继续驻留后台，热键再唤出）。
-                onPressed: () => _window?.hide(),
-                isClose: true,
-              ),
+              if (_isDesktop) ...[
+                const SizedBox(width: 8),
+                _WindowButton(
+                  icon: Icons.minimize,
+                  onPressed: () => windowService.minimize(),
+                ),
+                _WindowButton(
+                  icon: Icons.crop_square,
+                  onPressed: () => windowService.toggleMaximize(),
+                ),
+                _WindowButton(
+                  icon: Icons.close,
+                  // 关闭即隐藏：窗口 isClosable=false 已拦截原生关闭，
+                  // 这里直接 hide（应用继续驻留后台，热键再唤出）。
+                  onPressed: () => windowService.hideWindow(),
+                  isClose: true,
+                ),
+              ],
             ],
           ),
         ),

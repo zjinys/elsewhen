@@ -188,10 +188,10 @@ packages:
     dependency: transitive
     description:
       name: cnativeapi
-      sha256: "43fce94bdf2f60e15bb7b0ef7b78b60fc0758e5463817fa17c5fb59f149566dd"
+      sha256: "4cee4a015b5a503a9ac4bd6d8f91191946f9d944e62cb57f07907bc96b2f523e"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.4.0"
   code_assets:
     dependency: transitive
     description:
@@ -544,13 +544,13 @@ packages:
     source: hosted
     version: "4.12.0"
   keyboard_height_plugin:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: keyboard_height_plugin
-      sha256: "3a51c8ebb43465ebe0b3bad17f3b6d945421e58011f3f5a08134afe69a3d775f"
+      sha256: d57944cd3e4f8d9cb4adb1b7f1300d14a8dcec99bfb4414d78c7dd0120c1d66c
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.5"
+    version: "0.3.0"
   leak_tracker:
     dependency: transitive
     description:
@@ -659,10 +659,10 @@ packages:
     dependency: "direct main"
     description:
       name: nativeapi
-      sha256: "2f40b3ac356097f56efa8188703159c303ce2b8b078d04c3d2d4afbe95b384ce"
+      sha256: "75878a79f56e458960ff3c11782f9e6632c04e449296ec4ea2c2773f4b414431"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.4.0"
   nested:
     dependency: transitive
     description:
@@ -1150,4 +1150,4 @@ packages:
     version: "2.2.4"
 sdks:
   dart: ">=3.13.3 <4.0.0"
-  flutter: ">=3.47.0"
+  flutter: ">=3.44.0"

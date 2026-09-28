@@ -41,3 +41,12 @@ Thumbs.db
 .workbuddy/
 # 参考素材目录
 /ref/
+ui/rustLibs/
+
+# 排查期临时产物（误留在仓库根/UI 目录）
+/cargo_test.txt
+/ui/flutter_*.png
+# Flutter/Gradle 构建目录
+ui/android/build/
+ui/build/
+ui/linux/flutter/ephemeral/

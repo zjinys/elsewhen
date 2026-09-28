@@ -6,6 +6,11 @@ Status: done
 > `0636dd1` 落库时修复，本轮补齐 C1 并修复 7 个失败测试。详见文末「收口记录」。
 > 仅存的 C9（wiki_page_detail_view 3854 行拆分）与 storage.rs（6147 行）拆分
 > 属结构性重构，转为独立排期项，不再是 bug-fix backlog。
+>
+> **2026-09-27 收口**：C10 三项死代码全部处理（legacy screen 之外的 mock repo 迁出
+> `lib/`、hotkey stub 删除），C 组仅剩已转排期的 C9。期间修复了一个**阻塞全仓库构建**
+> 的桥接损坏（并行会话拆 `src/api/` 后未重跑 codegen，叠加 frb 2.14.0-beta.2 的
+> barrel 缺陷），详见文末「收口记录（2026-09-27）」。
 
 来源：三路深度 review 原始报告（Rust storage/core、Rust AI、Dart），主代理复核分级
 P0 8 / P1 20 / P2 26。本文件只记录**尚未收口**的项，作为后续批次的执行依据。
@@ -95,12 +100,34 @@ P0 8 / P1 20 / P2 26。本文件只记录**尚未收口**的项，作为后续�
 - `conversation_timeline_screen.dart:71-145`（无限重建循环）、`conversation_detail_screen.dart:201-208`
 - 这两个 legacy screen 与 C10 死代码联审：若删除则 P10/P11 一并消失
 
-### C9. P20 `wiki_page_detail_view.dart`（3,807 行）— 单文件巨型化
+### C9. P20 `wiki_page_detail_view.dart`（3,807 行）— 单文件巨型化 — ⏸ 转排期
 - 一个文件四个 feature、~24 个 widget 类
-- 修复方向：按 feature 拆文件（等并行落库后做）
+- **转排期理由**：该文件是并行会话的活跃区且体量已涨到 3.8k 行，拆分属于纯结构性
+  重构（移动 widget、调整共享的 `_editTags` 等私有方法），不修任何缺陷、却极易与
+  后续功能改动冲突。收益（可读性）不足以承担这个冲突风险。
+- 该文件现存 6 条 analyzer warning（3 × unused_element + 3 × unused_local_variable），
+  属既有状态，未处理。
 
-### C10. P21 死代码 — legacy screen + mock repo + hotkey stub
-- `lib/` 内已废弃代码删减（与 C8 联审）
+### C10. P21 死代码 — ✅ 已处理（2026-09-27）
+- **legacy screen**：`main_timeline_example.dart` / `conversation_timeline_screen.dart` /
+  `conversation_detail_screen.dart` 共 813 行，与 C8 一并删除（见上）。
+- **mock repo**：`lib/data/mock_storage_repository.dart`（76 行）迁至
+  `test/support/mock_storage_repository.dart`。全项目只有 `test/mock_storage_test.dart`
+  用它，留在 `lib/` 等于让发布产物带一份假实现、也让死代码扫描多一个目录要过滤。
+  改用 `package:elsewhen_ui/...` 绝对导入（与既有的 `test/support/isolated_bridge.dart`
+  同一约定），`mock_storage_test.dart` 改为相对导入 `support/...`。
+- **hotkey stub**：`lib/utils/hotkey_service.dart` 删除，接线一并拆除。它是永久 stub
+  （`isSupported => false`、`registerCaptureHotkey()` 恒返回 false），而全项目真正用到的
+  只有 `initialize()` / `sessionType` / `getSetupInstructions()` 三个成员，且**只在
+  `app_provider.dart` 的启动流程里**——每次启动 `debugPrint` 一整段教程，打包后用户
+  根本看不到。`registerCaptureHotkey` 与 `getHotkeyDescription` 从未被调用。
+  - 文案不能直接丢：`--mode=capture` 确实存在（`app_config.dart:14` +
+    `capture_screen.dart`），`elsewhen-capture.sh` 也在，那段说明是准确的。已迁到
+    `ui/README.md`「Capture 模式」小节（系统快捷键绑定 / 常驻脚本两种做法），
+    待办清单里的 `hotkey_manager` 条目改为指向该小节。
+  - 顺带修掉 `ui/README.md` 一条**错命令**：`--dart-define=mode=capture` 不生效
+    （`AppConfig.fromArgs` 只看 `args` 里有没有 `--mode=capture`），且与紧邻的下一行
+    自相矛盾，已删除该行。
 
 ### D. 已完成（核对用，勿重复做）
 - P0 全部 8 项（4 项本轮修 / 3 项并行顺带解决 / 1 项货真价实）
@@ -154,7 +181,449 @@ P0 8 / P1 20 / P2 26。本文件只记录**尚未收口**的项，作为后续�
   中的 worker 残留引用，指向 `analyze-once`。
 - **P0-3 c.sh**：内容为 `codex resume <id>` 个人命令，无 API key，已被 git 追踪，不处理。
 
-### 最终验证
-- Flutter 测试 **170/170 全部通过**（此前 163/170）。
-- Rust `cargo build` 通过。
-- 提交：`0636dd1`（基线）→ `fdb260a`（6 测试+C1）→ `7f5cede`（P0-1）→ `c29e26d`（wiki_ui_test）。
+---
+
+## 收口记录（2026-09-27，C10 + 桥接修复）
+
+本轮 C 组只剩 C10 三项死代码。期间撞上一个**阻塞全仓库构建**的桥接损坏，先修它。
+
+### 桥接损坏：frb codegen 的 CPATH 陷阱 + beta 版 barrel 缺陷
+
+并行会话把 `src/api.rs` 拆成 `src/api/` 多模块目录（`58d9a43`…`8ce167d`），但**没有重跑
+codegen**，两侧同时失配：
+
+| 侧 | 症状 |
+| --- | --- |
+| Rust | `src/frb_generated.rs` 仍按旧字段名解构 `KnowledgeDigestTickResult::Processed { created, updated, protected }`，而枚举已改成 `created_slugs / updated_slugs / protected_slugs`（改名是为避开 C 保留字），`cargo check` 10 个 `E0559/E0026/E0027`。 |
+| Dart | `generated.dart/api.dart` 被删掉 1154 行、只新增一行 `import 'api/todos.dart';`，其余 13 个模块既没被 barrel 引用，函数与 DTO 也没落到任何地方 → `flutter analyze` 156 个 `undefined_function/undefined_class`。 |
+
+重跑 codegen 时踩到两个坑，都写进 `flutter_rust_bridge.yaml` 注释了：
+
+1. **CPATH 不能只给隔离的 `stdbool.h`**。之前记的「隔离目录」做法会让 clang 找不到自己的
+   `stddef.h`，ffigen 报 `SEVERE` 后**半途产出残缺 Dart**——但 Rust 侧照样编译通过，
+   极易误判成成功。必须给整个 `/usr/lib/clang/22/include`（仓库配置里原本就写着这条）。
+2. **frb 2.14.0-beta.2 的 barrel 缺陷**：`crate::api` 下有多个子模块时，codegen 把 API 拆到
+   `api/<module>.dart`（14 个文件，19 个 DTO 类型 + 72 个函数齐全），但生成的 barrel
+   `api.dart` 只 import 其中一个模块。不加干预，analyzer 仍是 81 个 error。
+
+   根因是 beta 的 barrel 生成不完整，**没有官方开关可关**（`generate --help` 无相关选项）。
+   临时解法：在生成的 `api.dart` 顶部手工补 13 行 `export`（已在文件内注释标明）。
+   **注意与并行会话的方案重叠**：它已新建手写 barrel `ui/lib/bridge/api.dart`
+   （同样 export 这 14 个模块，但**不在生成目录里，能扛住 codegen 覆盖**，是更正的
+   做法），最新提交 `f5bf272` 的标题就是「api.rs 拆分后的 Dart 生成物迁移方案」。
+   本轮**没有**去改那 15 个文件的 import（避免与并行会话抢同一批文件）；等 import 迁到
+   `bridge/api.dart` 后，生成文件里那段 export 就成了冗余，可直接删掉。
+
+### 测试修复（1 个真断言 bug）
+
+- **`settings_screen_test.dart:99` 断言过窄**：「数据」tab 现在有两个队列区块
+  （`事件分析队列` / `知识消化`，后者是知识消化功能新增的），两者都有「待处理」
+  「已完成」「失败」三枚**同名**指标，而测试用 `findsOneWidget` 假设只有一个队列。
+  两个区块各有独立 section 标题，UI 本身不歧义，所以改的是测试而不是文案：
+  三个撞名指标按 `findsNWidgets(2)` 断言（顺带把知识消化区块的存在与状态读取纳入覆盖），
+  事件分析队列独有的「处理中」「等待重试」仍要求恰好一枚。
+
+### 新发现：真 FFI 测试随机 BUSY —— 根因已定位（`init_bridge` 用进程级 env 当隔离边界）
+
+**症状**：`flutter test` 下真 FFI 测试（`test/support/isolated_bridge.dart` 建真库）随机
+失败，每次失败用例与调用点都不同。实测异常：
+
+```
+AnyhowException(database is locked
+  Caused by: Error code 5: The database file is locked)
+  bridge_integration_test.dart:38 → repo.listEvents()
+```
+
+> ⚠️ **本节根因在 2026-09-27 被推翻并改写。** 下面是最初的推断，仅保留作为「为什么
+> 会猜错」的记录。**不要**再拿「`flutter test` 单进程 / env var 串库」当结论。
+
+**曾经的错误根因**（三步验证，实为错误）：
+
+1. `flutter test` 把所有测试文件作为 isolate 跑在**同一个 `flutter_tester` 进程**里。
+   实测：并发跑 4 个测试文件期间 `ps` 只出现 **1 个** `flutter_tester` 进程。
+2. `init_bridge` 把库路径写进**进程级环境变量** `ELSEWHEN_DATA_DIR`。
+3. **每个** API 函数都重新 `AppConfig::load()` → `Store::open()`，即每次调用都重读全局 env。
+
+于是「并发 suite 互相覆盖 `ELSEWHEN_DATA_DIR`，打开同一个库」→ `SQLITE_BUSY`。
+
+**错在哪**：第 1 步的 `ps` 采样是**抽样误判**（flutter_tester 会被复用 / 采样时刻只启动了
+一个），并没有真的证明单进程。决定性反证是：`AppConfig::pin` 的**冲突分支从未触发过**
+（多轮全量跑下来「显式冲突 = 0」）——如果 suite 真的共享进程、且各自 `init_bridge` 不同
+目录，第二个 suite 必定撞上 `pin` 的 `bail!` 而让该文件的 `setUpAll` 失败。实际没有任何
+文件这样失败，说明各 FFI suite 并不共享进程，也就谈不上跨 suite 串库。**顺序反了：不是
+跨 suite 冲突，而是单 suite 内部竞态。**
+
+**真正的根因：Dart 侧周期性后台 worker 与测试自己的 FFI 调用抢锁。**
+
+`RustBridgeRepository.initialize()`（`ui/lib/bridge/rust_bridge_repository.dart`）在
+init 成功后起一个 `Timer.periodic(5s)`，调 `_wakeAnalysisWorker()`；而
+`recordEvent()` / `submitInput()` 也会**立刻**唤醒它。`_wakeAnalysisWorker` 里的排空循环
+做的是**写**操作：
+
+```dart
+while (!_disposed) {
+  final result = await triggerAnalysis();      // 写：标记 running/succeeded
+  final stats = await getAnalysisJobStats();    // 读
+  if (stats.pending == 0) break;
+}
+await _drainKnowledgeDigest();                  // 写
+```
+
+Dart 是单 isolate 单线程，但这些都是异步链：worker 的 `await` 挂起时，事件循环会去跑测试
+自己发起的 `await repo.listEvents()`。**每个 API 调用都各自 `Store::open` 一个新连接**，
+于是同一 SQLite 文件上出现「一个连接在写、另一个在读」，撞 `SQLITE_BUSY`。交错顺序取决于
+事件循环时序 → 每次失败的用例和调用点都不同，表现为「随机」。
+
+三处放大它的因素：
+
+- `_wakeAnalysisWorker` 的 `catch (_) {}` 把 worker 内的异常**全静默**掉了。
+- `settings_screen.dart` 的 `initState` postFrame 里 6 个加载并发发出，再叠加那个 5s
+  timer，写入窗口被显著拉宽。
+- `dispose()` 只能阻止**后续**循环，**在途**的 Rust 调用无法取消——teardown 期间仍可能写。
+
+**已排除的其他猜测**（这些结论仍然有效）：
+- *busy_timeout 太短*——`Store::open` 已设 `busy_timeout(5s)`（`src/storage/mod.rs:485`）
+  且开了 WAL（`migrations.rs:19`），仍 BUSY，且日志时间戳显示是**快速失败**而非等满 5s。
+- *Rust 侧有常驻线程抢锁*——`grep 'thread::spawn'` 在整个 `src/` **零命中**；但这不代表
+  「没有后台写者」——写者在 **Dart 侧**（上面的 worker），这也正是上一条误判翻车的地方。
+- *CPU 抢占 / 固定延时不够*——`--concurrency=1`（无并发）同样失败，因为竞态发生在
+  **单个 suite 内部**。
+- *跨 suite 共享数据目录*——`createIsolatedBridge()` 每 suite 建独立临时目录，且实测
+  `pin` 冲突从未触发，各 suite 的库确实是分开的。
+
+**为什么一直没被发现**：CI（`.github/workflows/ci.yml:20`）只跑 `cargo test --all-targets`，
+**不跑 `flutter test`**；而 `test_bridge.sh` 是手工环境检查脚本（查 `.so`/表/进程），
+不是按文件隔离的 runner。
+
+### 产品侧已修：库路径在进程内钉死（`config::AppConfig::pin`）
+
+`src/config.rs` 新增进程级钉死值 `PINNED: RwLock<Option<AppConfig>>`，`init_bridge`
+改调 `AppConfig::pin(database_path.as_deref())`，**去掉了 `std::env::set_var`**：
+
+- 语义是**先到先得 + 冲突即报错**。已钉死且显式路径不同 → `bail!`，报错文案点名两个目录。
+  不静默共库，也不随机 BUSY。
+- 未钉死时 `load()` 仍按环境变量重新解析且**不**写全局——保持旧的探测性行为，避免
+  init 之前的一次探索性调用把后续 `init_bridge` 的显式路径顶掉。
+- 顺带消掉每调用一次的 `create_dir_all` + `chmod 0o700` + 旧库迁移探测（现在只跑一次）。
+
+测试：`config::tests` 5 个用例覆盖「显式路径优先于 env」「钉死后改 env 无效」
+「同路径幂等」「异路径报错且不改动已钉值」「未钉死时跟随 env」。因为钉死值与环境变量
+都是进程级状态而 Rust 测试并行跑在同一进程，新增 `config::test_env_guard()` 串行化
+所有碰这两者的用例，`DataDirGuard`（`api/mod.rs`）也一并持这把锁——否则先跑的用例
+会把目录钉死，后跑的静默读到它的库。
+
+**但这没有解决测试 flake**（当时我对原因的判断也是错的，见下）。它消除的是**每调用一次
+重新解析路径**这件事：init 之后 `AppConfig::load()` 直接返回钉死值，不再 `create_dir_all`
++ `chmod 0o700` + 旧库迁移探测，也不再有「两个 suite 可能指向同一文件」的可能。BUSY 的
+真正来源是 Dart 侧后台 worker，与路径解析无关。
+
+### 已修 2：设置页 6 处吞异常 —— 真问题是「失败被伪装成空状态」
+
+`settings_screen.dart` 的 `initState` postFrame 里并发发 6 个加载，每个
+`catch (e) { setState(loading = false); debugPrint('xxx failed: $e'); }`。实测日志里
+`loadTokenUsage failed` / `loadRules failed` 就是这么消失的，而 `flutter test` 仍报
+`All tests passed`——**失败显不暴露，取决于「被吞掉的那个调用恰好是不是该测试断言的
+那个」**，这是随机性的第二个来源。
+
+查渲染侧时发现比「吞异常」更严重：**失败被渲染成了正常的空状态**，用户完全看不出出了
+故障：
+
+| 区块 | 改前读取失败时用户看到 |
+|---|---|
+| 事件分析队列 / 知识消化 | 「…状态读取失败」（有兜底、无原因）|
+| 规则库 | 「**还没有规则。**在对话里分享踩坑或心得时…」← 把故障说成没沉淀过 |
+| Provider 列表 | 「**未配置**」← 同样伪装成没配 |
+| 每日 Token 用量 | 「**暂无 AI 调用记录**」← 伪装成从没调用过 |
+| 推文抓取服务 | **静默显示默认值 `fxtwitter`**（无 loading 态，失败 100% 不可见）|
+
+Provider 那条尤其糟：项目铁律里「没配 provider」本身有首次运行引导横幅
+（`ai_provider_setup_hint.dart`），把「读不出来」显示成「未配置」会与之矛盾。
+
+改法（加法式，不动写路径）：
+
+- 新增 `Map<String, String> _loadErrors`（区块名 → 异常文本）+ 6 个区块名常量。
+- 6 个 catch 各自记录原因。`_loadTweetService` 的 catch 顺带补上 `mounted` 守卫——
+  它是 6 处里唯一漏掉的，是个真实的潜在 setState-after-dispose。
+- 新增 `_loadErrorOf()`（只取异常**首行**：`anyhow` 的 `toString()` 带多行
+  `Caused by:`，整段塞单行 Text 没法读）与 `_buildLoadErrorHint()`。
+- 6 个区块的「空状态」分支**前面**插一层错误判断，顺序是 loading → 错误 → 内容
+  （加载中时旧错误已过期，所以错误检查必须在 loading 之后）。
+
+`flutter test test/settings_screen_test.dart` 新增用例
+「读取失败时展示失败原因，而不是伪装成空状态」：用一个 `noSuchMethod` 全抛的假仓库，
+断言 4 条——两个 `find.textContaining('…读取失败：')` 命中，且
+「暂无 AI 调用记录」/「还没有规则」**必须** `findsNothing`。用例注释里写明了该假实现会
+在 `as RustBridgeRepository` 硬转处抛 `TypeError`（这正是要验的那条 catch 路径）。
+3/3 通过。
+
+`settings_provider.dart:125 loadThemeFromBridge` 那处**未动**：它是主题加载，失败按设计
+静默回退到默认主题，UI 上无对应区块可挂提示，且不在本轮范围。
+
+### 未修（已定位、方案被否决）：`ensure_schema` 每次 open 都抢写锁
+
+**这是残留 BUSY 的最可能来源，但本轮的修法不成立，已撤回。**
+
+`Store::open` 是 spawn-per-call（每次 API 调用都新建连接），每次都调
+`migrations::ensure_schema`，而它含 **30 余条 `INSERT OR IGNORE INTO
+schema_migrations`** 和若干 `CREATE INDEX IF NOT EXISTS`。关键在于这些语句
+**即使什么都不会改变也照样抢 SQLite 写锁**——这一点不是推测，是用独立 rusqlite
+探针逐条实测的：
+
+| 语句 | 抢写锁 |
+|---|---|
+| `SELECT` / `PRAGMA table_info` | 否 |
+| `PRAGMA journal_mode` / `PRAGMA synchronous` / `wal_checkpoint(PASSIVE)` | 否 |
+| `CREATE TABLE IF NOT EXISTS`（表已存在） | 否 |
+| **`INSERT OR IGNORE`（命中已有行）** | **是** |
+| **`CREATE INDEX IF NOT EXISTS`（索引已存在）** | **是** |
+| **无匹配行的 `UPDATE`** | **是** |
+
+所以**纯读接口也在参与写锁争抢**——这解释了实测中 BUSY 为什么全部落在
+`listEvents` / `getDailyTokenUsage` / `loadTokenUsage` 这些纯读调用上。也解释了为什么
+`busy_timeout(5s)` 救不了：SQLite 在「deferred 事务读着 → 要升级成写」的冲突上
+**不调用 busy handler**，直接返回 `SQLITE_BUSY`。`settings_screen` 一次 postFrame
+并发 6 个加载 = 6×30 次争抢。
+
+**试过并否决的方案：给 `ensure_schema` 加「版本门」（`MAX(version) == 31` 就整段早退）。**
+
+它 broke 了两个既有迁移测试，而且是**方案本身不成立**，不是测试写法问题：
+
+- `migration_v29_recovers_when_only_second_column_is_missing` 模拟**迁移中断**——
+  `opinion` 列被丢掉、v29 记录被删，但 `MAX(version)` 仍是 31。版本门看到「已最新」就
+  整段跳过，于是**那列永远不会被补上**，而所有 wiki SELECT 会报 `no such column`。
+- `migration_v29_splits_note_kind_and_adds_columns` 依赖 `ensure_schema` 尾部一段
+  **故意每次 open 都跑**的数据 backfill（注释写明「恒执行」，抓「升级中途落库」的
+  `note-` 前缀脏行）。
+
+**教训**：`MAX(version)` 不是「schema 完好」的可靠判据。迁移系统的存在意义就是能从
+**任意中断状态**恢复，而版本门把这个不变量换掉了。**任何以版本号推断 schema 状态的
+优化都要先问：中断恢复怎么办。** 真要修，正确方向是让**版本记录本身**按需写
+（`INSERT OR IGNORE` 前先 `SELECT 1 FROM schema_migrations WHERE version = ?` 探测），
+而不是给整段加门——那样每个迁移的独立守卫和中断恢复能力都原样保留。
+
+`migrations.rs` 末尾留了一条 `#[ignore]` 测试
+`ensure_schema_takes_no_write_lock_once_current` 作为该缺陷的复现与验收标准：它在
+另一个连接持写锁时调 `ensure_schema`，目前会失败，修好后去掉 ignore 即可。同时也钉住了
+上面那张锁行为表。**本轮对 `migrations.rs` 是纯追加（`git diff` 零删除行），没有改动
+并行会话的任何代码。**
+
+#### 「按需写」方案的具体设计（已设计，**结论：不该做——层级搞错了**）
+
+> **2026-09-27 复核更正**：下面这套设计是在**错误的层级**上打补丁。`ensure_schema` 是数据库
+> 初始化（契约原文「幂等，可重复调用」），问题不在它内部 37 条语句各自低效，而在于
+> **它被 per-call 调用**：API 层有 **88 个 `Store::open` 调用点且零缓存**（全仓无
+> `OnceCell`/`OnceLock`/`static`），即每个接口都完整重跑一遍「开连接 → ensure_schema →
+> chmod → backfill → wal_checkpoint」。所以「每次的写锁从 37 降到 2」是治症状，「初始化
+> 只跑一次」才是治因。下面的设计保留作为**反面记录**：它能达成，但达成的不是该达成的目标。
+>
+> 治因的两条路：①88 个调用点改用共享 `Store`（大，且散在并行会话正在改的 `api/*.rs`）；
+> ②`Store::open` 内加进程级「本路径已 ensure 过」跳过（~15 行，只动 `storage/mod.rs`，
+> 但隐患真实——测试会在同进程内删库重建并对同一 path 再开 `Store`，按 path 缓存会导致
+> 跳过初始化、拿到空 schema 库；要安全得把 key 换成 `(path, inode)` 或 `(path, size+mtime)`）。
+>
+> 另注：`Clone for Store` 实现是 `Self::open(&self.path)`，即克隆一次重跑全额初始化，
+> 看着是放大器，但**产品代码 0 命中**（只有测试用），不构成生产问题。
+>
+> **共同点：两条都没证明能修掉任何用户可见症状。** 无争用时这 37 条都是微秒级 no-op，
+> 性能大概率不痛；痛的是争用，而争用已由「关后台 worker」压下去。故**不做**。
+
+以下为原始设计记录（层级已错，留作对照）：
+
+范围实测清楚了：全文件 37 处锁敏感语句，分布在 22 个 `execute_batch` 块（19 个含记版本
+语句）和 15 个单条 `execute`（6 个纯记版本）。把稳态必跑的首个 batch 拆成单条逐个喂给
+持锁连接，得到稳态真值：**9 条抢锁 / 21 条不抢**（7 条记版本 + `CREATE TRIGGER` + 1 条
+误切的 trigger 体 `END`）。`total_changes() == 0` **测不出**这个问题，已验证。
+
+改动分三类：A 类纯记版本的单条 execute（6 处）直接换 helper；B 类 batch 里的记版本语句
+（19 个块）需从 batch 里拆出来——**语义会从「ALTER 与记版本同事务」变成「ALTER 先提交、
+记版本后提交」**，中间崩溃留下「列已加、版本未记」，而这正是 `migration_v29_recovers_*`
+要恢复的场景、各迁移的 `if !has_column` 守卫也正是为它写的，故方向安全，但需跑那两个
+测试验证；C 类 batch1 里的 `CREATE TRIGGER/INDEX IF NOT EXISTS`（即使已存在也抢锁）暂不
+做——只做 A+B 预期已能降约 95%。
+
+**为什么暂不落地**：我证明的是「这些语句确实抢写锁」，**没证明「剩余 BUSY 是它们造成的」**
+——把前者当前者是跳跃。对唯一已知症状（测试 flake）的预期收益接近零：关 worker 后 28 轮里
+测试从未红过，且 0.13/轮 vs 0.08/轮两档样本量统计上区分不开。反对现在做的还有两条：动的
+是并行会话正在改的文件（33 处）；迁移代码是仓库里后果最重的代码（改错=数据损坏）。
+
+#### ⚠️ 2026-09-28 产品侧复现：上面「没证明」的部分现在有证据了，且不是日志噪声
+
+修 Linux 空窗口时顺带撞见。连续 3 轮真实启动 `elsewhen_ui`（release/debug 皆然），
+**第 3 轮命中**：
+
+```
+loadThemeFromBridge skipped: AnyhowException(database is locked
+Caused by: Error code 5: The database file is locked)
+```
+
+复现率约 **1/3 次启动**，且**当时无任何其他 elsewhen_ui 进程**（已 `ps` 确认），所以不是
+残留进程占锁。
+
+**这修正了本节此前的结论**：「剩余 BUSY 只是日志噪声、对用户不可见」**不成立**。它的用户
+可见后果是**启动时静默回退到默认主题**——用户看到的是「app 有时自己换了主题」，而日志里
+只有一行被吞掉的异常（`settings_provider.dart:125 loadThemeFromBridge` 是当初六处吞异常里
+**唯一故意没改**的那处，因为「失败按设计静默回退默认主题」）。
+
+连带影响：测试侧的 0.13/轮 vs 0.08/轮「统计上区分不开」这个论证**也随之失效**——产品侧
+1/3 的复现率比测试侧 1/8 高一个量级，样本量小是因为产品侧本来就不该有这么多冲突。
+**该修的判断需要重开**，不再是「不做」。
+
+仍未证明的一环：锁的来源**是不是** `ensure_schema`。目前只有「启动期并发 `Store::open`」+
+「探针已证实 `ensure_schema` 稳态每次 open 抢 9 次写锁」两条旁证，属推断。
+
+**现在有了低成本、高灵敏度的判定实验**（比原先计划的 A/B 灵敏得多）——临时让
+`ensure_schema` 稳态早退，跑 10 轮真实启动，数 `loadThemeFromBridge skipped` 次数：
+0 → 确证是该修的；仍 >0 → 另有来源。约 10 分钟，可立刻做。
+
+（2026-09-27 曾注入过该实验 hack 并被服务器重启打断，hack 已逐字移除、`.so` 已按无 hack
+版本重建，`migrations.rs` 仍为纯追加 131 增 / 0 删。）
+
+**判定该做不做的实验（10 分钟，被服务器重启打断未完成）**：临时让 `ensure_schema` 在
+稳态早退（模拟 A+B+C 的终态），对同一批测试文件跑 A/B 数 `database is locked` 次数。
+BUSY 归零 → 值得做；不归零 → 省下 33 处高风险改造。已注入的实验 hack 在重启后已逐字
+移除并重建 `.so`，`migrations.rs` 仍为纯追加。
+
+### 已修 3：测试侧关掉后台 worker
+
+- `RustBridgeRepository` 新增 `runBackgroundWorker`（默认 `true`，生产行为不变）。
+  `initialize()` 在它为 false 时不建 `Timer.periodic`、不初始唤醒；`_wakeAnalysisWorker()`
+  开头加一条 `|| !runBackgroundWorker` 早退（这样 `recordEvent` / `submitInput` 里的
+  唤醒调用也不会把它拉起来）。
+- `createIsolatedBridge()` 传 `runBackgroundWorker: false`，并在文档注释里写明理由。
+
+安全性已核对：**没有一个测试依赖后台 worker 推进队列**。测试都是显式调
+`triggerAnalysis()` / `getAnalysisJobStats()`；`settings_bridge_test.dart:149` 甚至断言
+`after.succeeded == 0`（明确要求队列**没**被处理），关掉 worker 反而让这条断言更稳。
+
+顺带把 worker 的 `catch (_) {}` 改成 `catch (e)` + `debugPrint`。不上抛是有意的（队列状态
+持久，下次唤醒会重试，不该让后台失败带崩保存路径），但**完全静默**不好：若每 tick 都因同一
+原因失败（比如抢锁 BUSY），就会永远查不出来。只记不抛。
+
+局限：`dispose()` 只能阻止**后续**循环，**在途**的 Rust 调用取消不了。测试里 worker 不启动，
+这条路径基本消失，但生产环境依然存在。
+
+### BUSY 频率实测（每轮 = 一次全量 `flutter test`）
+
+| 阶段 | 轮数 | 总 BUSY 次数 | 每次全量 |
+|---|---|---|---|
+| 修前（基线） | 4 | 2 | 0.50 |
+| 关 worker 后 | 16 | 2 | 0.13 |
+| 关 worker + 版本门（**已撤回**） | 12 | 1 | 0.08 |
+
+关掉后台 worker 把频率降了约 **4 倍**且 28 轮里再没出现「测试红」——**从用户可见的
+故障变成纯日志噪声**，这是本轮的实质改善。但**没有归零**：版本门那 12 轮仍有 1 次
+`loadTokenUsage` BUSY，也就是上面 `ensure_schema` 那条已知缺陷。
+
+诚实说明：这三档样本量都偏小（4/16/12 轮），0.13 → 0.08 这一档**在统计上区分不开**。
+能确定的只有两点：①关 worker 有效；②`ensure_schema` 的写锁争抢是独立于 worker 的
+残留来源（已被探针实测确认，不是推测）。
+
+### 本轮验证
+
+- `cargo test --lib`：**198 passed / 0 failed / 1 ignored**（基线 180，+13 并行的知识
+  消化测试，+5 本轮 `config::tests`；ignored 是上面那条 `ensure_schema` 写锁复现）。
+- `cargo build --release` 重新编译 `libelsewhen.so`，对齐重新生成后的桥接（否则真 FFI
+  测试会因 content hash 失配而失败）。
+- `flutter analyze --no-pub lib test`：**0 error**，37 issues 与基线一致
+  （`wiki_page_detail_view.dart` 6 条既有 + `test/settings_reading_layer_test.dart`
+  1 条 unused_import，其余为 test 里的 `avoid_print` 等 info）。
+- `flutter test`：全量多轮，**测试用例本身全绿**；日志里偶发 `database is locked`，
+  现已由设置页 UI 显式展示（不再是静默）。频率见上表。
+
+### 提交
+
+本轮改动**全部留在工作区未提交**（含 C10 三项删除、`api.dart` export 补丁、
+`settings_screen_test.dart` 断言、两处文档）。`HEAD` = `f5bf272`。
+
+## 新开：外网搜索抽象层（不在本轮 deep review 范围）
+
+需求与设计已落文档：**`docs/notes/proposed/2026-09-27-web-search-tool.md`**。
+
+要点（细节看那份文档）：
+
+- **只给 elsewhen 自用，不做 MCP server**；本轮**只做抽象层**，具体引擎后补。
+- **做成 Tool 不做自动检索**——触发条件是「模型自认知识不足」，**只有模型自己知道它缺
+  什么**，自动检索是在它察觉之前抢跑，正好把最需要判断的那步拿掉；且工具式能复用现成的
+  `provider_specs_for` 门控。
+- **「补充知识」的定位（初稿定位错，已更正）**：触发不是「问题属于外部事实/时效信息」
+  那套题材分类，而是**自认知识不足**。于是问题变成「不足时去哪找」，去处有三是固定
+  顺序：参数里的知识 → 本地真源（`search_knowledge_base`/`get_wiki_page`）→ **外网
+  （最后手段）**。反例：「谁写的哈姆雷特」是外部事实题但模型记得，不该搜；「我上周答应过
+  什么」不涉外部事实但模型不知道，且这个缺口**绝不该去 internet 找**。
+  `web_search` 因此不是本地检索的平级替代，而是它的**兜底**。
+- **闭环已存在，只缺第三条腿**：`ImportUrlToWikiTool`（`tool/mod.rs:1270`，
+  `WriteConfirm`「导入一个网址的内容到知识库…调用后进入待确认状态」）就是为这个位置
+  准备的。链路 = 发现缺口 → 搜到 URL → `import_url_to_wiki` 抓全文 → 用户确认 → 入库
+  → 下次本地能答。①②（本地检索）与落库都已具备。
+- **本设计最大的软肋（如实记）**：模型对自身知识缺口**没有校准**——察觉不到就自信地编
+  （更危险），过度察觉就逢问必搜（更浪费）。「要求先说清缺什么」等只是缓解，不是根治。
+- 硬约束：不新增依赖（复用 `shared_blocking_client(5)`，`Cargo.toml` 无哈希库故缓存
+  键用 query 原文）；配置**必须存表**不能存文件，因为 `ToolContext`（`tool/mod.rs:96`）
+  没有 config 访问途径；迁移版本 **32**（当前 31）。
+- 已知残余风险：**提示注入挡不干净**。截断 + 显式标记 + 强制 `fetch_page` 核实能大幅
+  降低，但真正的兜底要靠 provider 侧消息隔离，超出本设计范围——不假装解决。
+- 落地前须确认 `src/storage/migrations.rs` 的并行会话已收工（该文件 30 处 fmt diff）。
+
+## Linux 桌面端空窗口（已修复；根因经二次更正）
+
+**症状**：`fvm flutter run -d linux` 窗口只有边框无内容，日志报
+`Could not determine GL version`（`impeller/renderer/backend/gles/description_gles.cc:92`）
++ `Failed to create platform view rendering surface` +
+`FlutterEngineRunTask returned kInvalidArguments`。
+
+### ⚠️ 根因曾被错误归因两次，第二次是真因
+
+**第一版归因（错）**：`window_service_desktop.dart:116/139` 的
+`w.backgroundColor = _transparent`（`a: 0`）。据以改了 `_applyWindowBackground`
+（Linux 跳过透明）并声称 3/3 验证通过。
+
+**第二版归因（对）**：`w.titleBarStyle = na.TitleBarStyle.hidden;`。
+在正确入口下逐项二分，只有跳过它能归零：
+
+| 跳过的 chrome 项 | GL 错误 |
+|---|---|
+| **titleBarStyle** | **0** |
+| backgroundColor / minimumSize / isVisibleInTaskbar / isClosable / title / 尺寸落位 | 1 |
+
+机制：nativeapi 在 Flutter **建好 GL 上下文之后**才改窗口属性，GTK 为此重建窗口的
+GdkVisual，与已建好的上下文不匹配，首帧即查不到 GL 版本。与透明是同一类问题
+（事后改 visual），但触发项不同。`w.backgroundColor` 被证无罪——Linux 上设透明背景
+实测 GL 错误 0，故第一版那个 Linux 跳过已撤销，圆角效果保留。
+
+**第一版为什么会错 —— 方法论教训（比修复本身更重要）**：
+二分用的构建命令是 `fvm flutter build linux --debug`，**没带 `--target`**，
+而 Flutter 默认构建 `lib/main.dart`。桌面入口是 `lib/main_desktop.dart`
+（它才初始化 nativeapi 窗口 chrome），`main.dart` 走 `window_service_stub.dart`，
+**根本不执行被测代码**。所以每一次「GL 错误 0」都是「没执行到」的空结论，
+而不是「跳过后就正常」。真凶在错误的构建产物下必然测不出来。
+
+判别方法（当时没做）：验证日志里有没有入口点独有的标记行
+（`Applied main window chrome`）。它的缺席才是「0 错误」的真实解释。
+**教训：二分/验证的第一件事是确认被测路径真的被执行，而不是先看指标。**
+
+### 修法（已落地）
+
+无边框改由 `linux/runner/my_application.cc` 在 `fl_view_new` **之前**用
+`gtk_window_set_decorated(window, FALSE)` 完成——窗口创建时设置 visual 还没被
+Flutter 用上，时序安全。相应地 `window_service_desktop.dart` 在 Linux 上不再设
+`titleBarStyle`（新增 `_applyTitleBarHidden`，macOS/Windows 不变），
+`applyMainChrome` / `applyCaptureChrome` 两处调用点共用。捕获模式与主窗口是同一
+进程同一窗口，故一并生效。
+
+**验证**（正确入口 `--target=lib/main_desktop.dart`）：
+主模式 4/4 与捕获模式各 1 次 `GL错误=0  surface错误=0  kInvalidArguments=0`，
+且 `App initialized` 恒为 1（此前失败时为 2 = app 自重启）；`./elsewhen.sh` 实跑同样 0 错误。
+
+排除项（都实测过）：**不是环境问题**（同机器全新 `flutter create` 最小项目同后端正常）、
+**不是 Wayland/X11 之别**（`GDK_BACKEND=x11` 仍复现）、**不是 Impeller 本身**、
+**也不是 Skia**（Skia 在本机同样失败于 `gpu_surface_gl_skia.cc` "Could not make the
+context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是后果非原因）。
+
+**顺带更正**：`ELSEWHEN_OPAQUE_BACKGROUND=1` **是有读取点的**，
+在 `ui/linux/runner/my_application.cc:107`（原生侧）。此前称「全代码库无读取点」
+是错的——那次只 grep 了 `lib/` 下的 Dart 文件。同文件同时读取
+`ELSEWHEN_DISABLE_IMPELLER`，两者都是 09:05 那次排障加的（未提交）。
+`elsewhen.sh` 里基于错误根因设的「关 Impeller + 强制软件渲染」两个规避已删除：
+它们会切到 Skia，而 Skia 在本机同样失败，等于主动绕开唯一能工作的那条路。
+
+诊断代码已全部撤销（`lib/` 与 `my_application.cc` 均无残留，`flutter analyze` 干净）。

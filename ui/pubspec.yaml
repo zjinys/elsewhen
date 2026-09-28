@@ -45,7 +45,7 @@ dependencies:
   # Desktop integration
   # window_manager / screen_retriever 已合并迁移到 nativeapi（同一作者 leanflutter
   # 的统一原生 API 继任者）：窗口大小/位置/无边框/置顶/事件 + 显示器信息一包覆盖。
-  nativeapi: ^0.3.0
+  nativeapi: ^0.4.0
 
   # Icons
   cupertino_icons: ^1.0.8
@@ -69,6 +69,12 @@ dependencies:
   # 详见 third_party/appflowy_editor/README.local.md。
   appflowy_editor:
     path: third_party/appflowy_editor
+
+dependency_overrides:
+  # appflowy_editor（vendored）锁死 keyboard_height_plugin ^0.1.5（compileSdk 31，
+  # AGP 7.2，Android 构建 AAR metadata 检查失败）；0.3.0 升到 compileSdk 34 + AGP 8.6，
+  # Dart API（KeyboardHeightPlugin/onKeyboardHeightChanged/dispose）完全一致，强制覆盖。
+  keyboard_height_plugin: ^0.3.0
 
 dev_dependencies:
   flutter_test:

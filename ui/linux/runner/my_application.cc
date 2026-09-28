@@ -43,7 +43,13 @@ static void set_window_icon(GtkWindow* window) {
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
-  gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+  GtkWidget* toplevel = gtk_widget_get_toplevel(GTK_WIDGET(view));
+  // Some Wayland/X11 environments restore decorations while the Flutter
+  // surface is being realized. Re-apply this immediately before showing the
+  // window; no visual/context is changed here.
+  gtk_window_set_titlebar(GTK_WINDOW(toplevel), NULL);
+  gtk_window_set_decorated(GTK_WINDOW(toplevel), FALSE);
+  gtk_widget_show(toplevel);
 }
 
 // Implements GApplication::activate.
@@ -55,6 +61,22 @@ static void my_application_activate(GApplication* application) {
   // Show the Elsewhen logo as the window/taskbar icon.
   set_window_icon(window);
 
+  // 无边框窗口。**必须在这里做**（FlView 创建之前），不能在 Dart 侧做：
+  //
+  // nativeapi 的 `w.titleBarStyle = hidden` 是在 Flutter 已经建好 GL 上下文
+  // 之后才执行的，GTK 为此重建窗口的 GdkVisual，与已建好的上下文不匹配，
+  // 于是首帧报 `Could not determine GL version` +
+  // `Failed to create platform view rendering surface` +
+  // `FlutterEngineRunTask returned kInvalidArguments`，表现为窗口只有边框、
+  // 完全没有内容。逐项二分定位：跳过 titleBarStyle 即恢复（GL 错误 0），
+  // 跳过 backgroundColor / minimumSize / isVisibleInTaskbar / isClosable /
+  // title / 尺寸落位 全部无效。
+  //
+  // 窗口创建时设置则安全（visual 还没被 Flutter 用上）。相应地 Dart 侧
+  // window_service_desktop.dart 在 Linux 上不再设 titleBarStyle。
+  const gboolean borderless = TRUE;
+  gtk_window_set_decorated(window, !borderless);
+
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
   // desktop).
@@ -62,25 +84,11 @@ static void my_application_activate(GApplication* application) {
   // in case the window manager does more exotic layout, e.g. tiling.
   // If running on Wayland assume the header bar will work (may need changing
   // if future cases occur).
-  gboolean use_header_bar = TRUE;
-#ifdef GDK_WINDOWING_X11
-  GdkScreen* screen = gtk_window_get_screen(window);
-  if (GDK_IS_X11_SCREEN(screen)) {
-    const gchar* wm_name = gdk_x11_screen_get_window_manager_name(screen);
-    if (g_strcmp0(wm_name, "GNOME Shell") != 0) {
-      use_header_bar = FALSE;
-    }
-  }
-#endif
-  if (use_header_bar) {
-    GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
-    gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "Elsewhen");
-    gtk_header_bar_set_show_close_button(header_bar, TRUE);
-    gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
-  } else {
-    gtk_window_set_title(window, "Elsewhen");
-  }
+  // The Flutter UI supplies its own title bar. Never install a GTK header bar
+  // or native title bar, otherwise Linux renders two title bars.
+  gtk_window_set_titlebar(window, NULL);
+  gtk_window_set_decorated(window, FALSE);
+  gtk_window_set_title(window, "Elsewhen");
 
   gtk_window_set_default_size(window, 1920, 1080);
 
@@ -93,6 +101,7 @@ static void my_application_activate(GApplication* application) {
   // 窗口圆角要求窗口真透明：#00000000 把 FlView 底色设为透明，
   // 角落区域由 Flutter 根部 ClipRRect 裁成圆角后透出桌面（需 RGBA visual，
   // Wayland/X11+compositor 下 GTK3 顶层窗口自动启用）。
+  //
   gdk_rgba_parse(&background_color, "#00000000");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
