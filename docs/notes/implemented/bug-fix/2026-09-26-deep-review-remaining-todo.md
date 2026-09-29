@@ -857,3 +857,43 @@ v1 基线」，所以脚本先拿 `migrations/01-baseline/up.sql` 建一个参�
 - **commit `ba797e3` 不是自洽的 Flutter 提交**：`ui/lib/widgets/custom_title_bar.dart:36`
   引用了只在 `f73e827` 出现的 `knowledgeDigestBusyProvider`。单独 checkout 该 commit
   编译不过。处理需要 rebase 改写历史，**用户已知悉但尚未决定**。
+
+## 知识页标题加复制功能（2026-09-29，已实现）
+
+**做了什么**：详情头标题末尾挂一个 `Icons.copy` 按钮，点击复制**标题原文**，
+floating SnackBar 提示「标题已复制」。
+
+### 为什么按钮放进标题自己的 Row，而不是头部 Wrap 的独立子节点
+
+头部主行是个 `Wrap`：kind 徽章 + 标题（`ConstrainedBox(maxWidth: 980)`）+ slug
+元数据 + 来源 chip。复制按钮如果作为 Wrap 的独立子节点，窄屏换行后它会变成一个
+孤零零的图标混进下面那行 slug 里，分不清是干什么的。所以把标题重构成
+`Row(mainAxisSize.min)`：`Flexible` 装标题、`_copyTitleButton` 定宽跟在后面。
+
+效果：短标题时按钮贴在文字后；长标题省略号出现时按钮贴在省略号后（即标题末尾）。
+按钮永不被挤掉（定宽），也不改变头部 Wrap 的换行行为。`LayoutBuilder` 现在在
+`Flexible` 内部，拿到的是扣掉按钮后的宽度，省略号判定依然正确。
+
+### 沿用页面已有的复制反馈
+
+同文件的 `_SourceChip`（来源链接点击复制）就是这个模式，`Clipboard.setData` +
+floating SnackBar。文案带「标题」以区分页面上其他可复制对象（来源链接、项目路径、
+正文 Markdown、代码块）。`message_area.dart` 里有个 `_copyToClipboard` 私有 helper，
+但它跨文件不可复用，故此处照 `_SourceChip` 的内联写法保持局部一致。
+
+### 测试
+
+新增 `ui/test/wiki_title_copy_test.dart`，2 个用例，假仓库 + 拦截平台剪贴板通道，
+不触达 FFI：
+
+1. 头部标题旁有复制图标；点击后剪贴板拿到的是**标题原文**（不是 slug），提示文案正确。
+2. 窄屏 + 超长标题下按钮仍贴标题末尾、仍可点，且复制的是**完整标题**而非被截断的
+   可见文本。
+
+**变异验证**（测试真的咬人）：把 `text: widget.page.title` 改成 `slug` → 用例 1 红
+（比对出 `test/copy-title`）；把 `_copyTitleButton(context)` 从 Row 里摘掉 → 两个
+用例都红（找不到图标）。
+
+`flutter test` 193 passed（此前 191，+2）。`wiki_ui_test.dart`、
+`wiki_editor_integration_test.dart`、`tweet_tab_widget_test.dart` 仍全绿，确认头部
+结构改动没有影响其他渲染路径。
