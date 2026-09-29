@@ -6,14 +6,15 @@
 import 'api/todos.dart';
 import 'frb_generated.dart';
 
-// ⚠️ 手工补的：frb 2.14.0-beta.2 在 `crate::api` 下有多个子模块时会把 API 拆成
-// `api/<module>.dart`，但生成的 barrel 只 import 了其中一个模块，漏掉其余 13 个，
+// ⚠️ 手工补的：frb 2.14.0-beta.2 在 `crate::api` 下有多个子模块时会把 API 拆到
+// `api/<module>.dart`，但生成的 barrel 只 import 了其中一个模块，漏掉其余模块，
 // 导致下游 analyzer 报上百个 undefined_function / undefined_class。
 // 下次重跑 codegen 后，如果 `flutter analyze` 出现大批 undefined，
 // 就是这里被覆盖了，把下面这段重新贴回来即可（见 flutter_rust_bridge.yaml 的说明）。
 export 'api/conversations.dart';
 export 'api/entities.dart';
 export 'api/fonts.dart';
+export 'api/goals.dart';
 export 'api/import.dart';
 export 'api/knowledge_digest.dart';
 export 'api/provider_config.dart';

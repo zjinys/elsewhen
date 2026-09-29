@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 158415240;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1439001424;
 
 // Section: executor
 
@@ -128,6 +128,29 @@ fn wire__crate__api__rules__add_rule_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::rules::add_rule(api_content)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__archive_goal_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "archive_goal",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::archive_goal(api_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -232,6 +255,31 @@ fn wire__crate__api__conversations__create_conversation_impl(
                     (move || {
                         let output_ok =
                             crate::api::conversations::create_conversation(api_title, api_tag)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__create_goal_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    content: impl CstDecode<String>,
+    phase: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_goal",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_content = content.cst_decode();
+            let api_phase = phase.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::create_goal(api_content, api_phase)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1069,6 +1117,27 @@ fn wire__crate__api__init_bridge_impl(
         },
     )
 }
+fn wire__crate__api__goals__list_active_goals_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_active_goals",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::list_active_goals()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__provider_config__list_ai_provider_configs_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -1123,6 +1192,27 @@ fn wire__crate__api__conversations__list_archived_conversations_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::conversations::list_archived_conversations()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__list_archived_goals_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_archived_goals",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::list_archived_goals()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1550,6 +1640,29 @@ fn wire__crate__api__todos__open_todo_work_item_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::todos::open_todo_work_item(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__reactivate_goal_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "reactivate_goal",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::reactivate_goal(api_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2134,6 +2247,34 @@ fn wire__crate__api__provider_config__update_ai_provider_config_impl(
                             api_model,
                             api_api_key,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__update_goal_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    content: impl CstDecode<String>,
+    phase: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_goal",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_content = content.cst_decode();
+            let api_phase = phase.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::goals::update_goal(api_id, api_content, api_phase)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2773,6 +2914,28 @@ impl SseDecode for f64 {
     }
 }
 
+impl SseDecode for crate::api::goals::GoalDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_content = <String>::sse_decode(deserializer);
+        let mut var_phase = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_updatedAt = <String>::sse_decode(deserializer);
+        let mut var_supersededAt = <Option<String>>::sse_decode(deserializer);
+        return crate::api::goals::GoalDto {
+            id: var_id,
+            content: var_content,
+            phase: var_phase,
+            status: var_status,
+            created_at: var_createdAt,
+            updated_at: var_updatedAt,
+            superseded_at: var_supersededAt,
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3084,6 +3247,18 @@ impl SseDecode for Vec<crate::api::EventDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::EventDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::goals::GoalDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::goals::GoalDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -4030,6 +4205,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::EventDto> for crate::api::Eve
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::goals::GoalDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.content.into_into_dart().into_dart(),
+            self.phase.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.updated_at.into_into_dart().into_dart(),
+            self.superseded_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::goals::GoalDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::goals::GoalDto> for crate::api::goals::GoalDto {
+    fn into_into_dart(self) -> crate::api::goals::GoalDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::import::ImportUrlDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4720,6 +4916,19 @@ impl SseEncode for f64 {
     }
 }
 
+impl SseEncode for crate::api::goals::GoalDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.content, serializer);
+        <String>::sse_encode(self.phase, serializer);
+        <String>::sse_encode(self.status, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+        <String>::sse_encode(self.updated_at, serializer);
+        <Option<String>>::sse_encode(self.superseded_at, serializer);
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -4943,6 +5152,16 @@ impl SseEncode for Vec<crate::api::EventDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::EventDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::goals::GoalDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::goals::GoalDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -5666,6 +5885,20 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::goals::GoalDto> for wire_cst_goal_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::goals::GoalDto {
+            crate::api::goals::GoalDto {
+                id: self.id.cst_decode(),
+                content: self.content.cst_decode(),
+                phase: self.phase.cst_decode(),
+                status: self.status.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+                updated_at: self.updated_at.cst_decode(),
+                superseded_at: self.superseded_at.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::import::ImportUrlDto> for wire_cst_import_url_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::import::ImportUrlDto {
@@ -5885,6 +6118,16 @@ mod io {
     impl CstDecode<Vec<crate::api::EventDto>> for *mut wire_cst_list_event_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::EventDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::goals::GoalDto>> for *mut wire_cst_list_goal_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::goals::GoalDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -6424,6 +6667,24 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_goal_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                content: core::ptr::null_mut(),
+                phase: core::ptr::null_mut(),
+                status: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+                updated_at: core::ptr::null_mut(),
+                superseded_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_goal_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_import_url_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -6759,6 +7020,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__archive_goal(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__archive_goal_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__wiki_chat__archive_wiki_page_chat(
         port_: i64,
         page_slug: *mut wire_cst_list_prim_u_8_strict,
@@ -6795,6 +7064,15 @@ mod io {
         tag: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__conversations__create_conversation_impl(port_, title, tag)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__create_goal(
+        port_: i64,
+        content: *mut wire_cst_list_prim_u_8_strict,
+        phase: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__create_goal_impl(port_, content, phase)
     }
 
     #[unsafe(no_mangle)]
@@ -7097,6 +7375,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__list_active_goals(port_: i64) {
+        wire__crate__api__goals__list_active_goals_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__provider_config__list_ai_provider_configs(
         port_: i64,
     ) {
@@ -7113,6 +7396,11 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__conversations__list_archived_conversations_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__list_archived_goals(port_: i64) {
+        wire__crate__api__goals__list_archived_goals_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -7250,6 +7538,14 @@ mod io {
         id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__todos__open_todo_work_item_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__reactivate_goal(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__reactivate_goal_impl(port_, id)
     }
 
     #[unsafe(no_mangle)]
@@ -7486,6 +7782,16 @@ mod io {
         wire__crate__api__provider_config__update_ai_provider_config_impl(
             port_, base_url, model, api_key,
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__update_goal(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        content: *mut wire_cst_list_prim_u_8_strict,
+        phase: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__update_goal_impl(port_, id, content, phase)
     }
 
     #[unsafe(no_mangle)]
@@ -7778,6 +8084,20 @@ mod io {
         let wrap = wire_cst_list_event_dto {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_event_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_goal_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_goal_dto {
+        let wrap = wire_cst_list_goal_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_goal_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -8114,6 +8434,17 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_goal_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        content: *mut wire_cst_list_prim_u_8_strict,
+        phase: *mut wire_cst_list_prim_u_8_strict,
+        status: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+        updated_at: *mut wire_cst_list_prim_u_8_strict,
+        superseded_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_import_url_dto {
         source_url: *mut wire_cst_list_prim_u_8_strict,
         source_kind: *mut wire_cst_list_prim_u_8_strict,
@@ -8266,6 +8597,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_event_dto {
         ptr: *mut wire_cst_event_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_goal_dto {
+        ptr: *mut wire_cst_goal_dto,
         len: i32,
     }
     #[repr(C)]
@@ -8865,6 +9202,31 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::goals::GoalDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::goals::GoalDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                7,
+                "Expected 7 elements, got {}",
+                self_.length()
+            );
+            crate::api::goals::GoalDto {
+                id: self_.get(0).cst_decode(),
+                content: self_.get(1).cst_decode(),
+                phase: self_.get(2).cst_decode(),
+                status: self_.get(3).cst_decode(),
+                created_at: self_.get(4).cst_decode(),
+                updated_at: self_.get(5).cst_decode(),
+                superseded_at: self_.get(6).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::import::ImportUrlDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -9138,6 +9500,18 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::EventDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::goals::GoalDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::goals::GoalDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -9611,6 +9985,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__goals__archive_goal(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__goals__archive_goal_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__wiki_chat__archive_wiki_page_chat(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         page_slug: String,
@@ -9647,6 +10029,15 @@ mod web {
         tag: Option<String>,
     ) {
         wire__crate__api__conversations__create_conversation_impl(port_, title, tag)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__create_goal(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        content: String,
+        phase: String,
+    ) {
+        wire__crate__api__goals__create_goal_impl(port_, content, phase)
     }
 
     #[wasm_bindgen]
@@ -9953,6 +10344,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__goals__list_active_goals(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__goals__list_active_goals_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__provider_config__list_ai_provider_configs(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -9969,6 +10367,13 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__conversations__list_archived_conversations_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__list_archived_goals(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__goals__list_archived_goals_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -10112,6 +10517,14 @@ mod web {
         id: String,
     ) {
         wire__crate__api__todos__open_todo_work_item_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__reactivate_goal(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__goals__reactivate_goal_impl(port_, id)
     }
 
     #[wasm_bindgen]
@@ -10350,6 +10763,16 @@ mod web {
         wire__crate__api__provider_config__update_ai_provider_config_impl(
             port_, base_url, model, api_key,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__update_goal(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        content: String,
+        phase: String,
+    ) {
+        wire__crate__api__goals__update_goal_impl(port_, id, content, phase)
     }
 
     #[wasm_bindgen]

@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/conversations.dart';
 import 'api/entities.dart';
 import 'api/fonts.dart';
+import 'api/goals.dart';
 import 'api/import.dart';
 import 'api/knowledge_digest.dart';
 import 'api/provider_config.dart';
@@ -136,6 +137,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_f_64(dynamic raw);
 
   @protected
+  GoalDto dco_decode_goal_dto(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -192,6 +196,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventDto> dco_decode_list_event_dto(dynamic raw);
+
+  @protected
+  List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
 
   @protected
   List<KnowledgeDigestJobDto> dco_decode_list_knowledge_digest_job_dto(
@@ -436,6 +443,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
+  GoalDto sse_decode_goal_dto(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -510,6 +520,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventDto> sse_decode_list_event_dto(SseDeserializer deserializer);
+
+  @protected
+  List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer);
 
   @protected
   List<KnowledgeDigestJobDto> sse_decode_list_knowledge_digest_job_dto(
@@ -860,6 +873,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_event_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_event_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_goal_dto> cst_encode_list_goal_dto(
+    List<GoalDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_goal_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_goal_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -1388,6 +1413,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_goal_dto(
+    GoalDto apiObj,
+    wire_cst_goal_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.content = cst_encode_String(apiObj.content);
+    wireObj.phase = cst_encode_String(apiObj.phase);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
+    wireObj.superseded_at = cst_encode_opt_String(apiObj.supersededAt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_import_url_dto(
     ImportUrlDto apiObj,
     wire_cst_import_url_dto wireObj,
@@ -1832,6 +1871,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_goal_dto(GoalDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -1923,6 +1965,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_event_dto(List<EventDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_knowledge_digest_job_dto(
@@ -2416,6 +2461,19 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_event_dto');
   late final _cst_new_list_event_dto = _cst_new_list_event_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_event_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_goal_dto> cst_new_list_goal_dto(int len) {
+    return _cst_new_list_goal_dto(len);
+  }
+
+  late final _cst_new_list_goal_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_goal_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_goal_dto');
+  late final _cst_new_list_goal_dto = _cst_new_list_goal_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_goal_dto> Function(int)>();
 
   ffi.Pointer<wire_cst_list_knowledge_digest_job_dto>
   cst_new_list_knowledge_digest_job_dto(int len) {
@@ -3448,6 +3506,133 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__get_message_recordabilityPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__goals__archive_goal(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__goals__archive_goal(port_, id);
+  }
+
+  late final _wire__crate__api__goals__archive_goalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__archive_goal');
+  late final _wire__crate__api__goals__archive_goal =
+      _wire__crate__api__goals__archive_goalPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__goals__create_goal(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
+  ) {
+    return _wire__crate__api__goals__create_goal(port_, content, phase);
+  }
+
+  late final _wire__crate__api__goals__create_goalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__create_goal');
+  late final _wire__crate__api__goals__create_goal =
+      _wire__crate__api__goals__create_goalPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__goals__list_active_goals(int port_) {
+    return _wire__crate__api__goals__list_active_goals(port_);
+  }
+
+  late final _wire__crate__api__goals__list_active_goalsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__goals__list_active_goals',
+      );
+  late final _wire__crate__api__goals__list_active_goals =
+      _wire__crate__api__goals__list_active_goalsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__goals__list_archived_goals(int port_) {
+    return _wire__crate__api__goals__list_archived_goals(port_);
+  }
+
+  late final _wire__crate__api__goals__list_archived_goalsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__goals__list_archived_goals',
+      );
+  late final _wire__crate__api__goals__list_archived_goals =
+      _wire__crate__api__goals__list_archived_goalsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__goals__reactivate_goal(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__goals__reactivate_goal(port_, id);
+  }
+
+  late final _wire__crate__api__goals__reactivate_goalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__reactivate_goal');
+  late final _wire__crate__api__goals__reactivate_goal =
+      _wire__crate__api__goals__reactivate_goalPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__goals__update_goal(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
+  ) {
+    return _wire__crate__api__goals__update_goal(port_, id, content, phase);
+  }
+
+  late final _wire__crate__api__goals__update_goalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__update_goal');
+  late final _wire__crate__api__goals__update_goal =
+      _wire__crate__api__goals__update_goalPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__import__fetch_import_url(
@@ -4963,6 +5148,8 @@ final class KnowledgeDigestTickResultKind extends ffi.Union {
   external wire_cst_KnowledgeDigestTickResult_Failed Failed;
 }
 
+const int MAX_ACTIVE_GOALS = 3;
+
 final class wire_cst_AnalysisTriggerResult_Processed extends ffi.Struct {
   @ffi.Int64()
   external int count;
@@ -5536,6 +5723,40 @@ final class wire_cst_event_dto extends ffi.Struct {
     ..ref.status = status;
 }
 
+final class wire_cst_goal_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> content;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> phase;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> superseded_at;
+
+  static ffi.Pointer<wire_cst_goal_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> superseded_at,
+  }) => $allocator<wire_cst_goal_dto>()
+    ..ref.id = id
+    ..ref.content = content
+    ..ref.phase = phase
+    ..ref.status = status
+    ..ref.created_at = created_at
+    ..ref.updated_at = updated_at
+    ..ref.superseded_at = superseded_at;
+}
+
 final class wire_cst_import_url_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_url;
 
@@ -5924,6 +6145,21 @@ final class wire_cst_list_event_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_event_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_event_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_goal_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_goal_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_goal_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_goal_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_goal_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }

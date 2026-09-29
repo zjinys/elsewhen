@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/conversations.dart';
 import 'api/entities.dart';
 import 'api/fonts.dart';
+import 'api/goals.dart';
 import 'api/import.dart';
 import 'api/knowledge_digest.dart';
 import 'api/provider_config.dart';
@@ -80,7 +81,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 158415240;
+  int get rustContentHash => 1439001424;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -107,6 +108,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiRulesAddRule({required String content});
 
+  Future<void> crateApiGoalsArchiveGoal({required String id});
+
   Future<void> crateApiWikiChatArchiveWikiPageChat({required String pageSlug});
 
   Future<InputRecordDto> crateApiBeginUrlInput({
@@ -122,6 +125,11 @@ abstract class RustLibApi extends BaseApi {
   Future<ConversationDto> crateApiConversationsCreateConversation({
     String? title,
     String? tag,
+  });
+
+  Future<GoalDto> crateApiGoalsCreateGoal({
+    required String content,
+    required String phase,
   });
 
   Future<TodoDto> crateApiTodosCreateTodo({
@@ -239,6 +247,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiInitBridge({String? databasePath});
 
+  Future<List<GoalDto>> crateApiGoalsListActiveGoals();
+
   Future<List<AiProviderConfigDto>>
   crateApiProviderConfigListAiProviderConfigs();
 
@@ -246,6 +256,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<ConversationDto>>
   crateApiConversationsListArchivedConversations();
+
+  Future<List<GoalDto>> crateApiGoalsListArchivedGoals();
 
   Future<List<ConversationDto>> crateApiConversationsListConversations();
 
@@ -308,6 +320,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<WikiPageDto> crateApiTodosOpenTodoWorkItem({required String id});
+
+  Future<void> crateApiGoalsReactivateGoal({required String id});
 
   Future<bool> crateApiReanalyzeEvent({required String eventId});
 
@@ -409,6 +423,12 @@ abstract class RustLibApi extends BaseApi {
     required String baseUrl,
     required String model,
     required String apiKey,
+  });
+
+  Future<void> crateApiGoalsUpdateGoal({
+    required String id,
+    required String content,
+    required String phase,
   });
 
   Future<bool> crateApiConversationsUpdatePendingActionArgs({
@@ -558,6 +578,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "add_rule", argNames: ["content"]);
 
   @override
+  Future<void> crateApiGoalsArchiveGoal({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__goals__archive_goal(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsArchiveGoalConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsArchiveGoalConstMeta =>
+      const TaskConstMeta(debugName: "archive_goal", argNames: ["id"]);
+
+  @override
   Future<void> crateApiWikiChatArchiveWikiPageChat({required String pageSlug}) {
     return handler.executeNormal(
       NormalTask(
@@ -678,6 +720,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "create_conversation",
         argNames: ["title", "tag"],
       );
+
+  @override
+  Future<GoalDto> crateApiGoalsCreateGoal({
+    required String content,
+    required String phase,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(content);
+          var arg1 = cst_encode_String(phase);
+          return wire.wire__crate__api__goals__create_goal(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_goal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsCreateGoalConstMeta,
+        argValues: [content, phase],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsCreateGoalConstMeta => const TaskConstMeta(
+    debugName: "create_goal",
+    argNames: ["content", "phase"],
+  );
 
   @override
   Future<TodoDto> crateApiTodosCreateTodo({
@@ -1616,6 +1686,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_bridge", argNames: ["databasePath"]);
 
   @override
+  Future<List<GoalDto>> crateApiGoalsListActiveGoals() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__goals__list_active_goals(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_goal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsListActiveGoalsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsListActiveGoalsConstMeta =>
+      const TaskConstMeta(debugName: "list_active_goals", argNames: []);
+
+  @override
   Future<List<AiProviderConfigDto>>
   crateApiProviderConfigListAiProviderConfigs() {
     return handler.executeNormal(
@@ -1688,6 +1779,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "list_archived_conversations",
         argNames: [],
       );
+
+  @override
+  Future<List<GoalDto>> crateApiGoalsListArchivedGoals() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__goals__list_archived_goals(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_goal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsListArchivedGoalsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsListArchivedGoalsConstMeta =>
+      const TaskConstMeta(debugName: "list_archived_goals", argNames: []);
 
   @override
   Future<List<ConversationDto>> crateApiConversationsListConversations() {
@@ -2180,6 +2292,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTodosOpenTodoWorkItemConstMeta =>
       const TaskConstMeta(debugName: "open_todo_work_item", argNames: ["id"]);
+
+  @override
+  Future<void> crateApiGoalsReactivateGoal({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__goals__reactivate_goal(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsReactivateGoalConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsReactivateGoalConstMeta =>
+      const TaskConstMeta(debugName: "reactivate_goal", argNames: ["id"]);
 
   @override
   Future<bool> crateApiReanalyzeEvent({required String eventId}) {
@@ -2856,6 +2990,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiGoalsUpdateGoal({
+    required String id,
+    required String content,
+    required String phase,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_String(content);
+          var arg2 = cst_encode_String(phase);
+          return wire.wire__crate__api__goals__update_goal(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsUpdateGoalConstMeta,
+        argValues: [id, content, phase],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsUpdateGoalConstMeta => const TaskConstMeta(
+    debugName: "update_goal",
+    argNames: ["id", "content", "phase"],
+  );
+
+  @override
   Future<bool> crateApiConversationsUpdatePendingActionArgs({
     required String actionId,
     required String argsJson,
@@ -3489,6 +3658,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalDto dco_decode_goal_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return GoalDto(
+      id: dco_decode_String(arr[0]),
+      content: dco_decode_String(arr[1]),
+      phase: dco_decode_String(arr[2]),
+      status: dco_decode_String(arr[3]),
+      createdAt: dco_decode_String(arr[4]),
+      updatedAt: dco_decode_String(arr[5]),
+      supersededAt: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodePrimitiveInt(raw);
@@ -3689,6 +3875,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<EventDto> dco_decode_list_event_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_event_dto).toList();
+  }
+
+  @protected
+  List<GoalDto> dco_decode_list_goal_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_goal_dto).toList();
   }
 
   @protected
@@ -4498,6 +4690,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalDto sse_decode_goal_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_content = sse_decode_String(deserializer);
+    var var_phase = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_updatedAt = sse_decode_String(deserializer);
+    var var_supersededAt = sse_decode_opt_String(deserializer);
+    return GoalDto(
+      id: var_id,
+      content: var_content,
+      phase: var_phase,
+      status: var_status,
+      createdAt: var_createdAt,
+      updatedAt: var_updatedAt,
+      supersededAt: var_supersededAt,
+    );
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -4813,6 +5026,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <EventDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_event_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GoalDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_goal_dto(deserializer));
     }
     return ans_;
   }
@@ -5719,6 +5944,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_goal_dto(GoalDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.content, serializer);
+    sse_encode_String(self.phase, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.updatedAt, serializer);
+    sse_encode_opt_String(self.supersededAt, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -5962,6 +6199,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_event_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_goal_dto(item, serializer);
     }
   }
 

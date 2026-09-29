@@ -10,6 +10,7 @@ import 'api.dart';
 import 'api/conversations.dart';
 import 'api/entities.dart';
 import 'api/fonts.dart';
+import 'api/goals.dart';
 import 'api/import.dart';
 import 'api/knowledge_digest.dart';
 import 'api/provider_config.dart';
@@ -138,6 +139,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_f_64(dynamic raw);
 
   @protected
+  GoalDto dco_decode_goal_dto(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -194,6 +198,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventDto> dco_decode_list_event_dto(dynamic raw);
+
+  @protected
+  List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
 
   @protected
   List<KnowledgeDigestJobDto> dco_decode_list_knowledge_digest_job_dto(
@@ -438,6 +445,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
+  GoalDto sse_decode_goal_dto(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -512,6 +522,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventDto> sse_decode_list_event_dto(SseDeserializer deserializer);
+
+  @protected
+  List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer);
 
   @protected
   List<KnowledgeDigestJobDto> sse_decode_list_knowledge_digest_job_dto(
@@ -954,6 +967,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_goal_dto(GoalDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.content),
+      cst_encode_String(raw.phase),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
+      cst_encode_opt_String(raw.supersededAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return castNativeBigInt(raw);
@@ -1132,6 +1159,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_event_dto(List<EventDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_event_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_goal_dto(List<GoalDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_goal_dto).toList().jsify()!;
   }
 
   @protected
@@ -1608,6 +1641,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_goal_dto(GoalDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -1699,6 +1735,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_event_dto(List<EventDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_knowledge_digest_job_dto(
@@ -1899,6 +1938,9 @@ class RustLibWire implements BaseWire {
     String content,
   ) => wasmModule.wire__crate__api__rules__add_rule(port_, content);
 
+  void wire__crate__api__goals__archive_goal(NativePortType port_, String id) =>
+      wasmModule.wire__crate__api__goals__archive_goal(port_, id);
+
   void wire__crate__api__wiki_chat__archive_wiki_page_chat(
     NativePortType port_,
     String page_slug,
@@ -1936,6 +1978,12 @@ class RustLibWire implements BaseWire {
     title,
     tag,
   );
+
+  void wire__crate__api__goals__create_goal(
+    NativePortType port_,
+    String content,
+    String phase,
+  ) => wasmModule.wire__crate__api__goals__create_goal(port_, content, phase);
 
   void wire__crate__api__todos__create_todo(
     NativePortType port_,
@@ -2168,6 +2216,9 @@ class RustLibWire implements BaseWire {
     String? database_path,
   ) => wasmModule.wire__crate__api__init_bridge(port_, database_path);
 
+  void wire__crate__api__goals__list_active_goals(NativePortType port_) =>
+      wasmModule.wire__crate__api__goals__list_active_goals(port_);
+
   void wire__crate__api__provider_config__list_ai_provider_configs(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__provider_config__list_ai_provider_configs(
@@ -2182,6 +2233,9 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__conversations__list_archived_conversations(
     port_,
   );
+
+  void wire__crate__api__goals__list_archived_goals(NativePortType port_) =>
+      wasmModule.wire__crate__api__goals__list_archived_goals(port_);
 
   void wire__crate__api__conversations__list_conversations(
     NativePortType port_,
@@ -2303,6 +2357,11 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String id,
   ) => wasmModule.wire__crate__api__todos__open_todo_work_item(port_, id);
+
+  void wire__crate__api__goals__reactivate_goal(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__goals__reactivate_goal(port_, id);
 
   void wire__crate__api__reanalyze_event(
     NativePortType port_,
@@ -2510,6 +2569,18 @@ class RustLibWire implements BaseWire {
     api_key,
   );
 
+  void wire__crate__api__goals__update_goal(
+    NativePortType port_,
+    String id,
+    String content,
+    String phase,
+  ) => wasmModule.wire__crate__api__goals__update_goal(
+    port_,
+    id,
+    content,
+    phase,
+  );
+
   void wire__crate__api__conversations__update_pending_action_args(
     NativePortType port_,
     String action_id,
@@ -2614,6 +2685,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content,
   );
 
+  external void wire__crate__api__goals__archive_goal(
+    NativePortType port_,
+    String id,
+  );
+
   external void wire__crate__api__wiki_chat__archive_wiki_page_chat(
     NativePortType port_,
     String page_slug,
@@ -2635,6 +2711,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String? title,
     String? tag,
+  );
+
+  external void wire__crate__api__goals__create_goal(
+    NativePortType port_,
+    String content,
+    String phase,
   );
 
   external void wire__crate__api__todos__create_todo(
@@ -2811,6 +2893,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? database_path,
   );
 
+  external void wire__crate__api__goals__list_active_goals(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__provider_config__list_ai_provider_configs(
     NativePortType port_,
   );
@@ -2818,6 +2904,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__list_analyses(NativePortType port_);
 
   external void wire__crate__api__conversations__list_archived_conversations(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__goals__list_archived_goals(
     NativePortType port_,
   );
 
@@ -2904,6 +2994,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__todos__open_todo_work_item(
+    NativePortType port_,
+    String id,
+  );
+
+  external void wire__crate__api__goals__reactivate_goal(
     NativePortType port_,
     String id,
   );
@@ -3037,6 +3132,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String base_url,
     String model,
     String api_key,
+  );
+
+  external void wire__crate__api__goals__update_goal(
+    NativePortType port_,
+    String id,
+    String content,
+    String phase,
   );
 
   external void wire__crate__api__conversations__update_pending_action_args(

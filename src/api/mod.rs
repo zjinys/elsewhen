@@ -1,6 +1,7 @@
 pub mod conversations;
 pub mod entities;
 pub mod fonts;
+pub mod goals;
 pub mod import;
 pub mod knowledge_digest;
 pub mod provider_config;
