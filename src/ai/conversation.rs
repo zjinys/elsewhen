@@ -76,8 +76,25 @@ fn jitter_backoff_ms(attempt: usize) -> u64 {
     }
 }
 
+/// 承诺修复预算：回复只预告「我这就去做」却没调工具时的最大回炉次数。
+/// 与 MAX_PROTOCOL_REPAIRS 独立计数，双保险防死循环。
+const MAX_PROMISE_REPAIRS: usize = 1;
+
+/// 空回复重试预算：上游返回空 content 且无 tool_calls 时的额外重发次数。
+/// 与协议兼容兜底（去 tools 重试一次）叠加，单轮最多因此多花一次请求。
+const MAX_EMPTY_RETRIES: usize = 1;
+
 /// 回炉提示：只讲唯一合法格式，不解释、不啰嗦，让模型重发一行调用。
 const PROTOCOL_REPAIR_NUDGE: &str = "系统提示：你上一轮回复疑似包含一次工具调用，但格式无法识别，没有执行。工具调用必须独占一行，只允许唯一格式（其他任何格式都会被丢弃）：\n[工具调用]{\"name\":\"工具名\",\"arguments\":{...}}\n请重新只输出这一行调用，不要输出其他内容。";
+
+/// 回炉提示：模型预告了未来动作却没动手。承诺不是答案。
+/// 真实案例（2026-09-29 知识页「Omni flash 视频 prompt」）：用户贴入新 prompt，
+/// 模型回「我准备一个更新版本…我将为你草拟更新后的版本，稍等片刻。」——零工具调用、
+/// 零写入，用户等来的是一句预告。承诺检测抓的就是这一类。
+const PROMISE_REPAIR_NUDGE: &str = "系统提示：你上一轮只预告了接下来要做什么（稍等片刻／我准备…），但没有调用任何工具，用户实际上什么都没拿到。承诺不是答案：要么现在调用工具把事情做完，要么直接把你已经能给出的内容说清楚。不要预告等待。";
+
+/// 回炉提示：上游返回空内容。空回复等价于把对话交给用户自己猜。
+const EMPTY_REPLY_NUDGE: &str = "系统提示：你上一轮返回了空内容，用户什么也没看到。请直接输出给用户看的文字；需要写入知识库就现在调用对应工具。不要返回空回复。";
 
 /// Generate AI reply for a conversation
 ///
@@ -284,6 +301,9 @@ pub fn generate_conversation_reply(
     }
     let outcome = outcome.context(format!("所有 AI provider 均失败：{}", errors.join(" | ")))?;
     let raw = outcome.content;
+    // `outcome.content` 已 move 出，诊断字段先取出来（Copy）备用于空回复兜底。
+    let rounds_used = outcome.rounds_used;
+    let empty_retries = outcome.empty_retries;
 
     // 5) 解析规则提议：若 AI 在末尾提交了一条规则，剥离标记转为友好提示展示，
     //    并把规则文本暂存为「待确认」，等待用户下一条消息确认后入库生效
@@ -293,13 +313,18 @@ pub fn generate_conversation_reply(
     }
 
     // 空回复兜底：绝不把空消息存进对话。
-    // 若命中过本机直查，直接把真实数据作为答复；否则给出明确的重试提示。
+    // 若命中过本机直查，直接把真实数据作为答复；否则给出带诊断的重试提示。
+    //
+    // 这条兜底自己也是一条 assistant 消息、会进历史并被下一轮模型看到，所以文案必须
+    // 自带上下文：说清「重试过几轮仍为空」以及「上一条预告的动作没做成」。原来的
+    // 「抱歉，模型没有返回内容，请重试一次。」不含任何信息，下一轮模型据此作答必然
+    // 接不上——这正是 2026-09-29 Omni flash 页对话断链的放大器。
     if content.trim().is_empty() {
         content = match &direct_query_result {
             Some((label, data)) => {
                 format!("（AI 未能生成回复，以下是系统直接查到的「{label}」数据）\n{data}")
             }
-            None => "抱歉，模型没有返回内容，请重试一次。".to_string(),
+            None => empty_reply_fallback(store, conversation_id, rounds_used, empty_retries)?,
         };
     }
 
@@ -331,6 +356,45 @@ pub fn generate_conversation_reply(
     store.send_message(conversation_id, "assistant", &content, None)?;
 
     Ok(content)
+}
+
+/// 空回复兜底文案。三个信息缺一不可：
+/// 1. 重试过几轮（让用户和下一轮模型知道不是没试）；
+/// 2. 上一条若是空头预告，明确说它没做完——否则模型会顺着「我已道歉」继续道歉，
+///    对话再也接不回原话题（2026-09-29 Omni flash 页即此症状）；
+/// 3. 有待确认草稿时不抱怨：此时工具其实执行了，只是话术没落地，措辞要区别对待。
+fn empty_reply_fallback(
+    store: &Store,
+    conversation_id: &str,
+    rounds_used: usize,
+    empty_retries: usize,
+) -> Result<String> {
+    let has_pending = !store
+        .pending_actions_for_conversation(conversation_id)?
+        .is_empty();
+    let last_assistant = store
+        .list_messages(conversation_id)?
+        .into_iter()
+        .rev()
+        .find(|m| m.role == "assistant")
+        .map(|m| m.content)
+        .unwrap_or_default();
+
+    let head = format!(
+        "抱歉，这次没能生成回复（已尝试 {rounds_used} 轮，其中 {empty_retries} 次是空回复后重发）。"
+    );
+
+    if has_pending {
+        return Ok(format!(
+            "{head}你要保存的内容已经整理成草稿了，请回复「确认」让它入库，或「不用」丢弃。"
+        ));
+    }
+    if future_promise_detected(&last_assistant) {
+        return Ok(format!(
+            "{head}上一条我说要处理的事并没有做完——请把要求重发一次，我从头做完它。"
+        ));
+    }
+    Ok(format!("{head}请把刚才的问题再发一次。"))
 }
 
 /// 工具通信协议：原生 tool-calling 或文本信封
@@ -413,6 +477,10 @@ struct AgentOutcome {
     prompt_tokens: u64,
     completion_tokens: u64,
     model: Option<String>,
+    /// 诊断：本次循环实际消耗的轮数（1..=MAX_TOOL_ROUNDS），供空回复兜底文案说明重试过几次。
+    rounds_used: usize,
+    /// 诊断：因上游返回空 content 而额外重发的次数。
+    empty_retries: usize,
 }
 
 /// Agent 循环：最多 MAX_TOOL_ROUNDS 轮。
@@ -502,9 +570,15 @@ fn run_agent_loop_inner(
         .is_some_and(|m| user_text_wants_write(&m.content))
         || user_requested_write(store, conversation_id)?;
     let mut claim_repaired = false;
+    // 承诺回炉：预告了「我这就去做」却零工具调用 → 逼它把事做完（每轮至多一次）。
+    let mut promise_repaired = false;
+    // 空回复重发：上游返回空 content 时消耗一轮预算重试，而不是把空串当答案收敛。
+    let mut empty_retries_used = 0usize;
+    let mut rounds_used = 0usize;
     let tool_names = registry.names();
 
     for _round in 0..MAX_TOOL_ROUNDS {
+        rounds_used = _round + 1;
         let wants_native = match &protocol {
             Some(ToolProtocol::Native) => true,
             Some(ToolProtocol::Text) => false,
@@ -647,6 +721,29 @@ fn run_agent_loop_inner(
             }
         }
 
+        // 承诺回炉：只预告「接下来要做」就收敛 = 用户等一场空。逼它现在动手或直接给结果。
+        // 与写声明核验同源不同向：那边抓「谎报已做完」，这边抓「预告还没做」。
+        if !promise_repaired
+            && writes_requested
+            && !clean.trim().is_empty()
+            && future_promise_detected(&clean)
+        {
+            promise_repaired = true;
+            debug_eprintln!("[agent] 只预告未动手，回炉逼它执行 (repair)");
+            context.push(ContextMessage::new("assistant", reply.content));
+            context.push(ContextMessage::new("system", PROMISE_REPAIR_NUDGE));
+            continue;
+        }
+
+        // 空回复重发：上游给了空 content（200 但无正文，常见于推理模型烧光输出预算）。
+        // 原来这里直接 break，空串被当成答案收敛，用户只看到一句无信息兜底。
+        if clean.trim().is_empty() && empty_retries_used < MAX_EMPTY_RETRIES {
+            empty_retries_used += 1;
+            debug_eprintln!("[agent] 空回复，重发一次 (empty retry {empty_retries_used})");
+            context.push(ContextMessage::new("system", EMPTY_REPLY_NUDGE));
+            continue;
+        }
+
         // 收敛
         content = clean;
         break;
@@ -662,6 +759,8 @@ fn run_agent_loop_inner(
         prompt_tokens,
         completion_tokens,
         model,
+        rounds_used,
+        empty_retries: empty_retries_used,
     })
 }
 
@@ -998,6 +1097,43 @@ fn write_claim_detected(content: &str) -> bool {
         "搜", "没有", "还没", "失败", "是否", "如果", "假如", "？", "?",
     ];
     CLAIMS.iter().any(|c| content.contains(c)) && !GUARDS.iter().any(|g| content.contains(g))
+}
+
+/// 未完成宣告检测：回复预告了「接下来我要做」，但本轮并没有动手。
+///
+/// 与 `write_claim_detected` 是两个方向——那边抓「谎报已经做完」，这边抓「预告还没做」。
+/// 后者曾真实发生：用户贴入新素材要求合并保存，模型回「我准备一个更新版本…我将为你
+/// 草拟更新后的版本，稍等片刻。」，零工具调用、零写入，用户干等。写声明词表一个都
+/// 命中不了（没有「已保存」类完成态），于是直接收敛。
+fn future_promise_detected(content: &str) -> bool {
+    const PROMISES: &[&str] = &[
+        "稍等片刻",
+        "请稍等",
+        "稍等一下",
+        "稍等我",
+        "请稍候",
+        "稍候片刻",
+        "马上就好",
+        "我这就",
+        "这就来",
+        "接下来我",
+        "我接下来",
+        "我准备",
+        "我来帮你",
+        "让我先",
+    ];
+    // 守卫：已经交付了内容并在求确认 —— 那是有实质答复的征求，不算空头预告。
+    // 漏拦的代价只是多烧一轮（预算封顶 1 次），误拦会把正常的「稍等我看下」也逼成硬答。
+    const GUARDS: &[&str] = &[
+        "请确认",
+        "确认一下",
+        "是否需要",
+        "要我现在",
+        "草稿如下",
+        "你看这样",
+        "这样可以吗",
+    ];
+    PROMISES.iter().any(|p| content.contains(p)) && !GUARDS.iter().any(|g| content.contains(g))
 }
 
 /// 用户文本是否表达写意图（存/建/记/归档类）。疑问句式（…吗/？）是在问状态，不是下指令。
@@ -1904,6 +2040,188 @@ mod tests {
             store.pending_actions_for_conversation(&conv).unwrap().len(),
             1
         );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn future_promise_detected_catches_preamble_without_action() {
+        // 线上真实回复（2026-09-29 知识页「Omni flash 视频 prompt」第 4 条）：
+        // 用户贴入新 prompt 要求合并保存，模型只回一句预告，零工具调用零写入。
+        let real = "由于新的 prompt 与现有页面相关且有重叠的内容，我们可以选择将这两个 prompt 结合到一个页面中，以便更好地管理和查阅。\n\n我将为你草拟更新后的版本，稍等片刻。";
+        assert!(future_promise_detected(real), "应识别为空头预告");
+        // 关键：写声明检测对它完全无感——这正是它当初能收敛溜过去的原因。
+        assert!(
+            !write_claim_detected(real),
+            "预告不是完成声明，两个检测器必须各管一头"
+        );
+
+        for p in [
+            "稍等片刻",
+            "请稍等",
+            "我这就处理",
+            "接下来我先整理一下",
+            "我准备一个更新版本",
+            "我来帮你看",
+        ] {
+            assert!(future_promise_detected(p), "应识别为预告: {p}");
+        }
+
+        // 正常答复不得误伤：解释、提问、道歉、以及「已交付内容 + 求确认」。
+        for ok in [
+            "这两条 prompt 的差别主要在镜头语言上，我列三点给你看。",
+            "你是想把两条合并，还是各自建一页？",
+            "抱歉，刚才没能生成回复，请再发一次。",
+            "草拟好了，标题「感悟」。回「好」我就存。",
+            "已经整理成草稿了，请确认要不要入库。",
+        ] {
+            assert!(!future_promise_detected(ok), "不应识别为预告: {ok}");
+        }
+    }
+
+    #[test]
+    fn agent_loop_promise_without_tool_call_is_repaired() {
+        // 承诺回炉端到端：用户要保存 → 模型只回「稍等片刻」（零工具调用）→
+        // 回炉逼它动手 → 模型真的调 save_knowledge_draft → 诚实回复收敛。
+        // 改之前第一轮就 break，用户永远等不到草稿。
+        let (store, path) = temporary_database();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let mut context = vec![ContextMessage::new("user", "把这条新的 prompt 也存进来")];
+        let registry = ToolRegistry::default();
+        let provider = ScriptedProvider::new(vec![
+            // 第一轮：空头预告，没有工具调用
+            Ok(AiReply::text(
+                "我准备一个更新版本，把新 prompt 整合进去。\n\n我将为你草拟更新后的版本，稍等片刻。",
+            )),
+            // 回炉后：真的调写工具
+            Ok(AiReply::text(
+                "[工具调用]{\"name\":\"save_knowledge_draft\",\"arguments\":{\"title\":\"视频 prompt 优化版\",\"content_md\":\"优化后的 prompt 正文\"}}",
+            )),
+            // 落定：诚实回复
+            Ok(AiReply::text("草拟好了，标题「视频 prompt 优化版」。回「好」我就存。")),
+        ]);
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
+        assert_eq!(
+            outcome.content,
+            "草拟好了，标题「视频 prompt 优化版」。回「好」我就存。"
+        );
+        assert!(
+            context.iter().any(|m| m.content.contains("承诺不是答案")),
+            "应下发承诺回炉提示"
+        );
+        assert_eq!(
+            store.pending_actions_for_conversation(&conv).unwrap().len(),
+            1,
+            "回炉后应真的登记了草稿，而不是又回一句承诺"
+        );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn agent_loop_retries_empty_reply_instead_of_converging_empty() {
+        // 上游返回空 content（200 但无正文）时，兼容兜底先摘一次 tools 重试，
+        // 仍为空则应消耗一次空回复预算再发一轮，而不是把空串当答案收敛。
+        let (store, path) = temporary_database();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let mut context = vec![ContextMessage::new("user", "继续")];
+        let registry = ToolRegistry::default();
+        // 脚本前两条都是空：第 1 条给带 tools 的原生请求，第 2 条给兼容兜底的无 tools 重试。
+        let provider = ScriptedProvider::new(vec![
+            Ok(AiReply::text("")),
+            Ok(AiReply::text("")),
+            Ok(AiReply::text("这是更新后的版本：…")),
+        ]);
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
+        assert_eq!(outcome.content, "这是更新后的版本：…");
+        assert_eq!(outcome.empty_retries, 1, "应恰好重发一次");
+        assert!(
+            context.iter().any(|m| m.content.contains("返回了空内容")),
+            "应下发空回复回炉提示"
+        );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn agent_loop_persistent_empty_terminates_within_budget() {
+        // 持续空回复不能变成死循环：空回复预算用尽即收敛，轮数有界。
+        let (store, path) = temporary_database();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+        let mut context = vec![ContextMessage::new("user", "继续")];
+        let registry = ToolRegistry::default();
+        let provider = ScriptedProvider::new(vec![
+            Ok(AiReply::text("")),
+            Ok(AiReply::text("")),
+            Ok(AiReply::text("")),
+            Ok(AiReply::text("")),
+            Ok(AiReply::text("")),
+        ]);
+        let outcome = run_agent_loop(
+            &provider,
+            &mut context,
+            &registry,
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
+        assert!(outcome.content.trim().is_empty());
+        assert_eq!(outcome.empty_retries, MAX_EMPTY_RETRIES);
+        assert!(
+            outcome.rounds_used <= MAX_TOOL_ROUNDS,
+            "轮数必须有界: {}",
+            outcome.rounds_used
+        );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn empty_reply_fallback_carries_context() {
+        let (store, path) = temporary_database();
+        let conv = store.create_conversation(Some("t"), None).unwrap();
+
+        // 上一条是空头预告 → 兜底必须点名「没做完」，否则下一轮模型无从接上。
+        store
+            .send_message(
+                &conv,
+                "assistant",
+                "我将为你草拟更新后的版本，稍等片刻。",
+                None,
+            )
+            .unwrap();
+        let msg = empty_reply_fallback(&store, &conv, 2, 1).unwrap();
+        assert!(msg.contains("没有做完"), "{msg}");
+        assert!(msg.contains("2 轮"), "应说明重试过几轮: {msg}");
+
+        // 有待确认草稿 → 措辞转向「草稿已在等你确认」，不抱怨没返回。
+        store
+            .create_pending_action(
+                &conv,
+                "save_knowledge_draft",
+                &serde_json::json!({"title": "t", "content_md": "c"}).to_string(),
+            )
+            .unwrap();
+        let msg = empty_reply_fallback(&store, &conv, 1, 0).unwrap();
+        assert!(msg.contains("确认"), "{msg}");
+
         drop(store);
         let _ = std::fs::remove_file(path);
     }
