@@ -638,7 +638,7 @@ context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是�
 按库路径进程级只初始化一次（`INITIALIZED_DATABASES`）。
 
 > 2026-09-29 更新：`schema.sql` 已移入仓库根的 `migrations/`，成为
-> `migrations/0001_schema.sql`。下文提到的 `schema.sql` 均指它。
+> `migrations/01-baseline/up.sql`。下文提到的 `schema.sql` 均指它。
 > 该次搬家顺带查出了上面「旧库开不起来」那个未修问题。
 
 废弃后 `cargo test` 194 passed / 4 failed。这 4 个失败全部是**测已删除的迁移过程**，
@@ -719,7 +719,7 @@ context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是�
 活库是**旧迁移链（v1–v31）**建的，版本记在 `schema_migrations` **表**里
 （31 行），而 `PRAGMA user_version = 0`。新引导（commit `6dbc582`）改用
 `PRAGMA user_version` 记版本，读到 0 就判定「这是空库」，去执行
-`migrations/0001_schema.sql` —— 那里是 27 处裸 `CREATE TABLE`、零
+`migrations/01-baseline/up.sql` —— 那里是 27 处裸 `CREATE TABLE`、零
 `IF NOT EXISTS`，对着已有的 28 张表直接撞墙。
 
 **不是本轮引入的**：`db3c84b`（本轮之前）的迁移列表只有 v1，同样会失败。
@@ -737,7 +737,7 @@ context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是�
 
 ### 反转：这个库其实已经是 v1 基线了
 
-把活库副本与 `migrations/0001_schema.sql` 新建库逐项比对：
+把活库副本与 `migrations/01-baseline/up.sql` 新建库逐项比对：
 
 | 比对项 | 结果 |
 |---|---|

@@ -15,28 +15,33 @@ Status: proposed
 
 ## Proposal
 
-### 1. 迁移正文放 `migrations/` 目录；`0001_schema.sql` 冻结为基线
+### 1. 迁移正文放 `migrations/` 目录；`01-baseline/up.sql` 冻结为基线
 
-迁移正文放**仓库根的 `migrations/` 目录**，一个版本一个 SQL 文件，`NNNN_描述.sql` 的 `NNNN` 就是它在 `MIGRATION_LIST` 里的序号。原先的 `schema.sql` 迁为 `migrations/0001_schema.sql`，仍是版本 1 基线。
+迁移正文走 `rusqlite_migration` **官方约定**：仓库根的 `migrations/` 目录，每个版本一个子目录 `{序号}-{名字}/up.sql`（需要回滚时同目录加 `down.sql`，本仓库不用）。`01-baseline/up.sql` 即原先的 `schema.sql`，仍是版本 1 基线。目录用 `include_dir!` 编译期嵌入，再交给 `Migrations::from_directory` 扫描——运行时不依赖磁盘上的 `migrations/`，六种安装包不用多带一份资源文件。
 
-**这个约定有一个必须写下来的陷阱**：修改 `migrations/0001_schema.sql` 对已有数据库完全没有效果。`to_latest` 读到 `user_version = 1` 后判定已是最新，直接返回，不重跑版本 1。后果是后来者编辑基线文件增加表或列时，新库正常、老库静默缺字段，且不会有任何报错。
+**这个约定有一个必须写下来的陷阱**：修改 `migrations/01-baseline/up.sql` 对已有数据库完全没有效果。`to_latest` 读到 `user_version = 1` 后判定已是最新，直接返回，不重跑版本 1。后果是后来者编辑基线文件增加表或列时，新库正常、老库静默缺字段，且不会有任何报错。
 
-`migrations/0001_schema.sql` 现有 27 处裸 `CREATE TABLE`、零 `IF NOT EXISTS`，这在「只跑一次」的语义下是正确的，不要为了防御性而批量加 `IF NOT EXISTS`——那会掩盖上面那个陷阱，而不是解决它。
+`migrations/01-baseline/up.sql` 现有 27 处裸 `CREATE TABLE`、零 `IF NOT EXISTS`，这在「只跑一次」的语义下是正确的，不要为了防御性而批量加 `IF NOT EXISTS`——那会掩盖上面那个陷阱，而不是解决它。
 
-`every_migration_file_is_registered_in_order` 守的是另一个方向：**新增了文件却忘了登记进 `MIGRATION_LIST`**。`include_str!` 不会因此报错，那个版本就是永远不执行，`cargo test` 全绿而新库少一张表。
+`from_directory` 消灭了另一方向的风险：**「新增了迁移却忘了登记」在官方方案里不可能发生**，因为根本没有手工登记表。代价是校验从编译期挪到了运行期，失误要等 app 启动才暴露。实测过它的两处校验都给出可操作的报错：序号跳号 → `Migration ids must be consecutive numbers`；子目录缺 `up.sql` → `Missing upward migration file for migration 03-y`。`migrations_validate()`（crate 官方的内置自检，把全部 up 迁移在内存库上从头跑一遍）保证这类错在 `cargo test` 阶段就炸。
 
 ### 2. 目标表作为版本 2 迁移追加
 
-```rust
-const V2_GOALS: &str = include_str!("../../migrations/0002_goals.sql");
-
-static MIGRATION_LIST: &[M<'static>] = &[
-    M::up(include_str!("../../migrations/0001_schema.sql")).comment("v1: 基线，已冻结，不得修改"),
-    M::up(V2_GOALS).comment("v2: 目标表、活跃上限触发器"),
-];
+```
+migrations/
+├── 01-baseline/up.sql    冻结基线（原 schema.sql）
+└── 02-goals/up.sql       目标表与两个上限触发器
 ```
 
-`goals` 表 SQL（`migrations/0002_goals.sql`）：
+```rust
+static MIGRATION_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/migrations");
+
+fn migrations() -> Result<Migrations<'static>> {
+    Ok(Migrations::from_directory(&MIGRATION_DIR)?)
+}
+```
+
+`goals` 表 SQL（`migrations/02-goals/up.sql`）：
 
 ```sql
 CREATE TABLE goals (
@@ -76,7 +81,7 @@ BEGIN
 END;
 ```
 
-理由：应用层 `count + insert` 是 check-then-insert 竞态，而仓库已有两处同类竞态的修复记录（事务竞态批次）。触发器在 SQLite 内与写入原子。写法沿用 `migrations/0001_schema.sql` 中既有的 `prevent_raw_event_mutation`（`RAISE(ABORT, ...)`）。
+理由：应用层 `count + insert` 是 check-then-insert 竞态，而仓库已有两处同类竞态的修复记录（事务竞态批次）。触发器在 SQLite 内与写入原子。写法沿用 `migrations/01-baseline/up.sql` 中既有的 `prevent_raw_event_mutation`（`RAISE(ABORT, ...)`）。
 
 需要两个触发器而不是一个：新增走 INSERT 路径，但复活历史目标走 UPDATE 路径，只挡 INSERT 会漏掉后者。
 
