@@ -89,6 +89,10 @@ fi
 # 旧链的标记：有 schema_migrations 表且有版本记录。没有它就说明这不是旧链的库，
 # 钉版本号会是在给一个来历不明的库伪造元数据。
 # 注意分两步：version 列在 schema_migrations 这张表里，不在 sqlite_master 上。
+#
+# 新库/已修复的库里这张表已被迁移 03-drop-legacy-migrations 删掉了，但那种库的
+# user_version >= 1，上面一步就已经退出了，走不到这个检查。所以这条检查只可能
+# 对真正的旧链库生效。
 HAS_TABLE="$(sqlite3 "$DB" "
     SELECT COUNT(*) FROM sqlite_master
     WHERE type='table' AND name='schema_migrations';")"

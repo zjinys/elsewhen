@@ -16,6 +16,13 @@
 //! `to_latest` 对任何 `user_version >= 1` 的库都会跳过它，所以改它对已有库
 //! 完全无效——新库会带上改动，老库静默缺表缺列且不报任何错。
 //! 后续一切 schema 变更都是新建 `migrations/{下一个序号}-{名字}/up.sql`。
+//!
+//! 基线里有一行 `CREATE TABLE schema_migrations`，那是旧迁移链的版本记录，现在
+//! 已无人读写，由 `03-drop-legacy-migrations` 删掉。留着不动是因为基线冻结；
+//! 这也正是「只追加、不改历史」的用处——新库走完 v1 建、v3 删，与老库终态一致。
+//!
+//! 版本的唯一真源是 `PRAGMA user_version`，也就是文件头第 60 字节起的 4 个字节。
+//! 库里没有第二张表在记版本。
 
 use anyhow::Result;
 use include_dir::{include_dir, Dir};
@@ -88,7 +95,7 @@ mod tests {
         names.sort();
         assert_eq!(
             names,
-            ["01-baseline", "02-goals"],
+            ["01-baseline", "02-goals", "03-drop-legacy-migrations"],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
     }
@@ -110,13 +117,38 @@ mod tests {
         );
     }
 
+    /// 全部迁移跑完后，版本号就是 `PRAGMA user_version`。
+    ///
+    /// 这条断言同时是「版本真源只有文件头」的证据：库里没有第二张表在记版本。
     #[test]
     fn migration_applies_goals_table() {
         let connection = memory_db();
         let version: i64 = connection
-            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3, "三条迁移跑完，user_version 应为 3");
+    }
+
+    /// 旧迁移链留下的 `schema_migrations` 表必须已被 v3 删掉。
+    ///
+    /// 它声称「1–31」而系统只有三条迁移，留着会误导所有后来打开库的人；基线里
+    /// 仍建着它是因为基线冻结、不得改，所以只能在 v3 里删——这也正是「只追加、
+    /// 不改历史」的意义：新库走完 v1 建、v3 删，与老库终态一致。
+    #[test]
+    fn legacy_version_table_is_gone() {
+        let connection = memory_db();
+        let count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master
+                 WHERE type='table' AND name='schema_migrations'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            count, 0,
+            "版本状态只该记在 PRAGMA user_version 上，不该再有 schema_migrations 表"
+        );
     }
 
     /// 触发器 SQL 里的上限是硬编码字面量（SQL 无法引用 Rust 常量），而报错文案
