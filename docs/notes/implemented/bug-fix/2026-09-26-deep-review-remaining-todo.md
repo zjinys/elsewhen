@@ -897,3 +897,108 @@ floating SnackBar。文案带「标题」以区分页面上其他可复制对象
 `flutter test` 193 passed（此前 191，+2）。`wiki_ui_test.dart`、
 `wiki_editor_integration_test.dart`、`tweet_tab_widget_test.dart` 仍全绿，确认头部
 结构改动没有影响其他渲染路径。
+
+---
+
+## 对话断链：「空头承诺被当成最终答案」（2026-09-29，已实现）
+
+**怎么发现的**：用户想把第二份视频 prompt 存进知识页 `note-106bf538`（素材原文，
+锁定），页内 AI 对话在 02:13 之后断掉——AI 回「我将为你草拟更新后的版本，稍等片刻。」，
+用户等 1 分 45 秒后问「？」，此后三轮全是「抱歉，模型没有返回内容，请重试一次。」
+
+### 实测证据（不是推测）
+
+调库确认：02:10–02:20 区间 `wiki_log` **零条**记录，`wiki_revisions` 只有 09-28 导入
+那一条。**模型什么也没写**——不是「写了没接上」，是根本没动手。用户对「没接上」的直觉
+是对的，且断点在承诺那一轮，不在后面的空回复。
+
+### 根因：接地关只防了一个方向
+
+`run_agent_loop_inner` 有一道「写声明核验」(`write_claim_detected`)，专抓**谎报已
+完成**（「已保存」「已创建」等 15 个词）。用户贴入新 prompt 要求合并保存后，模型回的是
+**预告未来动作**——把词表原样跑一遍：CLAIMS 命中 `[]`、GUARDS 命中 `[]`，判定 false，
+于是 `content = clean; break` 直接收敛，零工具调用，4 轮预算只用掉 1 轮。
+
+两个不同的失败模式，只防了一个：
+- `write_claim_detected` 抓「谎报已经做完」→ 有防护
+- 承诺检测抓「预告还没做」→ **无防护**（本轮补上）
+
+### 三个缺陷与对应修法
+
+1. **承诺被当成答案收敛** → 新增 `future_promise_detected`，命中且本轮零工具调用时
+   回炉一次（`MAX_PROMISE_REPAIRS = 1`），下发 `PROMISE_REPAIR_NUDGE`：要么现在调工具
+   把事做完，要么直接给结果，不要预告。
+2. **空回复被当成收敛而非重试** → 原来 `content = clean; break` 在 `clean` 为空串时
+   照样成立，4 轮预算剩 3 轮一次没用。现在空 content 消耗 `MAX_EMPTY_RETRIES = 1`
+   预算重发一轮（`EMPTY_REPLY_NUDGE`），预算用尽才收敛。
+3. **兜底文案自身在污染上下文** → 「抱歉，模型没有返回内容，请重试一次。」被当成正常
+   assistant 消息**永久入库**，下一轮模型看到的是「我上一条说了抱歉没内容」，于是彻底
+   接不上——这正是用户说的「没接上」的放大器。改由 `empty_reply_fallback` 生成，分三种
+   情况：有待确认草稿 →「草稿已整理好，回复确认让它入库」；上一条是空头预告 →
+   「上一条我说要处理的事并没有做完，请重发一次」；否则中性重发提示。都带
+   `已尝试 N 轮，其中 M 次是空回复后重发` 的诊断信息。
+
+### 测试
+
+`src/ai/conversation.rs` 新增 5 个用例（228 passed，此前 223）：
+
+1. `future_promise_detected_catches_preamble_without_action` — 用**线上真实回复原文**做
+   正例，并同时断言 `write_claim_detected` 对它返回 false（钉住「两个检测器各管一头」
+   这个关系）；5 条正常答复（解释/提问/道歉/已交付+求确认）做反例。
+2. `agent_loop_promise_without_tool_call_is_repaired` — 端到端：预告 → 回炉 → 真调
+   `save_knowledge_draft` → 诚实收敛，断言 pending action 真登记了 1 条。
+3. `agent_loop_retries_empty_reply_instead_of_converging_empty` — 前两条脚本回复为空
+   （第 1 条喂带 tools 的原生请求，第 2 条喂兼容兜底的无 tools 重试），断言第 3 条正常
+   文本被拿到且 `empty_retries == 1`。
+4. `agent_loop_persistent_empty_terminates_within_budget` — 持续空回复不死循环，轮数有界。
+5. `empty_reply_fallback_carries_context` — 三种兜底分支各断言一次。
+
+**变异验证**（三个方向都真的咬人）：
+
+| 变异 | 结果 |
+|---|---|
+| `future_promise_detected` 恒 false | 3 红，其中循环用例报出 `left: "我准备一个更新版本…稍等片刻。"`——**与线上症状逐字一致** |
+| `MAX_EMPTY_RETRIES = 0` | 1 红，循环用例报出 `left: ""`——正是修复前空串收敛 |
+| 兜底文案退回原版 | 1 红，断言直接吃到原字符串 |
+
+改动为纯加法：**320 insertions, 2 deletions**，删掉的两行都是本轮自己写的。`rustfmt`
+曾把一处既有 `wants_goals` 数组顺手展开成多行，已手工还原——按「最小必要改」不碰无关代码。
+
+### 未能确证的部分（不猜）
+
+**为什么上游返回空，查不出来**：`debug_eprintln!` 的输出不落盘，
+`~/.local/share/elsewhen/` 只有 `elsewhen.db` 和 `window.json`。唯一线索是耗时
+（14s / 12s），像真实请求而非连接失败，故推测是「上游返回 200 但 content 为空」
+（如推理模型烧光输出预算），而非网关报错。**这是推断，未验证。**
+
+顺带发现：`debug_eprintln!` 有 `ELSEWHEN_DEBUG` gate 但无处落盘，等于线上排障时没有
+证据。**待办**：把 agent loop 的 `round/protocol/content_len/tool_calls/model` 诊断写进
+本地滚动日志文件（需含脱敏考虑——`dispatch tool=` 那行会带工具结果摘录，可能含个人数据）。
+
+### 关联但未实现：页内 AI 对话导出
+
+用户最初提「知识页的 AI 对话应该可以导出，可以选导出范围」，说明是**为了调试**
+（把对话贴给 agent 帮忙改问题）。查证：`export_wiki`（`wiki.rs:1225`）写好了但
+**全仓零调用方**，且只覆盖 `wiki_pages` + `wiki_log`，不导对话/事件/待办/规则。
+页↔会话关联已有（`conversations.wiki_page_slug`），不需改 schema。
+主对话区已有 `copy_all` 按钮（`message_area.dart:1286`），页内 AI 面板没有。
+**本轮未做**——问题真因在 agent 循环，不在导出。待办见下。
+
+### 本节衍生待办
+
+1. **agent loop 诊断落盘**（P1，直接卡住线上排障）。`debug_eprintln!` 只在
+   `ELSEWHEN_DEBUG` 下打到 stderr，应用以 GUI 方式运行时无处可看，线上问题只能靠猜。
+   要把 `round / protocol / content_len / tool_calls / model / provider 切换` 写进本地
+   滚动日志。**约束**：`dispatch tool=` 那行带工具结果摘录（可能含个人数据），落盘前
+   必须脱敏或截断——与 `debug_eprintln!` 当初「不无条件打印以免把隐私写进终端」是同一条
+   理由，落地时别把那个保护弄丢了。
+2. **页内 AI 对话导出 / 复制（带上下文）**（P2，用户的原始诉求）。最小形态：把
+   `message_area.dart` 的 `_formatConversationForCopy` 提到共享位置，给
+   `wiki_ai_chat_panel.dart` 补一个 `copy_all`，与主对话区一致。调试增强形态（更值得做）：
+   头部附上「页 slug / kind / 消息条数 / 页面正文前 N 字」，让贴给 agent 的内容自带语境。
+   **明确不做**「勾选式导出范围」——那是为「带走一大坨东西」设计的，调试是「把眼前这个
+   出问题的给 agent 看」，让用户选反而是把系统的活推给用户。
+3. **`export_wiki` 仍是孤儿函数**（P2，与 2 独立）。`wiki.rs:1225` 写好了 markdown 导出
+   但全仓零调用方，且只覆盖 `wiki_pages` + `wiki_log`（不导对话/事件/待办/规则）。要么
+   接上入口，要么删掉——留着一个没人调、也导不全的函数，下一个人会误以为有导出能力。
+   注意它历史上就是「旧库起不来时走导出/导入重建」走不通的根因（当时缺 import）。
