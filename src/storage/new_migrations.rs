@@ -81,7 +81,7 @@ mod tests {
         migrations().unwrap().validate().unwrap();
     }
 
-    /// 目录发现的结构性保证：四个迁移、按序号取名。
+    /// 目录发现的结构性保证：五个迁移、按序号取名。
     ///
     /// 「新增文件却忘了登记」这类错误在这里不可能发生——`from_directory` 直接
     /// 扫目录，不经过任何手工登记表。这条测试盯的是别一种漂移：有人把子目录
@@ -100,6 +100,7 @@ mod tests {
                 "02-goals",
                 "03-drop-legacy-migrations",
                 "04-knowledge",
+                "05-source-compilation",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -131,7 +132,27 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 4, "四条迁移跑完，user_version 应为 4");
+        assert_eq!(version, 5, "五条迁移跑完，user_version 应为 5");
+    }
+
+    #[test]
+    fn existing_v4_proposals_keep_manual_ownership_after_upgrade() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 4)
+            .unwrap();
+        connection.execute("INSERT INTO knowledge_proposals(id,dedupe_key,target_slug,kind,title,content_md,reason,created_at)
+            VALUES ('old','old','method/old','method','旧建议','旧正文','manual','2026-09-29')", []).unwrap();
+        initialize(&mut connection).unwrap();
+        let origin: String = connection
+            .query_row(
+                "SELECT origin FROM knowledge_proposals WHERE id='old'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(origin, "manual");
     }
 
     /// 旧迁移链留下的 `schema_migrations` 表必须已被 v3 删掉。

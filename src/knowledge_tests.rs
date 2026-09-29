@@ -10,6 +10,8 @@ use crate::{
 };
 use anyhow::Result;
 
+include!("knowledge_flow_tests.rs");
+
 struct Db {
     store: Store,
     path: std::path::PathBuf,

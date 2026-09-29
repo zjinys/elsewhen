@@ -53,7 +53,10 @@ class _WikiPageDetailViewState extends ConsumerState<WikiPageDetailView> {
     return Column(
       children: [
         _WikiTabBar(tabs: tabs, activeId: active.id),
-        const Align(alignment: Alignment.centerRight, child: KnowledgeMaintenanceButton()),
+        const Align(
+          alignment: Alignment.centerRight,
+          child: KnowledgeMaintenanceButton(),
+        ),
         Expanded(
           // IndexedStack：所有 tab 的子树常驻，切 tab 不销毁详情页编辑器状态
           // （未保存的编辑切走再切回仍在；§6.3 未保存保护的前提）
@@ -1055,8 +1058,9 @@ class _SaveCancelled implements Exception {
 
 enum _WikiPageSection {
   content('内容'),
+  outputs('产出'),
   relations('关联'),
-  outputs('产出');
+  sources('来源与修订');
 
   const _WikiPageSection(this.label);
   final String label;
@@ -1071,7 +1075,14 @@ class _WikiPageBody extends ConsumerStatefulWidget {
   ConsumerState<_WikiPageBody> createState() => _WikiPageBodyState();
 }
 
-class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
+class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
+    with SingleTickerProviderStateMixin {
+  late final TabController _sectionController;
+  void _showSection(_WikiPageSection section) {
+    _sectionController.index = section.index;
+    setState(() => _section = section);
+  }
+
   final _editorKey = GlobalKey<WikiContentEditorState>();
 
   _WikiPageSection _section = _WikiPageSection.content;
@@ -1096,6 +1107,10 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
   @override
   void initState() {
     super.initState();
+    _sectionController = TabController(
+      length: _WikiPageSection.values.length,
+      vsync: this,
+    );
     _saveCallbacks = ref.read(wikiSaveCallbacksProvider.notifier);
     // v1.5：向 tab bar 注册「保存」回调，关闭脏 tab 时可先保存再关。
     // 闭包惰性读 _editorKey.currentState，调用时机总在挂载之后。
@@ -1112,6 +1127,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
     // dispose 发生在 widget tree 卸载期内，同步改 provider 会触发
     // 「Tried to modify a provider while the widget tree was building」；
     // 延迟到事件队列空闲时注销。notifier 已提前缓存，不依赖 ref。
+    _sectionController.dispose();
     final notifier = _saveCallbacks;
     final slug = widget.page.slug;
     scheduleMicrotask(() {
@@ -1232,26 +1248,33 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
             // spaceBetween 让 Tab 组贴左、编辑操作居中、聊天贴右。
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              TabBar(
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                labelColor: AppTheme.textPrimary,
-                unselectedLabelColor: AppTheme.textTertiary,
-                indicatorColor: AppTheme.accentPrimary,
-                indicatorWeight: 2,
-                labelStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: TabBar(
+                  controller: _sectionController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  labelColor: AppTheme.textPrimary,
+                  unselectedLabelColor: AppTheme.textTertiary,
+                  indicatorColor: AppTheme.accentPrimary,
+                  indicatorWeight: 2,
+                  labelStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  unselectedLabelStyle: const TextStyle(fontSize: 13),
+                  dividerColor: Colors.transparent,
+                  onTap: (index) => setState(() {
+                    _section = _WikiPageSection.values[index];
+                  }),
+                  tabs: [
+                    for (final section in _WikiPageSection.values)
+                      Tab(
+                        text: section == _WikiPageSection.content && !_canEdit
+                            ? '原文'
+                            : section.label,
+                      ),
+                  ],
                 ),
-                unselectedLabelStyle: const TextStyle(fontSize: 13),
-                dividerColor: Colors.transparent,
-                onTap: (index) => setState(() {
-                  _section = _WikiPageSection.values[index];
-                }),
-                tabs: [
-                  for (final section in _WikiPageSection.values)
-                    Tab(text: section.label),
-                ],
               ),
               if (_section == _WikiPageSection.content) ...[
                 // 右侧操作组：「正文阅读设置」永远贴最右，编辑操作排在它左
@@ -1337,14 +1360,18 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
                 children: [
                   if (widget.page.basedOn != null)
                     WikiSourceLink(slug: widget.page.basedOn!),
+                  KnowledgeOriginLinks(slug: widget.page.slug),
                   _EntityMergeControls(page: widget.page),
                   _EntityFacts(slug: widget.page.slug),
                   _EntityRelatedTodos(page: widget.page),
                 ],
               ),
             ),
-            _WikiPageSection.outputs => SingleChildScrollView(
-              child: WikiDerivatives(slug: widget.page.slug),
+            _WikiPageSection.outputs => KnowledgeOutputsSection(
+              page: widget.page,
+            ),
+            _WikiPageSection.sources => KnowledgeSourcesSection(
+              page: widget.page,
             ),
           },
         ),
@@ -1661,7 +1688,11 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
               _buildRelationsRow(context),
               // 标签直接展开，避免用户还要打开一个元数据折叠行。
               _buildTagRow(context),
-              KnowledgePageActions(page: widget.page),
+              KnowledgePageActions(
+                page: widget.page,
+                onShowSources: () => _showSection(_WikiPageSection.sources),
+                onShowOutputs: () => _showSection(_WikiPageSection.outputs),
+              ),
             ],
           ),
         ),
@@ -2961,7 +2992,12 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
     });
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      final page = await saveKnowledgeImport(context, ref, widget.fetch, _parsedTags());
+      final page = await saveKnowledgeImport(
+        context,
+        ref,
+        widget.fetch,
+        _parsedTags(),
+      );
       if (page == null) return;
       final inputRecordId = widget.fetch.inputRecordId;
       if (inputRecordId != null) {
@@ -3260,21 +3296,30 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
     });
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      final page = await saveKnowledgeImport(context, ref, ImportFetch(
-        sourceUrl: widget.fetch.url,
-        sourceKind: 'tweet',
-        contentMd: widget.fetch.text,
-        title: widget.fetch.title,
-        authorName: widget.fetch.authorName,
-        screenName: widget.fetch.screenName,
-      ), const ['tweet']);
+      final page = await saveKnowledgeImport(
+        context,
+        ref,
+        ImportFetch(
+          sourceUrl: widget.fetch.url,
+          sourceKind: 'tweet',
+          contentMd: widget.fetch.text,
+          title: widget.fetch.title,
+          authorName: widget.fetch.authorName,
+          screenName: widget.fetch.screenName,
+        ),
+        const ['tweet'],
+      );
       if (page == null) {
         if (mounted) setState(() => _saving = false);
         return;
       }
       if (_beautified != null) {
-        await repo.createWikiDerivative(basedOnSlug:page.slug,contentType:'summary',
-          title:'${page.title} · 整理稿',contentMd:_beautified!);
+        await repo.createWikiDerivative(
+          basedOnSlug: page.slug,
+          contentType: 'summary',
+          title: '${page.title} · 整理稿',
+          contentMd: _beautified!,
+        );
       }
       final inputRecordId = widget.fetch.inputRecordId;
       if (inputRecordId != null) {

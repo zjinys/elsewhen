@@ -14,11 +14,14 @@ pub fn tick_knowledge_insights() -> Result<i64> {
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         return Ok(0);
     };
-    crate::knowledge_background::run_automatic_insights(&store, &provider)
+    let compiled =
+        crate::knowledge_background::run_automatic_source_compilation(&store, &provider)?;
+    Ok(compiled + crate::knowledge_background::run_automatic_insights(&store, &provider)?)
 }
 
 #[derive(Clone, Debug)]
 pub struct KnowledgeBackgroundRunDto {
+    pub task: String,
     pub status: String,
     pub started_at: String,
     pub finished_at: Option<String>,
@@ -29,12 +32,13 @@ pub struct KnowledgeBackgroundRunDto {
 pub fn list_knowledge_background_runs() -> Result<Vec<KnowledgeBackgroundRunDto>> {
     let store = store()?;
     let mut stmt = store.connection.prepare(
-        "SELECT status,started_at,finished_at,error,result_count
+        "SELECT status,started_at,finished_at,error,result_count,task
         FROM knowledge_background_runs ORDER BY started_at DESC LIMIT 50",
     )?;
     let rows = stmt
         .query_map([], |r| {
             Ok(KnowledgeBackgroundRunDto {
+                task: r.get(5)?,
                 status: r.get(0)?,
                 started_at: r.get(1)?,
                 finished_at: r.get(2)?,
@@ -48,6 +52,8 @@ pub fn list_knowledge_background_runs() -> Result<Vec<KnowledgeBackgroundRunDto>
 
 #[derive(Clone, Debug)]
 pub struct KnowledgePageDetails {
+    pub source_pages: Vec<WikiPageDto>,
+    pub output_pages: Vec<WikiPageDto>,
     pub sources: Vec<SourceSnapshot>,
     pub history: Vec<SourceSnapshot>,
     pub proposals: Vec<KnowledgeProposal>,
@@ -58,6 +64,16 @@ pub struct KnowledgePageDetails {
 pub fn get_knowledge_page_details(slug: String) -> Result<KnowledgePageDetails> {
     let store = store()?;
     Ok(KnowledgePageDetails {
+        source_pages: store
+            .knowledge_origin_pages(&slug)?
+            .into_iter()
+            .map(WikiPageDto::from)
+            .collect(),
+        output_pages: store
+            .knowledge_output_pages(&slug)?
+            .into_iter()
+            .map(WikiPageDto::from)
+            .collect(),
         sources: store.page_source_snapshots(&slug)?,
         history: store.source_history(&slug)?,
         proposals: store.knowledge_proposals(Some(&slug))?,
@@ -78,6 +94,9 @@ pub fn list_knowledge_issues() -> Result<Vec<KnowledgeIssue>> {
 }
 
 pub fn propose_knowledge_page(slug: String, kind: String) -> Result<String> {
+    if kind == "auto" {
+        anyhow::bail!("自动整理仅由后台调度");
+    }
     let store = store()?;
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         anyhow::bail!("请先在设置中配置 AI Provider");

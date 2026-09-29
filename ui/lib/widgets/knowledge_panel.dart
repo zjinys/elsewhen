@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,7 @@ import '../models/wiki_page.dart';
 import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
 import 'markdown_view.dart';
+import 'wiki_derivatives.dart';
 import '../utils/error_report.dart';
 
 /// 异常出口：诊断进日志，界面只见通用文案。
@@ -44,7 +47,7 @@ Future<void> _openPage(BuildContext context, WidgetRef ref, String slug) async {
     if (page == null) throw StateError('页面不存在');
     openWikiPageTab(ref, page);
     ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
-    Navigator.of(context).pop();
+    if (ModalRoute.of(context) is PopupRoute) Navigator.of(context).pop();
   } catch (error) {
     if (context.mounted) {
       ScaffoldMessenger.of(
@@ -84,7 +87,14 @@ void _refresh(WidgetRef ref, String? slug) {
 
 class KnowledgePageActions extends ConsumerStatefulWidget {
   final WikiPage page;
-  const KnowledgePageActions({super.key, required this.page});
+  final VoidCallback onShowSources;
+  final VoidCallback onShowOutputs;
+  const KnowledgePageActions({
+    super.key,
+    required this.page,
+    required this.onShowSources,
+    required this.onShowOutputs,
+  });
   @override
   ConsumerState<KnowledgePageActions> createState() =>
       _KnowledgePageActionsState();
@@ -92,23 +102,24 @@ class KnowledgePageActions extends ConsumerStatefulWidget {
 
 class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
   bool _busy = false;
+  String? _failure;
+  String? _lastKind;
   Future<void> _propose(String kind) async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _failure = null;
+      _lastKind = kind;
+    });
     try {
       await ref
           .read(knowledgeRepositoryProvider)
           .propose(widget.page.slug, kind);
       if (!mounted) return;
       _refresh(ref, widget.page.slug);
-      await showDialog<void>(
-        context: context,
-        builder: (_) => KnowledgePageDialog(page: widget.page, initialTab: 1),
-      );
+      widget.onShowOutputs();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_error(error, context: '打开知识页'))),
-        );
+        setState(() => _failure = _error(error, context: '整理知识'));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -118,155 +129,304 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
   @override
   Widget build(BuildContext context) {
     final material = ['source', 'note'].contains(widget.page.kind);
+    final style = TextButton.styleFrom(
+      minimumSize: const Size(0, 36),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+    );
     return Wrap(
       spacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         TextButton.icon(
-          onPressed: () => showDialog<void>(
-            context: context,
-            builder: (_) => KnowledgePageDialog(page: widget.page),
-          ),
+          style: style,
+          onPressed: widget.onShowSources,
           icon: const Icon(Icons.source_outlined, size: 16),
           label: const Text('来源与修订'),
         ),
         if (_busy)
-          const Padding(padding: EdgeInsets.all(10), child: Text('正在整理建议…'))
+          const SizedBox(
+            height: 36,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 8),
+                Text('正在整理…'),
+              ],
+            ),
+          )
         else if (material)
           PopupMenuButton<String>(
-            tooltip: '提炼知识',
+            tooltip: '按需提炼知识',
             onSelected: _propose,
             itemBuilder: (_) => const [
-              PopupMenuItem(value: 'method', child: Text('提炼方法')),
-              PopupMenuItem(value: 'case', child: Text('整理案例')),
-              PopupMenuItem(value: 'principle', child: Text('提炼规律')),
+              PopupMenuItem(
+                value: 'method',
+                child: ListTile(
+                  dense: true,
+                  title: Text('提炼方法'),
+                  subtitle: Text('可复用的步骤与适用条件'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'case',
+                child: ListTile(
+                  dense: true,
+                  title: Text('整理案例'),
+                  subtitle: Text('具体情境、做法与结果'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'principle',
+                child: ListTile(
+                  dense: true,
+                  title: Text('提炼规律'),
+                  subtitle: Text('规律、依据与适用边界'),
+                ),
+              ),
             ],
-            child: const Padding(
-              padding: EdgeInsets.all(10),
-              child: Text('提炼知识 ▾'),
+            child: SizedBox(
+              height: 36,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_outlined,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '提炼知识',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.expand_more, size: 16),
+                  ],
+                ),
+              ),
             ),
           )
         else
           TextButton.icon(
+            style: style,
             onPressed: () => _propose('revision'),
             icon: const Icon(Icons.fact_check_outlined, size: 16),
-            label: const Text('审阅本页'),
+            label: const Text('检查更新'),
+          ),
+        if (_failure != null) Text(_failure!),
+        if (_failure != null && !_busy)
+          TextButton.icon(
+            onPressed: () => _propose(_lastKind!),
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('重试整理'),
           ),
       ],
     );
   }
 }
 
-class KnowledgePageDialog extends ConsumerWidget {
+/// Provenance is secondary information in the page, not another dialog stack.
+class KnowledgeSourcesSection extends ConsumerWidget {
   final WikiPage page;
-  final int initialTab;
-  const KnowledgePageDialog({
-    super.key,
-    required this.page,
-    this.initialTab = 0,
-  });
+  const KnowledgeSourcesSection({super.key, required this.page});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final details = ref.watch(knowledgeDetailsProvider(page.slug));
-    return Dialog(
-      child: SizedBox(
-        width: 860,
-        height: MediaQuery.sizeOf(context).height * .85,
-        child: Column(
-          children: [
-            ListTile(
-              title: Text(page.title),
-              subtitle: const Text('原始来源、待审建议与修改历史'),
-              trailing: IconButton(
-                tooltip: '关闭',
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-              ),
-            ),
-            Expanded(
-              child: details.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) =>
-                    Center(child: Text(_error(error, context: '读取来源记录'))),
-                data: (data) => DefaultTabController(
-                  length: 3,
-                  initialIndex: initialTab,
-                  child: Column(
-                    children: [
-                      TabBar(
-                        tabs: [
-                          const Tab(text: '来源'),
-                          Tab(
-                            text:
-                                '待审建议 ${data.proposals.where((p) => p.status == 'pending').length}',
-                          ),
-                          const Tab(text: '修订历史'),
-                        ],
-                      ),
-                      Expanded(
-                        child: TabBarView(
-                          children: [
-                            ListView(
-                              padding: const EdgeInsets.all(16),
-                              children: [
-                                if (data.sources.isEmpty &&
-                                    page.sourceEventIds.isEmpty)
-                                  const Text('尚无可核验来源。'),
-                                for (final source in data.sources)
-                                  _SourceTile(source: source),
-                                for (final id in page.sourceEventIds)
-                                  ListTile(
-                                    title: const Text('来源记录'),
-                                    subtitle: Text(id),
-                                    onTap: () => _showEvent(context, ref, id),
-                                  ),
-                                if (['source', 'note'].contains(page.kind))
-                                  _OpinionControl(
-                                    page: page,
-                                    opinion: data.sources.firstOrNull?.opinion,
-                                  ),
-                                if ([
-                                  'method',
-                                  'case',
-                                  'principle',
-                                ].contains(page.kind))
-                                  _MetadataEditor(
-                                    slug: page.slug,
-                                    metadata: data.metadata,
-                                  ),
-                                if (data.history.length > 1) ...[
-                                  const Divider(),
-                                  const Text('原文版本'),
-                                  for (final source in data.history)
-                                    _SourceTile(source: source),
-                                ],
-                                for (final issue in data.issues)
-                                  _IssueTile(issue: issue),
-                              ],
-                            ),
-                            ListView(
-                              padding: const EdgeInsets.all(16),
-                              children: [
-                                if (data.proposals.isEmpty)
-                                  const Text('暂无建议。提炼或审阅结果会先放在这里，确认后才写入知识页。'),
-                                for (final proposal in data.proposals)
-                                  KnowledgeProposalCard(
-                                    proposal: proposal,
-                                    sourceSlug: page.slug,
-                                  ),
-                              ],
-                            ),
-                            _RevisionList(slug: page.slug),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+    return ref
+        .watch(knowledgeDetailsProvider(page.slug))
+        .when(
+          loading: () => const LinearProgressIndicator(),
+          error: (error, _) => Text(_error(error, context: '读取来源与修订')),
+          data: (data) => ListView(
+            children: [
+              const Text('来源用于核对依据，修订记录用于查看知识如何变化。日常阅读和 AI 检索不需要逐项操作。'),
+              for (final origin in data.sourcePages)
+                _KnowledgePageLink(
+                  page: WikiPage.fromDto(origin),
+                  prefix: '原料',
                 ),
+              for (final source in data.sources) _SourceTile(source: source),
+              if (data.sources.isEmpty && page.sourceEventIds.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('尚无可核验来源。'),
+                ),
+              for (final id in page.sourceEventIds)
+                ListTile(
+                  title: const Text('来源记录'),
+                  subtitle: Text(id),
+                  onTap: () => _showEvent(context, ref, id),
+                ),
+              if (['source', 'note'].contains(page.kind))
+                _OpinionControl(
+                  page: page,
+                  opinion: data.sources.firstOrNull?.opinion,
+                ),
+              if (['method', 'case', 'principle'].contains(page.kind))
+                _MetadataEditor(slug: page.slug, metadata: data.metadata),
+              for (final issue in data.issues) _IssueTile(issue: issue),
+              if (data.history.length > 1)
+                ExpansionTile(
+                  title: const Text('原文历史版本'),
+                  children: [
+                    for (final source in data.history)
+                      _SourceTile(source: source),
+                  ],
+                ),
+              ExpansionTile(
+                title: const Text('知识修订记录'),
+                children: [_RevisionList(slug: page.slug)],
               ),
-            ),
+            ],
+          ),
+        );
+  }
+}
+
+class KnowledgeOriginLinks extends ConsumerWidget {
+  final String slug;
+  const KnowledgeOriginLinks({super.key, required this.slug});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => ref
+      .watch(knowledgeDetailsProvider(slug))
+      .when(
+        loading: () => const SizedBox.shrink(),
+        error: (_, _) => const Text('来源暂时无法读取'),
+        data: (data) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final page in data.sourcePages)
+              _KnowledgePageLink(page: WikiPage.fromDto(page), prefix: '原料'),
           ],
         ),
-      ),
+      );
+}
+
+class _KnowledgePageLink extends ConsumerWidget {
+  final WikiPage page;
+  final String prefix;
+  const _KnowledgePageLink({required this.page, required this.prefix});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => TextButton.icon(
+    onPressed: () => openWikiPageTab(ref, page),
+    icon: const Icon(Icons.arrow_outward, size: 16),
+    label: Text('$prefix · ${page.title}'),
+  );
+}
+
+/// Original stays open while proposals and compiled references are inspected.
+class KnowledgeOutputsSection extends ConsumerStatefulWidget {
+  final WikiPage page;
+  const KnowledgeOutputsSection({super.key, required this.page});
+  @override
+  ConsumerState<KnowledgeOutputsSection> createState() =>
+      _KnowledgeOutputsSectionState();
+}
+
+class _KnowledgeOutputsSectionState
+    extends ConsumerState<KnowledgeOutputsSection> {
+  Timer? _poll;
+  @override
+  void initState() {
+    super.initState();
+    _poll = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) ref.invalidate(knowledgeDetailsProvider(widget.page.slug));
+    });
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final page = widget.page;
+    return ListView(
+      children: [
+        if (['source', 'note'].contains(page.kind))
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              '原文已可供 AI 检索；后台会按内容整理参考知识。方法是步骤，案例是经验，规律是有适用边界的结论。无需逐篇提炼，也不会自动升级为你的个人规则。',
+            ),
+          ),
+        ref
+            .watch(knowledgeDetailsProvider(page.slug))
+            .when(
+              loading: () => const LinearProgressIndicator(),
+              error: (error, _) => Text(_error(error, context: '读取知识产出')),
+              data: (data) {
+                final pending = data.proposals
+                    .where((p) => p.status == 'pending')
+                    .toList();
+                final history = data.proposals
+                    .where((p) => p.status != 'pending')
+                    .toList();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (pending.isNotEmpty) const Text('待审建议'),
+                    for (final proposal in pending)
+                      KnowledgeProposalCard(
+                        key: ValueKey(proposal.id),
+                        proposal: proposal,
+                        sourceSlug: page.slug,
+                      ),
+                    if (data.outputPages.isNotEmpty) const Text('已整理的参考知识'),
+                    for (final output in data.outputPages.where(
+                      (p) => p.area != 'derivative',
+                    ))
+                      ExpansionTile(
+                        key: PageStorageKey(output.slug),
+                        title: Text(output.title),
+                        subtitle: Text(
+                          '${WikiPage.fromDto(output).kindLabel} · 来自本页原料',
+                        ),
+                        children: [
+                          SelectionArea(
+                            child: MarkdownView(markdown: output.contentMd),
+                          ),
+                          _KnowledgePageLink(
+                            page: WikiPage.fromDto(output),
+                            prefix: '打开知识页',
+                          ),
+                        ],
+                      ),
+                    if (pending.isEmpty && data.outputPages.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text('暂无知识产出。原文仍可直接使用；后台整理会按内容决定是否形成知识。'),
+                      ),
+                    if (history.isNotEmpty)
+                      ExpansionTile(
+                        title: const Text('处理记录'),
+                        children: [
+                          for (final proposal in history)
+                            ListTile(
+                              title: Text(proposal.title),
+                              subtitle: Text(
+                                proposal.status == 'accepted' ? '已保存' : '已拒绝',
+                              ),
+                            ),
+                        ],
+                      ),
+                  ],
+                );
+              },
+            ),
+        const SizedBox(height: 20),
+        WikiDerivatives(slug: page.slug),
+      ],
     );
   }
 }
@@ -275,17 +435,12 @@ class _SourceTile extends StatelessWidget {
   final api.SourceSnapshot source;
   const _SourceTile({required this.source});
   @override
-  Widget build(BuildContext context) => ListTile(
-    contentPadding: EdgeInsets.zero,
+  Widget build(BuildContext context) => ExpansionTile(
+    tilePadding: EdgeInsets.zero,
     leading: const Icon(Icons.description_outlined),
     title: Text('${source.title} · v${source.version}'),
-    subtitle: Text('${source.locator ?? '粘贴文本'}\n${source.capturedAt}'),
-    isThreeLine: true,
-    onTap: () => showKnowledgeText(
-      context,
-      '${source.title} · v${source.version}',
-      source.contentMd,
-    ),
+    subtitle: Text('${source.locator ?? '粘贴文本'} · ${source.capturedAt}'),
+    children: [SelectionArea(child: MarkdownView(markdown: source.contentMd))],
   );
 }
 
@@ -305,6 +460,9 @@ class KnowledgeProposalCard extends ConsumerStatefulWidget {
 class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
   bool _busy = false;
   String? _failure;
+  String? _comparison;
+  String? _comparisonTitle;
+  bool _resolved = false;
   Future<void> _resolve(bool accept) async {
     setState(() {
       _busy = true;
@@ -317,7 +475,8 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
       if (!mounted) return;
       _refresh(ref, widget.sourceSlug);
       _refresh(ref, saved?.slug ?? widget.proposal.targetSlug);
-      if (saved != null) openWikiPageTab(ref, WikiPage.fromDto(saved));
+      setState(() => _resolved = true);
+      // Stay with the source. Its output section exposes the saved page explicitly.
     } catch (error) {
       // resolve() 的失败是领域结论（来源已更新/被拒绝 → 请重新生成建议），
       // 用户必须看到具体是哪一条，否则只能反复点确认。
@@ -352,11 +511,10 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                       wikiPageProvider(p.targetSlug).future,
                     );
                     if (context.mounted) {
-                      await showKnowledgeText(
-                        context,
-                        '当前正文',
-                        page?.contentMd ?? '页面不存在',
-                      );
+                      setState(() {
+                        _comparisonTitle = '当前正文';
+                        _comparison = page?.contentMd ?? '页面不存在';
+                      });
                     }
                   } catch (error) {
                     if (context.mounted) {
@@ -383,11 +541,11 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                             .read(knowledgeRepositoryProvider)
                             .snapshot(id);
                         if (context.mounted && snapshot != null) {
-                          await showKnowledgeText(
-                            context,
-                            '${snapshot.title} · v${snapshot.version}',
-                            snapshot.contentMd,
-                          );
+                          setState(() {
+                            _comparisonTitle =
+                                '${snapshot.title} · v${snapshot.version}';
+                            _comparison = snapshot.contentMd;
+                          });
                         }
                       } catch (error) {
                         if (context.mounted) {
@@ -408,12 +566,36 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   ),
               ],
             ),
+            if (_comparison != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: Text(_comparisonTitle!)),
+                          IconButton(
+                            tooltip: '收起对照',
+                            icon: const Icon(Icons.close),
+                            onPressed: () => setState(() => _comparison = null),
+                          ),
+                        ],
+                      ),
+                      SelectionArea(
+                        child: MarkdownView(markdown: _comparison!),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (_failure != null)
               Text(
                 _failure!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
-            if (p.status == 'pending')
+            if (p.status == 'pending' && !_resolved)
               Wrap(
                 spacing: 8,
                 children: [
@@ -428,7 +610,13 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                 ],
               )
             else
-              Text(p.status == 'accepted' ? '已确认保存' : '已拒绝；保留决定记录'),
+              Text(
+                _resolved
+                    ? '已处理，原文保持不变'
+                    : p.status == 'accepted'
+                    ? '已保存参考知识'
+                    : '已拒绝；保留决定记录',
+              ),
           ],
         ),
       ),
@@ -478,16 +666,18 @@ class _RevisionList extends ConsumerWidget {
             Center(child: Text(_error(error, context: '读取修订记录'))),
         loading: () => const Center(child: CircularProgressIndicator()),
         data: (items) => ListView(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           children: [
             for (final revision in items)
-              ListTile(
+              ExpansionTile(
                 title: Text(revision.reason),
                 subtitle: Text(revision.createdAt),
-                onTap: () => showKnowledgeText(
-                  context,
-                  revision.reason,
-                  revision.contentMd,
-                ),
+                children: [
+                  SelectionArea(
+                    child: MarkdownView(markdown: revision.contentMd),
+                  ),
+                ],
               ),
           ],
         ),
@@ -648,7 +838,7 @@ class _MaintenanceDialog extends ConsumerWidget {
           children: [
             ListTile(
               title: const Text('知识审阅'),
-              subtitle: const Text('建议确认后生效；来源变化保留已有正文'),
+              subtitle: const Text('后台自动整理参考知识；人工修改与规则确认由你决定'),
               trailing: IconButton(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
@@ -682,7 +872,7 @@ class _MaintenanceDialog extends ConsumerWidget {
                     ),
                   ),
                   const Divider(),
-                  const Text('自动洞察运行记录'),
+                  const Text('自动整理与洞察记录'),
                   runs.when(
                     loading: () => const LinearProgressIndicator(),
                     error: (e, _) => Text(_error(e, context: '读取洞察记录')),
@@ -693,7 +883,7 @@ class _MaintenanceDialog extends ConsumerWidget {
                           ListTile(
                             title: Text(
                               run.status == 'succeeded'
-                                  ? '完成 · ${run.resultCount} 条洞察'
+                                  ? '${run.task == 'source-compilation' ? '原料整理' : '洞察'}完成 · ${run.resultCount} 项'
                                   : run.status == 'running'
                                   ? '处理中'
                                   : '失败，稍后自动重试',

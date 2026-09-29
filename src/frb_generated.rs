@@ -3383,12 +3383,14 @@ impl SseDecode for crate::api::InputRecordDto {
 impl SseDecode for crate::api::knowledge::KnowledgeBackgroundRunDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_task = <String>::sse_decode(deserializer);
         let mut var_status = <String>::sse_decode(deserializer);
         let mut var_startedAt = <String>::sse_decode(deserializer);
         let mut var_finishedAt = <Option<String>>::sse_decode(deserializer);
         let mut var_error = <Option<String>>::sse_decode(deserializer);
         let mut var_resultCount = <i64>::sse_decode(deserializer);
         return crate::api::knowledge::KnowledgeBackgroundRunDto {
+            task: var_task,
             status: var_status,
             started_at: var_startedAt,
             finished_at: var_finishedAt,
@@ -3585,6 +3587,8 @@ impl SseDecode for crate::storage::knowledge::KnowledgeMetadata {
 impl SseDecode for crate::api::knowledge::KnowledgePageDetails {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sourcePages = <Vec<crate::api::wiki::WikiPageDto>>::sse_decode(deserializer);
+        let mut var_outputPages = <Vec<crate::api::wiki::WikiPageDto>>::sse_decode(deserializer);
         let mut var_sources =
             <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_decode(deserializer);
         let mut var_history =
@@ -3596,6 +3600,8 @@ impl SseDecode for crate::api::knowledge::KnowledgePageDetails {
         let mut var_metadata =
             <crate::storage::knowledge::KnowledgeMetadata>::sse_decode(deserializer);
         return crate::api::knowledge::KnowledgePageDetails {
+            source_pages: var_sourcePages,
+            output_pages: var_outputPages,
             sources: var_sources,
             history: var_history,
             proposals: var_proposals,
@@ -4977,6 +4983,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::InputRecordDto> for crate::ap
 impl flutter_rust_bridge::IntoDart for crate::api::knowledge::KnowledgeBackgroundRunDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.task.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
             self.started_at.into_into_dart().into_dart(),
             self.finished_at.into_into_dart().into_dart(),
@@ -5210,6 +5217,8 @@ impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::KnowledgeMetad
 impl flutter_rust_bridge::IntoDart for crate::api::knowledge::KnowledgePageDetails {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.source_pages.into_into_dart().into_dart(),
+            self.output_pages.into_into_dart().into_dart(),
             self.sources.into_into_dart().into_dart(),
             self.history.into_into_dart().into_dart(),
             self.proposals.into_into_dart().into_dart(),
@@ -5925,6 +5934,7 @@ impl SseEncode for crate::api::InputRecordDto {
 impl SseEncode for crate::api::knowledge::KnowledgeBackgroundRunDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.task, serializer);
         <String>::sse_encode(self.status, serializer);
         <String>::sse_encode(self.started_at, serializer);
         <Option<String>>::sse_encode(self.finished_at, serializer);
@@ -6055,6 +6065,8 @@ impl SseEncode for crate::storage::knowledge::KnowledgeMetadata {
 impl SseEncode for crate::api::knowledge::KnowledgePageDetails {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::wiki::WikiPageDto>>::sse_encode(self.source_pages, serializer);
+        <Vec<crate::api::wiki::WikiPageDto>>::sse_encode(self.output_pages, serializer);
         <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_encode(self.sources, serializer);
         <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_encode(self.history, serializer);
         <Vec<crate::storage::knowledge::KnowledgeProposal>>::sse_encode(self.proposals, serializer);
@@ -7095,6 +7107,7 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::knowledge::KnowledgeBackgroundRunDto {
             crate::api::knowledge::KnowledgeBackgroundRunDto {
+                task: self.task.cst_decode(),
                 status: self.status.cst_decode(),
                 started_at: self.started_at.cst_decode(),
                 finished_at: self.finished_at.cst_decode(),
@@ -7232,6 +7245,8 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::knowledge::KnowledgePageDetails {
             crate::api::knowledge::KnowledgePageDetails {
+                source_pages: self.source_pages.cst_decode(),
+                output_pages: self.output_pages.cst_decode(),
                 sources: self.sources.cst_decode(),
                 history: self.history.cst_decode(),
                 proposals: self.proposals.cst_decode(),
@@ -8100,6 +8115,7 @@ mod io {
     impl NewWithNullPtr for wire_cst_knowledge_background_run_dto {
         fn new_with_null_ptr() -> Self {
             Self {
+                task: core::ptr::null_mut(),
                 status: core::ptr::null_mut(),
                 started_at: core::ptr::null_mut(),
                 finished_at: core::ptr::null_mut(),
@@ -8244,6 +8260,8 @@ mod io {
     impl NewWithNullPtr for wire_cst_knowledge_page_details {
         fn new_with_null_ptr() -> Self {
             Self {
+                source_pages: core::ptr::null_mut(),
+                output_pages: core::ptr::null_mut(),
                 sources: core::ptr::null_mut(),
                 history: core::ptr::null_mut(),
                 proposals: core::ptr::null_mut(),
@@ -10262,6 +10280,7 @@ mod io {
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_knowledge_background_run_dto {
+        task: *mut wire_cst_list_prim_u_8_strict,
         status: *mut wire_cst_list_prim_u_8_strict,
         started_at: *mut wire_cst_list_prim_u_8_strict,
         finished_at: *mut wire_cst_list_prim_u_8_strict,
@@ -10371,6 +10390,8 @@ mod io {
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_knowledge_page_details {
+        source_pages: *mut wire_cst_list_wiki_page_dto,
+        output_pages: *mut wire_cst_list_wiki_page_dto,
         sources: *mut wire_cst_list_source_snapshot,
         history: *mut wire_cst_list_source_snapshot,
         proposals: *mut wire_cst_list_knowledge_proposal,
@@ -11225,16 +11246,17 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                5,
-                "Expected 5 elements, got {}",
+                6,
+                "Expected 6 elements, got {}",
                 self_.length()
             );
             crate::api::knowledge::KnowledgeBackgroundRunDto {
-                status: self_.get(0).cst_decode(),
-                started_at: self_.get(1).cst_decode(),
-                finished_at: self_.get(2).cst_decode(),
-                error: self_.get(3).cst_decode(),
-                result_count: self_.get(4).cst_decode(),
+                task: self_.get(0).cst_decode(),
+                status: self_.get(1).cst_decode(),
+                started_at: self_.get(2).cst_decode(),
+                finished_at: self_.get(3).cst_decode(),
+                error: self_.get(4).cst_decode(),
+                result_count: self_.get(5).cst_decode(),
             }
         }
     }
@@ -11428,16 +11450,18 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                5,
-                "Expected 5 elements, got {}",
+                7,
+                "Expected 7 elements, got {}",
                 self_.length()
             );
             crate::api::knowledge::KnowledgePageDetails {
-                sources: self_.get(0).cst_decode(),
-                history: self_.get(1).cst_decode(),
-                proposals: self_.get(2).cst_decode(),
-                issues: self_.get(3).cst_decode(),
-                metadata: self_.get(4).cst_decode(),
+                source_pages: self_.get(0).cst_decode(),
+                output_pages: self_.get(1).cst_decode(),
+                sources: self_.get(2).cst_decode(),
+                history: self_.get(3).cst_decode(),
+                proposals: self_.get(4).cst_decode(),
+                issues: self_.get(5).cst_decode(),
+                metadata: self_.get(6).cst_decode(),
             }
         }
     }

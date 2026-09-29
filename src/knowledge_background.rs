@@ -1,9 +1,11 @@
 //! Automatic cognitive insights, with a persisted run ledger and bounded input.
+mod sources;
 use crate::ai::{insight::parse_insights, memory::ContextMessage, provider::AiProvider};
 use crate::knowledge::{context_text, record_usage, select_knowledge};
 use crate::storage::{ContentPolicy, Store, WikiPageDraft};
 use anyhow::{bail, Context, Result};
 use rusqlite::{params, Transaction, TransactionBehavior};
+pub(crate) use sources::run_automatic_source_compilation;
 use std::sync::Mutex;
 
 static RUNNING: Mutex<()> = Mutex::new(());

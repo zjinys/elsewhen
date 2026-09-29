@@ -463,6 +463,18 @@ impl Store {
         base: Option<&WikiPage>,
         reason: &str,
     ) -> Result<String> {
+        self.record_proposal_with_origin(draft, applicable_when, snapshots, base, reason, "manual")
+    }
+
+    pub(crate) fn record_proposal_with_origin(
+        &self,
+        draft: &WikiPageDraft,
+        applicable_when: &str,
+        snapshots: &[String],
+        base: Option<&WikiPage>,
+        reason: &str,
+        origin: &str,
+    ) -> Result<String> {
         if draft.content_md.trim().is_empty() {
             bail!("建议正文为空");
         }
@@ -496,8 +508,8 @@ impl Store {
         self.connection.execute(
             "INSERT OR IGNORE INTO knowledge_proposals
             (id,dedupe_key,page_id,target_slug,kind,title,content_md,applicable_when,
-             snapshot_ids,event_ids,base_hash,reason,created_at)
-            VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+             snapshot_ids,event_ids,base_hash,reason,created_at,origin)
+            VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
             params![
                 Uuid::new_v4().to_string(),
                 key,
@@ -511,7 +523,8 @@ impl Store {
                 serde_json::to_string(&event_keys)?,
                 base.map(|p| content_hash(&p.content_md)),
                 reason,
-                chrono::Utc::now().to_rfc3339()
+                chrono::Utc::now().to_rfc3339(),
+                origin
             ],
         )?;
         Ok(self.connection.query_row(
@@ -523,6 +536,36 @@ impl Store {
 
     pub fn knowledge_proposals(&self, slug: Option<&str>) -> Result<Vec<KnowledgeProposal>> {
         self.find_knowledge_proposals(slug, None)
+    }
+
+    /// Navigate the existing provenance graph, including pages compiled before
+    /// the UI exposed these links. Never invent a single based_on for many sources.
+    pub fn knowledge_origin_pages(&self, slug: &str) -> Result<Vec<WikiPage>> {
+        let sql = format!(
+            "SELECT {WIKI_PAGE_COLS} FROM wiki_pages WHERE slug<>?1 AND id IN (
+            SELECT origin.page_id FROM knowledge_source_pages origin
+            JOIN knowledge_snapshots s ON s.source_id=origin.source_id
+            JOIN knowledge_page_sources cited ON cited.snapshot_id=s.id
+            JOIN wiki_pages target ON target.id=cited.page_id WHERE target.slug=?1)
+            ORDER BY title,slug"
+        );
+        let mut stmt = self.connection.prepare(&sql)?;
+        let rows = stmt.query_map([slug], map_wiki_page)?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    pub fn knowledge_output_pages(&self, slug: &str) -> Result<Vec<WikiPage>> {
+        let sql = format!(
+            "SELECT {WIKI_PAGE_COLS} FROM wiki_pages WHERE slug<>?1 AND id IN (
+            SELECT cited.page_id FROM knowledge_page_sources cited
+            JOIN knowledge_snapshots s ON s.id=cited.snapshot_id
+            JOIN knowledge_source_pages origin ON origin.source_id=s.source_id
+            JOIN wiki_pages material ON material.id=origin.page_id WHERE material.slug=?1)
+            ORDER BY updated_at DESC,slug"
+        );
+        let mut stmt = self.connection.prepare(&sql)?;
+        let rows = stmt.query_map([slug], map_wiki_page)?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
     fn find_knowledge_proposals(
@@ -561,12 +604,48 @@ impl Store {
     }
 
     pub fn resolve_knowledge_proposal(&self, id: &str, accept: bool) -> Result<Option<WikiPage>> {
+        self.apply_knowledge_proposal(id, accept, true)
+    }
+
+    /// Only the automatic source compiler uses this path. Its result remains a
+    /// reference, and can never overwrite a human decision or edit.
+    pub(crate) fn save_automatic_reference(&self, id: &str) -> Result<Option<WikiPage>> {
+        self.apply_knowledge_proposal(id, true, false)
+    }
+
+    fn apply_knowledge_proposal(
+        &self,
+        id: &str,
+        accept: bool,
+        confirmed: bool,
+    ) -> Result<Option<WikiPage>> {
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        if !confirmed {
+            let origin: String = self.connection.query_row(
+                "SELECT origin FROM knowledge_proposals WHERE id=?1",
+                [id],
+                |r| r.get(0),
+            )?;
+            if origin != "automatic" {
+                bail!("人工待审建议不能自动采纳");
+            }
+        }
         let proposal = self
             .find_knowledge_proposals(None, Some(id))?
             .into_iter()
             .next()
             .context("建议不存在或已过期")?;
+        if !confirmed {
+            let manual_choice: bool = self.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM knowledge_proposals other
+                 JOIN json_each(other.snapshot_ids) j JOIN knowledge_snapshots s ON s.id=j.value
+                 WHERE other.id<>?1 AND (other.status='rejected' OR (other.status='pending' AND other.origin='manual'))
+                 AND s.source_id IN (SELECT source_id FROM knowledge_snapshots WHERE id IN (SELECT value FROM json_each(?2))))",
+                params![id,serde_json::to_string(&proposal.snapshot_ids)?], |r| r.get(0))?;
+            if manual_choice {
+                bail!("整理期间有新的人工决定，保留待审状态");
+            }
+        }
         if proposal.status != "pending" {
             if accept && proposal.status == "accepted" {
                 return self.get_wiki_page(&proposal.target_slug);
@@ -578,6 +657,15 @@ impl Store {
         }
         let page = if accept {
             let base = self.get_wiki_page(&proposal.target_slug)?;
+            if !confirmed && base.as_ref().is_some_and(|p| p.human_edited_at.is_some()) {
+                bail!("已有人工编辑，自动整理保留原知识页");
+            }
+            if !confirmed {
+                let metadata = self.knowledge_metadata(&proposal.target_slug)?;
+                if metadata.confirmed_at.is_some() || metadata.strength != "reference" {
+                    bail!("人工确认的适用条件与强度不能自动改写");
+                }
+            }
             if proposal.page_id.is_some() {
                 let base = base.as_ref().context("目标页面已删除")?;
                 if Some(&base.id) != proposal.page_id.as_ref()
@@ -617,14 +705,22 @@ impl Store {
                 tags,
                 source_event_ids: proposal.event_ids.clone(),
                 status: "active".into(),
-                reason: format!("用户确认知识建议：{}", proposal.reason),
+                reason: format!(
+                    "{}：{}",
+                    if confirmed {
+                        "用户确认知识建议"
+                    } else {
+                        "自动整理参考知识"
+                    },
+                    proposal.reason
+                ),
                 source_url: None,
             };
             let result = self
                 .upsert_wiki_page_in_tx(&draft, ContentPolicy::Always)?
                 .page;
             self.connection.execute("UPDATE wiki_pages SET human_edited_at=?1,source_event_ids=?3,evidence_count=?4 WHERE id=?2",
-                params![chrono::Utc::now().to_rfc3339(),result.id,serde_json::to_string(&proposal.event_ids)?,proposal.event_ids.len() as i64])?;
+                params![confirmed.then(|| chrono::Utc::now().to_rfc3339()),result.id,serde_json::to_string(&proposal.event_ids)?,proposal.event_ids.len() as i64])?;
             self.connection.execute(
                 "DELETE FROM knowledge_page_sources WHERE page_id=?1",
                 [&result.id],
@@ -633,8 +729,17 @@ impl Store {
             self.connection.execute("INSERT INTO knowledge_metadata(page_id,applicable_when,strength,confirmed_at)
                 VALUES (?1,?2,'reference',?3) ON CONFLICT(page_id) DO UPDATE SET
                 applicable_when=excluded.applicable_when,strength='reference',confirmed_at=excluded.confirmed_at",
-                params![result.id,proposal.applicable_when,chrono::Utc::now().to_rfc3339()])?;
-            self.append_wiki_log(&format!("确认知识建议 {} → {}", proposal.id, result.slug))?;
+                params![result.id,proposal.applicable_when,confirmed.then(|| chrono::Utc::now().to_rfc3339())])?;
+            self.append_wiki_log(&format!(
+                "{} {} → {}",
+                if confirmed {
+                    "确认知识建议"
+                } else {
+                    "自动整理参考知识"
+                },
+                proposal.id,
+                result.slug
+            ))?;
             Some(
                 self.get_wiki_page(&result.slug)?
                     .context("保存后页面不存在")?,

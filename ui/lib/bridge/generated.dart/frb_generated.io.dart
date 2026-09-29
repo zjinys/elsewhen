@@ -1721,6 +1721,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     KnowledgeBackgroundRunDto apiObj,
     wire_cst_knowledge_background_run_dto wireObj,
   ) {
+    wireObj.task = cst_encode_String(apiObj.task);
     wireObj.status = cst_encode_String(apiObj.status);
     wireObj.started_at = cst_encode_String(apiObj.startedAt);
     wireObj.finished_at = cst_encode_opt_String(apiObj.finishedAt);
@@ -1859,6 +1860,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     KnowledgePageDetails apiObj,
     wire_cst_knowledge_page_details wireObj,
   ) {
+    wireObj.source_pages = cst_encode_list_wiki_page_dto(apiObj.sourcePages);
+    wireObj.output_pages = cst_encode_list_wiki_page_dto(apiObj.outputPages);
     wireObj.sources = cst_encode_list_source_snapshot(apiObj.sources);
     wireObj.history = cst_encode_list_source_snapshot(apiObj.history);
     wireObj.proposals = cst_encode_list_knowledge_proposal(apiObj.proposals);
@@ -6876,6 +6879,8 @@ final class wire_cst_input_record_dto extends ffi.Struct {
 }
 
 final class wire_cst_knowledge_background_run_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> task;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> started_at;
@@ -6889,12 +6894,14 @@ final class wire_cst_knowledge_background_run_dto extends ffi.Struct {
 
   static ffi.Pointer<wire_cst_knowledge_background_run_dto> $allocate(
     ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> task,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> started_at,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> finished_at,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> error,
     required int result_count,
   }) => $allocator<wire_cst_knowledge_background_run_dto>()
+    ..ref.task = task
     ..ref.status = status
     ..ref.started_at = started_at
     ..ref.finished_at = finished_at
@@ -7151,6 +7158,10 @@ final class wire_cst_knowledge_metadata extends ffi.Struct {
 }
 
 final class wire_cst_knowledge_page_details extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_wiki_page_dto> source_pages;
+
+  external ffi.Pointer<wire_cst_list_wiki_page_dto> output_pages;
+
   external ffi.Pointer<wire_cst_list_source_snapshot> sources;
 
   external ffi.Pointer<wire_cst_list_source_snapshot> history;

@@ -1177,6 +1177,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_knowledge_background_run_dto(KnowledgeBackgroundRunDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
+      cst_encode_String(raw.task),
       cst_encode_String(raw.status),
       cst_encode_String(raw.startedAt),
       cst_encode_opt_String(raw.finishedAt),
@@ -1309,6 +1310,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_knowledge_page_details(KnowledgePageDetails raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
+      cst_encode_list_wiki_page_dto(raw.sourcePages),
+      cst_encode_list_wiki_page_dto(raw.outputPages),
       cst_encode_list_source_snapshot(raw.sources),
       cst_encode_list_source_snapshot(raw.history),
       cst_encode_list_knowledge_proposal(raw.proposals),

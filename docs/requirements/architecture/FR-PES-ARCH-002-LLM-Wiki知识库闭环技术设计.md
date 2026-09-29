@@ -61,6 +61,8 @@
 
 `knowledge_sources` / `knowledge_snapshots` / `knowledge_source_pages` / `knowledge_page_sources` 分别保存身份、不可变原文、展示页和派生页的精确版本关系。`knowledge_proposals` 保存目标正文 hash、版本/事件集合与接受/拒绝决定；相同输入去重。`knowledge_metadata` 保存适用条件与强度，`knowledge_maintenance_reviews` 保存提示处理记录。确定性检查与 LLM 审阅分开：前者检查引用关系，后者仅生成待审建议。
 
+后续实现：默认原料编译接入知识后台 tick，每次一份当前版本，以 `knowledge_background_runs(task=source-compilation,input_key=snapshot_id)` 记录租约、成功去重与失败退避。模型选择 method/case/principle 或 skip，严格校验且最多修复一次。v5 的提案 origin 区分 manual/automatic；只有后台自有提案可自动保存为 reference，不伪造人工确认。事务复查来源、提案身份、人工决定及调用模型前的正文 hash；人工元数据同样受保护。双向导航从快照关系查询，兼容已有方法页。完整决定见 [原料工作区](../../notes/implemented/architecture/2026-09-29-source-knowledge-workspace.md)。
+
 共享选材在 `src/knowledge.rs`：最多 80 候选、6 个结果，序列化选材不超过调用方预算及 12,000 字。中文双字词/英文词匹配标题、标签、正文和适用条件；方法/案例/规律必须匹配适用条件；来源已拒绝、已过期、事件不可记录或缺乏出处时不作为证据。主/页内对话每轮（含工具回传及调用参数）不超过 24,000 字。知识确认与最终引用都复查来源；`knowledge_usage` 区分实际提供的候选与模型实际采用的引用，保存当时的片段和原料版本。
 
 自动洞察在 `src/knowledge_background.rs`，复用原 worker 和洞察 schema，原独立生成入口移除。运行账本处理每日节奏、输入去重、失败退避及租约恢复；恢复状态在等待重试时也提交，防止每次 tick 重置退避。洞察写入与成功状态同事务。四透镜兜底，允许空数组；不引入目标偏差判定。

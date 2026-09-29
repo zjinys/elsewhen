@@ -28,6 +28,8 @@ Elsewhen is a local-first personal event system with a **Rust core** and **Flutt
 
 4. **Database is the single source of truth** for AI provider config (configured in the app's settings)
 
+5. **Imported source compilation** → The same worker's knowledge tick also processes one eligible source version. It automatically saves bounded method/case/principle output as reference knowledge, or skips insufficient material. `knowledge_background_runs` provides per-version dedupe, a lease and failure backoff. Manual pending/rejected suggestions, human edits and confirmed rules are protected. No manual background trigger is exposed; the page's optional extraction command creates a manual proposal.
+
 ### Module Responsibilities
 
 - `storage/`: SQLite schema and migrations, transactions, analysis and knowledge digest queues (`storage/digest.rs`). Enforces raw event immutability via trigger.

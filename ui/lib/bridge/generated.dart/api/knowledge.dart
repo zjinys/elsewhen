@@ -108,6 +108,7 @@ Future<WikiPageDto> confirmKnowledgeSource({
 );
 
 class KnowledgeBackgroundRunDto {
+  final String task;
   final String status;
   final String startedAt;
   final String? finishedAt;
@@ -115,6 +116,7 @@ class KnowledgeBackgroundRunDto {
   final PlatformInt64 resultCount;
 
   const KnowledgeBackgroundRunDto({
+    required this.task,
     required this.status,
     required this.startedAt,
     this.finishedAt,
@@ -124,6 +126,7 @@ class KnowledgeBackgroundRunDto {
 
   @override
   int get hashCode =>
+      task.hashCode ^
       status.hashCode ^
       startedAt.hashCode ^
       finishedAt.hashCode ^
@@ -135,6 +138,7 @@ class KnowledgeBackgroundRunDto {
       identical(this, other) ||
       other is KnowledgeBackgroundRunDto &&
           runtimeType == other.runtimeType &&
+          task == other.task &&
           status == other.status &&
           startedAt == other.startedAt &&
           finishedAt == other.finishedAt &&
@@ -143,6 +147,8 @@ class KnowledgeBackgroundRunDto {
 }
 
 class KnowledgePageDetails {
+  final List<WikiPageDto> sourcePages;
+  final List<WikiPageDto> outputPages;
   final List<SourceSnapshot> sources;
   final List<SourceSnapshot> history;
   final List<KnowledgeProposal> proposals;
@@ -150,6 +156,8 @@ class KnowledgePageDetails {
   final KnowledgeMetadata metadata;
 
   const KnowledgePageDetails({
+    required this.sourcePages,
+    required this.outputPages,
     required this.sources,
     required this.history,
     required this.proposals,
@@ -159,6 +167,8 @@ class KnowledgePageDetails {
 
   @override
   int get hashCode =>
+      sourcePages.hashCode ^
+      outputPages.hashCode ^
       sources.hashCode ^
       history.hashCode ^
       proposals.hashCode ^
@@ -170,6 +180,8 @@ class KnowledgePageDetails {
       identical(this, other) ||
       other is KnowledgePageDetails &&
           runtimeType == other.runtimeType &&
+          sourcePages == other.sourcePages &&
+          outputPages == other.outputPages &&
           sources == other.sources &&
           history == other.history &&
           proposals == other.proposals &&

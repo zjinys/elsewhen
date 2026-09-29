@@ -90,6 +90,7 @@ void main() {
               'message': {
                 'role': 'assistant',
                 'content': jsonEncode({
+                  'kind': 'method',
                   'title': '事务方法',
                   'content_md': '多步写入在同一个事务中完成。',
                   'applicable_when': '执行多步数据库写入',
@@ -129,6 +130,18 @@ void main() {
     );
     expect(method!.kind, 'method');
     expect(
+      (await api.getKnowledgePageDetails(slug: page.slug)).outputPages
+          .map((p) => p.slug),
+      contains(method.slug),
+    );
+    expect(
+      (await api.getKnowledgePageDetails(slug: method.slug))
+          .sourcePages
+          .single
+          .slug,
+      page.slug,
+    );
+    expect(
       (await api.getKnowledgePageDetails(slug: method.slug)).metadata.strength,
       'reference',
     );
@@ -145,6 +158,39 @@ void main() {
     expect(
       (await api.getKnowledgePageDetails(slug: derivative.slug)).issues
           .any((i) => i.kind == 'rejected_source'),
+      isTrue,
+    );
+    final automaticSource = await api.confirmKnowledgeSource(
+      title: '自动整理原料',
+      contentMd: '同一事务里的多步操作保持原子性。',
+      sourceUrl: 'https://example.com/automatic',
+      sourceKind: 'webpage',
+      tags: [],
+    );
+    final before = requests.length;
+    expect(await api.tickKnowledgeInsights(), 1);
+    final automaticDetails = await api.getKnowledgePageDetails(
+      slug: automaticSource.slug,
+    );
+    final automaticPage = automaticDetails.outputPages.single;
+    expect(automaticPage.humanEditedAt, isNull);
+    expect(automaticPage.kind, 'method');
+    expect(
+      (await api.getKnowledgePageDetails(slug: automaticPage.slug))
+          .metadata
+          .strength,
+      'reference',
+    );
+    expect(
+      (await repo.getWikiPage(automaticSource.slug))!.contentMd,
+      automaticSource.contentMd,
+    );
+    expect(await api.tickKnowledgeInsights(), 0);
+    expect(requests.length, before + 1);
+    expect(
+      (await api.listKnowledgeBackgroundRuns()).any(
+        (r) => r.task == 'source-compilation' && r.status == 'succeeded',
+      ),
       isTrue,
     );
   });

@@ -4275,14 +4275,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return KnowledgeBackgroundRunDto(
-      status: dco_decode_String(arr[0]),
-      startedAt: dco_decode_String(arr[1]),
-      finishedAt: dco_decode_opt_String(arr[2]),
-      error: dco_decode_opt_String(arr[3]),
-      resultCount: dco_decode_i_64(arr[4]),
+      task: dco_decode_String(arr[0]),
+      status: dco_decode_String(arr[1]),
+      startedAt: dco_decode_String(arr[2]),
+      finishedAt: dco_decode_opt_String(arr[3]),
+      error: dco_decode_opt_String(arr[4]),
+      resultCount: dco_decode_i_64(arr[5]),
     );
   }
 
@@ -4427,14 +4428,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   KnowledgePageDetails dco_decode_knowledge_page_details(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return KnowledgePageDetails(
-      sources: dco_decode_list_source_snapshot(arr[0]),
-      history: dco_decode_list_source_snapshot(arr[1]),
-      proposals: dco_decode_list_knowledge_proposal(arr[2]),
-      issues: dco_decode_list_knowledge_issue(arr[3]),
-      metadata: dco_decode_knowledge_metadata(arr[4]),
+      sourcePages: dco_decode_list_wiki_page_dto(arr[0]),
+      outputPages: dco_decode_list_wiki_page_dto(arr[1]),
+      sources: dco_decode_list_source_snapshot(arr[2]),
+      history: dco_decode_list_source_snapshot(arr[3]),
+      proposals: dco_decode_list_knowledge_proposal(arr[4]),
+      issues: dco_decode_list_knowledge_issue(arr[5]),
+      metadata: dco_decode_knowledge_metadata(arr[6]),
     );
   }
 
@@ -5547,12 +5550,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_task = sse_decode_String(deserializer);
     var var_status = sse_decode_String(deserializer);
     var var_startedAt = sse_decode_String(deserializer);
     var var_finishedAt = sse_decode_opt_String(deserializer);
     var var_error = sse_decode_opt_String(deserializer);
     var var_resultCount = sse_decode_i_64(deserializer);
     return KnowledgeBackgroundRunDto(
+      task: var_task,
       status: var_status,
       startedAt: var_startedAt,
       finishedAt: var_finishedAt,
@@ -5751,12 +5756,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sourcePages = sse_decode_list_wiki_page_dto(deserializer);
+    var var_outputPages = sse_decode_list_wiki_page_dto(deserializer);
     var var_sources = sse_decode_list_source_snapshot(deserializer);
     var var_history = sse_decode_list_source_snapshot(deserializer);
     var var_proposals = sse_decode_list_knowledge_proposal(deserializer);
     var var_issues = sse_decode_list_knowledge_issue(deserializer);
     var var_metadata = sse_decode_knowledge_metadata(deserializer);
     return KnowledgePageDetails(
+      sourcePages: var_sourcePages,
+      outputPages: var_outputPages,
       sources: var_sources,
       history: var_history,
       proposals: var_proposals,
@@ -7103,6 +7112,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.task, serializer);
     sse_encode_String(self.status, serializer);
     sse_encode_String(self.startedAt, serializer);
     sse_encode_opt_String(self.finishedAt, serializer);
@@ -7245,6 +7255,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_wiki_page_dto(self.sourcePages, serializer);
+    sse_encode_list_wiki_page_dto(self.outputPages, serializer);
     sse_encode_list_source_snapshot(self.sources, serializer);
     sse_encode_list_source_snapshot(self.history, serializer);
     sse_encode_list_knowledge_proposal(self.proposals, serializer);

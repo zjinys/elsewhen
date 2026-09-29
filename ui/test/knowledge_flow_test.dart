@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/models/import_fetch.dart';
+import 'package:elsewhen_ui/models/wiki_page.dart';
+import 'package:elsewhen_ui/providers/wiki_provider.dart';
 import 'package:elsewhen_ui/providers/knowledge_provider.dart';
 import 'package:elsewhen_ui/widgets/knowledge_import.dart';
 import 'package:elsewhen_ui/widgets/knowledge_panel.dart';
@@ -38,16 +40,57 @@ const page = api.WikiPageDto(
   area: 'imported',
 );
 
+const compiledPage = api.WikiPageDto(
+  id: 'compiled',
+  slug: 'method/one',
+  kind: 'method',
+  title: '事务方法',
+  summary: '',
+  contentMd: '先明确事务边界，再完成多步写入。',
+  tags: [],
+  sourceEventIds: [],
+  evidenceCount: 0,
+  firstSeenAt: '2026-09-29',
+  lastSeenAt: '2026-09-29',
+  status: 'active',
+  createdAt: '2026-09-29',
+  updatedAt: '2026-09-29',
+  area: 'insight',
+);
+
 class FakeKnowledge extends KnowledgeRepository {
   final decisions = <bool>[];
   bool fail = false;
   int saves = 0;
+  bool returnPage = false;
+  int proposeCalls = 0;
   String? expected;
+  @override
+  Future<api.KnowledgePageDetails> details(String slug) async =>
+      api.KnowledgePageDetails(
+        sourcePages: slug == page.slug ? [] : [page],
+        outputPages: slug == page.slug ? [compiledPage] : [],
+        sources: [],
+        history: [],
+        proposals: [],
+        issues: [],
+        metadata: const api.KnowledgeMetadata(
+          applicableWhen: '多步写入',
+          strength: 'reference',
+        ),
+      );
   @override
   Future<api.WikiPageDto?> resolve(String id, bool accept) async {
     decisions.add(accept);
     if (fail) throw Exception('来源已更新，请重新生成建议');
-    return null;
+    return accept && returnPage ? page : null;
+  }
+
+  @override
+  Future<String> propose(String slug, String kind) async {
+    proposeCalls++;
+    if (fail) throw Exception('Provider failed');
+    return 'proposal';
   }
 
   @override
@@ -109,7 +152,8 @@ void main() {
     await tester.tap(find.text('查看原料'));
     await tester.pumpAndSettle();
     expect(find.text('可核验的原文内容', findRichText: true), findsOneWidget);
-    Navigator.of(tester.element(find.byType(AlertDialog))).pop();
+    expect(find.byType(Dialog), findsNothing);
+    await tester.tap(find.byTooltip('收起对照'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('确认保存'));
     await tester.pumpAndSettle();
@@ -130,6 +174,82 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('来源已更新，请重新生成建议'), findsOneWidget);
     expect(find.text('确认保存'), findsOneWidget);
+  });
+  testWidgets('采纳后保留当前上下文，不跳到另一个同名页', (tester) async {
+    final repo = FakeKnowledge()..returnPage = true;
+    await pump(tester, repo, const KnowledgeProposalCard(proposal: proposal));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(KnowledgeProposalCard)),
+    );
+    final before = container.read(wikiOpenTabsProvider);
+    await tester.tap(find.text('确认保存'));
+    await tester.pumpAndSettle();
+    expect(container.read(wikiOpenTabsProvider), before);
+    expect(find.text('已处理，原文保持不变'), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+  });
+  testWidgets('两个动作等高居中且有图标，提炼失败可原位重试', (tester) async {
+    final repo = FakeKnowledge()..fail = true;
+    var sources = 0;
+    var outputs = 0;
+    await pump(
+      tester,
+      repo,
+      KnowledgePageActions(
+        page: WikiPage.fromDto(page),
+        onShowSources: () => sources++,
+        onShowOutputs: () => outputs++,
+      ),
+    );
+    final sourceText = find.text('来源与修订');
+    final refineText = find.text('提炼知识');
+    expect(
+      (tester.getCenter(sourceText).dy - tester.getCenter(refineText).dy).abs(),
+      lessThan(1),
+    );
+    expect(find.byIcon(Icons.source_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.auto_awesome_outlined), findsOneWidget);
+    await tester.tap(sourceText);
+    expect(sources, 1);
+    await tester.tap(refineText);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('提炼方法'));
+    await tester.pumpAndSettle();
+    expect(find.text('重试整理'), findsOneWidget);
+    expect(outputs, 0);
+    repo.fail = false;
+    await tester.tap(find.text('重试整理'));
+    await tester.pumpAndSettle();
+    expect(repo.proposeCalls, 2);
+    expect(outputs, 1);
+    expect(find.byType(Dialog), findsNothing);
+  });
+  testWidgets('已有知识显示在原料产出区，反向关联可见且无需弹窗', (tester) async {
+    final repo = FakeKnowledge();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          knowledgeRepositoryProvider.overrideWithValue(repo),
+          wikiDerivativesProvider(page.slug).overrideWith((ref) async => []),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: KnowledgeOutputsSection(page: WikiPage.fromDto(page)),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('事务方法'), findsOneWidget);
+    expect(find.text('方法 · 来自本页原料'), findsOneWidget);
+    await tester.tap(find.text('事务方法'));
+    await tester.pumpAndSettle();
+    expect(find.text('先明确事务边界，再完成多步写入。', findRichText: true), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await pump(tester, repo, const KnowledgeOriginLinks(slug: 'method/one'));
+    expect(find.text('原料 · 原文'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
   for (final accept in [false, true]) {
     testWidgets('重复导入${accept ? '确认版本' : '取消不写库'}，窄屏对照无溢出', (tester) async {
