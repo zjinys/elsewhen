@@ -704,3 +704,44 @@ context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是�
 ②抓完整 stdout（此前几次排查都因为缺实际报错而只能靠推断，两次推错）。
 
 
+
+## 目标与偏差检测（FR-PES-005）落地后的待办（2026-09-29）
+
+本轮只做了 FR-PES-005-01（目标管理）与 -02（目标进对话记忆），-03 的评估快照、
+-04/-05 全部未动。以下为因此新增/确认的待办。
+
+### 待裁决（不做实现决策，先等用户）
+
+- **Q1 偏差结论往哪里呈现**：独立列表页 / 混入对话上下文 / 写入待办。倾向独立
+  列表加对话注入，**不写入待办**——AI 判断的偏差与用户自己的承诺语义不同，混在
+  用户亲笔的待办列表里容易被当成用户自己的话。
+- **Q2 检查节奏是否由 phase 决定**：候选近期每周 / 中期每月 / 长远每季。若不由
+  phase 决定，则要另找节奏来源（上一轮评估时间 / 上次结论时间）。
+- **Q4「用户在干什么」以何为主**：事件流有结构化分类与原文，对话只有自由文本。
+  是否额外抽一层对话主题，成本显著更高，是 -04 最大的工作量不确定项。
+
+### 实现层待办（不依赖裁决）
+
+- **`generate_insights` 仍是死代码**（`src/ai/insight.rs`，全仓零调用点）。它是 -04
+  的分析器原型，接线即可用，但**接线**这一步需要：新增 `goal_assessments` 表（又一条
+  迁移，须走 `new_migrations.rs`）、后台周期任务（照 `trigger_knowledge_digest` 的
+  重试/冷却/重启恢复模式）、以及失败可见性。
+- **目标上限在 UI 侧是硬编码的 `3`（`ui/lib/widgets/goal_view.dart`）**。Rust 侧
+  已有 `trigger_cap_literal_matches_the_error_message_constant` 守住「触发器字面量 vs
+  报错文案常量」，Dart 侧只有一条「等于 3」的断言，**跨层仍无自动比对**：
+  `MAX_ACTIVE_GOALS` 没被 frb codegen 导出到 Dart（只有函数与 DTO 生成出来），
+  `ui/test/goal_model_test.dart` 断言的是一个自己写死的 3。放宽上限需手改三处：
+  `src/storage/goals.rs` 常量、`new_migrations.rs` 触发器字面量、Dart 侧常量。
+  UI 那处只是「提前告知」，漂移的最坏后果是提示文案与实际不符，不是约束失效。
+
+- **`ui/lib/bridge/generated.dart/api.dart` 的手工 export 段**：frb 2.14.0-beta.2
+  每次重跑 codegen 都会覆盖掉它，靠注释提醒人工补回。根治要换 frb 版本或改上游；
+  在此之前每次重跑都要复查，陷阱已写进 `flutter_rust_bridge.yaml`。
+- **Linux 上 codegen 需要 `CPATH` + 剥掉 `CPATH` 的 cc wrapper 双管齐下**，否则
+  `cargo expand returned empty output`。同样已写进 `flutter_rust_bridge.yaml`。
+  建议写成 `scripts/` 下的一键脚本，当前只以注释形式留在 yaml 里。
+- **`settings_screen_test.dart: prefills real provider from bridge` 仍 flaky**（走真
+  FFI，共享数据目录）。非本轮引入，但每轮 `flutter test` 都会随机翻车，值得隔离。
+- **commit `ba797e3` 不是自洽的 Flutter 提交**：`ui/lib/widgets/custom_title_bar.dart:36`
+  引用了只在 `f73e827` 出现的 `knowledgeDigestBusyProvider`。单独 checkout 该 commit
+  编译不过。处理需要 rebase 改写历史，**用户已知悉但尚未决定**。
