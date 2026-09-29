@@ -59,6 +59,17 @@ pub struct AiReply {
     pub model: Option<String>,
     pub usage: Option<TokenUsage>,
     pub reasoning_content: Option<String>,
+    /// OpenAI 兼容接口的 `choices[0].finish_reason`（`stop` / `length` /
+    /// `function_call` / `tool_calls`）。
+    ///
+    /// 存在的理由不是「顺手记一下」，而是一个可复现的坏响应签名：部分中转
+    /// 在模型决定调工具时，会返回 `finish_reason: "function_call"` 却把整个
+    /// `tool_calls` 数组丢掉，message 里只剩 `{"role":"assistant"}`。这种响应
+    /// 看起来和「模型返回空」完全一样（content 空、tool_calls 空），但根因在
+    /// 上游而不是模型——实测 2026-09-29 的 hub.oaifree.com 在「要调工具」的
+    /// 请求上 8/8 全部如此，且 `usage.completion_tokens` 照常有值（说明 token
+    /// 生成了、是被中转丢的）。没有这个字段就无法把它和真的空回复区分开。
+    pub finish_reason: Option<String>,
 }
 
 impl AiReply {
@@ -70,6 +81,7 @@ impl AiReply {
             model: None,
             usage: None,
             reasoning_content: None,
+            finish_reason: None,
         }
     }
 }
@@ -198,6 +210,10 @@ struct OpenAiUsage {
 #[derive(Deserialize)]
 struct OpenAiChoice {
     message: OpenAiMessageResponse,
+    /// 见 [AiReply::finish_reason]：区分「模型返回空」与「中转吞了 tool_calls」
+    /// 的唯一可用信号。缺省字段不能省——不接的话 serde 会整体解析失败。
+    #[serde(default)]
+    finish_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -335,6 +351,10 @@ impl AiProvider for OpenAiCompatibleProvider {
             .first()
             .map(|c| &c.message)
             .context("AI provider returned no choices")?;
+        let finish_reason = ai_response
+            .choices
+            .first()
+            .and_then(|c| c.finish_reason.clone());
 
         let content = message.content.clone().unwrap_or_default();
         let tool_calls = message
@@ -357,6 +377,7 @@ impl AiProvider for OpenAiCompatibleProvider {
             model: ai_response.model,
             usage,
             reasoning_content: message.reasoning_content.clone(),
+            finish_reason,
         })
     }
 }
@@ -582,6 +603,9 @@ impl AiProvider for OllamaProvider {
             model: ollama_response.model,
             usage,
             reasoning_content: None,
+            // Ollama 用的是 `done_reason` 而非 `finish_reason`，语义也不同
+            // （stop / length / tool_calls）。这里不猜，交给上层按「未知」处理。
+            finish_reason: None,
         })
     }
 }
@@ -638,6 +662,53 @@ mod tests {
         let resp: OpenAiResponse = serde_json::from_str(json).unwrap();
         assert!(resp.usage.is_none());
         assert!(resp.model.is_none());
+    }
+
+    /// 实测坏响应（2026-09-29，hub.oaifree.com + gpt-4o，8/8 复现）：
+    /// 声称调用了函数，却把 tool_calls 整个丢掉，message 里只剩 role。
+    /// `completion_tokens` 照常有值——token 生成了，是被中转丢的。
+    ///
+    /// 这条测试的作用是钉住「finish_reason 必须被接住」：没有它，这种响应
+    /// 和真的「模型返回空」在下游完全无法区分，排查只能靠人工重放请求。
+    #[test]
+    fn openai_response_keeps_finish_reason_when_tool_calls_are_dropped() {
+        let json = r#"{
+            "choices":[{
+                "message":{"role":"assistant"},
+                "finish_reason":"function_call",
+                "logprobs":null
+            }],
+            "object":"chat.completion",
+            "model":"gpt-4o",
+            "usage":{"prompt_tokens":5759,"completion_tokens":58,"total_tokens":5817}
+        }"#;
+        let resp: OpenAiResponse = serde_json::from_str(json).unwrap();
+        let choice = &resp.choices[0];
+
+        // 坏响应的三个特征，缺一不可
+        assert_eq!(choice.finish_reason.as_deref(), Some("function_call"));
+        assert!(choice.message.content.is_none());
+        assert!(choice.message.tool_calls.is_none());
+
+        // token 生成了却被丢弃——这是「根因在上游而非模型」的唯一硬证据
+        assert_eq!(resp.usage.unwrap().completion_tokens, Some(58));
+    }
+
+    #[test]
+    fn openai_response_tolerates_missing_finish_reason() {
+        // 老 provider 不给这个字段，不能因此解析失败
+        let json = r#"{"choices":[{"message":{"content":"hi"}}]}"#;
+        let resp: OpenAiResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.choices[0].finish_reason.is_none());
+    }
+
+    #[test]
+    fn openai_response_keeps_normal_finish_reason() {
+        // 正常路径不能被这次改动影响
+        let json = r#"{"choices":[{"message":{"content":"hi"},"finish_reason":"stop"}]}"#;
+        let resp: OpenAiResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.choices[0].finish_reason.as_deref(), Some("stop"));
+        assert_eq!(resp.choices[0].message.content.as_deref(), Some("hi"));
     }
 
     #[test]
