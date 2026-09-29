@@ -154,6 +154,26 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
             "\n\n当前对话没有自动事件记录。只有在用户明确要求记录，或内容是值得长期回看的客观经历、决定、行动或进展时，才调用 record_event；寒暄、纯提问、对 AI 回复的评价和页面讨论不要记录。不要把助手自己的解读改写成事件。",
         );
     }
+    // 注入活跃目标（FR-PES-005-02）。
+    //
+    // 与个人规则库同属「用户自述的长期上下文」，但用法相反：规则是行为约束，
+    // 要 AI 逐条对照检查；目标是意图背景，只在话题相关时可用。因此这里的措辞
+    // 刻意带反向约束——不要求 AI 判断用户是否偏离目标。偏差检测是后台周期任务
+    // 的职责（带「不重复 / 宁缺毋滥」纪律），若对话里也开始评判，同一件事会被做
+    // 两遍，且对话里那遍更频繁，会把记录变成被审计。
+    let active_goals = store.list_active_goals()?;
+    if active_goals.is_empty() {
+        prompt.push_str("\n\n用户当前尚未设定任何目标。");
+    } else {
+        prompt.push_str(
+            "\n\n用户当前的目标（仅作为理解其意图的背景）。除非与当前话题直接相关，不要提及这些目标；\
+             不要评判用户是否偏离目标，也不要把对话引向目标。\n",
+        );
+        for goal in &active_goals {
+            prompt.push_str(&format!("- [{}] {}\n", goal.phase.label(), goal.content));
+        }
+    }
+
     // 注入已生效的个人规则，让 AI 回复时对照检查
     let active_rules = store.list_active_rules()?;
     if active_rules.is_empty() {
@@ -495,6 +515,114 @@ mod tests {
         compress_context(&mut context, 40);
         assert_eq!(context.len(), before.len());
         assert_eq!(context[0].content, before[0].content);
+    }
+
+    // ── 目标注入（FR-PES-005-02）──
+
+    fn system_prompt_of(store: &Store, conversation_id: &str) -> String {
+        build_system_prompt(store, conversation_id).unwrap().content
+    }
+
+    #[test]
+    fn system_prompt_states_no_goals_when_empty() {
+        let (store, conversation_id, path) = setup_store();
+        let prompt = system_prompt_of(&store, &conversation_id);
+        assert!(
+            prompt.contains("尚未设定任何目标"),
+            "空态应明说无目标，不静默省略：\n{prompt}"
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn system_prompt_injects_active_goals_with_phase_labels() {
+        use crate::storage::GoalPhase;
+        let (store, conversation_id, path) = setup_store();
+        store
+            .create_goal("三个月内发 1.0", GoalPhase::Near)
+            .unwrap();
+        store
+            .create_goal("三年内决策有据", GoalPhase::Long)
+            .unwrap();
+
+        let prompt = system_prompt_of(&store, &conversation_id);
+        assert!(prompt.contains("[近期] 三个月内发 1.0"), "实际:\n{prompt}");
+        assert!(prompt.contains("[长远] 三年内决策有据"), "实际:\n{prompt}");
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// 目标段必须带反向护栏：只作背景，不评判偏离。
+    ///
+    /// 这条护栏是需求里的硬约束，不是措辞偏好——没有它，对话里每轮都会拿用户
+    /// 的话去比目标，偏差检测就变成审计。
+    #[test]
+    fn goal_block_carries_guards_against_nagging() {
+        use crate::storage::GoalPhase;
+        let (store, conversation_id, path) = setup_store();
+        store.create_goal("上线 v1", GoalPhase::Near).unwrap();
+        let prompt = system_prompt_of(&store, &conversation_id);
+        assert!(
+            prompt.contains("不要评判用户是否偏离目标"),
+            "缺少不评判偏离的护栏：\n{prompt}"
+        );
+        assert!(
+            prompt.contains("不要把对话引向目标"),
+            "缺少不把对话引向目标的护栏：\n{prompt}"
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// 已归档目标不得注入：那是历史，不是当前追求。
+    #[test]
+    fn archived_goals_are_not_injected() {
+        use crate::storage::GoalPhase;
+        let (store, conversation_id, path) = setup_store();
+        let goal = store.create_goal("已经放弃的事", GoalPhase::Mid).unwrap();
+        store.archive_goal(&goal.id).unwrap();
+
+        let prompt = system_prompt_of(&store, &conversation_id);
+        assert!(
+            !prompt.contains("已经放弃的事"),
+            "已归档目标不应进上下文：\n{prompt}"
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// 目标与规则语义必须分离：规则是「对照检查」，目标是「仅作背景」。
+    #[test]
+    fn goals_and_rules_use_distinct_instructions() {
+        use crate::storage::GoalPhase;
+        let (store, conversation_id, path) = setup_store();
+        store.create_goal("上线 v1", GoalPhase::Near).unwrap();
+        // 规则为空时注入的是「当前为空」那句，找不到带「对照检查」的措辞，
+        // 所以先建一条生效规则让两段都真实存在。
+        store
+            .add_rule("回复别用 emoji", crate::storage::RuleStatus::Active, None)
+            .unwrap();
+
+        let prompt = system_prompt_of(&store, &conversation_id);
+        let goal_at = prompt.find("[近期]").expect("目标段应存在");
+        let rule_at = prompt
+            .find("个人规则库当前内容（回复时对照检查")
+            .expect("规则段应存在");
+
+        // 目标段在规则段之前，且各自措辞不同
+        assert!(goal_at < rule_at, "目标段应与规则段分开");
+        // 从目标段起点回看一整段，注意按字符边界切（提示词以中文为主，字节切分会切坏 UTF-8）
+        // 用锚点取目标段，不按字节偏移回切：提示词以中文为主，按字节切会切坏
+        // UTF-8 边界（`floor_char_boundary` 需 nightly，本仓库跑 stable）。
+        let goal_block = prompt
+            .split("用户当前的目标（仅作为理解其意图的背景）")
+            .nth(1)
+            .expect("目标段锚点应存在")
+            .split('[')
+            .next()
+            .unwrap();
+        assert!(
+            !goal_block.contains("对照检查"),
+            "目标不得继承规则的行为约束措辞：\n{goal_block}"
+        );
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]
