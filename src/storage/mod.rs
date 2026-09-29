@@ -3,6 +3,7 @@ mod conversations;
 mod digest;
 mod entities;
 mod events;
+mod goals;
 mod new_migrations;
 mod provider;
 mod records;
@@ -27,6 +28,7 @@ pub use digest::{
     DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
     DIGEST_FAILED_COOLDOWN_SECS, DIGEST_MAX_ATTEMPTS, DIGEST_SETTLE_SECS, DIGEST_VERSION,
 };
+pub use goals::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
 
 // Conversation and Message summary structs
 #[derive(Debug, Clone)]
