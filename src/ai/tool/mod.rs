@@ -1431,6 +1431,13 @@ impl Tool for SaveWikiRevisionTool {
                 "知识库没有 slug={slug} 的页面。如果这个页面刚改过名，请用新名字操作；不确定 slug 时先在对话里列一下知识库页面（slug 形如 person/xx、topic/xx）。"
             );
         }
+        if save_as != "derivative"
+            && current
+                .as_ref()
+                .is_some_and(|p| matches!(p.area.as_str(), "imported" | "derivative"))
+        {
+            anyhow::bail!("当前页是受保护原料或派生产物，不能覆盖原文；请用 save_as=derivative 草拟新的派生产物，等待用户确认");
+        }
         let action_args = json!({
             "slug": slug,
             "title": title.clone(),

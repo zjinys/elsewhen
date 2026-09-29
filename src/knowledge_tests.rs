@@ -292,6 +292,7 @@ fn every_tool_round_is_bounded_without_losing_protocol_pairs() {
         ContextMessage::new("system", "instruction"),
         ContextMessage::new("user", "最新问题"),
         ContextMessage::assistant_with_tool_calls(
+            String::new(),
             vec![crate::ai::tool::ToolCall::new(
                 "get_wiki_page",
                 serde_json::json!({"slug":"x"}),
