@@ -80,7 +80,7 @@ echo "  ⚠ 含个人数据（知识库正文片段、对话内容），贴给�
 echo
 
 set +e
-ELSEWHEN_DEBUG=1 "$ROOT/elsewhen.sh" "$@" 2>&1 | tee -a "$LOG"
+ELSEWHEN_DEBUG=1 "$ROOT/scripts/elsewhen.sh" "$@" 2>&1 | tee -a "$LOG"
 APP_STATUS=${PIPESTATUS[0]}
 set -e
 

@@ -2,7 +2,7 @@
 ///
 /// flutter_rust_bridge 按 Rust 子模块（`src/api/*.rs`）拆分生成 Dart 文件；
 /// 应用与测试代码统一 `import '.../bridge/api.dart' as api;`，不直接引用
-/// `generated.dart/` 下的单个文件。新增 `src/api` 子模块并 `./regen.sh` 后，
+/// `generated.dart/` 下的单个文件。新增 `src/api` 子模块并 `scripts/regen.sh` 后，
 /// 在此补一行 export。
 library;
 

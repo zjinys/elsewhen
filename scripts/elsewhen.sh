@@ -22,5 +22,5 @@
 # 桌面入口用 main_desktop.dart（含 nativeapi 窗口 chrome 初始化）；
 # main.dart 是移动端/通用入口，不带窗口管理 —— Android 也用它，因为
 # nativeapi 的 FFI union 会把 Android release AOT 编译器打崩。
-cd "$(dirname "$0")/ui"
+cd "$(dirname "$0")/../ui"
 fvm flutter run -d linux --target=lib/main_desktop.dart "$@"

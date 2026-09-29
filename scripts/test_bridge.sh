@@ -1,7 +1,7 @@
 #!/bin/bash
 # Test script to verify Rust bridge integration
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 echo "Testing Rust bridge integration..."
 echo ""

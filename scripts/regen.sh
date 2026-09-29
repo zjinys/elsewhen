@@ -1,7 +1,7 @@
 #!/bin/bash
 # Regen.sh - flutter_rust_bridge 一键重新生成 + 重编 Rust release 库
 #
-# 用法: ./regen.sh （在仓库根目录执行）
+# 用法: scripts/regen.sh （任何 cwd 均可，脚本自己切到仓库根目录）
 #
 # 背景（血泪史）:
 # 1. codegen 依赖 ffigen/libclang 解析 C 系统头文件；如果找不到 stdbool.h，
@@ -14,7 +14,7 @@
 #    不一致, 运行时 RustLib.init() 直接报 hash mismatch。
 #    解法: 重新 cargo build --release（脚本最后一步自动做）。
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 # ---------- 1. 给 ffigen 准备 stdbool.h（隔离目录，只放这一个头文件） ----------
 # 血泪史续：CPATH 若指向整个 clang 内置头文件目录，codegen 内部的
