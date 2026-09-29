@@ -15,24 +15,28 @@ Status: proposed
 
 ## Proposal
 
-### 1. `schema.sql` 冻结为 v1 基线，不得再改
+### 1. 迁移正文放 `migrations/` 目录；`0001_schema.sql` 冻结为基线
 
-`new_migrations.rs` 当前的迁移列表只有一项，即 `M::up(include_str!("../../schema.sql"))`，位于版本 1。此后所有表结构变更以新迁移追加。
+迁移正文放**仓库根的 `migrations/` 目录**，一个版本一个 SQL 文件，`NNNN_描述.sql` 的 `NNNN` 就是它在 `MIGRATION_LIST` 里的序号。原先的 `schema.sql` 迁为 `migrations/0001_schema.sql`，仍是版本 1 基线。
 
-**这个约定有一个必须写下来的陷阱**：修改 `schema.sql` 对已有数据库完全没有效果。`to_latest` 读到 `user_version = 1` 后判定已是最新，直接返回，不重跑版本 1。后果是后来者编辑 `schema.sql` 增加表或列时，新库正常、老库静默缺字段，且不会有任何报错。
+**这个约定有一个必须写下来的陷阱**：修改 `migrations/0001_schema.sql` 对已有数据库完全没有效果。`to_latest` 读到 `user_version = 1` 后判定已是最新，直接返回，不重跑版本 1。后果是后来者编辑基线文件增加表或列时，新库正常、老库静默缺字段，且不会有任何报错。
 
-`schema.sql` 现有 27 处裸 `CREATE TABLE`、零 `IF NOT EXISTS`，这在「只跑一次」的语义下是正确的，不要为了防御性而批量加 `IF NOT EXISTS`——那会掩盖上面那个陷阱，而不是解决它。
+`migrations/0001_schema.sql` 现有 27 处裸 `CREATE TABLE`、零 `IF NOT EXISTS`，这在「只跑一次」的语义下是正确的，不要为了防御性而批量加 `IF NOT EXISTS`——那会掩盖上面那个陷阱，而不是解决它。
+
+`every_migration_file_is_registered_in_order` 守的是另一个方向：**新增了文件却忘了登记进 `MIGRATION_LIST`**。`include_str!` 不会因此报错，那个版本就是永远不执行，`cargo test` 全绿而新库少一张表。
 
 ### 2. 目标表作为版本 2 迁移追加
 
 ```rust
+const V2_GOALS: &str = include_str!("../../migrations/0002_goals.sql");
+
 static MIGRATION_LIST: &[M<'static>] = &[
-    M::up(include_str!("../../schema.sql")).comment("v1: 当前 schema 基线，已冻结，不得修改"),
-    M::up(GOALS_V2_SQL).comment("v2: 目标表、活跃上限触发器"),
+    M::up(include_str!("../../migrations/0001_schema.sql")).comment("v1: 基线，已冻结，不得修改"),
+    M::up(V2_GOALS).comment("v2: 目标表、活跃上限触发器"),
 ];
 ```
 
-`goals` 表 SQL：
+`goals` 表 SQL（`migrations/0002_goals.sql`）：
 
 ```sql
 CREATE TABLE goals (
@@ -72,7 +76,7 @@ BEGIN
 END;
 ```
 
-理由：应用层 `count + insert` 是 check-then-insert 竞态，而仓库已有两处同类竞态的修复记录（事务竞态批次）。触发器在 SQLite 内与写入原子。写法沿用 `schema.sql` 中既有的 `prevent_raw_event_mutation`（`RAISE(ABORT, ...)`）。
+理由：应用层 `count + insert` 是 check-then-insert 竞态，而仓库已有两处同类竞态的修复记录（事务竞态批次）。触发器在 SQLite 内与写入原子。写法沿用 `migrations/0001_schema.sql` 中既有的 `prevent_raw_event_mutation`（`RAISE(ABORT, ...)`）。
 
 需要两个触发器而不是一个：新增走 INSERT 路径，但复活历史目标走 UPDATE 路径，只挡 INSERT 会漏掉后者。
 
@@ -136,11 +140,11 @@ END;
 
 ## Risks
 
-- **`schema.sql` 冻结约定靠人遵守**。技术手段无法阻止后来者编辑它，且失败模式是静默的。缓解只能靠本文与 `new_migrations.rs` 注释显式声明，实测无自动检测手段。
+- **基线文件冻结约定靠人遵守**。技术手段无法阻止后来者编辑它，且失败模式是静默的。缓解只能靠本文与 `new_migrations.rs` 注释显式声明，实测无自动检测手段。
 - **偏差评估的误报**是最大风险。用户正在推进目标但近期没聊到它，是最可能的假阳性，也是最招人烦的一种。FR-PES-005-06 验收场景已列该场景，实现时不得以「时间久没提及」替代「有无推进证据」。
 - **目标表与 FR-PES-005 Q3（是否成为一级导航）耦合**。Q3 已裁决：不新增一级导航，管理入口挂在对话区「今天」状态栏。代价是该入口是唯一入口，**0 目标时也必须可见**（显示为 accent 色的「目标」，不显示计数），否则功能不可发现。窄屏（实测 360px）第一行放不下三个带文案的按钮，窄屏下入口改落第二行。
 - **评估记录内联目标快照**会使记录随目标改写而重复占用空间；目标最多 3 条、单条为短文本，量级可接受，但若将来放宽上限需重新评估。
-- 现有数据库无法打开（`schema.sql` 无 `IF NOT EXISTS`，而历史库 `user_version=0`），按既定决策走导出/导入重建，不在本轮处理。
+- 现有数据库无法打开（基线文件无 `IF NOT EXISTS`，而历史库 `user_version=0`），按既定决策走导出/导入重建，不在本轮处理。
 
 ## 实施进展（本轮已落地）
 
