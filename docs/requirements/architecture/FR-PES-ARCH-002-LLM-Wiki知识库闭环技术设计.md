@@ -67,4 +67,4 @@
 
 显式文件导入改为读取 → 持久预览 → 确认该版本；预览期间源文件变化不会改变确认内容，数据库中的来源变化则阻止旧确认。每批 100 文件/240,000 字，单文件 12,000 字，超限跳过而不冒充完整原文；项目模式沿用原有扫描上限。旧文件页从固定路径字段恢复 file URL，不扫描原目录。
 
-GUI 通过 `api/knowledge.rs` 和 `KnowledgeRepository` 接入，手写 Dart 统一引用稳定的 `bridge/api.dart`。验证覆盖真实 Bridge 与本机 Provider，不使用用户配置。迁移目录列表和最新版本的两条旧测试常量由另一 agent 按用户分工更新；其余实现与验证详见 [Agent Note](../../notes/implemented/architecture/2026-09-26-llm-wiki-completion-boundary.md)。
+GUI 通过 `api/knowledge.rs` 和 `KnowledgeRepository` 接入，手写 Dart 统一引用稳定的 `bridge/api.dart`。验证覆盖真实 Bridge 与本机 HTTP 测试 Provider，不使用用户配置。迁移目录列表和最新版本的两条旧测试断言已对齐 `04-knowledge` 与版本 4，Rust 全量 246 项通过；其余实现与验证详见 [Agent Note](../../notes/implemented/architecture/2026-09-26-llm-wiki-completion-boundary.md)。

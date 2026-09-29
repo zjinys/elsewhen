@@ -81,7 +81,7 @@ mod tests {
         migrations().unwrap().validate().unwrap();
     }
 
-    /// 目录发现的结构性保证：两个迁移、按序号取名。
+    /// 目录发现的结构性保证：四个迁移、按序号取名。
     ///
     /// 「新增文件却忘了登记」这类错误在这里不可能发生——`from_directory` 直接
     /// 扫目录，不经过任何手工登记表。这条测试盯的是别一种漂移：有人把子目录
@@ -95,7 +95,12 @@ mod tests {
         names.sort();
         assert_eq!(
             names,
-            ["01-baseline", "02-goals", "03-drop-legacy-migrations"],
+            [
+                "01-baseline",
+                "02-goals",
+                "03-drop-legacy-migrations",
+                "04-knowledge",
+            ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
     }
@@ -126,12 +131,12 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 3, "三条迁移跑完，user_version 应为 3");
+        assert_eq!(version, 4, "四条迁移跑完，user_version 应为 4");
     }
 
     /// 旧迁移链留下的 `schema_migrations` 表必须已被 v3 删掉。
     ///
-    /// 它声称「1–31」而系统只有三条迁移，留着会误导所有后来打开库的人；基线里
+    /// 它声称「1–31」而迁移已重新编号，留着会误导所有后来打开库的人；基线里
     /// 仍建着它是因为基线冻结、不得改，所以只能在 v3 里删——这也正是「只追加、
     /// 不改历史」的意义：新库走完 v1 建、v3 删，与老库终态一致。
     #[test]

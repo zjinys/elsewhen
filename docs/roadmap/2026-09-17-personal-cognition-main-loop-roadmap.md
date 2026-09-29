@@ -50,7 +50,7 @@
 - [x] 对话、搜索、事件/话题分析、洞察和日结共享有界选材；对话展示实际引用依据。
 - [x] 人工编辑保护、来源变化检查、页内修订建议及全局知识审阅。
 - [x] 临时库迁移/来源/任务恢复测试，Flutter widget 和真实 Bridge 流程验证。
-- [ ] 迁移版本常量协调：`new_migrations.rs` 两条既有断言由负责该文件的 agent 从 v3 对齐 v4（本轮未改该文件）。
+- [x] 迁移版本断言对齐：`new_migrations.rs` 已纳入 `04-knowledge` 并验证最新版本为 4；Rust 全量 246 项通过。
 
 完成证据与限制见 [FR-PES-004 §7](../requirements/product/FR-PES-004-LLM-Wiki知识库闭环.md#7-实施与验证记录2026-09-29) 和 [实施决定](../notes/implemented/architecture/2026-09-26-llm-wiki-completion-boundary.md)。当前检索使用关键词与适用条件；长期召回质量、跨平台发布和整个素材采用流水线仍按各阶段独立验收。
 
