@@ -966,10 +966,11 @@ floating SnackBar。文案带「标题」以区分页面上其他可复制对象
 
 ### 未能确证的部分（不猜）
 
-**为什么上游返回空，查不出来**：`debug_eprintln!` 的输出不落盘，
-`~/.local/share/elsewhen/` 只有 `elsewhen.db` 和 `window.json`。唯一线索是耗时
-（14s / 12s），像真实请求而非连接失败，故推测是「上游返回 200 但 content 为空」
-（如推理模型烧光输出预算），而非网关报错。**这是推断，未验证。**
+**为什么上游返回空，查不出来**：`debug_eprintln!` 的输出不落盘。**注意：我最初把这
+归因为「应用是 GUI 方式运行，stderr 无处可看」——这是错的。** Rust 侧走 FFI 与 Dart 同
+进程，`eprintln!` 打到该进程 stderr；开发时用 `./elsewhen.sh` 从终端启动（`flutter run`
+会捕获并打印子进程 stderr），所以 `ELSEWHEN_DEBUG=1 ./elsewhen.sh` **当时就能看到**。
+真正的原因是**没人知道有这个环境变量**——查库是当时唯一已知的手段。
 
 顺带发现：`debug_eprintln!` 有 `ELSEWHEN_DEBUG` gate 但无处落盘，等于线上排障时没有
 证据。**待办**：把 agent loop 的 `round/protocol/content_len/tool_calls/model` 诊断写进
@@ -986,12 +987,7 @@ floating SnackBar。文案带「标题」以区分页面上其他可复制对象
 
 ### 本节衍生待办
 
-1. **agent loop 诊断落盘**（P1，直接卡住线上排障）。`debug_eprintln!` 只在
-   `ELSEWHEN_DEBUG` 下打到 stderr，应用以 GUI 方式运行时无处可看，线上问题只能靠猜。
-   要把 `round / protocol / content_len / tool_calls / model / provider 切换` 写进本地
-   滚动日志。**约束**：`dispatch tool=` 那行带工具结果摘录（可能含个人数据），落盘前
-   必须脱敏或截断——与 `debug_eprintln!` 当初「不无条件打印以免把隐私写进终端」是同一条
-   理由，落地时别把那个保护弄丢了。
+1. ~~**agent loop 诊断落盘**~~ → **已做，但结论与原设想相反**，见下一节。
 2. **页内 AI 对话导出 / 复制（带上下文）**（P2，用户的原始诉求）。最小形态：把
    `message_area.dart` 的 `_formatConversationForCopy` 提到共享位置，给
    `wiki_ai_chat_panel.dart` 补一个 `copy_all`，与主对话区一致。调试增强形态（更值得做）：
@@ -1002,3 +998,69 @@ floating SnackBar。文案带「标题」以区分页面上其他可复制对象
    但全仓零调用方，且只覆盖 `wiki_pages` + `wiki_log`（不导对话/事件/待办/规则）。要么
    接上入口，要么删掉——留着一个没人调、也导不全的函数，下一个人会误以为有导出能力。
    注意它历史上就是「旧库起不来时走导出/导入重建」走不通的根因（当时缺 import）。
+
+---
+
+## 调试诊断的落盘方式（2026-09-29，已实现；结论与原设想相反）
+
+上一节把「agent loop 诊断落盘」记成 P1，理由是「应用是 GUI 方式运行，stderr 无处可看」。
+**那个理由是错的**，实测纠正如下。
+
+### 纠正：终端本来就能看到
+
+Rust 侧走 flutter_rust_bridge 的 FFI，与 Dart **同进程**，`eprintln!` 就是该进程的
+stderr。而应用当前就是从终端启动的（`ps` 实测：`/bin/bash ./elsewhen.sh` → `fvm flutter
+run -d linux --target=lib/main_desktop.dart`），`flutter run` 会捕获并打印子进程 stderr。
+所以 `ELSEWHEN_DEBUG=1 ./elsewhen.sh` **当时就能看到全部 round / protocol /
+content_len / tool_calls / model / 工具派发摘要**。
+
+真正的原因是**没人知道有这个环境变量**。把「机制缺失」误判成「通道缺失」，会导致去改
+Rust 侧加 sink——而那恰恰是不该做的改动。**排障前先确认观测通道本身通不通。**
+
+### 落点选择：脚本 tee，不改 Rust
+
+`scripts/debug-run.sh`：`ELSEWHEN_DEBUG=1` 启动并 `tee -a` 到
+`$ELSEWHEN_DATA_DIR/agent-debug.log`（未设该变量时 `~/.local/share/elsewhen/`，与
+`config.rs::resolve_data_dir` 对齐），按次轮转（启动前 + 退出后各查一次，
+上限 4MB，保留 3 代）。
+
+选脚本而不是改 `debug_eprintln!` 加文件 sink，三条理由：
+
+1. **边界清楚**：日志只在「主动用这个脚本启动」时产生。打包版（`.desktop` 启动，
+   stderr 进黑洞）正常使用时不会留下任何文件——符合「实际用的时候没必要」的要求。
+2. **脱敏责任清晰**：stderr 本来就只在主动开时可见，脚本不改变这个前提。
+3. **无新依赖**：文件 sink 要自己实现轮转，还要在 FFI 库里维护 I/O 失败路径
+   （写盘失败绝不能影响主流程），性价比不划算。
+
+### 脱敏：保持原样，只警告
+
+`[agent] dispatch tool=... -> <结果前 80 字>` 会原样带出知识库正文片段、对话内容。
+**不截断**——本次断链正是靠 `content_len=0` + `tool_calls=0` 这样的真实值定性的，
+截断会削弱排障能力。改为在脚本启动时打印一次警告，并写进脚本头注释。
+**贴给外部前先自查，或只截取需要的几行。**
+
+### 实测（用假应用桩，不启真应用、不碰活库）
+
+| 场景 | 期望 | 实测 |
+|---|---|---|
+| 语法 | 通过 | `bash -n` OK |
+| 首次运行退出码 | 0 | **2 → 修成 0**（见下） |
+| stdout+stderr 混合进日志 | 是 | 4 行全在 |
+| 二次运行追加 | 追加 | 8 行（非覆盖） |
+| 应用真失败时透传退出码 | 7 | 7 |
+| 4.5MB 日志触发轮转 | 轮转 | `.1` 生成，新日志 59B |
+| 代次封顶（KEEP=3） | 3 代 | 连续 5 次轮转后稳定在 `.1 .2 .3` |
+| 不设 `ELSEWHEN_DATA_DIR` | 走平台默认 | 解析到 `~/.local/share/elsewhen/` |
+| 换 cwd + 相对路径调用 | 仍正确 | 通过（`ROOT` 用 `cd/pwd` 解析） |
+
+**踩到并修掉的一个真 bug**：`ls -1 "$LOG".[0-9]*` 在**没有历史代次**时 glob 不展开，
+`ls` 以 2 退出；`pipefail` + `set -e` 于是把脚本在正常路径上打断——**首次运行必报退出码 2**，
+而此时应用其实跑得好好的。已加 `|| true` 并在注释里写明原因。这类 bug 只有真跑一遍
+才会暴露：它不影响日志内容，只污染退出码，读日志的人永远不会发现。
+
+### 未验证
+
+`ELSEWHEN_DEBUG=1` + 真 `elsewhen.sh` 的端到端没跑（会启第二个应用实例，与你正在用的
+那个抢活库）。已验证的是「脚本的管道、路径解析、轮转、退出码」全部正确，以及
+「`ELSEWHEN_DEBUG` 能让 `debug_eprintln!` 输出」这一条由代码读出（`conversation.rs:16`）。
+要确认完整链路，下次重启应用时顺手跑一次 `scripts/debug-run.sh` 即可。
