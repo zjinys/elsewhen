@@ -1,4 +1,4 @@
-import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
+import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/models/goal.dart';
 import 'package:elsewhen_ui/widgets/goal_view.dart';
 import 'package:flutter_test/flutter_test.dart';

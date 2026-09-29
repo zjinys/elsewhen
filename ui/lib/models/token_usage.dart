@@ -1,4 +1,4 @@
-import '../bridge/generated.dart/api.dart' as api;
+import '../bridge/api.dart' as api;
 
 /// 每日 token 用量统计（按天聚合，日期倒序）
 class DailyTokenUsage {

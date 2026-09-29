@@ -1,4 +1,4 @@
-import '../bridge/generated.dart/api.dart' as api;
+import '../bridge/api.dart' as api;
 
 /// 待办状态
 enum TodoStatus {

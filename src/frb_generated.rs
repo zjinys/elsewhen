@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1439001424;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2125009946;
 
 // Section: executor
 
@@ -228,6 +228,46 @@ fn wire__crate__api__conversations__confirm_knowledge_draft_impl(
                         let output_ok = crate::api::conversations::confirm_knowledge_draft(
                             api_conversation_id,
                             api_action_id,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__confirm_knowledge_source_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    title: impl CstDecode<String>,
+    content_md: impl CstDecode<String>,
+    source_url: impl CstDecode<String>,
+    source_kind: impl CstDecode<String>,
+    tags: impl CstDecode<Vec<String>>,
+    expected_snapshot_id: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "confirm_knowledge_source",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_title = title.cst_decode();
+            let api_content_md = content_md.cst_decode();
+            let api_source_url = source_url.cst_decode();
+            let api_source_kind = source_kind.cst_decode();
+            let api_tags = tags.cst_decode();
+            let api_expected_snapshot_id = expected_snapshot_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::confirm_knowledge_source(
+                            api_title,
+                            api_content_md,
+                            api_source_url,
+                            api_source_kind,
+                            api_tags,
+                            api_expected_snapshot_id,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -520,6 +560,30 @@ fn wire__crate__api__todos__delete_todo_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::todos::delete_todo(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__dismiss_knowledge_issue_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    fingerprint: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "dismiss_knowledge_issue",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_fingerprint = fingerprint.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::knowledge::dismiss_knowledge_issue(api_fingerprint)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -938,6 +1002,32 @@ fn wire__crate__api__get_event_analysis_detail_impl(
         },
     )
 }
+fn wire__crate__api__knowledge__get_knowledge_citations_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    task: impl CstDecode<String>,
+    owner_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_knowledge_citations",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_task = task.cst_decode();
+            let api_owner_id = owner_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::knowledge::get_knowledge_citations(api_task, api_owner_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge_digest__get_knowledge_digest_stats_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -952,6 +1042,54 @@ fn wire__crate__api__knowledge_digest__get_knowledge_digest_stats_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::knowledge_digest::get_knowledge_digest_stats()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__get_knowledge_page_details_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_knowledge_page_details",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::knowledge::get_knowledge_page_details(api_slug)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__get_knowledge_source_snapshot_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_knowledge_source_snapshot",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::knowledge::get_knowledge_source_snapshot(api_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -976,6 +1114,30 @@ fn wire__crate__api__conversations__get_message_chain_impl(
                     (move || {
                         let output_ok =
                             crate::api::conversations::get_message_chain(api_message_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__get_message_knowledge_citations_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    message_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_message_knowledge_citations",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_message_id = message_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::knowledge::get_message_knowledge_citations(api_message_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1339,6 +1501,27 @@ fn wire__crate__api__list_events_impl(port_: flutter_rust_bridge::for_generated:
         },
     )
 }
+fn wire__crate__api__knowledge__list_knowledge_background_runs_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_knowledge_background_runs",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::list_knowledge_background_runs()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge_digest__list_knowledge_digest_jobs_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     status: impl CstDecode<Option<String>>,
@@ -1383,6 +1566,71 @@ fn wire__crate__api__knowledge_digest__list_knowledge_digest_runs_impl(
                     (move || {
                         let output_ok =
                             crate::api::knowledge_digest::list_knowledge_digest_runs(api_limit)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__list_knowledge_issues_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_knowledge_issues",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::list_knowledge_issues()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__list_knowledge_proposals_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_knowledge_proposals",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::list_knowledge_proposals()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__list_knowledge_revisions_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_knowledge_revisions",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::list_knowledge_revisions(api_slug)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1647,6 +1895,60 @@ fn wire__crate__api__todos__open_todo_work_item_impl(
         },
     )
 }
+fn wire__crate__api__knowledge__preview_knowledge_source_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    source_url: impl CstDecode<String>,
+    content_md: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "preview_knowledge_source",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_source_url = source_url.cst_decode();
+            let api_content_md = content_md.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::preview_knowledge_source(
+                            api_source_url,
+                            api_content_md,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__propose_knowledge_page_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+    kind: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "propose_knowledge_page",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            let api_kind = kind.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::knowledge::propose_knowledge_page(api_slug, api_kind)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__goals__reactivate_goal_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
@@ -1760,6 +2062,32 @@ fn wire__crate__api__conversations__rename_conversation_impl(
                             api_conversation_id,
                             api_title,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__resolve_knowledge_proposal_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    accept: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "resolve_knowledge_proposal",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_accept = accept.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::knowledge::resolve_knowledge_proposal(api_id, api_accept)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2160,6 +2488,27 @@ fn wire__crate__api__submit_input_impl(
         },
     )
 }
+fn wire__crate__api__knowledge__tick_knowledge_insights_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tick_knowledge_insights",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::tick_knowledge_insights()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__trigger_analysis_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -2275,6 +2624,37 @@ fn wire__crate__api__goals__update_goal_impl(
                     (move || {
                         let output_ok =
                             crate::api::goals::update_goal(api_id, api_content, api_phase)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__update_knowledge_metadata_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+    applicable_when: impl CstDecode<String>,
+    strength: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_knowledge_metadata",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            let api_applicable_when = applicable_when.cst_decode();
+            let api_strength = strength.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::update_knowledge_metadata(
+                            api_slug,
+                            api_applicable_when,
+                            api_strength,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3000,6 +3380,52 @@ impl SseDecode for crate::api::InputRecordDto {
     }
 }
 
+impl SseDecode for crate::api::knowledge::KnowledgeBackgroundRunDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_startedAt = <String>::sse_decode(deserializer);
+        let mut var_finishedAt = <Option<String>>::sse_decode(deserializer);
+        let mut var_error = <Option<String>>::sse_decode(deserializer);
+        let mut var_resultCount = <i64>::sse_decode(deserializer);
+        return crate::api::knowledge::KnowledgeBackgroundRunDto {
+            status: var_status,
+            started_at: var_startedAt,
+            finished_at: var_finishedAt,
+            error: var_error,
+            result_count: var_resultCount,
+        };
+    }
+}
+
+impl SseDecode for crate::knowledge::KnowledgeCitation {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_pageSlug = <String>::sse_decode(deserializer);
+        let mut var_contentHash = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_excerpt = <String>::sse_decode(deserializer);
+        let mut var_reason = <String>::sse_decode(deserializer);
+        let mut var_applicableWhen = <String>::sse_decode(deserializer);
+        let mut var_strength = <String>::sse_decode(deserializer);
+        let mut var_category = <String>::sse_decode(deserializer);
+        let mut var_sources = <Vec<crate::knowledge::SourceReference>>::sse_decode(deserializer);
+        let mut var_eventIds = <Vec<String>>::sse_decode(deserializer);
+        return crate::knowledge::KnowledgeCitation {
+            page_slug: var_pageSlug,
+            content_hash: var_contentHash,
+            title: var_title,
+            excerpt: var_excerpt,
+            reason: var_reason,
+            applicable_when: var_applicableWhen,
+            strength: var_strength,
+            category: var_category,
+            sources: var_sources,
+            event_ids: var_eventIds,
+        };
+    }
+}
+
 impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestJobDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3123,6 +3549,107 @@ impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseDecode for crate::storage::knowledge::KnowledgeIssue {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_fingerprint = <String>::sse_decode(deserializer);
+        let mut var_pageSlug = <String>::sse_decode(deserializer);
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_description = <String>::sse_decode(deserializer);
+        return crate::storage::knowledge::KnowledgeIssue {
+            fingerprint: var_fingerprint,
+            page_slug: var_pageSlug,
+            kind: var_kind,
+            description: var_description,
+        };
+    }
+}
+
+impl SseDecode for crate::storage::knowledge::KnowledgeMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_applicableWhen = <String>::sse_decode(deserializer);
+        let mut var_strength = <String>::sse_decode(deserializer);
+        let mut var_confirmedAt = <Option<String>>::sse_decode(deserializer);
+        return crate::storage::knowledge::KnowledgeMetadata {
+            applicable_when: var_applicableWhen,
+            strength: var_strength,
+            confirmed_at: var_confirmedAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::knowledge::KnowledgePageDetails {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sources =
+            <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_decode(deserializer);
+        let mut var_history =
+            <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_decode(deserializer);
+        let mut var_proposals =
+            <Vec<crate::storage::knowledge::KnowledgeProposal>>::sse_decode(deserializer);
+        let mut var_issues =
+            <Vec<crate::storage::knowledge::KnowledgeIssue>>::sse_decode(deserializer);
+        let mut var_metadata =
+            <crate::storage::knowledge::KnowledgeMetadata>::sse_decode(deserializer);
+        return crate::api::knowledge::KnowledgePageDetails {
+            sources: var_sources,
+            history: var_history,
+            proposals: var_proposals,
+            issues: var_issues,
+            metadata: var_metadata,
+        };
+    }
+}
+
+impl SseDecode for crate::storage::knowledge::KnowledgeProposal {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_pageId = <Option<String>>::sse_decode(deserializer);
+        let mut var_targetSlug = <String>::sse_decode(deserializer);
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_contentMd = <String>::sse_decode(deserializer);
+        let mut var_applicableWhen = <String>::sse_decode(deserializer);
+        let mut var_snapshotIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_eventIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_baseHash = <Option<String>>::sse_decode(deserializer);
+        let mut var_reason = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        return crate::storage::knowledge::KnowledgeProposal {
+            id: var_id,
+            page_id: var_pageId,
+            target_slug: var_targetSlug,
+            kind: var_kind,
+            title: var_title,
+            content_md: var_contentMd,
+            applicable_when: var_applicableWhen,
+            snapshot_ids: var_snapshotIds,
+            event_ids: var_eventIds,
+            base_hash: var_baseHash,
+            reason: var_reason,
+            status: var_status,
+            created_at: var_createdAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::knowledge::KnowledgeRevisionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_contentMd = <String>::sse_decode(deserializer);
+        let mut var_reason = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        return crate::api::knowledge::KnowledgeRevisionDto {
+            content_md: var_contentMd,
+            reason: var_reason,
+            created_at: var_createdAt,
+        };
     }
 }
 
@@ -3264,6 +3791,32 @@ impl SseDecode for Vec<crate::api::goals::GoalDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::knowledge::KnowledgeBackgroundRunDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::knowledge::KnowledgeCitation> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::knowledge::KnowledgeCitation>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::knowledge_digest::KnowledgeDigestJobDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3287,6 +3840,48 @@ impl SseDecode for Vec<crate::api::knowledge_digest::KnowledgeDigestRunDto> {
             ans_.push(
                 <crate::api::knowledge_digest::KnowledgeDigestRunDto>::sse_decode(deserializer),
             );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::storage::knowledge::KnowledgeIssue> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::storage::knowledge::KnowledgeIssue>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::storage::knowledge::KnowledgeProposal> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::storage::knowledge::KnowledgeProposal>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::knowledge::KnowledgeRevisionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::knowledge::KnowledgeRevisionDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -3353,6 +3948,34 @@ impl SseDecode for Vec<crate::api::rules::RuleDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::rules::RuleDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::knowledge::SourceReference> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::knowledge::SourceReference>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::storage::knowledge::SourceSnapshot> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::storage::knowledge::SourceSnapshot>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -3558,6 +4181,19 @@ impl SseDecode for Option<crate::api::MessageRecordabilityDto> {
     }
 }
 
+impl SseDecode for Option<crate::storage::knowledge::SourceSnapshot> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::storage::knowledge::SourceSnapshot>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3636,6 +4272,68 @@ impl SseDecode for crate::api::rules::RuleDto {
             content: var_content,
             status: var_status,
             created_at: var_createdAt,
+        };
+    }
+}
+
+impl SseDecode for crate::knowledge::SourceReference {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_snapshotId = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_locator = <Option<String>>::sse_decode(deserializer);
+        let mut var_version = <i64>::sse_decode(deserializer);
+        return crate::knowledge::SourceReference {
+            snapshot_id: var_snapshotId,
+            title: var_title,
+            locator: var_locator,
+            version: var_version,
+        };
+    }
+}
+
+impl SseDecode for crate::storage::knowledge::SourceSnapshot {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_sourceId = <String>::sse_decode(deserializer);
+        let mut var_version = <i64>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_contentMd = <String>::sse_decode(deserializer);
+        let mut var_contentHash = <String>::sse_decode(deserializer);
+        let mut var_capturedAt = <String>::sse_decode(deserializer);
+        let mut var_sourceKind = <String>::sse_decode(deserializer);
+        let mut var_locator = <Option<String>>::sse_decode(deserializer);
+        let mut var_opinion = <Option<String>>::sse_decode(deserializer);
+        let mut var_pageSlug = <Option<String>>::sse_decode(deserializer);
+        return crate::storage::knowledge::SourceSnapshot {
+            id: var_id,
+            source_id: var_sourceId,
+            version: var_version,
+            title: var_title,
+            content_md: var_contentMd,
+            content_hash: var_contentHash,
+            captured_at: var_capturedAt,
+            source_kind: var_sourceKind,
+            locator: var_locator,
+            opinion: var_opinion,
+            page_slug: var_pageSlug,
+        };
+    }
+}
+
+impl SseDecode for crate::api::knowledge::SourceUpdatePreview {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_existingSlug = <Option<String>>::sse_decode(deserializer);
+        let mut var_previousContent = <Option<String>>::sse_decode(deserializer);
+        let mut var_previousSnapshotId = <Option<String>>::sse_decode(deserializer);
+        let mut var_changed = <bool>::sse_decode(deserializer);
+        return crate::api::knowledge::SourceUpdatePreview {
+            existing_slug: var_existingSlug,
+            previous_content: var_previousContent,
+            previous_snapshot_id: var_previousSnapshotId,
+            changed: var_changed,
         };
     }
 }
@@ -4276,6 +4974,59 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::InputRecordDto> for crate::ap
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::knowledge::KnowledgeBackgroundRunDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.status.into_into_dart().into_dart(),
+            self.started_at.into_into_dart().into_dart(),
+            self.finished_at.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+            self.result_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::knowledge::KnowledgeBackgroundRunDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::KnowledgeBackgroundRunDto>
+    for crate::api::knowledge::KnowledgeBackgroundRunDto
+{
+    fn into_into_dart(self) -> crate::api::knowledge::KnowledgeBackgroundRunDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::knowledge::KnowledgeCitation {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.page_slug.into_into_dart().into_dart(),
+            self.content_hash.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.excerpt.into_into_dart().into_dart(),
+            self.reason.into_into_dart().into_dart(),
+            self.applicable_when.into_into_dart().into_dart(),
+            self.strength.into_into_dart().into_dart(),
+            self.category.into_into_dart().into_dart(),
+            self.sources.into_into_dart().into_dart(),
+            self.event_ids.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::knowledge::KnowledgeCitation
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::KnowledgeCitation>
+    for crate::knowledge::KnowledgeCitation
+{
+    fn into_into_dart(self) -> crate::knowledge::KnowledgeCitation {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::knowledge_digest::KnowledgeDigestJobDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4411,6 +5162,129 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge_digest::KnowledgeDi
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgeIssue {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.fingerprint.into_into_dart().into_dart(),
+            self.page_slug.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.description.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::storage::knowledge::KnowledgeIssue
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::KnowledgeIssue>
+    for crate::storage::knowledge::KnowledgeIssue
+{
+    fn into_into_dart(self) -> crate::storage::knowledge::KnowledgeIssue {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgeMetadata {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.applicable_when.into_into_dart().into_dart(),
+            self.strength.into_into_dart().into_dart(),
+            self.confirmed_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::storage::knowledge::KnowledgeMetadata
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::KnowledgeMetadata>
+    for crate::storage::knowledge::KnowledgeMetadata
+{
+    fn into_into_dart(self) -> crate::storage::knowledge::KnowledgeMetadata {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::knowledge::KnowledgePageDetails {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.sources.into_into_dart().into_dart(),
+            self.history.into_into_dart().into_dart(),
+            self.proposals.into_into_dart().into_dart(),
+            self.issues.into_into_dart().into_dart(),
+            self.metadata.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::knowledge::KnowledgePageDetails
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::KnowledgePageDetails>
+    for crate::api::knowledge::KnowledgePageDetails
+{
+    fn into_into_dart(self) -> crate::api::knowledge::KnowledgePageDetails {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgeProposal {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.page_id.into_into_dart().into_dart(),
+            self.target_slug.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.content_md.into_into_dart().into_dart(),
+            self.applicable_when.into_into_dart().into_dart(),
+            self.snapshot_ids.into_into_dart().into_dart(),
+            self.event_ids.into_into_dart().into_dart(),
+            self.base_hash.into_into_dart().into_dart(),
+            self.reason.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::storage::knowledge::KnowledgeProposal
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::KnowledgeProposal>
+    for crate::storage::knowledge::KnowledgeProposal
+{
+    fn into_into_dart(self) -> crate::storage::knowledge::KnowledgeProposal {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::knowledge::KnowledgeRevisionDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.content_md.into_into_dart().into_dart(),
+            self.reason.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::knowledge::KnowledgeRevisionDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::KnowledgeRevisionDto>
+    for crate::api::knowledge::KnowledgeRevisionDto
+{
+    fn into_into_dart(self) -> crate::api::knowledge::KnowledgeRevisionDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::conversations::MessageDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4528,6 +5402,82 @@ impl flutter_rust_bridge::IntoDart for crate::api::rules::RuleDto {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::rules::RuleDto {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::rules::RuleDto> for crate::api::rules::RuleDto {
     fn into_into_dart(self) -> crate::api::rules::RuleDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::knowledge::SourceReference {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.snapshot_id.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.locator.into_into_dart().into_dart(),
+            self.version.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::knowledge::SourceReference
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::SourceReference>
+    for crate::knowledge::SourceReference
+{
+    fn into_into_dart(self) -> crate::knowledge::SourceReference {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::SourceSnapshot {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.source_id.into_into_dart().into_dart(),
+            self.version.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.content_md.into_into_dart().into_dart(),
+            self.content_hash.into_into_dart().into_dart(),
+            self.captured_at.into_into_dart().into_dart(),
+            self.source_kind.into_into_dart().into_dart(),
+            self.locator.into_into_dart().into_dart(),
+            self.opinion.into_into_dart().into_dart(),
+            self.page_slug.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::storage::knowledge::SourceSnapshot
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::SourceSnapshot>
+    for crate::storage::knowledge::SourceSnapshot
+{
+    fn into_into_dart(self) -> crate::storage::knowledge::SourceSnapshot {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::knowledge::SourceUpdatePreview {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.existing_slug.into_into_dart().into_dart(),
+            self.previous_content.into_into_dart().into_dart(),
+            self.previous_snapshot_id.into_into_dart().into_dart(),
+            self.changed.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::knowledge::SourceUpdatePreview
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::SourceUpdatePreview>
+    for crate::api::knowledge::SourceUpdatePreview
+{
+    fn into_into_dart(self) -> crate::api::knowledge::SourceUpdatePreview {
         self
     }
 }
@@ -4972,6 +5922,33 @@ impl SseEncode for crate::api::InputRecordDto {
     }
 }
 
+impl SseEncode for crate::api::knowledge::KnowledgeBackgroundRunDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.status, serializer);
+        <String>::sse_encode(self.started_at, serializer);
+        <Option<String>>::sse_encode(self.finished_at, serializer);
+        <Option<String>>::sse_encode(self.error, serializer);
+        <i64>::sse_encode(self.result_count, serializer);
+    }
+}
+
+impl SseEncode for crate::knowledge::KnowledgeCitation {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.page_slug, serializer);
+        <String>::sse_encode(self.content_hash, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.excerpt, serializer);
+        <String>::sse_encode(self.reason, serializer);
+        <String>::sse_encode(self.applicable_when, serializer);
+        <String>::sse_encode(self.strength, serializer);
+        <String>::sse_encode(self.category, serializer);
+        <Vec<crate::knowledge::SourceReference>>::sse_encode(self.sources, serializer);
+        <Vec<String>>::sse_encode(self.event_ids, serializer);
+    }
+}
+
 impl SseEncode for crate::api::knowledge_digest::KnowledgeDigestJobDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5053,6 +6030,64 @@ impl SseEncode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseEncode for crate::storage::knowledge::KnowledgeIssue {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.fingerprint, serializer);
+        <String>::sse_encode(self.page_slug, serializer);
+        <String>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.description, serializer);
+    }
+}
+
+impl SseEncode for crate::storage::knowledge::KnowledgeMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.applicable_when, serializer);
+        <String>::sse_encode(self.strength, serializer);
+        <Option<String>>::sse_encode(self.confirmed_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::knowledge::KnowledgePageDetails {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_encode(self.sources, serializer);
+        <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_encode(self.history, serializer);
+        <Vec<crate::storage::knowledge::KnowledgeProposal>>::sse_encode(self.proposals, serializer);
+        <Vec<crate::storage::knowledge::KnowledgeIssue>>::sse_encode(self.issues, serializer);
+        <crate::storage::knowledge::KnowledgeMetadata>::sse_encode(self.metadata, serializer);
+    }
+}
+
+impl SseEncode for crate::storage::knowledge::KnowledgeProposal {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <Option<String>>::sse_encode(self.page_id, serializer);
+        <String>::sse_encode(self.target_slug, serializer);
+        <String>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.content_md, serializer);
+        <String>::sse_encode(self.applicable_when, serializer);
+        <Vec<String>>::sse_encode(self.snapshot_ids, serializer);
+        <Vec<String>>::sse_encode(self.event_ids, serializer);
+        <Option<String>>::sse_encode(self.base_hash, serializer);
+        <String>::sse_encode(self.reason, serializer);
+        <String>::sse_encode(self.status, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::knowledge::KnowledgeRevisionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.content_md, serializer);
+        <String>::sse_encode(self.reason, serializer);
+        <String>::sse_encode(self.created_at, serializer);
     }
 }
 
@@ -5166,6 +6201,26 @@ impl SseEncode for Vec<crate::api::goals::GoalDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::knowledge::KnowledgeBackgroundRunDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::knowledge::KnowledgeCitation> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::knowledge::KnowledgeCitation>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::knowledge_digest::KnowledgeDigestJobDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5182,6 +6237,36 @@ impl SseEncode for Vec<crate::api::knowledge_digest::KnowledgeDigestRunDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::knowledge_digest::KnowledgeDigestRunDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::storage::knowledge::KnowledgeIssue> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::storage::knowledge::KnowledgeIssue>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::storage::knowledge::KnowledgeProposal> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::storage::knowledge::KnowledgeProposal>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::knowledge::KnowledgeRevisionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::knowledge::KnowledgeRevisionDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -5232,6 +6317,26 @@ impl SseEncode for Vec<crate::api::rules::RuleDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::rules::RuleDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::knowledge::SourceReference> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::knowledge::SourceReference>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::storage::knowledge::SourceSnapshot> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::storage::knowledge::SourceSnapshot>::sse_encode(item, serializer);
         }
     }
 }
@@ -5391,6 +6496,16 @@ impl SseEncode for Option<crate::api::MessageRecordabilityDto> {
     }
 }
 
+impl SseEncode for Option<crate::storage::knowledge::SourceSnapshot> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::storage::knowledge::SourceSnapshot>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5444,6 +6559,43 @@ impl SseEncode for crate::api::rules::RuleDto {
         <String>::sse_encode(self.content, serializer);
         <String>::sse_encode(self.status, serializer);
         <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
+impl SseEncode for crate::knowledge::SourceReference {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.snapshot_id, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <Option<String>>::sse_encode(self.locator, serializer);
+        <i64>::sse_encode(self.version, serializer);
+    }
+}
+
+impl SseEncode for crate::storage::knowledge::SourceSnapshot {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.source_id, serializer);
+        <i64>::sse_encode(self.version, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.content_md, serializer);
+        <String>::sse_encode(self.content_hash, serializer);
+        <String>::sse_encode(self.captured_at, serializer);
+        <String>::sse_encode(self.source_kind, serializer);
+        <Option<String>>::sse_encode(self.locator, serializer);
+        <Option<String>>::sse_encode(self.opinion, serializer);
+        <Option<String>>::sse_encode(self.page_slug, serializer);
+    }
+}
+
+impl SseEncode for crate::api::knowledge::SourceUpdatePreview {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.existing_slug, serializer);
+        <Option<String>>::sse_encode(self.previous_content, serializer);
+        <Option<String>>::sse_encode(self.previous_snapshot_id, serializer);
+        <bool>::sse_encode(self.changed, serializer);
     }
 }
 
@@ -5698,6 +6850,13 @@ mod io {
             CstDecode::<crate::api::MessageRecordabilityDto>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<crate::storage::knowledge::SourceSnapshot> for *mut wire_cst_source_snapshot {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::SourceSnapshot {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::storage::knowledge::SourceSnapshot>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<u32> for *mut u32 {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> u32 {
@@ -5930,6 +7089,37 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::knowledge::KnowledgeBackgroundRunDto>
+        for wire_cst_knowledge_background_run_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::KnowledgeBackgroundRunDto {
+            crate::api::knowledge::KnowledgeBackgroundRunDto {
+                status: self.status.cst_decode(),
+                started_at: self.started_at.cst_decode(),
+                finished_at: self.finished_at.cst_decode(),
+                error: self.error.cst_decode(),
+                result_count: self.result_count.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::knowledge::KnowledgeCitation> for wire_cst_knowledge_citation {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::knowledge::KnowledgeCitation {
+            crate::knowledge::KnowledgeCitation {
+                page_slug: self.page_slug.cst_decode(),
+                content_hash: self.content_hash.cst_decode(),
+                title: self.title.cst_decode(),
+                excerpt: self.excerpt.cst_decode(),
+                reason: self.reason.cst_decode(),
+                applicable_when: self.applicable_when.cst_decode(),
+                strength: self.strength.cst_decode(),
+                category: self.category.cst_decode(),
+                sources: self.sources.cst_decode(),
+                event_ids: self.event_ids.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::knowledge_digest::KnowledgeDigestJobDto>
         for wire_cst_knowledge_digest_job_dto
     {
@@ -6014,6 +7204,69 @@ mod io {
                     }
                 }
                 _ => unreachable!(),
+            }
+        }
+    }
+    impl CstDecode<crate::storage::knowledge::KnowledgeIssue> for wire_cst_knowledge_issue {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeIssue {
+            crate::storage::knowledge::KnowledgeIssue {
+                fingerprint: self.fingerprint.cst_decode(),
+                page_slug: self.page_slug.cst_decode(),
+                kind: self.kind.cst_decode(),
+                description: self.description.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::storage::knowledge::KnowledgeMetadata> for wire_cst_knowledge_metadata {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeMetadata {
+            crate::storage::knowledge::KnowledgeMetadata {
+                applicable_when: self.applicable_when.cst_decode(),
+                strength: self.strength.cst_decode(),
+                confirmed_at: self.confirmed_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::KnowledgePageDetails> for wire_cst_knowledge_page_details {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::KnowledgePageDetails {
+            crate::api::knowledge::KnowledgePageDetails {
+                sources: self.sources.cst_decode(),
+                history: self.history.cst_decode(),
+                proposals: self.proposals.cst_decode(),
+                issues: self.issues.cst_decode(),
+                metadata: self.metadata.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::storage::knowledge::KnowledgeProposal> for wire_cst_knowledge_proposal {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeProposal {
+            crate::storage::knowledge::KnowledgeProposal {
+                id: self.id.cst_decode(),
+                page_id: self.page_id.cst_decode(),
+                target_slug: self.target_slug.cst_decode(),
+                kind: self.kind.cst_decode(),
+                title: self.title.cst_decode(),
+                content_md: self.content_md.cst_decode(),
+                applicable_when: self.applicable_when.cst_decode(),
+                snapshot_ids: self.snapshot_ids.cst_decode(),
+                event_ids: self.event_ids.cst_decode(),
+                base_hash: self.base_hash.cst_decode(),
+                reason: self.reason.cst_decode(),
+                status: self.status.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::KnowledgeRevisionDto> for wire_cst_knowledge_revision_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::KnowledgeRevisionDto {
+            crate::api::knowledge::KnowledgeRevisionDto {
+                content_md: self.content_md.cst_decode(),
+                reason: self.reason.cst_decode(),
+                created_at: self.created_at.cst_decode(),
             }
         }
     }
@@ -6135,6 +7388,28 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::knowledge::KnowledgeBackgroundRunDto>>
+        for *mut wire_cst_list_knowledge_background_run_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::knowledge::KnowledgeCitation>> for *mut wire_cst_list_knowledge_citation {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::knowledge::KnowledgeCitation> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::knowledge_digest::KnowledgeDigestJobDto>>
         for *mut wire_cst_list_knowledge_digest_job_dto
     {
@@ -6152,6 +7427,42 @@ mod io {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::knowledge_digest::KnowledgeDigestRunDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::storage::knowledge::KnowledgeIssue>>
+        for *mut wire_cst_list_knowledge_issue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::KnowledgeIssue> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::storage::knowledge::KnowledgeProposal>>
+        for *mut wire_cst_list_knowledge_proposal
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::KnowledgeProposal> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::knowledge::KnowledgeRevisionDto>>
+        for *mut wire_cst_list_knowledge_revision_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::knowledge::KnowledgeRevisionDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -6203,6 +7514,28 @@ mod io {
     impl CstDecode<Vec<crate::api::rules::RuleDto>> for *mut wire_cst_list_rule_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::rules::RuleDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::knowledge::SourceReference>> for *mut wire_cst_list_source_reference {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::knowledge::SourceReference> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::storage::knowledge::SourceSnapshot>>
+        for *mut wire_cst_list_source_snapshot
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::SourceSnapshot> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -6303,6 +7636,46 @@ mod io {
                 content: self.content.cst_decode(),
                 status: self.status.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::knowledge::SourceReference> for wire_cst_source_reference {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::knowledge::SourceReference {
+            crate::knowledge::SourceReference {
+                snapshot_id: self.snapshot_id.cst_decode(),
+                title: self.title.cst_decode(),
+                locator: self.locator.cst_decode(),
+                version: self.version.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::storage::knowledge::SourceSnapshot> for wire_cst_source_snapshot {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::SourceSnapshot {
+            crate::storage::knowledge::SourceSnapshot {
+                id: self.id.cst_decode(),
+                source_id: self.source_id.cst_decode(),
+                version: self.version.cst_decode(),
+                title: self.title.cst_decode(),
+                content_md: self.content_md.cst_decode(),
+                content_hash: self.content_hash.cst_decode(),
+                captured_at: self.captured_at.cst_decode(),
+                source_kind: self.source_kind.cst_decode(),
+                locator: self.locator.cst_decode(),
+                opinion: self.opinion.cst_decode(),
+                page_slug: self.page_slug.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::SourceUpdatePreview> for wire_cst_source_update_preview {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::SourceUpdatePreview {
+            crate::api::knowledge::SourceUpdatePreview {
+                existing_slug: self.existing_slug.cst_decode(),
+                previous_content: self.previous_content.cst_decode(),
+                previous_snapshot_id: self.previous_snapshot_id.cst_decode(),
+                changed: self.changed.cst_decode(),
             }
         }
     }
@@ -6724,6 +8097,43 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_knowledge_background_run_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                status: core::ptr::null_mut(),
+                started_at: core::ptr::null_mut(),
+                finished_at: core::ptr::null_mut(),
+                error: core::ptr::null_mut(),
+                result_count: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_background_run_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_knowledge_citation {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                page_slug: core::ptr::null_mut(),
+                content_hash: core::ptr::null_mut(),
+                title: core::ptr::null_mut(),
+                excerpt: core::ptr::null_mut(),
+                reason: core::ptr::null_mut(),
+                applicable_when: core::ptr::null_mut(),
+                strength: core::ptr::null_mut(),
+                category: core::ptr::null_mut(),
+                sources: core::ptr::null_mut(),
+                event_ids: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_citation {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_knowledge_digest_job_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -6798,6 +8208,89 @@ mod io {
         }
     }
     impl Default for wire_cst_knowledge_digest_tick_result {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_knowledge_issue {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                fingerprint: core::ptr::null_mut(),
+                page_slug: core::ptr::null_mut(),
+                kind: core::ptr::null_mut(),
+                description: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_issue {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_knowledge_metadata {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                applicable_when: core::ptr::null_mut(),
+                strength: core::ptr::null_mut(),
+                confirmed_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_metadata {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_knowledge_page_details {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                sources: core::ptr::null_mut(),
+                history: core::ptr::null_mut(),
+                proposals: core::ptr::null_mut(),
+                issues: core::ptr::null_mut(),
+                metadata: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_page_details {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_knowledge_proposal {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                page_id: core::ptr::null_mut(),
+                target_slug: core::ptr::null_mut(),
+                kind: core::ptr::null_mut(),
+                title: core::ptr::null_mut(),
+                content_md: core::ptr::null_mut(),
+                applicable_when: core::ptr::null_mut(),
+                snapshot_ids: core::ptr::null_mut(),
+                event_ids: core::ptr::null_mut(),
+                base_hash: core::ptr::null_mut(),
+                reason: core::ptr::null_mut(),
+                status: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_proposal {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_knowledge_revision_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                content_md: core::ptr::null_mut(),
+                reason: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_revision_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -6884,6 +8377,58 @@ mod io {
         }
     }
     impl Default for wire_cst_rule_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_source_reference {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                snapshot_id: core::ptr::null_mut(),
+                title: core::ptr::null_mut(),
+                locator: core::ptr::null_mut(),
+                version: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_source_reference {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_source_snapshot {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                source_id: core::ptr::null_mut(),
+                version: Default::default(),
+                title: core::ptr::null_mut(),
+                content_md: core::ptr::null_mut(),
+                content_hash: core::ptr::null_mut(),
+                captured_at: core::ptr::null_mut(),
+                source_kind: core::ptr::null_mut(),
+                locator: core::ptr::null_mut(),
+                opinion: core::ptr::null_mut(),
+                page_slug: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_source_snapshot {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_source_update_preview {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                existing_slug: core::ptr::null_mut(),
+                previous_content: core::ptr::null_mut(),
+                previous_snapshot_id: core::ptr::null_mut(),
+                changed: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_source_update_preview {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -7058,6 +8603,27 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__confirm_knowledge_source(
+        port_: i64,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        content_md: *mut wire_cst_list_prim_u_8_strict,
+        source_url: *mut wire_cst_list_prim_u_8_strict,
+        source_kind: *mut wire_cst_list_prim_u_8_strict,
+        tags: *mut wire_cst_list_String,
+        expected_snapshot_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__confirm_knowledge_source_impl(
+            port_,
+            title,
+            content_md,
+            source_url,
+            source_kind,
+            tags,
+            expected_snapshot_id,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__create_conversation(
         port_: i64,
         title: *mut wire_cst_list_prim_u_8_strict,
@@ -7170,6 +8736,14 @@ mod io {
         id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__todos__delete_todo_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__dismiss_knowledge_issue(
+        port_: i64,
+        fingerprint: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__dismiss_knowledge_issue_impl(port_, fingerprint)
     }
 
     #[unsafe(no_mangle)]
@@ -7316,10 +8890,35 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__get_knowledge_citations(
+        port_: i64,
+        task: *mut wire_cst_list_prim_u_8_strict,
+        owner_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__get_knowledge_citations_impl(port_, task, owner_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge_digest__get_knowledge_digest_stats(
         port_: i64,
     ) {
         wire__crate__api__knowledge_digest__get_knowledge_digest_stats_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__get_knowledge_page_details(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__get_knowledge_page_details_impl(port_, slug)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__get_knowledge_source_snapshot(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__get_knowledge_source_snapshot_impl(port_, id)
     }
 
     #[unsafe(no_mangle)]
@@ -7328,6 +8927,14 @@ mod io {
         message_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__conversations__get_message_chain_impl(port_, message_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__get_message_knowledge_citations(
+        port_: i64,
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__get_message_knowledge_citations_impl(port_, message_id)
     }
 
     #[unsafe(no_mangle)]
@@ -7442,6 +9049,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_background_runs(
+        port_: i64,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_background_runs_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge_digest__list_knowledge_digest_jobs(
         port_: i64,
         status: *mut wire_cst_list_prim_u_8_strict,
@@ -7456,6 +9070,28 @@ mod io {
         limit: u32,
     ) {
         wire__crate__api__knowledge_digest__list_knowledge_digest_runs_impl(port_, limit)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_issues(
+        port_: i64,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_issues_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_proposals(
+        port_: i64,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_proposals_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_revisions(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_revisions_impl(port_, slug)
     }
 
     #[unsafe(no_mangle)]
@@ -7541,6 +9177,24 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__preview_knowledge_source(
+        port_: i64,
+        source_url: *mut wire_cst_list_prim_u_8_strict,
+        content_md: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__preview_knowledge_source_impl(port_, source_url, content_md)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__propose_knowledge_page(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        kind: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__propose_knowledge_page_impl(port_, slug, kind)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__reactivate_goal(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
@@ -7579,6 +9233,15 @@ mod io {
         title: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__conversations__rename_conversation_impl(port_, conversation_id, title)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__resolve_knowledge_proposal(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        accept: bool,
+    ) {
+        wire__crate__api__knowledge__resolve_knowledge_proposal_impl(port_, id, accept)
     }
 
     #[unsafe(no_mangle)]
@@ -7753,6 +9416,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__tick_knowledge_insights(
+        port_: i64,
+    ) {
+        wire__crate__api__knowledge__tick_knowledge_insights_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__trigger_analysis(port_: i64) {
         wire__crate__api__trigger_analysis_impl(port_)
     }
@@ -7792,6 +9462,21 @@ mod io {
         phase: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__goals__update_goal_impl(port_, id, content, phase)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__update_knowledge_metadata(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        applicable_when: *mut wire_cst_list_prim_u_8_strict,
+        strength: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__update_knowledge_metadata_impl(
+            port_,
+            slug,
+            applicable_when,
+            strength,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -7935,6 +9620,14 @@ mod io {
     ) -> *mut wire_cst_message_recordability_dto {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_message_recordability_dto::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_source_snapshot(
+    ) -> *mut wire_cst_source_snapshot {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_source_snapshot::new_with_null_ptr(),
         )
     }
 
@@ -8106,6 +9799,34 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_knowledge_background_run_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_knowledge_background_run_dto {
+        let wrap = wire_cst_list_knowledge_background_run_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_knowledge_background_run_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_knowledge_citation(
+        len: i32,
+    ) -> *mut wire_cst_list_knowledge_citation {
+        let wrap = wire_cst_list_knowledge_citation {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_knowledge_citation>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_knowledge_digest_job_dto(
         len: i32,
     ) -> *mut wire_cst_list_knowledge_digest_job_dto {
@@ -8126,6 +9847,48 @@ mod io {
         let wrap = wire_cst_list_knowledge_digest_run_dto {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_knowledge_digest_run_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_knowledge_issue(
+        len: i32,
+    ) -> *mut wire_cst_list_knowledge_issue {
+        let wrap = wire_cst_list_knowledge_issue {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_knowledge_issue>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_knowledge_proposal(
+        len: i32,
+    ) -> *mut wire_cst_list_knowledge_proposal {
+        let wrap = wire_cst_list_knowledge_proposal {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_knowledge_proposal>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_knowledge_revision_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_knowledge_revision_dto {
+        let wrap = wire_cst_list_knowledge_revision_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_knowledge_revision_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -8193,6 +9956,34 @@ mod io {
         let wrap = wire_cst_list_rule_dto {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_rule_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_source_reference(
+        len: i32,
+    ) -> *mut wire_cst_list_source_reference {
+        let wrap = wire_cst_list_source_reference {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_source_reference>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_source_snapshot(
+        len: i32,
+    ) -> *mut wire_cst_list_source_snapshot {
+        let wrap = wire_cst_list_source_snapshot {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_source_snapshot>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -8470,6 +10261,29 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_background_run_dto {
+        status: *mut wire_cst_list_prim_u_8_strict,
+        started_at: *mut wire_cst_list_prim_u_8_strict,
+        finished_at: *mut wire_cst_list_prim_u_8_strict,
+        error: *mut wire_cst_list_prim_u_8_strict,
+        result_count: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_citation {
+        page_slug: *mut wire_cst_list_prim_u_8_strict,
+        content_hash: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        excerpt: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+        applicable_when: *mut wire_cst_list_prim_u_8_strict,
+        strength: *mut wire_cst_list_prim_u_8_strict,
+        category: *mut wire_cst_list_prim_u_8_strict,
+        sources: *mut wire_cst_list_source_reference,
+        event_ids: *mut wire_cst_list_String,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_knowledge_digest_job_dto {
         job_id: *mut wire_cst_list_prim_u_8_strict,
         event_id: *mut wire_cst_list_prim_u_8_strict,
@@ -8541,6 +10355,54 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_issue {
+        fingerprint: *mut wire_cst_list_prim_u_8_strict,
+        page_slug: *mut wire_cst_list_prim_u_8_strict,
+        kind: *mut wire_cst_list_prim_u_8_strict,
+        description: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_metadata {
+        applicable_when: *mut wire_cst_list_prim_u_8_strict,
+        strength: *mut wire_cst_list_prim_u_8_strict,
+        confirmed_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_page_details {
+        sources: *mut wire_cst_list_source_snapshot,
+        history: *mut wire_cst_list_source_snapshot,
+        proposals: *mut wire_cst_list_knowledge_proposal,
+        issues: *mut wire_cst_list_knowledge_issue,
+        metadata: wire_cst_knowledge_metadata,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_proposal {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        page_id: *mut wire_cst_list_prim_u_8_strict,
+        target_slug: *mut wire_cst_list_prim_u_8_strict,
+        kind: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        content_md: *mut wire_cst_list_prim_u_8_strict,
+        applicable_when: *mut wire_cst_list_prim_u_8_strict,
+        snapshot_ids: *mut wire_cst_list_String,
+        event_ids: *mut wire_cst_list_String,
+        base_hash: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+        status: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_revision_dto {
+        content_md: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_String {
         ptr: *mut *mut wire_cst_list_prim_u_8_strict,
         len: i32,
@@ -8607,6 +10469,18 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_knowledge_background_run_dto {
+        ptr: *mut wire_cst_knowledge_background_run_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_knowledge_citation {
+        ptr: *mut wire_cst_knowledge_citation,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_knowledge_digest_job_dto {
         ptr: *mut wire_cst_knowledge_digest_job_dto,
         len: i32,
@@ -8615,6 +10489,24 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_knowledge_digest_run_dto {
         ptr: *mut wire_cst_knowledge_digest_run_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_knowledge_issue {
+        ptr: *mut wire_cst_knowledge_issue,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_knowledge_proposal {
+        ptr: *mut wire_cst_knowledge_proposal,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_knowledge_revision_dto {
+        ptr: *mut wire_cst_knowledge_revision_dto,
         len: i32,
     }
     #[repr(C)]
@@ -8645,6 +10537,18 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_rule_dto {
         ptr: *mut wire_cst_rule_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_source_reference {
+        ptr: *mut wire_cst_source_reference,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_source_snapshot {
+        ptr: *mut wire_cst_source_snapshot,
         len: i32,
     }
     #[repr(C)]
@@ -8715,6 +10619,37 @@ mod io {
         content: *mut wire_cst_list_prim_u_8_strict,
         status: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_source_reference {
+        snapshot_id: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        locator: *mut wire_cst_list_prim_u_8_strict,
+        version: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_source_snapshot {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        source_id: *mut wire_cst_list_prim_u_8_strict,
+        version: i64,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        content_md: *mut wire_cst_list_prim_u_8_strict,
+        content_hash: *mut wire_cst_list_prim_u_8_strict,
+        captured_at: *mut wire_cst_list_prim_u_8_strict,
+        source_kind: *mut wire_cst_list_prim_u_8_strict,
+        locator: *mut wire_cst_list_prim_u_8_strict,
+        opinion: *mut wire_cst_list_prim_u_8_strict,
+        page_slug: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_source_update_preview {
+        existing_slug: *mut wire_cst_list_prim_u_8_strict,
+        previous_content: *mut wire_cst_list_prim_u_8_strict,
+        previous_snapshot_id: *mut wire_cst_list_prim_u_8_strict,
+        changed: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -9280,6 +11215,57 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::knowledge::KnowledgeBackgroundRunDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::KnowledgeBackgroundRunDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::knowledge::KnowledgeBackgroundRunDto {
+                status: self_.get(0).cst_decode(),
+                started_at: self_.get(1).cst_decode(),
+                finished_at: self_.get(2).cst_decode(),
+                error: self_.get(3).cst_decode(),
+                result_count: self_.get(4).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::knowledge::KnowledgeCitation>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::knowledge::KnowledgeCitation {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                10,
+                "Expected 10 elements, got {}",
+                self_.length()
+            );
+            crate::knowledge::KnowledgeCitation {
+                page_slug: self_.get(0).cst_decode(),
+                content_hash: self_.get(1).cst_decode(),
+                title: self_.get(2).cst_decode(),
+                excerpt: self_.get(3).cst_decode(),
+                reason: self_.get(4).cst_decode(),
+                applicable_when: self_.get(5).cst_decode(),
+                strength: self_.get(6).cst_decode(),
+                category: self_.get(7).cst_decode(),
+                sources: self_.get(8).cst_decode(),
+                event_ids: self_.get(9).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::knowledge_digest::KnowledgeDigestJobDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -9386,6 +11372,124 @@ mod web {
                     error: self_.get(2).cst_decode(),
                 },
                 _ => unreachable!(),
+            }
+        }
+    }
+    impl CstDecode<crate::storage::knowledge::KnowledgeIssue>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeIssue {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                4,
+                "Expected 4 elements, got {}",
+                self_.length()
+            );
+            crate::storage::knowledge::KnowledgeIssue {
+                fingerprint: self_.get(0).cst_decode(),
+                page_slug: self_.get(1).cst_decode(),
+                kind: self_.get(2).cst_decode(),
+                description: self_.get(3).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::storage::knowledge::KnowledgeMetadata>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeMetadata {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                3,
+                "Expected 3 elements, got {}",
+                self_.length()
+            );
+            crate::storage::knowledge::KnowledgeMetadata {
+                applicable_when: self_.get(0).cst_decode(),
+                strength: self_.get(1).cst_decode(),
+                confirmed_at: self_.get(2).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::KnowledgePageDetails>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::KnowledgePageDetails {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::knowledge::KnowledgePageDetails {
+                sources: self_.get(0).cst_decode(),
+                history: self_.get(1).cst_decode(),
+                proposals: self_.get(2).cst_decode(),
+                issues: self_.get(3).cst_decode(),
+                metadata: self_.get(4).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::storage::knowledge::KnowledgeProposal>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeProposal {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                13,
+                "Expected 13 elements, got {}",
+                self_.length()
+            );
+            crate::storage::knowledge::KnowledgeProposal {
+                id: self_.get(0).cst_decode(),
+                page_id: self_.get(1).cst_decode(),
+                target_slug: self_.get(2).cst_decode(),
+                kind: self_.get(3).cst_decode(),
+                title: self_.get(4).cst_decode(),
+                content_md: self_.get(5).cst_decode(),
+                applicable_when: self_.get(6).cst_decode(),
+                snapshot_ids: self_.get(7).cst_decode(),
+                event_ids: self_.get(8).cst_decode(),
+                base_hash: self_.get(9).cst_decode(),
+                reason: self_.get(10).cst_decode(),
+                status: self_.get(11).cst_decode(),
+                created_at: self_.get(12).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::KnowledgeRevisionDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::KnowledgeRevisionDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                3,
+                "Expected 3 elements, got {}",
+                self_.length()
+            );
+            crate::api::knowledge::KnowledgeRevisionDto {
+                content_md: self_.get(0).cst_decode(),
+                reason: self_.get(1).cst_decode(),
+                created_at: self_.get(2).cst_decode(),
             }
         }
     }
@@ -9519,6 +11623,30 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::knowledge::KnowledgeBackgroundRunDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::knowledge::KnowledgeCitation>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::knowledge::KnowledgeCitation> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::knowledge_digest::KnowledgeDigestJobDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -9536,6 +11664,42 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::knowledge_digest::KnowledgeDigestRunDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::storage::knowledge::KnowledgeIssue>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::KnowledgeIssue> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::storage::knowledge::KnowledgeProposal>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::KnowledgeProposal> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::knowledge::KnowledgeRevisionDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::knowledge::KnowledgeRevisionDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -9590,6 +11754,30 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::rules::RuleDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::knowledge::SourceReference>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::knowledge::SourceReference> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::storage::knowledge::SourceSnapshot>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::SourceSnapshot> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -9757,6 +11945,79 @@ mod web {
                 content: self_.get(1).cst_decode(),
                 status: self_.get(2).cst_decode(),
                 created_at: self_.get(3).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::knowledge::SourceReference>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::knowledge::SourceReference {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                4,
+                "Expected 4 elements, got {}",
+                self_.length()
+            );
+            crate::knowledge::SourceReference {
+                snapshot_id: self_.get(0).cst_decode(),
+                title: self_.get(1).cst_decode(),
+                locator: self_.get(2).cst_decode(),
+                version: self_.get(3).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::storage::knowledge::SourceSnapshot>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::SourceSnapshot {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                11,
+                "Expected 11 elements, got {}",
+                self_.length()
+            );
+            crate::storage::knowledge::SourceSnapshot {
+                id: self_.get(0).cst_decode(),
+                source_id: self_.get(1).cst_decode(),
+                version: self_.get(2).cst_decode(),
+                title: self_.get(3).cst_decode(),
+                content_md: self_.get(4).cst_decode(),
+                content_hash: self_.get(5).cst_decode(),
+                captured_at: self_.get(6).cst_decode(),
+                source_kind: self_.get(7).cst_decode(),
+                locator: self_.get(8).cst_decode(),
+                opinion: self_.get(9).cst_decode(),
+                page_slug: self_.get(10).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::SourceUpdatePreview>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::SourceUpdatePreview {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                4,
+                "Expected 4 elements, got {}",
+                self_.length()
+            );
+            crate::api::knowledge::SourceUpdatePreview {
+                existing_slug: self_.get(0).cst_decode(),
+                previous_content: self_.get(1).cst_decode(),
+                previous_snapshot_id: self_.get(2).cst_decode(),
+                changed: self_.get(3).cst_decode(),
             }
         }
     }
@@ -10023,6 +12284,27 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__confirm_knowledge_source(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        title: String,
+        content_md: String,
+        source_url: String,
+        source_kind: String,
+        tags: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+        expected_snapshot_id: Option<String>,
+    ) {
+        wire__crate__api__knowledge__confirm_knowledge_source_impl(
+            port_,
+            title,
+            content_md,
+            source_url,
+            source_kind,
+            tags,
+            expected_snapshot_id,
+        )
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__create_conversation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         title: Option<String>,
@@ -10135,6 +12417,14 @@ mod web {
         id: String,
     ) {
         wire__crate__api__todos__delete_todo_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__dismiss_knowledge_issue(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        fingerprint: String,
+    ) {
+        wire__crate__api__knowledge__dismiss_knowledge_issue_impl(port_, fingerprint)
     }
 
     #[wasm_bindgen]
@@ -10283,10 +12573,35 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__get_knowledge_citations(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        task: String,
+        owner_id: String,
+    ) {
+        wire__crate__api__knowledge__get_knowledge_citations_impl(port_, task, owner_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge_digest__get_knowledge_digest_stats(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__knowledge_digest__get_knowledge_digest_stats_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__get_knowledge_page_details(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+    ) {
+        wire__crate__api__knowledge__get_knowledge_page_details_impl(port_, slug)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__get_knowledge_source_snapshot(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__knowledge__get_knowledge_source_snapshot_impl(port_, id)
     }
 
     #[wasm_bindgen]
@@ -10295,6 +12610,14 @@ mod web {
         message_id: String,
     ) {
         wire__crate__api__conversations__get_message_chain_impl(port_, message_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__get_message_knowledge_citations(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        message_id: String,
+    ) {
+        wire__crate__api__knowledge__get_message_knowledge_citations_impl(port_, message_id)
     }
 
     #[wasm_bindgen]
@@ -10415,6 +12738,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__list_knowledge_background_runs(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_background_runs_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge_digest__list_knowledge_digest_jobs(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         status: Option<String>,
@@ -10429,6 +12759,28 @@ mod web {
         limit: u32,
     ) {
         wire__crate__api__knowledge_digest__list_knowledge_digest_runs_impl(port_, limit)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__list_knowledge_issues(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_issues_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__list_knowledge_proposals(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_proposals_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__list_knowledge_revisions(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_revisions_impl(port_, slug)
     }
 
     #[wasm_bindgen]
@@ -10520,6 +12872,24 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__preview_knowledge_source(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        source_url: String,
+        content_md: String,
+    ) {
+        wire__crate__api__knowledge__preview_knowledge_source_impl(port_, source_url, content_md)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__propose_knowledge_page(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+        kind: String,
+    ) {
+        wire__crate__api__knowledge__propose_knowledge_page_impl(port_, slug, kind)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__goals__reactivate_goal(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
@@ -10558,6 +12928,15 @@ mod web {
         title: String,
     ) {
         wire__crate__api__conversations__rename_conversation_impl(port_, conversation_id, title)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__resolve_knowledge_proposal(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        accept: bool,
+    ) {
+        wire__crate__api__knowledge__resolve_knowledge_proposal_impl(port_, id, accept)
     }
 
     #[wasm_bindgen]
@@ -10732,6 +13111,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__tick_knowledge_insights(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__knowledge__tick_knowledge_insights_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__trigger_analysis(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -10773,6 +13159,21 @@ mod web {
         phase: String,
     ) {
         wire__crate__api__goals__update_goal_impl(port_, id, content, phase)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__update_knowledge_metadata(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+        applicable_when: String,
+        strength: String,
+    ) {
+        wire__crate__api__knowledge__update_knowledge_metadata_impl(
+            port_,
+            slug,
+            applicable_when,
+            strength,
+        )
     }
 
     #[wasm_bindgen]

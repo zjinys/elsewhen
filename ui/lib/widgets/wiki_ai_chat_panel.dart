@@ -10,6 +10,8 @@ import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
 import 'markdown_view.dart';
+import 'knowledge_panel.dart';
+import 'knowledge_import.dart';
 
 /// 页内 AI 处理面板：围绕当前页面聊天（总结/补充/改写）。
 ///
@@ -344,13 +346,9 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final fetched = await repo.fetchImportUrl(url);
-      await repo.saveImportedPage(
-        title: fetched.displayTitle.isEmpty ? page.title : fetched.displayTitle,
-        contentMd: fetched.contentMd,
-        sourceUrl: fetched.sourceUrl,
-        sourceKind: fetched.sourceKind,
-        tags: page.tags,
-      );
+      if (!mounted) return;
+      final saved = await saveKnowledgeImport(context, ref, fetched, page.tags);
+      if (saved == null) return;
       if (!mounted) return;
       ref.invalidate(wikiPageProvider(widget.slug));
       ref.invalidate(wikiPagesProvider);
@@ -412,6 +410,8 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
           child: Wrap(
             spacing: 4,
             children: [
+              if (message.content.contains('[['))
+                KnowledgeCitationsButton(messageId: message.id),
               TextButton.icon(
                 onPressed: (_busy || _saving)
                     ? null

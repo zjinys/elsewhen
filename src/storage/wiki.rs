@@ -172,6 +172,10 @@ impl Store {
             .to_string();
         let now = chrono::Utc::now().to_rfc3339();
         let tags_raw = serde_json::to_string(&vec!["派生产物".to_string()])?;
+        let tx = rusqlite::Transaction::new_unchecked(
+            &self.connection,
+            rusqlite::TransactionBehavior::Immediate,
+        )?;
         self.connection.execute(
             "INSERT INTO wiki_pages
          (id, slug, kind, title, summary, content_md, tags, source_event_ids,
@@ -192,6 +196,21 @@ impl Store {
             ],
         )?;
         self.record_wiki_revision(&id, &content_md, reason, None)?;
+        let snapshots = self
+            .page_source_snapshots(&base.slug)?
+            .into_iter()
+            .map(|s| s.id)
+            .collect::<Vec<_>>();
+        self.bind_page_sources(&id, &snapshots)?;
+        self.connection.execute(
+            "UPDATE wiki_pages SET source_event_ids=?1,evidence_count=?2 WHERE id=?3",
+            params![
+                serde_json::to_string(&base.source_event_ids)?,
+                base.source_event_ids.len() as i64,
+                id
+            ],
+        )?;
+        tx.commit()?;
         self.get_wiki_page(&slug)?.context("派生产物创建后读取失败")
     }
 
@@ -231,7 +250,10 @@ impl Store {
         draft: &WikiPageDraft,
         policy: ContentPolicy,
     ) -> Result<WikiUpsertOutcome> {
-        let tx = self.connection.unchecked_transaction()?;
+        let tx = rusqlite::Transaction::new_unchecked(
+            &self.connection,
+            rusqlite::TransactionBehavior::Immediate,
+        )?;
         let outcome = self.upsert_wiki_page_in_tx(draft, policy)?;
         tx.commit()?;
         Ok(outcome)
@@ -244,6 +266,15 @@ impl Store {
         draft: &WikiPageDraft,
         policy: ContentPolicy,
     ) -> Result<WikiUpsertOutcome> {
+        let mut resolved = draft.clone();
+        if matches!(draft.kind.as_str(), "source" | "note") {
+            if let Some(existing) =
+                self.matching_source_page(draft.source_url.as_deref(), &draft.content_md)?
+            {
+                resolved.slug = existing.slug;
+            }
+        }
+        let draft = &resolved;
         let now = chrono::Utc::now().to_rfc3339();
         let tags_raw = serde_json::to_string(&draft.tags)?;
 
@@ -271,7 +302,26 @@ impl Store {
             }
             let evidence_count = all_ids.len() as i64;
             let sources_raw = serde_json::to_string(&all_ids)?;
-            if human_held && content_changed {
+            if human_held {
+                if content_changed
+                    && !matches!(page.kind.as_str(), "source" | "note")
+                    && !draft.source_event_ids.is_empty()
+                {
+                    let mut proposal = draft.clone();
+                    proposal.source_event_ids = all_ids.clone();
+                    let snapshots = self
+                        .page_source_snapshots(&page.slug)?
+                        .into_iter()
+                        .map(|s| s.id)
+                        .collect::<Vec<_>>();
+                    self.record_proposal(
+                        &proposal,
+                        &self.knowledge_metadata(&page.slug)?.applicable_when,
+                        &snapshots,
+                        Some(&page),
+                        "新证据建议补充人工编辑页",
+                    )?;
+                }
                 // 只累加证据
                 self.connection.execute(
                     "UPDATE wiki_pages
@@ -313,6 +363,7 @@ impl Store {
                 None,
             )?;
             let updated = self.get_wiki_page(&draft.slug)?.unwrap();
+            super::knowledge::capture_source_on(&self.connection, &updated)?;
             Ok(WikiUpsertOutcome {
                 created: false,
                 page: updated,
@@ -321,7 +372,7 @@ impl Store {
         } else {
             let id = Uuid::new_v4().to_string();
             let sources_raw = serde_json::to_string(&draft.source_event_ids)?;
-            let evidence_count = draft.source_event_ids.len().max(1) as i64;
+            let evidence_count = draft.source_event_ids.len() as i64;
             // 新建页自动推导分区（旧页保留原分区，见上方 UPDATE 分支）
             let area =
                 Self::derive_wiki_area(&draft.kind, &draft.slug, draft.source_url.as_deref());
@@ -354,9 +405,11 @@ impl Store {
                 &draft.reason,
                 None,
             )?;
+            let page = self.get_wiki_page(&draft.slug)?.unwrap();
+            super::knowledge::capture_source_on(&self.connection, &page)?;
             Ok(WikiUpsertOutcome {
                 created: true,
-                page: self.get_wiki_page(&draft.slug)?.unwrap(),
+                page,
                 protected: false,
             })
         }
@@ -606,8 +659,19 @@ impl Store {
             None => None,
         };
         let now = chrono::Utc::now().to_rfc3339();
+        let tx = rusqlite::Transaction::new_unchecked(
+            &self.connection,
+            rusqlite::TransactionBehavior::Immediate,
+        )?;
         self.connection.execute(
-            "UPDATE wiki_pages SET opinion=?1, updated_at=?2 WHERE id=?3",
+            "UPDATE knowledge_sources SET opinion=?1 WHERE id IN
+            (SELECT source_id FROM knowledge_source_pages WHERE page_id=?2)",
+            params![value, page.id],
+        )?;
+        self.connection.execute(
+            "UPDATE wiki_pages SET opinion=?1, updated_at=?2 WHERE id=?3 OR id IN
+                (SELECT m.page_id FROM knowledge_source_pages m WHERE m.source_id IN
+                 (SELECT source_id FROM knowledge_source_pages WHERE page_id=?3))",
             params![value, now, page.id],
         )?;
         let label = match value.as_deref() {
@@ -616,6 +680,7 @@ impl Store {
             _ => "清空（回归未表态，缺省认可）",
         };
         self.append_wiki_log(&format!("素材评价：{slug} → {label}"))?;
+        tx.commit()?;
         self.get_wiki_page(slug)?.context("评价保存后读取失败")
     }
 

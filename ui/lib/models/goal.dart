@@ -1,4 +1,4 @@
-import '../bridge/generated.dart/api.dart' as api;
+import '../bridge/api.dart' as api;
 
 /// 目标阶段：近期 / 中期 / 长远
 ///

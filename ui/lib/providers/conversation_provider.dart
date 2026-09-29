@@ -4,7 +4,7 @@ import 'state_holder.dart';
 
 import '../models/conversation.dart';
 import '../bridge/rust_bridge_repository.dart';
-import '../bridge/generated.dart/api.dart' show MessageRecordabilityDto;
+import '../bridge/api.dart' show MessageRecordabilityDto;
 import '../models/token_usage.dart';
 
 /// Mock conversation repository (will be replaced with Rust bridge)

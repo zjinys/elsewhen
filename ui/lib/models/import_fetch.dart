@@ -1,4 +1,4 @@
-import '../bridge/generated.dart/api.dart' as api;
+import '../bridge/api.dart' as api;
 
 /// 任意 URL 抓取结果（推文或普通网页；尚未入库）
 class ImportFetch {

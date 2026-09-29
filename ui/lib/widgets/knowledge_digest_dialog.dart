@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../bridge/generated.dart/api.dart' as api;
+import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
 

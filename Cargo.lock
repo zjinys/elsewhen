@@ -330,6 +330,7 @@ dependencies = [
  "fontdb",
  "include_dir",
  "reqwest",
+ "ring",
  "rusqlite",
  "rusqlite_migration",
  "serde",

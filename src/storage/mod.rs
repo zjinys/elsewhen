@@ -4,6 +4,7 @@ mod digest;
 mod entities;
 mod events;
 mod goals;
+pub(crate) mod knowledge;
 mod new_migrations;
 mod provider;
 mod records;
@@ -29,6 +30,7 @@ pub use digest::{
     DIGEST_FAILED_COOLDOWN_SECS, DIGEST_MAX_ATTEMPTS, DIGEST_SETTLE_SECS, DIGEST_VERSION,
 };
 pub use goals::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
+pub use knowledge::{KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, SourceSnapshot};
 
 // Conversation and Message summary structs
 #[derive(Debug, Clone)]
@@ -252,6 +254,7 @@ pub struct WikiPage {
 }
 
 /// 一次写回（创建或更新）的输入草案
+#[derive(Clone)]
 pub struct WikiPageDraft {
     pub slug: String,
     pub kind: String,
@@ -501,6 +504,7 @@ impl Store {
         if first_open {
             // All databases use the embedded, transactional migration set.
             new_migrations::initialize(&mut connection)?;
+            knowledge::backfill_sources_once(&connection)?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;

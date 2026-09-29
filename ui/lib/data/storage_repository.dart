@@ -1,6 +1,6 @@
 import '../models/event.dart';
 import '../models/analysis.dart';
-import '../bridge/generated.dart/api.dart' as api;
+import '../bridge/api.dart' as api;
 
 /// 存储仓库抽象接口
 /// 定义所有存储操作，方便未来切换实现

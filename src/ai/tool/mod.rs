@@ -202,10 +202,29 @@ impl Tool for ImportDirectoryFilesTool {
         if !std::path::Path::new(&directory).is_dir() {
             anyhow::bail!("目录不存在或不可访问：{directory}");
         }
-        let action_args = json!({"directory": directory});
+        let preview =
+            crate::local_sources::preview_file_import(ctx.store, std::path::Path::new(&directory))?;
+        let details = preview
+            .entries
+            .iter()
+            .take(6)
+            .map(|e| {
+                format!(
+                    "{}\n{}",
+                    e.locator,
+                    e.previous_excerpt.clone().unwrap_or_else(|| format!(
+                        "新文件：{}",
+                        e.content.chars().take(240).collect::<String>()
+                    ))
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let action_args = json!({"preview":preview});
         store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
         Ok(format!(
-            "已准备导入目录 `{directory}` 下的文件，每个文件生成一张知识页。文件较多时可能消耗较多 token。回复「好」后执行。"
+            "已读取目录 `{directory}` 的 {} 个文件原文，跳过 {} 个超限或不可读文件；尚未写入知识库。以下为前 6 个文件的内容/差异预览：\n{details}\n确认后保存本批读取到的原文，旧版本保留。回复「好」保存，回复「取消」放弃。",
+            preview.entries.len(),preview.skipped.len()
         ))
     }
 }
@@ -375,7 +394,7 @@ impl Tool for GetWikiPageTool {
         "get_wiki_page"
     }
     fn description(&self) -> &'static str {
-        "按 slug 获取知识库页面全文。先用 list_wiki_pages 拿到 slug。"
+        "按 slug 读取知识页（长文返回限长片段），带来源状态。先用 list_wiki_pages 拿到 slug。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -391,10 +410,17 @@ impl Tool for GetWikiPageTool {
             .store
             .get_wiki_page(&slug)?
             .context("没有找到该知识页")?;
-        Ok(format!(
-            "标题：{}\n类型：{}\n摘要：{}\n\n正文：\n{}",
-            page.title, page.kind, page.summary, page.content_md
-        ))
+        let citation =
+            crate::knowledge::citation_for_page(ctx.store, &page, "用户明确打开此页".into(), 2400)?;
+        match citation {
+            Some(citation) => crate::knowledge::tool_context(&[citation]),
+            None => Ok(json!({"knowledge_candidates":[],"unverified_page":{
+                "slug":page.slug,"title":page.title,
+                "content_md":page.content_md.chars().take(2400).collect::<String>(),
+                "notice":"仅供读取与编辑；缺少有效来源、来源待复核或已被拒绝，不可作为正面证据。"
+            }})
+            .to_string()),
+        }
     }
 }
 
@@ -454,15 +480,24 @@ impl Tool for SearchKnowledgeBaseTool {
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
         let query = arg_str(args, "query")?;
         let limit = arg_i64(args, "limit", 5).clamp(1, 20) as usize;
-        let hits = ctx.store.search_knowledge_base(&query, limit)?;
-        if hits.is_empty() {
-            return Ok(format!("没有搜到与「{query}」相关的内容"));
+        let mut candidates = crate::knowledge::select_knowledge(ctx.store, &query, "search", 4000)?;
+        candidates.truncate(limit);
+        let mut events = Vec::new();
+        let mut stmt = ctx.store.connection.prepare(
+            "SELECT id,substr(raw_text,1,350) FROM events
+            WHERE instr(lower(raw_text),lower(?1))>0 ORDER BY recorded_at DESC LIMIT ?2",
+        )?;
+        let rows = stmt
+            .query_map(rusqlite::params![query, limit.min(8) as i64], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for (id, text) in rows {
+            if ctx.store.recordable_event(&id)? {
+                events.push(json!({"event_id":id,"excerpt":text,"category":"用户记录"}));
+            }
         }
-        let mut out = format!("与「{query}」相关的条目：\n");
-        for h in hits {
-            out.push_str(&format!("- [{}] {}：{}\n", h.kind, h.title, h.snippet));
-        }
-        Ok(out)
+        Ok(json!({"knowledge_candidates":candidates,"events":events}).to_string())
     }
 }
 
@@ -1295,6 +1330,18 @@ impl Tool for ImportUrlToWikiTool {
             anyhow::bail!("仅支持 http/https 链接");
         }
         let c = crate::wiki::fetch_import_url(&url)?;
+        let existing = ctx
+            .store
+            .matching_source_page(Some(&c.source_url), &c.content_md)?;
+        let snapshot = existing
+            .as_ref()
+            .map(|p| ctx.store.source_history(&p.slug))
+            .transpose()?
+            .and_then(|h| h.into_iter().next());
+        let change = snapshot
+            .as_ref()
+            .map(|s| crate::storage::knowledge::source_change_preview(&s.content_md, &c.content_md))
+            .unwrap_or_default();
         let tags: Vec<String> = args
             .get("tags")
             .and_then(|v| v.as_array())
@@ -1310,6 +1357,7 @@ impl Tool for ImportUrlToWikiTool {
             "title": c.title,
             "content_md": c.content_md,
             "tags": tags,
+            "expected_snapshot_id":snapshot.map(|s|s.id),
         });
         store_create_pending(
             ctx.store,
@@ -1327,7 +1375,7 @@ impl Tool for ImportUrlToWikiTool {
             .trim_end()
             .to_string();
         Ok(format!(
-            "已抓取「{title}」并草拟保存（待确认）：\n{preview}{}\n—— 回复「好」即导入知识库。",
+            "已抓取「{title}」并草拟保存（待确认）：\n{preview}{}\n{change}\n—— 回复「好」保存该版本，回复「取消」放弃；旧原文保留。",
             if c.content_md.chars().count() > 160 {
                 "…"
             } else {
@@ -1377,7 +1425,8 @@ impl Tool for SaveWikiRevisionTool {
         }
         let content_type = arg_str_opt(args, "content_type").filter(|s| !s.trim().is_empty());
         // 草拟前先确认页面还在：改名/删除后旧 slug 会变成幽灵目标
-        if ctx.store.get_wiki_page(&slug)?.is_none() {
+        let current = ctx.store.get_wiki_page(&slug)?;
+        if current.is_none() {
             anyhow::bail!(
                 "知识库没有 slug={slug} 的页面。如果这个页面刚改过名，请用新名字操作；不确定 slug 时先在对话里列一下知识库页面（slug 形如 person/xx、topic/xx）。"
             );
@@ -1389,6 +1438,7 @@ impl Tool for SaveWikiRevisionTool {
             "change_note": change_note,
             "save_as": save_as,
             "content_type": content_type.clone(),
+            "base_hash":current.map(|p|crate::storage::knowledge::content_hash(&p.content_md)),
         });
         store_create_pending(
             ctx.store,
@@ -1546,6 +1596,15 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             let source_kind = arg_str(&args, "source_kind")?;
             let title = arg_str(&args, "title")?;
             let content_md = arg_str(&args, "content_md")?;
+            let tx = rusqlite::Transaction::new_unchecked(
+                &store.connection,
+                rusqlite::TransactionBehavior::Immediate,
+            )?;
+            store.check_source_preview(
+                &source_url,
+                &content_md,
+                args.get("expected_snapshot_id").and_then(Value::as_str),
+            )?;
             let tags: Vec<String> = args
                 .get("tags")
                 .and_then(|v| v.as_array())
@@ -1586,7 +1645,8 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 reason: format!("从 {source_url} 导入（AI 对话）"),
                 source_url: Some(source_url),
             };
-            let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
+            let outcome = store.upsert_wiki_page_in_tx(&draft, ContentPolicy::Always)?;
+            tx.commit()?;
             Ok(format!(
                 "已导入知识库：{}（{}，slug={}）",
                 title,
@@ -1627,11 +1687,12 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             ))
         }
         "import_directory_files" => {
-            let directory = arg_str(&args, "directory")?;
-            let report = crate::local_sources::ingest_directory_files(
-                store,
-                std::path::Path::new(&directory),
+            let preview: crate::local_sources::FileImportPreview = serde_json::from_value(
+                args.get("preview")
+                    .cloned()
+                    .context("旧导入没有原文预览，请重新请求导入后确认")?,
             )?;
+            let report = crate::local_sources::confirm_file_import(store, &preview)?;
             Ok(format!(
                 "已将目录文件导入知识库：创建 {} 张知识页，扫描 {} 个文件",
                 report.pages.len(),
@@ -1676,6 +1737,18 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     page.title
                 ))
             } else {
+                let tx = rusqlite::Transaction::new_unchecked(
+                    &store.connection,
+                    rusqlite::TransactionBehavior::Immediate,
+                )?;
+                let current = store.get_wiki_page(&slug)?.context("知识页不存在")?;
+                let expected = args
+                    .get("base_hash")
+                    .and_then(Value::as_str)
+                    .context("旧修订缺少版本依据，请重新生成建议")?;
+                if crate::storage::knowledge::content_hash(&current.content_md) != expected {
+                    anyhow::bail!("页面已被修改，请重新审阅，不能覆盖新的编辑");
+                }
                 let summary: String = content_md
                     .chars()
                     .take(80)
@@ -1698,7 +1771,17 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     reason: format!("AI 页内修订：{change_note}"),
                     source_url,
                 };
-                let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
+                let outcome = store.upsert_wiki_page_in_tx(&draft, ContentPolicy::Always)?;
+                store.connection.execute(
+                    "UPDATE wiki_pages SET human_edited_at=?1 WHERE id=?2",
+                    rusqlite::params![chrono::Utc::now().to_rfc3339(), outcome.page.id],
+                )?;
+                // A revised rule is a different proposition and needs renewed confirmation.
+                store.connection.execute(
+                    "UPDATE knowledge_metadata SET strength='reference' WHERE page_id=?1",
+                    [&outcome.page.id],
+                )?;
+                tx.commit()?;
                 Ok(format!(
                     "知识页「{}」修订已保存：{change_note}",
                     outcome.page.title

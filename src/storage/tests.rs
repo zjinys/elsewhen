@@ -1497,6 +1497,8 @@ fn save_wiki_page_content_optimistic_lock_rejects_stale_write() {
 fn digest_preserve_respects_human_edited_and_material_pages() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();
+    let event_one = store.insert_event(NewEvent::now("与李四讨论方案")).unwrap();
+    let event_two = store.insert_event(NewEvent::now("李四确认实施步骤")).unwrap();
 
     // ① 人工编辑过的档案页：PreserveHumanEdits → 正文不动、证据照累、protected=true
     store
@@ -1517,7 +1519,7 @@ fn digest_preserve_respects_human_edited_and_material_pages() {
                 summary: "AI 摘要".to_string(),
                 content_md: "AI 想覆盖的新内容".to_string(),
                 tags: vec!["ai".to_string()],
-                source_event_ids: vec!["evt-1".to_string(), "evt-2".to_string()],
+                source_event_ids: vec![event_one.clone(), event_two.clone()],
                 status: "active".to_string(),
                 reason: "digest".to_string(),
                 source_url: None,
@@ -1532,7 +1534,7 @@ fn digest_preserve_respects_human_edited_and_material_pages() {
     assert_eq!(page.tags, Vec::<String>::new(), "tags 不可被 digest 覆盖");
     assert_eq!(
         page.source_event_ids,
-        vec!["evt-1".to_string(), "evt-2".to_string()],
+        vec![event_one, event_two],
         "但证据应并集"
     );
     assert_eq!(page.evidence_count, 2);
@@ -1709,6 +1711,7 @@ fn update_project_path_validates_and_backfills_legacy_pages() {
 fn digest_protection_does_not_record_revisions_or_opinion_changes() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();
+    let event = store.insert_event(NewEvent::now("与赵六确认方案")).unwrap();
     store
         .upsert_wiki_page(
             &wiki_draft("person/赵六", "person", "v1 AI"),
@@ -1730,7 +1733,7 @@ fn digest_protection_does_not_record_revisions_or_opinion_changes() {
                 summary: "s".to_string(),
                 content_md: "AI 想覆盖".to_string(),
                 tags: vec![],
-                source_event_ids: vec!["evt-x".to_string()],
+                source_event_ids: vec![event],
                 status: "active".to_string(),
                 reason: "digest".to_string(),
                 source_url: None,

@@ -1,4 +1,4 @@
-import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
+import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/models/goal.dart';

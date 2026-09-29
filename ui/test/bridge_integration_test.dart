@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 
-import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
+import 'package:elsewhen_ui/bridge/api.dart' as api;
 
 import 'support/isolated_bridge.dart';
 

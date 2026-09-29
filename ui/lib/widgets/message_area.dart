@@ -17,6 +17,7 @@ import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
 import 'markdown_view.dart';
+import 'knowledge_panel.dart';
 import 'todo_view.dart';
 import 'goal_view.dart';
 
@@ -1657,6 +1658,8 @@ class _MessageBubble extends ConsumerWidget {
                   ),
 
                   // 生成失败/未生成：最后一条用户消息上提供「重新生成」入口
+                  if (!isUser && message.content.contains('[['))
+                    KnowledgeCitationsButton(messageId: message.id),
                   if (showRetry && onRetry != null)
                     Padding(
                       padding: const EdgeInsets.only(top: AppTheme.space1),

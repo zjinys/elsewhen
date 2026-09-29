@@ -7,7 +7,7 @@ import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
 import '../bridge/rust_bridge_repository.dart';
-import '../bridge/generated.dart/api.dart'
+import '../bridge/api.dart'
     show EntityFactDto, EntityMergeStatusDto;
 
 /// 一级导航内容域。待办使用主工作区承载，避免在弹窗里维护持续讨论。

@@ -7,9 +7,7 @@ use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatiblePr
 use crate::storage::{ContentPolicy, Store, WikiPage, WikiPageDraft};
 use crate::wiki::{slugify, unique_slug};
 use anyhow::{Context, Result};
-use std::collections::hash_map::DefaultHasher;
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -795,13 +793,6 @@ fn extract_package_json_deps(raw: &str) -> Vec<String> {
     deps
 }
 
-fn file_fingerprint(path: &Path, raw: &str) -> String {
-    let mut hasher = DefaultHasher::new();
-    raw.hash(&mut hasher);
-    path.to_string_lossy().hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
-}
-
 fn git_snapshot(directory: &Path) -> String {
     let status = std::process::Command::new("git")
         .args(["-C", &directory.to_string_lossy(), "status", "--short"])
@@ -1143,16 +1134,42 @@ pub fn compact_project_page(store: &Store, slug: &str) -> Result<bool> {
 
 /// 文件模式：目录中的每个可读文件独立成为一张素材知识页。
 pub fn ingest_directory_files(store: &Store, directory: &Path) -> Result<IngestReport> {
+    confirm_file_import(store, &preview_file_import(store, directory)?)
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) struct FileImportEntry {
+    pub slug: String,
+    pub title: String,
+    pub content: String,
+    pub locator: String,
+    pub expected_snapshot_id: Option<String>,
+    pub previous_excerpt: Option<String>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) struct FileImportPreview {
+    pub directory: String,
+    pub scanned: usize,
+    pub entries: Vec<FileImportEntry>,
+    pub skipped: Vec<String>,
+}
+
+/// Capture exactly what the user will confirm, with bounded pending payloads.
+pub(crate) fn preview_file_import(store: &Store, directory: &Path) -> Result<FileImportPreview> {
     if !directory.is_dir() {
         anyhow::bail!("目录不存在或不可访问: {}", directory.display());
     }
+    let directory = directory.canonicalize()?;
     let mut files = Vec::new();
-    collect_files(directory, &mut files)?;
-    let mut report = IngestReport {
-        files: files.len(),
-        pages: Vec::new(),
+    collect_files(&directory, &mut files)?;
+    files.sort();
+    let mut report = FileImportPreview {
+        directory: directory.display().to_string(),
+        scanned: files.len(),
+        entries: Vec::new(),
         skipped: Vec::new(),
     };
+    let mut total_chars = 0;
     for path in files {
         // 先看字节数，超出 bounded 读者上限的直接跳过并说明——不整文件读入内存
         // （本地目录可能包含数百 MB 的 .txt/.json/.log，fs::read_to_string 会撑爆内存）。
@@ -1172,15 +1189,31 @@ pub fn ingest_directory_files(store: &Store, directory: &Path) -> Result<IngestR
             ));
             continue;
         }
-        let raw = match read_bounded_text(&path, MAX_SCAN_FILE_CHARS) {
+        let raw = match fs::File::open(&path).and_then(|file| {
+            let mut raw = String::new();
+            file.take(INGEST_MAX_BYTES + 1).read_to_string(&mut raw)?;
+            Ok(raw)
+        }) {
             Ok(value) => value,
             Err(_) => {
                 report.skipped.push(path.display().to_string());
                 continue;
             }
         };
+        let chars = raw.chars().count();
+        if chars > MAX_SCAN_FILE_CHARS
+            || total_chars + chars > 240_000
+            || report.entries.len() >= 100
+        {
+            report.skipped.push(format!(
+                "{}（超出本批原文预算，未截断保存）",
+                path.display()
+            ));
+            continue;
+        }
+        total_chars += chars;
         let relative = path
-            .strip_prefix(directory)
+            .strip_prefix(&directory)
             .unwrap_or(&path)
             .to_string_lossy()
             .replace('\\', "/");
@@ -1190,38 +1223,70 @@ pub fn ingest_directory_files(store: &Store, directory: &Path) -> Result<IngestR
             .unwrap_or("source")
             .to_string();
         let slug = unique_slug(store, &format!("source/{}", slugify(&relative)), &title)?;
-        let preview: String = raw.chars().take(12000).collect();
-        let summary = raw
-            .lines()
-            .find(|line| !line.trim().is_empty())
-            .unwrap_or(&title)
-            .trim()
-            .chars()
-            .take(240)
-            .collect::<String>();
-        let content = format!("# {title}\n\n- 本地路径：`{}`\n- 文件指纹：`{}`\n- 字符数：{}\n\n## 内容摘录\n\n{preview}", path.display(), file_fingerprint(&path, &raw), raw.chars().count());
-        store.upsert_wiki_page(
+        let locator = crate::wiki::path_to_file_url(&path);
+        let existing = store.matching_source_page(Some(&locator), &raw)?;
+        let snapshot = existing
+            .as_ref()
+            .map(|p| store.source_history(&p.slug))
+            .transpose()?
+            .and_then(|h| h.into_iter().next());
+        let previous_excerpt = snapshot
+            .as_ref()
+            .map(|s| crate::storage::knowledge::source_change_preview(&s.content_md, &raw));
+        report.entries.push(FileImportEntry {
+            slug: existing.map(|p| p.slug).unwrap_or(slug),
+            title,
+            content: raw,
+            locator,
+            expected_snapshot_id: snapshot.as_ref().map(|s| s.id.clone()),
+            previous_excerpt,
+        });
+    }
+    Ok(report)
+}
+
+pub(crate) fn confirm_file_import(
+    store: &Store,
+    preview: &FileImportPreview,
+) -> Result<IngestReport> {
+    let tx = rusqlite::Transaction::new_unchecked(
+        &store.connection,
+        rusqlite::TransactionBehavior::Immediate,
+    )?;
+    let mut report = IngestReport {
+        files: preview.scanned,
+        pages: Vec::new(),
+        skipped: preview.skipped.clone(),
+    };
+    for entry in &preview.entries {
+        store.check_source_preview(
+            &entry.locator,
+            &entry.content,
+            entry.expected_snapshot_id.as_deref(),
+        )?;
+        let saved = store.upsert_wiki_page_in_tx(
             &WikiPageDraft {
-                slug: slug.clone(),
+                slug: entry.slug.clone(),
                 kind: "source".into(),
-                title,
-                summary,
-                content_md: content,
+                title: entry.title.clone(),
+                summary: entry.content.chars().take(240).collect(),
+                content_md: entry.content.clone(),
                 tags: vec!["local-source".into()],
                 source_event_ids: vec![],
                 status: "active".into(),
-                reason: format!("按文件导入本地目录：{}", directory.display()),
-                source_url: None,
+                reason: format!("确认文件原文：{}", preview.directory),
+                source_url: Some(entry.locator.clone()),
             },
             ContentPolicy::Always,
         )?;
-        report.pages.push(slug);
+        report.pages.push(saved.page.slug);
     }
     store.append_wiki_log(&format!(
         "按文件导入本地目录：{}，读取 {} 个文件",
-        directory.display(),
+        preview.directory,
         report.pages.len()
     ))?;
+    tx.commit()?;
     Ok(report)
 }
 
@@ -1332,27 +1397,40 @@ pub fn plan_topic(store: &Store, topic: &str) -> Result<String> {
     if topic.is_empty() {
         anyhow::bail!("话题不能为空");
     }
-    let keywords: Vec<&str> = topic
-        .split_whitespace()
-        .filter(|s| s.len() >= 2)
-        .take(8)
-        .collect();
-    let mut hits = Vec::new();
-    for key in keywords.iter().copied().chain(std::iter::once(topic)) {
-        hits.extend(store.search_knowledge_base(key, 8)?);
-    }
-    hits.truncate(12);
+    let hits = crate::knowledge::select_knowledge(store, topic, "topic", 4000)?;
     let evidence = if hits.is_empty() {
         "暂无匹配的知识页或事件。".to_string()
     } else {
         hits.iter()
-            .map(|h| format!("- **{}**：{}", h.title, h.snippet.replace('\n', " ")))
+            .map(|h| {
+                format!(
+                    "- [[{}|{}]]（{}）：{}",
+                    h.page_slug,
+                    h.title,
+                    h.category,
+                    h.excerpt.replace('\n', " ")
+                )
+            })
             .collect::<Vec<_>>()
             .join("\n")
     };
     let content = format!("# {}\n\n## 目标解释\n\n将“{}”拆解为可衡量的结果、期限、资源与约束；当前需要先确认成功标准和可投入时间。\n\n## 初步实现方案\n\n1. 明确结果指标与截止日期。\n2. 基于已有资产选择一条最短验证路径，先做小规模实验。\n3. 每周复盘投入、产出和阻塞，保留有效动作并停止无效动作。\n\n## 现有知识库依据\n\n{}\n\n## 需要明确的问题\n\n- 目标中的金额/结果是收入、利润还是流水？\n- 截止日期、每周可投入时间和预算分别是多少？\n- 哪些能力、项目或资产可以直接复用？\n- 是否存在不能接受的风险或合规边界？\n\n> 这是基于当前知识库的第一版计划，补充答案后可再次生成。", topic, topic, evidence);
     let slug = unique_slug(store, &format!("topic/{}", slugify(topic)), topic)?;
-    store.upsert_wiki_page(
+    let mut events = hits
+        .iter()
+        .flat_map(|h| h.event_ids.clone())
+        .collect::<Vec<_>>();
+    events.sort();
+    events.dedup();
+    let snapshots = hits
+        .iter()
+        .flat_map(|h| h.sources.iter().map(|s| s.snapshot_id.clone()))
+        .collect::<Vec<_>>();
+    let tx = rusqlite::Transaction::new_unchecked(
+        &store.connection,
+        rusqlite::TransactionBehavior::Immediate,
+    )?;
+    let outcome = store.upsert_wiki_page_in_tx(
         &WikiPageDraft {
             slug: slug.clone(),
             kind: "topic".into(),
@@ -1360,12 +1438,21 @@ pub fn plan_topic(store: &Store, topic: &str) -> Result<String> {
             summary: "基于个人知识库生成的目标分析与行动方案".into(),
             content_md: content,
             tags: vec!["topic-plan".into()],
-            source_event_ids: vec![],
+            source_event_ids: events,
             status: "active".into(),
             reason: "创建话题分析页".into(),
             source_url: None,
         },
-        ContentPolicy::Always,
+        ContentPolicy::PreserveHumanEdits,
     )?;
+    if !outcome.protected {
+        store.connection.execute(
+            "DELETE FROM knowledge_page_sources WHERE page_id=?1",
+            [&outcome.page.id],
+        )?;
+        store.bind_page_sources(&outcome.page.id, &snapshots)?;
+        crate::knowledge::record_usage(store, "topic", &slug, &hits, &hits)?;
+    }
+    tx.commit()?;
     Ok(slug)
 }

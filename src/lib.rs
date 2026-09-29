@@ -8,6 +8,8 @@ pub mod config;
 pub mod event;
 pub mod fonts;
 pub mod local_sources;
+pub mod knowledge;
+mod knowledge_background;
 pub mod storage;
 pub mod wiki;
 
@@ -19,3 +21,5 @@ pub mod api;
 mod digest_tests;
 #[cfg(test)]
 mod storage_tests;
+#[cfg(test)]
+mod knowledge_tests;

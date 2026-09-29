@@ -1,4 +1,4 @@
-import '../bridge/generated.dart/api.dart' as api;
+import '../bridge/api.dart' as api;
 
 /// Wiki page model（知识库页面，LLM wiki 的编译产物）
 class WikiPage {

@@ -36,6 +36,9 @@ pub const WIKI_KINDS: &[&str] = &[
     "source",
     // 用户粘贴笔记（M1 kind 拆分：从 topic 独立为素材档 note）
     "note",
+    "method",
+    "case",
+    "principle",
 ];
 
 /// 认知推微生成时要导航的页面类型（镜像四透镜的取材范围）

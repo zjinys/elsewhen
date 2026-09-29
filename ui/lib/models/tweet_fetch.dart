@@ -1,4 +1,4 @@
-import '../bridge/generated.dart/api.dart' as api;
+import '../bridge/api.dart' as api;
 
 /// 抓取到的推文内容（从 fxtwitter 响应解析，未入库）
 class TweetFetch {

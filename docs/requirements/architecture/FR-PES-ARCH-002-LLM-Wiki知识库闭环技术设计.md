@@ -1,8 +1,10 @@
 # FR-PES-ARCH-002: LLM Wiki 知识库闭环技术设计
 
-**版本**: v0.1  
-**最后更新**: 2026-09-26  
-**状态**: Proposed  
+**版本**: v0.2
+
+**最后更新**: 2026-09-29
+
+**状态**: Implemented（实现约束与验证见 §7）
 **关联需求**: [FR-PES-004](../product/FR-PES-004-LLM-Wiki知识库闭环.md)
 
 ## 1. 基线和边界
@@ -52,3 +54,17 @@
 4. 最后接来源更新和审阅工作台；测试冲突候选、规则升权确认、人工编辑页保护及修订拒绝后不会自动重提同一版本。
 
 每期独立发布和验收；有真实 Provider 的端到端测试只用隔离的临时数据目录，不接触用户真实库。旧 [sources 路线图](../../sources-and-deep-chat.md) 中“聊天完全不注入 wiki”的现状描述已过时，实施前以现有工具与页面上下文代码为准。
+
+## 7. 阶段 2–4 实施记录（2026-09-29）
+
+来源与审阅存储在 `src/storage/knowledge.rs`，schema 位于 `migrations/04-knowledge/up.sql`。v3 的迁移发现器不改；`Store::open` 在 schema 升级后以独立事务、持久标记回填来源。URL 规范化、推文 ID 与文本 hash 形成身份；同 URL 的旧别名页保留，快照按实际更新时间建版本，别名引用须匹配自身正文，不能伪装成最新原文。
+
+`knowledge_sources` / `knowledge_snapshots` / `knowledge_source_pages` / `knowledge_page_sources` 分别保存身份、不可变原文、展示页和派生页的精确版本关系。`knowledge_proposals` 保存目标正文 hash、版本/事件集合与接受/拒绝决定；相同输入去重。`knowledge_metadata` 保存适用条件与强度，`knowledge_maintenance_reviews` 保存提示处理记录。确定性检查与 LLM 审阅分开：前者检查引用关系，后者仅生成待审建议。
+
+共享选材在 `src/knowledge.rs`：最多 80 候选、6 个结果，序列化选材不超过调用方预算及 12,000 字。中文双字词/英文词匹配标题、标签、正文和适用条件；方法/案例/规律必须匹配适用条件；来源已拒绝、已过期、事件不可记录或缺乏出处时不作为证据。主/页内对话每轮（含工具回传及调用参数）不超过 24,000 字。知识确认与最终引用都复查来源；`knowledge_usage` 区分实际提供的候选与模型实际采用的引用，保存当时的片段和原料版本。
+
+自动洞察在 `src/knowledge_background.rs`，复用原 worker 和洞察 schema，原独立生成入口移除。运行账本处理每日节奏、输入去重、失败退避及租约恢复；恢复状态在等待重试时也提交，防止每次 tick 重置退避。洞察写入与成功状态同事务。四透镜兜底，允许空数组；不引入目标偏差判定。
+
+显式文件导入改为读取 → 持久预览 → 确认该版本；预览期间源文件变化不会改变确认内容，数据库中的来源变化则阻止旧确认。每批 100 文件/240,000 字，单文件 12,000 字，超限跳过而不冒充完整原文；项目模式沿用原有扫描上限。旧文件页从固定路径字段恢复 file URL，不扫描原目录。
+
+GUI 通过 `api/knowledge.rs` 和 `KnowledgeRepository` 接入，手写 Dart 统一引用稳定的 `bridge/api.dart`。验证覆盖真实 Bridge 与本机 Provider，不使用用户配置。迁移目录列表和最新版本的两条旧测试常量由另一 agent 按用户分工更新；其余实现与验证详见 [Agent Note](../../notes/implemented/architecture/2026-09-26-llm-wiki-completion-boundary.md)。

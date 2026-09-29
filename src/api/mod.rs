@@ -3,6 +3,7 @@ pub mod entities;
 pub mod fonts;
 pub mod goals;
 pub mod import;
+pub mod knowledge;
 pub mod knowledge_digest;
 pub mod provider_config;
 pub mod relations;
@@ -684,10 +685,38 @@ fn generate_daily_review_with_provider(
         .collect::<Result<Vec<_>>>()?
         .join("\n\n");
     let prompt = format!("根据以下 {date_text} 的个人事实生成每日回顾。只返回 JSON 对象，不要 Markdown，不要增加字段。schema_version 固定为 daily-review-v1，date 固定为 {date_text}。字段 accomplishments、ideas_decisions、people_projects、follow_ups 都是数组；每项必须是 {{\"text\":string,\"source_event_ids\":[string]}}，来源 ID 必须来自输入。没有可靠内容的分类返回空数组，不要推测。\n\n{facts}");
-    let reply = provider.generate_reply(vec![ContextMessage::new("user", prompt)])?;
-    let parsed = DailyReviewV1::parse(&reply.content, &date_text, &source_event_ids)?;
+    let candidates = crate::knowledge::select_knowledge(store, &facts, "daily_review", 2500)?;
+    let mut review_context = vec![
+        ContextMessage::new("system", crate::knowledge::CITATION_INSTRUCTIONS),
+        ContextMessage::new("system", crate::knowledge::context_text(&candidates)?),
+        ContextMessage::new("user", prompt),
+    ];
+    crate::knowledge::bound_model_context(&mut review_context, 24000)?;
+    let reply = provider.generate_reply(review_context)?;
+    let mut parsed = DailyReviewV1::parse(&reply.content, &date_text, &source_event_ids)?;
+    let current = crate::knowledge::current_candidates(store, &candidates)?;
+    let mut cited = Vec::new();
+    for item in parsed
+        .accomplishments
+        .iter_mut()
+        .chain(parsed.ideas_decisions.iter_mut())
+        .chain(parsed.people_projects.iter_mut())
+        .chain(parsed.follow_ups.iter_mut())
+    {
+        let (text, used) = crate::knowledge::validate_answer_citations(&item.text, &current);
+        item.text = text;
+        for citation in used {
+            if !cited
+                .iter()
+                .any(|c: &crate::knowledge::KnowledgeCitation| c.page_slug == citation.page_slug)
+            {
+                cited.push(citation);
+            }
+        }
+    }
     let normalized = serde_json::to_string(&parsed)?;
     let id = store.save_daily_review(date, DAILY_REVIEW_VERSION, &normalized, &source_event_ids)?;
+    crate::knowledge::record_usage(store, "daily_review", &id, &candidates, &cited)?;
     Ok(DailyReviewResult::Created { id })
 }
 
@@ -892,7 +921,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
         };
         // 上下文构建属于分析任务的一部分：失败不能把已 claim 的 job
         // 孤悬为 running（否则要等下次启动才 recover），记入 last_error 放回重试。
-        let context = match decision_support_context(store) {
+        let (context, candidates) = match decision_support_material(store, &job.raw_text) {
             Ok(context) => context,
             Err(error) => {
                 store.fail_analysis(&job, &format!("决策上下文构建失败：{error}"))?;
@@ -904,13 +933,45 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
             context,
             job.raw_text
         );
-        match provider.generate_reply(vec![ContextMessage::new("user", prompt)]) {
+        let mut analysis_context = vec![
+            ContextMessage::new("system", crate::knowledge::CITATION_INSTRUCTIONS),
+            ContextMessage::new("user", prompt),
+        ];
+        if let Err(error) = crate::knowledge::bound_model_context(&mut analysis_context, 24000) {
+            store.fail_analysis(&job, &error.to_string())?;
+            continue;
+        }
+        match provider.generate_reply(analysis_context) {
             Ok(reply) => match EventAnalysisV1::parse(&reply.content) {
-                Ok(value) => {
+                Ok(mut value) => {
+                    let current = crate::knowledge::current_candidates(store, &candidates)?;
+                    let mut cited = Vec::new();
+                    for field in std::iter::once(&mut value.summary)
+                        .chain(value.clarifications.iter_mut())
+                        .chain(value.follow_ups.iter_mut())
+                    {
+                        let (text, used) =
+                            crate::knowledge::validate_answer_citations(field, &current);
+                        *field = text;
+                        for citation in used {
+                            if !cited.iter().any(|c: &crate::knowledge::KnowledgeCitation| {
+                                c.page_slug == citation.page_slug
+                            }) {
+                                cited.push(citation);
+                            }
+                        }
+                    }
                     store.complete_analysis(
                         &job,
                         &value.schema_version,
                         &serde_json::to_string(&value)?,
+                    )?;
+                    crate::knowledge::record_usage(
+                        store,
+                        "analysis",
+                        &job.event_id,
+                        &candidates,
+                        &cited,
                     )?;
                     if value.recordable && !value.people.is_empty() && !value.projects.is_empty() {
                         if let Some(conversation_id) =
@@ -969,22 +1030,20 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
 /// Build bounded, read-only context for Phase 4C. This makes existing rules and
 /// knowledge visible at the decision point while leaving all writes behind the
 /// existing confirmation gates.
-fn decision_support_context(store: &Store) -> Result<String> {
+fn decision_support_material(
+    store: &Store,
+    query: &str,
+) -> Result<(String, Vec<crate::knowledge::KnowledgeCitation>)> {
     let mut lines = Vec::new();
     for rule in store.list_active_rules()?.into_iter().take(8) {
-        lines.push(format!("- 已确认规则：{}", rule.content));
-    }
-    for page in store.list_wiki_pages(None, None)?.into_iter().take(8) {
         lines.push(format!(
-            "- 知识页 [{}]：{} — {}",
-            page.kind, page.title, page.summary
+            "- 已确认规则：{}",
+            rule.content.chars().take(500).collect::<String>()
         ));
     }
-    if lines.is_empty() {
-        Ok("（暂无已确认规则或知识页）".to_string())
-    } else {
-        Ok(lines.join("\n"))
-    }
+    let candidates = crate::knowledge::select_knowledge(store, query, "analysis", 2500)?;
+    lines.push(crate::knowledge::context_text(&candidates)?);
+    Ok((lines.join("\n"), candidates))
 }
 
 #[cfg(test)]
@@ -1169,6 +1228,39 @@ mod daily_review_tests {
     }
 
     #[test]
+    fn daily_review_keeps_only_actual_knowledge_citations() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let event = store
+            .insert_event(NewEvent::now("实践 SQLite 事务"))
+            .unwrap();
+        let page = crate::wiki::save_text_page(
+            "SQLite 事务需要验证提交边界",
+            Some("SQLite 事务"),
+            &[],
+            &store,
+        )
+        .unwrap();
+        let reply=serde_json::json!({"schema_version":"daily-review-v1","date":chrono::Local::now().date_naive().to_string(),
+            "accomplishments":[{"text":format!("完成 SQLite 实践 [[kb:{}]] [[kb:missing]]",page.slug),"source_event_ids":[event]}],
+            "ideas_decisions":[],"people_projects":[],"follow_ups":[]}).to_string();
+        let result = generate_daily_review_with_provider(
+            &store,
+            chrono::Local::now().date_naive(),
+            &StubProvider(Box::leak(reply.into_boxed_str())),
+        )
+        .unwrap();
+        let DailyReviewResult::Created { id } = result else {
+            panic!("review not created")
+        };
+        let citations = crate::knowledge::latest_citations(&store, "daily_review", &id).unwrap();
+        assert_eq!(citations.len(), 1);
+        assert_eq!(citations[0].page_slug, page.slug);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn event_analysis_v2_classifies_non_recordable_discussion() {
         let raw = r#"{"schema_version":"event-analysis-v2","recordable":false,"kind":"meta","event_type":"conversation","confidence":0.9,"summary":"用户在评价助手回复","clarifications":[],"people":[],"projects":[],"follow_ups":[]}"#;
         let parsed = EventAnalysisV1::parse(raw).unwrap();
@@ -1208,9 +1300,12 @@ mod daily_review_tests {
         store
             .upsert_wiki_page(&draft, ContentPolicy::Always)
             .unwrap();
-        let context = decision_support_context(&store).unwrap();
+        let (context, _) = decision_support_material(&store, "付款检查").unwrap();
         assert!(context.contains("先确认付款方再推进"));
-        assert!(context.contains("付款检查"));
+        assert!(
+            !context.contains("付款检查"),
+            "无来源的页面不能当作分析证据"
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }

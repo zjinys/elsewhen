@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../bridge/rust_bridge_repository.dart';
-import '../bridge/generated.dart/api.dart' show EntityFactDto;
+import '../bridge/api.dart' show EntityFactDto;
 import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
@@ -25,6 +25,8 @@ import 'wiki_reading_settings_dialog.dart';
 import 'wiki_ai_chat_panel.dart';
 import 'wiki_derivatives.dart';
 import 'markdown_view.dart';
+import 'knowledge_panel.dart';
+import 'knowledge_import.dart';
 
 /// 右侧知识库面板：多 tab。
 /// - 固定 Tab 1：导入（粘贴链接抓取或直接文本保存）
@@ -50,6 +52,7 @@ class _WikiPageDetailViewState extends ConsumerState<WikiPageDetailView> {
     return Column(
       children: [
         _WikiTabBar(tabs: tabs, activeId: active.id),
+        const Align(alignment: Alignment.centerRight, child: KnowledgeMaintenanceButton()),
         Expanded(
           // IndexedStack：所有 tab 的子树常驻，切 tab 不销毁详情页编辑器状态
           // （未保存的编辑切走再切回仍在；§6.3 未保存保护的前提）
@@ -637,17 +640,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
       // 先判断 URL 类型（推文走专用 API，普通链接走网页提取）；同时校验 http/https
       final kind = await repo.guessImportKind(url);
       if (kind == 'tweet') {
-        // 推文走专用路径（支持 author 展示 + slug 去重）
-        final existing = await repo.findTweetSourcePage(url);
-        if (!mounted) return;
-        if (existing != null) {
-          _urlController.clear();
-          openWikiPageTab(ref, existing);
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('知识库中已保存过该推文，已直接打开')));
-          widget.onCompleted?.call();
-          return;
-        }
+        // 重复导入仍抓取最新原文，保存时对照旧版本并由用户确认。
         final fetch = await repo.fetchTweet(url);
         if (!mounted) return;
         _urlController.clear();
@@ -1667,6 +1660,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
               _buildRelationsRow(context),
               // 标签直接展开，避免用户还要打开一个元数据折叠行。
               _buildTagRow(context),
+              KnowledgePageActions(page: widget.page),
             ],
           ),
         ),
@@ -2964,13 +2958,8 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
     });
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      final page = await repo.saveImportedPage(
-        title: widget.fetch.displayTitle,
-        contentMd: widget.fetch.contentMd,
-        sourceUrl: widget.fetch.sourceUrl,
-        sourceKind: widget.fetch.sourceKind,
-        tags: _parsedTags(),
-      );
+      final page = await saveKnowledgeImport(context, ref, widget.fetch, _parsedTags());
+      if (page == null) return;
       final inputRecordId = widget.fetch.inputRecordId;
       if (inputRecordId != null) {
         await repo.finishUrlInput(inputRecordId, wikiPageSlug: page.slug);
@@ -3268,14 +3257,22 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
     });
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      final page = await repo.saveTweetPage(
-        tweetId: widget.fetch.tweetId,
-        // 有 AI 整理版时入库整理版（原文不动，仅在预览层对照）
-        text: _beautified ?? widget.fetch.text,
+      final page = await saveKnowledgeImport(context, ref, ImportFetch(
+        sourceUrl: widget.fetch.url,
+        sourceKind: 'tweet',
+        contentMd: widget.fetch.text,
         title: widget.fetch.title,
         authorName: widget.fetch.authorName,
         screenName: widget.fetch.screenName,
-      );
+      ), const ['tweet']);
+      if (page == null) {
+        if (mounted) setState(() => _saving = false);
+        return;
+      }
+      if (_beautified != null) {
+        await repo.createWikiDerivative(basedOnSlug:page.slug,contentType:'summary',
+          title:'${page.title} · 整理稿',contentMd:_beautified!);
+      }
       final inputRecordId = widget.fetch.inputRecordId;
       if (inputRecordId != null) {
         await repo.finishUrlInput(inputRecordId, wikiPageSlug: page.slug);
@@ -3359,7 +3356,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
   }
 
   /// 「AI 整理为 Markdown」：复用一次性内容对话入口（固定指令，不进聊天历史、
-  /// 不写库）；结果只替换「保存入库的正文」，原文卡片保持可对照。
+  /// 不写库）；保存时原文仍保留，整理稿作为附有来源的独立产物保存。
   Future<void> _beautify() async {
     if (_beautifying || _saved || _saving) return;
     setState(() {
@@ -3643,7 +3640,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
               ),
               const Spacer(),
               Text(
-                '保存时将使用整理版',
+                '保存原文，整理稿另存为产物',
                 style: TextStyle(fontSize: 11, color: AppTheme.accentPrimary),
               ),
             ],

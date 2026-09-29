@@ -6,6 +6,8 @@ import 'package:elsewhen_ui/models/tweet_fetch.dart';
 import 'package:elsewhen_ui/models/wiki_page.dart';
 import 'package:elsewhen_ui/providers/wiki_provider.dart';
 import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
+import 'package:elsewhen_ui/providers/knowledge_provider.dart';
+import 'package:elsewhen_ui/bridge/api.dart' as api;
 
 /// 推文预览 tab 的本地渲染验证（不触达 FFI/网络）：
 /// 打开抓取结果的 tab 后应展示内容原文、保存按钮与对话输入区。
@@ -95,7 +97,7 @@ void main() {
     );
   });
 
-  testWidgets('AI 整理为 Markdown：预览整理版，保存入库整理后的正文', (tester) async {
+  testWidgets('AI 整理为 Markdown：保留原文，整理稿单独保存并关联来源', (tester) async {
     const fetch = TweetFetch(
       tweetId: '20',
       url: 'https://twitter.com/jack/status/20',
@@ -104,9 +106,13 @@ void main() {
       screenName: 'jack',
     );
     final repo = _FakeBeautifyRepo();
+    final sources = _FakeSourceRepo();
 
     final container = ProviderContainer(
-      overrides: [storageRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        storageRepositoryProvider.overrideWithValue(repo),
+        knowledgeRepositoryProvider.overrideWithValue(sources),
+      ],
     );
     addTearDown(container.dispose);
     container.read(wikiOpenTabsProvider.notifier).set([
@@ -123,25 +129,26 @@ void main() {
     );
     await tester.pump();
 
-    // 触发整理 → 显示 Markdown 预览卡 + 「保存用整理版」提示
+    // 触发整理 → 显示预览，并说明原文与整理稿分别保存。
     await tester.ensureVisible(find.text('AI 整理为 Markdown'));
     await tester.pump();
     await tester.tap(find.text('AI 整理为 Markdown'));
     await tester.pump();
     await tester.pump();
     expect(find.text('AI 整理结果（Markdown 预览）'), findsOneWidget);
-    expect(find.text('保存时将使用整理版'), findsOneWidget);
+    expect(find.text('保存原文，整理稿另存为产物'), findsOneWidget);
     expect(repo.chatContent, fetch.fullContent, reason: '整理请求以上下文+固定指令发起');
 
-    // 保存：入库的是整理后的 Markdown，而非原文
+    // 保存：来源原文保持完整，派生正文关联该来源。
     await tester.tap(find.text('保存到知识库'));
     await tester.pump();
     await tester.pump();
-    expect(repo.savedTweetId, '20');
+    expect(sources.savedRaw, fetch.text);
+    expect(repo.basedOnSlug, 'source/jack-20');
     expect(
       repo.savedText,
       _FakeBeautifyRepo.beautified,
-      reason: '有整理版时保存应入库整理后的 Markdown',
+      reason: '整理后的 Markdown 保存为派生产物',
     );
   });
 }
@@ -152,7 +159,7 @@ class _FakeBeautifyRepo extends RustBridgeRepository {
 
   String? chatContent;
   String? savedText;
-  String? savedTweetId;
+  String? basedOnSlug;
 
   @override
   Future<String> generateContentChat({
@@ -168,22 +175,21 @@ class _FakeBeautifyRepo extends RustBridgeRepository {
       const [];
 
   @override
-  Future<WikiPage> saveTweetPage({
-    required String tweetId,
-    required String text,
-    String? title,
-    String? authorName,
-    String? screenName,
+  Future<WikiPage> createWikiDerivative({
+    required String basedOnSlug,
+    required String contentType,
+    required String title,
+    required String contentMd,
   }) async {
-    savedTweetId = tweetId;
-    savedText = text;
+    this.basedOnSlug = basedOnSlug;
+    savedText = contentMd;
     return WikiPage(
       id: 'p1',
       slug: 'source/jack-20',
       kind: 'source',
       title: 'jack 的推文',
       summary: '',
-      contentMd: text,
+      contentMd: contentMd,
       tags: const [],
       sourceEventIds: const [],
       evidenceCount: 0,
@@ -192,6 +198,41 @@ class _FakeBeautifyRepo extends RustBridgeRepository {
       status: 'active',
       createdAt: DateTime(2025),
       updatedAt: DateTime(2025),
+      area: 'imported',
+    );
+  }
+}
+
+class _FakeSourceRepo extends KnowledgeRepository {
+  String? savedRaw;
+  @override
+  Future<api.SourceUpdatePreview> preview(String url, String content) async =>
+      const api.SourceUpdatePreview(changed: false);
+  @override
+  Future<api.WikiPageDto> confirmSource({
+    required String title,
+    required String contentMd,
+    required String sourceUrl,
+    required String sourceKind,
+    required List<String> tags,
+    String? expectedSnapshotId,
+  }) async {
+    savedRaw = contentMd;
+    return api.WikiPageDto(
+      id: 'p1',
+      slug: 'source/jack-20',
+      kind: 'source',
+      title: title,
+      summary: '',
+      contentMd: contentMd,
+      tags: [],
+      sourceEventIds: [],
+      evidenceCount: 0,
+      firstSeenAt: '2025-01-01',
+      lastSeenAt: '2025-01-01',
+      status: 'active',
+      createdAt: '2025-01-01',
+      updatedAt: '2025-01-01',
       area: 'imported',
     );
   }

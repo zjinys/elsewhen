@@ -6,7 +6,7 @@ import '../models/settings.dart';
 import '../models/token_usage.dart';
 import '../models/rule.dart';
 import '../bridge/rust_bridge_repository.dart';
-import '../bridge/generated.dart/api.dart' as api;
+import '../bridge/api.dart' as api;
 import '../widgets/custom_title_bar.dart';
 import '../widgets/font_picker_dialog.dart';
 import '../widgets/knowledge_digest_dialog.dart';

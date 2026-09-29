@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:elsewhen_ui/bridge/generated.dart/api.dart' as api;
+import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/data/storage_repository.dart';
 import 'package:elsewhen_ui/models/analysis.dart';
 

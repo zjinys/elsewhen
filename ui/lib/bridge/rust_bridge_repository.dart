@@ -18,7 +18,7 @@ import '../models/tweet_fetch.dart';
 import '../models/rule.dart';
 import '../models/relation.dart';
 import '../models/goal.dart';
-import 'generated.dart/api.dart' as api;
+import 'api.dart' as api;
 import 'generated.dart/frb_generated.dart';
 
 /// Rust bridge implementation of storage repository
@@ -297,6 +297,7 @@ class RustBridgeRepository implements StorageRepository {
         // 分析排空后再做知识消化：同一 worker 串行，避免与分析并发调用 provider；
         // 消化依赖分析结果（可记录性），先分析后消化也最省重试。
         await _drainKnowledgeDigest();
+        if (!_disposed && !_analysisRerunRequested) await api.tickKnowledgeInsights();
       } catch (e) {
         // Queue state remains durable; the next wake retries after startup or
         // the periodic timer without surfacing an error in the save path.

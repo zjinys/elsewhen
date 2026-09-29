@@ -17,7 +17,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:elsewhen_ui/bridge/generated.dart/api.dart' show EntityFactDto;
+import 'package:elsewhen_ui/bridge/api.dart' show EntityFactDto;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/models/relation.dart';
