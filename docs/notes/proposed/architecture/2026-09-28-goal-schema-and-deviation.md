@@ -23,14 +23,17 @@ Status: proposed
 
 `migrations/01-baseline/up.sql` 现有 27 处裸 `CREATE TABLE`、零 `IF NOT EXISTS`，这在「只跑一次」的语义下是正确的，不要为了防御性而批量加 `IF NOT EXISTS`——那会掩盖上面那个陷阱，而不是解决它。
 
+**版本的唯一真源是 `PRAGMA user_version`**，即文件头第 60 字节起的 4 个字节，语义是「1..N 全部已应用」，由 `goto_up` 与迁移 SQL 在同一事务里提交。库里没有第二张表在记版本——`rusqlite_migration` 全 crate 对 `schema_migrations` 出现 0 次。但冻结的基线第 1 行仍建着那张旧链的 `schema_migrations`（它声称「1–31」，而系统只有三条迁移，留着会误导所有后来打开库的人）。因为基线不能改，只能追加 `03-drop-legacy-migrations` 把它删掉——这正是「只追加、不改历史」的用处：**新库走完 v1 建、v3 删，与老库终态一致。**
+
 `from_directory` 消灭了另一方向的风险：**「新增了迁移却忘了登记」在官方方案里不可能发生**，因为根本没有手工登记表。代价是校验从编译期挪到了运行期，失误要等 app 启动才暴露。实测过它的两处校验都给出可操作的报错：序号跳号 → `Migration ids must be consecutive numbers`；子目录缺 `up.sql` → `Missing upward migration file for migration 03-y`。`migrations_validate()`（crate 官方的内置自检，把全部 up 迁移在内存库上从头跑一遍）保证这类错在 `cargo test` 阶段就炸。
 
 ### 2. 目标表作为版本 2 迁移追加
 
 ```
 migrations/
-├── 01-baseline/up.sql    冻结基线（原 schema.sql）
-└── 02-goals/up.sql       目标表与两个上限触发器
+├── 01-baseline/up.sql            冻结基线（原 schema.sql）
+├── 02-goals/up.sql               目标表与两个上限触发器
+└── 03-drop-legacy-migrations/up.sql   删掉旧链遗留的 schema_migrations 表
 ```
 
 ```rust
@@ -149,13 +152,13 @@ END;
 - **偏差评估的误报**是最大风险。用户正在推进目标但近期没聊到它，是最可能的假阳性，也是最招人烦的一种。FR-PES-005-06 验收场景已列该场景，实现时不得以「时间久没提及」替代「有无推进证据」。
 - **目标表与 FR-PES-005 Q3（是否成为一级导航）耦合**。Q3 已裁决：不新增一级导航，管理入口挂在对话区「今天」状态栏。代价是该入口是唯一入口，**0 目标时也必须可见**（显示为 accent 色的「目标」，不显示计数），否则功能不可发现。窄屏（实测 360px）第一行放不下三个带文案的按钮，窄屏下入口改落第二行。
 - **评估记录内联目标快照**会使记录随目标改写而重复占用空间；目标最多 3 条、单条为短文本，量级可接受，但若将来放宽上限需重新评估。
-- 现有数据库无法打开（基线文件无 `IF NOT EXISTS`，而历史库 `user_version=0`），按既定决策走导出/导入重建，不在本轮处理。
+- ~~现有数据库无法打开~~（已解决，见下）：基线文件无 `IF NOT EXISTS`，而活库 `user_version=0` 导致启动撞 `table already exists`。原计划走导出/导入重建，但实测走不通（导出需应用能启动，而它不能；且 `export_wiki` 只覆盖 `wiki_pages` + `wiki_log`，对话/事件/待办/规则无导出，重建只回来 36 个 wiki 页）。最终改为一次性脚本 `scripts/stamp-legacy-db.sh` 钉 `user_version = 1`，不进启动路径。
 
 ## 实施进展（本轮已落地）
 
 FR-PES-005-01 与 -02 已实现，-03（偏差检测）未动。
 
-- 迁移层 `src/storage/new_migrations.rs`：v1 冻结基线 + v2 `GOALS_V2`（`goals` 表、`idx_goals_status`、两个上限触发器），6 个测试。
+- 迁移层 `src/storage/new_migrations.rs`：`from_directory` 官方约定 + `migrations_validate()`，v1 冻结基线 / v2 目标表（`goals` 表、`idx_goals_status`、两个上限触发器，SQL 在 `migrations/02-goals/up.sql`）/ v3 删旧链版本表，11 个测试。
 - 存储层 `src/storage/goals.rs`：CRUD 与错误转译（`map_write_error` 把 `active_goal_limit_reached` 翻成中文，避免下划线标识冒到界面），9 个测试。
 - API 层 `src/api/goals.rs`：`GoalDto` + 6 个 FRB 函数。
 - Prompt 注入 `src/ai/memory.rs::build_system_prompt`，5 个测试（含反向护栏存在性、已归档不注入、与规则段措辞分离）。

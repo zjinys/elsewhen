@@ -793,6 +793,30 @@ v1 基线」，所以脚本先拿 `migrations/01-baseline/up.sql` 建一个参�
 数据 `events 90 / conversations 67 / wiki_pages 36 / todos 2 / rules 3` 一条没丢。
 备份留在 `~/.local/share/elsewhen/elsewhen.db.pre-stamp-20260929-093004`。
 
+### 顺带发现的化石表：`schema_migrations`（已删）
+
+修好之后用户问：那张表里有 30 条记录，实际不就两三个迁移文件吗？查下来确实
+自相矛盾，而且它有害：
+
+| | 记录什么 | 谁在用 |
+|---|---|---|
+| `schema_migrations` 表 | 30 行，版本 1–31 | **没有人** |
+| `PRAGMA user_version` | 2（现 3） | `rusqlite_migration`，唯一真源 |
+
+`rusqlite_migration` 全 crate 对该表 0 处引用，本仓代码也 0 处（唯一命中是基线
+第 1 行的 DDL，加上 stamp 脚本把它当**旧链指纹**读，不是当版本判断）。
+
+旧链自己的记录也不可信：30 行却声称覆盖 1–31，**中间缺 v22**，且全部
+`applied_at` 落在 6 毫秒内（`2026-09-28T03:16:14.658`~`.664`）——说明它不是
+逐版本演进的记录，只是建库时一次 `to_latest` 批量写下的副产品，没有时间信息。
+
+处置：加 `migrations/03-drop-legacy-migrations/up.sql` 直接 `DROP`。丢掉的 30 行
+是机器记账不是用户数据，旧链那 31 段 SQL 完整保存在 git 历史（`6dbc582` 删除
+`src/storage/migrations.rs` 之前的版本）。**基线冻结、不得改，所以只能在 v3 里
+删**——新库走完 v1 建、v3 删，与老库终态一致，这正是「只追加、不改历史」的用处，
+也正是修好 `user_version` 之后拿到的第一个实际收益：从 09-28 起第一次能正经
+通过迁移改表了。
+
 ## 目标与偏差检测（FR-PES-005）落地后的待办（2026-09-29）
 
 本轮只做了 FR-PES-005-01（目标管理）与 -02（目标进对话记忆），-03 的评估快照、
