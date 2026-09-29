@@ -709,7 +709,7 @@ context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是�
 
 
 
-## 旧库开不起来：user_version=0 的活库（2026-09-29，**未修，等裁决**）
+## 旧库开不起来：user_version=0 的活库（2026-09-29，**已修**）
 
 ### 症状与根因
 
@@ -754,18 +754,44 @@ context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是�
 不动任何数据 → 开库成功，`user_version` 变 2（只补 v2 goals），
 `events 90 / conversations 67 / wiki_pages 36` 一条没丢。
 
-### 未决
+### 处置：方案 A，写成可复跑的校验脚本
 
-用户未选方案，此项**悬空**。三个现有备份（09-28 两份 events=86、09-23 一份
-events=66）的 `user_version` 也都是 0，**不能当「重建后的干净起点」**。
+用户选定 A。落地为 `scripts/stamp-legacy-db.sh`——一次性、显式、可审计，
+**不进 app 启动路径**（理由见下）。
 
-候选：
-- A. 钉 `user_version = 1`，原地保留。改代码为零，但需要一条显式、可审计的
-  命令（或 `scripts/` 下的一次性脚本），且**不能**放进应用启动路径。
-- B. 重建，接受丢 154 条记录。
-- 自动检测「有表但 user_version=0 就自动补版本」**否决**：这正是本仓已走过并
-  记录的弯路——在 Rust 侧自建版本判断去绕开 `rusqlite_migration`。它会静默
-  改写版本元数据，把「谎报」变成「自动生效的谎报」。
+脚本不是一行 `PRAGMA user_version = 1`。钉版本号等于断言「这个库的结构已经是
+v1 基线」，所以脚本先拿 `migrations/01-baseline/up.sql` 建一个参照库，逐项比对
+表集合、每张表的列定义、索引、触发器，**全等才写**；不等就打印 diff 并拒绝。
+写之前先 `cp -p` 备份，写入在 `BEGIN IMMEDIATE` 写锁内复查一遍 `user_version`。
+七个用例实测：正常旧库通过；删表 / 多一列 / 改列类型 / 删索引 / 多触发器 /
+`schema_migrations` 为空，六种都被拒绝且确实没写版本号。
+
+**自动检测「有表但 user_version=0 就补版本」仍然否决**，这与选 A 不矛盾：
+- rusqlite_migration 官方 README 的 Limits 第 1 条明确划界——`user_version` 被
+  本程序或任何其他库改动过，行为 unspecified。
+- 在 Rust 侧自建版本判断等于绕开 `rusqlite_migration` 自己管版本，本仓已走过
+  并记录过这个弯路。
+- 自动改写会把「谎报」变成「自动生效的谎报」，静默且不可审计。人工跑一次
+  脚本，留下的是一次有备份、有比对、有输出的显式操作。
+
+### 实施时踩到的两个坑
+
+1. **`pragma_table_info(m.name)` 这个表值函数不带 schema 限定**。拿
+   `ref.sqlite_master` 的行去喂它，它仍然去读 `main` 里的同名表，于是两侧列
+   集合永远相同、`EXCEPT` 恒为空——给 `todos` 多加一列都测不出来（假阴性，
+   实测漏检过）。改成逐表用**字面量**表名调 `PRAGMA table_info` 才可靠。
+2. **`RAISE()` 只能在校验约束的触发器里用**。原本想用它做「`user_version`
+   不是 0 就中止」，在触发器外是语法错误。改用一条 `CHECK` 约束把条件不满足
+   变成失败的 `INSERT`，配合 `sqlite3 -bail` 非零退出、事务随连接关闭回滚。
+
+### 结果
+
+活库 `user_version: 0 → 1`，走真实 `Store::open` 后 `uv=2`、`goals` 表与两个
+上限触发器就位。与备份逐字节比对只差 5 个字节：1 个是 `user_version` 本身，
+另外 3 个（+1 个改动计数器）是 SQLite 自己的记账字段
+（`SQLITE_VERSION_NUMBER` 等），**没有一个页内容变过**。
+数据 `events 90 / conversations 67 / wiki_pages 36 / todos 2 / rules 3` 一条没丢。
+备份留在 `~/.local/share/elsewhen/elsewhen.db.pre-stamp-20260929-093004`。
 
 ## 目标与偏差检测（FR-PES-005）落地后的待办（2026-09-29）
 
