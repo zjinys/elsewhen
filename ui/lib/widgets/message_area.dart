@@ -13,6 +13,7 @@ import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/goal_provider.dart';
+import '../utils/error_report.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
@@ -1790,8 +1791,9 @@ class _MessageBubble extends ConsumerWidget {
       }
     } catch (error) {
       if (context.mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('操作失败：$error')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(reportUiError('更新消息状态', error))));
     }
   }
 

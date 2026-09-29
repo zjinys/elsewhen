@@ -9,6 +9,7 @@ import 'models/settings.dart';
 import 'screens/main_screen.dart';
 import 'providers/app_provider.dart';
 import 'providers/settings_provider.dart';
+import 'utils/error_report.dart';
 import 'utils/system_fonts.dart';
 
 /// 移动端 / 通用入口：不可达任何 nativeapi 引用（其 FFI 结构会让
@@ -16,6 +17,9 @@ import 'utils/system_fonts.dart';
 /// 在 main_desktop.dart 里初始化，桌面构建用 --target=lib/main_desktop.dart。
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 漏网异常（widget 构建失败、没 await 的 Future）也要进诊断日志，
+  // 必须在 runApp 之前装。
+  installGlobalErrorHandlers();
 
   final config = AppConfig.fromArgs(args);
 

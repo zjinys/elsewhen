@@ -10,6 +10,7 @@ import '../bridge/api.dart' as api;
 import '../widgets/custom_title_bar.dart';
 import '../widgets/font_picker_dialog.dart';
 import '../widgets/knowledge_digest_dialog.dart';
+import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
 import '../theme/app_theme.dart';
 
@@ -233,7 +234,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('删除失败：$e')));
+          .showSnackBar(SnackBar(content: Text(reportUiError('删除规则', e))));
     }
   }
 
@@ -902,8 +903,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('切换激活失败：$e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(reportUiError('切换 Provider', e))));
     }
   }
 
@@ -936,8 +938,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('删除失败：$e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(reportUiError('删除 Provider', e))));
     }
   }
 
@@ -1090,8 +1093,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('保存失败：$e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            // save_ai_provider_config 的三条校验是刻意写给用户看的
+            // （配置名称不能为空 / base_url 和 model 均不能为空 /
+            // 新建配置时必须填写 API Key），隐藏它们等于让用户瞎猜。
+            reportUiError('保存 Provider', e, showDetail: true),
+          ),
+        ),
+      );
     }
   }
 
@@ -1359,7 +1370,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('保存失败：$e'),
+                  content: Text(reportUiError('保存推文抓取服务', e)),
                   backgroundColor: AppTheme.error,
                   behavior: SnackBarBehavior.floating,
                   shape: const RoundedRectangleBorder(

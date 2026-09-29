@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../bridge/api.dart' show EntityFactDto;
+import '../utils/error_report.dart';
 import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
@@ -2256,8 +2257,9 @@ class _EntityMergeControls extends ConsumerWidget {
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('合并失败：$error')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(reportUiError('合并实体', error))));
       }
     }
   }
@@ -2302,8 +2304,9 @@ class _EntityMergeControls extends ConsumerWidget {
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('无法安全撤销：$error')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(reportUiError('撤销合并', error))));
       }
     }
   }

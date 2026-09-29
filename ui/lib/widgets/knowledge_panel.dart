@@ -7,8 +7,18 @@ import '../models/wiki_page.dart';
 import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
 import 'markdown_view.dart';
+import '../utils/error_report.dart';
 
-String _error(Object error) => error.toString().replaceFirst('Exception: ', '');
+/// 异常出口：诊断进日志，界面只见通用文案。
+///
+/// [context] 是中文短动作标签，只进日志和通用文案，不放细节——
+/// 异常原文（SQL 语句、数据库绝对路径、provider 返回体）一律不进界面。
+///
+/// [showDetail] 逐站点显式开：只给「Rust 侧这条路径只 bail 可读领域文案」
+/// 的站点用（见 [reportUiError] 的说明）。目前全仓只有两处：保存 Provider
+/// 的三条表单校验、处理提案的来源变更提示。
+String _error(Object error, {String context = '操作', bool showDetail = false}) =>
+    reportUiError(context, error, showDetail: showDetail);
 
 Future<void> showKnowledgeText(
   BuildContext context,
@@ -37,8 +47,9 @@ Future<void> _openPage(BuildContext context, WidgetRef ref, String slug) async {
     Navigator.of(context).pop();
   } catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(_error(error))));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_error(error, context: '打开知识页'))));
     }
   }
 }
@@ -51,7 +62,11 @@ Future<void> _showEvent(BuildContext context, WidgetRef ref, String id) async {
     await showKnowledgeText(context, '来源记录', event?.rawText ?? '来源记录不存在');
   } catch (error) {
     if (context.mounted) {
-      await showKnowledgeText(context, '读取失败', _error(error));
+      await showKnowledgeText(
+        context,
+        '读取失败',
+        _error(error, context: '读取来源记录'),
+      );
     }
   }
 }
@@ -91,8 +106,9 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(_error(error))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_error(error, context: '打开知识页'))),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -169,7 +185,8 @@ class KnowledgePageDialog extends ConsumerWidget {
             Expanded(
               child: details.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Center(child: Text(_error(error))),
+                error: (error, _) =>
+                    Center(child: Text(_error(error, context: '读取来源记录'))),
                 data: (data) => DefaultTabController(
                   length: 3,
                   initialIndex: initialTab,
@@ -302,7 +319,13 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
       _refresh(ref, saved?.slug ?? widget.proposal.targetSlug);
       if (saved != null) openWikiPageTab(ref, WikiPage.fromDto(saved));
     } catch (error) {
-      if (mounted) setState(() => _failure = _error(error));
+      // resolve() 的失败是领域结论（来源已更新/被拒绝 → 请重新生成建议），
+      // 用户必须看到具体是哪一条，否则只能反复点确认。
+      if (mounted) {
+        setState(
+          () => _failure = _error(error, context: '处理提案', showDetail: true),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -337,7 +360,11 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                     }
                   } catch (error) {
                     if (context.mounted) {
-                      await showKnowledgeText(context, '读取失败', _error(error));
+                      await showKnowledgeText(
+                        context,
+                        '读取失败',
+                        _error(error, context: '读取页面正文'),
+                      );
                     }
                   }
                 },
@@ -367,7 +394,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                           await showKnowledgeText(
                             context,
                             '读取失败',
-                            _error(error),
+                            _error(error, context: '读取素材快照'),
                           );
                         }
                       }
@@ -427,7 +454,11 @@ class _IssueTile extends ConsumerWidget {
           if (context.mounted) _refresh(ref, issue.pageSlug);
         } catch (error) {
           if (context.mounted) {
-            await showKnowledgeText(context, '操作失败', _error(error));
+            await showKnowledgeText(
+              context,
+              '操作失败',
+              _error(error, context: '忽略检查项'),
+            );
           }
         }
       },
@@ -443,7 +474,8 @@ class _RevisionList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => ref
       .watch(knowledgeRevisionsProvider(slug))
       .when(
-        error: (error, _) => Center(child: Text(_error(error))),
+        error: (error, _) =>
+            Center(child: Text(_error(error, context: '读取修订记录'))),
         loading: () => const Center(child: CircularProgressIndicator()),
         data: (items) => ListView(
           children: [
@@ -484,7 +516,11 @@ class _OpinionControl extends ConsumerWidget {
               if (context.mounted) _refresh(ref, page.slug);
             } catch (error) {
               if (context.mounted) {
-                await showKnowledgeText(context, '操作失败', _error(error));
+                await showKnowledgeText(
+                  context,
+                  '操作失败',
+                  _error(error, context: '记录观点'),
+                );
               }
             }
           },
@@ -545,7 +581,7 @@ class _MetadataEditorState extends ConsumerState<_MetadataEditor> {
           .metadata(widget.slug, _conditions.text, _strength);
       if (mounted) _refresh(ref, widget.slug);
     } catch (error) {
-      if (mounted) setState(() => _failure = _error(error));
+      if (mounted) setState(() => _failure = _error(error, context: '保存元数据'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -624,7 +660,7 @@ class _MaintenanceDialog extends ConsumerWidget {
                 children: [
                   proposals.when(
                     loading: () => const LinearProgressIndicator(),
-                    error: (e, _) => Text(_error(e)),
+                    error: (e, _) => Text(_error(e, context: '读取提案')),
                     data: (items) => Column(
                       children: [
                         if (items.isEmpty) const Text('暂无待审建议。'),
@@ -637,7 +673,7 @@ class _MaintenanceDialog extends ConsumerWidget {
                   const Text('来源检查'),
                   issues.when(
                     loading: () => const LinearProgressIndicator(),
-                    error: (e, _) => Text(_error(e)),
+                    error: (e, _) => Text(_error(e, context: '读取检查项')),
                     data: (items) => Column(
                       children: [
                         if (items.isEmpty) const Text('未发现来源问题。'),
@@ -649,7 +685,7 @@ class _MaintenanceDialog extends ConsumerWidget {
                   const Text('自动洞察运行记录'),
                   runs.when(
                     loading: () => const LinearProgressIndicator(),
-                    error: (e, _) => Text(_error(e)),
+                    error: (e, _) => Text(_error(e, context: '读取洞察记录')),
                     data: (items) => Column(
                       children: [
                         if (items.isEmpty) const Text('积累事件后由后台自动检查，无需手动触发。'),
@@ -754,7 +790,11 @@ class KnowledgeCitationsButton extends ConsumerWidget {
         );
       } catch (error) {
         if (context.mounted) {
-          await showKnowledgeText(context, '读取失败', _error(error));
+          await showKnowledgeText(
+            context,
+            '读取失败',
+            _error(error, context: '读取来源事件'),
+          );
         }
       }
     },

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'main.dart' show ElsewhenApp;
 import 'models/app_config.dart';
 import 'screens/capture_screen.dart';
+import 'utils/error_report.dart';
 import 'utils/window_service.dart';
 import 'utils/window_service_desktop.dart';
 
@@ -18,6 +19,8 @@ import 'utils/window_service_desktop.dart';
 /// 没有 nativeapi；桌面构建用 --target=lib/main_desktop.dart。
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 漏网异常也要进诊断日志；此处早于窗口 chrome 初始化，任何一步崩掉都能记到。
+  installGlobalErrorHandlers();
 
   // 注册桌面窗口实现（nativeapi），必须在任何 WindowService() 使用之前。
   WindowService.register(DesktopWindowService());
