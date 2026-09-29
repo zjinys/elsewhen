@@ -29,3 +29,23 @@ dart_root: ui
 # 十几个函数与 DTO 类的定义，表现为下游上百个 undefined_function/undefined_class。
 # 目前靠手工在 `api.dart` 顶部补 export 解决（那里有注释说明）。重跑 codegen 后如果
 # `flutter analyze` 冒出一大批 undefined，先看是不是这段 export 被覆盖了。
+#
+# ⚠️ 上面的 CPATH 会污染 cargo expand 里的 cc 编译步骤：cc 是 gcc，却读到了 clang
+# 的 stddef.h（里面的 __has_feature / __building_module 是 clang 专有宏），重编
+# sqlite3.c 时报 `'size_t' undeclared`，最终 codegen 报
+# `Error: cargo expand returned empty output`。所以两条必须同时给，且用一个
+# 剥掉 CPATH 的 cc wrapper（不落盘，单行内联）：
+#   printf '#!/bin/bash\nexec env -u CPATH cc "$@"\n' > /tmp/cc-nopath.sh
+#   chmod +x /tmp/cc-nopath.sh
+#   CPATH=/usr/lib/clang/22/include CC=/tmp/cc-nopath.sh \
+#     flutter_rust_bridge_codegen generate
+# 单纯清掉 CPATH 则 ffigen 找不到 stdbool.h，改成缺了 CPATH 的另一种失败。
+#
+# ⚠️ 必须在仓库根运行，不能在 ui/ 下运行，否则报 `Please provide rust_input`。
+#
+# ⚠️ codegen 之后必须重编 release 的 cdylib：Dart 测试加载的是 target/release/ 下
+# 那份，不是 debug。忘了重编会看到
+# `Content hash on Dart side ... is different from Rust side`（看起来像 FFI 坏了，
+# 实际只是 .so 比 Dart 生成代码旧）。
+#   cargo build --release --lib
+
