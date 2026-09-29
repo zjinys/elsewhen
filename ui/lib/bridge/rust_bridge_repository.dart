@@ -17,6 +17,7 @@ import '../models/token_usage.dart';
 import '../models/tweet_fetch.dart';
 import '../models/rule.dart';
 import '../models/relation.dart';
+import '../models/goal.dart';
 import 'generated.dart/api.dart' as api;
 import 'generated.dart/frb_generated.dart';
 
@@ -782,6 +783,42 @@ class RustBridgeRepository implements StorageRepository {
   );
 
   Future<bool> deleteTodo(String id) => api.deleteTodo(id: id);
+
+  // ── 目标（FR-PES-005-01）──
+
+  /// 列出全部活跃目标（最多 3 条）
+  Future<List<Goal>> listActiveGoals() async {
+    final dtos = await api.listActiveGoals();
+    return dtos.map(Goal.fromDto).toList();
+  }
+
+  /// 列出已归档目标（历史）
+  Future<List<Goal>> listArchivedGoals() async {
+    final dtos = await api.listArchivedGoals();
+    return dtos.map(Goal.fromDto).toList();
+  }
+
+  /// 新建目标。活跃目标已满 3 条时后端拒绝，错误信息为可展示的中文。
+  Future<Goal> createGoal({
+    required String content,
+    required GoalPhase phase,
+  }) async {
+    final dto = await api.createGoal(content: content, phase: phase.wire);
+    return Goal.fromDto(dto);
+  }
+
+  /// 编辑目标正文与阶段（状态不变，故不受上限限制）
+  Future<void> updateGoal({
+    required String id,
+    required String content,
+    required GoalPhase phase,
+  }) => api.updateGoal(id: id, content: content, phase: phase.wire);
+
+  /// 归档目标，让出活跃名额但保留为历史
+  Future<void> archiveGoal(String id) => api.archiveGoal(id: id);
+
+  /// 复活已归档目标。活跃目标已满 3 条时后端拒绝。
+  Future<void> reactivateGoal(String id) => api.reactivateGoal(id: id);
 
   Future<WikiPage> openTodoWorkItem(String id) async {
     final dto = await api.openTodoWorkItem(id: id);

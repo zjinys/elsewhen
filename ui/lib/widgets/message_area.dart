@@ -12,11 +12,13 @@ import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../providers/todo_provider.dart';
+import '../providers/goal_provider.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
 import 'markdown_view.dart';
 import 'todo_view.dart';
+import 'goal_view.dart';
 
 String? explicitTopicName(String text) {
   final match =
@@ -234,6 +236,23 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                   width: 620,
                   height: 560,
                   child: TodoListView(),
+                ),
+              ),
+            ),
+          ),
+          onOpenGoals: () => showDialog<void>(
+            context: context,
+            builder: (_) => Dialog(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 560,
+                  maxHeight: 560,
+                ),
+                child: const SizedBox(
+                  width: 560,
+                  height: 560,
+                  // 目标条数上限 3，弹窗不会过高；仍包一层滚动以容纳历史列表。
+                  child: SingleChildScrollView(child: GoalListView()),
                 ),
               ),
             ),
@@ -1067,6 +1086,7 @@ class _NowStatus extends ConsumerWidget {
   final bool showSearch;
   final VoidCallback? onOpenDrafts;
   final VoidCallback? onOpenTodos;
+  final VoidCallback? onOpenGoals;
   final VoidCallback? onOpenTopics;
   final VoidCallback? onToggleSearch;
   final VoidCallback? onCopyAll;
@@ -1075,6 +1095,7 @@ class _NowStatus extends ConsumerWidget {
     this.showSearch = false,
     this.onOpenDrafts,
     this.onOpenTodos,
+    this.onOpenGoals,
     this.onOpenTopics,
     this.onToggleSearch,
     this.onCopyAll,
@@ -1089,6 +1110,10 @@ class _NowStatus extends ConsumerWidget {
         .length;
     final activeProvider = ref.watch(activeAiProviderProvider).value;
     final tokenUsage = ref.watch(todayTokenUsageProvider).value;
+    final activeGoals = ref.watch(activeGoalsProvider).value ?? const [];
+    // 目标为空时入口仍必须显示：目标功能没有独立一级 tab，这里是唯一入口，
+    // 显示为「目标 0」会让人以为无路可走。
+    final goalLabel = activeGoals.isEmpty ? '目标' : '目标${activeGoals.length}';
     final draftCount = (ref.watch(pendingActionsProvider).value ?? const [])
         .where((action) => action.action == 'save_knowledge_draft')
         .length;
@@ -1144,6 +1169,30 @@ class _NowStatus extends ConsumerWidget {
                     ),
                   ),
                   if (!compact) ...[
+                    // 目标入口在宽屏才与草稿、待办并排：窄屏第一行放不下三个带文案的
+                    // 按钮（实测 360px 下会溢出 51px），窄屏改由第二行承载。
+                    const SizedBox(width: 6),
+                    TextButton.icon(
+                      onPressed: onOpenGoals,
+                      icon: Icon(
+                        Icons.flag_outlined,
+                        size: 16,
+                        color: activeGoals.isEmpty
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textSecondary,
+                      ),
+                      label: Text(
+                        goalLabel,
+                        style: TextStyle(
+                          color: activeGoals.isEmpty
+                              ? AppTheme.accentPrimary
+                              : AppTheme.textSecondary,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
                     //const SizedBox(width: 14),
                     // TextButton(
                     //   onPressed: onOpenTopics,
@@ -1274,7 +1323,33 @@ class _NowStatus extends ConsumerWidget {
                   padding: const EdgeInsets.only(top: 2),
                   child: Row(
                     children: [
+                      // 窄屏时目标入口落在第二行：它没有独立一级 tab，这里是唯一入口，
+                      // 空态也必须可见（故空态只显示「目标」，且用 accent 着色）。
+                      TextButton.icon(
+                        onPressed: onOpenGoals,
+                        icon: Icon(
+                          Icons.flag_outlined,
+                          size: 14,
+                          color: activeGoals.isEmpty
+                              ? AppTheme.accentPrimary
+                              : AppTheme.textTertiary,
+                        ),
+                        label: Text(
+                          goalLabel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: activeGoals.isEmpty
+                                ? AppTheme.accentPrimary
+                                : AppTheme.textTertiary,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                      ),
                       if (activeProvider != null) ...[
+                        const SizedBox(width: 8),
                         Icon(
                           Icons.smart_toy_outlined,
                           size: 14,
@@ -1317,6 +1392,8 @@ class _NowStatus extends ConsumerWidget {
                         const SizedBox(width: 5),
                         Text(
                           'Token ${_formatTokens(tokenUsage.totalTokens)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12,
                             color: AppTheme.textSecondary,
