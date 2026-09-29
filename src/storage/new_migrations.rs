@@ -1,59 +1,31 @@
 //! 数据库 schema 的引导与版本化迁移。
 //!
-//! `schema.sql` 是**冻结的 v1 基线**，只作为版本 1 应用一次，之后不得再改：
+//! 每个版本一个 SQL 文件，放在仓库根的 [`migrations/`](../../migrations)：
+//! `NNNN_描述.sql`，`NNNN` 即 [`MIGRATION_LIST`] 里的序号，加版本就是加文件。
+//! 迁移正文不放 Rust 源码里——`goals` 那条一度写成内联 `const GOALS_V2: &str`，
+//! 于是 SQL 正文、解释它为什么这么写的注释、以及触发器里那个上限字面量被拆在
+//! 三个地方，改一处要同时看两个文件。
+//!
+//! **`0001_schema.sql` 是冻结的基线**，只作为版本 1 应用一次，之后不得再改：
 //! `to_latest` 对任何 `user_version >= 1` 的库都会跳过它，所以改它对已有库
 //! 完全无效——新库会带上改动，老库静默缺表缺列且不报任何错。
-//! 后续一切 schema 变更都在 [`MIGRATION_LIST`] 末尾追加新版本。
+//! 后续一切 schema 变更都在 [`MIGRATION_LIST`] 末尾追加新文件。
 
 use anyhow::Result;
 use rusqlite::Connection;
 use rusqlite_migration::{Migrations, M};
 
-/// v2：目标表与活跃目标上限（FR-PES-005-01）。
-///
-/// `phase` 是标签不是槽位，故刻意不加 `UNIQUE(phase)`：同一阶段可以有多条活跃
-/// 目标，只要活跃总数不超过 3，且不要求三个阶段都有。
-const GOALS_V2: &str = r#"
-CREATE TABLE goals (
-  id TEXT PRIMARY KEY,
-  content TEXT NOT NULL CHECK(length(trim(content)) > 0),
-  phase TEXT NOT NULL CHECK(phase IN ('near','mid','long')),
-  status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','superseded')),
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  superseded_at TEXT
-);
-CREATE INDEX idx_goals_status ON goals(status);
-
--- 活跃集上限 3 条，在数据库层强制而非 Rust 侧数一遍：应用层的 count-then-insert
--- 是 check-then-insert 竞态，本仓库已为此修过两处。触发器写法沿用 schema.sql 里
--- 既有的 prevent_raw_event_mutation（RAISE(ABORT, ...)）。
---
--- 需要两个触发器：新增走 INSERT，但复活一条已归档目标是对既有行改 status，只挡
--- INSERT 会漏掉这条路径。UPDATE 那个的 WHEN 必须排除「状态没变」的情形
--- （OLD.status='active'，即编辑一条活跃目标的正文），否则正常编辑会被误计入上限。
-CREATE TRIGGER goals_cap_active_insert
-BEFORE INSERT ON goals WHEN NEW.status = 'active'
-BEGIN
-  SELECT CASE WHEN (SELECT COUNT(*) FROM goals WHERE status='active') >= 3
-    THEN RAISE(ABORT, 'active_goal_limit_reached') END;
-END;
-
-CREATE TRIGGER goals_cap_active_update
-BEFORE UPDATE OF status ON goals
-WHEN NEW.status='active' AND OLD.status <> 'active'
-BEGIN
-  SELECT CASE WHEN (SELECT COUNT(*) FROM goals WHERE status='active') >= 3
-    THEN RAISE(ABORT, 'active_goal_limit_reached') END;
-END;
-"#;
-
 /// 触发器拒绝写入时使用的标识，存储层据此把错误翻成人话。
 pub(crate) const ACTIVE_GOAL_LIMIT_REACHED: &str = "active_goal_limit_reached";
 
+/// v1：基线。**冻结，不得再改**——见模块文档。
+const V1_BASELINE: &str = include_str!("../../migrations/0001_schema.sql");
+/// v2：goals 表与活跃上限触发器。
+const V2_GOALS: &str = include_str!("../../migrations/0002_goals.sql");
+
 static MIGRATION_LIST: &[M<'static>] = &[
-    M::up(include_str!("../../schema.sql")).comment("v1: 当前 schema 基线，已冻结，不得修改"),
-    M::up(GOALS_V2).comment("v2: goals 表与活跃上限触发器"),
+    M::up(V1_BASELINE).comment("v1: 基线，已冻结，不得修改"),
+    M::up(V2_GOALS).comment("v2: goals 表与活跃上限触发器"),
 ];
 
 pub(crate) fn initialize(connection: &mut Connection) -> Result<()> {
@@ -97,10 +69,60 @@ mod tests {
     fn trigger_cap_literal_matches_the_error_message_constant() {
         let needle = format!(">= {}", crate::storage::MAX_ACTIVE_GOALS);
         assert_eq!(
-            GOALS_V2.matches(&needle).count(),
+            V2_GOALS.matches(&needle).count(),
             2,
             "两个触发器都应按 MAX_ACTIVE_GOALS 封顶；若你改了上限，\
-             改 `goals.rs` 常量后忘了同步触发器字面量，这里会失败"
+             改 `goals.rs` 常量后忘了同步 \
+             `migrations/0002_goals.sql` 里的触发器字面量，这里会失败"
+        );
+    }
+
+    /// 迁移文件与 `MIGRATION_LIST` 必须一一对应、序号连续。
+    ///
+    /// 漏登记是最阴的那种错：`include_str!` 不会报错，多出来的那个文件只是永远
+    /// 不被执行，`cargo test` 全绿、新库却少一张表。文件名序号跳号同理——改的人
+    /// 会以为 `0003` 排在 `0002` 前面，而实际是字母序。
+    #[test]
+    fn every_migration_file_is_registered_in_order() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+        let mut files: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap_or_else(|e| panic!("读不到 {}：{e}", dir.display()))
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(".sql"))
+            .collect();
+        files.sort();
+
+        assert_eq!(
+            files.len(),
+            MIGRATION_LIST.len(),
+            "migrations/ 下有 {} 个 .sql（{files:?}），MIGRATION_LIST 只登记了 {} 条。\
+             加了文件忘了登记，那个版本会静默不执行。",
+            files.len(),
+            MIGRATION_LIST.len()
+        );
+        for (index, file) in files.iter().enumerate() {
+            assert!(
+                file.starts_with(&format!("{:04}_", index + 1)),
+                "第 {index} 条迁移的文件名应以 {:04}_ 开头，实际 {file}（按文件名排序即执行顺序）",
+                index + 1
+            );
+        }
+    }
+
+    /// `MIGRATION_LIST` 里的两条常量确实来自那两个文件，而不是某人复制粘贴的副本。
+    #[test]
+    fn migration_consts_carry_their_files_content() {
+        assert!(
+            V1_BASELINE.contains("CREATE TABLE events"),
+            "v1 应是基线（现 `migrations/0001_schema.sql` 的内容）"
+        );
+        assert!(
+            V2_GOALS.contains("CREATE TABLE goals"),
+            "v2 应是 goals 迁移"
+        );
+        assert!(
+            !V1_BASELINE.contains("CREATE TABLE goals"),
+            "goals 属于 v2，混进冻结的 v1 基线会让老库静默多出表"
         );
     }
 

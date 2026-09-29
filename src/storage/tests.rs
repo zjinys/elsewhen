@@ -1189,7 +1189,7 @@ fn entity_merge_rejects_invalid_targets_and_undo_is_atomic_after_changes() {
 /// `entity_merges` 对 `(entity_kind, source_slug)` **不设** UNIQUE。
 ///
 /// 早期结构带这个唯一约束，导致同一个源实体第二次合并时插入直接失败。
-/// 约束是历史迁移拆表去掉的，现在固化在 `schema.sql` 里，所以这个测试盯住
+/// 约束是历史迁移拆表去掉的，现在固化在 `migrations/0001_schema.sql` 里，所以这个测试盯住
 /// 「约束没被加回来」+「审计快照仍在」两件事。
 #[test]
 fn entity_merges_allows_repeated_merge_of_same_source_and_keeps_audit() {
@@ -1806,7 +1806,7 @@ fn message_ordering_is_deterministic_on_same_timestamp() {
 fn wiki_pages_schema_exposes_human_edited_at_and_opinion() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();
-    // v29 引入的这两列已固化进 schema.sql，读取路径不得因缺列而报错
+    // v29 引入的这两列已固化进 migrations/0001_schema.sql，读取路径不得因缺列而报错
     let columns = {
         let mut statement = store
             .connection
