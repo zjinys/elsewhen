@@ -36,6 +36,7 @@ fn native_reply(content: &str, name: &str, args: Value) -> AiReply {
         model: None,
         usage: None,
         reasoning_content: None,
+        finish_reason: None,
     }
 }
 
@@ -477,6 +478,7 @@ fn empty_compatibility_attempt_is_counted_in_usage() {
             total_tokens: n + 10,
         }),
         reasoning_content: None,
+        finish_reason: None,
     };
     let provider = RecordingProvider::new(vec![with_usage("", 200), with_usage("这是答复", 300)]);
     let mut context = vec![ContextMessage::new("user", "你好")];

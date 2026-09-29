@@ -4,7 +4,7 @@ use super::memory::{
     compress_context, estimate_tokens, ContextMessage, MemoryProvider, SimpleMemory,
     SlidingWindowMemory,
 };
-use super::provider::{AiProvider, OllamaProvider, OpenAiCompatibleProvider, TokenUsage};
+use super::provider::{AiProvider, AiReply, OllamaProvider, OpenAiCompatibleProvider, TokenUsage};
 use super::tool::{
     dispatch, execute_pending_action, ToolCall, ToolPolicy, ToolRegistry, ToolResultMsg,
 };
@@ -398,6 +398,25 @@ pub fn generate_conversation_reply(
     Ok(content)
 }
 
+/// 上游声称「已调用工具」却没给出任何 `tool_calls`——响应被中转丢弃的签名。
+///
+/// 实测 2026-09-29：`hub.oaifree.com` + `gpt-4o`，只要模型决定调工具就返回
+/// `{"message":{"role":"assistant"},"finish_reason":"function_call"}`，
+/// `tool_calls` 字段整个不存在，`usage.completion_tokens` 照常有值。
+/// 8/8 复现，且同一请求换 provider 即正常。
+///
+/// 为什么值得单独识别：症状与「模型返回空」完全一致（`content` 空、
+/// `tool_calls` 空），但根因在上游——重发不会好转，只会白烧预算。
+/// 判据必须同时满足三条，缺一条就会把正常空回复误报成上游故障。
+fn dropped_tool_call_response(reply: &AiReply) -> bool {
+    reply.tool_calls.is_empty()
+        && reply.content.trim().is_empty()
+        && matches!(
+            reply.finish_reason.as_deref(),
+            Some("function_call") | Some("tool_calls")
+        )
+}
+
 /// 工具通信协议：原生 tool-calling 或文本信封
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ToolProtocol {
@@ -692,12 +711,23 @@ fn run_agent_loop_inner(
             reply
         };
         debug_eprintln!(
-            "[agent] round={_round} protocol={:?} content_len={} tool_calls={} model={:?}",
+            "[agent] round={_round} protocol={:?} content_len={} tool_calls={} finish_reason={:?} model={:?}",
             protocol,
             reply.content.chars().count(),
             reply.tool_calls.len(),
+            reply.finish_reason,
             reply.model
         );
+        if dropped_tool_call_response(&reply) {
+            // 只诊断、不改行为：重发多少次都一样，因为被丢的是响应本身而不是
+            // 模型的意愿。改行为（轮换 provider / 提前收敛）需要产品决策。
+            debug_eprintln!(
+                "[agent] 上游声称 {fr:?} 但 tool_calls 为空且无正文：响应被中转丢弃（completion_tokens={ct}），\
+                 重发不会好转——换模型或换中转才是解法",
+                fr = reply.finish_reason,
+                ct = reply.usage.as_ref().map(|u| u.completion_tokens).unwrap_or(0)
+            );
+        }
 
         // 原生 tool-calls：回传 assistant(tool_calls) + 工具结果
         if !reply.tool_calls.is_empty() {
@@ -2427,6 +2457,7 @@ mod tests {
                 model: Some("fake".to_string()),
                 usage: None,
                 reasoning_content: None,
+                finish_reason: None,
             }),
             Ok(AiReply::text("规则库查好了。")),
         ]);
@@ -2489,6 +2520,7 @@ mod tests {
                 model: None,
                 usage: None,
                 reasoning_content: None,
+                finish_reason: None,
             }),
             Ok(AiReply::text(format!(
                 "事务说明 [[kb:{}]] [[kb:invented]]",
@@ -2863,6 +2895,65 @@ mod tests {
         }
         drop(store);
         let _ = std::fs::remove_file(path);
+    }
+
+    fn reply_with(fr: Option<&str>, content: &str, tool_calls: Vec<ToolCall>) -> AiReply {
+        AiReply {
+            content: content.to_string(),
+            tool_calls,
+            model: Some("gpt-4o".to_string()),
+            usage: None,
+            reasoning_content: None,
+            finish_reason: fr.map(str::to_string),
+        }
+    }
+
+    /// 实测坏响应的正向判定：hub.oaifree.com 声称 function_call 却把 tool_calls
+    /// 整个丢掉。判不出来的话只能靠人工重放请求——这正是加诊断的理由。
+    #[test]
+    fn dropped_tool_call_detects_relay_swallowed_response() {
+        assert!(dropped_tool_call_response(&reply_with(
+            Some("function_call"),
+            "",
+            vec![]
+        )));
+        // 部分 provider 用 tool_calls 而非 function_call 表示同一件事
+        assert!(dropped_tool_call_response(&reply_with(
+            Some("tool_calls"),
+            "",
+            vec![]
+        )));
+        // 正文其实是空白字符时同样算「没有正文」
+        assert!(dropped_tool_call_response(&reply_with(
+            Some("function_call"),
+            "  \n ",
+            vec![]
+        )));
+    }
+
+    /// 误报会让诊断变得不可信——正常的空回复、真实拿到了 tool_calls、
+    /// 正常有正文的三种情况都必须安静退出。
+    #[test]
+    fn dropped_tool_call_does_not_misreport_normal_replies() {
+        // 模型自己返回空（推理型模型烧光输出预算的常见情形）
+        assert!(!dropped_tool_call_response(&reply_with(
+            Some("stop"),
+            "",
+            vec![]
+        )));
+        assert!(!dropped_tool_call_response(&reply_with(None, "", vec![])));
+        // 真的拿到了工具调用：此时正文为空是正常的
+        assert!(!dropped_tool_call_response(&reply_with(
+            Some("function_call"),
+            "",
+            vec![ToolCall::new("list_rules", json!({}))]
+        )));
+        // 有正文就与本签名无关
+        assert!(!dropped_tool_call_response(&reply_with(
+            Some("function_call"),
+            "我来帮你查一下。",
+            vec![]
+        )));
     }
 
     #[test]

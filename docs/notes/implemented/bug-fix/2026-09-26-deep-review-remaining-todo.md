@@ -1155,3 +1155,41 @@ SQL + 绝对路径 + `Caused by` 链的假异常，断言 5 个敏感片段一�
   应用实例抢活库）。已验证的是 gate 语义、stderr 管道、崩溃不丢行。
 - 漏网的 `[ui]` 行没有时间戳对齐的 agent 行（`agent-debug.log` 整体无全局时间戳，
   只靠先后顺序）。Rust 侧同样没加，属同一个待办。
+
+## Provider 配置清理与坏响应处置（2026-09-29）
+
+### 起因
+
+排查页内 AI 对话空回复时实测了全部 5 个已配置 provider，健康度如下：
+
+| provider | 实测结果 |
+| --- | --- |
+| `default`（hub.oaifree.com，gpt-4o） | 活跃；模型决定调工具时 100% 返回坏响应（丢弃 `tool_calls`） |
+| `glm-5.3-flash@虾蹬王` | 可用 |
+| `deepseek-flash@fengwind` | 503 网关暂时不可用（可能只是当时抖动） |
+| `deepseek-flash@deepseek` | **402 Insufficient Balance**，确定欠费 |
+| `deepseek@zerocat` | **403 Forbidden**，确定不可用 |
+
+用户决定「先不动，自己处理」，故未改 `ai_provider_configs`。
+
+### 待办
+
+- **充费或删除 `deepseek-flash@deepseek`**：402 是账户余额问题，改代码无用。
+- **确认 `deepseek@zerocat` 是否仍需要**：403 稳定复现，不是抖动。
+- **`deepseek-flash@fengwind` 需复测**：当时 503 属「网关暂时不可用」，应择日重测；
+  若持续 503 它也等于死配置。
+- **`default` 那个中转不适合做需要调工具的场景**。它的坏响应签名可被
+  `dropped_tool_call_response()` 识别并打进诊断日志，但**不做任何行为补救**——
+  用户明确选择「先只加诊断」。要真正解决只能换模型或换中转。
+
+### 为什么「改成触发 provider 轮换」现在不值得做
+
+这是排查时评估过的方案，被用户否决为「暂不」。除了产品语义（会把对话内容发往其他
+厂商），当前配置下收益也很有限：5 个里 2 个确定已死、1 个当时 503，轮换过去大概率
+还是拿到 403/402/503。要做的话前提是先清理干净 provider 列表。
+
+另外两处**已确认但本轮未动**的程序缺陷，是将来做轮换的前提：
+`conversation.rs:672` 的兼容重试分支不设置 `protocol = Some(Text)`，导致下一轮继续
+带 tools 并重复触发；空回复路径是 `break` 收敛而非 `return Err`，所以 provider 轮换
+永远不会被触发。
+

@@ -64,6 +64,7 @@ impl AiProvider for Stub {
             usage: None,
             model: Some("stub".into()),
             reasoning_content: None,
+            finish_reason: None,
         })
     }
 }
