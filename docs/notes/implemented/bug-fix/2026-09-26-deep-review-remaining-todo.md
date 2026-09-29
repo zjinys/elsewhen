@@ -1080,3 +1080,78 @@ Rust 侧加 sink——而那恰恰是不该做的改动。**排障前先确认�
 那个抢活库）。已验证的是「脚本的管道、路径解析、轮转、退出码」全部正确，以及
 「`ELSEWHEN_DEBUG` 能让 `debug_eprintln!` 输出」这一条由代码读出（`conversation.rs:16`）。
 要确认完整链路，下次重启应用时顺手跑一次 `scripts/debug-run.sh` 即可。
+
+---
+
+## 异常不再进 snackbar，只进诊断日志（2026-09-29，已实现）
+
+### 起因
+
+你反馈：`agent-debug.log` 里没有异常，异常只出现在 snackbar 上。查证后确认泄漏是真的
+——`store` 层用 `?` 直接传播 `rusqlite` 错误，异常里带着 **SQL 语句**和**数据库绝对路径**，
+原样进了 `Text('删除失败：$e')`。全仓共 **20 处**这样的写法。
+
+### 落点选择：stderr，不开文件 sink
+
+沿用上一节定的边界——与 Rust 侧 `debug_eprintln!`（`src/ai/conversation.rs:14`）共用
+`ELSEWHEN_DEBUG` 这一个 gate 和 `scripts/debug-run.sh` 那一条 `tee` 管道，Dart 侧
+不自己写文件。
+
+因此**返回给用户的文案不能说「详情已记录」**：正常启动（不经 `debug-run.sh`）时并不留下
+任何记录，那种提示是假的。文案是 `'<动作>失败，请重试一次'`。
+
+**实测**：`dart:io` 的 `stderr` 与 Rust 的 `eprintln!` 行为一致，200 行诊断后立刻
+`SIGKILL`，管道仍收到 200/200 行（无缓冲丢失），不需要额外 flush。
+
+### 撞到的真问题：不是所有错误都该藏
+
+改完之后 `knowledge_flow_test.dart` 的「来源变化阻止保存并保留可读错误」挂了。
+这条测试钉的是「来源已更新，请重新生成建议」——它是**领域结论**，用户必须看到具体是哪一条，
+否则只能反复点确认。
+
+同类还有表单校验：`bail!("新建配置时必须填写 API Key")`、`bail!("仅支持 http/https 链接")`
+等。全仓 `bail!` **151 处**，其中约 **67 处是刻意写给用户看的中文**，其余是内部失败。
+两类错在 Dart 侧是**同一个 `Exception`**，机械上无法区分。
+
+**逐站点核对**（不是猜）：查了 20 个站点背后的 Rust 函数体，只有 2 处会 `bail` 可读领域文案：
+
+| 站点 | 背后 Rust | 有领域错误？ |
+|---|---|---|
+| 保存 Provider | `save_ai_provider_config` | **有**（3 条校验）→ `showDetail: true` |
+| 处理提案 | `resolve` | **有**（来源变更）→ `showDetail: true` |
+| 删除规则 / 切换激活 / 删除 Provider | 只有 `?` on config/store | 无 |
+| 保存推文抓取服务 | 无 bail（UI 只有 fxtwitter 一项，触发不到） | 无 |
+| 更新消息状态 | `Unsupported provider type`（配置 bug） | 无 |
+| 合并实体 / 撤销合并 | 无 bail | 无 |
+| knowledge_panel 其余 14 处读取 | 纯内部失败 | 无 |
+
+### 为什么不给「干净文案」加自动判据
+
+试过的启发式（无换行 / 无 `Caused by` / 无 `SELECT` / 够短 → 当作可展示）**否决**：
+静默泄露面——哪天一条内部错误长得干净，它就直接上屏了，且没人会发现。
+`reportUiError` 默认隐藏、逐站点显式 `showDetail: true`，**默认方向选安全的那一侧**：
+新站点忘开只会退化成通用文案（降级），不会泄露。
+
+### 刻意没动的一处
+
+`aiFailureNotice`（`message_area.dart`，AI Provider 失败文案）保持原样。它已有
+`ai_failure_notice_test.dart` 专门钉着，剥掉 `Caused by` 链只留根因一行（不泄漏 URL、
+不泄漏路径），且「连接超时」是用户能据此行动的信息。如果你认为它也该一并藏起来，说一声。
+
+### 测试
+
+`ui/test/error_report_test.dart` 9 条，核心契约是「返回文案不含异常原文」——用一个带
+SQL + 绝对路径 + `Caused by` 链的假异常，断言 5 个敏感片段一个都不出现。
+变异验证三方向全咬人：退回泄漏 / `onError` 吞异常（返回 true）/ gate 改成「非空才算开」。
+
+全量 209 条通过，`flutter analyze` 77 issues（= 基线，零新增）。
+
+### 遗留
+
+- **`showDetail` 是过渡方案**。正解是 Rust 侧给领域错误加「可展示」前缀契约（约 67 处
+  `bail!`），Dart 识别即显示。现在没做是因为 knowledge 域正在被另一个 agent 写，
+  改 67 处 `bail!` 撞车风险高。等那条线收工后再评估。
+- **端到端仍未验证**：`ELSEWHEN_DEBUG=1` + 真 `scripts/debug-run.sh` 没跑过（会启第二个
+  应用实例抢活库）。已验证的是 gate 语义、stderr 管道、崩溃不丢行。
+- 漏网的 `[ui]` 行没有时间戳对齐的 agent 行（`agent-debug.log` 整体无全局时间戳，
+  只靠先后顺序）。Rust 侧同样没加，属同一个待办。
