@@ -27,7 +27,7 @@ Status: implemented
 - 无人工点击也能后台生成参考知识；重启、重复 tick、失败、来源变动和人工保护有隔离回归。
 - 规则升级保留确认，后台不调用公开确认端点，不自动接受人工待审建议。
 - 操作按钮等高、垂直居中、均有图标；页内提炼和审阅无需嵌套弹窗。
-- Rust 全量 272 项、Flutter 全量 212 项通过；真实 Bridge 覆盖默认自动整理、每版本去重、来源双向导航。静态检查无 error，保留既有 77 条 info/warning。
+- Rust 全量 277 项、Flutter 全量 212 项通过；真实 Bridge 覆盖默认自动整理、每版本去重、来源双向导航。静态检查无 error，保留既有 77 条 info/warning。
 - 页内测试覆盖原位采纳、展开原料对照、提炼失败重试和按钮对齐。实际数据副本查询验证了 IP 原料 → 既有方法 → 原料 v1 的关系；未调用真实外部模型。
 - 代码：[后台整理](../../../../src/knowledge_background/sources.rs)、[提案应用与来源关系](../../../../src/storage/knowledge.rs)、[页面工作区](../../../../ui/lib/widgets/knowledge_panel.dart)。操作验证见 [现有数据测试指南](../../../testing/llm-wiki-real-world-testing.md)。
 

@@ -69,7 +69,7 @@
 - [x] v5 为提案记录 manual/automatic 身份，后台不采纳人工待审建议，不覆盖人工正文、适用条件、强度或已确认规则。
 - [x] 页面按“原文 / 产出 / 关联 / 来源与修订”组织，来源和对照页内展开；采纳不跳走，操作等高且均有图标。
 - [x] 历史提炼页使用快照关系双向导航；现有 IP 方法与原料 v1 的关系已在一致性副本验证。
-- [x] Rust 全量 272 项、Flutter 全量 212 项通过；Bridge 已重新生成，真实桥接覆盖自动参考知识和重复 tick 不重复生成。
+- [x] Rust 全量 277 项、Flutter 全量 212 项通过；Bridge 已重新生成，真实桥接覆盖自动参考知识和重复 tick 不重复生成。
 
 机制与限制见 [原料与知识产出工作区](../notes/implemented/architecture/2026-09-29-source-knowledge-workspace.md)；[实际效果指南](../testing/llm-wiki-real-world-testing.md) 已区分默认自动整理与可选手动提炼。
 

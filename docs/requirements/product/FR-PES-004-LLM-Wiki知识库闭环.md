@@ -92,4 +92,4 @@
 
 ### 后续交互与自动整理验收（2026-09-29）
 
-上述记录保留首轮验收基线；当前已补默认自动整理、v5 提案身份保护、原料/产出分区和双向来源入口。Rust 全量 272 项与 Flutter 全量 212 项通过，真实 Bridge 验证自动生成 reference、重复 tick 不重复创建；现有 IP 方法的来源关系在数据库副本核验通过。首次提炼报错没有对应历史错误轨迹，新增结构校验修复和就地重试不等于已确定该历史根因。实现与代价见 [工作区决定](../../notes/implemented/architecture/2026-09-29-source-knowledge-workspace.md)。
+上述记录保留首轮验收基线；当前已补默认自动整理、v5 提案身份保护、原料/产出分区和双向来源入口。Rust 全量 277 项与 Flutter 全量 212 项通过，真实 Bridge 验证自动生成 reference、重复 tick 不重复创建；现有 IP 方法的来源关系在数据库副本核验通过。首次提炼报错没有对应历史错误轨迹，新增结构校验修复和就地重试不等于已确定该历史根因。实现与代价见 [工作区决定](../../notes/implemented/architecture/2026-09-29-source-knowledge-workspace.md)。
