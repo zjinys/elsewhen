@@ -1674,7 +1674,13 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
     );
   }
 
-  /// 知识页标题：单行保留，过长省略并附 tooltip 显示完整标题。
+  /// 知识页标题：单行保留，过长省略并附 tooltip 显示完整标题；末尾挂一个复制按钮。
+  ///
+  /// 复制按钮放进标题自己的 Row 里（而不是当作头部 Wrap 的另一个子节点），是为了
+  /// 让它始终紧贴标题末尾：短标题时贴在文字后面，长标题省略号也贴在省略号后面。
+  /// 若作为 Wrap 的独立子节点，窄屏换行后它会变成一个孤零零的图标，混进下面的
+  /// slug 元数据里分不清是干什么的。标题用 Flexible，复制按钮定宽，因此按钮永远
+  /// 不被挤掉，也不会改变头部 Wrap 的换行行为。
   Widget _buildHeaderTitle(BuildContext context) {
     final title = widget.page.title;
     final style = TextStyle(
@@ -1689,17 +1695,51 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody> {
       overflow: TextOverflow.ellipsis,
       style: style,
     );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final painter = TextPainter(
-          text: TextSpan(text: title, style: style),
-          maxLines: 1,
-          textDirection: TextDirection.ltr,
-        )..layout(maxWidth: constraints.maxWidth);
-        // 标题在约束内能完整排入一行就不包 tooltip；溢出（省略号出现）才 hover 展示全文。
-        if (!painter.didExceedMaxLines) return text;
-        return Tooltip(message: title, child: text);
-      },
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final painter = TextPainter(
+                text: TextSpan(text: title, style: style),
+                maxLines: 1,
+                textDirection: TextDirection.ltr,
+              )..layout(maxWidth: constraints.maxWidth);
+              // 标题在约束内能完整排入一行就不包 tooltip；溢出（省略号出现）才 hover 展示全文。
+              if (!painter.didExceedMaxLines) return text;
+              return Tooltip(message: title, child: text);
+            },
+          ),
+        ),
+        _copyTitleButton(context),
+      ],
+    );
+  }
+
+  /// 复制标题：与来源链接 chip 同一套反馈（floating SnackBar），文案带「标题」
+  /// 以区分页面上其他可复制的东西（路径、链接、正文、代码块）。
+  Widget _copyTitleButton(BuildContext context) {
+    return Tooltip(
+      message: '复制标题',
+      child: InkWell(
+        onTap: () {
+          Clipboard.setData(ClipboardData(text: widget.page.title));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('标题已复制'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        // 标题是 23px/1.25 的行，图标需要额外留出可点区域才不会显得难点
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Icon(Icons.copy, size: 13, color: AppTheme.textTertiary),
+        ),
+      ),
     );
   }
 
