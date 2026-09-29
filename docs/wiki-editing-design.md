@@ -26,7 +26,7 @@
 |---|---|---|
 | `wiki_revisions` + `record_wiki_revision` | `src/storage.rs:2788` | 任意写回留审计 revision |
 | `wiki_log` + `append_wiki_log` | `src/storage.rs:2825` | 追加式操作日志 |
-| `update_wiki_tags` API 模式 | `src/api.rs:1680` | 人类写入标准姿势（bridge 由 `./regen.sh` 生成） |
+| `update_wiki_tags` API 模式 | `src/api.rs:1680` | 人类写入标准姿势（bridge 由 `scripts/regen.sh` 生成） |
 | 页内 AI 对话 | `ensure_wiki_page_chat` / `archive_wiki_page_chat`（`src/api.rs`）+ Flutter 聊天 UI | AI 对话嵌入编辑器的现成后端 |
 
 ## 3. 为什么 AppFlowy Editor 成为主线（v1 结论修订）
@@ -114,7 +114,7 @@ pub fn set_wiki_opinion(slug: String, opinion: Option<String>) -> Result<WikiPag
 // opinion: None=清空回未表态；Some("endorse"|"reject")
 ```
 
-均仿 `update_wiki_tags`（`src/api.rs:1680`），`./regen.sh` 自动生成绑定。评价字段为后续「AI 提炼引用人工认可素材」的权重信号预留（消费逻辑不在 M1）。
+均仿 `update_wiki_tags`（`src/api.rs:1680`），`scripts/regen.sh` 自动生成绑定。评价字段为后续「AI 提炼引用人工认可素材」的权重信号预留（消费逻辑不在 M1）。
 
 ### 4.4 digest 保护
 

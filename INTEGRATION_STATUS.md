@@ -48,7 +48,7 @@
 
 ### 6. Running Applications
 - Main mode: `cd ui && fvm flutter run -d linux`
-- Capture mode: `./elsewhen-capture.sh`
+- Capture mode: `scripts/elsewhen-capture.sh`
 - Both modes successfully launched and tested
 - Currently 4 running instances (2 main + 2 capture modes)
 

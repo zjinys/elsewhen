@@ -53,7 +53,7 @@ Phase 4B 已完成：候选确认/忽略、别名与同名消歧、冲突事实�
 - ui/lib/providers/conversation_provider.dart、ui/lib/screens/capture_screen.dart：保存路径。
 - ui/test/bridge_integration_test.dart：隔离数据库、统一输入、日流和 `getDailyOverview` 回归。
 - ui/test/support/isolated_bridge.dart：真实 Bridge 测试隔离入口。
-- regen.sh：生成绑定并构建 release 动态库。
+- `scripts/regen.sh`：生成绑定并构建 release 动态库。
 
 ## 本 session 验证
 

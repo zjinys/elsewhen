@@ -76,10 +76,10 @@
 
 ```bash
 # 主应用
-./elsewhen.sh
+scripts/elsewhen.sh
 
 # Capture 模式
-./elsewhen-capture.sh
+scripts/elsewhen-capture.sh
 ```
 
 ### 配置快捷键（GNOME 示例）
@@ -87,7 +87,7 @@
 1. 打开设置：键盘 → 自定义快捷键
 2. 添加新快捷键：
    - 名称: `Elsewhen Capture`
-   - 命令: `/home/pp/playground/ai/elsewhen/elsewhen-capture.sh`
+   - 命令: `/home/pp/playground/ai/elsewhen/scripts/elsewhen-capture.sh`
    - 快捷键: `Super+Space`
 
 详细的各桌面环境配置方法见 `SHORTCUTS_SETUP.md`
@@ -125,8 +125,10 @@
 
 ```
 elsewhen/
-├── elsewhen.sh              # ✨ 主应用启动脚本
-├── elsewhen-capture.sh      # ✨ Capture 模式启动脚本
+├── scripts/
+│   ├── elsewhen.sh          # ✨ 主应用启动脚本
+│   ├── elsewhen-capture.sh  # ✨ Capture 模式启动脚本
+│   └── debug-run.sh         # 调试启动（诊断同时落文件）
 ├── SHORTCUTS_SETUP.md       # ✨ 快捷键配置指南
 ├── ui/
 │   ├── lib/
@@ -223,7 +225,7 @@ elsewhen/
 2. **测试 Capture 工作流**
    ```bash
    # 方式1：启动脚本
-   ./elsewhen-capture.sh
+   scripts/elsewhen-capture.sh
    
    # 方式2：配置快捷键后按 Super+Space
    ```
@@ -249,7 +251,7 @@ elsewhen/
 
 1. **启动主应用**
    ```bash
-   ./elsewhen.sh &
+   scripts/elsewhen.sh &
    ```
 
 2. **配置快捷键** - Super+Space → Capture 模式

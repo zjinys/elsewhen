@@ -17,7 +17,7 @@ provider_config/entities/rules/conversations）。详见 git log `58d9a43`..`8ce
 
 ## 待办：Dart 生成物迁移
 
-FRB 按 Rust 函数的**物理定义文件**生成 Dart 模块（不认 `pub use`）。一旦跑 `./regen.sh`：
+FRB 按 Rust 函数的**物理定义文件**生成 Dart 模块（不认 `pub use`）。一旦跑 `scripts/regen.sh`：
 
 1. 生成 `ui/lib/bridge/generated.dart/api/<域>.dart` 共 12 个新文件
 2. 聚合文件 `api.dart` 只 `import` 这些子文件、**不 `export`**
@@ -64,7 +64,7 @@ export 'generated.dart/api/wiki.dart';
 
 1. Dart agent 确认当前工作区改动已提交（避免与 `main.dart`/`settings.dart`/
    `app_theme.dart`/`content_font.dart` 的活跃改动冲突）
-2. 仓库根跑 `./regen.sh`（生成 12 个 `api/*.dart` + 更新 `frb_generated.rs` hash）
+2. 仓库根跑 `scripts/regen.sh`（生成 12 个 `api/*.dart` + 更新 `frb_generated.rs` hash）
 3. 新建 `ui/lib/bridge/api.dart` 聚合 export（方案 A）
 4. 改 4 个调用文件的 import 指向聚合文件
 5. `cd ui && fvm flutter analyze && fvm flutter test`（170 项须全绿）

@@ -83,7 +83,7 @@ Store 核心 open/search_knowledge_base/StorageAdapter/Drop + 类型定义）。
 - 每步后 `cargo test --all-targets` 全绿（180 项含迁移幂等/并发/不可变 trigger 测试）。
 - **关键**：迁移抽取后必须确认旧库升级路径不变——已有测试覆盖（schema 迁移
   幂等 + 防中途崩溃），若拆动 open 顺序会破坏。
-- `cargo build --release` + `./regen.sh`（若动了 FRB 暴露的方法签名——本拆分不动签名，应无需 regen）。
+- `cargo build --release` + `scripts/regen.sh`（若动了 FRB 暴露的方法签名——本拆分不动签名，应无需 regen）。
 
 ### 不做
 - 不改 `impl Clone` 的 `expect`（P1-2 单独评估：启动期 reopen 失败即崩，非数据损坏）。

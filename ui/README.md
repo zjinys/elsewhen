@@ -55,7 +55,7 @@ X11/Wayland 下有编译与抢键问题，因此没有内置实现）：
 | 桌面环境 | 做法 |
 | --- | --- |
 | GNOME / KDE | 系统设置 → 键盘 → 自定义快捷键 → 命令填 `elsewhen --mode=capture` |
-| 独立使用 | 终端常驻跑 `fvm flutter run -d linux --dart-entrypoint-args "--mode=capture"`，或用仓库根目录的 `./elsewhen-capture.sh` |
+| 独立使用 | 终端常驻跑 `fvm flutter run -d linux --dart-entrypoint-args "--mode=capture"`，或用 `scripts/elsewhen-capture.sh` |
 
 ### 开发
 

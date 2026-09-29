@@ -92,7 +92,7 @@ Or use scripts directly:
 ./scripts/install-linux-desktop.sh  # Install desktop metadata once
 ```
 
-Desktop UI app packages（Flutter UI + Rust bridge lib；先跑 ./regen.sh 保证桥 hash 一致）:
+Desktop UI app packages（Flutter UI + Rust bridge lib；先跑 scripts/regen.sh 保证桥 hash 一致）:
 ```bash
 ./scripts/package-appimage.sh      # Linux → dist/Elsewhen-*-x86_64.AppImage
 ./scripts/package-dmg.sh           # macOS → dist/Elsewhen-*.dmg（ad-hoc 签名；分发需 Developer ID + 公证）
@@ -161,7 +161,7 @@ The Flutter GUI communicates with Rust core via `flutter_rust_bridge`. The bridg
 - `set_capture_mode(enabled)`
 - wiki import, tags, relations, derivatives, todos, rules, provider settings, analysis queue status, and knowledge digest queue/run log (read-only)
 
-After changing a public Rust API, run `./regen.sh` from the repository root. It regenerates Dart/Rust bindings and rebuilds `target/release/libelsewhen.so` so content hashes stay synchronized.
+After changing a public Rust API, run `scripts/regen.sh` from the repository root. It regenerates Dart/Rust bindings and rebuilds `target/release/libelsewhen.so` so content hashes stay synchronized.
 
 Real Flutter bridge tests must initialize `RustBridgeRepository` through `ui/test/support/isolated_bridge.dart`. Never let a test use the default platform data directory or assume personal events/wiki/provider data already exist.
 

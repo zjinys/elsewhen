@@ -29,7 +29,7 @@ fvm flutter analyze
 fvm flutter test
 
 # Rust API 变化后，在项目根目录重新生成 Bridge 并构建 release 动态库
-./regen.sh
+scripts/regen.sh
 ```
 
 真实 Bridge 测试必须通过 `ui/test/support/isolated_bridge.dart` 创建临时数据库。不得依赖默认平台数据目录中的已有记录。

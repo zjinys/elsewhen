@@ -133,7 +133,7 @@ cargo test                     # 运行测试
 cargo build --release          # 构建 release 桥接库
 ```
 
-Rust API 发生变化后运行根目录的 `./regen.sh`，它会重新生成 Flutter-Rust Bridge 代码并重建 release 动态库。真实 Bridge 测试使用独立临时数据库，测试代码不得依赖个人数据目录已有内容。
+Rust API 发生变化后运行 `scripts/regen.sh`，它会重新生成 Flutter-Rust Bridge 代码并重建 release 动态库。真实 Bridge 测试使用独立临时数据库，测试代码不得依赖个人数据目录已有内容。
 
 ## 文档
 

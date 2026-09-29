@@ -18,7 +18,7 @@
 3. 点击 **+** 添加新快捷键
 4. 填写信息：
    - **名称**: `Elsewhen Capture`
-   - **命令**: `/home/pp/playground/ai/elsewhen/elsewhen-capture.sh`
+   - **命令**: `/home/pp/playground/ai/elsewhen/scripts/elsewhen-capture.sh`
    - **快捷键**: 按下 `Super+Space`
 
 ### KDE Plasma
@@ -27,14 +27,14 @@
 2. 导航到 **快捷键** → **自定义快捷键**
 3. 编辑 → 新建 → 全局快捷键 → 命令/URL
 4. 触发器标签页：设置为 `Meta+Space`
-5. 动作标签页：命令设置为 `/home/pp/playground/ai/elsewhen/elsewhen-capture.sh`
+5. 动作标签页：命令设置为 `/home/pp/playground/ai/elsewhen/scripts/elsewhen-capture.sh`
 
 ### i3 / Sway
 
 在配置文件中添加（`~/.config/i3/config` 或 `~/.config/sway/config`）：
 
 ```
-bindsym $mod+space exec /home/pp/playground/ai/elsewhen/elsewhen-capture.sh
+bindsym $mod+space exec /home/pp/playground/ai/elsewhen/scripts/elsewhen-capture.sh
 ```
 
 然后重新加载配置：`$mod+Shift+r`
@@ -44,7 +44,7 @@ bindsym $mod+space exec /home/pp/playground/ai/elsewhen/elsewhen-capture.sh
 1. 打开设置：`xfce4-settings-manager`
 2. 导航到 **键盘** → **应用程序快捷键**
 3. 点击 **添加**
-4. 命令：`/home/pp/playground/ai/elsewhen/elsewhen-capture.sh`
+4. 命令：`/home/pp/playground/ai/elsewhen/scripts/elsewhen-capture.sh`
 5. 按下 `Super+Space`
 
 ### Hyprland
@@ -52,7 +52,7 @@ bindsym $mod+space exec /home/pp/playground/ai/elsewhen/elsewhen-capture.sh
 在 `~/.config/hypr/hyprland.conf` 添加：
 
 ```
-bind = SUPER, Space, exec, /home/pp/playground/ai/elsewhen/elsewhen-capture.sh
+bind = SUPER, Space, exec, /home/pp/playground/ai/elsewhen/scripts/elsewhen-capture.sh
 ```
 
 重新加载配置：`hyprctl reload`
@@ -66,7 +66,7 @@ bind = SUPER, Space, exec, /home/pp/playground/ai/elsewhen/elsewhen-capture.sh
 ### 1. 主应用
 
 ```bash
-./elsewhen.sh
+scripts/elsewhen.sh
 ```
 
 启动完整的主应用界面（1000x700 窗口）
@@ -74,7 +74,7 @@ bind = SUPER, Space, exec, /home/pp/playground/ai/elsewhen/elsewhen-capture.sh
 ### 2. Capture 模式
 
 ```bash
-./elsewhen-capture.sh
+scripts/elsewhen-capture.sh
 ```
 
 启动紧凑的快速输入窗口（500x240，始终置顶）
@@ -134,7 +134,7 @@ Version=1.0
 Type=Application
 Name=Elsewhen Capture
 Comment=Quick event capture
-Exec=/home/pp/playground/ai/elsewhen/elsewhen-capture.sh
+Exec=/home/pp/playground/ai/elsewhen/scripts/elsewhen-capture.sh
 Icon=accessories-text-editor
 Terminal=false
 Categories=Utility;
@@ -166,8 +166,8 @@ Categories=Utility;
 确保脚本可执行：
 
 ```bash
-chmod +x ~/playground/ai/elsewhen/elsewhen.sh
-chmod +x ~/playground/ai/elsewhen/elsewhen-capture.sh
+chmod +x ~/playground/ai/elsewhen/scripts/elsewhen.sh
+chmod +x ~/playground/ai/elsewhen/scripts/elsewhen-capture.sh
 ```
 
 ---
@@ -182,7 +182,7 @@ gnome-control-center keyboard
 
 # 2. 添加自定义快捷键
 #    名称: Elsewhen Capture
-#    命令: /home/pp/playground/ai/elsewhen/elsewhen-capture.sh
+#    命令: /home/pp/playground/ai/elsewhen/scripts/elsewhen-capture.sh
 #    快捷键: Super+Space
 
 # 3. 测试
@@ -193,7 +193,7 @@ gnome-control-center keyboard
 
 ## 🎨 工作流建议
 
-1. **主应用常驻**：启动 `./elsewhen.sh`，最小化到后台
+1. **主应用常驻**：启动 `scripts/elsewhen.sh`，最小化到后台
 2. **快捷键捕获**：随时按 `Super+Space` 快速记录
 3. **Capture 提交后自动返回**：记录完成后窗口自动切换回主应用
 
