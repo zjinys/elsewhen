@@ -1,35 +1,47 @@
 //! 数据库 schema 的引导与版本化迁移。
 //!
-//! 每个版本一个 SQL 文件，放在仓库根的 [`migrations/`](../../migrations)：
-//! `NNNN_描述.sql`，`NNNN` 即 [`MIGRATION_LIST`] 里的序号，加版本就是加文件。
-//! 迁移正文不放 Rust 源码里——`goals` 那条一度写成内联 `const GOALS_V2: &str`，
-//! 于是 SQL 正文、解释它为什么这么写的注释、以及触发器里那个上限字面量被拆在
-//! 三个地方，改一处要同时看两个文件。
+//! 迁移正文按 `rusqlite_migration` 官方约定放在仓库根的 [`migrations/`](../../migrations)：
+//! 每个版本一个子目录 `{序号}-{名字}/up.sql`。序号是**从 1 开始的连续整数**
+//! （crate 内部用 `id - 1` 去索引数组，跳号或重号会直接报错），执行顺序由序号
+//! 决定而非文件名排序，所以不要求补零对齐。需要回滚时同目录下再加 `down.sql`，
+//! 本仓库不需要。
 //!
-//! **`0001_schema.sql` 是冻结的基线**，只作为版本 1 应用一次，之后不得再改：
+//! 整个目录用 `include_dir!` 在编译期嵌进二进制，再交给
+//! `Migrations::from_directory` 扫描——运行时不依赖磁盘上的 `migrations/`，
+//! 六种安装包不用多带一份资源文件。迁移正文也不放 Rust 源码里：`goals` 那条
+//! 一度写成内联 `const GOALS_V2: &str`，于是 SQL、解释它为什么这么写的注释、
+//! 以及触发器里那个上限字面量被拆在三个地方，改一处要同时看两个文件。
+//!
+//! **`01-baseline/up.sql` 是冻结的基线**，只作为版本 1 应用一次，之后不得再改：
 //! `to_latest` 对任何 `user_version >= 1` 的库都会跳过它，所以改它对已有库
 //! 完全无效——新库会带上改动，老库静默缺表缺列且不报任何错。
-//! 后续一切 schema 变更都在 [`MIGRATION_LIST`] 末尾追加新文件。
+//! 后续一切 schema 变更都是新建 `migrations/{下一个序号}-{名字}/up.sql`。
 
 use anyhow::Result;
+use include_dir::{include_dir, Dir};
 use rusqlite::Connection;
-use rusqlite_migration::{Migrations, M};
+use rusqlite_migration::Migrations;
+
+/// `migrations/` 整个目录，编译期嵌入二进制。
+///
+/// 用 `$CARGO_MANIFEST_DIR` 而非 `../../`：`include_dir!` 里相对路径的基准是
+/// **调用处所在文件**，而 `env!` 的基准是 crate 根，不会因源文件挪位置而失效。
+static MIGRATION_DIR: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/migrations");
 
 /// 触发器拒绝写入时使用的标识，存储层据此把错误翻成人话。
 pub(crate) const ACTIVE_GOAL_LIMIT_REACHED: &str = "active_goal_limit_reached";
 
-/// v1：基线。**冻结，不得再改**——见模块文档。
-const V1_BASELINE: &str = include_str!("../../migrations/0001_schema.sql");
-/// v2：goals 表与活跃上限触发器。
-const V2_GOALS: &str = include_str!("../../migrations/0002_goals.sql");
-
-static MIGRATION_LIST: &[M<'static>] = &[
-    M::up(V1_BASELINE).comment("v1: 基线，已冻结，不得修改"),
-    M::up(V2_GOALS).comment("v2: goals 表与活跃上限触发器"),
-];
+/// 按官方约定从 `migrations/` 组装迁移集。
+///
+/// 返回 `Result` 而不是常量：`from_directory` 会校验目录结构（缺 `up.sql`、
+/// 序号跳号或重号都在这里报错）。这是 crate 给的结构性防线，绕开它自己维护
+/// 一张登记表，就等于把「新增文件忘了登记 → 版本静默不执行」请回来。
+fn migrations() -> Result<Migrations<'static>> {
+    Ok(Migrations::from_directory(&MIGRATION_DIR)?)
+}
 
 pub(crate) fn initialize(connection: &mut Connection) -> Result<()> {
-    Migrations::from_slice(MIGRATION_LIST).to_latest(connection)?;
+    migrations()?.to_latest(connection)?;
     Ok(())
 }
 
@@ -53,6 +65,51 @@ mod tests {
             .unwrap();
     }
 
+    /// 官方内置自检：把全部 up 迁移在临时内存库上从头跑到尾。
+    ///
+    /// 这是 crate 推荐的迁移测试入口，覆盖「SQL 本身跑不跑得通」；下面那些测试
+    /// 覆盖的是目标表的语义，两者互补。
+    #[test]
+    fn migrations_validate() {
+        migrations().unwrap().validate().unwrap();
+    }
+
+    /// 目录发现的结构性保证：两个迁移、按序号取名。
+    ///
+    /// 「新增文件却忘了登记」这类错误在这里不可能发生——`from_directory` 直接
+    /// 扫目录，不经过任何手工登记表。这条测试盯的是别一种漂移：有人把子目录
+    /// 改名成不满足 `{序号}-{名字}` 的形式，或把序号写成不连续。
+    #[test]
+    fn migrations_are_discovered_from_the_directory() {
+        let mut names: Vec<String> = MIGRATION_DIR
+            .dirs()
+            .map(|d| d.path().file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        assert_eq!(
+            names,
+            ["01-baseline", "02-goals"],
+            "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
+        );
+    }
+
+    /// 冻结约定与内容归属：基线里不该出现 `goals`。
+    ///
+    /// `goals` 若混进冻结的基线，新库正常而老库（`user_version >= 1`，基线被
+    /// 跳过）静默缺表——这是本仓库最阴的失败模式，没有报错。
+    #[test]
+    fn baseline_stays_frozen_and_goals_live_in_the_second_migration() {
+        let baseline = include_str!("../../migrations/01-baseline/up.sql");
+        assert!(
+            baseline.contains("CREATE TABLE events"),
+            "01-baseline 应是当前 schema 基线"
+        );
+        assert!(
+            !baseline.contains("CREATE TABLE goals"),
+            "goals 属于 02-goals，混进冻结的基线会让老库静默少一张表"
+        );
+    }
+
     #[test]
     fn migration_applies_goals_table() {
         let connection = memory_db();
@@ -67,62 +124,14 @@ mod tests {
     /// 「已达 4 条上限」却连第 4 条都加不进去。这条测试把漂移变成编译期就红。
     #[test]
     fn trigger_cap_literal_matches_the_error_message_constant() {
+        let goals_sql = include_str!("../../migrations/02-goals/up.sql");
         let needle = format!(">= {}", crate::storage::MAX_ACTIVE_GOALS);
         assert_eq!(
-            V2_GOALS.matches(&needle).count(),
+            goals_sql.matches(&needle).count(),
             2,
             "两个触发器都应按 MAX_ACTIVE_GOALS 封顶；若你改了上限，\
              改 `goals.rs` 常量后忘了同步 \
-             `migrations/0002_goals.sql` 里的触发器字面量，这里会失败"
-        );
-    }
-
-    /// 迁移文件与 `MIGRATION_LIST` 必须一一对应、序号连续。
-    ///
-    /// 漏登记是最阴的那种错：`include_str!` 不会报错，多出来的那个文件只是永远
-    /// 不被执行，`cargo test` 全绿、新库却少一张表。文件名序号跳号同理——改的人
-    /// 会以为 `0003` 排在 `0002` 前面，而实际是字母序。
-    #[test]
-    fn every_migration_file_is_registered_in_order() {
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
-        let mut files: Vec<String> = std::fs::read_dir(&dir)
-            .unwrap_or_else(|e| panic!("读不到 {}：{e}", dir.display()))
-            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-            .filter(|name| name.ends_with(".sql"))
-            .collect();
-        files.sort();
-
-        assert_eq!(
-            files.len(),
-            MIGRATION_LIST.len(),
-            "migrations/ 下有 {} 个 .sql（{files:?}），MIGRATION_LIST 只登记了 {} 条。\
-             加了文件忘了登记，那个版本会静默不执行。",
-            files.len(),
-            MIGRATION_LIST.len()
-        );
-        for (index, file) in files.iter().enumerate() {
-            assert!(
-                file.starts_with(&format!("{:04}_", index + 1)),
-                "第 {index} 条迁移的文件名应以 {:04}_ 开头，实际 {file}（按文件名排序即执行顺序）",
-                index + 1
-            );
-        }
-    }
-
-    /// `MIGRATION_LIST` 里的两条常量确实来自那两个文件，而不是某人复制粘贴的副本。
-    #[test]
-    fn migration_consts_carry_their_files_content() {
-        assert!(
-            V1_BASELINE.contains("CREATE TABLE events"),
-            "v1 应是基线（现 `migrations/0001_schema.sql` 的内容）"
-        );
-        assert!(
-            V2_GOALS.contains("CREATE TABLE goals"),
-            "v2 应是 goals 迁移"
-        );
-        assert!(
-            !V1_BASELINE.contains("CREATE TABLE goals"),
-            "goals 属于 v2，混进冻结的 v1 基线会让老库静默多出表"
+             `migrations/02-goals/up.sql` 里的触发器字面量，这里会失败"
         );
     }
 

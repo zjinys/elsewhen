@@ -15,7 +15,9 @@ chrono = { version = "0.4", features = ["serde"] }
 fontdb = "0.23"
 directories = "5"
 rusqlite = { version = "0.39", features = ["bundled"] }
-rusqlite_migration = "2.5"
+# `from-directory`：按官方约定加载 migrations/ 下的 *.sql（配合 include_dir! 编译期嵌入）
+rusqlite_migration = { version = "2.5", features = ["from-directory"] }
+include_dir = "0.7"
 uuid = { version = "1", features = ["v4", "serde"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
