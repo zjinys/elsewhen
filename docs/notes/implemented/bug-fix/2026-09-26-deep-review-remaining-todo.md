@@ -637,6 +637,10 @@ context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是�
 文件**（此前一直未跟踪，等于构建依赖一个不在库里的文件）。`Store::open` 改为
 按库路径进程级只初始化一次（`INITIALIZED_DATABASES`）。
 
+> 2026-09-29 更新：`schema.sql` 已移入仓库根的 `migrations/`，成为
+> `migrations/0001_schema.sql`。下文提到的 `schema.sql` 均指它。
+> 该次搬家顺带查出了上面「旧库开不起来」那个未修问题。
+
 废弃后 `cargo test` 194 passed / 4 failed。这 4 个失败全部是**测已删除的迁移过程**，
 不是测最终结构——`schema.sql` 已正确固化最终形态（`entity_merges` 无 UNIQUE、
 `wiki_pages` 含 `human_edited_at` / `opinion`）。
@@ -704,6 +708,64 @@ context current"）、`lib/` 内无 PlatformView（`platform_view.cc` 那条是�
 ②抓完整 stdout（此前几次排查都因为缺实际报错而只能靠推断，两次推错）。
 
 
+
+## 旧库开不起来：user_version=0 的活库（2026-09-29，**未修，等裁决**）
+
+### 症状与根因
+
+应用启动报 `初始化存储失败: rusqlite_migration error while executing query
+'CREATE TABLE schema_migrations ...'`，实际是 52 处 `table already exists`。
+
+活库是**旧迁移链（v1–v31）**建的，版本记在 `schema_migrations` **表**里
+（31 行），而 `PRAGMA user_version = 0`。新引导（commit `6dbc582`）改用
+`PRAGMA user_version` 记版本，读到 0 就判定「这是空库」，去执行
+`migrations/0001_schema.sql` —— 那里是 27 处裸 `CREATE TABLE`、零
+`IF NOT EXISTS`，对着已有的 28 张表直接撞墙。
+
+**不是本轮引入的**：`db3c84b`（本轮之前）的迁移列表只有 v1，同样会失败。
+本轮的 v2 根本没机会执行。
+
+### 「走导出/导入重建」这条既定方案其实走不通
+
+两个独立的阻断，都实测过：
+
+1. **够不着**：导出必须应用能启动，而它启动不了。
+2. **会丢数据**：`export_wiki`（`src/wiki.rs:1225`）只覆盖 `list_wiki_pages`
+   与 `list_wiki_log` 两张表。对话、事件、待办、规则**都没有导出**。
+   活库实测 `events 90 / conversations 67 / wiki_pages 36 / todos 2 / rules 3`
+   —— 重建只能回来 36 个 wiki 页。
+
+### 反转：这个库其实已经是 v1 基线了
+
+把活库副本与 `migrations/0001_schema.sql` 新建库逐项比对：
+
+| 比对项 | 结果 |
+|---|---|
+| 表集合 | 28 张全等，无缺无多 |
+| 逐表列结构 | 全等 |
+| 索引 | 全等 |
+| 触发器 | 全等 |
+| 基线文件冻结后是否被改过 | 没改过（冻结于 `6dbc582`） |
+
+旧链跑完 31 个版本后的最终形态**就是**冻结的 v1 基线。`user_version = 0`
+是个**谎报**，不是真的落后。
+
+端到端验证（副本上走真 `Store::open`）：只执行 `PRAGMA user_version = 1`，
+不动任何数据 → 开库成功，`user_version` 变 2（只补 v2 goals），
+`events 90 / conversations 67 / wiki_pages 36` 一条没丢。
+
+### 未决
+
+用户未选方案，此项**悬空**。三个现有备份（09-28 两份 events=86、09-23 一份
+events=66）的 `user_version` 也都是 0，**不能当「重建后的干净起点」**。
+
+候选：
+- A. 钉 `user_version = 1`，原地保留。改代码为零，但需要一条显式、可审计的
+  命令（或 `scripts/` 下的一次性脚本），且**不能**放进应用启动路径。
+- B. 重建，接受丢 154 条记录。
+- 自动检测「有表但 user_version=0 就自动补版本」**否决**：这正是本仓已走过并
+  记录的弯路——在 Rust 侧自建版本判断去绕开 `rusqlite_migration`。它会静默
+  改写版本元数据，把「谎报」变成「自动生效的谎报」。
 
 ## 目标与偏差检测（FR-PES-005）落地后的待办（2026-09-29）
 
