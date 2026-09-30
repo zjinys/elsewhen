@@ -126,10 +126,13 @@ powershell -File scripts/package-msi.ps1   # Windows → dist/Elsewhen-*-x64.msi
 
 - **前置检查 `libclang.dll`**（第 0 步）。ffigen 靠 libclang 解析 C 头，缺了
   `generate` 跑不起来，且报错位置与根因相距很远，所以先查。ffigen 22.0.0 在
-  Windows 上**只搜两个位置**（`C:\Program Files\LLVM\bin\` 与
-  `%USERPROFILE%\scoop\apps\llvm\current\bin`），不做 PATH 搜索，也没有任何环境
-  变量可覆盖——`libclangOverridePaths` 是硬编码空数组，**`LIBCLANG_PATH` 无效**。
-  所以装 llvm.org 官方安装器或 `scoop install llvm`，且**必须落在上述位置之一**。
+  Windows 上**默认只搜两个位置**（`C:\Program Files\LLVM\bin\` 与
+  `%USERPROFILE%\scoop\apps\llvm\current\bin`），不做 PATH 搜索，
+  **`LIBCLANG_PATH` 也无效**（ffigen 的 `lib/` 全量 grep 零命中）。
+  装 llvm.org 官方安装器或 `scoop install llvm` 即落在默认位置，无需额外配置；
+  装在别处时用 `-LlvmPath <LLVM 根目录>`（转成 `--llvm-path` 透传，优先级高于
+  默认位置），**不要改 `flutter_rust_bridge.yaml`** —— 那份文件三平台共享，
+  frb 没有条件键。
   **Visual Studio 自带的 clang-cl 不能替代**：那是 clang-cl.exe / clang.exe 两个驱动，
   不是 `libclang.dll`，也不在 ffigen 的搜索路径里。这与 cargo 链接所需的 MSVC
   Build Tools 是两件独立的事——能 `cargo build` 不代表 ffigen 能用，反之亦然。

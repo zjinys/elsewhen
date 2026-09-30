@@ -40,15 +40,31 @@ Flutter 解析顺序统一为 `ui\.fvm\flutter_sdk\bin\flutter.bat` → 全局 `
 ### regen.ps1 与 regen.sh 的三处有意分歧
 
 **libclang.dll 硬依赖前置检查。** 查 ffigen 22.0.0 源码（`pubspec.lock` 锁定的版本）
-确认它在 Windows 上的 libclang 查找范围**只有两处**：
+确认它在 Windows 上的 libclang **默认**查找范围只有两处：
 
 - `ffigen/lib/src/strings.dart:254` → `C:\Program Files\LLVM\bin\`
 - `ffigen/lib/src/config_provider/spec_utils.dart:465-474` →
   `%USERPROFILE%\scoop\apps\llvm\current\bin`
 
-**不做 PATH 搜索，也没有任何环境变量可覆盖**——`spec_utils.dart:438` 遍历的
-`libclangOverridePaths` 来自 `overrideable_utils.dart:43` 的 `const <String>[]`，
-硬编码空数组，无入口可改。因此 `LIBCLANG_PATH` 无效，LLVM 必须装在上述位置之一。
+**不做 PATH 搜索，`LIBCLANG_PATH` 也无效**（ffigen 的 `lib/` 全量 grep 零命中）。
+
+> ⚠ **勘误（2026-09-30）。** 本节初版写的是「没有任何入口可改，LLVM 必须装在上述
+> 两个位置之一」，论据是 `spec_utils.dart:438` 遍历的 `libclangOverridePaths` 来自
+> `overrideable_utils.dart:43` 的 `const <String>[]`。**这个推论是错的**——
+> `libclangOverridePaths` 的注释原文是 "Downstream **clones** can use a non-null value"，
+> 它是给 fork ffigen 的人用的钩子，不是使用者配置项；我把「没有 fork 级覆盖」错当成
+> 「没有用户级入口」。
+>
+> 用户级入口是有的：ffigen 有一等配置项 `llvm-path`（`strings.dart:24`），且优先级
+> **高于**默认位置（`yaml_config.dart:335-340`：配了走 `llvmPathExtractor`，全不命中才
+> 回落默认；没配才直接走默认）。命令行 `--llvm-path`、配置 `llvm_path:` 两个入口都有。
+> 路径拼接为 `<你给的路径>\bin\libclang.dll`（`strings.dart:27`，
+> `dynamicLibParentName` 在 Windows 上是 `bin`），也接受 `libclang.dll` 完整路径
+> （`spec_utils.dart:545-551`）。
+>
+> 该勘误同时暴露了 `regen.ps1` 第 0 步的一个真实缺陷：预检硬编码那两条路径且不可
+> 绕过，用户若把 LLVM 装在别处并已正确配置 `llvm_path`，预检会**误报「没装」**。
+> 已修：新增 `-LlvmPath`，指定时只校验该路径并透传 `--llvm-path`，不指定才复查默认两条。
 
 由此得出两条与直觉相反、但对使用方式影响很大的结论：
 
@@ -59,7 +75,7 @@ Flutter 解析顺序统一为 `ui\.fvm\flutter_sdk\bin\flutter.bat` → 全局 `
    链接器，LLVM 提供 ffigen 的解析引擎，互不替代。`cargo build --release` 能成功
    不代表 ffigen 能用，反之亦然。
 
-`regen.ps1` 把这项检查放在第 0 步并复述 ffigen 的两条路径：缺 libclang 时 codegen 会在
+`regen.ps1` 把这项检查放在第 0 步并复述 ffigen 的两条默认路径：缺 libclang 时 codegen 会在
 完全无关的位置报错，用户很难联想到是 LLVM 没装。
 
 **clang 头文件改为探测而非硬失败。** `regen.sh` 第 1 步源于一个 Linux 专属问题：
@@ -132,6 +148,28 @@ libclang 前置检查的**逻辑**也做了隔离执行验证（把两条搜索�
 
 这三个都靠「读代码看不出来、必须真跑」才暴露，也说明第 0 步这种看起来只有 3 行的
 前置检查同样需要执行验证。
+
+**勘误修复后又抓到一个同类缺陷（2026-09-30）。** 加 `-LlvmPath` 时我第一版按
+「有扩展名 → 当文件名；否则 → 当根目录」二分，**没有照抄 ffigen 的真实判定**。
+读 `spec_utils.dart:534-552` 才发现 ffigen 的顺序与条件是：
+
+```dart
+for (final path in value) {
+  final dylibPath = findLibclangDylib(p.join(path, dynamicLibParentName));  // ① 先试根目录
+  if (dylibPath != null) return dylibPath;
+  if (p.extension(path).isNotEmpty && File(path).existsSync()) return path;  // ② 再试完整路径
+}
+```
+
+我的二分只看扩展名，于是 `D:\tools\llvm-18.1` 这类**带版本号的根目录**会被误判成
+文件名，直接放弃 `…\bin\libclang.dll` 的查找 → 明明装对了却报「找不到 libclang.dll」。
+ffigen 自己不踩这个坑，是因为它第二个条件还要求**文件确实存在**。修正后按 ffigen 的
+顺序与条件实现，并在 Linux 上用 `plain` / `llvm-18.1` / `llvm.18.1` 三种目录名
+（新旧逻辑对照）实测确认：旧逻辑在带版本号的两种情形下 `Exists=False` 误报失败，
+新逻辑正确解析到 `<根目录>\bin\libclang.dll`。
+
+教训与前三条一致：**转写别人的判定逻辑时，要连"顺序"和"多个条件的合取"一起抄**，
+只抄其中一个条件就会引入对方本来没有的缺陷。
 
 **未验证：** 全部 8 个脚本的运行时行为。这些脚本依赖 Windows 专有工具链
 （libclang、`sqlite3` CLI、WiX、Android NDK、`flutter`）与 Windows 路径布局，

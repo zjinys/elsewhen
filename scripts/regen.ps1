@@ -19,17 +19,28 @@
 #   驱动，位置在 ...\VC\Tools\Llvm\，而 ffigen 的搜索列表里没有这个路径，
 #   它也不提供 libclang.dll。
 #
-#   ffigen 22.0.0 在 Windows 上只搜两个位置（源码可查，勿凭印象）：
+#   ffigen 22.0.0 在 Windows 上的**默认**搜索位置只有两个（源码可查，勿凭印象）：
 #     · ffigen/lib/src/strings.dart:254      → C:\Program Files\LLVM\bin\
 #     · ffigen/lib/src/config_provider/spec_utils.dart:465-474
 #                                           → %USERPROFILE%\scoop\apps\llvm\current\bin
-#   **没有 PATH 搜索，也没有任何环境变量可覆盖** —— spec_utils.dart 里的
-#   libclangOverridePaths 来自 overrideable_utils.dart:43 的
-#   `const <String>[]`，硬编码空数组。所以 LIBCLANG_PATH 无效，LLVM 必须装在
-#   上述两个位置之一，否则只能重装。
+#   没有 PATH 搜索，LIBCLANG_PATH 也无效（ffigen 的 lib 全量 grep 零命中）。
+#
+#   ⚠ 但**并非只能装到这两个位置**。ffigen 有一等配置项 llvm-path
+#   （strings.dart:24），且优先级高于默认位置 —— yaml_config.dart:335-340：
+#     有该键 → llvmPathExtractor（spec_utils.dart:534-560）先试用户给的路径，
+#              全不命中才回落默认；无该键 → 直接走默认位置。
+#   两个入口：
+#     · 命令行  --llvm-path <LLVM 根目录>          ← 本脚本的 -LlvmPath 走这个
+#     · 配置    flutter_rust_bridge.yaml 的 llvm_path:
+#   路径拼接是 path.join(你给的路径, dynamicLibParentName)，而 strings.dart:27 里
+#   dynamicLibParentName 在 Windows 上是 bin —— 所以要给的是**根目录**
+#   （C:\Program Files\LLVM），不是 ...\bin。也接受直接给 libclang.dll 的完整路径
+#   （spec_utils.dart:545-551 会先按扩展名判定）。
 #
 #   装法二选一：llvm.org 官方安装器（默认 C:\Program Files\LLVM）或
-#   `scoop install llvm`。
+#   `scoop install llvm`。两者都落在默认路径里时**不需要任何额外参数**。
+#   装在别处时用 -LlvmPath 指定，不要去改 yaml —— 那份文件三平台共享，
+#   frb 没有条件键，写死 Windows 路径属于机器特定污染。
 #
 #   注意这与 MSVC Build Tools 是**两件独立的事**：后者是 cargo 链接 .dll 用的，
 #   VS 提供链接器、LLVM 提供 ffigen 的解析引擎，互不替代。#2 的 cargo build
@@ -58,7 +69,12 @@
 # ---------------------------------------------------------------------------
 param(
     # 强制启用 clang 头文件注入（默认自动探测；探测到就用，没探测到就跳过）
-    [switch]$ForceClangInclude
+    [switch]$ForceClangInclude,
+
+    # 指定 LLVM 位置，转成 --llvm-path 传给 codegen，并让第 0 步改为只校验它。
+    # 接受「根目录」（自动补 bin）或 libclang.dll 的完整路径。
+    # LLVM 装在 ffigen 的两个默认位置时**不需要**这个参数。
+    [string]$LlvmPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -69,9 +85,11 @@ Push-Location $root
 try {
     # ---------- 0. 硬依赖前置检查：libclang.dll ----------
     # 放在最前面，因为缺它时 codegen 会在完全无关的位置报错（ffigen 抛的是
-    # 「找不到动态库」），用户很难联想到是 LLVM 没装。这里直接把 ffigen 的两条
-    # 搜索路径复述一遍并在都不命中时给出可执行的处置。
-    # 两条搜索路径与 ffigen 源码一一对应（strings.dart:254 / spec_utils.dart:465-474）。
+    # 「找不到动态库」），用户很难联想到是 LLVM 没装。
+    #
+    # 给了 -LlvmPath 就只校验它（ffigen 的 llvm-path 优先级高于默认位置，见头注释）；
+    # 没给才复查 ffigen 的两个默认路径。默认路径与源码一一对应：
+    # strings.dart:254 / spec_utils.dart:465-474。
     # USERPROFILE 必须守卫：ffigen 自己判了 userHome != null 才 join（spec_utils.dart:466），
     # 而 Join-Path $null 抛的是 ParameterBindingValidationException，在
     # $ErrorActionPreference = "Stop" 下会终止整个脚本 —— 那样用户看到的是一句
@@ -89,18 +107,63 @@ try {
     $libclangDirs = @($libclangDirs |
         Where-Object { [System.IO.File]::Exists([System.IO.Path]::Combine($_, "libclang.dll")) })
 
-    if (-not $libclangDirs) {
+    if ($LlvmPath) {
+        # 严格复刻 ffigen 的 llvmPathExtractor（spec_utils.dart:534-552），
+        # 顺序和条件都不能简化：
+        #   ① 先按「根目录」试 <path>\bin\libclang.dll
+        #   ② 再按「libclang.dll 完整路径」试，且要求扩展名非空**且文件确实存在**
+        # 只判扩展名会把 D:\llvm-18.1 这类带版本号的根目录误当成文件名 —— ffigen
+        # 因为同时判了文件存在所以不受影响，这里必须跟它一样。
+        $dll = [System.IO.Path]::Combine($LlvmPath, "bin", "libclang.dll")
+        if (-not [System.IO.File]::Exists($dll) -and
+            [System.IO.Path]::GetExtension($LlvmPath) -and
+            [System.IO.File]::Exists($LlvmPath)) {
+            $dll = $LlvmPath
+        }
+        if (-not [System.IO.File]::Exists($dll)) {
+            throw @"
+-LlvmPath 指定的 LLVM 下没有找到 libclang.dll：
+
+  -LlvmPath $LlvmPath
+  → 解析为：$dll
+
+已尝试两种形式（与 ffigen 的 llvmPathExtractor 一致）：
+  <路径>\bin\libclang.dll          ← 当作 LLVM 根目录
+  <路径>                            ← 当作 libclang.dll 完整路径
+
+所以 -LlvmPath 通常给 **根目录**，例如：
+
+  -LlvmPath 'C:\Program Files\LLVM'
+  -LlvmPath 'D:\tools\llvm-18.1'
+
+官方安装器的默认根目录是 C:\Program Files\LLVM。
+
+也可以直接给完整文件名，例如：
+
+  -LlvmPath 'C:\Program Files\LLVM\bin\libclang.dll'
+
+不想自定义位置就去掉 -LlvmPath —— ffigen 会自己搜这两个默认路径：
+  C:\Program Files\LLVM\bin\
+  %USERPROFILE%\scoop\apps\llvm\current\bin
+"@
+        }
+        $libclangDirs = @([System.IO.Path]::GetDirectoryName($dll))
+    }
+    elseif (-not $libclangDirs) {
         throw @"
-ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上只搜两个位置，都没有：
+ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上的两个默认位置都没有：
 
   C:\Program Files\LLVM\bin\
   %USERPROFILE%\scoop\apps\llvm\current\bin
 
-它不做 PATH 搜索，也没有环境变量可以覆盖（libclangOverridePaths 是硬编码的
-空数组，LIBCLANG_PATH 无效）。所以只能装到上述位置之一：
+它不做 PATH 搜索，LIBCLANG_PATH 也无效（ffigen 的 lib 里没有这个字符串）。
+两条出路：
 
-  1) 装 llvm.org 官方安装器（默认就装到 C:\Program Files\LLVM）
-  2) 或 scoop install llvm
+  1) 装到默认位置 —— 官方安装器（默认就装到 C:\Program Files\LLVM）或
+     `scoop install llvm`，装完直接重跑本脚本即可。
+  2) 装在别处 —— 用 -LlvmPath 告诉 ffigen 去哪找：
+       .\scripts\regen.ps1 -LlvmPath 'D:\tools\llvm'
+     （给根目录，ffigen 会自己补 bin；也可直接给 libclang.dll 完整路径。）
 
 注意 Visual Studio 自带的 clang-cl 不能替代：那是驱动而不是 libclang.dll，
 且不在 ffigen 的搜索路径里。另外它与 cargo 链接所需的 MSVC Build Tools 是
@@ -121,6 +184,16 @@ ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上只搜两个位置
             "$env:LOCALAPPDATA\Programs\LLVM",
             "C:\Program Files (x86)\LLVM"
         )
+        # 用户已通过 -LlvmPath 指定的 LLVM 是最可信的根目录，优先探它。
+        # 与第 0 步同一套判定：完整文件名形式要先取其所在目录。
+        if ($LlvmPath) {
+            if ([System.IO.Path]::GetExtension($LlvmPath) -and [System.IO.File]::Exists($LlvmPath)) {
+                $llvmRoots = @([System.IO.Path]::GetDirectoryName($LlvmPath)) + $llvmRoots
+            }
+            else {
+                $llvmRoots = @($LlvmPath) + $llvmRoots
+            }
+        }
         foreach ($r in $llvmRoots) {
             if (Test-Path "$r\lib\clang") {
                 $candidates += Get-ChildItem "$r\lib\clang" -Directory -ErrorAction SilentlyContinue |
@@ -153,7 +226,13 @@ ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上只搜两个位置
     # ---------- 2. 重新生成 bridge 代码 ----------
     Write-Host "[2/3] flutter_rust_bridge_codegen generate ..."
     $codegen = (Get-Command flutter_rust_bridge_codegen -ErrorAction Stop).Source
-    & $codegen generate
+    if ($LlvmPath) {
+        # 原样透传：ffigen 的 llvmPathExtractor 接受根目录或 libclang.dll 完整路径两种形式
+        & $codegen generate --llvm-path $LlvmPath
+    }
+    else {
+        & $codegen generate
+    }
     if ($LASTEXITCODE -ne 0) { throw "flutter_rust_bridge_codegen generate 失败（退出码 $LASTEXITCODE）" }
     Write-Host "     生成完成"
 

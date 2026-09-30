@@ -272,16 +272,26 @@ winget install Microsoft.VisualStudio.2022.Community `
 
 1. VS 的「适用于 Windows 的 C++ Clang 工具」装的是 `clang-cl.exe` / `clang.exe` 两个**驱动**，
    位置在 `...\VC\Tools\Llvm\`，**既不提供 `libclang.dll`，也不在 ffigen 的搜索路径里**。
-2. ffigen 在 Windows 上**只搜两个位置**：
+2. ffigen 在 Windows 上**默认只搜两个位置**：
    - `ffigen/lib/src/strings.dart:254` → `C:\Program Files\LLVM\bin\`
    - `ffigen/lib/src/config_provider/spec_utils.dart:465-474` →
      `%USERPROFILE%\scoop\apps\llvm\current\bin`
-3. **不做 PATH 搜索，也没有任何环境变量可以覆盖** ——
-   `spec_utils.dart:438` 遍历的 `libclangOverridePaths` 来自
-   `overrideable_utils.dart:43` 的 `const <String>[]`，硬编码空数组。
-   **`LIBCLANG_PATH` 无效。**
+3. **不做 PATH 搜索**；`LIBCLANG_PATH` 也无效 —— ffigen 的 `lib/` 全量 grep 零命中。
 
-所以 LLVM **必须落在上述两个位置之一**。装法二选一：
+但**并非只能装到这两个位置**。ffigen 有一等配置项 `llvm-path`
+（`strings.dart:24`），优先级**高于**默认位置（`yaml_config.dart:335-340`）：配了就先试
+用户路径、全不命中才回落默认；没配才直接走默认。
+
+| 入口 | 写法 |
+|---|---|
+| 命令行 | `--llvm-path <LLVM 根目录>` |
+| `flutter_rust_bridge.yaml` | `llvm_path:` |
+
+路径拼接是 `<你给的路径>\bin\libclang.dll`（`strings.dart:27` 的
+`dynamicLibParentName` 在 Windows 上是 `bin`），所以**给根目录**，也接受直接给
+`libclang.dll` 完整路径（`spec_utils.dart:545-551`）。
+
+装法二选一，装在默认位置就什么都不用配：
 
 ```powershell
 # A. llvm.org 官方安装器（当前发行版是 .msi，需管理员权限）
@@ -299,7 +309,16 @@ scoop install llvm
 Test-Path "C:\Program Files\LLVM\bin\libclang.dll"
 ```
 
-> `scripts\regen.ps1` 的**第 0 步**就是这项检查，会在 `generate` 之前确认并给出处置。
+装在别处时用 `regen.ps1` 的 `-LlvmPath` 透传，**不要改 `flutter_rust_bridge.yaml`** ——
+那份文件三平台共享，frb 没有条件键，写死 Windows 路径属于机器特定污染：
+
+```powershell
+powershell -File scripts\regen.ps1 -LlvmPath 'D:\tools\llvm'
+powershell -File scripts\regen.ps1 -LlvmPath 'D:\tools\llvm\bin\libclang.dll'
+```
+
+> `scripts\regen.ps1` 的**第 0 步**就是这项检查，会在 `generate` 之前确认并给出处置；
+> 给了 `-LlvmPath` 就只校验那一个路径，不传才复查上面两个默认位置。
 >
 > **注意与第 1 步区分**：CPATH / clang 头文件注入在 Windows 上**通常不需要**（那个
 > `stdbool.h` 缺失是 Debian/Ubuntu 的打包问题），`regen.ps1` 因此做成「探测到才启用」，
@@ -370,8 +389,8 @@ fvm flutter build windows --release --target=lib/main_desktop.dart
 
 | 问题 | 处置 |
 |---|---|
-| 用 VS 的 clang-cl 顶替 LLVM → ffigen 找不到 libclang | 另装 LLVM，且必须落在两个搜索路径之一（第 4.2 节） |
-| 试图用 `LIBCLANG_PATH` 修上面那个问题 | **无效**，该数组是硬编码空数组 |
+| 用 VS 的 clang-cl 顶替 LLVM → ffigen 找不到 libclang | 另装 LLVM。默认位置（第 4.2 节）或用 `-LlvmPath` 指定 |
+| 试图用 `LIBCLANG_PATH` 修上面那个问题 | **无效**，ffigen 全量 grep 零命中。用 `--llvm-path` / `-LlvmPath` |
 | PowerShell 5.1 下中文乱码 | 所有 `.ps1` 必须带 UTF-8 BOM |
 
 ---
@@ -410,7 +429,9 @@ fvm flutter build windows --release --target=lib/main_desktop.dart
 | 无系统 SQLite / 无 OpenSSL | `Cargo.toml` 的 `rusqlite` bundled、`reqwest` rustls-tls |
 | Dart SDK 约束 | `ui/pubspec.yaml` |
 | Flutter 版本钉定 | `.fvmrc`、`ui/.fvmrc` |
-| libclang 搜索路径与环境变量不可覆盖 | `ffigen-22.0.0/lib/src/strings.dart:254`、`spec_utils.dart:438,465-474`、`overrideable_utils.dart:43` |
+| libclang 默认搜索路径与环境变量不可覆盖 | `ffigen-22.0.0/lib/src/strings.dart:254`、`spec_utils.dart:465-474`；`LIBCLANG_PATH` 全量 grep 零命中 |
+| `llvm-path` 可覆盖默认路径且优先级更高 | `strings.dart:24,27`、`yaml_config.dart:335-340`、`spec_utils.dart:534-552` |
+| `libclangOverridePaths` 是 fork 钩子而非用户配置项 | `overrideable_utils.dart:41-43` 注释原文为 "Downstream **clones** can use" |
 | macOS 命令行工具即默认查找位置 | `ffigen-22.0.0/lib/src/strings.dart:255-265`、`spec_utils.dart:479-503` |
 | Linux `stdbool.h` 坑 | `flutter_rust_bridge.yaml:18-25`、`scripts/regen.sh` |
 | 打包工具依赖 | `scripts/package-{deb,rpm,pacman,appimage,dmg}.sh` |
