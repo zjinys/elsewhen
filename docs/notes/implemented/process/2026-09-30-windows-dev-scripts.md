@@ -37,14 +37,41 @@ Flutter 解析顺序统一为 `ui\.fvm\flutter_sdk\bin\flutter.bat` → 全局 `
 
 这是对既有文件的修复，不是新脚本的约定。
 
-### regen.ps1 与 regen.sh 的两处有意分歧
+### regen.ps1 与 regen.sh 的三处有意分歧
+
+**libclang.dll 硬依赖前置检查。** 查 ffigen 22.0.0 源码（`pubspec.lock` 锁定的版本）
+确认它在 Windows 上的 libclang 查找范围**只有两处**：
+
+- `ffigen/lib/src/strings.dart:254` → `C:\Program Files\LLVM\bin\`
+- `ffigen/lib/src/config_provider/spec_utils.dart:465-474` →
+  `%USERPROFILE%\scoop\apps\llvm\current\bin`
+
+**不做 PATH 搜索，也没有任何环境变量可覆盖**——`spec_utils.dart:438` 遍历的
+`libclangOverridePaths` 来自 `overrideable_utils.dart:43` 的 `const <String>[]`，
+硬编码空数组，无入口可改。因此 `LIBCLANG_PATH` 无效，LLVM 必须装在上述位置之一。
+
+由此得出两条与直觉相反、但对使用方式影响很大的结论：
+
+1. **Visual Studio 自带的 clang-cl 不能替代。** 那是 `clang-cl.exe` / `clang.exe`
+   两个**驱动**，位置在 `...\VC\Tools\Llvm\`，既不提供 `libclang.dll`，也不在
+   ffigen 的搜索路径里。必须另装 llvm.org 官方安装器或 `scoop install llvm`。
+2. **这与 MSVC Build Tools 是两件独立的事。** MSVC 提供 cargo 链接 `.dll` 所需的
+   链接器，LLVM 提供 ffigen 的解析引擎，互不替代。`cargo build --release` 能成功
+   不代表 ffigen 能用，反之亦然。
+
+`regen.ps1` 把这项检查放在第 0 步并复述 ffigen 的两条路径：缺 libclang 时 codegen 会在
+完全无关的位置报错，用户很难联想到是 LLVM 没装。
 
 **clang 头文件改为探测而非硬失败。** `regen.sh` 第 1 步源于一个 Linux 专属问题：
 ffigen 找不到 `stdbool.h`，把 cbindgen 生成的 `typedef bool (*DartPostCObjectFnType)(...)`
 解析成 `typedef bool = ffi.NativeFunction<...>`，遮蔽 Dart 的 `bool` 类型。
-该缺失是 Debian/Ubuntu 的 clang 打包问题，Windows 上通常不复现，所以 `regen.ps1`
-在探测不到头文件时打印提示并继续，而不是 `exit 1`。同时**不实现 cc/cxx shim**：
-cargo/cc-rs 对非 `.exe` 的 `CC` 有引号处理差异，这层封装在 Windows 上比 POSIX 脆弱得多。
+该缺失是 Debian/Ubuntu 的 clang 打包问题，官方 LLVM 安装器的 `libclang.dll` 自带
+编译期 resource dir 路径、会自行找到 `lib\clang\<ver>\include`，Windows 上通常不复现。
+所以 `regen.ps1` 在探测不到头文件时打印提示并继续，而不是 `exit 1`。
+
+同时**不实现 cc/cxx shim**：cargo/cc-rs 对非 `.exe` 的 `CC` 有引号处理差异，这层封装
+在 Windows 上比 POSIX 脆弱得多；且 `CPATH` 是 gcc/clang 的搜索路径变量，MSVC 的
+`cl.exe` 根本不读它，`regen.sh` 那个「CPATH 污染 cc 编译」的问题在 Windows 上无对应物。
 `-ForceClangInclude` 可强制启用探测。
 
 **新增 codegen hash 静态校验。** `regen.sh` 仅靠「脚本最后一步总是重编」来保证
@@ -83,9 +110,28 @@ Dart 侧 `rustContentHash` 与 Rust 侧 `FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HAS
 2. `PSUseDeclaredVarsMoreThanAssignments`（`regen.ps1` 的 `$shimDir`）——
    初稿遗留的死变量（最终决定不建 shim），已删。
 
-复检结果：Error 0 findings，Warning 仅剩 `PSAvoidUsingWriteHost`（71 处）。
+复检结果：Error 0 findings，Warning 仅剩 `PSAvoidUsingWriteHost`（72 处）。
 该规则针对非交互宿主，而这些是交互式构建脚本，且与既有 `package-msi.ps1` 的写法一致，
 故保留。
+
+libclang 前置检查的**逻辑**也做了隔离执行验证（把两条搜索路径参数化后在 Linux 上跑
+4 个用例：USERPROFILE 未设 / 为空串 / 已设但无 libclang / scoop 路径命中）。这一步抓到
+了 3 个纯靠阅读发现不了的缺陷：
+
+1. **`Join-Path $null` 会终止脚本。** `USERPROFILE` 未设时抛
+   `ParameterBindingValidationException`，在 `$ErrorActionPreference = "Stop"` 下
+   中断，用户看到的是「Cannot bind argument to parameter 'Path'」而非可执行的处置。
+   ffigen 自己判了 `userHome != null` 才 join（`spec_utils.dart:466`），照搬时漏了这个守卫。
+2. **`Test-Path` 遇到不存在的驱动器会抛**「Cannot find drive」而非返回 false。
+   改用 `[System.IO.File]::Exists`——.NET 版本内部吞掉全部 IO 错误、只返回 false，
+   语义正好是这里要的「这个文件在不在」。
+3. **`Where-Object` 只命中一条时返回标量 String**，此时 `$x[0]` 取到的是**首字符**而非
+   路径（实测得到 `"C"`）——`@()` 包裹强制数组语义。而单机上只有一处 LLVM 恰恰是
+   最常见情况，等于这条诊断信息在最需要它的场景下必然失效。判断逻辑 `-not $x` 不受影响，
+   错的只有输出。
+
+这三个都靠「读代码看不出来、必须真跑」才暴露，也说明第 0 步这种看起来只有 3 行的
+前置检查同样需要执行验证。
 
 **未验证：** 全部 8 个脚本的运行时行为。这些脚本依赖 Windows 专有工具链
 （libclang、`sqlite3` CLI、WiX、Android NDK、`flutter`）与 Windows 路径布局，

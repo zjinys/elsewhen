@@ -12,6 +12,30 @@
 #   产出一对不匹配的库，直到运行时才炸；这里在脚本结束前就报错。
 #
 # ---------------------------------------------------------------------------
+# ⚠ 硬依赖：libclang.dll（第 0 步会检查）
+#
+#   ffigen 靠 libclang 的 C API 解析 C 头，没有它 `generate` 跑不起来。
+#   **Visual Studio 自带的 clang-cl 不算数**：那是 clang-cl.exe / clang.exe 两个
+#   驱动，位置在 ...\VC\Tools\Llvm\，而 ffigen 的搜索列表里没有这个路径，
+#   它也不提供 libclang.dll。
+#
+#   ffigen 22.0.0 在 Windows 上只搜两个位置（源码可查，勿凭印象）：
+#     · ffigen/lib/src/strings.dart:254      → C:\Program Files\LLVM\bin\
+#     · ffigen/lib/src/config_provider/spec_utils.dart:465-474
+#                                           → %USERPROFILE%\scoop\apps\llvm\current\bin
+#   **没有 PATH 搜索，也没有任何环境变量可覆盖** —— spec_utils.dart 里的
+#   libclangOverridePaths 来自 overrideable_utils.dart:43 的
+#   `const <String>[]`，硬编码空数组。所以 LIBCLANG_PATH 无效，LLVM 必须装在
+#   上述两个位置之一，否则只能重装。
+#
+#   装法二选一：llvm.org 官方安装器（默认 C:\Program Files\LLVM）或
+#   `scoop install llvm`。
+#
+#   注意这与 MSVC Build Tools 是**两件独立的事**：后者是 cargo 链接 .dll 用的，
+#   VS 提供链接器、LLVM 提供 ffigen 的解析引擎，互不替代。#2 的 cargo build
+#   能成功不代表 #1 能成功，反之亦然。
+#
+# ---------------------------------------------------------------------------
 # ⚠ 关于第 1 步（clang 头文件 / CPATH）：Windows 上很可能不需要，请勿照抄 Linux
 #
 #   regen.sh 第 1 步做的事源于一个 Linux 专属问题：ffigen/libclang 解析 C 系统头
@@ -21,11 +45,13 @@
 #   构建报错（该仓库踩过）。解法是把 clang 内置头目录放进 CPATH，再用 cc/cxx
 #   shim 把 CPATH 从真正的 C 编译里摘掉。
 #
-#   在 Windows 上 libclang 通常能自己定位 resource dir（官方 LLVM 安装器带
-#   lib\clang\<ver>\include），那个 stdbool.h 缺失多半是 Debian/Ubuntu 的 clang
-#   打包问题，不会复现。**本脚本第 1 步因此是「探测到才启用」而非「缺了就报错」**，
-#   并且 cc/cxx shim 用 .cmd 实现 —— cargo/cc-rs 对非 .exe 的 CC 有引号处理差异，
-#   这层封装在 Windows 上比 POSIX 脆弱得多，能不用就不用。
+#   那个 stdbool.h 缺失源于 Debian/Ubuntu 的 clang 打包问题，官方 LLVM 安装器的
+#   libclang.dll 自带编译期 resource dir 路径，会自己找到
+#   lib\clang\<ver>\include\stdbool.h，所以 Windows 上通常不复现。
+#   **本脚本第 1 步因此是「探测到才启用」而非「缺了就报错」**，并且不实现
+#   cc/cxx shim —— cargo/cc-rs 对非 .exe 的 CC 有引号处理差异，这层封装在
+#   Windows 上比 POSIX 脆弱得多；CPATH 本身是 gcc/clang 的搜索路径变量，
+#   MSVC 的 cl.exe 根本不读它，regen.sh 那个污染问题在 Windows 上无对应物。
 #
 #   我无法在 Windows 上实测本脚本。若第 1 步在你的机器上反而引入了问题，
 #   直接删掉标记为「可选」的那一段即可，主流程不受影响。
@@ -41,6 +67,48 @@ $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Push-Location $root
 
 try {
+    # ---------- 0. 硬依赖前置检查：libclang.dll ----------
+    # 放在最前面，因为缺它时 codegen 会在完全无关的位置报错（ffigen 抛的是
+    # 「找不到动态库」），用户很难联想到是 LLVM 没装。这里直接把 ffigen 的两条
+    # 搜索路径复述一遍并在都不命中时给出可执行的处置。
+    # 两条搜索路径与 ffigen 源码一一对应（strings.dart:254 / spec_utils.dart:465-474）。
+    # USERPROFILE 必须守卫：ffigen 自己判了 userHome != null 才 join（spec_utils.dart:466），
+    # 而 Join-Path $null 抛的是 ParameterBindingValidationException，在
+    # $ErrorActionPreference = "Stop" 下会终止整个脚本 —— 那样用户看到的是一句
+    # 「Cannot bind argument to parameter 'Path'」而不是下面那段可执行的处置。
+    $libclangDirs = @("C:\Program Files\LLVM\bin")
+    if ($env:USERPROFILE) {
+        $libclangDirs += (Join-Path $env:USERPROFILE "scoop\apps\llvm\current\bin")
+    }
+    # [System.IO.Path]::Combine + [System.IO.File]::Exists 而非 Test-Path：
+    # Test-Path 遇到不存在的驱动器会**抛**「Cannot find drive」而不是返回 false，
+    # 在 $ErrorActionPreference = "Stop" 下会终止脚本。.NET 的 Exists 内部吞掉
+    # 全部 IO 错误、只返回 false，语义正好是这里要的「这个文件在不在」。
+    # @() 不能省：Where-Object 只命中一条时返回的是标量 String，此时 $x[0] 取到的是
+    # 首字符而非路径（实测得到 "C"）。而单机上只有一处 LLVM 恰恰是最常见情况。
+    $libclangDirs = @($libclangDirs |
+        Where-Object { [System.IO.File]::Exists([System.IO.Path]::Combine($_, "libclang.dll")) })
+
+    if (-not $libclangDirs) {
+        throw @"
+ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上只搜两个位置，都没有：
+
+  C:\Program Files\LLVM\bin\
+  %USERPROFILE%\scoop\apps\llvm\current\bin
+
+它不做 PATH 搜索，也没有环境变量可以覆盖（libclangOverridePaths 是硬编码的
+空数组，LIBCLANG_PATH 无效）。所以只能装到上述位置之一：
+
+  1) 装 llvm.org 官方安装器（默认就装到 C:\Program Files\LLVM）
+  2) 或 scoop install llvm
+
+注意 Visual Studio 自带的 clang-cl 不能替代：那是驱动而不是 libclang.dll，
+且不在 ffigen 的搜索路径里。另外它与 cargo 链接所需的 MSVC Build Tools 是
+两件独立的事 —— 能 cargo build 不代表 ffigen 能用，反之亦然。
+"@
+    }
+    Write-Host "[0/3] libclang.dll：$($libclangDirs[0])"
+
     # ---------- 1. [可选] Clang 头文件 ----------
     Write-Host "[1/3] 探测 clang 内置头文件 ..."
 

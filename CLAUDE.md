@@ -118,19 +118,31 @@ powershell -File scripts/package-msi.ps1   # Windows → dist/Elsewhen-*-x64.msi
 | 打 Android APK | `./scripts/build-apk.sh` | `powershell -File scripts\build-apk.ps1` |
 | 旧库版本标记修复 | `./scripts/stamp-legacy-db.sh` | `powershell -File scripts\stamp-legacy-db.ps1` |
 
-`regen.ps1` 比 `regen.sh` 多一步静态校验：跑完直接比对
-`ui/lib/bridge/generated.dart/frb_generated.dart` 的 `rustContentHash` 与
-`src/frb_generated.rs` 的 `FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH`，不一致就地报错。
-`regen.sh` 只靠「总是重编」保证一致，codegen 若静默失效要到 app 启动时
-`RustLib.init()` 才炸。
+`regen.ps1` 比 `regen.sh` 多一步前置检查和一步静态校验：
+
+- **前置检查 `libclang.dll`**（第 0 步）。ffigen 靠 libclang 解析 C 头，缺了
+  `generate` 跑不起来，且报错位置与根因相距很远，所以先查。ffigen 22.0.0 在
+  Windows 上**只搜两个位置**（`C:\Program Files\LLVM\bin\` 与
+  `%USERPROFILE%\scoop\apps\llvm\current\bin`），不做 PATH 搜索，也没有任何环境
+  变量可覆盖——`libclangOverridePaths` 是硬编码空数组，**`LIBCLANG_PATH` 无效**。
+  所以装 llvm.org 官方安装器或 `scoop install llvm`，且**必须落在上述位置之一**。
+  **Visual Studio 自带的 clang-cl 不能替代**：那是 clang-cl.exe / clang.exe 两个驱动，
+  不是 `libclang.dll`，也不在 ffigen 的搜索路径里。这与 cargo 链接所需的 MSVC
+  Build Tools 是两件独立的事——能 `cargo build` 不代表 ffigen 能用，反之亦然。
+- **收尾静态校验两侧 hash**：比对 `ui/lib/bridge/generated.dart/frb_generated.dart` 的
+  `rustContentHash` 与 `src/frb_generated.rs` 的 `FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH`。
+  `regen.sh` 只靠「总是重编」保证一致，codegen 若静默失效要到 app 启动时
+  `RustLib.init()` 才炸。
 
 **没有 Windows 版本的脚本是故意的**：`package-{deb,rpm,pacman,appimage,dmg}.sh` 与
 `install-linux-desktop.sh` 平台绑定；`flutter-wrapper.sh` 硬编码了某台机器的
 FVM 路径，不该移植。`Makefile` 同样是 `/bin/sh`，Windows 上用不了。
 
-`regen.ps1` 第 1 步（clang 头文件 / CPATH）是**探测到才启用**，不像 `regen.sh`
-那样缺了就报错——那个 stdbool.h 缺失是 Linux clang 打包问题，Windows 上通常不复现。
-若你的机器反而需要，加 `-ForceClangInclude`；若它反而引入了问题，删掉那一段即可。
+`regen.ps1` 第 1 步（clang 头文件 / CPATH）与第 0 步的 libclang 检查是两件事：前者是
+**探测到才启用**，不像 `regen.sh` 那样缺了就报错——那个 stdbool.h 缺失是 Debian/Ubuntu
+的 clang 打包问题，官方 LLVM 安装器的 libclang 自带编译期 resource dir 路径，Windows 上
+通常不复现。若你的机器反而需要，加 `-ForceClangInclude`；若它反而引入了问题，删掉那一段
+即可，libclang 检查不受影响。
 
 ## Database Schema
 
