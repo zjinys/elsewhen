@@ -136,6 +136,12 @@ class AppTheme {
   /// 用户内容的字体由 [ContentFont] 作用域单独注入（见 content_font.dart）。
   static ThemeData buildTheme(AppThemePreset preset, Brightness brightness) {
     final scheme = flexSchemeOf(preset);
+    // 色板由 brightness 参数自包含派生，不读全局 _current——
+    // 否则 buildTheme 与 AppTheme.apply() 在 build 同帧先后执行时，
+    // 生成的主题会慢一拍用上一轮的色板（浅色启动首帧输入框变黑底）。
+    final palette = brightness == Brightness.dark
+        ? AppThemePalette.dark
+        : AppThemePalette.light;
     final flex = brightness == Brightness.dark
         ? FlexThemeData.dark(
             scheme: scheme,
@@ -153,16 +159,16 @@ class AppTheme {
     // 字体 + 行高微调（沿用现有 typography 习惯）
     final textTheme = _uiTextTheme(flex.textTheme);
     return flex.copyWith(
-      scaffoldBackgroundColor: _current.surface0,
+      scaffoldBackgroundColor: palette.surface0,
       colorScheme: flex.colorScheme.copyWith(
-        surface: _current.surface1,
-        surfaceContainer: _current.surface2,
-        surfaceContainerHighest: _current.surface3,
-        outline: _current.surface3,
-        outlineVariant: _current.surface3.withValues(alpha: 0.7),
+        surface: palette.surface1,
+        surfaceContainer: palette.surface2,
+        surfaceContainerHighest: palette.surface3,
+        outline: palette.surface3,
+        outlineVariant: palette.surface3.withValues(alpha: 0.7),
       ),
       dividerTheme: DividerThemeData(
-        color: _current.surface3.withValues(alpha: 0.72),
+        color: palette.surface3.withValues(alpha: 0.72),
         thickness: 1,
         space: 1,
       ),
@@ -173,7 +179,7 @@ class AppTheme {
         bodySmall: textTheme.bodySmall?.copyWith(height: 1.55, fontSize: 12),
       ),
       cardTheme: CardThemeData(
-        color: _current.surface2,
+        color: palette.surface2,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
@@ -187,14 +193,14 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: _current.surface2,
+        fillColor: palette.surface2,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
           borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.all(space4),
-        hintStyle: TextStyle(color: _current.textTertiary, fontSize: 14),
-        labelStyle: TextStyle(color: _current.textSecondary, fontSize: 13),
+        hintStyle: TextStyle(color: palette.textTertiary, fontSize: 14),
+        labelStyle: TextStyle(color: palette.textSecondary, fontSize: 13),
       ),
     );
   }
