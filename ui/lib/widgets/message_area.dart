@@ -1,3 +1,5 @@
+import 'suggestion_feedback.dart';
+
 import 'dart:convert';
 import 'dart:math';
 
@@ -680,6 +682,24 @@ class _KnowledgeDraftsDialog extends ConsumerWidget {
                                         payload['kind']?.toString() ?? 'topic',
                                     content:
                                         payload['content_md']?.toString() ?? '',
+                                    applicableWhen:
+                                        payload['applicable_when']
+                                            ?.toString() ??
+                                        '',
+                                    evidence:
+                                        (payload['verified_evidence']
+                                                    as List? ??
+                                                [])
+                                            .map(
+                                              (e) =>
+                                                  (e as Map)['title']
+                                                      ?.toString() ??
+                                                  (e)['page_slug']
+                                                      ?.toString() ??
+                                                  '',
+                                            )
+                                            .where((s) => s.isNotEmpty)
+                                            .toList(),
                                   ),
                                 ),
                         );
@@ -705,6 +725,8 @@ class _KnowledgeDraftDialog extends ConsumerStatefulWidget {
     required this.title,
     required this.kind,
     required this.content,
+    required this.applicableWhen,
+    required this.evidence,
   });
 
   final String conversationId;
@@ -712,6 +734,8 @@ class _KnowledgeDraftDialog extends ConsumerStatefulWidget {
   final String title;
   final String kind;
   final String content;
+  final String applicableWhen;
+  final List<String> evidence;
 
   @override
   ConsumerState<_KnowledgeDraftDialog> createState() =>
@@ -801,6 +825,13 @@ class _KnowledgeDraftDialogState extends ConsumerState<_KnowledgeDraftDialog> {
             '类型：${widget.kind} · 待确认，未入库',
             style: TextStyle(color: AppTheme.textSecondary),
           ),
+          Text(
+            widget.evidence.isEmpty
+                ? '自由笔记：未绑定可核验来源'
+                : '引用依据：${widget.evidence.join('、')}',
+          ),
+          if (widget.applicableWhen.isNotEmpty)
+            Text('适用条件：${widget.applicableWhen}'),
           const SizedBox(height: 12),
           Expanded(
             child: SingleChildScrollView(
@@ -889,8 +920,8 @@ class _PendingRelationsBanner extends ConsumerWidget {
           Expanded(
             child: Text(
               degraded
-                  ? '有一条人物关联建议，但数据无法解析。'
-                  : '发现人物：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。',
+                  ? '有一条联系人关联建议，但数据无法解析。'
+                  : '发现联系人：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。',
               style: const TextStyle(fontSize: 12, height: 1.5),
             ),
           ),
@@ -925,7 +956,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
     );
   }
 
-  /// 人物/事项同名歧义的选择流程（P19）：
+  /// 联系人/事项同名歧义的选择流程（P19）：
   /// - `argsJson` 来自库里存的动作参数，历史脏数据或未来方言都可能让它不是
   ///   JSON 对象——直接 `jsonDecode` 抛出会把整条流程炸掉，这里收口成提示。
   /// - 选择全部收集完再**一次性**落库：中途 return 会让用户已经点过的选择被
@@ -940,12 +971,12 @@ class _PendingRelationsBanner extends ConsumerWidget {
     try {
       final decoded = jsonDecode(action.argsJson);
       if (decoded is! Map) {
-        _notifyAmbiguity(context, '动作参数格式异常，无法选择人物');
+        _notifyAmbiguity(context, '动作参数格式异常，无法选择联系人');
         return;
       }
       payload = Map<String, dynamic>.from(decoded);
     } catch (_) {
-      _notifyAmbiguity(context, '动作参数无法解析，无法选择人物');
+      _notifyAmbiguity(context, '动作参数无法解析，无法选择联系人');
       return;
     }
     final pages = ref.read(wikiPagesProvider).value ?? const [];
@@ -965,7 +996,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
         if (!context.mounted) return;
         final selected = await _pickPage(
           context,
-          '选择人物「$person」',
+          '选择联系人「$person」',
           peopleMatches,
         );
         if (selected == null) {
@@ -1658,6 +1689,11 @@ class _MessageBubble extends ConsumerWidget {
                           ),
                   ),
 
+                  if (kSuggestionFeedbackEnabled && !isUser)
+                    SuggestionFeedbackControl(
+                      messageId: message.id,
+                      content: message.content,
+                    ),
                   // 生成失败/未生成：最后一条用户消息上提供「重新生成」入口
                   if (!isUser && message.content.contains('[['))
                     KnowledgeCitationsButton(messageId: message.id),
@@ -2334,7 +2370,7 @@ class _InputGuidePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const items = [
-      (Icons.person_outline, '@人名', '标注人物', '@张伟 '),
+      (Icons.person_outline, '@人名', '标注联系人', '@张伟 '),
       (Icons.tag_outlined, '#主题名', '进入主题', '#付款流程'),
       (Icons.link_outlined, '链接', '导入内容', 'https://'),
       (

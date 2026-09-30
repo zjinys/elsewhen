@@ -1,4 +1,12 @@
 //! One bounded retrieval contract shared by dialogue, analysis and review.
+pub(crate) mod authoring;
+pub(crate) mod dependencies;
+pub mod maintenance;
+pub mod organization;
+pub mod queue;
+pub(crate) mod reading;
+pub mod review;
+pub mod workflows;
 use crate::ai::{memory::ContextMessage, provider::AiProvider};
 use crate::storage::knowledge::content_hash;
 use crate::storage::{Store, WikiPage, WikiPageDraft};
@@ -60,7 +68,58 @@ fn query_terms(query: &str) -> Vec<String> {
     let mut seen = HashSet::new();
     terms.retain(|t| seen.insert(t.clone()));
     terms.truncate(40);
+    // Small, transparent vocabulary expansion complements literal matching.
+    // Keep originals first and avoid asking a model just to find candidates.
+    for group in [
+        &["受众", "人群", "目标用户", "audience"][..],
+        &["流量", "曝光", "触达", "traffic"][..],
+        &["花费", "开销", "费用", "成本", "cost"][..],
+        &["重试", "再试", "retry"][..],
+        &["事务", "transaction"][..],
+        &["备份", "backup"][..],
+        &["截止", "到期", "deadline"][..],
+    ] {
+        if group.iter().any(|word| query.contains(word)) {
+            for word in group {
+                if seen.insert((*word).to_owned()) {
+                    terms.push((*word).to_owned());
+                }
+            }
+        }
+    }
+    terms.truncate(64);
     terms
+}
+
+/// Select the most relevant full-text window instead of always citing the intro.
+fn matching_excerpt(text: &str, terms: &[String], limit: usize) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    if chars.len() <= limit {
+        return text.into();
+    }
+    let width = limit.saturating_sub(2).max(1);
+    let step = (width / 2).max(1);
+    let mut best = (0usize, 0usize);
+    for start in (0..chars.len()).step_by(step) {
+        let window = chars[start..(start + width).min(chars.len())]
+            .iter()
+            .collect::<String>()
+            .to_lowercase();
+        let score = terms
+            .iter()
+            .filter(|term| window.contains(term.as_str()))
+            .count();
+        if score > best.0 {
+            best = (score, start);
+        }
+    }
+    let end = (best.1 + width).min(chars.len());
+    format!(
+        "{}{}{}",
+        if best.1 > 0 { "…" } else { "" },
+        chars[best.1..end].iter().collect::<String>(),
+        if end < chars.len() { "…" } else { "" }
+    )
 }
 
 /// Fetches at most 80 candidate rows. The serialized result, including metadata
@@ -76,10 +135,22 @@ pub fn select_knowledge(
         return Ok(vec![]);
     }
     let budget = budget.min(12000);
-    let predicates=terms.iter().enumerate().map(|(i,_)|format!("instr(lower(title||' '||tags||' '||summary||' '||substr(content_md,1,4000)||' '||COALESCE((SELECT applicable_when FROM knowledge_metadata WHERE page_id=wiki_pages.id),'')),?{})>0",i+1)).collect::<Vec<_>>().join(" OR ");
+    let prominent = "lower(title||' '||tags||' '||COALESCE((SELECT applicable_when FROM knowledge_metadata WHERE page_id=wiki_pages.id),''))";
+    let predicates=terms.iter().enumerate().map(|(i,_)|format!("instr(lower(title||' '||tags||' '||summary||' '||content_md||' '||COALESCE((SELECT applicable_when FROM knowledge_metadata WHERE page_id=wiki_pages.id),'')),?{})>0",i+1)).collect::<Vec<_>>().join(" OR ");
+    let score = terms
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            format!(
+                "4*(instr({prominent},?{n})>0)+(instr(lower(content_md),?{n})>0)",
+                n = i + 1
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("+");
     let sql = format!(
         "SELECT {} FROM wiki_pages WHERE status!='archived' AND COALESCE(opinion,'')!='reject'
-        AND ({predicates}) ORDER BY last_seen_at DESC,id LIMIT 80",
+        AND ({predicates}) ORDER BY ({score}) DESC,last_seen_at DESC,id LIMIT 80",
         crate::storage::WIKI_PAGE_COLS
     );
     let pages = store
@@ -100,13 +171,13 @@ pub fn select_knowledge(
             metadata.applicable_when
         )
         .to_lowercase();
-        let body = shorten(&page.content_md, 4000).to_lowercase();
+        let body = page.content_md.to_lowercase();
         let prominent = terms
             .iter()
             .filter(|t| indexed.contains(t.as_str()))
             .count();
         let body_hits = terms.iter().filter(|t| body.contains(t.as_str())).count();
-        if prominent == 0 && body_hits < 2 {
+        if prominent == 0 && body_hits == 0 {
             continue;
         }
         if matches!(page.kind.as_str(), "method" | "case" | "principle")
@@ -117,12 +188,13 @@ pub fn select_knowledge(
         {
             continue;
         }
-        if let Some(citation) = citation_for_page(
+        if let Some(mut citation) = citation_for_page(
             store,
             &page,
             format!("问题与页面主题/正文匹配（{} 处主题线索）", prominent),
             1000,
         )? {
+            citation.excerpt = matching_excerpt(&page.content_md, &terms, 1000);
             ranked.push((prominent * 4 + body_hits.min(10), citation));
         }
     }
@@ -147,12 +219,15 @@ pub fn citation_for_page(
     reason: String,
     excerpt_limit: usize,
 ) -> Result<Option<KnowledgeCitation>> {
-    if page.status == "archived" || page.opinion.as_deref() == Some("reject") {
+    if page.status == "archived"
+        || page.opinion.as_deref() == Some("reject")
+        || dependencies::stale(store, &page.id)?
+    {
         return Ok(None);
     }
     let snapshots = store.page_source_snapshots(&page.slug)?;
     for snapshot in &snapshots {
-        if snapshot.opinion.as_deref() == Some("reject") {
+        if !queue::usable(store, snapshot)? {
             return Ok(None);
         }
         let latest: i64 = store.connection.query_row(
@@ -475,7 +550,7 @@ fn parse_compilation(text: &str, automatic: bool, revision: bool) -> Result<Comp
     Ok(result)
 }
 
-/// A UI request generates a proposal, not a knowledge page. IDs and provenance
+/// Explicit review generates a proposal. IDs and provenance
 /// come from the stored context, never from a model-produced identifier.
 pub fn propose_knowledge(
     store: &Store,
@@ -495,12 +570,72 @@ pub(crate) fn build_knowledge_proposal(
     kind: &str,
     provider: &dyn AiProvider,
 ) -> Result<Option<String>> {
+    build_proposal(store, slug, kind, provider, false, None, None)
+}
+
+pub(crate) fn build_source_proposal(
+    store: &Store,
+    slug: &str,
+    provider: &dyn AiProvider,
+    run: &str,
+) -> Result<Option<String>> {
+    build_proposal(store, slug, "auto", provider, false, Some(run), None)
+}
+
+pub(crate) fn build_refresh_proposal(
+    store: &Store,
+    slug: &str,
+    provider: &dyn AiProvider,
+) -> Result<String> {
+    build_proposal(store, slug, "revision", provider, true, None, None)?.context("没有修订结果")
+}
+
+/// User-requested extraction follows the same reference-only publication rules
+/// as background ingestion. Historical proposals retain their original owner.
+pub(crate) fn compile_requested_knowledge(
+    store: &Store,
+    slug: &str,
+    kind: &str,
+    provider: &dyn AiProvider,
+) -> Result<String> {
+    if !matches!(kind, "method" | "case" | "principle" | "revision") {
+        bail!("不支持的知识整理类型");
+    }
+    let id = build_proposal(store, slug, kind, provider, kind != "revision", None, None)?
+        .context("该材料没有可提炼的知识")?;
+    let tx = rusqlite::Transaction::new_unchecked(
+        &store.connection,
+        rusqlite::TransactionBehavior::Immediate,
+    )?;
+    store.publish_reference_in_tx(&id)?;
+    tx.commit()?;
+    Ok(id)
+}
+
+fn build_proposal(
+    store: &Store,
+    slug: &str,
+    kind: &str,
+    provider: &dyn AiProvider,
+    publish: bool,
+    run: Option<&str>,
+    selected_sources: Option<&[String]>,
+) -> Result<Option<String>> {
     let automatic = kind == "auto";
     let page = store.get_wiki_page(slug)?.context("知识页不存在")?;
     if kind == "revision" && matches!(page.kind.as_str(), "source" | "note") {
         bail!("原始材料不可改写，请提炼为方法、案例或规律");
     }
-    let mut sources = store.page_source_snapshots(slug)?;
+    let initial_basis = authoring::revision_basis(store, &page)?;
+    let (dependency_bases, upstream_context) = dependencies::context(store, &page)?;
+    let mut sources = if let Some(ids) = selected_sources {
+        anyhow::ensure!(ids.len() <= 8, "最多选择 8 份原料");
+        ids.iter()
+            .map(|id| store.source_snapshot(id)?.context("所选来源不存在"))
+            .collect::<Result<Vec<_>>>()?
+    } else {
+        store.page_source_snapshots(slug)?
+    };
     // Review against current versions, while old versions remain available in
     // the page's evidence panel until the user accepts the new proposal.
     for source in &mut sources {
@@ -509,19 +644,30 @@ pub(crate) fn build_knowledge_proposal(
             [&source.source_id],
             |r| r.get(0),
         )?;
+        if selected_sources.is_some() {
+            anyhow::ensure!(id == source.id, "选择期间来源已更新，请重新选择");
+        }
         *source = store.source_snapshot(&id)?.context("来源版本不存在")?;
+        let active = source
+            .page_slug
+            .as_deref()
+            .map(|slug| store.get_wiki_page(slug))
+            .transpose()?
+            .flatten()
+            .is_some_and(|p| p.status != "archived");
+        anyhow::ensure!(active, "来源已归档，请选择有效来源");
         if source.opinion.as_deref() == Some("reject") {
             bail!("来源已被标为不认可，不能作为新知识的正面依据");
         }
     }
-    sources.truncate(6);
-    let mut evidence = String::new();
+    let mut evidence = upstream_context;
     let mut event_ids = Vec::new();
-    for id in page
-        .source_event_ids
-        .iter()
-        .take(if sources.is_empty() { 20 } else { 10 })
-    {
+    let per_event = (6000 / page.source_event_ids.len().max(1)).min(500);
+    anyhow::ensure!(
+        per_event >= 60 || page.source_event_ids.is_empty(),
+        "事件依据过多，请先拆分知识主题，未丢弃既有依据"
+    );
+    for id in &page.source_event_ids {
         if !store.recordable_event(id)? {
             continue;
         }
@@ -531,7 +677,7 @@ pub(crate) fn build_knowledge_proposal(
                 .query_row("SELECT raw_text FROM events WHERE id=?1", [id], |r| {
                     r.get(0)
                 })?;
-        evidence.push_str(&format!("\n事件 {id}：{}", shorten(&text, 500)));
+        evidence.push_str(&format!("\n事件 {id}：{}", shorten(&text, per_event)));
         event_ids.push(id.clone());
     }
     // Divide the remaining budget so every attached source really reaches the model.
@@ -542,11 +688,19 @@ pub(crate) fn build_knowledge_proposal(
             "\n外部材料《{}》v{}：\n{}",
             shorten(&source.title, 100),
             source.version,
-            shorten(&source.content_md, per_source.min(3000))
+            {
+                let (summary, quotes) = reading::context(store, source)?;
+                let text = format!("{summary}\n逐字摘录：{}", quotes.join("；"));
+                anyhow::ensure!(
+                    text.chars().count() <= per_source.min(3000),
+                    "来源过多，完整阅读归纳超出本次预算，请拆分主题"
+                );
+                text
+            }
         ));
     }
     if sources.is_empty() && event_ids.is_empty() {
-        bail!("没有有效来源，暂不能生成可核验的知识建议");
+        bail!("剩余依据不足：请补充有效原料后再修复，当前知识仍待补证据");
     }
     let snapshots = sources.iter().map(|s| s.id.clone()).collect::<Vec<_>>();
     let initial_target = if kind == "revision" {
@@ -562,13 +716,21 @@ pub(crate) fn build_knowledge_proposal(
     } else {
         Vec::new()
     };
+    let mut comparison_states = std::collections::HashMap::new();
+    for base in existing.iter().chain(automatic_bases.iter()) {
+        comparison_states.insert(base.slug.clone(), authoring::revision_basis(store, base)?);
+    }
+    anyhow::ensure!(
+        evidence.chars().count() <= 12000,
+        "完整来源依据超过本轮预算，请先拆分主题，未丢弃旧来源"
+    );
     let classify = if automatic {
         "另返回 kind：method=可复用步骤，case=具体案例，principle=有边界的规律。只选择最适合的一种；材料不足或没有可复用知识时返回 {\"kind\":\"skip\",\"reason\":\"原因\"}，不要硬凑方法。"
     } else {
         ""
     };
     let prompt=format!("任务：{kind}。从给定来源提炼或审阅知识；方法、案例、规律必须说明适用条件，不将外部文章当作用户经历。
-如为审阅，指出可能的矛盾/过期信息及其依据，只是待审建议；保留人工编辑的有效内容。
+如为审阅，指出可能的矛盾/过期信息及其依据，只是待审建议；保留人工编辑的有效内容。仅使用本次给定的有效证据；已移除的来源不再支持任何结论，不得沿用旧页中仅靠被移除来源的说法。上游知识包含人工纠正，应据此复核当前页。
 仅返回 JSON：{{\"title\":string,\"content_md\":string,\"applicable_when\":string,\"reason\":string}}。
 禁止输出 strength 或规则权限；禁止杜撰来源。正文最多 5000 字，适用条件最多 600 字，理由最多 500 字。
 标题应说明提炼后的具体知识，不照抄原料标题。{classify}
@@ -609,6 +771,12 @@ pub(crate) fn build_knowledge_proposal(
     }
     let mut result = result.context("知识整理没有返回可用结果")?;
     if automatic && result.kind.as_deref() == Some("skip") {
+        if let Some(run) = run {
+            store.connection.execute(
+                "UPDATE knowledge_background_runs SET detail=?2 WHERE id=?1",
+                params![run, format!("已阅读全文，未提炼：{}", result.reason)],
+            )?;
+        }
         return Ok(None);
     }
     let kind = if automatic {
@@ -626,6 +794,13 @@ pub(crate) fn build_knowledge_proposal(
     } else {
         existing
     };
+    if let Some(base) = &existing {
+        let current = store.get_wiki_page(&base.slug)?.context("页面已删除")?;
+        anyhow::ensure!(
+            comparison_states.get(&base.slug) == Some(&authoring::revision_basis(store, &current)?),
+            "整理期间页面、来源或规则设置已变化，请重新生成"
+        );
+    }
     if kind != "revision" && result.title.trim() == page.title.trim() {
         let label = match kind {
             "method" => "方法",
@@ -649,14 +824,68 @@ pub(crate) fn build_knowledge_proposal(
         reason: result.reason.clone(),
         source_url: None,
     };
-    store
-        .record_proposal_with_origin(
-            &draft,
-            &result.applicable_when,
-            &snapshots,
-            existing.as_ref(),
-            &result.reason,
-            if automatic { "automatic" } else { "manual" },
-        )
-        .map(Some)
+    // Freeze validation and persistence together; an older source must not leave
+    // a new pending proposal after the provider finishes on obsolete evidence.
+    let tx = rusqlite::Transaction::new_unchecked(
+        &store.connection,
+        rusqlite::TransactionBehavior::Immediate,
+    )?;
+    authoring::compare_revision_basis(
+        store,
+        &store.get_wiki_page(slug)?.context("页面不存在")?,
+        Some(&initial_basis),
+    )?;
+    dependencies::validate(store, &dependency_bases)?;
+    for source in &sources {
+        let newest: String = store.connection.query_row(
+            "SELECT id FROM knowledge_snapshots WHERE source_id=?1 ORDER BY version DESC LIMIT 1",
+            [&source.source_id],
+            |r| r.get(0),
+        )?;
+        anyhow::ensure!(newest == source.id, "整理期间原料已更新，请重新生成");
+    }
+    if let Some(base) = &existing {
+        let current = store.get_wiki_page(&base.slug)?.context("页面不存在")?;
+        authoring::compare_revision_basis(store, &current, comparison_states.get(&base.slug))?;
+    }
+    let id = store.record_proposal_with_origin(
+        &draft,
+        &result.applicable_when,
+        &snapshots,
+        existing.as_ref(),
+        &result.reason,
+        if automatic || (publish && store.reference_is_unprotected(&draft.slug)?) {
+            "automatic"
+        } else {
+            "manual"
+        },
+    )?;
+    if selected_sources.is_some() {
+        store.connection.execute(
+            "UPDATE knowledge_proposals SET origin='manual' WHERE id=?1 AND status='pending'",
+            [&id],
+        )?;
+    }
+    store.connection.execute("UPDATE knowledge_proposals SET dependency_bases=?2 WHERE id=?1 AND status='pending' AND dependency_bases IS NULL",params![id,serde_json::to_string(&dependency_bases)?])?;
+    tx.commit()?;
+    Ok(Some(id))
+}
+
+/// A source repair always requires a review, including ordinary references.
+pub(crate) fn prepare_source_repair(
+    store: &Store,
+    slug: &str,
+    selected: &[String],
+    provider: &dyn AiProvider,
+) -> Result<String> {
+    build_proposal(
+        store,
+        slug,
+        "revision",
+        provider,
+        false,
+        None,
+        Some(selected),
+    )?
+    .context("没有修复建议")
 }

@@ -184,6 +184,7 @@ fn call_provider(store: &Store, system: &str, user: &str, max_tokens: u32) -> Re
         model: ai_config.model,
         temperature: 0.3,
         max_tokens: Some(max_tokens),
+        context_window: ai_config.context_window.map(|v| v as u32),
     };
     let provider = OpenAiCompatibleProvider::new(provider_config)?;
     provider
@@ -586,11 +587,11 @@ pub fn save_text_page(
     Ok(outcome.page)
 }
 
-// ── 人物关系（AI 从对话识别「人 ↔ 事情/项目」，用户确认后落地） ───────────
+// ── 联系人关系（AI 从对话识别「人 ↔ 事情/项目」，用户确认后落地） ───────────
 
-/// 执行「人物 + 关系」草拟（用户已确认）。
+/// 执行「联系人 + 关系」草拟（用户已确认）。
 /// 输入 args：`{ "people": [{"name","role_note"}], "relations": [{"person","target","relation","note"}] }`
-/// - 每个新人物建 kind=person 页（slug `person/<名>`，标题查重，不重复建档）
+/// - 每个新联系人建 kind=person 页（slug `person/<名>`，标题查重，不重复建档）
 /// - 每个关联目标按标题查重，不存在则建 kind=topic 页（slug `topic/<名>`）
 /// - 再写入结构化关系（(from,to,relation) 唯一）
 /// 返回执行摘要。
@@ -632,10 +633,10 @@ pub fn apply_people_relations(
 
     let parsed: PeopleRelationsArgs = serde_json::from_value(args.clone())?;
     if parsed.people.is_empty() && parsed.relations.is_empty() {
-        anyhow::bail!("没有需要保存的人物或关系");
+        anyhow::bail!("没有需要保存的联系人或关系");
     }
 
-    // 1) 人物建档：标题精确查重 → 不存在才建 person 页
+    // 1) 联系人建档：标题精确查重 → 不存在才建 person 页
     let mut person_entries: Vec<(String, String, String)> = Vec::new(); // (name, slug, kind)
     for p in &parsed.people {
         let name = p.name.trim().to_string();
@@ -653,7 +654,7 @@ pub fn apply_people_relations(
             .and_then(|relation| relation.from_slug.clone());
         if matches.len() > 1 && selected_slug.is_none() {
             anyhow::bail!(
-                "人物「{name}」存在多个同名页面（{}），请先在知识库中消歧后再确认",
+                "联系人「{name}」存在多个同名页面（{}），请先在知识库中消歧后再确认",
                 matches
                     .iter()
                     .map(|page| page.slug.as_str())
@@ -673,12 +674,12 @@ pub fn apply_people_relations(
         let slug = unique_slug(store, &format!("person/{}", slugify(&name)), &name)?;
         let note = p.role_note.trim().to_string();
         let summary = if note.is_empty() {
-            format!("{name}（对话中出现的人物）")
+            format!("{name}（对话中出现的联系人）")
         } else {
             note.clone()
         };
         let content_md = if note.is_empty() {
-            format!("{name} 是对话中出现的人物。")
+            format!("{name} 是对话中出现的联系人。")
         } else {
             format!("# {name}\n\n{note}\n\n---\n由 AI 从对话中识别，用户确认后建档。")
         };
@@ -691,7 +692,7 @@ pub fn apply_people_relations(
             tags: vec![name.clone()],
             source_event_ids: vec![],
             status: "active".to_string(),
-            reason: "AI 从对话识别人物，用户确认".to_string(),
+            reason: "AI 从对话识别联系人，用户确认".to_string(),
             source_url: None,
         };
         store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
@@ -734,12 +735,12 @@ pub fn apply_people_relations(
                     slug: slug.clone(),
                     kind: "topic".to_string(),
                     title: target.clone(),
-                    summary: format!("{target}（由人物关系确认时自动建档）"),
-                    content_md: format!("# {target}\n\n（由人物关系确认时自动创建，待补充内容。）"),
+                    summary: format!("{target}（由联系人关系确认时自动建档）"),
+                    content_md: format!("# {target}\n\n（由联系人关系确认时自动创建，待补充内容。）"),
                     tags: vec![],
                     source_event_ids: vec![],
                     status: "active".to_string(),
-                    reason: "AI 人物关系确认时自动建档".to_string(),
+                    reason: "AI 联系人关系确认时自动建档".to_string(),
                     source_url: None,
                 };
                 store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
@@ -822,7 +823,7 @@ pub fn apply_people_relations(
             .map(|(n, _, _)| n.clone())
             .collect::<Vec<_>>()
             .join("、");
-        out.push_str(&format!("人物 {}：{names}\n", person_entries.len()));
+        out.push_str(&format!("联系人 {}：{names}\n", person_entries.len()));
     }
     if saved > 0 {
         out.push_str(&format!(
@@ -836,7 +837,7 @@ pub fn apply_people_relations(
     Ok(out)
 }
 
-// ── 批量提取：历史事件 → 人物/关系草拟（@/# 标注为权威，AI 补全） ──────────
+// ── 批量提取：历史事件 → 联系人/关系草拟（@/# 标注为权威，AI 补全） ──────────
 
 /// 单次批量提取最多喂给 LLM 的事件条数（提示词体积可控）
 const BATCH_EXTRACT_MAX_EVENTS: usize = 120;
@@ -844,7 +845,7 @@ const BATCH_EXTRACT_MAX_EVENTS: usize = 120;
 const BATCH_EXTRACT_EVENT_CHARS: usize = 220;
 
 /// 批量提取：扫描事件库，`@人名` / `#事情` 标注视为权威实体，再让 LLM 根据事件上下文
-/// 补全人物 role_note 与「人物 ↔ 事情/项目」关系。
+/// 补全联系人 role_note 与「联系人 ↔ 事情/项目」关系。
 /// 只产草拟、不落库，返回可直接进入待确认动作的：
 /// `{ "people": [{name,role_note}], "relations": [{person,target,relation,note}] }`
 /// （落库仍走 execute_pending_action → apply_people_relations，用户确认后才写）。
@@ -869,7 +870,7 @@ pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json:
     }
     let mut annotated = String::new();
     if !annotations.people.is_empty() {
-        annotated.push_str(&format!("人物标注：{}\n", annotations.people.join("、")));
+        annotated.push_str(&format!("联系人标注：{}\n", annotations.people.join("、")));
     }
     if !annotations.targets.is_empty() {
         annotated.push_str(&format!(
@@ -878,11 +879,11 @@ pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json:
         ));
     }
 
-    let system = r#"你是 elsewhen 个人知识库的「人物关系」批量提取器。任务：阅读用户的事件，输出「人物 + 人物↔事情/项目关系」。
+    let system = r#"你是 elsewhen 个人知识库的「联系人关系」批量提取器。任务：阅读用户的事件，输出「联系人 + 联系人↔事情/项目关系」。
 
 抽取规则：
 - 事件里用 @人名 标注的一定是人、#事情 标注的一定是事情/项目（如「@张伟 负责 #双链路付款」）。已标注实体必须全部纳入 people / relations；同名但备注不同（「张伟（市场部）」「张伟（设计）」）是不同的人，不能合并。
-- 未标注的人物：只提取信息具体、对用户重要的人（有称呼、有身份或参与的明确事情），不为随口一提的名字建条目。
+- 未标注的联系人：只提取信息具体、对用户重要的人（有称呼、有身份或参与的明确事情），不为随口一提的名字建条目。
 - relations 的 person/target 必须来自 people 或已标注实体；relation 用 负责/参与/合作/对接/跟进/顾问 等 2~4 字动词。
 - role_note 一句话身份/背景，来自事件上下文；没有可写信息就留空字符串。
 - 宁缺毋滥：没有把握的关系不要编造。
@@ -983,7 +984,7 @@ const DIGEST_SYSTEM_PROMPT: &str = r#"你是 elsewhen 个人知识库的 wiki �
 
 页面 kind 枚举（必须严格使用其一）：
 - profile：关于用户身份、背景、状态的基本事实
-- person：对话/事件中出现的重要人物（姓名、身份、TA 参与或负责的事情/项目），一人一页，跨事件合并，不重复建档
+- person：对话/事件中出现的重要联系人（姓名、身份、TA 参与或负责的事情/项目），一人一页，跨事件合并，不重复建档
 - recurring_cost：反复出现的固定支出或反复动作（通勤、固定费用、例行事务）
 - capability：用户掌握的技能/能力（含正在学习的）
 - asset：用户拥有但可能闲置/未充分利用的资产（设备、空间、时间块、关系）
@@ -1213,6 +1214,7 @@ pub fn digest_provider(store: &Store) -> Result<Option<(OpenAiCompatibleProvider
         model: config.model,
         temperature: 0.3,
         max_tokens: Some(3000),
+        context_window: config.context_window.map(|v| v as u32),
     })?;
     Ok(Some((provider, model)))
 }
@@ -1588,7 +1590,7 @@ mod tests {
         assert!(summary.contains("张玮"), "{summary}");
         assert!(summary.contains("负责"), "{summary}");
 
-        // 人物页建档且分别是 person / topic 目标复用已有 project 页
+        // 联系人页建档且分别是 person / topic 目标复用已有 project 页
         let zhangwei = store.get_wiki_page("person/张玮").unwrap().unwrap();
         assert_eq!(zhangwei.kind, "person");
         assert!(zhangwei.content_md.contains("产研负责人"));
@@ -1619,7 +1621,7 @@ mod tests {
             2
         );
 
-        // 再次提交同样的人物 → 不重复建档
+        // 再次提交同样的联系人 → 不重复建档
         let again = apply_people_relations(
             &serde_json::json!({"people": [{"name": "张玮", "role_note": "产研负责人"}]}),
             &store,

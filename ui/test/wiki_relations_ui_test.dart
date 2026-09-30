@@ -8,10 +8,10 @@ import 'package:elsewhen_ui/providers/state_holder.dart';
 
 import 'support/isolated_bridge.dart';
 
-/// 人物关系功能测试（真实 Rust 桥接）：
+/// 联系人关系功能测试（真实 Rust 桥接）：
 /// 1) 桥接往返：addRelation → listRelationsForPage（双向可见）→ deleteRelation；
-/// 2) UI：自种「人物 + 项目」两个页面并加一条关系，在知识库详情页头部应出现
-///    「人物关系」区块与关系 chip。
+/// 2) UI：自种「联系人 + 项目」两个页面并加一条关系，在知识库详情页头部应出现
+///    「联系人关系」区块与关系 chip。
 void main() {
   late RustBridgeRepository repo;
 
@@ -22,7 +22,7 @@ void main() {
   String stamp() => DateTime.now().microsecondsSinceEpoch.toString();
 
   test('bridge relation roundtrip (add/list both directions/delete)', () async {
-    final personTitle = '桥接人物${stamp()}';
+    final personTitle = '桥接联系人${stamp()}';
     final projectTitle = '桥接项目${stamp()}';
     final person = await repo.saveTextPage(text: '简介', title: personTitle);
     final project = await repo.saveTextPage(text: '说明', title: projectTitle);
@@ -33,7 +33,7 @@ void main() {
       note: '测试',
     );
     try {
-      // 从人物方、项目方都能查到这条关系
+      // 从联系人方、项目方都能查到这条关系
       final fromPerson = await repo.listRelationsForPage(person.slug);
       final fromProject = await repo.listRelationsForPage(project.slug);
       expect(fromPerson.length, 1);
@@ -41,7 +41,7 @@ void main() {
       expect(fromPerson.first.relation, '参与');
       expect(fromPerson.first.fromSlug, person.slug);
       expect(fromPerson.first.toSlug, project.slug);
-      expect(fromProject.first.fromSlug, person.slug, reason: '项目页应能看到人物方');
+      expect(fromProject.first.fromSlug, person.slug, reason: '项目页应能看到联系人方');
       expect(fromProject.first.toSlug, project.slug);
 
       // 删除后两侧都看不到
@@ -61,8 +61,8 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    // 自种数据：人物页 + 项目页 + 一条关系（标题带时间戳避免与真实数据混淆）
-    final personTitle = 'UI人物${stamp()}';
+    // 自种数据：联系人页 + 项目页 + 一条关系（标题带时间戳避免与真实数据混淆）
+    final personTitle = 'UI联系人${stamp()}';
     final projectTitle = 'UI项目${stamp()}';
     final person = await tester.runAsync(
       () => repo.saveTextPage(text: '$personTitle 的简介', title: personTitle),
@@ -102,7 +102,7 @@ void main() {
     );
     await tester.pump();
 
-    // 滚动左侧列表直到「人物」页可见（列表按 kind 分组，新页在 topic 组附近）
+    // 滚动左侧列表直到「联系人」页可见（列表按 kind 分组，新页在 topic 组附近）
     final sidebarList = find
         .byWidgetPredicate(
           (w) => w is ListView && w.scrollDirection == Axis.vertical,
@@ -116,10 +116,10 @@ void main() {
     expect(
       find.text(personTitle),
       findsWidgets,
-      reason: '滚动后应能看到人物页 $personTitle',
+      reason: '滚动后应能看到联系人页 $personTitle',
     );
 
-    // 打开人物页详情
+    // 打开联系人页详情
     await tester.tap(find.text(personTitle).first);
     await tester.pump();
     // 多轮「真实异步窗口 + pump」：页面 provider 与关系 provider 都依赖真实桥接往返
@@ -130,8 +130,8 @@ void main() {
       await tester.pump();
     }
 
-    // 详情头部应有「人物关系」区块 + 关系类型 chip
-    expect(find.text('人物关系'), findsOneWidget, reason: '详情头应有「人物关系」区块');
+    // 详情头部应有「联系人关系」区块 + 关系类型 chip
+    expect(find.text('联系人关系'), findsOneWidget, reason: '详情头应有「联系人关系」区块');
     expect(find.text('负责'), findsWidgets, reason: '关系 chip 应显示关系类型');
   });
 }

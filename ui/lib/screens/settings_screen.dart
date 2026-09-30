@@ -103,7 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
 
     _maxTokensController = TextEditingController(
-      text: settings.memory.maxTokens?.toString() ?? '4096',
+      text: settings.memory.maxTokens?.toString() ?? '',
     );
 
     // 从 Rust 侧读取各区块数据（AI provider 多配置 / token 用量 / 推文服务 / 规则库）
@@ -946,133 +946,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   Future<void> _openProviderEditor(api.AiProviderConfigDto? existing) async {
     final isNew = existing == null;
-    final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    final baseUrlCtrl = TextEditingController(text: existing?.baseUrl ?? '');
-    final modelCtrl = TextEditingController(text: existing?.model ?? '');
-    // 密钥不回填明文：留空即保留原 key（新建则必填）
-    final apiKeyCtrl = TextEditingController(text: '');
-    final temperatureCtrl = TextEditingController(
-      text: (existing?.temperature ?? 0.7).toString(),
-    );
-    final maxTokensCtrl = TextEditingController(
-      text: existing?.maxTokens?.toString() ?? '',
-    );
-    var providerType = existing?.providerType ?? 'openai-compatible';
 
     final saved = await showDialog<_ProviderDraft>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(isNew ? '添加 AI Provider' : '编辑 Provider'),
-          content: SingleChildScrollView(
-            child: SizedBox(
-              width: 440,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTextField(
-                    label: '配置名称 *',
-                    hint: '如：主用 GPT',
-                    controller: nameCtrl,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDropdownField<String>(
-                    label: '提供商类型',
-                    value: providerType,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'openai-compatible',
-                        child: Text('OpenAI 兼容'),
-                      ),
-                      DropdownMenuItem(value: 'ollama', child: Text('Ollama')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setDialogState(() => providerType = value);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    label: 'Base URL *',
-                    hint: 'https://api.openai.com/v1',
-                    controller: baseUrlCtrl,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    label: '模型 *',
-                    hint: 'gpt-4o',
-                    controller: modelCtrl,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTextField(
-                    label: isNew ? 'API Key *' : 'API Key',
-                    hint: isNew ? '输入你的 API Key' : '留空表示保持不变',
-                    obscure: true,
-                    controller: apiKeyCtrl,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          label: 'Temperature',
-                          hint: '0.7',
-                          keyboardType: TextInputType.number,
-                          controller: temperatureCtrl,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTextField(
-                          label: 'Max Tokens',
-                          hint: '可选',
-                          keyboardType: TextInputType.number,
-                          controller: maxTokensCtrl,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(
-                ctx,
-                _ProviderDraft(
-                  name: nameCtrl.text.trim(),
-                  providerType: providerType,
-                  baseUrl: baseUrlCtrl.text.trim(),
-                  model: modelCtrl.text.trim(),
-                  apiKey: apiKeyCtrl.text.trim(),
-                  temperature: double.tryParse(temperatureCtrl.text) ?? 0.7,
-                  maxTokens: int.tryParse(maxTokensCtrl.text),
-                ),
-              ),
-              child: const Text('保存'),
-            ),
-          ],
-        ),
+      builder: (_) => _ProviderEditorDialog(
+        isNew: isNew,
+        initialName: existing?.name ?? '',
+        initialBaseUrl: existing?.baseUrl ?? '',
+        initialModel: existing?.model ?? '',
+        initialTemperature: existing?.temperature ?? 0.7,
+        initialContextWindow: existing?.contextWindow?.toString() ?? '',
+        initialMaxTokens: existing?.maxTokens?.toString() ?? '',
+        initialProviderType:
+            existing?.providerType ?? 'openai-compatible',
       ),
     );
-    // 对话框关闭后释放全部输入控制器（草稿值已在 pop 时读取完毕）。
-    for (final controller in [
-      nameCtrl,
-      baseUrlCtrl,
-      modelCtrl,
-      apiKeyCtrl,
-      temperatureCtrl,
-      maxTokensCtrl,
-    ]) {
-      controller.dispose();
-    }
+    // 控制器归 _ProviderEditorDialog 的 State 所有，随对话框真正卸载时释放；
+    // 此处不得再 dispose —— showDialog 在 pop 那一刻就返回，退出动画期间
+    // 对话框 widget 树仍挂载，重建会打到已释放的 controller 上。
     if (saved == null || !mounted) return;
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
@@ -1088,6 +979,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           isActive: existing?.isActive ?? false,
           temperature: saved.temperature,
           maxTokens: saved.maxTokens,
+          contextWindow: saved.contextWindow,
         ),
       );
       await _loadProviders();
@@ -1138,9 +1030,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
         if (settings.memory.strategyType == 'sliding-window')
           _buildTextField(
-            label: '最大 Token 数',
+            label: '对话记忆预算（可选）',
             controller: _maxTokensController,
-            hint: '4096',
+            hint: '留空按 Provider 上下文窗口推算',
             keyboardType: TextInputType.number,
           ),
       ],
@@ -1576,7 +1468,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     await notifier.saveTheme();
   }
 
-  Widget _buildTextField({
+  // static：只依赖 AppTheme 全局量，不碰任何 State 字段，
+  // 因此 Provider 编辑对话框（独立 State）也能复用。
+  static Widget _buildTextField({
     required String label,
     required TextEditingController controller,
     String? hint,
@@ -1633,7 +1527,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  Widget _buildDropdownField<T>({
+  static Widget _buildDropdownField<T>({
     required String label,
     required T value,
     required List<DropdownMenuItem<T>> items,
@@ -1723,6 +1617,7 @@ class _ProviderDraft {
   final String apiKey;
   final double temperature;
   final int? maxTokens;
+  final int? contextWindow;
 
   _ProviderDraft({
     required this.name,
@@ -1732,5 +1627,189 @@ class _ProviderDraft {
     required this.apiKey,
     required this.temperature,
     required this.maxTokens,
+    required this.contextWindow,
   });
+}
+
+/// AI Provider 编辑对话框。
+///
+/// 控制器必须归本 State 所有，而不是在 `_openProviderEditor` 里建局部变量
+/// 再在 `await showDialog` 之后 dispose：`showDialog` 在 Navigator.pop 那一刻
+/// 就返回，而对话框的退出动画还要再跑约 200ms，其间 widget 树仍然挂载。
+/// ESC 关闭时会同时发生失焦 + 键盘收起 + pop，重建概率最高，动画帧里的
+/// `_AnimatedState.didUpdateWidget` 会重新给已释放的 controller `addListener`，
+/// 抛 "A TextEditingController was used after being disposed"。
+/// 由 State 在真正卸载时释放，生命周期与使用方天然对齐。
+class _ProviderEditorDialog extends StatefulWidget {
+  const _ProviderEditorDialog({
+    required this.isNew,
+    required this.initialName,
+    required this.initialBaseUrl,
+    required this.initialModel,
+    required this.initialTemperature,
+    required this.initialContextWindow,
+    required this.initialMaxTokens,
+    required this.initialProviderType,
+  });
+
+  final bool isNew;
+  final String initialName;
+  final String initialBaseUrl;
+  final String initialModel;
+  final double initialTemperature;
+  final String initialContextWindow;
+  final String initialMaxTokens;
+  final String initialProviderType;
+
+  @override
+  State<_ProviderEditorDialog> createState() => _ProviderEditorDialogState();
+}
+
+class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
+  late final TextEditingController _name;
+  late final TextEditingController _baseUrl;
+  late final TextEditingController _model;
+  // 密钥不回填明文：留空即保留原 key（新建则必填）
+  late final TextEditingController _apiKey;
+  late final TextEditingController _temperature;
+  late final TextEditingController _contextWindow;
+  late final TextEditingController _maxTokens;
+  late String _providerType;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.initialName);
+    _baseUrl = TextEditingController(text: widget.initialBaseUrl);
+    _model = TextEditingController(text: widget.initialModel);
+    _apiKey = TextEditingController(text: '');
+    _temperature = TextEditingController(
+      text: widget.initialTemperature.toString(),
+    );
+    _contextWindow = TextEditingController(text: widget.initialContextWindow);
+    _maxTokens = TextEditingController(text: widget.initialMaxTokens);
+    _providerType = widget.initialProviderType;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _baseUrl.dispose();
+    _model.dispose();
+    _apiKey.dispose();
+    _temperature.dispose();
+    _contextWindow.dispose();
+    _maxTokens.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.isNew ? '添加 AI Provider' : '编辑 Provider'),
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SettingsScreenState._buildTextField(
+                label: '配置名称 *',
+                hint: '如：主用 GPT',
+                controller: _name,
+              ),
+              const SizedBox(height: 12),
+              _SettingsScreenState._buildDropdownField<String>(
+                label: '提供商类型',
+                value: _providerType,
+                items: const [
+                  DropdownMenuItem(
+                    value: 'openai-compatible',
+                    child: Text('OpenAI 兼容'),
+                  ),
+                  DropdownMenuItem(value: 'ollama', child: Text('Ollama')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _providerType = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              _SettingsScreenState._buildTextField(
+                label: 'Base URL *',
+                hint: 'https://api.openai.com/v1',
+                controller: _baseUrl,
+              ),
+              const SizedBox(height: 12),
+              _SettingsScreenState._buildTextField(
+                label: '模型 *',
+                hint: 'gpt-4o',
+                controller: _model,
+              ),
+              const SizedBox(height: 12),
+              _SettingsScreenState._buildTextField(
+                label: widget.isNew ? 'API Key *' : 'API Key',
+                hint: widget.isNew ? '输入你的 API Key' : '留空表示保持不变',
+                obscure: true,
+                controller: _apiKey,
+              ),
+              const SizedBox(height: 12),
+              _SettingsScreenState._buildTextField(
+                label: '上下文窗口（token）',
+                hint: '留空使用保守默认值；中转可填写实测上限',
+                keyboardType: TextInputType.number,
+                controller: _contextWindow,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SettingsScreenState._buildTextField(
+                      label: 'Temperature',
+                      hint: '0.7',
+                      keyboardType: TextInputType.number,
+                      controller: _temperature,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _SettingsScreenState._buildTextField(
+                      label: '输出上限（token）',
+                      hint: '可选',
+                      keyboardType: TextInputType.number,
+                      controller: _maxTokens,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            _ProviderDraft(
+              name: _name.text.trim(),
+              providerType: _providerType,
+              baseUrl: _baseUrl.text.trim(),
+              model: _model.text.trim(),
+              apiKey: _apiKey.text.trim(),
+              temperature: double.tryParse(_temperature.text) ?? 0.7,
+              maxTokens: int.tryParse(_maxTokens.text),
+              contextWindow: int.tryParse(_contextWindow.text),
+            ),
+          ),
+          child: const Text('保存'),
+        ),
+      ],
+    );
+  }
 }

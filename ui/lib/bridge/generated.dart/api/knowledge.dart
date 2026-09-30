@@ -5,6 +5,10 @@
 
 import '../frb_generated.dart';
 import '../knowledge.dart';
+import '../knowledge/maintenance.dart';
+import '../knowledge/organization.dart';
+import '../knowledge/queue.dart';
+import '../knowledge/review.dart';
 import '../storage/knowledge.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -12,7 +16,75 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wiki.dart';
 
 // These functions are ignored because they are not marked as `pub`: `store`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+
+Future<List<KnowledgeRepairSource>> listKnowledgeRepairSources({
+  required String slug,
+}) => RustLib.instance.api.crateApiKnowledgeListKnowledgeRepairSources(
+  slug: slug,
+);
+
+Future<String> prepareKnowledgeSourceRepair({
+  required String slug,
+  required List<String> snapshotIds,
+}) => RustLib.instance.api.crateApiKnowledgePrepareKnowledgeSourceRepair(
+  slug: slug,
+  snapshotIds: snapshotIds,
+);
+
+Future<List<WikiPageDto>> listKnowledgeResolutionTargets({
+  required String fingerprint,
+}) => RustLib.instance.api.crateApiKnowledgeListKnowledgeResolutionTargets(
+  fingerprint: fingerprint,
+);
+
+Future<void> resolveKnowledgeIssueWithRevision({
+  required String fingerprint,
+  required String slug,
+  required String revisionId,
+  required String note,
+}) => RustLib.instance.api.crateApiKnowledgeResolveKnowledgeIssueWithRevision(
+  fingerprint: fingerprint,
+  slug: slug,
+  revisionId: revisionId,
+  note: note,
+);
+
+Future<List<KnowledgeReviewRecord>> listKnowledgeReviewHistory({
+  required String slug,
+  required PlatformInt64 offset,
+}) => RustLib.instance.api.crateApiKnowledgeListKnowledgeReviewHistory(
+  slug: slug,
+  offset: offset,
+);
+
+Future<KnowledgeQueuePage> listKnowledgeWorkQueue({
+  required PlatformInt64 offset,
+  String? status,
+}) => RustLib.instance.api.crateApiKnowledgeListKnowledgeWorkQueue(
+  offset: offset,
+  status: status,
+);
+
+Future<String> prepareTopicOrganization({
+  required List<String> slugs,
+  required String mode,
+}) => RustLib.instance.api.crateApiKnowledgePrepareTopicOrganization(
+  slugs: slugs,
+  mode: mode,
+);
+
+Future<List<TopicOrganizationPreview>> listTopicOrganizations({
+  required String slug,
+}) => RustLib.instance.api.crateApiKnowledgeListTopicOrganizations(slug: slug);
+
+Future<List<String>> resolveTopicOrganization({
+  required String id,
+  required bool accept,
+}) => RustLib.instance.api.crateApiKnowledgeResolveTopicOrganization(
+  id: id,
+  accept: accept,
+);
 
 /// Background worker only; no manual insight trigger in the UI.
 Future<PlatformInt64> tickKnowledgeInsights() =>
@@ -68,6 +140,30 @@ Future<List<KnowledgeRevisionDto>> listKnowledgeRevisions({
   required String slug,
 }) => RustLib.instance.api.crateApiKnowledgeListKnowledgeRevisions(slug: slug);
 
+Future<List<KnowledgeDiffPart>> getKnowledgeProposalDiff({
+  required String id,
+}) => RustLib.instance.api.crateApiKnowledgeGetKnowledgeProposalDiff(id: id);
+
+Future<WikiPageDto> acceptKnowledgeProposalParts({
+  required String id,
+  required Int64List selectedParts,
+  required bool acceptApplicability,
+  required List<String> resolvedIssues,
+}) => RustLib.instance.api.crateApiKnowledgeAcceptKnowledgeProposalParts(
+  id: id,
+  selectedParts: selectedParts,
+  acceptApplicability: acceptApplicability,
+  resolvedIssues: resolvedIssues,
+);
+
+Future<String> prepareKnowledgeRestore({
+  required String slug,
+  required String revisionId,
+}) => RustLib.instance.api.crateApiKnowledgePrepareKnowledgeRestore(
+  slug: slug,
+  revisionId: revisionId,
+);
+
 Future<List<KnowledgeCitation>> getKnowledgeCitations({
   required String task,
   required String ownerId,
@@ -114,6 +210,12 @@ class KnowledgeBackgroundRunDto {
   final String? finishedAt;
   final String? error;
   final PlatformInt64 resultCount;
+  final String? sourceSlug;
+  final String? sourceTitle;
+  final PlatformInt64? sourceVersion;
+  final String? detail;
+  final String? retryAt;
+  final String strategyVersion;
 
   const KnowledgeBackgroundRunDto({
     required this.task,
@@ -122,6 +224,12 @@ class KnowledgeBackgroundRunDto {
     this.finishedAt,
     this.error,
     required this.resultCount,
+    this.sourceSlug,
+    this.sourceTitle,
+    this.sourceVersion,
+    this.detail,
+    this.retryAt,
+    required this.strategyVersion,
   });
 
   @override
@@ -131,7 +239,13 @@ class KnowledgeBackgroundRunDto {
       startedAt.hashCode ^
       finishedAt.hashCode ^
       error.hashCode ^
-      resultCount.hashCode;
+      resultCount.hashCode ^
+      sourceSlug.hashCode ^
+      sourceTitle.hashCode ^
+      sourceVersion.hashCode ^
+      detail.hashCode ^
+      retryAt.hashCode ^
+      strategyVersion.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -143,7 +257,13 @@ class KnowledgeBackgroundRunDto {
           startedAt == other.startedAt &&
           finishedAt == other.finishedAt &&
           error == other.error &&
-          resultCount == other.resultCount;
+          resultCount == other.resultCount &&
+          sourceSlug == other.sourceSlug &&
+          sourceTitle == other.sourceTitle &&
+          sourceVersion == other.sourceVersion &&
+          detail == other.detail &&
+          retryAt == other.retryAt &&
+          strategyVersion == other.strategyVersion;
 }
 
 class KnowledgePageDetails {
@@ -189,25 +309,68 @@ class KnowledgePageDetails {
           metadata == other.metadata;
 }
 
+class KnowledgeRepairSource {
+  final String snapshotId;
+  final String? pageSlug;
+  final String title;
+  final PlatformInt64 version;
+  final bool selected;
+  final bool eligible;
+
+  const KnowledgeRepairSource({
+    required this.snapshotId,
+    this.pageSlug,
+    required this.title,
+    required this.version,
+    required this.selected,
+    required this.eligible,
+  });
+
+  @override
+  int get hashCode =>
+      snapshotId.hashCode ^
+      pageSlug.hashCode ^
+      title.hashCode ^
+      version.hashCode ^
+      selected.hashCode ^
+      eligible.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is KnowledgeRepairSource &&
+          runtimeType == other.runtimeType &&
+          snapshotId == other.snapshotId &&
+          pageSlug == other.pageSlug &&
+          title == other.title &&
+          version == other.version &&
+          selected == other.selected &&
+          eligible == other.eligible;
+}
+
 class KnowledgeRevisionDto {
+  final String id;
   final String contentMd;
   final String reason;
   final String createdAt;
 
   const KnowledgeRevisionDto({
+    required this.id,
     required this.contentMd,
     required this.reason,
     required this.createdAt,
   });
 
   @override
-  int get hashCode => contentMd.hashCode ^ reason.hashCode ^ createdAt.hashCode;
+  int get hashCode =>
+      id.hashCode ^ contentMd.hashCode ^ reason.hashCode ^ createdAt.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is KnowledgeRevisionDto &&
           runtimeType == other.runtimeType &&
+          id == other.id &&
           contentMd == other.contentMd &&
           reason == other.reason &&
           createdAt == other.createdAt;

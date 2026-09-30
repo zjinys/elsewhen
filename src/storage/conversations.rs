@@ -15,18 +15,35 @@ impl Store {
         limit: usize,
         max_chars: usize,
     ) -> Result<Vec<RecentUserMessage>> {
+        self.recent_user_messages_for_context(limit, max_chars, None)
+    }
+
+    /// With a current conversation, recall only other ordinary conversations.
+    /// The single main UI already shows current messages and excludes wiki chats.
+    pub fn recent_user_messages_for_context(
+        &self,
+        limit: usize,
+        max_chars: usize,
+        current_conversation: Option<&str>,
+    ) -> Result<Vec<RecentUserMessage>> {
         let mut statement = self.connection.prepare(
-            "SELECT conversation_id, substr(content, 1, ?2) FROM messages
-         WHERE role = 'user'
-         ORDER BY created_at DESC
+            "SELECT m.conversation_id, substr(m.content, 1, ?2) FROM messages m
+         JOIN conversations c ON c.id = m.conversation_id
+         WHERE m.role = 'user'
+           AND (?3 IS NULL OR (m.conversation_id != ?3
+                AND c.wiki_page_slug IS NULL AND c.assistant_mode != 'knowledge_mentor'))
+         ORDER BY m.created_at DESC, m.rowid DESC
          LIMIT ?1",
         )?;
-        let rows = statement.query_map(params![limit as i64, max_chars as i64], |row| {
-            Ok(RecentUserMessage {
-                conversation_id: row.get(0)?,
-                content: row.get(1)?,
-            })
-        })?;
+        let rows = statement.query_map(
+            params![limit as i64, max_chars as i64, current_conversation],
+            |row| {
+                Ok(RecentUserMessage {
+                    conversation_id: row.get(0)?,
+                    content: row.get(1)?,
+                })
+            },
+        )?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
     }

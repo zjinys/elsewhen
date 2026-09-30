@@ -28,7 +28,9 @@ Elsewhen is a local-first personal event system with a **Rust core** and **Flutt
 
 4. **Database is the single source of truth** for AI provider config (configured in the app's settings)
 
-5. **Imported source compilation** → The same worker's knowledge tick also processes one eligible source version. It automatically saves bounded method/case/principle output as reference knowledge, or skips insufficient material. `knowledge_background_runs` provides per-version dedupe, a lease and failure backoff. Manual pending/rejected suggestions, human edits and confirmed rules are protected. No manual background trigger is exposed; the page's optional extraction command creates a manual proposal.
+5. **Imported source compilation** → The same worker's knowledge tick processes one eligible source version. It automatically saves bounded method/case/principle output as reference knowledge, or skips insufficient material. Optional page extraction follows the same reference publication rules. Manual pending/rejected suggestions, human edits and confirmed rules remain protected; substantive changes to protected pages need confirmation.
+
+6. **Cross-source wiki maintenance** → Each knowledge tick also integrates one source with related material into shared reference topics and evidence-backed conflict/outdated/duplicate hints. `knowledge_background_runs` provides per-version dedupe, leases and failure backoff; unchanged versions are revisited at most once every 30 days. Topic discovery inputs are bounded (8 sources, 3 existing topics; long originals use cached full-coverage readings), updates retain all prior source identities, and the integration batch commits topics, hints and successful task status atomically. Schema v6 adds `knowledge_semantic_issues`. Schema v7 adds resumable full-document readings, generation-fenced per-page source refresh jobs, strategy versions, review decisions, reviewed topic organization and provider context windows. UI views refresh on background changes. There is no manual background trigger; the application must be running.
 
 ### Module Responsibilities
 
@@ -182,3 +184,29 @@ The active implementation plan is `docs/roadmap/2026-09-17-personal-cognition-ma
 GitHub Actions workflow (`.github/workflows/ci.yml`) runs on Ubuntu, macOS, Windows:
 - `cargo test --all-targets`
 - `cargo build --release`
+
+### LLM Wiki maintenance (schema v7)
+
+- Long originals (>1400 characters) are read in 6000-character chunks and recursively summarized, with exact quoted excerpts verified separately. Cached reading nodes are keyed by snapshot and reading strategy version. Never label generated summaries as verbatim source text.
+- `knowledge_refresh_jobs` tracks every dependent non-original knowledge page after a new source snapshot. Generation and run leases fence late results; human edits and rule metadata require review. Do not add manual background trigger/retry UI.
+- `knowledge/authoring.rs` binds chat drafts only to selected verified evidence. `knowledge/review.rs` implements paragraph selection, issue-to-revision decisions and historical text restoration proposals. Partial acceptance cannot silently migrate source versions.
+- `knowledge/organization.rs` prepares reviewed topic merge/split batches. Confirmation preserves all input evidence, archives old topics and records replacement links; original sources remain unchanged.
+- `ai/budget.rs` checks serialized model requests, tool definitions and output reserve. Known BPE families are bundled locally, unknown families use conservative byte estimates. Context windows belong to provider config; explicit context-window rejection may retry once with a smaller per-request budget.
+- Current delivery/limits: `docs/llm-wiki-implementation-gaps.md`; existing-data verification guide: `docs/testing/llm-wiki-real-world-testing.md`. Never equate mock/bridge tests with real-model quality acceptance.
+
+
+### LLM Wiki repair and dependency review (schema v8)
+
+- `knowledge/dependencies.rs` records explicit knowledge page bases for derivatives and cited chat drafts. Upstream changes invalidate direct and transitive descendants until review; do not infer missing historical bases from current content.
+- Source repair uses selected current usable snapshots and a reviewed full proposal. Never remove a source relation while silently retaining unsupported prose. Skipped, still-outdated source refresh jobs recover automatically when their sources become usable again.
+- `knowledge/maintenance.rs` validates cross-page issue resolution against all cited source versions and the target's current revision, and exposes paginated review history. `knowledge/queue.rs` inventories unstarted/waiting/skipped work independently of recent run logs; its UI is read-only.
+- Current validation and boundaries remain in `docs/llm-wiki-implementation-gaps.md`; personal databases must not be used by automated tests.
+
+
+### LLM Wiki workflows and scale (schema v9)
+
+- Topic plan membership and post-acceptance states support guarded batch undo. Old plans without undo bases are readable but not silently reversible.
+- Reading/use state is independent of source endorsement. Artifact versions select an exact revision per parent/type; never attach a newly read revision ID to previously displayed content.
+- Dependency epochs accelerate stale checks; full bases remain the final confirmation contract. Background dependency refresh always prepares reviewed proposals, never silently accepts them.
+- Suggestions have append-only feedback, scoped to the originating conversation. Acceptance is not execution and does not create a permanent rule.
+- Library and artifact lists load bounded metadata; queue aggregation is in SQLite. Remaining full scans and measured limits: `docs/llm-wiki-scale-and-refactoring.md`. Do not call the entire app ten-thousand/hundred-thousand-page ready based on one query benchmark.

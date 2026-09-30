@@ -1,3 +1,4 @@
+pub mod budget;
 pub mod conversation;
 pub mod insight;
 pub mod memory;

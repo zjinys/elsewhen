@@ -164,7 +164,7 @@ fn automatic_compilation_recovers_interrupted_lease_without_duplicate_calls() {
     let s = &db.store;
     let original = source(s, "https://example.com/recover", "原料");
     let snapshot = s.source_history(&original.slug).unwrap().remove(0);
-    s.connection.execute("INSERT INTO knowledge_background_runs(id,task,input_key,status,started_at) VALUES ('old','source-compilation',?1,'running',?2)",
+    s.connection.execute("INSERT INTO knowledge_background_runs(id,task,input_key,status,started_at,strategy_version) VALUES ('old','source-compilation',?1,'running',?2,'fulltext-maintenance-v2')",
         rusqlite::params![snapshot.id,chrono::Utc::now().to_rfc3339()]).unwrap();
     let no_calls = Replies(std::cell::RefCell::new(vec![]));
     assert_eq!(
@@ -325,8 +325,7 @@ fn compilation_captures_revision_base_before_calling_the_model() {
         store: s,
         slug: &page.slug,
     };
-    let revision = propose_knowledge(s, &page.slug, "revision", &provider).unwrap();
-    assert!(s.resolve_knowledge_proposal(&revision, true).is_err());
+    assert!(propose_knowledge(s, &page.slug, "revision", &provider).is_err());
     assert_eq!(
         s.get_wiki_page(&page.slug).unwrap().unwrap().content_md,
         "生成期间新增的人工事实"
@@ -340,8 +339,8 @@ fn many_cooling_failures_do_not_starve_a_new_source() {
     for index in 0..101 {
         let page = source(s, &format!("https://example.com/backlog/{index}"), "原料");
         let snapshot = s.source_history(&page.slug).unwrap().remove(0);
-        s.connection.execute("INSERT INTO knowledge_background_runs(id,task,input_key,status,started_at,finished_at)
-            VALUES (?1,'source-compilation',?2,'failed',?3,?3)",
+        s.connection.execute("INSERT INTO knowledge_background_runs(id,task,input_key,status,started_at,finished_at,strategy_version)
+            VALUES (?1,'source-compilation',?2,'failed',?3,?3,'fulltext-maintenance-v2')",
             rusqlite::params![format!("failed-{index}"),snapshot.id,chrono::Utc::now().to_rfc3339()]).unwrap();
     }
     let ready = source(s, "https://example.com/ready", "新的事务材料");

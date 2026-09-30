@@ -333,6 +333,7 @@ pub fn analyze_project_with_ai(store: &Store, directory: &Path) -> Result<Projec
         model: config.model,
         temperature: config.temperature as f32,
         max_tokens: config.max_tokens.map(|v| v as u32),
+        context_window: config.context_window.map(|v| v as u32),
     }) {
         Ok(provider) => provider,
         Err(error) => {

@@ -11,6 +11,11 @@ use crate::{
 use anyhow::Result;
 
 include!("knowledge_flow_tests.rs");
+include!("knowledge_integration_tests.rs");
+include!("knowledge_authoring_tests.rs");
+include!("knowledge_maintenance_tests.rs");
+include!("knowledge_repair_tests.rs");
+include!("knowledge_workflow_tests.rs");
 
 struct Db {
     store: Store,
@@ -602,7 +607,7 @@ fn citation_recheck_rejects_changed_or_disavowed_material() {
 }
 
 #[test]
-fn tweet_aliases_share_identity_and_revisions_require_new_rule_confirmation() {
+fn tweet_aliases_share_identity_and_rule_revisions_require_explicit_confirmation() {
     let db = Db::new();
     let s = &db.store;
     let original = source(
@@ -623,11 +628,17 @@ fn tweet_aliases_share_identity_and_revisions_require_new_rule_confirmation() {
         .iter()
         .any(|c| c.page_slug == page.slug));
     let id = propose_knowledge(s, &page.slug, "revision", &compile_stub()).unwrap();
-    s.resolve_knowledge_proposal(&id, true).unwrap();
+    assert!(s
+        .knowledge_proposals(Some(&page.slug))
+        .unwrap()
+        .iter()
+        .any(|p| p.id == id && p.status == "pending"));
     assert_eq!(
-        s.knowledge_metadata(&page.slug).unwrap().strength,
-        "reference"
+        s.knowledge_metadata(&page.slug).unwrap().applicable_when,
+        "独特适用场景"
     );
+    s.resolve_knowledge_proposal(&id, true).unwrap();
+    assert_eq!(s.knowledge_metadata(&page.slug).unwrap().strength, "rule");
 }
 
 #[test]

@@ -1,3 +1,5 @@
+import 'knowledge_workflows.dart';
+
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -38,6 +40,87 @@ class WikiPageDetailView extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<WikiPageDetailView> createState() => _WikiPageDetailViewState();
+}
+
+/// 标签编辑对话框。
+///
+/// 控制器归本 State 所有，不在调用方 `await showDialog` 之后 dispose：
+/// `showDialog` 在 pop 那一刻返回，退出动画还要再跑约 200ms，其间 widget 树仍挂载。
+/// 本对话框带 `autofocus`，聚焦变化几乎必然在动画期间触发重建，打到已释放的
+/// controller 上会抛 "A TextEditingController was used after being disposed"。
+class _EditTagsDialog extends StatefulWidget {
+  const _EditTagsDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_EditTagsDialog> createState() => _EditTagsDialogState();
+}
+
+class _EditTagsDialogState extends State<_EditTagsDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initial);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppTheme.surface1,
+      title: Text(
+        '编辑标签',
+        style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '用空格或逗号分隔多个标签，留空即清空',
+            style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            style: TextStyle(color: AppTheme.textPrimary),
+            cursorColor: AppTheme.accentPrimary,
+            decoration: InputDecoration(
+              hintText: '例如：工作 Rust 投资',
+              hintStyle: TextStyle(color: AppTheme.textTertiary),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: AppTheme.surface3),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: AppTheme.accentPrimary),
+              ),
+            ),
+            onSubmitted: (value) => Navigator.of(context).pop(value),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: AppTheme.accentPrimary),
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('保存'),
+        ),
+      ],
+    );
+  }
 }
 
 class _WikiPageDetailViewState extends ConsumerState<WikiPageDetailView> {
@@ -211,215 +294,6 @@ class _HomeAction extends StatelessWidget {
     ),
   );
 }
-
-class _KnowledgeBrowser extends ConsumerWidget {
-  final TextEditingController queryController;
-  final Set<String> areasSelected;
-  final Set<String> kindsSelected;
-  final Set<String> tagsSelected;
-  final ValueChanged<Set<String>> onAreaChanged;
-  final ValueChanged<Set<String>> onKindChanged;
-  final ValueChanged<Set<String>> onTagChanged;
-  final ValueChanged<String> onQueryChanged;
-  final String query;
-
-  const _KnowledgeBrowser({
-    required this.queryController,
-    required this.areasSelected,
-    required this.kindsSelected,
-    required this.tagsSelected,
-    required this.onAreaChanged,
-    required this.onKindChanged,
-    required this.onTagChanged,
-    required this.onQueryChanged,
-    required this.query,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pages = ref.watch(wikiPagesProvider).value ?? const <WikiPage>[];
-    final areas =
-        pages.map((p) => p.area).where((v) => v.isNotEmpty).toSet().toList()
-          ..sort();
-    final kinds =
-        pages.map((p) => p.kind).where((v) => v.isNotEmpty).toSet().toList()
-          ..sort();
-    final tags = pages.expand((p) => p.tags).toSet().toList()..sort();
-    final active =
-        areasSelected.length + kindsSelected.length + tagsSelected.length;
-    bool areaMatches(WikiPage page) {
-      if (areasSelected.isEmpty) return true;
-      return areasSelected.any((value) {
-        if (value == 'network:person') {
-          return page.area == 'network' && page.kind == 'person';
-        }
-        if (value == 'network:project') {
-          return page.area == 'network' && page.kind == 'project';
-        }
-        return page.area == value;
-      });
-    }
-
-    final resultCount = pages.where((p) {
-      final text = '${p.title} ${p.summary} ${p.contentMd} ${p.tags.join(' ')}'
-          .toLowerCase();
-      return (query.trim().isEmpty ||
-              text.contains(query.trim().toLowerCase())) &&
-          areaMatches(p) &&
-          (kindsSelected.isEmpty || kindsSelected.contains(p.kind)) &&
-          (tagsSelected.isEmpty || p.tags.any(tagsSelected.contains));
-    }).length;
-    return Container(
-      color: AppTheme.surface1,
-      padding: const EdgeInsets.fromLTRB(
-        AppTheme.space4,
-        10,
-        AppTheme.space4,
-        8,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '知识库浏览',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '$resultCount 条',
-                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-              ),
-              if (active > 0)
-                Text(
-                  ' · $active 个筛选',
-                  style: TextStyle(fontSize: 11, color: AppTheme.accentPrimary),
-                ),
-              const Spacer(),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            style: const TextStyle(fontSize: 13),
-            controller: queryController,
-            onChanged: onQueryChanged,
-            decoration: InputDecoration(
-              hintText: '搜索标题、摘要、正文或标签',
-              prefixIcon: const Icon(Icons.search, size: 18),
-              suffixIcon: query.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.clear, size: 17),
-                      onPressed: () {
-                        queryController.clear();
-                        onQueryChanged('');
-                      },
-                    ),
-              isDense: true,
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          _FilterRow(
-            label: '区域',
-            values: [
-              for (final v in areas.where((v) => v != 'network'))
-                _FilterOption(
-                  v,
-                  pages.firstWhere((p) => p.area == v).areaLabel,
-                ),
-              if (pages.any((p) => p.area == 'network' && p.kind == 'person'))
-                const _FilterOption('network:person', '人物'),
-              if (pages.any((p) => p.area == 'network' && p.kind == 'project'))
-                const _FilterOption('network:project', '项目'),
-            ],
-            selected: areasSelected,
-            onChanged: onAreaChanged,
-          ),
-          _FilterRow(
-            label: '类型',
-            values: kinds
-                .map(
-                  (v) => _FilterOption(
-                    v,
-                    pages.firstWhere((p) => p.kind == v).kindLabel,
-                  ),
-                )
-                .toList(),
-            selected: kindsSelected,
-            onChanged: onKindChanged,
-          ),
-          if (tags.isNotEmpty)
-            _FilterRow(
-              label: '标签',
-              values: tags.map((v) => _FilterOption(v, '#$v')).toList(),
-              selected: tagsSelected,
-              onChanged: onTagChanged,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterOption {
-  final String value;
-  final String label;
-  const _FilterOption(this.value, this.label);
-}
-
-class _FilterRow extends StatelessWidget {
-  final String label;
-  final List<_FilterOption> values;
-  final Set<String> selected;
-  final ValueChanged<Set<String>> onChanged;
-  const _FilterRow({
-    required this.label,
-    required this.values,
-    required this.selected,
-    required this.onChanged,
-  });
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-        ),
-        ChoiceChip(
-          label: const Text('全部'),
-          selected: selected.isEmpty,
-          onSelected: (_) => onChanged(<String>{}),
-          visualDensity: VisualDensity.compact,
-        ),
-        for (final option in values.take(12))
-          ChoiceChip(
-            label: Text(option.label),
-            selected: selected.contains(option.value),
-            onSelected: (_) {
-              final next = {...selected};
-              if (!next.add(option.value)) next.remove(option.value);
-              onChanged(next);
-            },
-            visualDensity: VisualDensity.compact,
-          ),
-      ],
-    ),
-  );
-}
-
-// ─────────────────────────────────────────────
-// 顶部 tab 条
-// ─────────────────────────────────────────────
 
 class _WikiTabBar extends ConsumerWidget {
   final List<WikiTabEntry> tabs;
@@ -1684,7 +1558,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
                 const SizedBox(height: AppTheme.space2),
                 _WorkItemPanel(page: widget.page),
               ],
-              // 人物关系是内容级信息，保持直接可见（空时自隐藏）
+              // 联系人关系是内容级信息，保持直接可见（空时自隐藏）
               _buildRelationsRow(context),
               // 标签直接展开，避免用户还要打开一个元数据折叠行。
               _buildTagRow(context),
@@ -1848,7 +1722,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
     );
   }
 
-  /// 人物关系区块：AI 从对话识别、用户确认后保存的「人物 ↔ 事情/项目」。
+  /// 联系人关系区块：AI 从对话识别、用户确认后保存的「联系人 ↔ 事情/项目」。
   /// 双侧方向都以当前页为中心展示（出→ 人·事；入← 人·事）。
   Widget _buildRelationsRow(BuildContext context) {
     final relationsAsync = ref.watch(pageRelationsProvider(widget.page.slug));
@@ -1858,7 +1732,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '人物关系',
+          '联系人关系',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
@@ -1881,60 +1755,10 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
 
   /// 编辑标签：空格 / 逗号分隔，留空即清空。保存后刷新页面与列表。
   Future<void> _editTags(BuildContext context) async {
-    final controller = TextEditingController(text: widget.page.tags.join(' '));
     final submitted = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.surface1,
-        title: Text(
-          '编辑标签',
-          style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '用空格或逗号分隔多个标签，留空即清空',
-              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
-            ),
-            const SizedBox(height: AppTheme.space3),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              style: TextStyle(color: AppTheme.textPrimary),
-              cursorColor: AppTheme.accentPrimary,
-              decoration: InputDecoration(
-                hintText: '例如：工作 Rust 投资',
-                hintStyle: TextStyle(color: AppTheme.textTertiary),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: AppTheme.surface3),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: AppTheme.accentPrimary),
-                ),
-              ),
-              onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.accentPrimary,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
+      builder: (_) => _EditTagsDialog(initial: widget.page.tags.join(' ')),
     );
-    // 对话框已关闭（controller.text 已在 pop 时取过），立即释放，避免泄漏。
-    controller.dispose();
     if (submitted == null || !context.mounted) return;
 
     final tags = submitted
@@ -2876,7 +2700,7 @@ class _SourceChip extends StatelessWidget {
   }
 }
 
-/// 人物关系 chip：以当前页为中心展示一条关系（出→ / 入←），点击跳到对端页面。
+/// 联系人关系 chip：以当前页为中心展示一条关系（出→ / 入←），点击跳到对端页面。
 /// 对端标题从 wikiPageProvider 读取（避开仅 slug 的冷展示）。
 class _RelationChip extends ConsumerWidget {
   final Relation relation;
@@ -3814,130 +3638,10 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
   }
 }
 
-class _WikiBrowseTab extends ConsumerStatefulWidget {
+class _WikiBrowseTab extends StatelessWidget {
   const _WikiBrowseTab();
   @override
-  ConsumerState<_WikiBrowseTab> createState() => _WikiBrowseTabState();
-}
-
-class _WikiBrowseTabState extends ConsumerState<_WikiBrowseTab> {
-  final _query = TextEditingController();
-  Set<String> _areas = <String>{};
-  Set<String> _kinds = <String>{};
-  Set<String> _tags = <String>{};
-
-  @override
-  void dispose() {
-    _query.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final pages = ref.watch(wikiPagesProvider).value ?? const <WikiPage>[];
-    final hasSearch =
-        _query.text.trim().isNotEmpty ||
-        _areas.isNotEmpty ||
-        _kinds.isNotEmpty ||
-        _tags.isNotEmpty;
-    bool areaMatches(WikiPage page) {
-      if (_areas.isEmpty) return true;
-      return _areas.any((value) {
-        if (value == 'network:person') {
-          return page.area == 'network' && page.kind == 'person';
-        }
-        if (value == 'network:project') {
-          return page.area == 'network' && page.kind == 'project';
-        }
-        return page.area == value;
-      });
-    }
-
-    final filtered = hasSearch
-        ? (pages.where((p) {
-            final q = _query.text.trim().toLowerCase();
-            final searchable =
-                '${p.title} ${p.summary} ${p.contentMd} ${p.tags.join(' ')}';
-            return p.status != 'archived' &&
-                (q.isEmpty || searchable.toLowerCase().contains(q)) &&
-                areaMatches(p) &&
-                (_kinds.isEmpty || _kinds.contains(p.kind)) &&
-                (_tags.isEmpty || p.tags.any(_tags.contains));
-          }).toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
-        : <WikiPage>[];
-    final areas = pages.map((p) => p.area).toSet().toList()..sort();
-    final kinds = pages.map((p) => p.kind).toSet().toList()..sort();
-    final tags = pages.expand((p) => p.tags).toSet().toList()..sort();
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-          child: Column(
-            children: [
-              _KnowledgeBrowser(
-                queryController: _query,
-                areasSelected: _areas,
-                kindsSelected: _kinds,
-                tagsSelected: _tags,
-                query: _query.text,
-                onQueryChanged: (_) => setState(() {}),
-                onAreaChanged: (v) => setState(() => _areas = v),
-                onKindChanged: (v) => setState(() => _kinds = v),
-                onTagChanged: (v) => setState(() => _tags = v),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: !hasSearch
-              ? const Center(child: Text('输入关键词或选择筛选条件开始浏览'))
-              : filtered.isEmpty
-              ? const Center(child: Text('没有匹配的知识页'))
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (_, i) {
-                    final p = filtered[i];
-                    return Material(
-                      color: Colors.transparent,
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        leading: Icon(
-                          p.kind == 'project'
-                              ? Icons.work_outline
-                              : Icons.description_outlined,
-                          color: AppTheme.accentPrimary,
-                        ),
-                        title: Text(
-                          p.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          p.summary.isEmpty ? p.kindLabel : p.summary,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Text(
-                          p.kindLabel,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textTertiary,
-                          ),
-                        ),
-                        onTap: () => openWikiPageTab(ref, p),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => const KnowledgeLibrary();
 }
 
 /// 内容对话的气泡（用户右对齐高亮，AI 左侧带头像）

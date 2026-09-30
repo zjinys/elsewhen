@@ -5,6 +5,8 @@
 > 工程参考：ColinThompson1/llm-wiki（Agent Skills 实现）
 >
 > **2026-09-27 更新**：CLI 已移除。Ingest（digest）改为应用后台自动运行的事件级队列（FR-PES-004 阶段 1，见 [需求](requirements/product/FR-PES-004-LLM-Wiki知识库闭环.md) / [技术设计](requirements/architecture/FR-PES-ARCH-002-LLM-Wiki知识库闭环技术设计.md)）；本文中的 `elsewhen wiki …` / `elsewhen insight` 命令均已不存在，洞察将在阶段 3 自动化。
+>
+> **2026-09-29 更新**：来源层、自动洞察、跨资料主题与语义检查已实现，本文保留 v1 设计历史，末尾缺口列表不代表当前状态。当前流程见 [实现说明](llm-wiki-implementation-flow.md)，尚未对齐的入口与能力见 [缺口核对](llm-wiki-implementation-gaps.md)。
 
 ## 1. 为什么是这个方案
 

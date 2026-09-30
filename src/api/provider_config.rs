@@ -28,6 +28,7 @@ pub struct AiProviderConfigDto {
     pub is_active: bool,
     pub temperature: f64,
     pub max_tokens: Option<i64>,
+    pub context_window: Option<i64>,
 }
 
 fn dto_from_active(p: crate::storage::AiProviderConfig) -> AiProviderConfigDto {
@@ -42,6 +43,7 @@ fn dto_from_active(p: crate::storage::AiProviderConfig) -> AiProviderConfigDto {
         is_active: p.is_active,
         temperature: p.temperature,
         max_tokens: p.max_tokens,
+        context_window: p.context_window,
     }
 }
 
@@ -72,6 +74,7 @@ pub fn list_ai_provider_configs() -> Result<Vec<AiProviderConfigDto>> {
             is_active: r.is_active,
             temperature: r.temperature,
             max_tokens: r.max_tokens,
+            context_window: r.context_window,
         })
         .collect())
 }
@@ -96,7 +99,27 @@ pub fn save_ai_provider_config(provider: AiProviderConfigDto) -> Result<String> 
     } else {
         Some(provider.id.trim())
     };
-    store.save_ai_provider_config(
+    if let Some(output) = provider.max_tokens {
+        anyhow::ensure!(
+            output > 0 && output <= 1_000_000,
+            "输出上限应为正数且不超过 1000000 token"
+        );
+    }
+    if let Some(window) = provider.context_window {
+        anyhow::ensure!(
+            (4096..=2_000_000).contains(&window),
+            "上下文窗口应为 4096 至 2000000 token"
+        );
+        anyhow::ensure!(
+            provider.max_tokens.unwrap_or(4096) + (window / 20).clamp(256, 4096) < window,
+            "上下文窗口必须大于输出预留与安全余量"
+        );
+    }
+    let tx = rusqlite::Transaction::new_unchecked(
+        &store.connection,
+        rusqlite::TransactionBehavior::Immediate,
+    )?;
+    let saved = store.save_ai_provider_config(
         id,
         provider.name.trim(),
         &provider.provider_type,
@@ -105,7 +128,13 @@ pub fn save_ai_provider_config(provider: AiProviderConfigDto) -> Result<String> 
         provider.api_key.trim(),
         provider.temperature,
         provider.max_tokens,
-    )
+    )?;
+    store.connection.execute(
+        "UPDATE ai_provider_configs SET context_window=?2 WHERE id=?1",
+        rusqlite::params![saved, provider.context_window],
+    )?;
+    tx.commit()?;
+    Ok(saved)
 }
 
 /// 将指定配置设为激活（唯一激活项）

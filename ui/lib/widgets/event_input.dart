@@ -62,7 +62,7 @@ class _EventInputState extends State<EventInput> {
                 height: 1.6,
               ),
               decoration: InputDecoration(
-                hintText: '记录此刻发生的事情…（可用 @人名 标注人物、#事情 标注项目）',
+                hintText: '记录此刻发生的事情…（可用 @人名 标注联系人、#事情 标注项目）',
                 hintStyle: TextStyle(
                   color: AppTheme.textTertiary,
                   fontSize: 15,
@@ -139,13 +139,13 @@ class _EventInputState extends State<EventInput> {
         width: 480,
         child: SingleChildScrollView(
           child: Text(
-            '@人名：明确标注人物\n'
+            '@人名：明确标注联系人\n'
             '#事情：明确标注项目、事项或主题\n\n'
             '例如：@张伟 正在负责 #付款流程\n\n'
             '记一下：明确保存一条经历或进展\n'
             '保存到知识库：把结论沉淀下来\n'
             '帮我建待办：创建后续行动\n\n'
-            '人物关系、知识页和待办会先给你看草稿。回复“好”才保存；回复“不要”或“取消”则放弃。',
+            '联系人关系、知识页和待办会先给你看草稿。回复“好”才保存；回复“不要”或“取消”则放弃。',
           ),
         ),
       ),

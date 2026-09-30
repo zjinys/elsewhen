@@ -34,7 +34,7 @@ impl Store {
     /// 列出全部 AI provider 配置（支持多配置，仅一个 is_active=1）
     pub fn list_ai_provider_configs(&self) -> Result<Vec<AiProviderConfigRow>> {
         let mut statement = self.connection.prepare(
-        "SELECT id,name,provider_type,base_url,model,api_key_source,is_active,temperature,max_tokens
+        "SELECT id,name,provider_type,base_url,model,api_key_source,is_active,temperature,max_tokens,context_window
          FROM ai_provider_configs ORDER BY created_at ASC, id ASC",
     )?;
         let rows = statement
@@ -49,6 +49,7 @@ impl Store {
                     is_active: row.get::<_, i64>(6)? != 0,
                     temperature: row.get(7)?,
                     max_tokens: row.get(8)?,
+                    context_window: row.get(9)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -60,7 +61,7 @@ impl Store {
     pub fn list_ai_provider_configs_for_runtime(&self) -> Result<Vec<AiProviderConfig>> {
         let mut statement = self.connection.prepare(
             "SELECT id,name,provider_type,base_url,model,api_key_source,
-                COALESCE(api_key,''),is_active,temperature,max_tokens
+                COALESCE(api_key,''),is_active,temperature,max_tokens,context_window
          FROM ai_provider_configs
          ORDER BY is_active DESC, created_at ASC, id ASC",
         )?;
@@ -76,6 +77,7 @@ impl Store {
                 is_active: row.get::<_, i64>(7)? != 0,
                 temperature: row.get(8)?,
                 max_tokens: row.get(9)?,
+                context_window: row.get(10)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -126,16 +128,22 @@ impl Store {
         // 新建：若库中尚无激活配置，则自动激活（保证始终存在激活项）。
         // count 与 insert 必须同属一个写事务：两个并发「首次新建」若各自
         // 先查后写，会同时算出 has_active=0 并双双写入 is_active=1（P2-2）。
-        let transaction =
-            Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
-        let has_active: i64 = transaction.query_row(
+        let transaction = if self.connection.is_autocommit() {
+            Some(Transaction::new_unchecked(
+                &self.connection,
+                TransactionBehavior::Immediate,
+            )?)
+        } else {
+            None
+        };
+        let has_active: i64 = self.connection.query_row(
             "SELECT COUNT(*) FROM ai_provider_configs WHERE is_active=1",
             [],
             |r| r.get(0),
         )?;
         let new_id = Uuid::new_v4().to_string();
         let new_active = if has_active == 0 { 1 } else { 0 };
-        transaction
+        self.connection
         .execute(
             "INSERT INTO ai_provider_configs
              (id,name,provider_type,base_url,model,api_key_source,api_key,is_active,temperature,max_tokens,created_at,updated_at)
@@ -153,7 +161,9 @@ impl Store {
                 anyhow::anyhow!("{e}")
             }
         })?;
-        transaction.commit()?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         Ok(new_id)
     }
 
@@ -207,7 +217,7 @@ impl Store {
     pub fn active_ai_provider_config(&self) -> Result<Option<AiProviderConfig>> {
         self.connection
         .query_row(
-            "SELECT id,name,provider_type,base_url,model,api_key_source,api_key,is_active,temperature,max_tokens
+            "SELECT id,name,provider_type,base_url,model,api_key_source,api_key,is_active,temperature,max_tokens,context_window
              FROM ai_provider_configs
              WHERE is_active=1 AND api_key IS NOT NULL LIMIT 1",
             [],
@@ -223,6 +233,7 @@ impl Store {
                     is_active: row.get::<_, i64>(7)? != 0,
                     temperature: row.get(8)?,
                     max_tokens: row.get(9)?,
+                    context_window: row.get(10)?,
                 })
             },
         )

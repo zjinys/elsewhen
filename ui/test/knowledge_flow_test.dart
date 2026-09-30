@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
+import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/import_fetch.dart';
 import 'package:elsewhen_ui/models/wiki_page.dart';
 import 'package:elsewhen_ui/providers/wiki_provider.dart';
@@ -65,20 +66,65 @@ class FakeKnowledge extends KnowledgeRepository {
   bool returnPage = false;
   int proposeCalls = 0;
   String? expected;
+  int detailsCalls = 0;
+  List<int>? acceptedParts;
+  bool? acceptedApplicability;
   @override
-  Future<api.KnowledgePageDetails> details(String slug) async =>
-      api.KnowledgePageDetails(
-        sourcePages: slug == page.slug ? [] : [page],
-        outputPages: slug == page.slug ? [compiledPage] : [],
-        sources: [],
-        history: [],
-        proposals: [],
-        issues: [],
-        metadata: const api.KnowledgeMetadata(
-          applicableWhen: '多步写入',
-          strength: 'reference',
-        ),
-      );
+  Future<List<api.KnowledgeDiffPart>> diff(String id) async => [
+    const api.KnowledgeDiffPart(before: '旧步骤', after: '新步骤', changed: true),
+    const api.KnowledgeDiffPart(before: '共同段落', after: '共同段落', changed: false),
+    const api.KnowledgeDiffPart(before: '旧边界', after: '新边界', changed: true),
+  ];
+  @override
+  Future<api.WikiPageDto> acceptParts(
+    String id,
+    List<int> parts,
+    bool applicability,
+    List<String> issues,
+  ) async {
+    acceptedParts = parts;
+    acceptedApplicability = applicability;
+    return compiledPage;
+  }
+
+  @override
+  Future<api.KnowledgePageDetails> details(String slug) async {
+    detailsCalls++;
+    return api.KnowledgePageDetails(
+      sourcePages: slug == page.slug ? [] : [page],
+      outputPages: slug == page.slug ? [compiledPage] : [],
+      sources: [],
+      history: [],
+      proposals: [],
+      issues: [],
+      metadata: const api.KnowledgeMetadata(
+        applicableWhen: '多步写入',
+        strength: 'reference',
+      ),
+    );
+  }
+
+  @override
+  Future<List<api.KnowledgeProposal>> proposals() async => [
+    proposal,
+    const api.KnowledgeProposal(
+      id: 'done',
+      targetSlug: 'topic/done',
+      kind: 'topic',
+      title: '自动完成的主题',
+      contentMd: '正文',
+      applicableWhen: '适用',
+      snapshotIds: [],
+      eventIds: [],
+      reason: '自动',
+      status: 'accepted',
+      createdAt: '2026-09-29',
+    ),
+  ];
+  @override
+  Future<List<api.KnowledgeIssue>> issues() async => [];
+  @override
+  Future<List<api.KnowledgeBackgroundRunDto>> runs() async => [];
   @override
   Future<api.WikiPageDto?> resolve(String id, bool accept) async {
     decisions.add(accept);
@@ -160,6 +206,24 @@ void main() {
     expect(repo.decisions, [true]);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('逐段审阅只提交选择的修改，不增加弹窗', (tester) async {
+    final repo = FakeKnowledge();
+    await pump(tester, repo, const KnowledgeProposalCard(proposal: proposal));
+    await tester.tap(find.text('逐段审阅'));
+    await tester.pumpAndSettle();
+    expect(repo.acceptedParts, isNull);
+    await tester.ensureVisible(find.text('采纳修改 3'));
+    await tester.tap(find.text('采纳修改 3'));
+    await tester.ensureVisible(find.text('同时采纳建议的适用条件'));
+    await tester.tap(find.text('同时采纳建议的适用条件'));
+    await tester.ensureVisible(find.text('确认保存'));
+    await tester.tap(find.text('确认保存'));
+    await tester.pumpAndSettle();
+    expect(repo.acceptedParts, [0]);
+    expect(repo.acceptedApplicability, isFalse);
+    expect(find.byType(Dialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('拒绝建议走拒绝路径', (tester) async {
     final repo = FakeKnowledge();
     await pump(tester, repo, const KnowledgeProposalCard(proposal: proposal));
@@ -221,6 +285,7 @@ void main() {
     await tester.tap(find.text('重试整理'));
     await tester.pumpAndSettle();
     expect(repo.proposeCalls, 2);
+    expect(repo.decisions, isEmpty);
     expect(outputs, 1);
     expect(find.byType(Dialog), findsNothing);
   });
@@ -242,6 +307,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('事务方法'), findsOneWidget);
     expect(find.text('方法 · 来自本页原料'), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(KnowledgeOutputsSection)),
+    );
+    final before = repo.detailsCalls;
+    (container.read(
+      storageRepositoryProvider,
+    ) as RustBridgeRepository).knowledgeRevision.value++;
+    await tester.pumpAndSettle();
+    expect(repo.detailsCalls, greaterThan(before));
     await tester.tap(find.text('事务方法'));
     await tester.pumpAndSettle();
     expect(find.text('先明确事务边界，再完成多步写入。', findRichText: true), findsOneWidget);
@@ -249,6 +323,16 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await pump(tester, repo, const KnowledgeOriginLinks(slug: 'method/one'));
     expect(find.text('原料 · 原文'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('审阅只呈现待确认修改，自动完成产出不挤占列表', (tester) async {
+    final repo = FakeKnowledge();
+    await pump(tester, repo, const KnowledgeMaintenanceButton());
+    await tester.tap(find.text('知识审阅'));
+    await tester.pumpAndSettle();
+    expect(find.text('事务方法'), findsOneWidget);
+    expect(find.text('自动完成的主题'), findsNothing);
+    expect(find.text('来源与内容检查'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   for (final accept in [false, true]) {

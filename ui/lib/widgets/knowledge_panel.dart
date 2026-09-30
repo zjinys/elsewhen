@@ -1,3 +1,7 @@
+import 'knowledge_workflows.dart';
+import 'topic_organization_section.dart';
+import 'knowledge_maintenance_sections.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -80,6 +84,7 @@ void _refresh(WidgetRef ref, String? slug) {
     ref.invalidate(wikiPageProvider(slug));
     ref.invalidate(knowledgeRevisionsProvider(slug));
   }
+  ref.invalidate(knowledgeRevisionProvider);
   ref.invalidate(wikiPagesProvider);
   ref.invalidate(knowledgeProposalsProvider);
   ref.invalidate(knowledgeIssuesProvider);
@@ -161,7 +166,7 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
           )
         else if (material)
           PopupMenuButton<String>(
-            tooltip: '按需提炼知识',
+            tooltip: '按需提炼，新增参考知识直接保存',
             onSelected: _propose,
             itemBuilder: (_) => const [
               PopupMenuItem(
@@ -247,11 +252,15 @@ class KnowledgeSourcesSection extends ConsumerWidget {
           error: (error, _) => Text(_error(error, context: '读取来源与修订')),
           data: (data) => ListView(
             children: [
+              KnowledgeReadingControl(slug: page.slug),
+              const SizedBox(height: 12),
               const Text('来源用于核对依据，修订记录用于查看知识如何变化。日常阅读和 AI 检索不需要逐项操作。'),
               for (final origin in data.sourcePages)
                 _KnowledgePageLink(
                   page: WikiPage.fromDto(origin),
-                  prefix: '原料',
+                  prefix: ['source', 'note'].contains(origin.kind)
+                      ? '原料'
+                      : '上游知识',
                 ),
               for (final source in data.sources) _SourceTile(source: source),
               if (data.sources.isEmpty && page.sourceEventIds.isEmpty)
@@ -273,6 +282,17 @@ class KnowledgeSourcesSection extends ConsumerWidget {
               if (['method', 'case', 'principle'].contains(page.kind))
                 _MetadataEditor(slug: page.slug, metadata: data.metadata),
               for (final issue in data.issues) _IssueTile(issue: issue),
+              if (!['source', 'note'].contains(page.kind))
+                KnowledgeSourceRepairSection(
+                  slug: page.slug,
+                  hasEvents: page.sourceEventIds.isNotEmpty,
+                  onChanged: () => _refresh(ref, page.slug),
+                  previewBuilder: (proposal) => KnowledgeProposalCard(
+                    key: ValueKey('repair-${proposal.id}'),
+                    proposal: proposal,
+                  ),
+                ),
+              KnowledgeReviewHistorySection(slug: page.slug),
               if (data.history.length > 1)
                 ExpansionTile(
                   title: const Text('原文历史版本'),
@@ -283,7 +303,12 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                 ),
               ExpansionTile(
                 title: const Text('知识修订记录'),
-                children: [_RevisionList(slug: page.slug)],
+                children: [
+                  _RevisionList(
+                    slug: page.slug,
+                    canRestore: !['source', 'note'].contains(page.kind),
+                  ),
+                ],
               ),
             ],
           ),
@@ -304,7 +329,10 @@ class KnowledgeOriginLinks extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (final page in data.sourcePages)
-              _KnowledgePageLink(page: WikiPage.fromDto(page), prefix: '原料'),
+              _KnowledgePageLink(
+                page: WikiPage.fromDto(page),
+                prefix: ['source', 'note'].contains(page.kind) ? '原料' : '上游知识',
+              ),
           ],
         ),
       );
@@ -353,11 +381,16 @@ class _KnowledgeOutputsSectionState
     final page = widget.page;
     return ListView(
       children: [
+        if (page.kind == 'topic')
+          TopicOrganizationSection(
+            page: page,
+            onChanged: () => _refresh(ref, page.slug),
+          ),
         if (['source', 'note'].contains(page.kind))
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
-              '原文已可供 AI 检索；后台会按内容整理参考知识。方法是步骤，案例是经验，规律是有适用边界的结论。无需逐篇提炼，也不会自动升级为你的个人规则。',
+              '后台会整理参考知识，并结合相关资料维护共同主题。按需提炼的新增产出直接保存；涉及人工修改或已确认内容时才需审阅。原文保留，个人规则由你确认。',
             ),
           ),
         ref
@@ -368,9 +401,6 @@ class _KnowledgeOutputsSectionState
               data: (data) {
                 final pending = data.proposals
                     .where((p) => p.status == 'pending')
-                    .toList();
-                final history = data.proposals
-                    .where((p) => p.status != 'pending')
                     .toList();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +420,9 @@ class _KnowledgeOutputsSectionState
                         key: PageStorageKey(output.slug),
                         title: Text(output.title),
                         subtitle: Text(
-                          '${WikiPage.fromDto(output).kindLabel} · 来自本页原料',
+                          output.slug.startsWith('knowledge-topic/')
+                              ? '跨资料主题 · 包含本页及相关原料'
+                              : '${WikiPage.fromDto(output).kindLabel} · 来自本页原料',
                         ),
                         children: [
                           SelectionArea(
@@ -407,19 +439,7 @@ class _KnowledgeOutputsSectionState
                         padding: EdgeInsets.symmetric(vertical: 12),
                         child: Text('暂无知识产出。原文仍可直接使用；后台整理会按内容决定是否形成知识。'),
                       ),
-                    if (history.isNotEmpty)
-                      ExpansionTile(
-                        title: const Text('处理记录'),
-                        children: [
-                          for (final proposal in history)
-                            ListTile(
-                              title: Text(proposal.title),
-                              subtitle: Text(
-                                proposal.status == 'accepted' ? '已保存' : '已拒绝',
-                              ),
-                            ),
-                        ],
-                      ),
+                    KnowledgeReviewHistorySection(slug: page.slug),
                   ],
                 );
               },
@@ -463,15 +483,57 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
   String? _comparison;
   String? _comparisonTitle;
   bool _resolved = false;
+  List<api.KnowledgeDiffPart>? _parts;
+  final Set<int> _selectedParts = {};
+  final Set<String> _resolvedIssues = {};
+  List<api.KnowledgeIssue> _reviewIssues = [];
+  bool _acceptApplicability = true;
+  Future<void> _loadDiff() async {
+    setState(() {
+      _busy = true;
+      _failure = null;
+    });
+    try {
+      final repository = ref.read(knowledgeRepositoryProvider);
+      final parts = await repository.diff(widget.proposal.id);
+      final issues = await repository.issues();
+      if (!mounted) return;
+      setState(() {
+        _parts = parts;
+        _selectedParts.addAll([
+          for (var i = 0; i < parts.length; i++)
+            if (parts[i].changed) i,
+        ]);
+        _reviewIssues = issues
+            .where((i) => i.pageSlug == widget.proposal.targetSlug)
+            .toList();
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _failure = _error(error, context: '读取差异', showDetail: true),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _resolve(bool accept) async {
     setState(() {
       _busy = true;
       _failure = null;
     });
     try {
-      final saved = await ref
-          .read(knowledgeRepositoryProvider)
-          .resolve(widget.proposal.id, accept);
+      final repository = ref.read(knowledgeRepositoryProvider);
+      final saved = accept && _parts != null
+          ? await repository.acceptParts(
+              widget.proposal.id,
+              _selectedParts.toList()..sort(),
+              _acceptApplicability,
+              _resolvedIssues.toList(),
+            )
+          : await repository.resolve(widget.proposal.id, accept);
       if (!mounted) return;
       _refresh(ref, widget.sourceSlug);
       _refresh(ref, saved?.slug ?? widget.proposal.targetSlug);
@@ -529,7 +591,88 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                 child: const Text('对照当前正文'),
               ),
             const SizedBox(height: 8),
-            SelectionArea(child: MarkdownView(markdown: p.contentMd)),
+            if (p.status == 'pending')
+              TextButton.icon(
+                onPressed: _busy ? null : _loadDiff,
+                icon: const Icon(Icons.difference_outlined),
+                label: const Text('逐段审阅'),
+              ),
+            if (_parts == null)
+              SelectionArea(child: MarkdownView(markdown: p.contentMd))
+            else ...[
+              for (var i = 0; i < _parts!.length; i++)
+                if (_parts![i].changed)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text('采纳修改 ${i + 1}'),
+                            value: _selectedParts.contains(i),
+                            onChanged: _busy
+                                ? null
+                                : (checked) => setState(() {
+                                    if (checked == true) {
+                                      _selectedParts.add(i);
+                                    } else {
+                                      _selectedParts.remove(i);
+                                    }
+                                  }),
+                          ),
+                          if (_parts![i].before.isNotEmpty) ...[
+                            const Text('原段落'),
+                            SelectionArea(
+                              child: MarkdownView(markdown: _parts![i].before),
+                            ),
+                          ],
+                          if (_parts![i].after.isNotEmpty) ...[
+                            const Text('建议段落'),
+                            SelectionArea(
+                              child: MarkdownView(markdown: _parts![i].after),
+                            ),
+                          ] else
+                            const Text('删除这一段'),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: SelectionArea(
+                      child: MarkdownView(markdown: _parts![i].after),
+                    ),
+                  ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('同时采纳建议的适用条件'),
+                subtitle: Text(p.applicableWhen),
+                value: _acceptApplicability,
+                onChanged: _busy
+                    ? null
+                    : (v) => setState(() => _acceptApplicability = v ?? false),
+              ),
+              if (_reviewIssues.isNotEmpty) const Text('本次修订解决了哪些提示（由你确认）：'),
+              for (final issue in _reviewIssues)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(issue.description),
+                  value: _resolvedIssues.contains(issue.fingerprint),
+                  onChanged: _busy
+                      ? null
+                      : (v) => setState(() {
+                          if (v == true) {
+                            _resolvedIssues.add(issue.fingerprint);
+                          } else {
+                            _resolvedIssues.remove(issue.fingerprint);
+                          }
+                        }),
+                ),
+              const Text('如果来源依据同时变化，需要完整确认；局部采纳只用于来源不变的修订。'),
+            ],
             Wrap(
               spacing: 4,
               children: [
@@ -596,12 +739,24 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             if (p.status == 'pending' && !_resolved)
+              if (p.pageId != null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text('请对照当前正文。确认会应用以上修改；若本页是个人规则，也表示你确认修订后的规则及适用条件。'),
+                ),
+            if (p.status == 'pending' && !_resolved)
               Wrap(
                 spacing: 8,
                 children: [
                   FilledButton(
                     onPressed: _busy ? null : () => _resolve(true),
-                    child: Text(_busy ? '处理中…' : '确认保存'),
+                    child: Text(
+                      _busy
+                          ? '处理中…'
+                          : p.pageId == null
+                          ? '确认保存'
+                          : '确认修订',
+                    ),
                   ),
                   TextButton(
                     onPressed: _busy ? null : () => _resolve(false),
@@ -628,36 +783,46 @@ class _IssueTile extends ConsumerWidget {
   final api.KnowledgeIssue issue;
   const _IssueTile({required this.issue});
   @override
-  Widget build(BuildContext context, WidgetRef ref) => ListTile(
-    contentPadding: EdgeInsets.zero,
-    title: Text(issue.description),
-    subtitle: Text(issue.pageSlug),
-    trailing: TextButton(
-      child: const Text('忽略提示'),
-      onPressed: () async {
-        try {
-          await ref
-              .read(knowledgeRepositoryProvider)
-              .dismiss(issue.fingerprint);
-          if (context.mounted) _refresh(ref, issue.pageSlug);
-        } catch (error) {
-          if (context.mounted) {
-            await showKnowledgeText(
-              context,
-              '操作失败',
-              _error(error, context: '忽略检查项'),
-            );
-          }
-        }
-      },
-    ),
-    onTap: () => _openPage(context, ref, issue.pageSlug),
+  Widget build(BuildContext context, WidgetRef ref) => Column(
+    children: [
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(issue.description),
+        subtitle: Text(issue.pageSlug),
+        trailing: TextButton(
+          child: const Text('忽略提示'),
+          onPressed: () async {
+            try {
+              await ref
+                  .read(knowledgeRepositoryProvider)
+                  .dismiss(issue.fingerprint);
+              if (context.mounted) _refresh(ref, issue.pageSlug);
+            } catch (error) {
+              if (context.mounted) {
+                await showKnowledgeText(
+                  context,
+                  '操作失败',
+                  _error(error, context: '忽略检查项'),
+                );
+              }
+            }
+          },
+        ),
+        onTap: () => _openPage(context, ref, issue.pageSlug),
+      ),
+      if (['conflict', 'outdated', 'duplicate'].contains(issue.kind))
+        KnowledgeIssueResolutionSection(
+          issue: issue,
+          onChanged: () => _refresh(ref, issue.pageSlug),
+        ),
+    ],
   );
 }
 
 class _RevisionList extends ConsumerWidget {
   final String slug;
-  const _RevisionList({required this.slug});
+  final bool canRestore;
+  const _RevisionList({required this.slug, this.canRestore = true});
   @override
   Widget build(BuildContext context, WidgetRef ref) => ref
       .watch(knowledgeRevisionsProvider(slug))
@@ -677,6 +842,40 @@ class _RevisionList extends ConsumerWidget {
                   SelectionArea(
                     child: MarkdownView(markdown: revision.contentMd),
                   ),
+                  if (canRestore)
+                    TextButton.icon(
+                      icon: const Icon(Icons.restore),
+                      label: const Text('生成恢复提案'),
+                      onPressed: () async {
+                        try {
+                          await ref
+                              .read(knowledgeRepositoryProvider)
+                              .restore(slug, revision.id);
+                          if (context.mounted) {
+                            _refresh(ref, slug);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('恢复提案已放入产出页，确认后生效；当前来源和规则设置保留。'),
+                              ),
+                            );
+                          }
+                        } catch (error) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  _error(
+                                    error,
+                                    context: '准备恢复',
+                                    showDetail: true,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
                 ],
               ),
           ],
@@ -853,26 +1052,42 @@ class _MaintenanceDialog extends ConsumerWidget {
                     error: (e, _) => Text(_error(e, context: '读取提案')),
                     data: (items) => Column(
                       children: [
-                        if (items.isEmpty) const Text('暂无待审建议。'),
-                        for (final p in items)
+                        if (items.any(
+                          (p) =>
+                              p.pageId != null &&
+                              p.baseHash != null &&
+                              p.status == 'pending',
+                        ))
+                          KnowledgeBatchReview(
+                            proposals: items,
+                            preview: (p) => KnowledgeProposalCard(proposal: p),
+                          ),
+                        if (!items.any((p) => p.status == 'pending'))
+                          const Text('暂无需要你确认的修改。新增参考知识已直接保存在产出中。'),
+                        for (final p in items.where(
+                          (p) => p.status == 'pending',
+                        ))
                           KnowledgeProposalCard(proposal: p),
                       ],
                     ),
                   ),
                   const Divider(),
-                  const Text('来源检查'),
+                  const Text('来源与内容检查'),
                   issues.when(
                     loading: () => const LinearProgressIndicator(),
                     error: (e, _) => Text(_error(e, context: '读取检查项')),
                     data: (items) => Column(
                       children: [
-                        if (items.isEmpty) const Text('未发现来源问题。'),
+                        if (items.isEmpty) const Text('暂无待核对提示。'),
                         for (final issue in items) _IssueTile(issue: issue),
                       ],
                     ),
                   ),
                   const Divider(),
-                  const Text('自动整理与洞察记录'),
+                  KnowledgeWorkQueueSection(
+                    onOpenPage: (slug) => _openPage(context, ref, slug),
+                  ),
+                  const Text('最近自动整理与洞察记录'),
                   runs.when(
                     loading: () => const LinearProgressIndicator(),
                     error: (e, _) => Text(_error(e, context: '读取洞察记录')),
@@ -881,15 +1096,32 @@ class _MaintenanceDialog extends ConsumerWidget {
                         if (items.isEmpty) const Text('积累事件后由后台自动检查，无需手动触发。'),
                         for (final run in items)
                           ListTile(
+                            onTap: run.sourceSlug == null
+                                ? null
+                                : () =>
+                                      _openPage(context, ref, run.sourceSlug!),
                             title: Text(
                               run.status == 'succeeded'
-                                  ? '${run.task == 'source-compilation' ? '原料整理' : '洞察'}完成 · ${run.resultCount} 项'
+                                  ? '${switch (run.task) {
+                                      'source-compilation' => '原料整理',
+                                      'source-reading' => '全文阅读',
+                                      'knowledge-refresh' => '来源更新检查',
+                                      'wiki-integration' => '主题整理与检查',
+                                      _ => '洞察',
+                                    }}完成 · ${run.resultCount} 项'
                                   : run.status == 'running'
                                   ? '处理中'
                                   : '失败，稍后自动重试',
                             ),
                             subtitle: Text(
-                              '${run.startedAt}${run.error == null ? '' : '\n${run.error}'}',
+                              [
+                                if (run.sourceTitle != null)
+                                  '${run.sourceTitle}${run.sourceVersion == null ? '' : ' · v${run.sourceVersion}'}',
+                                run.startedAt,
+                                if (run.detail != null) run.detail!,
+                                if (run.error != null) run.error!,
+                                if (run.retryAt != null) '自动重试：${run.retryAt}',
+                              ].join('\n'),
                             ),
                           ),
                       ],

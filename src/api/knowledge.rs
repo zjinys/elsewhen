@@ -8,15 +8,100 @@ fn store() -> Result<Store> {
     Store::open(&crate::config::AppConfig::load()?.database_path)
 }
 
+#[derive(Clone, Debug)]
+pub struct KnowledgeRepairSource {
+    pub snapshot_id: String,
+    pub page_slug: Option<String>,
+    pub title: String,
+    pub version: i64,
+    pub selected: bool,
+    pub eligible: bool,
+}
+
+pub fn list_knowledge_repair_sources(slug: String) -> Result<Vec<KnowledgeRepairSource>> {
+    let store = store()?;
+    let rows=store.connection.prepare("SELECT c.id,c.slug,c.title,c.version,c.usable,EXISTS(SELECT 1 FROM knowledge_page_sources k JOIN knowledge_snapshots old ON old.id=k.snapshot_id JOIN wiki_pages p ON p.id=k.page_id WHERE p.slug=?1 AND old.source_id=c.source_id) AS selected FROM knowledge_current_sources c ORDER BY selected DESC,c.title,c.id")?
+        .query_map([slug],|r|Ok(KnowledgeRepairSource{snapshot_id:r.get(0)?,page_slug:r.get(1)?,title:r.get(2)?,version:r.get(3)?,eligible:r.get(4)?,selected:r.get(5)?}))?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+pub fn prepare_knowledge_source_repair(slug: String, snapshot_ids: Vec<String>) -> Result<String> {
+    let store = store()?;
+    let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
+        anyhow::bail!("请先配置 AI Provider");
+    };
+    crate::knowledge::prepare_source_repair(&store, &slug, &snapshot_ids, &provider)
+}
+
+pub fn list_knowledge_resolution_targets(fingerprint: String) -> Result<Vec<WikiPageDto>> {
+    Ok(
+        crate::knowledge::maintenance::resolution_targets(&store()?, &fingerprint)?
+            .into_iter()
+            .map(WikiPageDto::from)
+            .collect(),
+    )
+}
+
+pub fn resolve_knowledge_issue_with_revision(
+    fingerprint: String,
+    slug: String,
+    revision_id: String,
+    note: String,
+) -> Result<()> {
+    crate::knowledge::maintenance::resolve_issue(
+        &store()?,
+        &fingerprint,
+        &slug,
+        &revision_id,
+        &note,
+    )
+}
+
+pub fn list_knowledge_review_history(
+    slug: String,
+    offset: i64,
+) -> Result<Vec<crate::knowledge::maintenance::KnowledgeReviewRecord>> {
+    crate::knowledge::maintenance::history(&store()?, &slug, offset)
+}
+
+pub fn list_knowledge_work_queue(
+    offset: i64,
+    status: Option<String>,
+) -> Result<crate::knowledge::queue::KnowledgeQueuePage> {
+    crate::knowledge::queue::list(&store()?, offset, status.as_deref())
+}
+
+pub fn prepare_topic_organization(slugs: Vec<String>, mode: String) -> Result<String> {
+    let store = store()?;
+    let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
+        anyhow::bail!("请先配置 AI Provider");
+    };
+    crate::knowledge::organization::prepare(&store, &slugs, &mode, &provider)
+}
+pub fn list_topic_organizations(
+    slug: String,
+) -> Result<Vec<crate::knowledge::organization::TopicOrganizationPreview>> {
+    crate::knowledge::organization::list(&store()?, &slug)
+}
+pub fn resolve_topic_organization(id: String, accept: bool) -> Result<Vec<String>> {
+    crate::knowledge::organization::resolve(&store()?, &id, accept)
+}
+
 /// Background worker only; no manual insight trigger in the UI.
 pub fn tick_knowledge_insights() -> Result<i64> {
     let store = store()?;
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         return Ok(0);
     };
+    crate::knowledge::reading::advance(&store, &provider)?;
+    let refreshed = crate::knowledge_background::run_knowledge_refresh(&store, &provider)?;
     let compiled =
         crate::knowledge_background::run_automatic_source_compilation(&store, &provider)?;
-    Ok(compiled + crate::knowledge_background::run_automatic_insights(&store, &provider)?)
+    let integrated = crate::knowledge_background::run_automatic_integration(&store, &provider)?;
+    Ok(refreshed
+        + compiled
+        + integrated
+        + crate::knowledge_background::run_automatic_insights(&store, &provider)?)
 }
 
 #[derive(Clone, Debug)]
@@ -27,12 +112,18 @@ pub struct KnowledgeBackgroundRunDto {
     pub finished_at: Option<String>,
     pub error: Option<String>,
     pub result_count: i64,
+    pub source_slug: Option<String>,
+    pub source_title: Option<String>,
+    pub source_version: Option<i64>,
+    pub detail: Option<String>,
+    pub retry_at: Option<String>,
+    pub strategy_version: String,
 }
 
 pub fn list_knowledge_background_runs() -> Result<Vec<KnowledgeBackgroundRunDto>> {
     let store = store()?;
     let mut stmt = store.connection.prepare(
-        "SELECT status,started_at,finished_at,error,result_count,task
+        "SELECT status,started_at,finished_at,error,result_count,task,source_slug,source_title,source_version,detail,retry_at,strategy_version
         FROM knowledge_background_runs ORDER BY started_at DESC LIMIT 50",
     )?;
     let rows = stmt
@@ -44,6 +135,12 @@ pub fn list_knowledge_background_runs() -> Result<Vec<KnowledgeBackgroundRunDto>
                 finished_at: r.get(2)?,
                 error: r.get(3)?,
                 result_count: r.get(4)?,
+                source_slug: r.get(6)?,
+                source_title: r.get(7)?,
+                source_version: r.get(8)?,
+                detail: r.get(9)?,
+                retry_at: r.get(10)?,
+                strategy_version: r.get(11)?,
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -101,7 +198,7 @@ pub fn propose_knowledge_page(slug: String, kind: String) -> Result<String> {
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         anyhow::bail!("请先在设置中配置 AI Provider");
     };
-    crate::knowledge::propose_knowledge(&store, &slug, &kind, &provider)
+    crate::knowledge::compile_requested_knowledge(&store, &slug, &kind, &provider)
 }
 
 pub fn resolve_knowledge_proposal(id: String, accept: bool) -> Result<Option<WikiPageDto>> {
@@ -124,6 +221,7 @@ pub fn dismiss_knowledge_issue(fingerprint: String) -> Result<()> {
 
 #[derive(Clone, Debug)]
 pub struct KnowledgeRevisionDto {
+    pub id: String,
     pub content_md: String,
     pub reason: String,
     pub created_at: String,
@@ -131,11 +229,12 @@ pub struct KnowledgeRevisionDto {
 
 pub fn list_knowledge_revisions(slug: String) -> Result<Vec<KnowledgeRevisionDto>> {
     let store = store()?;
-    let mut stmt=store.connection.prepare("SELECT r.content_md,r.reason,r.created_at FROM wiki_revisions r
+    let mut stmt=store.connection.prepare("SELECT r.content_md,r.reason,r.created_at,r.id FROM wiki_revisions r
         JOIN wiki_pages p ON p.id=r.page_id WHERE p.slug=?1 ORDER BY r.created_at DESC,r.rowid DESC LIMIT 50")?;
     let rows = stmt
         .query_map([slug], |r| {
             Ok(KnowledgeRevisionDto {
+                id: r.get(3)?,
                 content_md: r.get(0)?,
                 reason: r.get(1)?,
                 created_at: r.get(2)?,
@@ -143,6 +242,32 @@ pub fn list_knowledge_revisions(slug: String) -> Result<Vec<KnowledgeRevisionDto
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
+}
+
+pub fn get_knowledge_proposal_diff(
+    id: String,
+) -> Result<Vec<crate::knowledge::review::KnowledgeDiffPart>> {
+    crate::knowledge::review::proposal_diff(&store()?, &id)
+}
+
+pub fn accept_knowledge_proposal_parts(
+    id: String,
+    selected_parts: Vec<i64>,
+    accept_applicability: bool,
+    resolved_issues: Vec<String>,
+) -> Result<WikiPageDto> {
+    Ok(crate::knowledge::review::accept_parts(
+        &store()?,
+        &id,
+        &selected_parts,
+        accept_applicability,
+        &resolved_issues,
+    )?
+    .into())
+}
+
+pub fn prepare_knowledge_restore(slug: String, revision_id: String) -> Result<String> {
+    crate::knowledge::review::restore_proposal(&store()?, &slug, &revision_id)
 }
 
 pub fn get_knowledge_citations(task: String, owner_id: String) -> Result<Vec<KnowledgeCitation>> {

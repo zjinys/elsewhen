@@ -14,6 +14,10 @@ export 'generated.dart/api/goals.dart';
 export 'generated.dart/api/knowledge.dart';
 export 'generated.dart/storage/knowledge.dart';
 export 'generated.dart/knowledge.dart';
+export 'generated.dart/knowledge/review.dart';
+export 'generated.dart/knowledge/organization.dart';
+export 'generated.dart/knowledge/maintenance.dart';
+export 'generated.dart/knowledge/queue.dart';
 export 'generated.dart/api/import.dart';
 export 'generated.dart/api/knowledge_digest.dart';
 export 'generated.dart/api/provider_config.dart';
@@ -24,3 +28,6 @@ export 'generated.dart/api/todos.dart';
 export 'generated.dart/api/tweet.dart';
 export 'generated.dart/api/wiki_chat.dart';
 export 'generated.dart/api/wiki.dart';
+
+export 'generated.dart/api/knowledge_workflows.dart';
+export 'generated.dart/knowledge/workflows.dart';

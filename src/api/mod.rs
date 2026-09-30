@@ -4,6 +4,7 @@ pub mod fonts;
 pub mod goals;
 pub mod import;
 pub mod knowledge;
+pub mod knowledge_workflows;
 pub mod knowledge_digest;
 pub mod provider_config;
 pub mod relations;
@@ -648,6 +649,7 @@ pub fn generate_daily_review(date: String) -> Result<DailyReviewResult> {
         model: provider_config.model,
         temperature: provider_config.temperature as f32,
         max_tokens: provider_config.max_tokens.map(|value| value as u32),
+        context_window: provider_config.context_window.map(|v| v as u32),
     })?;
     generate_daily_review_with_provider(&store, date, &provider)
 }
@@ -895,6 +897,7 @@ pub fn trigger_analysis() -> Result<AnalysisTriggerResult> {
         model: provider_config.model,
         temperature: provider_config.temperature as f32,
         max_tokens: provider_config.max_tokens.map(|v| v as u32),
+        context_window: provider_config.context_window.map(|v| v as u32),
     })?;
     // 每次 worker tick 先重新清扫遗留的 running 任务：GUI 只在启动时恢复一次，
     // 若上一次队列运行中途退出，被 claim 的任务会孤悬到下次启动。

@@ -32,6 +32,7 @@ pub struct AiProviderConfig {
     pub is_active: bool,
     pub temperature: f64,
     pub max_tokens: Option<i64>,
+    pub context_window: Option<i64>,
 }
 
 /// AI provider 配置行（管理列表用：多配置 + 单激活）
@@ -46,6 +47,7 @@ pub struct AiProviderConfigRow {
     pub is_active: bool,
     pub temperature: f64,
     pub max_tokens: Option<i64>,
+    pub context_window: Option<i64>,
 }
 
 /// Storage adapter trait - allows switching storage implementations

@@ -11,6 +11,7 @@ import 'api/goals.dart';
 import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
+import 'api/knowledge_workflows.dart';
 import 'api/provider_config.dart';
 import 'api/relations.dart';
 import 'api/rules.dart';
@@ -26,6 +27,11 @@ import 'dart:ffi' as ffi;
 
 import 'frb_generated.dart';
 import 'knowledge.dart';
+import 'knowledge/maintenance.dart';
+import 'knowledge/organization.dart';
+import 'knowledge/queue.dart';
+import 'knowledge/review.dart';
+import 'knowledge/workflows.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
@@ -56,6 +62,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw);
+
+  @protected
+  ArtifactVersion dco_decode_artifact_version(dynamic raw);
+
+  @protected
+  BatchReviewResult dco_decode_batch_review_result(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
@@ -97,6 +109,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SourceSnapshot dco_decode_box_autoadd_source_snapshot(dynamic raw);
+
+  @protected
+  SuggestionFeedback dco_decode_box_autoadd_suggestion_feedback(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
@@ -167,6 +182,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeCitation dco_decode_knowledge_citation(dynamic raw);
 
   @protected
+  KnowledgeDiffPart dco_decode_knowledge_diff_part(dynamic raw);
+
+  @protected
   KnowledgeDigestJobDto dco_decode_knowledge_digest_job_dto(dynamic raw);
 
   @protected
@@ -193,7 +211,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeProposal dco_decode_knowledge_proposal(dynamic raw);
 
   @protected
+  KnowledgeQueueItem dco_decode_knowledge_queue_item(dynamic raw);
+
+  @protected
+  KnowledgeQueuePage dco_decode_knowledge_queue_page(dynamic raw);
+
+  @protected
+  KnowledgeRepairSource dco_decode_knowledge_repair_source(dynamic raw);
+
+  @protected
+  KnowledgeReviewRecord dco_decode_knowledge_review_record(dynamic raw);
+
+  @protected
   KnowledgeRevisionDto dco_decode_knowledge_revision_dto(dynamic raw);
+
+  @protected
+  LibraryEntry dco_decode_library_entry(dynamic raw);
+
+  @protected
+  LibraryPage dco_decode_library_page(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -203,6 +239,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AnalysisDto> dco_decode_list_analysis_dto(dynamic raw);
+
+  @protected
+  List<ArtifactVersion> dco_decode_list_artifact_version(dynamic raw);
+
+  @protected
+  List<BatchReviewResult> dco_decode_list_batch_review_result(dynamic raw);
 
   @protected
   List<ContentChatMessageDto> dco_decode_list_content_chat_message_dto(
@@ -239,6 +281,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<KnowledgeCitation> dco_decode_list_knowledge_citation(dynamic raw);
 
   @protected
+  List<KnowledgeDiffPart> dco_decode_list_knowledge_diff_part(dynamic raw);
+
+  @protected
   List<KnowledgeDigestJobDto> dco_decode_list_knowledge_digest_job_dto(
     dynamic raw,
   );
@@ -255,15 +300,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<KnowledgeProposal> dco_decode_list_knowledge_proposal(dynamic raw);
 
   @protected
+  List<KnowledgeQueueItem> dco_decode_list_knowledge_queue_item(dynamic raw);
+
+  @protected
+  List<KnowledgeRepairSource> dco_decode_list_knowledge_repair_source(
+    dynamic raw,
+  );
+
+  @protected
+  List<KnowledgeReviewRecord> dco_decode_list_knowledge_review_record(
+    dynamic raw,
+  );
+
+  @protected
   List<KnowledgeRevisionDto> dco_decode_list_knowledge_revision_dto(
     dynamic raw,
   );
 
   @protected
+  List<LibraryEntry> dco_decode_list_library_entry(dynamic raw);
+
+  @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
 
   @protected
+  List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw);
+
+  @protected
   List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
+
+  @protected
+  Int64List dco_decode_list_prim_i_64_strict(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -285,6 +352,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<TodoDto> dco_decode_list_todo_dto(dynamic raw);
+
+  @protected
+  List<TopicOrganizationPreview> dco_decode_list_topic_organization_preview(
+    dynamic raw,
+  );
 
   @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
@@ -337,10 +409,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SourceSnapshot? dco_decode_opt_box_autoadd_source_snapshot(dynamic raw);
 
   @protected
+  SuggestionFeedback? dco_decode_opt_box_autoadd_suggestion_feedback(
+    dynamic raw,
+  );
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
+
+  @protected
+  OrganizedTopic dco_decode_organized_topic(dynamic raw);
 
   @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
@@ -361,6 +441,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SourceUpdatePreview dco_decode_source_update_preview(dynamic raw);
 
   @protected
+  SuggestionFeedback dco_decode_suggestion_feedback(dynamic raw);
+
+  @protected
   SystemFontFace dco_decode_system_font_face(dynamic raw);
 
   @protected
@@ -368,6 +451,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TodoDto dco_decode_todo_dto(dynamic raw);
+
+  @protected
+  TopicOrganizationPreview dco_decode_topic_organization_preview(dynamic raw);
 
   @protected
   TweetFetchDto dco_decode_tweet_fetch_dto(dynamic raw);
@@ -405,6 +491,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisTriggerResult sse_decode_analysis_trigger_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ArtifactVersion sse_decode_artifact_version(SseDeserializer deserializer);
+
+  @protected
+  BatchReviewResult sse_decode_batch_review_result(
     SseDeserializer deserializer,
   );
 
@@ -452,6 +546,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SourceSnapshot sse_decode_box_autoadd_source_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SuggestionFeedback sse_decode_box_autoadd_suggestion_feedback(
     SseDeserializer deserializer,
   );
 
@@ -538,6 +637,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeCitation sse_decode_knowledge_citation(SseDeserializer deserializer);
 
   @protected
+  KnowledgeDiffPart sse_decode_knowledge_diff_part(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KnowledgeDigestJobDto sse_decode_knowledge_digest_job_dto(
     SseDeserializer deserializer,
   );
@@ -572,9 +676,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeProposal sse_decode_knowledge_proposal(SseDeserializer deserializer);
 
   @protected
+  KnowledgeQueueItem sse_decode_knowledge_queue_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeQueuePage sse_decode_knowledge_queue_page(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeRepairSource sse_decode_knowledge_repair_source(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeReviewRecord sse_decode_knowledge_review_record(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KnowledgeRevisionDto sse_decode_knowledge_revision_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  LibraryEntry sse_decode_library_entry(SseDeserializer deserializer);
+
+  @protected
+  LibraryPage sse_decode_library_page(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -586,6 +716,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AnalysisDto> sse_decode_list_analysis_dto(SseDeserializer deserializer);
+
+  @protected
+  List<ArtifactVersion> sse_decode_list_artifact_version(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BatchReviewResult> sse_decode_list_batch_review_result(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ContentChatMessageDto> sse_decode_list_content_chat_message_dto(
@@ -634,6 +774,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<KnowledgeDiffPart> sse_decode_list_knowledge_diff_part(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<KnowledgeDigestJobDto> sse_decode_list_knowledge_digest_job_dto(
     SseDeserializer deserializer,
   );
@@ -654,7 +799,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<KnowledgeQueueItem> sse_decode_list_knowledge_queue_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<KnowledgeRepairSource> sse_decode_list_knowledge_repair_source(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<KnowledgeReviewRecord> sse_decode_list_knowledge_review_record(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<KnowledgeRevisionDto> sse_decode_list_knowledge_revision_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<LibraryEntry> sse_decode_list_library_entry(
     SseDeserializer deserializer,
   );
 
@@ -662,9 +827,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
 
   @protected
+  List<OrganizedTopic> sse_decode_list_organized_topic(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<PendingActionDto> sse_decode_list_pending_action_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -692,6 +865,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<TodoDto> sse_decode_list_todo_dto(SseDeserializer deserializer);
+
+  @protected
+  List<TopicOrganizationPreview> sse_decode_list_topic_organization_preview(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
@@ -752,12 +930,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SuggestionFeedback? sse_decode_opt_box_autoadd_suggestion_feedback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   WikiPageDto? sse_decode_opt_box_autoadd_wiki_page_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  OrganizedTopic sse_decode_organized_topic(SseDeserializer deserializer);
 
   @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
@@ -780,6 +966,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SuggestionFeedback sse_decode_suggestion_feedback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SystemFontFace sse_decode_system_font_face(SseDeserializer deserializer);
 
   @protected
@@ -787,6 +978,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TodoDto sse_decode_todo_dto(SseDeserializer deserializer);
+
+  @protected
+  TopicOrganizationPreview sse_decode_topic_organization_preview(
+    SseDeserializer deserializer,
+  );
 
   @protected
   TweetFetchDto sse_decode_tweet_fetch_dto(SseDeserializer deserializer);
@@ -902,6 +1098,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_suggestion_feedback>
+  cst_encode_box_autoadd_suggestion_feedback(SuggestionFeedback raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_suggestion_feedback();
+    cst_api_fill_to_wire_suggestion_feedback(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<ffi.Uint32> cst_encode_box_autoadd_u_32(int raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return wire.cst_new_box_autoadd_u_32(cst_encode_u_32(raw));
@@ -952,6 +1157,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_analysis_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_analysis_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_artifact_version> cst_encode_list_artifact_version(
+    List<ArtifactVersion> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_artifact_version(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_artifact_version(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_batch_review_result>
+  cst_encode_list_batch_review_result(List<BatchReviewResult> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_batch_review_result(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_batch_review_result(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -1074,6 +1302,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_knowledge_diff_part>
+  cst_encode_list_knowledge_diff_part(List<KnowledgeDiffPart> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_knowledge_diff_part(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_knowledge_diff_part(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_knowledge_digest_job_dto>
   cst_encode_list_knowledge_digest_job_dto(List<KnowledgeDigestJobDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -1119,12 +1358,57 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_knowledge_queue_item>
+  cst_encode_list_knowledge_queue_item(List<KnowledgeQueueItem> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_knowledge_queue_item(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_knowledge_queue_item(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_knowledge_repair_source>
+  cst_encode_list_knowledge_repair_source(List<KnowledgeRepairSource> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_knowledge_repair_source(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_knowledge_repair_source(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_knowledge_review_record>
+  cst_encode_list_knowledge_review_record(List<KnowledgeReviewRecord> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_knowledge_review_record(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_knowledge_review_record(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_knowledge_revision_dto>
   cst_encode_list_knowledge_revision_dto(List<KnowledgeRevisionDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ans = wire.cst_new_list_knowledge_revision_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_knowledge_revision_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_library_entry> cst_encode_list_library_entry(
+    List<LibraryEntry> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_library_entry(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_library_entry(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -1142,6 +1426,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_organized_topic> cst_encode_list_organized_topic(
+    List<OrganizedTopic> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_organized_topic(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_organized_topic(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_pending_action_dto>
   cst_encode_list_pending_action_dto(List<PendingActionDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -1149,6 +1445,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_pending_action_dto(raw[i], ans.ref.ptr[i]);
     }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_prim_i_64_strict> cst_encode_list_prim_i_64_strict(
+    Int64List raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_prim_i_64_strict(raw.length);
+    ans.ref.ptr.asTypedList(raw.length).setAll(0, raw.inner);
     return ans;
   }
 
@@ -1230,6 +1536,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_todo_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_todo_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_topic_organization_preview>
+  cst_encode_list_topic_organization_preview(
+    List<TopicOrganizationPreview> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_topic_organization_preview(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_topic_organization_preview(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -1342,6 +1661,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_suggestion_feedback>
+  cst_encode_opt_box_autoadd_suggestion_feedback(SuggestionFeedback? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_suggestion_feedback(raw);
+  }
+
+  @protected
   ffi.Pointer<ffi.Uint32> cst_encode_opt_box_autoadd_u_32(int? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_u_32(raw);
@@ -1372,6 +1700,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.is_active = cst_encode_bool(apiObj.isActive);
     wireObj.temperature = cst_encode_f_64(apiObj.temperature);
     wireObj.max_tokens = cst_encode_opt_box_autoadd_i_64(apiObj.maxTokens);
+    wireObj.context_window = cst_encode_opt_box_autoadd_i_64(
+      apiObj.contextWindow,
+    );
   }
 
   @protected
@@ -1412,6 +1743,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.Processed.count = pre_count;
       return;
     }
+  }
+
+  @protected
+  void cst_api_fill_to_wire_artifact_version(
+    ArtifactVersion apiObj,
+    wire_cst_artifact_version wireObj,
+  ) {
+    wireObj.slug = cst_encode_String(apiObj.slug);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.content_type = cst_encode_String(apiObj.contentType);
+    wireObj.version = cst_encode_i_64(apiObj.version);
+    wireObj.instruction = cst_encode_opt_String(apiObj.instruction);
+    wireObj.model = cst_encode_opt_String(apiObj.model);
+    wireObj.strategy = cst_encode_opt_String(apiObj.strategy);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.adopted = cst_encode_bool(apiObj.adopted);
+    wireObj.adopted_revision = cst_encode_opt_String(apiObj.adoptedRevision);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_batch_review_result(
+    BatchReviewResult apiObj,
+    wire_cst_batch_review_result wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.success = cst_encode_bool(apiObj.success);
+    wireObj.detail = cst_encode_String(apiObj.detail);
   }
 
   @protected
@@ -1468,6 +1826,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_source_snapshot> wireObj,
   ) {
     cst_api_fill_to_wire_source_snapshot(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_suggestion_feedback(
+    SuggestionFeedback apiObj,
+    ffi.Pointer<wire_cst_suggestion_feedback> wireObj,
+  ) {
+    cst_api_fill_to_wire_suggestion_feedback(apiObj, wireObj.ref);
   }
 
   @protected
@@ -1727,6 +2093,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.finished_at = cst_encode_opt_String(apiObj.finishedAt);
     wireObj.error = cst_encode_opt_String(apiObj.error);
     wireObj.result_count = cst_encode_i_64(apiObj.resultCount);
+    wireObj.source_slug = cst_encode_opt_String(apiObj.sourceSlug);
+    wireObj.source_title = cst_encode_opt_String(apiObj.sourceTitle);
+    wireObj.source_version = cst_encode_opt_box_autoadd_i_64(
+      apiObj.sourceVersion,
+    );
+    wireObj.detail = cst_encode_opt_String(apiObj.detail);
+    wireObj.retry_at = cst_encode_opt_String(apiObj.retryAt);
+    wireObj.strategy_version = cst_encode_String(apiObj.strategyVersion);
   }
 
   @protected
@@ -1744,6 +2118,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.category = cst_encode_String(apiObj.category);
     wireObj.sources = cst_encode_list_source_reference(apiObj.sources);
     wireObj.event_ids = cst_encode_list_String(apiObj.eventIds);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_knowledge_diff_part(
+    KnowledgeDiffPart apiObj,
+    wire_cst_knowledge_diff_part wireObj,
+  ) {
+    wireObj.before = cst_encode_String(apiObj.before);
+    wireObj.after = cst_encode_String(apiObj.after);
+    wireObj.changed = cst_encode_bool(apiObj.changed);
   }
 
   @protected
@@ -1890,13 +2274,104 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_knowledge_queue_item(
+    KnowledgeQueueItem apiObj,
+    wire_cst_knowledge_queue_item wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.task = cst_encode_String(apiObj.task);
+    wireObj.page_slug = cst_encode_String(apiObj.pageSlug);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.detail = cst_encode_String(apiObj.detail);
+    wireObj.available_at = cst_encode_opt_String(apiObj.availableAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_knowledge_queue_page(
+    KnowledgeQueuePage apiObj,
+    wire_cst_knowledge_queue_page wireObj,
+  ) {
+    wireObj.pending = cst_encode_i_64(apiObj.pending);
+    wireObj.running = cst_encode_i_64(apiObj.running);
+    wireObj.waiting = cst_encode_i_64(apiObj.waiting);
+    wireObj.retry = cst_encode_i_64(apiObj.retry);
+    wireObj.skipped = cst_encode_i_64(apiObj.skipped);
+    wireObj.completed = cst_encode_i_64(apiObj.completed);
+    wireObj.total = cst_encode_i_64(apiObj.total);
+    wireObj.items = cst_encode_list_knowledge_queue_item(apiObj.items);
+    wireObj.has_more = cst_encode_bool(apiObj.hasMore);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_knowledge_repair_source(
+    KnowledgeRepairSource apiObj,
+    wire_cst_knowledge_repair_source wireObj,
+  ) {
+    wireObj.snapshot_id = cst_encode_String(apiObj.snapshotId);
+    wireObj.page_slug = cst_encode_opt_String(apiObj.pageSlug);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.version = cst_encode_i_64(apiObj.version);
+    wireObj.selected = cst_encode_bool(apiObj.selected);
+    wireObj.eligible = cst_encode_bool(apiObj.eligible);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_knowledge_review_record(
+    KnowledgeReviewRecord apiObj,
+    wire_cst_knowledge_review_record wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.action = cst_encode_String(apiObj.action);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.before_content = cst_encode_opt_String(apiObj.beforeContent);
+    wireObj.original_content = cst_encode_opt_String(apiObj.originalContent);
+    wireObj.result_content = cst_encode_opt_String(apiObj.resultContent);
+    wireObj.original_applicable = cst_encode_opt_String(
+      apiObj.originalApplicable,
+    );
+    wireObj.result_applicable = cst_encode_opt_String(apiObj.resultApplicable);
+    wireObj.selected_parts = cst_encode_list_prim_i_64_strict(
+      apiObj.selectedParts,
+    );
+    wireObj.description = cst_encode_String(apiObj.description);
+    wireObj.note = cst_encode_opt_String(apiObj.note);
+    wireObj.revision_id = cst_encode_opt_String(apiObj.revisionId);
+    wireObj.target_slug = cst_encode_opt_String(apiObj.targetSlug);
+  }
+
+  @protected
   void cst_api_fill_to_wire_knowledge_revision_dto(
     KnowledgeRevisionDto apiObj,
     wire_cst_knowledge_revision_dto wireObj,
   ) {
+    wireObj.id = cst_encode_String(apiObj.id);
     wireObj.content_md = cst_encode_String(apiObj.contentMd);
     wireObj.reason = cst_encode_String(apiObj.reason);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_library_entry(
+    LibraryEntry apiObj,
+    wire_cst_library_entry wireObj,
+  ) {
+    wireObj.slug = cst_encode_String(apiObj.slug);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.summary = cst_encode_String(apiObj.summary);
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.area = cst_encode_String(apiObj.area);
+    wireObj.reading_state = cst_encode_String(apiObj.readingState);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_library_page(
+    LibraryPage apiObj,
+    wire_cst_library_page wireObj,
+  ) {
+    wireObj.items = cst_encode_list_library_entry(apiObj.items);
+    wireObj.has_more = cst_encode_bool(apiObj.hasMore);
   }
 
   @protected
@@ -1924,6 +2399,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.source = cst_encode_String(apiObj.source);
     wireObj.job_status = cst_encode_String(apiObj.jobStatus);
     wireObj.summary = cst_encode_opt_String(apiObj.summary);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_organized_topic(
+    OrganizedTopic apiObj,
+    wire_cst_organized_topic wireObj,
+  ) {
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.content_md = cst_encode_String(apiObj.contentMd);
+    wireObj.applicable_when = cst_encode_String(apiObj.applicableWhen);
+    wireObj.snapshot_ids = cst_encode_list_String(apiObj.snapshotIds);
+    wireObj.event_ids = cst_encode_list_String(apiObj.eventIds);
   }
 
   @protected
@@ -2008,6 +2495,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_suggestion_feedback(
+    SuggestionFeedback apiObj,
+    wire_cst_suggestion_feedback wireObj,
+  ) {
+    wireObj.decision = cst_encode_String(apiObj.decision);
+    wireObj.suggestion = cst_encode_String(apiObj.suggestion);
+    wireObj.rewrite = cst_encode_opt_String(apiObj.rewrite);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_system_font_face(
     SystemFontFace apiObj,
     wire_cst_system_font_face wireObj,
@@ -2050,6 +2548,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.note = cst_encode_opt_String(apiObj.note);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
     wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_topic_organization_preview(
+    TopicOrganizationPreview apiObj,
+    wire_cst_topic_organization_preview wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.mode = cst_encode_String(apiObj.mode);
+    wireObj.input_slugs = cst_encode_list_String(apiObj.inputSlugs);
+    wireObj.topics = cst_encode_list_organized_topic(apiObj.topics);
+    wireObj.status = cst_encode_String(apiObj.status);
   }
 
   @protected
@@ -2141,6 +2651,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_artifact_version(
+    ArtifactVersion self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_batch_review_result(
+    BatchReviewResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -2194,6 +2716,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_source_snapshot(
     SourceSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_suggestion_feedback(
+    SuggestionFeedback self,
     SseSerializer serializer,
   );
 
@@ -2303,6 +2831,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_knowledge_diff_part(
+    KnowledgeDiffPart self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_knowledge_digest_job_dto(
     KnowledgeDigestJobDto self,
     SseSerializer serializer,
@@ -2351,10 +2885,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_knowledge_queue_item(
+    KnowledgeQueueItem self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_queue_page(
+    KnowledgeQueuePage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_repair_source(
+    KnowledgeRepairSource self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_review_record(
+    KnowledgeReviewRecord self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_knowledge_revision_dto(
     KnowledgeRevisionDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_library_entry(LibraryEntry self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_library_page(LibraryPage self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -2368,6 +2932,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_analysis_dto(
     List<AnalysisDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_artifact_version(
+    List<ArtifactVersion> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_batch_review_result(
+    List<BatchReviewResult> self,
     SseSerializer serializer,
   );
 
@@ -2426,6 +3002,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_knowledge_diff_part(
+    List<KnowledgeDiffPart> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_knowledge_digest_job_dto(
     List<KnowledgeDigestJobDto> self,
     SseSerializer serializer,
@@ -2450,8 +3032,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_knowledge_queue_item(
+    List<KnowledgeQueueItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_knowledge_repair_source(
+    List<KnowledgeRepairSource> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_knowledge_review_record(
+    List<KnowledgeReviewRecord> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_knowledge_revision_dto(
     List<KnowledgeRevisionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_library_entry(
+    List<LibraryEntry> self,
     SseSerializer serializer,
   );
 
@@ -2462,8 +3068,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_organized_topic(
+    List<OrganizedTopic> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_pending_action_dto(
     List<PendingActionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_i_64_strict(
+    Int64List self,
     SseSerializer serializer,
   );
 
@@ -2502,6 +3120,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_todo_dto(List<TodoDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_topic_organization_preview(
+    List<TopicOrganizationPreview> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_wiki_page_dto(
@@ -2576,11 +3200,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_suggestion_feedback(
+    SuggestionFeedback? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_wiki_page_dto(
     WikiPageDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_organized_topic(
+    OrganizedTopic self,
     SseSerializer serializer,
   );
 
@@ -2615,6 +3251,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_suggestion_feedback(
+    SuggestionFeedback self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_system_font_face(
     SystemFontFace self,
     SseSerializer serializer,
@@ -2625,6 +3267,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_todo_dto(TodoDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_topic_organization_preview(
+    TopicOrganizationPreview self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_tweet_fetch_dto(TweetFetchDto self, SseSerializer serializer);
@@ -2807,6 +3455,19 @@ class RustLibWire implements BaseWire {
       _cst_new_box_autoadd_source_snapshotPtr
           .asFunction<ffi.Pointer<wire_cst_source_snapshot> Function()>();
 
+  ffi.Pointer<wire_cst_suggestion_feedback>
+  cst_new_box_autoadd_suggestion_feedback() {
+    return _cst_new_box_autoadd_suggestion_feedback();
+  }
+
+  late final _cst_new_box_autoadd_suggestion_feedbackPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_suggestion_feedback> Function()>
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_suggestion_feedback');
+  late final _cst_new_box_autoadd_suggestion_feedback =
+      _cst_new_box_autoadd_suggestion_feedbackPtr
+          .asFunction<ffi.Pointer<wire_cst_suggestion_feedback> Function()>();
+
   ffi.Pointer<ffi.Uint32> cst_new_box_autoadd_u_32(int value) {
     return _cst_new_box_autoadd_u_32(value);
   }
@@ -2872,6 +3533,38 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_analysis_dto');
   late final _cst_new_list_analysis_dto = _cst_new_list_analysis_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_analysis_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_artifact_version> cst_new_list_artifact_version(
+    int len,
+  ) {
+    return _cst_new_list_artifact_version(len);
+  }
+
+  late final _cst_new_list_artifact_versionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_artifact_version> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_artifact_version');
+  late final _cst_new_list_artifact_version = _cst_new_list_artifact_versionPtr
+      .asFunction<ffi.Pointer<wire_cst_list_artifact_version> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_batch_review_result>
+  cst_new_list_batch_review_result(int len) {
+    return _cst_new_list_batch_review_result(len);
+  }
+
+  late final _cst_new_list_batch_review_resultPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_batch_review_result> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_batch_review_result');
+  late final _cst_new_list_batch_review_result =
+      _cst_new_list_batch_review_resultPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_batch_review_result> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_content_chat_message_dto>
   cst_new_list_content_chat_message_dto(int len) {
@@ -3036,6 +3729,23 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_knowledge_citation> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_knowledge_diff_part>
+  cst_new_list_knowledge_diff_part(int len) {
+    return _cst_new_list_knowledge_diff_part(len);
+  }
+
+  late final _cst_new_list_knowledge_diff_partPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_knowledge_diff_part> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_knowledge_diff_part');
+  late final _cst_new_list_knowledge_diff_part =
+      _cst_new_list_knowledge_diff_partPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_knowledge_diff_part> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_knowledge_digest_job_dto>
   cst_new_list_knowledge_digest_job_dto(int len) {
     return _cst_new_list_knowledge_digest_job_dto(len);
@@ -3107,6 +3817,57 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_knowledge_proposal> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_knowledge_queue_item>
+  cst_new_list_knowledge_queue_item(int len) {
+    return _cst_new_list_knowledge_queue_item(len);
+  }
+
+  late final _cst_new_list_knowledge_queue_itemPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_knowledge_queue_item> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_knowledge_queue_item');
+  late final _cst_new_list_knowledge_queue_item =
+      _cst_new_list_knowledge_queue_itemPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_knowledge_queue_item> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_knowledge_repair_source>
+  cst_new_list_knowledge_repair_source(int len) {
+    return _cst_new_list_knowledge_repair_source(len);
+  }
+
+  late final _cst_new_list_knowledge_repair_sourcePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_knowledge_repair_source> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_knowledge_repair_source');
+  late final _cst_new_list_knowledge_repair_source =
+      _cst_new_list_knowledge_repair_sourcePtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_knowledge_repair_source> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_knowledge_review_record>
+  cst_new_list_knowledge_review_record(int len) {
+    return _cst_new_list_knowledge_review_record(len);
+  }
+
+  late final _cst_new_list_knowledge_review_recordPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_knowledge_review_record> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_knowledge_review_record');
+  late final _cst_new_list_knowledge_review_record =
+      _cst_new_list_knowledge_review_recordPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_knowledge_review_record> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_knowledge_revision_dto>
   cst_new_list_knowledge_revision_dto(int len) {
     return _cst_new_list_knowledge_revision_dto(len);
@@ -3124,6 +3885,19 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_knowledge_revision_dto> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_library_entry> cst_new_list_library_entry(int len) {
+    return _cst_new_list_library_entry(len);
+  }
+
+  late final _cst_new_list_library_entryPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_library_entry> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_library_entry');
+  late final _cst_new_list_library_entry = _cst_new_list_library_entryPtr
+      .asFunction<ffi.Pointer<wire_cst_list_library_entry> Function(int)>();
+
   ffi.Pointer<wire_cst_list_message_dto> cst_new_list_message_dto(int len) {
     return _cst_new_list_message_dto(len);
   }
@@ -3136,6 +3910,21 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_message_dto');
   late final _cst_new_list_message_dto = _cst_new_list_message_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_message_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_organized_topic> cst_new_list_organized_topic(
+    int len,
+  ) {
+    return _cst_new_list_organized_topic(len);
+  }
+
+  late final _cst_new_list_organized_topicPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_organized_topic> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_organized_topic');
+  late final _cst_new_list_organized_topic = _cst_new_list_organized_topicPtr
+      .asFunction<ffi.Pointer<wire_cst_list_organized_topic> Function(int)>();
 
   ffi.Pointer<wire_cst_list_pending_action_dto> cst_new_list_pending_action_dto(
     int len,
@@ -3154,6 +3943,21 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_list_pending_action_dto> Function(int)
           >();
+
+  ffi.Pointer<wire_cst_list_prim_i_64_strict> cst_new_list_prim_i_64_strict(
+    int len,
+  ) {
+    return _cst_new_list_prim_i_64_strict(len);
+  }
+
+  late final _cst_new_list_prim_i_64_strictPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_prim_i_64_strict> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_prim_i_64_strict');
+  late final _cst_new_list_prim_i_64_strict = _cst_new_list_prim_i_64_strictPtr
+      .asFunction<ffi.Pointer<wire_cst_list_prim_i_64_strict> Function(int)>();
 
   ffi.Pointer<wire_cst_list_prim_u_8_strict> cst_new_list_prim_u_8_strict(
     int len,
@@ -3253,6 +4057,25 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_todo_dto');
   late final _cst_new_list_todo_dto = _cst_new_list_todo_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_todo_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_topic_organization_preview>
+  cst_new_list_topic_organization_preview(int len) {
+    return _cst_new_list_topic_organization_preview(len);
+  }
+
+  late final _cst_new_list_topic_organization_previewPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_topic_organization_preview> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_topic_organization_preview');
+  late final _cst_new_list_topic_organization_preview =
+      _cst_new_list_topic_organization_previewPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_topic_organization_preview> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_wiki_page_dto> cst_new_list_wiki_page_dto(int len) {
     return _cst_new_list_wiki_page_dto(len);
@@ -4363,6 +5186,48 @@ class RustLibWire implements BaseWire {
         void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
       >();
 
+  void wire__crate__api__knowledge__accept_knowledge_proposal_parts(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_i_64_strict> selected_parts,
+    bool accept_applicability,
+    ffi.Pointer<wire_cst_list_String> resolved_issues,
+  ) {
+    return _wire__crate__api__knowledge__accept_knowledge_proposal_parts(
+      port_,
+      id,
+      selected_parts,
+      accept_applicability,
+      resolved_issues,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__accept_knowledge_proposal_partsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_i_64_strict>,
+            ffi.Bool,
+            ffi.Pointer<wire_cst_list_String>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__accept_knowledge_proposal_parts',
+      );
+  late final _wire__crate__api__knowledge__accept_knowledge_proposal_parts =
+      _wire__crate__api__knowledge__accept_knowledge_proposal_partsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_i_64_strict>,
+              bool,
+              ffi.Pointer<wire_cst_list_String>,
+            )
+          >();
+
   void wire__crate__api__knowledge__confirm_knowledge_source(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
@@ -4501,6 +5366,30 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__knowledge__get_knowledge_proposal_diff(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__knowledge__get_knowledge_proposal_diff(port_, id);
+  }
+
+  late final _wire__crate__api__knowledge__get_knowledge_proposal_diffPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__get_knowledge_proposal_diff',
+      );
+  late final _wire__crate__api__knowledge__get_knowledge_proposal_diff =
+      _wire__crate__api__knowledge__get_knowledge_proposal_diffPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__knowledge__get_knowledge_source_snapshot(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -4591,6 +5480,90 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__knowledge__list_knowledge_proposalsPtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__knowledge__list_knowledge_repair_sources(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__knowledge__list_knowledge_repair_sources(
+      port_,
+      slug,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__list_knowledge_repair_sourcesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_repair_sources',
+      );
+  late final _wire__crate__api__knowledge__list_knowledge_repair_sources =
+      _wire__crate__api__knowledge__list_knowledge_repair_sourcesPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__knowledge__list_knowledge_resolution_targets(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> fingerprint,
+  ) {
+    return _wire__crate__api__knowledge__list_knowledge_resolution_targets(
+      port_,
+      fingerprint,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__list_knowledge_resolution_targetsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_resolution_targets',
+      );
+  late final _wire__crate__api__knowledge__list_knowledge_resolution_targets =
+      _wire__crate__api__knowledge__list_knowledge_resolution_targetsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__knowledge__list_knowledge_review_history(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    int offset,
+  ) {
+    return _wire__crate__api__knowledge__list_knowledge_review_history(
+      port_,
+      slug,
+      offset,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__list_knowledge_review_historyPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_review_history',
+      );
+  late final _wire__crate__api__knowledge__list_knowledge_review_history =
+      _wire__crate__api__knowledge__list_knowledge_review_historyPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+          >();
+
   void wire__crate__api__knowledge__list_knowledge_revisions(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
@@ -4613,6 +5586,162 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__knowledge__list_knowledge_revisionsPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__knowledge__list_knowledge_work_queue(
+    int port_,
+    int offset,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+  ) {
+    return _wire__crate__api__knowledge__list_knowledge_work_queue(
+      port_,
+      offset,
+      status,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__list_knowledge_work_queuePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_work_queue',
+      );
+  late final _wire__crate__api__knowledge__list_knowledge_work_queue =
+      _wire__crate__api__knowledge__list_knowledge_work_queuePtr
+          .asFunction<
+            void Function(int, int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__knowledge__list_topic_organizations(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__knowledge__list_topic_organizations(port_, slug);
+  }
+
+  late final _wire__crate__api__knowledge__list_topic_organizationsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__list_topic_organizations',
+      );
+  late final _wire__crate__api__knowledge__list_topic_organizations =
+      _wire__crate__api__knowledge__list_topic_organizationsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__knowledge__prepare_knowledge_restore(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id,
+  ) {
+    return _wire__crate__api__knowledge__prepare_knowledge_restore(
+      port_,
+      slug,
+      revision_id,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__prepare_knowledge_restorePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__prepare_knowledge_restore',
+      );
+  late final _wire__crate__api__knowledge__prepare_knowledge_restore =
+      _wire__crate__api__knowledge__prepare_knowledge_restorePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__knowledge__prepare_knowledge_source_repair(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_String> snapshot_ids,
+  ) {
+    return _wire__crate__api__knowledge__prepare_knowledge_source_repair(
+      port_,
+      slug,
+      snapshot_ids,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__prepare_knowledge_source_repairPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_String>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__prepare_knowledge_source_repair',
+      );
+  late final _wire__crate__api__knowledge__prepare_knowledge_source_repair =
+      _wire__crate__api__knowledge__prepare_knowledge_source_repairPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_String>,
+            )
+          >();
+
+  void wire__crate__api__knowledge__prepare_topic_organization(
+    int port_,
+    ffi.Pointer<wire_cst_list_String> slugs,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
+  ) {
+    return _wire__crate__api__knowledge__prepare_topic_organization(
+      port_,
+      slugs,
+      mode,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__prepare_topic_organizationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_String>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__prepare_topic_organization',
+      );
+  late final _wire__crate__api__knowledge__prepare_topic_organization =
+      _wire__crate__api__knowledge__prepare_topic_organizationPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_String>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__knowledge__preview_knowledge_source(
@@ -4683,6 +5812,48 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__knowledge__resolve_knowledge_issue_with_revision(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> fingerprint,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+  ) {
+    return _wire__crate__api__knowledge__resolve_knowledge_issue_with_revision(
+      port_,
+      fingerprint,
+      slug,
+      revision_id,
+      note,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__resolve_knowledge_issue_with_revisionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__resolve_knowledge_issue_with_revision',
+      );
+  late final _wire__crate__api__knowledge__resolve_knowledge_issue_with_revision =
+      _wire__crate__api__knowledge__resolve_knowledge_issue_with_revisionPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__knowledge__resolve_knowledge_proposal(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -4709,6 +5880,36 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__knowledge__resolve_knowledge_proposal =
       _wire__crate__api__knowledge__resolve_knowledge_proposalPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
+  void wire__crate__api__knowledge__resolve_topic_organization(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    bool accept,
+  ) {
+    return _wire__crate__api__knowledge__resolve_topic_organization(
+      port_,
+      id,
+      accept,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__resolve_topic_organizationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__resolve_topic_organization',
+      );
+  late final _wire__crate__api__knowledge__resolve_topic_organization =
+      _wire__crate__api__knowledge__resolve_topic_organizationPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
@@ -4838,6 +6039,417 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__knowledge_digest__trigger_knowledge_digest =
       _wire__crate__api__knowledge_digest__trigger_knowledge_digestPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__knowledge_workflows__adopt_artifact_version(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id,
+    bool adopt,
+  ) {
+    return _wire__crate__api__knowledge_workflows__adopt_artifact_version(
+      port_,
+      slug,
+      revision_id,
+      adopt,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__adopt_artifact_versionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__adopt_artifact_version',
+      );
+  late final _wire__crate__api__knowledge_workflows__adopt_artifact_version =
+      _wire__crate__api__knowledge_workflows__adopt_artifact_versionPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
+          >();
+
+  void wire__crate__api__knowledge_workflows__browse_knowledge(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> query,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> area,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> tag,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> state,
+    int offset,
+  ) {
+    return _wire__crate__api__knowledge_workflows__browse_knowledge(
+      port_,
+      query,
+      area,
+      kind,
+      tag,
+      state,
+      offset,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__browse_knowledgePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__browse_knowledge',
+      );
+  late final _wire__crate__api__knowledge_workflows__browse_knowledge =
+      _wire__crate__api__knowledge_workflows__browse_knowledgePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+            )
+          >();
+
+  void wire__crate__api__knowledge_workflows__create_artifact_from_message(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_type,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+  ) {
+    return _wire__crate__api__knowledge_workflows__create_artifact_from_message(
+      port_,
+      slug,
+      message_id,
+      content_type,
+      title,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__create_artifact_from_messagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__create_artifact_from_message',
+      );
+  late final _wire__crate__api__knowledge_workflows__create_artifact_from_message =
+      _wire__crate__api__knowledge_workflows__create_artifact_from_messagePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+  ) {
+    return _wire__crate__api__knowledge_workflows__get_suggestion_feedback(
+      port_,
+      message_id,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__get_suggestion_feedbackPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__get_suggestion_feedback',
+      );
+  late final _wire__crate__api__knowledge_workflows__get_suggestion_feedback =
+      _wire__crate__api__knowledge_workflows__get_suggestion_feedbackPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__knowledge_workflows__knowledge_reading_state(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__knowledge_workflows__knowledge_reading_state(
+      port_,
+      slug,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__knowledge_reading_statePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__knowledge_reading_state',
+      );
+  late final _wire__crate__api__knowledge_workflows__knowledge_reading_state =
+      _wire__crate__api__knowledge_workflows__knowledge_reading_statePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__knowledge_workflows__list_artifact_versions(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    int offset,
+  ) {
+    return _wire__crate__api__knowledge_workflows__list_artifact_versions(
+      port_,
+      slug,
+      offset,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__list_artifact_versionsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__list_artifact_versions',
+      );
+  late final _wire__crate__api__knowledge_workflows__list_artifact_versions =
+      _wire__crate__api__knowledge_workflows__list_artifact_versionsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+          >();
+
+  void wire__crate__api__knowledge_workflows__read_artifact_version(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id,
+  ) {
+    return _wire__crate__api__knowledge_workflows__read_artifact_version(
+      port_,
+      slug,
+      revision_id,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__read_artifact_versionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__read_artifact_version',
+      );
+  late final _wire__crate__api__knowledge_workflows__read_artifact_version =
+      _wire__crate__api__knowledge_workflows__read_artifact_versionPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__knowledge_workflows__resolve_knowledge_batch(
+    int port_,
+    ffi.Pointer<wire_cst_list_String> ids,
+    bool accept,
+  ) {
+    return _wire__crate__api__knowledge_workflows__resolve_knowledge_batch(
+      port_,
+      ids,
+      accept,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__resolve_knowledge_batchPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_String>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__resolve_knowledge_batch',
+      );
+  late final _wire__crate__api__knowledge_workflows__resolve_knowledge_batch =
+      _wire__crate__api__knowledge_workflows__resolve_knowledge_batchPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_String>, bool)
+          >();
+
+  void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> decision,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> suggestion,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> rewrite,
+  ) {
+    return _wire__crate__api__knowledge_workflows__save_suggestion_feedback(
+      port_,
+      message_id,
+      decision,
+      suggestion,
+      rewrite,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__save_suggestion_feedbackPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__save_suggestion_feedback',
+      );
+  late final _wire__crate__api__knowledge_workflows__save_suggestion_feedback =
+      _wire__crate__api__knowledge_workflows__save_suggestion_feedbackPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__knowledge_workflows__set_knowledge_reading_state(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> state,
+  ) {
+    return _wire__crate__api__knowledge_workflows__set_knowledge_reading_state(
+      port_,
+      slug,
+      state,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__set_knowledge_reading_statePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__set_knowledge_reading_state',
+      );
+  late final _wire__crate__api__knowledge_workflows__set_knowledge_reading_state =
+      _wire__crate__api__knowledge_workflows__set_knowledge_reading_statePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__knowledge_workflows__topic_organization_history(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    int offset,
+  ) {
+    return _wire__crate__api__knowledge_workflows__topic_organization_history(
+      port_,
+      slug,
+      offset,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__topic_organization_historyPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__topic_organization_history',
+      );
+  late final _wire__crate__api__knowledge_workflows__topic_organization_history =
+      _wire__crate__api__knowledge_workflows__topic_organization_historyPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+          >();
+
+  void wire__crate__api__knowledge_workflows__undo_topic_organization(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__knowledge_workflows__undo_topic_organization(
+      port_,
+      id,
+    );
+  }
+
+  late final _wire__crate__api__knowledge_workflows__undo_topic_organizationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__undo_topic_organization',
+      );
+  late final _wire__crate__api__knowledge_workflows__undo_topic_organization =
+      _wire__crate__api__knowledge_workflows__undo_topic_organizationPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void wire__crate__api__list_analyses(int port_) {
     return _wire__crate__api__list_analyses(port_);
@@ -6272,6 +7884,8 @@ final class wire_cst_ai_provider_config_dto extends ffi.Struct {
 
   external ffi.Pointer<ffi.Int64> max_tokens;
 
+  external ffi.Pointer<ffi.Int64> context_window;
+
   static ffi.Pointer<wire_cst_ai_provider_config_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -6284,6 +7898,7 @@ final class wire_cst_ai_provider_config_dto extends ffi.Struct {
     required bool is_active,
     required double temperature,
     required ffi.Pointer<ffi.Int64> max_tokens,
+    required ffi.Pointer<ffi.Int64> context_window,
   }) => $allocator<wire_cst_ai_provider_config_dto>()
     ..ref.id = id
     ..ref.name = name
@@ -6294,7 +7909,8 @@ final class wire_cst_ai_provider_config_dto extends ffi.Struct {
     ..ref.api_key = api_key
     ..ref.is_active = is_active
     ..ref.temperature = temperature
-    ..ref.max_tokens = max_tokens;
+    ..ref.max_tokens = max_tokens
+    ..ref.context_window = context_window;
 }
 
 final class wire_cst_analysis_dto extends ffi.Struct {
@@ -6356,6 +7972,73 @@ final class wire_cst_analysis_trigger_result extends ffi.Struct {
   external int tag;
 
   external AnalysisTriggerResultKind kind;
+}
+
+final class wire_cst_artifact_version extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> content_type;
+
+  @ffi.Int64()
+  external int version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> instruction;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> model;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> strategy;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  @ffi.Bool()
+  external bool adopted;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> adopted_revision;
+
+  static ffi.Pointer<wire_cst_artifact_version> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> content_type,
+    required int version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> instruction,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> model,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> strategy,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required bool adopted,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> adopted_revision,
+  }) => $allocator<wire_cst_artifact_version>()
+    ..ref.slug = slug
+    ..ref.title = title
+    ..ref.content_type = content_type
+    ..ref.version = version
+    ..ref.instruction = instruction
+    ..ref.model = model
+    ..ref.strategy = strategy
+    ..ref.created_at = created_at
+    ..ref.adopted = adopted
+    ..ref.adopted_revision = adopted_revision;
+}
+
+final class wire_cst_batch_review_result extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  @ffi.Bool()
+  external bool success;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> detail;
+
+  static ffi.Pointer<wire_cst_batch_review_result> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required bool success,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> detail,
+  }) => $allocator<wire_cst_batch_review_result>()
+    ..ref.id = id
+    ..ref.success = success
+    ..ref.detail = detail;
 }
 
 final class wire_cst_content_chat_message_dto extends ffi.Struct {
@@ -6892,6 +8575,18 @@ final class wire_cst_knowledge_background_run_dto extends ffi.Struct {
   @ffi.Int64()
   external int result_count;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_title;
+
+  external ffi.Pointer<ffi.Int64> source_version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> detail;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> retry_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> strategy_version;
+
   static ffi.Pointer<wire_cst_knowledge_background_run_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> task,
@@ -6900,13 +8595,25 @@ final class wire_cst_knowledge_background_run_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> finished_at,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> error,
     required int result_count,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_title,
+    required ffi.Pointer<ffi.Int64> source_version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> detail,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> retry_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> strategy_version,
   }) => $allocator<wire_cst_knowledge_background_run_dto>()
     ..ref.task = task
     ..ref.status = status
     ..ref.started_at = started_at
     ..ref.finished_at = finished_at
     ..ref.error = error
-    ..ref.result_count = result_count;
+    ..ref.result_count = result_count
+    ..ref.source_slug = source_slug
+    ..ref.source_title = source_title
+    ..ref.source_version = source_version
+    ..ref.detail = detail
+    ..ref.retry_at = retry_at
+    ..ref.strategy_version = strategy_version;
 }
 
 final class wire_cst_knowledge_citation extends ffi.Struct {
@@ -6953,6 +8660,25 @@ final class wire_cst_knowledge_citation extends ffi.Struct {
     ..ref.category = category
     ..ref.sources = sources
     ..ref.event_ids = event_ids;
+}
+
+final class wire_cst_knowledge_diff_part extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> before;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> after;
+
+  @ffi.Bool()
+  external bool changed;
+
+  static ffi.Pointer<wire_cst_knowledge_diff_part> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> before,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> after,
+    required bool changed,
+  }) => $allocator<wire_cst_knowledge_diff_part>()
+    ..ref.before = before
+    ..ref.after = after
+    ..ref.changed = changed;
 }
 
 final class wire_cst_knowledge_digest_job_dto extends ffi.Struct {
@@ -7231,7 +8957,188 @@ final class wire_cst_knowledge_proposal extends ffi.Struct {
     ..ref.created_at = created_at;
 }
 
+final class wire_cst_knowledge_queue_item extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> task;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> detail;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> available_at;
+
+  static ffi.Pointer<wire_cst_knowledge_queue_item> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> task,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> detail,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> available_at,
+  }) => $allocator<wire_cst_knowledge_queue_item>()
+    ..ref.id = id
+    ..ref.task = task
+    ..ref.page_slug = page_slug
+    ..ref.title = title
+    ..ref.status = status
+    ..ref.detail = detail
+    ..ref.available_at = available_at;
+}
+
+final class wire_cst_knowledge_queue_page extends ffi.Struct {
+  @ffi.Int64()
+  external int pending;
+
+  @ffi.Int64()
+  external int running;
+
+  @ffi.Int64()
+  external int waiting;
+
+  @ffi.Int64()
+  external int retry;
+
+  @ffi.Int64()
+  external int skipped;
+
+  @ffi.Int64()
+  external int completed;
+
+  @ffi.Int64()
+  external int total;
+
+  external ffi.Pointer<wire_cst_list_knowledge_queue_item> items;
+
+  @ffi.Bool()
+  external bool has_more;
+
+  static ffi.Pointer<wire_cst_knowledge_queue_page> $allocate(
+    ffi.Allocator $allocator, {
+    required int pending,
+    required int running,
+    required int waiting,
+    required int retry,
+    required int skipped,
+    required int completed,
+    required int total,
+    required ffi.Pointer<wire_cst_list_knowledge_queue_item> items,
+    required bool has_more,
+  }) => $allocator<wire_cst_knowledge_queue_page>()
+    ..ref.pending = pending
+    ..ref.running = running
+    ..ref.waiting = waiting
+    ..ref.retry = retry
+    ..ref.skipped = skipped
+    ..ref.completed = completed
+    ..ref.total = total
+    ..ref.items = items
+    ..ref.has_more = has_more;
+}
+
+final class wire_cst_knowledge_repair_source extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> snapshot_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  @ffi.Int64()
+  external int version;
+
+  @ffi.Bool()
+  external bool selected;
+
+  @ffi.Bool()
+  external bool eligible;
+
+  static ffi.Pointer<wire_cst_knowledge_repair_source> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> snapshot_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required int version,
+    required bool selected,
+    required bool eligible,
+  }) => $allocator<wire_cst_knowledge_repair_source>()
+    ..ref.snapshot_id = snapshot_id
+    ..ref.page_slug = page_slug
+    ..ref.title = title
+    ..ref.version = version
+    ..ref.selected = selected
+    ..ref.eligible = eligible;
+}
+
+final class wire_cst_knowledge_review_record extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> action;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> before_content;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> original_content;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> result_content;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> original_applicable;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> result_applicable;
+
+  external ffi.Pointer<wire_cst_list_prim_i_64_strict> selected_parts;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> description;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> note;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> target_slug;
+
+  static ffi.Pointer<wire_cst_knowledge_review_record> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> action,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> before_content,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> original_content,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> result_content,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> original_applicable,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> result_applicable,
+    required ffi.Pointer<wire_cst_list_prim_i_64_strict> selected_parts,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> description,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> target_slug,
+  }) => $allocator<wire_cst_knowledge_review_record>()
+    ..ref.id = id
+    ..ref.action = action
+    ..ref.title = title
+    ..ref.created_at = created_at
+    ..ref.before_content = before_content
+    ..ref.original_content = original_content
+    ..ref.result_content = result_content
+    ..ref.original_applicable = original_applicable
+    ..ref.result_applicable = result_applicable
+    ..ref.selected_parts = selected_parts
+    ..ref.description = description
+    ..ref.note = note
+    ..ref.revision_id = revision_id
+    ..ref.target_slug = target_slug;
+}
+
 final class wire_cst_knowledge_revision_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
@@ -7240,13 +9147,60 @@ final class wire_cst_knowledge_revision_dto extends ffi.Struct {
 
   static ffi.Pointer<wire_cst_knowledge_revision_dto> $allocate(
     ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
   }) => $allocator<wire_cst_knowledge_revision_dto>()
+    ..ref.id = id
     ..ref.content_md = content_md
     ..ref.reason = reason
     ..ref.created_at = created_at;
+}
+
+final class wire_cst_library_entry extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> summary;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> area;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reading_state;
+
+  static ffi.Pointer<wire_cst_library_entry> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> summary,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> area,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> reading_state,
+  }) => $allocator<wire_cst_library_entry>()
+    ..ref.slug = slug
+    ..ref.title = title
+    ..ref.summary = summary
+    ..ref.kind = kind
+    ..ref.area = area
+    ..ref.reading_state = reading_state;
+}
+
+final class wire_cst_library_page extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_library_entry> items;
+
+  @ffi.Bool()
+  external bool has_more;
+
+  static ffi.Pointer<wire_cst_library_page> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_library_entry> items,
+    required bool has_more,
+  }) => $allocator<wire_cst_library_page>()
+    ..ref.items = items
+    ..ref.has_more = has_more;
 }
 
 final class wire_cst_list_String extends ffi.Struct {
@@ -7290,6 +9244,36 @@ final class wire_cst_list_analysis_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_analysis_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_analysis_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_artifact_version extends ffi.Struct {
+  external ffi.Pointer<wire_cst_artifact_version> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_artifact_version> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_artifact_version> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_artifact_version>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_batch_review_result extends ffi.Struct {
+  external ffi.Pointer<wire_cst_batch_review_result> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_batch_review_result> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_batch_review_result> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_batch_review_result>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }
@@ -7444,6 +9428,21 @@ final class wire_cst_list_knowledge_citation extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_knowledge_diff_part extends ffi.Struct {
+  external ffi.Pointer<wire_cst_knowledge_diff_part> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_knowledge_diff_part> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_knowledge_diff_part> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_knowledge_diff_part>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_knowledge_digest_job_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_knowledge_digest_job_dto> ptr;
 
@@ -7504,6 +9503,51 @@ final class wire_cst_list_knowledge_proposal extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_knowledge_queue_item extends ffi.Struct {
+  external ffi.Pointer<wire_cst_knowledge_queue_item> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_knowledge_queue_item> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_knowledge_queue_item> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_knowledge_queue_item>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_knowledge_repair_source extends ffi.Struct {
+  external ffi.Pointer<wire_cst_knowledge_repair_source> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_knowledge_repair_source> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_knowledge_repair_source> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_knowledge_repair_source>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_knowledge_review_record extends ffi.Struct {
+  external ffi.Pointer<wire_cst_knowledge_review_record> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_knowledge_review_record> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_knowledge_review_record> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_knowledge_review_record>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_knowledge_revision_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_knowledge_revision_dto> ptr;
 
@@ -7515,6 +9559,21 @@ final class wire_cst_list_knowledge_revision_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_knowledge_revision_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_knowledge_revision_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_library_entry extends ffi.Struct {
+  external ffi.Pointer<wire_cst_library_entry> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_library_entry> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_library_entry> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_library_entry>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }
@@ -7534,6 +9593,21 @@ final class wire_cst_list_message_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_organized_topic extends ffi.Struct {
+  external ffi.Pointer<wire_cst_organized_topic> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_organized_topic> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_organized_topic> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_organized_topic>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_pending_action_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_pending_action_dto> ptr;
 
@@ -7545,6 +9619,21 @@ final class wire_cst_list_pending_action_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_pending_action_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_pending_action_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_prim_i_64_strict extends ffi.Struct {
+  external ffi.Pointer<ffi.Int64> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_prim_i_64_strict> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<ffi.Int64> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_prim_i_64_strict>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }
@@ -7654,6 +9743,21 @@ final class wire_cst_list_todo_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_topic_organization_preview extends ffi.Struct {
+  external ffi.Pointer<wire_cst_topic_organization_preview> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_topic_organization_preview> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_topic_organization_preview> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_topic_organization_preview>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_wiki_page_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_wiki_page_dto> ptr;
 
@@ -7732,6 +9836,32 @@ final class wire_cst_message_recordability_dto extends ffi.Struct {
     ..ref.source = source
     ..ref.job_status = job_status
     ..ref.summary = summary;
+}
+
+final class wire_cst_organized_topic extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> applicable_when;
+
+  external ffi.Pointer<wire_cst_list_String> snapshot_ids;
+
+  external ffi.Pointer<wire_cst_list_String> event_ids;
+
+  static ffi.Pointer<wire_cst_organized_topic> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> applicable_when,
+    required ffi.Pointer<wire_cst_list_String> snapshot_ids,
+    required ffi.Pointer<wire_cst_list_String> event_ids,
+  }) => $allocator<wire_cst_organized_topic>()
+    ..ref.title = title
+    ..ref.content_md = content_md
+    ..ref.applicable_when = applicable_when
+    ..ref.snapshot_ids = snapshot_ids
+    ..ref.event_ids = event_ids;
 }
 
 final class wire_cst_pending_action_dto extends ffi.Struct {
@@ -7922,6 +10052,28 @@ final class wire_cst_source_update_preview extends ffi.Struct {
     ..ref.changed = changed;
 }
 
+final class wire_cst_suggestion_feedback extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> decision;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> suggestion;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> rewrite;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  static ffi.Pointer<wire_cst_suggestion_feedback> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> decision,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> suggestion,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> rewrite,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+  }) => $allocator<wire_cst_suggestion_feedback>()
+    ..ref.decision = decision
+    ..ref.suggestion = suggestion
+    ..ref.rewrite = rewrite
+    ..ref.created_at = created_at;
+}
+
 final class wire_cst_system_font_face extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> family;
 
@@ -8019,6 +10171,32 @@ final class wire_cst_todo_dto extends ffi.Struct {
     ..ref.note = note
     ..ref.created_at = created_at
     ..ref.updated_at = updated_at;
+}
+
+final class wire_cst_topic_organization_preview extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> mode;
+
+  external ffi.Pointer<wire_cst_list_String> input_slugs;
+
+  external ffi.Pointer<wire_cst_list_organized_topic> topics;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  static ffi.Pointer<wire_cst_topic_organization_preview> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
+    required ffi.Pointer<wire_cst_list_String> input_slugs,
+    required ffi.Pointer<wire_cst_list_organized_topic> topics,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+  }) => $allocator<wire_cst_topic_organization_preview>()
+    ..ref.id = id
+    ..ref.mode = mode
+    ..ref.input_slugs = input_slugs
+    ..ref.topics = topics
+    ..ref.status = status;
 }
 
 final class wire_cst_tweet_fetch_dto extends ffi.Struct {

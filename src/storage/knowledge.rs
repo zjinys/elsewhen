@@ -497,19 +497,32 @@ impl Store {
         event_keys.dedup();
         // Same input version + same target is a single decision. Rejected
         // suggestions cannot reappear merely because the model rephrases them.
+        let base_state = base
+            .map(|p| {
+                crate::knowledge::authoring::revision_basis(self, p)
+                    .and_then(|v| Ok(serde_json::to_string(&v)?))
+            })
+            .transpose()?;
         let key = content_hash(&format!(
             "{}|{}|{}|{}",
             base.map_or(draft.slug.as_str(), |p| p.id.as_str()),
             source_keys.join(","),
             event_keys.join(","),
-            base.map(|p| content_hash(&p.content_md))
-                .unwrap_or_default()
+            format!(
+                "{}|{}",
+                base_state.as_deref().unwrap_or_default(),
+                if reason.starts_with("恢复历史正文") {
+                    content_hash(&draft.content_md)
+                } else {
+                    String::new()
+                }
+            )
         ));
         self.connection.execute(
             "INSERT OR IGNORE INTO knowledge_proposals
             (id,dedupe_key,page_id,target_slug,kind,title,content_md,applicable_when,
-             snapshot_ids,event_ids,base_hash,reason,created_at,origin)
-            VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
+             snapshot_ids,event_ids,base_hash,reason,created_at,origin,base_state)
+            VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
             params![
                 Uuid::new_v4().to_string(),
                 key,
@@ -524,7 +537,8 @@ impl Store {
                 base.map(|p| content_hash(&p.content_md)),
                 reason,
                 chrono::Utc::now().to_rfc3339(),
-                origin
+                origin,
+                base_state
             ],
         )?;
         Ok(self.connection.query_row(
@@ -546,7 +560,9 @@ impl Store {
             SELECT origin.page_id FROM knowledge_source_pages origin
             JOIN knowledge_snapshots s ON s.source_id=origin.source_id
             JOIN knowledge_page_sources cited ON cited.snapshot_id=s.id
-            JOIN wiki_pages target ON target.id=cited.page_id WHERE target.slug=?1)
+            JOIN wiki_pages target ON target.id=cited.page_id WHERE target.slug=?1
+            UNION SELECT d.upstream_id FROM knowledge_dependencies d JOIN wiki_pages target ON target.id=d.page_id WHERE target.slug=?1
+            UNION SELECT r.old_page_id FROM knowledge_topic_replacements r JOIN wiki_pages target ON target.id=r.new_page_id WHERE target.slug=?1)
             ORDER BY title,slug"
         );
         let mut stmt = self.connection.prepare(&sql)?;
@@ -560,7 +576,9 @@ impl Store {
             SELECT cited.page_id FROM knowledge_page_sources cited
             JOIN knowledge_snapshots s ON s.id=cited.snapshot_id
             JOIN knowledge_source_pages origin ON origin.source_id=s.source_id
-            JOIN wiki_pages material ON material.id=origin.page_id WHERE material.slug=?1)
+            JOIN wiki_pages material ON material.id=origin.page_id WHERE material.slug=?1
+            UNION SELECT d.page_id FROM knowledge_dependencies d JOIN wiki_pages original ON original.id=d.upstream_id WHERE original.slug=?1
+            UNION SELECT r.new_page_id FROM knowledge_topic_replacements r JOIN wiki_pages original ON original.id=r.old_page_id WHERE original.slug=?1)
             ORDER BY updated_at DESC,slug"
         );
         let mut stmt = self.connection.prepare(&sql)?;
@@ -568,7 +586,7 @@ impl Store {
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
-    fn find_knowledge_proposals(
+    pub(crate) fn find_knowledge_proposals(
         &self,
         slug: Option<&str>,
         id: Option<&str>,
@@ -620,6 +638,70 @@ impl Store {
         confirmed: bool,
     ) -> Result<Option<WikiPage>> {
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        let page = self.apply_knowledge_proposal_in_tx(id, accept, confirmed)?;
+        tx.commit()?;
+        Ok(page)
+    }
+
+    pub(crate) fn reference_is_unprotected(&self, slug: &str) -> Result<bool> {
+        let Some(page) = self.get_wiki_page(slug)? else {
+            return Ok(true);
+        };
+        let metadata = self.knowledge_metadata(slug)?;
+        Ok(page.human_edited_at.is_none()
+            && page.status != "archived"
+            && page.opinion.as_deref() != Some("reject")
+            && !matches!(page.kind.as_str(), "source" | "note")
+            && metadata.confirmed_at.is_none()
+            && metadata.strength == "reference")
+    }
+
+    /// Keep old manual decisions and concurrent edits pending, while fresh,
+    /// unprotected reference output can be published within the caller's batch.
+    pub(crate) fn publish_reference_in_tx(&self, id: &str) -> Result<Option<WikiPage>> {
+        let proposal = self
+            .find_knowledge_proposals(None, Some(id))?
+            .into_iter()
+            .next()
+            .context("建议不存在")?;
+        let origin: String = self.connection.query_row(
+            "SELECT origin FROM knowledge_proposals WHERE id=?1",
+            [id],
+            |r| r.get(0),
+        )?;
+        if origin != "automatic" || proposal.status == "rejected" {
+            return Ok(None);
+        }
+        if proposal.status == "accepted" {
+            return self.get_wiki_page(&proposal.target_slug);
+        }
+        if !self.reference_is_unprotected(&proposal.target_slug)? {
+            return Ok(None);
+        }
+        let base = self.get_wiki_page(&proposal.target_slug)?;
+        if base.as_ref().map(|p| &p.id) != proposal.page_id.as_ref()
+            || base.as_ref().map(|p| content_hash(&p.content_md)) != proposal.base_hash
+        {
+            return Ok(None);
+        }
+        let blocked: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM knowledge_proposals WHERE id<>?1 AND target_slug=?2
+             AND (status='rejected' OR (status='pending' AND origin='manual')))",
+            params![id, proposal.target_slug],
+            |r| r.get(0),
+        )?;
+        if blocked {
+            return Ok(None);
+        }
+        self.apply_knowledge_proposal_in_tx(id, true, false)
+    }
+
+    pub(crate) fn apply_knowledge_proposal_in_tx(
+        &self,
+        id: &str,
+        accept: bool,
+        confirmed: bool,
+    ) -> Result<Option<WikiPage>> {
         if !confirmed {
             let origin: String = self.connection.query_row(
                 "SELECT origin FROM knowledge_proposals WHERE id=?1",
@@ -639,9 +721,9 @@ impl Store {
             let manual_choice: bool = self.connection.query_row(
                 "SELECT EXISTS(SELECT 1 FROM knowledge_proposals other
                  JOIN json_each(other.snapshot_ids) j JOIN knowledge_snapshots s ON s.id=j.value
-                 WHERE other.id<>?1 AND (other.status='rejected' OR (other.status='pending' AND other.origin='manual'))
+                 WHERE other.id<>?1 AND other.target_slug=?3 AND (other.status='rejected' OR (other.status='pending' AND other.origin='manual'))
                  AND s.source_id IN (SELECT source_id FROM knowledge_snapshots WHERE id IN (SELECT value FROM json_each(?2))))",
-                params![id,serde_json::to_string(&proposal.snapshot_ids)?], |r| r.get(0))?;
+                params![id,serde_json::to_string(&proposal.snapshot_ids)?,proposal.target_slug], |r| r.get(0))?;
             if manual_choice {
                 bail!("整理期间有新的人工决定，保留待审状态");
             }
@@ -655,9 +737,28 @@ impl Store {
             }
             bail!("建议已经处理，不能更改历史决定");
         }
+        let previous_content = self
+            .get_wiki_page(&proposal.target_slug)?
+            .map(|p| p.content_md);
         let page = if accept {
             let base = self.get_wiki_page(&proposal.target_slug)?;
-            if !confirmed && base.as_ref().is_some_and(|p| p.human_edited_at.is_some()) {
+            let raw_dependencies: Option<String> = self.connection.query_row(
+                "SELECT dependency_bases FROM knowledge_proposals WHERE id=?1",
+                [id],
+                |r| r.get(0),
+            )?;
+            let dependencies: Option<Vec<crate::knowledge::dependencies::Basis>> = raw_dependencies
+                .map(|raw| serde_json::from_str(&raw))
+                .transpose()?;
+            if let Some(bases) = &dependencies {
+                crate::knowledge::dependencies::validate(self, bases)?;
+            } else if let Some(base) = &base {
+                anyhow::ensure!(
+                    !crate::knowledge::dependencies::stale(self, &base.id)?,
+                    "上游知识已变化，请重新检查更新"
+                );
+            }
+            if !confirmed && !self.reference_is_unprotected(&proposal.target_slug)? {
                 bail!("已有人工编辑，自动整理保留原知识页");
             }
             if !confirmed {
@@ -668,6 +769,15 @@ impl Store {
             }
             if proposal.page_id.is_some() {
                 let base = base.as_ref().context("目标页面已删除")?;
+                let basis: Option<String> = self.connection.query_row(
+                    "SELECT base_state FROM knowledge_proposals WHERE id=?1",
+                    [id],
+                    |r| r.get(0),
+                )?;
+                let basis = basis
+                    .map(|raw| serde_json::from_str::<serde_json::Value>(&raw))
+                    .transpose()?;
+                crate::knowledge::authoring::compare_revision_basis(self, base, basis.as_ref())?;
                 if Some(&base.id) != proposal.page_id.as_ref()
                     || Some(content_hash(&base.content_md)) != proposal.base_hash
                 {
@@ -683,7 +793,17 @@ impl Store {
                     [&snap.source_id],
                     |r| r.get(0),
                 )?;
-                if snap.version != newest || snap.opinion.as_deref() == Some("reject") {
+                let source_active = snap
+                    .page_slug
+                    .as_deref()
+                    .map(|slug| self.get_wiki_page(slug))
+                    .transpose()?
+                    .flatten()
+                    .is_some_and(|p| p.status != "archived");
+                if snap.version != newest
+                    || snap.opinion.as_deref() == Some("reject")
+                    || !source_active
+                {
                     bail!("来源已更新或被拒绝，请重新生成建议");
                 }
             }
@@ -726,10 +846,19 @@ impl Store {
                 [&result.id],
             )?;
             self.bind_page_sources(&result.id, &proposal.snapshot_ids)?;
+            if let Some(bases) = &dependencies {
+                crate::knowledge::dependencies::bind(self, &result.id, bases)?;
+            }
+            // Confirming a revision must not silently downgrade a personal rule.
+            let strength = if confirmed && base.is_some() {
+                self.knowledge_metadata(&result.slug)?.strength
+            } else {
+                "reference".into()
+            };
             self.connection.execute("INSERT INTO knowledge_metadata(page_id,applicable_when,strength,confirmed_at)
-                VALUES (?1,?2,'reference',?3) ON CONFLICT(page_id) DO UPDATE SET
-                applicable_when=excluded.applicable_when,strength='reference',confirmed_at=excluded.confirmed_at",
-                params![result.id,proposal.applicable_when,confirmed.then(|| chrono::Utc::now().to_rfc3339())])?;
+                VALUES (?1,?2,?4,?3) ON CONFLICT(page_id) DO UPDATE SET
+                applicable_when=excluded.applicable_when,strength=excluded.strength,confirmed_at=excluded.confirmed_at",
+                params![result.id,proposal.applicable_when,confirmed.then(|| chrono::Utc::now().to_rfc3339()),strength])?;
             self.append_wiki_log(&format!(
                 "{} {} → {}",
                 if confirmed {
@@ -756,7 +885,13 @@ impl Store {
                 id
             ],
         )?;
-        tx.commit()?;
+        let revision: Option<String> = if let Some(p) = &page {
+            self.connection.query_row("SELECT id FROM wiki_revisions WHERE page_id=?1 ORDER BY created_at DESC,rowid DESC LIMIT 1",[&p.id],|r|r.get(0)).optional()?
+        } else {
+            None
+        };
+        self.connection.execute("INSERT OR IGNORE INTO knowledge_review_decisions(proposal_id,original_content,original_applicable,selected_parts,issue_ids,created_at,before_content,result_content,result_applicable,revision_id)
+            VALUES(?1,?2,?3,'[]','[]',?4,?5,?6,?7,?8)",params![id,proposal.content_md,proposal.applicable_when,chrono::Utc::now().to_rfc3339(),previous_content,page.as_ref().map(|p|&p.content_md),accept.then_some(&proposal.applicable_when),revision])?;
         Ok(page)
     }
 
@@ -771,7 +906,9 @@ impl Store {
         let pages = if let Some(slug) = slug {
             self.get_wiki_page(slug)?.into_iter().collect()
         } else {
-            self.list_wiki_pages(None, None)?
+            let mut all = self.list_wiki_pages(None, None)?;
+            all.extend(self.list_wiki_pages(None, Some("derivative"))?);
+            all
         };
         let mut issues = Vec::new();
         for page in pages.into_iter().filter(|p| p.status != "archived") {
@@ -789,6 +926,13 @@ impl Store {
                 Ok(())
             };
             let sources = self.page_source_snapshots(&page.slug)?;
+            if crate::knowledge::dependencies::stale(self, &page.id)? {
+                add(
+                    "upstream_changed",
+                    "上游知识已纠正或历史依据版本未知；本页暂停作为依据，请检查更新并审阅。".into(),
+                    serde_json::to_string(&crate::knowledge::dependencies::state(self, &page.id)?)?,
+                )?;
+            }
             if page.source_event_ids.is_empty() && sources.is_empty() && page.source_url.is_none() {
                 add(
                     "no_evidence",
@@ -804,6 +948,22 @@ impl Store {
                         id.clone(),
                     )?;
                 }
+            }
+            if page.kind == "topic"
+                && (sources.len() > 8
+                    || page.source_event_ids.len() > 100
+                    || page.content_md.chars().count() > 12000)
+            {
+                add(
+                    "oversized_topic",
+                    "主题超过单次维护容量，请在产出页预览拆分；已有内容和来源保留。".into(),
+                    format!(
+                        "{}:{}:{}",
+                        content_hash(&page.content_md),
+                        sources.len(),
+                        page.source_event_ids.len()
+                    ),
+                )?;
             }
             for source in sources {
                 if source.opinion.as_deref() == Some("reject") {
@@ -842,6 +1002,53 @@ impl Store {
                 }
             }
         }
+        let rows = self.connection.prepare(
+            "SELECT i.fingerprint,p.slug,i.kind,i.description,i.page_hash,p.content_md,i.snapshot_ids
+             FROM knowledge_semantic_issues i JOIN wiki_pages p ON p.id=i.page_id
+             WHERE p.status<>'archived' AND (?1 IS NULL OR p.slug=?1)
+             AND NOT EXISTS(SELECT 1 FROM knowledge_maintenance_reviews r WHERE r.fingerprint=i.fingerprint)
+             ORDER BY i.created_at DESC LIMIT 200"
+        )?.query_map([slug], |r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?,r.get::<_,String>(6)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for (fingerprint, page_slug, kind, description, hash, content, snapshots) in rows {
+            if hash != content_hash(&content) {
+                continue;
+            }
+            let ids: Vec<String> = serde_json::from_str(&snapshots)?;
+            let mut current = !ids.is_empty();
+            for id in ids {
+                let Some(source) = self.source_snapshot(&id)? else {
+                    current = false;
+                    break;
+                };
+                let latest: i64 = self.connection.query_row(
+                    "SELECT MAX(version) FROM knowledge_snapshots WHERE source_id=?1",
+                    [&source.source_id],
+                    |r| r.get(0),
+                )?;
+                let page = source
+                    .page_slug
+                    .as_deref()
+                    .map(|s| self.get_wiki_page(s))
+                    .transpose()?
+                    .flatten();
+                if latest != source.version
+                    || source.opinion.as_deref() == Some("reject")
+                    || page.is_none_or(|p| p.status == "archived")
+                {
+                    current = false;
+                    break;
+                }
+            }
+            if current {
+                issues.push(KnowledgeIssue {
+                    fingerprint,
+                    page_slug,
+                    kind,
+                    description,
+                });
+            }
+        }
         Ok(issues)
     }
 
@@ -854,8 +1061,8 @@ impl Store {
         let page = self
             .get_wiki_page(&issue.page_slug)?
             .context("页面不存在")?;
-        self.connection.execute("INSERT OR IGNORE INTO knowledge_maintenance_reviews(fingerprint,page_id,resolution,created_at)
-            VALUES (?1,?2,'dismissed',?3)",params![fingerprint,page.id,chrono::Utc::now().to_rfc3339()])?;
+        self.connection.execute("INSERT OR IGNORE INTO knowledge_maintenance_reviews(fingerprint,page_id,resolution,created_at,issue_description)
+            VALUES (?1,?2,'dismissed',?3,?4)",params![fingerprint,page.id,chrono::Utc::now().to_rfc3339(),issue.description])?;
         Ok(())
     }
 }

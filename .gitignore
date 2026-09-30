@@ -50,3 +50,7 @@ ui/rustLibs/
 ui/android/build/
 ui/build/
 ui/linux/flutter/ephemeral/
+# Claude Code 本地状态与 agent 临时工作树（均不应入库；
+# worktrees/ 是内嵌 git 仓库，提交会产生 submodule 式悬空引用）
+.claude/settings.local.json
+.claude/worktrees/

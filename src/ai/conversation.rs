@@ -1,12 +1,15 @@
 mod continuity;
+#[cfg(test)]
+use super::tool::dispatch;
 
 use super::memory::{
-    compress_context, estimate_tokens, ContextMessage, MemoryProvider, SimpleMemory,
+    estimate_tokens, ContextMessage, MemoryProvider, SimpleMemory,
     SlidingWindowMemory,
 };
 use super::provider::{AiProvider, AiReply, OllamaProvider, OpenAiCompatibleProvider, TokenUsage};
 use super::tool::{
-    dispatch, execute_pending_action, ToolCall, ToolPolicy, ToolRegistry, ToolResultMsg,
+    dispatch_with_knowledge, execute_pending_action, ToolCall, ToolPolicy, ToolRegistry,
+    ToolResultMsg,
 };
 use crate::storage::{RuleStatus, Store};
 use anyhow::{Context, Result};
@@ -45,7 +48,7 @@ pub enum ProviderType {
 impl Default for ConversationConfig {
     fn default() -> Self {
         Self {
-            memory_type: MemoryType::SlidingWindow { max_tokens: 4096 },
+            memory_type: MemoryType::SlidingWindow { max_tokens: 0 },
             provider_type: ProviderType::OpenAiCompatible,
         }
     }
@@ -81,8 +84,8 @@ fn jitter_backoff_ms(attempt: usize) -> u64 {
     }
 }
 
-/// 空回复重试预算：上游返回空 content 且无 tool_calls 时的额外重发次数。
-/// 与协议兼容兜底（去 tools 重试一次）叠加，单轮最多因此多花一次请求。
+/// 普通空回复的重试预算；协议切换和收尾也计入 MAX_TOOL_ROUNDS，
+/// 每轮恰好一次请求，不再在轮内隐式重发。
 const MAX_EMPTY_RETRIES: usize = 1;
 
 /// 回炉提示：只讲唯一合法格式，不解释、不啰嗦，让模型重发一行调用。
@@ -97,6 +100,8 @@ const PROMISE_REPAIR_NUDGE: &str = "系统提示：你上一轮只预告了接�
 /// 回炉提示：上游返回空内容。空回复等价于把对话交给用户自己猜。
 const EMPTY_REPLY_NUDGE: &str = "系统提示：你上一轮返回了空内容，用户什么也没看到。请直接输出给用户看的文字；需要写入知识库就现在调用对应工具。不要返回空回复。";
 
+const TEXT_PROTOCOL_NUDGE: &str = "系统提示：本轮改用文本工具协议，后续不再发送原生 tools。需要执行工具时，在正文中独占一行输出 [工具调用]{\"name\":\"工具名\",\"arguments\":{...}}，等待真实结果后再回答。缺失调用内容的那次响应没有执行任何操作；之前已返回的工具结果仍然有效，不要重复执行。能直接回答就给出结果，不要承诺稍后回复。";
+
 /// Generate AI reply for a conversation
 ///
 /// 流程：确认门（规则提议 + 待确认写动作）→ 构建上下文 → Agent 循环
@@ -107,7 +112,25 @@ pub fn generate_conversation_reply(
     store: &Store,
     config: Option<ConversationConfig>,
 ) -> Result<String> {
-    let config = config.unwrap_or_default();
+    let mut config = config.unwrap_or_default();
+    if matches!(
+        config.memory_type,
+        MemoryType::SlidingWindow { max_tokens: 0 }
+    ) {
+        let provider = store.active_ai_provider_config()?;
+        let window = provider
+            .as_ref()
+            .map(|p| {
+                p.context_window
+                    .map(|v| v as usize)
+                    .unwrap_or_else(|| super::budget::default_window(&p.model))
+            })
+            .unwrap_or(32768);
+        let output = provider.as_ref().and_then(|p| p.max_tokens).unwrap_or(4096) as usize;
+        config.memory_type = MemoryType::SlidingWindow {
+            max_tokens: window.saturating_sub(output + window / 20),
+        };
+    }
 
     // 本轮时间窗起点：写声明核验以库内时间为准（标题→查库→卡时间窗），
     // failover 换 provider 重试也不重置、不丢失，比内存 flag 稳定。
@@ -124,6 +147,10 @@ pub fn generate_conversation_reply(
     };
     // Provider 未返回 usage 时的本地兜底：prompt 按上下文估算
     let mut context = memory.prepare_context(conversation_id, store)?;
+    let feedback = crate::knowledge::workflows::feedback_context(store, conversation_id)?;
+    if !feedback.is_empty() {
+        context.push(ContextMessage::new("system", feedback));
+    }
     let followup = FollowUp::load(store, conversation_id)?;
 
     // 用户确认后生效的个人规则：注入，避免 AI 重复提议同一条规则
@@ -176,7 +203,7 @@ pub fn generate_conversation_reply(
                     "propose_people_relations",
                     &args.to_string(),
                 )?;
-                return Ok(format!("已识别人物 {} 和事项 {}，并草拟了关系保存内容。回复「好」确认保存，回复「不要」取消。", annotations.people.join("、"), annotations.targets.join("、")));
+                return Ok(format!("已识别联系人 {} 和事项 {}，并草拟了关系保存内容。回复「好」确认保存，回复「不要」取消。", annotations.people.join("、"), annotations.targets.join("、")));
             }
         }
     }
@@ -243,11 +270,7 @@ pub fn generate_conversation_reply(
         crate::knowledge::context_text(&knowledge_candidates)?,
     ));
 
-    // The memory provider only sees persisted messages. Dynamic system context
-    // above can be large, so enforce the budget once more at the final boundary.
-    if let MemoryType::SlidingWindow { max_tokens } = config.memory_type {
-        compress_context(&mut context, max_tokens);
-    }
+    // The provider budgets the complete request, including dynamic context and tools.
     // Recover the original task from persisted history even if the memory window
     // only retained the short status question. The per-round bound still applies.
     if let Some(followup) = &followup {
@@ -258,7 +281,7 @@ pub fn generate_conversation_reply(
     }
 
     // 3) 创建 AI provider
-    let ai_providers: Vec<(Option<String>, Box<dyn AiProvider>)> = match config.provider_type {
+    let ai_providers: Vec<(Option<String>, String, Box<dyn AiProvider>)> = match config.provider_type {
         ProviderType::OpenAiCompatible => {
             let configs = store.list_ai_provider_configs_for_runtime()?;
             if configs.is_empty() {
@@ -274,9 +297,11 @@ pub fn generate_conversation_reply(
                         model: ai_config.model,
                         temperature: ai_config.temperature as f32,
                         max_tokens: ai_config.max_tokens.map(|v| v as u32),
+                        context_window: ai_config.context_window.map(|v| v as u32),
                     };
                     Ok((
                         Some(id),
+                        ai_config.name,
                         Box::new(OpenAiCompatibleProvider::new(provider_config)?)
                             as Box<dyn AiProvider>,
                     ))
@@ -290,11 +315,17 @@ pub fn generate_conversation_reply(
             let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama2".to_string());
 
             let provider_config = super::provider::OllamaConfig {
+                context_window: None,
+                max_tokens: None,
                 base_url,
                 model,
                 temperature: 0.7,
             };
-            vec![(None, Box::new(OllamaProvider::new(provider_config)?))]
+            vec![(
+                None,
+                "Ollama".to_string(),
+                Box::new(OllamaProvider::new(provider_config)?),
+            )]
         }
     };
 
@@ -302,10 +333,11 @@ pub fn generate_conversation_reply(
     let registry = ToolRegistry::default();
     let mut errors = Vec::new();
     let mut outcome = None;
-    for (provider_id, provider) in ai_providers {
+    for (provider_id, provider_name, provider) in ai_providers {
         let mut attempt_context = context.clone();
         match run_agent_loop(
             &*provider,
+            &provider_name,
             &mut attempt_context,
             &registry,
             store,
@@ -321,7 +353,8 @@ pub fn generate_conversation_reply(
                 break;
             }
             Err(error) => {
-                errors.push(error.to_string());
+                errors.push(format!("[{provider_name}] {error}"));
+                debug_eprintln!("[agent] provider「{provider_name}」失败：{error}");
                 // 全部 provider 可能临时不可用（网关抖动/限流）：轮换前加
                 // jittered backoff，避免每次会话请求都同一瞬间锤向这批端点
                 // （P2 retry backoff；Dart 侧 5s timer 只控制 tick，拦不住
@@ -333,6 +366,12 @@ pub fn generate_conversation_reply(
         }
     }
     let outcome = outcome.context(format!("所有 AI provider 均失败：{}", errors.join(" | ")))?;
+    crate::knowledge::workflows::record_generation(
+        store,
+        conversation_id,
+        &outcome.content,
+        outcome.model.as_deref(),
+    )?;
     let raw = outcome.content;
     debug_eprintln!(
         "[agent] finished rounds={} empty_retries={}",
@@ -398,17 +437,9 @@ pub fn generate_conversation_reply(
     Ok(content)
 }
 
-/// 上游声称「已调用工具」却没给出任何 `tool_calls`——响应被中转丢弃的签名。
-///
-/// 实测 2026-09-29：`hub.oaifree.com` + `gpt-4o`，只要模型决定调工具就返回
-/// `{"message":{"role":"assistant"},"finish_reason":"function_call"}`，
-/// `tool_calls` 字段整个不存在，`usage.completion_tokens` 照常有值。
-/// 8/8 复现，且同一请求换 provider 即正常。
-///
-/// 为什么值得单独识别：症状与「模型返回空」完全一致（`content` 空、
-/// `tool_calls` 空），但根因在上游——重发不会好转，只会白烧预算。
-/// 判据必须同时满足三条，缺一条就会把正常空回复误报成上游故障。
-fn dropped_tool_call_response(reply: &AiReply) -> bool {
+/// Provider 已兼容解析新旧调用字段后，仍声明调用工具却缺少调用内容。
+/// 这能证明响应不完整，不能单凭 usage 断定是哪层丢失了内容。
+fn missing_tool_call_response(reply: &AiReply) -> bool {
     reply.tool_calls.is_empty()
         && reply.content.trim().is_empty()
         && matches!(
@@ -422,6 +453,28 @@ fn dropped_tool_call_response(reply: &AiReply) -> bool {
 enum ToolProtocol {
     Native,
     Text,
+}
+
+/// A text fallback must also remove native history fields. Merely omitting the
+/// tools definition can still trigger the same gateway conversion/validation.
+/// Preserve completed calls/results as text; never dispatch historical calls.
+fn text_protocol_history(context: &mut [ContextMessage]) {
+    for message in context {
+        if let Some(calls) = message.tool_calls.take() {
+            for call in calls {
+                let envelope = serde_json::json!({"name": call.name, "arguments": call.arguments});
+                message
+                    .content
+                    .push_str(&format!("\n{TOOL_CALL_MARKER}{envelope}"));
+            }
+            message.reasoning_content = None;
+        }
+        if message.role == "tool" {
+            message.role = "system".into();
+            message.content = format!("（已执行工具的历史结果）\n{}", message.content);
+        }
+        message.tool_call_id = None;
+    }
 }
 
 /// 本机数据直查：对高频统计/清单类问题直接在本地查库并注入上下文，
@@ -523,6 +576,7 @@ struct AgentOutcome {
 /// 从无副作用的库上重新开始，保证 failover 幂等。
 fn run_agent_loop(
     provider: &dyn AiProvider,
+    provider_name: &str,
     context: &mut Vec<ContextMessage>,
     registry: &ToolRegistry,
     store: &Store,
@@ -532,6 +586,7 @@ fn run_agent_loop(
     let mut attempt_created_events = Vec::new();
     let outcome = run_agent_loop_inner(
         provider,
+        provider_name,
         context,
         registry,
         store,
@@ -541,7 +596,7 @@ fn run_agent_loop(
     );
     if outcome.is_err() && !attempt_created_events.is_empty() {
         debug_eprintln!(
-            "[agent] 尝试失败，回滚本尝试写入的 {} 条事件（failover 重放幂等）",
+            "[agent] provider「{provider_name}」尝试失败，回滚本尝试写入的 {} 条事件（failover 重放幂等）",
             attempt_created_events.len()
         );
         for id in &attempt_created_events {
@@ -567,6 +622,7 @@ fn tool_created_event_id(result: &ToolResultMsg) -> Option<String> {
 
 fn run_agent_loop_inner(
     provider: &dyn AiProvider,
+    provider_name: &str,
     context: &mut Vec<ContextMessage>,
     registry: &ToolRegistry,
     store: &Store,
@@ -626,7 +682,10 @@ fn run_agent_loop_inner(
         if finalizing {
             context.push(ContextMessage::new("system", FINAL_ANSWER_NUDGE));
         }
-        crate::knowledge::bound_model_context(context, 24000)?;
+        if protocol == Some(ToolProtocol::Text) {
+            text_protocol_history(context);
+        }
+        // The provider checks the full serialized request, including tools, below.
         let wants_native = match &protocol {
             Some(ToolProtocol::Native) => true,
             Some(ToolProtocol::Text) => false,
@@ -646,17 +705,36 @@ fn run_agent_loop_inner(
             None
         };
 
-        let reply = match provider.generate_reply_with_tools(context.clone(), tools.as_deref()) {
+        let mut request_context = context.clone();
+        if protocol == Some(ToolProtocol::Text) && !finalizing {
+            let specs: Vec<_> = registry
+                .provider_specs_for(allow_record_event)
+                .into_iter()
+                .filter(|spec| {
+                    !status_only || registry.get(&spec.name)
+                        .is_some_and(|t| t.policy() == ToolPolicy::Read)
+                })
+                .collect();
+            request_context.push(ContextMessage::new(
+                "system",
+                ToolRegistry::prompt_for_specs(&specs),
+            ));
+        }
+        let reply = match provider.generate_reply_with_tools(request_context, tools.as_deref()) {
             Ok(r) => r,
             Err(e) => {
+                // Local budget failures are not evidence of protocol incompatibility.
+                if e.downcast_ref::<super::budget::RequestBudgetError>().is_some() {
+                    return Err(e);
+                }
                 if finalizing {
-                    debug_eprintln!("[agent] final response failed, report known progress: {e}");
+                    debug_eprintln!("[agent] provider「{provider_name}」final response failed, report known progress: {e}");
                     break;
                 }
                 // 网关/上游暂时失败时不要把同一上下文改成纯文本协议；
                 // 直接交给外层 provider 轮换，避免重复请求和协议状态污染。
                 if is_transient_provider_error(&e) {
-                    debug_eprintln!("[agent] 上游暂时失败，交给下一个 provider：{e}");
+                    debug_eprintln!("[agent] provider「{provider_name}」上游暂时失败，交给下一个 provider：{e}");
                     return Err(e);
                 }
                 // 原生协议失败（首次尝试 or 已锁定原生）→ 回落到纯文本协议重试一次：
@@ -664,23 +742,21 @@ fn run_agent_loop_inner(
                 // 回传校验失败（如 arguments 字节不一致）。历史里已有上下文，文本模式仍能组织最终回答。
                 if !matches!(protocol, Some(ToolProtocol::Text)) {
                     protocol = Some(ToolProtocol::Text);
-                    debug_eprintln!("[agent] 请求失败({e})，回落纯文本协议重试");
+                    context.push(ContextMessage::new("system", TEXT_PROTOCOL_NUDGE));
+                    debug_eprintln!("[agent] provider「{provider_name}」round={_round} 请求失败({e})，下一轮使用文本工具协议");
                     // 回退前小退避：原生协议刚软失败，紧随的文本重试可能命中
                     // 同一瞬限流；仅首次硬失败后触发，成功路径零开销（P2 backoff）。
                     std::thread::sleep(std::time::Duration::from_millis(
                         PROTOCOL_FALLBACK_SLEEP_MS,
                     ));
-                    provider.generate_reply(context.clone())?
+                    continue;
                 } else {
-                    debug_eprintln!("[agent] 纯文本协议请求也失败：{e}");
+                    debug_eprintln!("[agent] provider「{provider_name}」纯文本协议请求也失败：{e}");
                     return Err(e);
                 }
             }
         };
-        // 兼容兜底：部分模型不支持 tools 字段但不报错——返回空 content 且无 tool_calls。
-        // 视作原生不可用，去掉 tools 重试一次（数据类问题随后也会走本机直查兜底）。
-        // Account for every received response before a compatibility retry can
-        // replace it. Only transport diagnostics expose these counters.
+        // Account and diagnose every HTTP response before choosing a retry.
         if let Some(u) = &reply.usage {
             prompt_tokens += u.prompt_tokens;
             completion_tokens += u.completion_tokens;
@@ -688,45 +764,34 @@ fn run_agent_loop_inner(
         if reply.model.is_some() {
             model = reply.model.clone();
         }
-        let reply = if !finalizing
-            && reply.content.trim().is_empty()
-            && reply.tool_calls.is_empty()
-            && reply
-                .reasoning_content
-                .as_deref()
-                .is_none_or(|r| r.trim().is_empty())
-            && protocol.is_none()
-        {
-            debug_eprintln!("[agent] round {_round}: 模型返回空 content 且无 tool_calls，判定不支持原生 tools，无 tools 重试");
-            let retried = provider.generate_reply(context.clone())?;
-            if let Some(u) = &retried.usage {
-                prompt_tokens += u.prompt_tokens;
-                completion_tokens += u.completion_tokens;
-            }
-            if retried.model.is_some() {
-                model = retried.model.clone();
-            }
-            retried
-        } else {
-            reply
-        };
         debug_eprintln!(
-            "[agent] round={_round} protocol={:?} content_len={} tool_calls={} finish_reason={:?} model={:?}",
+            "[agent] provider「{provider_name}」round={_round} protocol={:?} offered_tools={} finalizing={finalizing} content_len={} reasoning_len={} tool_calls={} finish_reason={:?} model={:?} prompt_tokens={} completion_tokens={}",
             protocol,
+            tools.as_ref().map_or(0, Vec::len),
             reply.content.chars().count(),
+            reply.reasoning_content.as_ref().map_or(0, |r| r.chars().count()),
             reply.tool_calls.len(),
             reply.finish_reason,
-            reply.model
+            reply.model,
+            reply.usage.as_ref().map_or(0, |u| u.prompt_tokens),
+            reply.usage.as_ref().map_or(0, |u| u.completion_tokens)
         );
-        if dropped_tool_call_response(&reply) {
-            // 只诊断、不改行为：重发多少次都一样，因为被丢的是响应本身而不是
-            // 模型的意愿。改行为（轮换 provider / 提前收敛）需要产品决策。
+        if missing_tool_call_response(&reply) {
             debug_eprintln!(
-                "[agent] 上游声称 {fr:?} 但 tool_calls 为空且无正文：响应被中转丢弃（completion_tokens={ct}），\
-                 重发不会好转——换模型或换中转才是解法",
-                fr = reply.finish_reason,
-                ct = reply.usage.as_ref().map(|u| u.completion_tokens).unwrap_or(0)
+                "[agent] round={_round} 响应声明调用工具但缺少调用内容，本次未执行工具"
             );
+            if finalizing {
+                break;
+            }
+            if protocol != Some(ToolProtocol::Text) {
+                protocol = Some(ToolProtocol::Text);
+                context.push(ContextMessage::new("system", TEXT_PROTOCOL_NUDGE));
+                debug_eprintln!("[agent] 下一轮切换文本工具协议，本次循环不再启用原生 tools");
+            } else {
+                must_finalize = true;
+                debug_eprintln!("[agent] 文本工具协议仍返回不完整响应，下一轮只报告实际结果");
+            }
+            continue;
         }
 
         // 原生 tool-calls：回传 assistant(tool_calls) + 工具结果
@@ -736,13 +801,23 @@ fn run_agent_loop_inner(
             if finalizing {
                 break;
             }
-            protocol = Some(ToolProtocol::Native);
+            if protocol != Some(ToolProtocol::Text) {
+                protocol = Some(ToolProtocol::Native);
+            }
             context.push(ContextMessage::assistant_with_tool_calls(
                 reply.content.clone(),
                 reply.tool_calls.clone(),
                 reply.reasoning_content.clone(),
             ));
             for call in &reply.tool_calls {
+                if let Some(body) = call.arguments.get("content_md").and_then(|v| v.as_str()) {
+                    crate::knowledge::workflows::record_generation(
+                        store,
+                        conversation_id,
+                        body,
+                        reply.model.as_deref(),
+                    )?;
+                }
                 let result = dispatch_for_turn(
                     call,
                     registry,
@@ -750,6 +825,7 @@ fn run_agent_loop_inner(
                     conversation_id,
                     status_only,
                     allow_record_event,
+                    &crate::knowledge::candidates_in_context(context),
                 );
                 if let Some(event_id) = tool_created_event_id(&result) {
                     attempt_created_events.push(event_id);
@@ -777,6 +853,14 @@ fn run_agent_loop_inner(
             protocol = Some(ToolProtocol::Text);
             context.push(ContextMessage::new("assistant", reply.content));
             for call in &calls {
+                if let Some(body) = call.arguments.get("content_md").and_then(|v| v.as_str()) {
+                    crate::knowledge::workflows::record_generation(
+                        store,
+                        conversation_id,
+                        body,
+                        reply.model.as_deref(),
+                    )?;
+                }
                 let result = dispatch_for_turn(
                     &call,
                     registry,
@@ -784,6 +868,7 @@ fn run_agent_loop_inner(
                     conversation_id,
                     status_only,
                     allow_record_event,
+                    &crate::knowledge::candidates_in_context(context),
                 );
                 if let Some(event_id) = tool_created_event_id(&result) {
                     attempt_created_events.push(event_id);
@@ -896,6 +981,7 @@ fn dispatch_for_turn(
     conversation_id: &str,
     status_only: bool,
     allow_record_event: bool,
+    knowledge_candidates: &[crate::knowledge::KnowledgeCitation],
 ) -> ToolResultMsg {
     if (call.name == "record_event" && !allow_record_event)
         || (status_only
@@ -908,7 +994,7 @@ fn dispatch_for_turn(
             "用户只在询问进展，请说明已有结果或待确认内容，不重复创建或执行操作",
         );
     }
-    dispatch(call, registry, store, conversation_id)
+    dispatch_with_knowledge(call, registry, store, conversation_id, knowledge_candidates)
 }
 
 fn is_transient_provider_error(error: &anyhow::Error) -> bool {
@@ -1572,6 +1658,7 @@ pub fn generate_content_chat(
         model: ai_config.model,
         temperature: 0.7,
         max_tokens: None,
+        context_window: ai_config.context_window.map(|v| v as u32),
     };
     let provider = OpenAiCompatibleProvider::new(provider_config)?;
 
@@ -1755,7 +1842,7 @@ fn handle_rule_proposal_confirmation(
 /// 其他消息保留待确认（之后回「好」仍可生效）。
 /// 返回执行成功后的摘要（供下一轮回复确认用）。
 /// 处理写类工具待确认动作：用户确认 → 执行并返回（摘要，是否有真实写入成功）；
-/// 拒绝 → 删除（人物关系走 declined 记账）。其他消息 → 保留待确认。
+/// 拒绝 → 删除（联系人关系走 declined 记账）。其他消息 → 保留待确认。
 fn handle_pending_action_confirmation(
     store: &Store,
     conversation_id: &str,
@@ -2128,6 +2215,7 @@ mod tests {
         ]);
         let outcome = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &registry,
             &store,
@@ -2201,6 +2289,7 @@ mod tests {
         ]);
         let outcome = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &registry,
             &store,
@@ -2281,6 +2370,7 @@ mod tests {
         ]);
         let outcome = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &registry,
             &store,
@@ -2307,13 +2397,12 @@ mod tests {
 
     #[test]
     fn agent_loop_retries_empty_reply_instead_of_converging_empty() {
-        // 上游返回空 content（200 但无正文）时，兼容兜底先摘一次 tools 重试，
-        // 仍为空则应消耗一次空回复预算再发一轮，而不是把空串当答案收敛。
+        // 普通空回复保留协议重试一次；再次为空则进入只答复的收尾轮。
         let (store, path) = temporary_database();
         let conv = store.create_conversation(Some("t"), None).unwrap();
         let mut context = vec![ContextMessage::new("user", "继续")];
         let registry = ToolRegistry::default();
-        // 脚本前两条都是空：第 1 条给带 tools 的原生请求，第 2 条给兼容兜底的无 tools 重试。
+        // 两次普通空回复后，第三次请求只组织最终答复。
         let provider = ScriptedProvider::new(vec![
             Ok(AiReply::text("")),
             Ok(AiReply::text("")),
@@ -2321,6 +2410,7 @@ mod tests {
         ]);
         let outcome = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &registry,
             &store,
@@ -2354,6 +2444,7 @@ mod tests {
         ]);
         let outcome = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &registry,
             &store,
@@ -2464,6 +2555,7 @@ mod tests {
 
         let outcome = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &registry,
             &store,
@@ -2529,6 +2621,7 @@ mod tests {
         ]);
         let reply = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &ToolRegistry::default(),
             &store,
@@ -2579,6 +2672,7 @@ mod tests {
 
         let outcome = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &registry,
             &store,
@@ -2613,6 +2707,7 @@ mod tests {
         let provider = ScriptedProvider::new(vec![Ok(AiReply::text("你好呀。"))]);
         let outcome = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &registry,
             &store,
@@ -2640,6 +2735,7 @@ mod tests {
 
         let outcome = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &registry,
             &store,
@@ -2908,23 +3004,22 @@ mod tests {
         }
     }
 
-    /// 实测坏响应的正向判定：hub.oaifree.com 声称 function_call 却把 tool_calls
-    /// 整个丢掉。判不出来的话只能靠人工重放请求——这正是加诊断的理由。
+    /// 声明调用但没有正文或调用字段，与普通空回复分开处理。
     #[test]
-    fn dropped_tool_call_detects_relay_swallowed_response() {
-        assert!(dropped_tool_call_response(&reply_with(
+    fn missing_tool_call_detects_incomplete_response() {
+        assert!(missing_tool_call_response(&reply_with(
             Some("function_call"),
             "",
             vec![]
         )));
         // 部分 provider 用 tool_calls 而非 function_call 表示同一件事
-        assert!(dropped_tool_call_response(&reply_with(
+        assert!(missing_tool_call_response(&reply_with(
             Some("tool_calls"),
             "",
             vec![]
         )));
         // 正文其实是空白字符时同样算「没有正文」
-        assert!(dropped_tool_call_response(&reply_with(
+        assert!(missing_tool_call_response(&reply_with(
             Some("function_call"),
             "  \n ",
             vec![]
@@ -2934,55 +3029,28 @@ mod tests {
     /// 误报会让诊断变得不可信——正常的空回复、真实拿到了 tool_calls、
     /// 正常有正文的三种情况都必须安静退出。
     #[test]
-    fn dropped_tool_call_does_not_misreport_normal_replies() {
+    fn missing_tool_call_does_not_misreport_normal_replies() {
         // 模型自己返回空（推理型模型烧光输出预算的常见情形）
-        assert!(!dropped_tool_call_response(&reply_with(
+        assert!(!missing_tool_call_response(&reply_with(
             Some("stop"),
             "",
             vec![]
         )));
-        assert!(!dropped_tool_call_response(&reply_with(None, "", vec![])));
+        assert!(!missing_tool_call_response(&reply_with(None, "", vec![])));
         // 真的拿到了工具调用：此时正文为空是正常的
-        assert!(!dropped_tool_call_response(&reply_with(
+        assert!(!missing_tool_call_response(&reply_with(
             Some("function_call"),
             "",
             vec![ToolCall::new("list_rules", json!({}))]
         )));
         // 有正文就与本签名无关
-        assert!(!dropped_tool_call_response(&reply_with(
+        assert!(!missing_tool_call_response(&reply_with(
             Some("function_call"),
             "我来帮你查一下。",
             vec![]
         )));
     }
 
-    #[test]
-    fn agent_loop_retries_without_tools_on_empty_reply() {
-        let (store, path) = temporary_database();
-        let conv = store.create_conversation(Some("t"), None).unwrap();
-        let mut context = vec![ContextMessage::new("user", "统计一下 token 用量")];
-        let registry = ToolRegistry::default();
-
-        // 第一轮（带 tools）：模型不支持 tools 但不报错 → 空 content 无 tool_calls；
-        // 第二轮（无 tools）：正常文本
-        let provider = ScriptedProvider::new(vec![
-            Ok(AiReply::text("")),
-            Ok(AiReply::text("最近 7 天没有 AI 调用记录。")),
-        ]);
-
-        let outcome = run_agent_loop(
-            &provider,
-            &mut context,
-            &registry,
-            &store,
-            &conv,
-            chrono::Utc::now(),
-        )
-        .unwrap();
-        assert_eq!(outcome.content, "最近 7 天没有 AI 调用记录。");
-        assert!(provider.saw_tools_on_first_call(), "首轮仍应尝试原生工具");
-        drop(store);
-        let _ = std::fs::remove_file(path);
-    }
     include!("conversation/continuity_tests.rs");
+    include!("conversation/protocol_tests.rs");
 }

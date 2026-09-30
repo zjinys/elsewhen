@@ -14,6 +14,7 @@ import 'api/goals.dart';
 import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
+import 'api/knowledge_workflows.dart';
 import 'api/provider_config.dart';
 import 'api/relations.dart';
 import 'api/rules.dart';
@@ -28,6 +29,11 @@ import 'dart:convert';
 
 import 'frb_generated.dart';
 import 'knowledge.dart';
+import 'knowledge/maintenance.dart';
+import 'knowledge/organization.dart';
+import 'knowledge/queue.dart';
+import 'knowledge/review.dart';
+import 'knowledge/workflows.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 
@@ -58,6 +64,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw);
+
+  @protected
+  ArtifactVersion dco_decode_artifact_version(dynamic raw);
+
+  @protected
+  BatchReviewResult dco_decode_batch_review_result(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
@@ -99,6 +111,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SourceSnapshot dco_decode_box_autoadd_source_snapshot(dynamic raw);
+
+  @protected
+  SuggestionFeedback dco_decode_box_autoadd_suggestion_feedback(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
@@ -169,6 +184,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeCitation dco_decode_knowledge_citation(dynamic raw);
 
   @protected
+  KnowledgeDiffPart dco_decode_knowledge_diff_part(dynamic raw);
+
+  @protected
   KnowledgeDigestJobDto dco_decode_knowledge_digest_job_dto(dynamic raw);
 
   @protected
@@ -195,7 +213,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeProposal dco_decode_knowledge_proposal(dynamic raw);
 
   @protected
+  KnowledgeQueueItem dco_decode_knowledge_queue_item(dynamic raw);
+
+  @protected
+  KnowledgeQueuePage dco_decode_knowledge_queue_page(dynamic raw);
+
+  @protected
+  KnowledgeRepairSource dco_decode_knowledge_repair_source(dynamic raw);
+
+  @protected
+  KnowledgeReviewRecord dco_decode_knowledge_review_record(dynamic raw);
+
+  @protected
   KnowledgeRevisionDto dco_decode_knowledge_revision_dto(dynamic raw);
+
+  @protected
+  LibraryEntry dco_decode_library_entry(dynamic raw);
+
+  @protected
+  LibraryPage dco_decode_library_page(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -205,6 +241,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AnalysisDto> dco_decode_list_analysis_dto(dynamic raw);
+
+  @protected
+  List<ArtifactVersion> dco_decode_list_artifact_version(dynamic raw);
+
+  @protected
+  List<BatchReviewResult> dco_decode_list_batch_review_result(dynamic raw);
 
   @protected
   List<ContentChatMessageDto> dco_decode_list_content_chat_message_dto(
@@ -241,6 +283,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<KnowledgeCitation> dco_decode_list_knowledge_citation(dynamic raw);
 
   @protected
+  List<KnowledgeDiffPart> dco_decode_list_knowledge_diff_part(dynamic raw);
+
+  @protected
   List<KnowledgeDigestJobDto> dco_decode_list_knowledge_digest_job_dto(
     dynamic raw,
   );
@@ -257,15 +302,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<KnowledgeProposal> dco_decode_list_knowledge_proposal(dynamic raw);
 
   @protected
+  List<KnowledgeQueueItem> dco_decode_list_knowledge_queue_item(dynamic raw);
+
+  @protected
+  List<KnowledgeRepairSource> dco_decode_list_knowledge_repair_source(
+    dynamic raw,
+  );
+
+  @protected
+  List<KnowledgeReviewRecord> dco_decode_list_knowledge_review_record(
+    dynamic raw,
+  );
+
+  @protected
   List<KnowledgeRevisionDto> dco_decode_list_knowledge_revision_dto(
     dynamic raw,
   );
 
   @protected
+  List<LibraryEntry> dco_decode_list_library_entry(dynamic raw);
+
+  @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
 
   @protected
+  List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw);
+
+  @protected
   List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
+
+  @protected
+  Int64List dco_decode_list_prim_i_64_strict(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -287,6 +354,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<TodoDto> dco_decode_list_todo_dto(dynamic raw);
+
+  @protected
+  List<TopicOrganizationPreview> dco_decode_list_topic_organization_preview(
+    dynamic raw,
+  );
 
   @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
@@ -339,10 +411,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SourceSnapshot? dco_decode_opt_box_autoadd_source_snapshot(dynamic raw);
 
   @protected
+  SuggestionFeedback? dco_decode_opt_box_autoadd_suggestion_feedback(
+    dynamic raw,
+  );
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
+
+  @protected
+  OrganizedTopic dco_decode_organized_topic(dynamic raw);
 
   @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
@@ -363,6 +443,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SourceUpdatePreview dco_decode_source_update_preview(dynamic raw);
 
   @protected
+  SuggestionFeedback dco_decode_suggestion_feedback(dynamic raw);
+
+  @protected
   SystemFontFace dco_decode_system_font_face(dynamic raw);
 
   @protected
@@ -370,6 +453,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TodoDto dco_decode_todo_dto(dynamic raw);
+
+  @protected
+  TopicOrganizationPreview dco_decode_topic_organization_preview(dynamic raw);
 
   @protected
   TweetFetchDto dco_decode_tweet_fetch_dto(dynamic raw);
@@ -407,6 +493,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisTriggerResult sse_decode_analysis_trigger_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ArtifactVersion sse_decode_artifact_version(SseDeserializer deserializer);
+
+  @protected
+  BatchReviewResult sse_decode_batch_review_result(
     SseDeserializer deserializer,
   );
 
@@ -454,6 +548,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SourceSnapshot sse_decode_box_autoadd_source_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SuggestionFeedback sse_decode_box_autoadd_suggestion_feedback(
     SseDeserializer deserializer,
   );
 
@@ -540,6 +639,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeCitation sse_decode_knowledge_citation(SseDeserializer deserializer);
 
   @protected
+  KnowledgeDiffPart sse_decode_knowledge_diff_part(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KnowledgeDigestJobDto sse_decode_knowledge_digest_job_dto(
     SseDeserializer deserializer,
   );
@@ -574,9 +678,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeProposal sse_decode_knowledge_proposal(SseDeserializer deserializer);
 
   @protected
+  KnowledgeQueueItem sse_decode_knowledge_queue_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeQueuePage sse_decode_knowledge_queue_page(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeRepairSource sse_decode_knowledge_repair_source(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeReviewRecord sse_decode_knowledge_review_record(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KnowledgeRevisionDto sse_decode_knowledge_revision_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  LibraryEntry sse_decode_library_entry(SseDeserializer deserializer);
+
+  @protected
+  LibraryPage sse_decode_library_page(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -588,6 +718,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AnalysisDto> sse_decode_list_analysis_dto(SseDeserializer deserializer);
+
+  @protected
+  List<ArtifactVersion> sse_decode_list_artifact_version(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BatchReviewResult> sse_decode_list_batch_review_result(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ContentChatMessageDto> sse_decode_list_content_chat_message_dto(
@@ -636,6 +776,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<KnowledgeDiffPart> sse_decode_list_knowledge_diff_part(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<KnowledgeDigestJobDto> sse_decode_list_knowledge_digest_job_dto(
     SseDeserializer deserializer,
   );
@@ -656,7 +801,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<KnowledgeQueueItem> sse_decode_list_knowledge_queue_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<KnowledgeRepairSource> sse_decode_list_knowledge_repair_source(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<KnowledgeReviewRecord> sse_decode_list_knowledge_review_record(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<KnowledgeRevisionDto> sse_decode_list_knowledge_revision_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<LibraryEntry> sse_decode_list_library_entry(
     SseDeserializer deserializer,
   );
 
@@ -664,9 +829,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
 
   @protected
+  List<OrganizedTopic> sse_decode_list_organized_topic(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<PendingActionDto> sse_decode_list_pending_action_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -694,6 +867,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<TodoDto> sse_decode_list_todo_dto(SseDeserializer deserializer);
+
+  @protected
+  List<TopicOrganizationPreview> sse_decode_list_topic_organization_preview(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
@@ -754,12 +932,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SuggestionFeedback? sse_decode_opt_box_autoadd_suggestion_feedback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   WikiPageDto? sse_decode_opt_box_autoadd_wiki_page_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  OrganizedTopic sse_decode_organized_topic(SseDeserializer deserializer);
 
   @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
@@ -782,6 +968,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SuggestionFeedback sse_decode_suggestion_feedback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SystemFontFace sse_decode_system_font_face(SseDeserializer deserializer);
 
   @protected
@@ -789,6 +980,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   TodoDto sse_decode_todo_dto(SseDeserializer deserializer);
+
+  @protected
+  TopicOrganizationPreview sse_decode_topic_organization_preview(
+    SseDeserializer deserializer,
+  );
 
   @protected
   TweetFetchDto sse_decode_tweet_fetch_dto(SseDeserializer deserializer);
@@ -831,6 +1027,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_bool(raw.isActive),
       cst_encode_f_64(raw.temperature),
       cst_encode_opt_box_autoadd_i_64(raw.maxTokens),
+      cst_encode_opt_box_autoadd_i_64(raw.contextWindow),
     ].jsify()!;
   }
 
@@ -868,6 +1065,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
 
     throw Exception('unreachable');
+  }
+
+  @protected
+  JSAny cst_encode_artifact_version(ArtifactVersion raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.contentType),
+      cst_encode_i_64(raw.version),
+      cst_encode_opt_String(raw.instruction),
+      cst_encode_opt_String(raw.model),
+      cst_encode_opt_String(raw.strategy),
+      cst_encode_String(raw.createdAt),
+      cst_encode_bool(raw.adopted),
+      cst_encode_opt_String(raw.adoptedRevision),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_batch_review_result(BatchReviewResult raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_bool(raw.success),
+      cst_encode_String(raw.detail),
+    ].jsify()!;
   }
 
   @protected
@@ -934,6 +1158,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_source_snapshot(SourceSnapshot raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_source_snapshot(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_suggestion_feedback(SuggestionFeedback raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_suggestion_feedback(raw);
   }
 
   @protected
@@ -1183,6 +1413,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_opt_String(raw.finishedAt),
       cst_encode_opt_String(raw.error),
       cst_encode_i_64(raw.resultCount),
+      cst_encode_opt_String(raw.sourceSlug),
+      cst_encode_opt_String(raw.sourceTitle),
+      cst_encode_opt_box_autoadd_i_64(raw.sourceVersion),
+      cst_encode_opt_String(raw.detail),
+      cst_encode_opt_String(raw.retryAt),
+      cst_encode_String(raw.strategyVersion),
     ].jsify()!;
   }
 
@@ -1200,6 +1436,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.category),
       cst_encode_list_source_reference(raw.sources),
       cst_encode_list_String(raw.eventIds),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_diff_part(KnowledgeDiffPart raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.before),
+      cst_encode_String(raw.after),
+      cst_encode_bool(raw.changed),
     ].jsify()!;
   }
 
@@ -1341,12 +1587,99 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_knowledge_queue_item(KnowledgeQueueItem raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.task),
+      cst_encode_String(raw.pageSlug),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.detail),
+      cst_encode_opt_String(raw.availableAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_queue_page(KnowledgeQueuePage raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.pending),
+      cst_encode_i_64(raw.running),
+      cst_encode_i_64(raw.waiting),
+      cst_encode_i_64(raw.retry),
+      cst_encode_i_64(raw.skipped),
+      cst_encode_i_64(raw.completed),
+      cst_encode_i_64(raw.total),
+      cst_encode_list_knowledge_queue_item(raw.items),
+      cst_encode_bool(raw.hasMore),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_repair_source(KnowledgeRepairSource raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.snapshotId),
+      cst_encode_opt_String(raw.pageSlug),
+      cst_encode_String(raw.title),
+      cst_encode_i_64(raw.version),
+      cst_encode_bool(raw.selected),
+      cst_encode_bool(raw.eligible),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_review_record(KnowledgeReviewRecord raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.action),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.createdAt),
+      cst_encode_opt_String(raw.beforeContent),
+      cst_encode_opt_String(raw.originalContent),
+      cst_encode_opt_String(raw.resultContent),
+      cst_encode_opt_String(raw.originalApplicable),
+      cst_encode_opt_String(raw.resultApplicable),
+      cst_encode_list_prim_i_64_strict(raw.selectedParts),
+      cst_encode_String(raw.description),
+      cst_encode_opt_String(raw.note),
+      cst_encode_opt_String(raw.revisionId),
+      cst_encode_opt_String(raw.targetSlug),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_knowledge_revision_dto(KnowledgeRevisionDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
+      cst_encode_String(raw.id),
       cst_encode_String(raw.contentMd),
       cst_encode_String(raw.reason),
       cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_library_entry(LibraryEntry raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.summary),
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.area),
+      cst_encode_String(raw.readingState),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_library_page(LibraryPage raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_list_library_entry(raw.items),
+      cst_encode_bool(raw.hasMore),
     ].jsify()!;
   }
 
@@ -1366,6 +1699,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_analysis_dto(List<AnalysisDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_analysis_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_artifact_version(List<ArtifactVersion> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_artifact_version).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_batch_review_result(List<BatchReviewResult> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_batch_review_result).toList().jsify()!;
   }
 
   @protected
@@ -1433,6 +1778,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_knowledge_diff_part(List<KnowledgeDiffPart> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_knowledge_diff_part).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_knowledge_digest_job_dto(
     List<KnowledgeDigestJobDto> raw,
   ) {
@@ -1461,9 +1812,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_knowledge_queue_item(List<KnowledgeQueueItem> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_knowledge_queue_item).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_knowledge_repair_source(
+    List<KnowledgeRepairSource> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_knowledge_repair_source).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_knowledge_review_record(
+    List<KnowledgeReviewRecord> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_knowledge_review_record).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_knowledge_revision_dto(List<KnowledgeRevisionDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_knowledge_revision_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_library_entry(List<LibraryEntry> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_library_entry).toList().jsify()!;
   }
 
   @protected
@@ -1473,9 +1852,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_organized_topic(List<OrganizedTopic> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_organized_topic).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_pending_action_dto(List<PendingActionDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_pending_action_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_prim_i_64_strict(Int64List raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cstEncodeInt64List(raw.inner);
   }
 
   @protected
@@ -1518,6 +1909,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_todo_dto(List<TodoDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_todo_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_topic_organization_preview(
+    List<TopicOrganizationPreview> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_topic_organization_preview).toList().jsify()!;
   }
 
   @protected
@@ -1636,6 +2035,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny? cst_encode_opt_box_autoadd_suggestion_feedback(
+    SuggestionFeedback? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_suggestion_feedback(raw);
+  }
+
+  @protected
   int? cst_encode_opt_box_autoadd_u_32(int? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_u_32(raw);
@@ -1645,6 +2052,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_wiki_page_dto(WikiPageDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_organized_topic(OrganizedTopic raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.contentMd),
+      cst_encode_String(raw.applicableWhen),
+      cst_encode_list_String(raw.snapshotIds),
+      cst_encode_list_String(raw.eventIds),
+    ].jsify()!;
   }
 
   @protected
@@ -1727,6 +2146,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_suggestion_feedback(SuggestionFeedback raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.decision),
+      cst_encode_String(raw.suggestion),
+      cst_encode_opt_String(raw.rewrite),
+      cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_system_font_face(SystemFontFace raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -1764,6 +2194,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_opt_String(raw.note),
       cst_encode_String(raw.createdAt),
       cst_encode_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_topic_organization_preview(TopicOrganizationPreview raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.mode),
+      cst_encode_list_String(raw.inputSlugs),
+      cst_encode_list_organized_topic(raw.topics),
+      cst_encode_String(raw.status),
     ].jsify()!;
   }
 
@@ -1856,6 +2298,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_artifact_version(
+    ArtifactVersion self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_batch_review_result(
+    BatchReviewResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -1909,6 +2363,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_source_snapshot(
     SourceSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_suggestion_feedback(
+    SuggestionFeedback self,
     SseSerializer serializer,
   );
 
@@ -2018,6 +2478,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_knowledge_diff_part(
+    KnowledgeDiffPart self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_knowledge_digest_job_dto(
     KnowledgeDigestJobDto self,
     SseSerializer serializer,
@@ -2066,10 +2532,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_knowledge_queue_item(
+    KnowledgeQueueItem self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_queue_page(
+    KnowledgeQueuePage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_repair_source(
+    KnowledgeRepairSource self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_review_record(
+    KnowledgeReviewRecord self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_knowledge_revision_dto(
     KnowledgeRevisionDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_library_entry(LibraryEntry self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_library_page(LibraryPage self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -2083,6 +2579,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_analysis_dto(
     List<AnalysisDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_artifact_version(
+    List<ArtifactVersion> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_batch_review_result(
+    List<BatchReviewResult> self,
     SseSerializer serializer,
   );
 
@@ -2141,6 +2649,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_knowledge_diff_part(
+    List<KnowledgeDiffPart> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_knowledge_digest_job_dto(
     List<KnowledgeDigestJobDto> self,
     SseSerializer serializer,
@@ -2165,8 +2679,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_knowledge_queue_item(
+    List<KnowledgeQueueItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_knowledge_repair_source(
+    List<KnowledgeRepairSource> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_knowledge_review_record(
+    List<KnowledgeReviewRecord> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_knowledge_revision_dto(
     List<KnowledgeRevisionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_library_entry(
+    List<LibraryEntry> self,
     SseSerializer serializer,
   );
 
@@ -2177,8 +2715,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_organized_topic(
+    List<OrganizedTopic> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_pending_action_dto(
     List<PendingActionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_i_64_strict(
+    Int64List self,
     SseSerializer serializer,
   );
 
@@ -2217,6 +2767,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_todo_dto(List<TodoDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_topic_organization_preview(
+    List<TopicOrganizationPreview> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_wiki_page_dto(
@@ -2291,11 +2847,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_suggestion_feedback(
+    SuggestionFeedback? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_wiki_page_dto(
     WikiPageDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_organized_topic(
+    OrganizedTopic self,
     SseSerializer serializer,
   );
 
@@ -2330,6 +2898,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_suggestion_feedback(
+    SuggestionFeedback self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_system_font_face(
     SystemFontFace self,
     SseSerializer serializer,
@@ -2340,6 +2914,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_todo_dto(TodoDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_topic_organization_preview(
+    TopicOrganizationPreview self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_tweet_fetch_dto(TweetFetchDto self, SseSerializer serializer);
@@ -2361,6 +2941,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
+
+  void wire__crate__api__knowledge__accept_knowledge_proposal_parts(
+    NativePortType port_,
+    String id,
+    JSAny selected_parts,
+    bool accept_applicability,
+    JSAny resolved_issues,
+  ) => wasmModule.wire__crate__api__knowledge__accept_knowledge_proposal_parts(
+    port_,
+    id,
+    selected_parts,
+    accept_applicability,
+    resolved_issues,
+  );
 
   void wire__crate__api__entities__add_entity_alias(
     NativePortType port_,
@@ -2393,6 +2987,18 @@ class RustLibWire implements BaseWire {
     String content,
   ) => wasmModule.wire__crate__api__rules__add_rule(port_, content);
 
+  void wire__crate__api__knowledge_workflows__adopt_artifact_version(
+    NativePortType port_,
+    String slug,
+    String revision_id,
+    bool adopt,
+  ) => wasmModule.wire__crate__api__knowledge_workflows__adopt_artifact_version(
+    port_,
+    slug,
+    revision_id,
+    adopt,
+  );
+
   void wire__crate__api__goals__archive_goal(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__goals__archive_goal(port_, id);
 
@@ -2412,6 +3018,24 @@ class RustLibWire implements BaseWire {
     port_,
     raw_text,
     idempotency_key,
+  );
+
+  void wire__crate__api__knowledge_workflows__browse_knowledge(
+    NativePortType port_,
+    String query,
+    String? area,
+    String? kind,
+    String? tag,
+    String? state,
+    JSAny offset,
+  ) => wasmModule.wire__crate__api__knowledge_workflows__browse_knowledge(
+    port_,
+    query,
+    area,
+    kind,
+    tag,
+    state,
+    offset,
   );
 
   void wire__crate__api__conversations__confirm_knowledge_draft(
@@ -2441,6 +3065,21 @@ class RustLibWire implements BaseWire {
     tags,
     expected_snapshot_id,
   );
+
+  void wire__crate__api__knowledge_workflows__create_artifact_from_message(
+    NativePortType port_,
+    String slug,
+    String message_id,
+    String content_type,
+    String title,
+  ) => wasmModule
+      .wire__crate__api__knowledge_workflows__create_artifact_from_message(
+        port_,
+        slug,
+        message_id,
+        content_type,
+        title,
+      );
 
   void wire__crate__api__conversations__create_conversation(
     NativePortType port_,
@@ -2680,6 +3319,14 @@ class RustLibWire implements BaseWire {
     slug,
   );
 
+  void wire__crate__api__knowledge__get_knowledge_proposal_diff(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__knowledge__get_knowledge_proposal_diff(
+    port_,
+    id,
+  );
+
   void wire__crate__api__knowledge__get_knowledge_source_snapshot(
     NativePortType port_,
     String id,
@@ -2710,6 +3357,15 @@ class RustLibWire implements BaseWire {
   ) =>
       wasmModule.wire__crate__api__get_message_recordability(port_, message_id);
 
+  void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
+    NativePortType port_,
+    String message_id,
+  ) =>
+      wasmModule.wire__crate__api__knowledge_workflows__get_suggestion_feedback(
+        port_,
+        message_id,
+      );
+
   void wire__crate__api__theme__get_theme_prefs(NativePortType port_) =>
       wasmModule.wire__crate__api__theme__get_theme_prefs(port_);
 
@@ -2731,6 +3387,15 @@ class RustLibWire implements BaseWire {
     String? database_path,
   ) => wasmModule.wire__crate__api__init_bridge(port_, database_path);
 
+  void wire__crate__api__knowledge_workflows__knowledge_reading_state(
+    NativePortType port_,
+    String slug,
+  ) =>
+      wasmModule.wire__crate__api__knowledge_workflows__knowledge_reading_state(
+        port_,
+        slug,
+      );
+
   void wire__crate__api__goals__list_active_goals(NativePortType port_) =>
       wasmModule.wire__crate__api__goals__list_active_goals(port_);
 
@@ -2751,6 +3416,16 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__goals__list_archived_goals(NativePortType port_) =>
       wasmModule.wire__crate__api__goals__list_archived_goals(port_);
+
+  void wire__crate__api__knowledge_workflows__list_artifact_versions(
+    NativePortType port_,
+    String slug,
+    JSAny offset,
+  ) => wasmModule.wire__crate__api__knowledge_workflows__list_artifact_versions(
+    port_,
+    slug,
+    offset,
+  );
 
   void wire__crate__api__conversations__list_conversations(
     NativePortType port_,
@@ -2818,12 +3493,49 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__knowledge__list_knowledge_proposals(port_);
 
+  void wire__crate__api__knowledge__list_knowledge_repair_sources(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__knowledge__list_knowledge_repair_sources(
+    port_,
+    slug,
+  );
+
+  void wire__crate__api__knowledge__list_knowledge_resolution_targets(
+    NativePortType port_,
+    String fingerprint,
+  ) =>
+      wasmModule.wire__crate__api__knowledge__list_knowledge_resolution_targets(
+        port_,
+        fingerprint,
+      );
+
+  void wire__crate__api__knowledge__list_knowledge_review_history(
+    NativePortType port_,
+    String slug,
+    JSAny offset,
+  ) => wasmModule.wire__crate__api__knowledge__list_knowledge_review_history(
+    port_,
+    slug,
+    offset,
+  );
+
   void wire__crate__api__knowledge__list_knowledge_revisions(
     NativePortType port_,
     String slug,
   ) => wasmModule.wire__crate__api__knowledge__list_knowledge_revisions(
     port_,
     slug,
+  );
+
+  void wire__crate__api__knowledge__list_knowledge_work_queue(
+    NativePortType port_,
+    JSAny offset,
+    String? status,
+  ) => wasmModule.wire__crate__api__knowledge__list_knowledge_work_queue(
+    port_,
+    offset,
+    status,
   );
 
   void wire__crate__api__conversations__list_messages(
@@ -2864,6 +3576,14 @@ class RustLibWire implements BaseWire {
     String? status,
   ) => wasmModule.wire__crate__api__todos__list_todos(port_, status);
 
+  void wire__crate__api__knowledge__list_topic_organizations(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__knowledge__list_topic_organizations(
+    port_,
+    slug,
+  );
+
   void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
@@ -2895,6 +3615,36 @@ class RustLibWire implements BaseWire {
     String id,
   ) => wasmModule.wire__crate__api__todos__open_todo_work_item(port_, id);
 
+  void wire__crate__api__knowledge__prepare_knowledge_restore(
+    NativePortType port_,
+    String slug,
+    String revision_id,
+  ) => wasmModule.wire__crate__api__knowledge__prepare_knowledge_restore(
+    port_,
+    slug,
+    revision_id,
+  );
+
+  void wire__crate__api__knowledge__prepare_knowledge_source_repair(
+    NativePortType port_,
+    String slug,
+    JSAny snapshot_ids,
+  ) => wasmModule.wire__crate__api__knowledge__prepare_knowledge_source_repair(
+    port_,
+    slug,
+    snapshot_ids,
+  );
+
+  void wire__crate__api__knowledge__prepare_topic_organization(
+    NativePortType port_,
+    JSAny slugs,
+    String mode,
+  ) => wasmModule.wire__crate__api__knowledge__prepare_topic_organization(
+    port_,
+    slugs,
+    mode,
+  );
+
   void wire__crate__api__knowledge__preview_knowledge_source(
     NativePortType port_,
     String source_url,
@@ -2920,6 +3670,16 @@ class RustLibWire implements BaseWire {
     String id,
   ) => wasmModule.wire__crate__api__goals__reactivate_goal(port_, id);
 
+  void wire__crate__api__knowledge_workflows__read_artifact_version(
+    NativePortType port_,
+    String slug,
+    String? revision_id,
+  ) => wasmModule.wire__crate__api__knowledge_workflows__read_artifact_version(
+    port_,
+    slug,
+    revision_id,
+  );
+
   void wire__crate__api__reanalyze_event(
     NativePortType port_,
     String event_id,
@@ -2943,11 +3703,47 @@ class RustLibWire implements BaseWire {
     title,
   );
 
+  void wire__crate__api__knowledge_workflows__resolve_knowledge_batch(
+    NativePortType port_,
+    JSAny ids,
+    bool accept,
+  ) =>
+      wasmModule.wire__crate__api__knowledge_workflows__resolve_knowledge_batch(
+        port_,
+        ids,
+        accept,
+      );
+
+  void wire__crate__api__knowledge__resolve_knowledge_issue_with_revision(
+    NativePortType port_,
+    String fingerprint,
+    String slug,
+    String revision_id,
+    String note,
+  ) => wasmModule
+      .wire__crate__api__knowledge__resolve_knowledge_issue_with_revision(
+        port_,
+        fingerprint,
+        slug,
+        revision_id,
+        note,
+      );
+
   void wire__crate__api__knowledge__resolve_knowledge_proposal(
     NativePortType port_,
     String id,
     bool accept,
   ) => wasmModule.wire__crate__api__knowledge__resolve_knowledge_proposal(
+    port_,
+    id,
+    accept,
+  );
+
+  void wire__crate__api__knowledge__resolve_topic_organization(
+    NativePortType port_,
+    String id,
+    bool accept,
+  ) => wasmModule.wire__crate__api__knowledge__resolve_topic_organization(
     port_,
     id,
     accept,
@@ -2990,6 +3786,21 @@ class RustLibWire implements BaseWire {
     source_kind,
     tags,
   );
+
+  void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
+    NativePortType port_,
+    String message_id,
+    String decision,
+    String suggestion,
+    String? rewrite,
+  ) => wasmModule
+      .wire__crate__api__knowledge_workflows__save_suggestion_feedback(
+        port_,
+        message_id,
+        decision,
+        suggestion,
+        rewrite,
+      );
 
   void wire__crate__api__tweet__save_text_page(
     NativePortType port_,
@@ -3076,6 +3887,17 @@ class RustLibWire implements BaseWire {
     recordable,
   );
 
+  void wire__crate__api__knowledge_workflows__set_knowledge_reading_state(
+    NativePortType port_,
+    String slug,
+    String state,
+  ) => wasmModule
+      .wire__crate__api__knowledge_workflows__set_knowledge_reading_state(
+        port_,
+        slug,
+        state,
+      );
+
   void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
     String slug,
@@ -3111,6 +3933,17 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__knowledge__tick_knowledge_insights(port_);
 
+  void wire__crate__api__knowledge_workflows__topic_organization_history(
+    NativePortType port_,
+    String slug,
+    JSAny offset,
+  ) => wasmModule
+      .wire__crate__api__knowledge_workflows__topic_organization_history(
+        port_,
+        slug,
+        offset,
+      );
+
   void wire__crate__api__trigger_analysis(NativePortType port_) =>
       wasmModule.wire__crate__api__trigger_analysis(port_);
 
@@ -3127,6 +3960,15 @@ class RustLibWire implements BaseWire {
     port_,
     source_slug,
   );
+
+  void wire__crate__api__knowledge_workflows__undo_topic_organization(
+    NativePortType port_,
+    String id,
+  ) =>
+      wasmModule.wire__crate__api__knowledge_workflows__undo_topic_organization(
+        port_,
+        id,
+      );
 
   void wire__crate__api__provider_config__update_ai_provider_config(
     NativePortType port_,
@@ -3248,6 +4090,14 @@ external RustLibWasmModule get wasmModule;
 @JS()
 @anonymous
 extension type RustLibWasmModule._(JSObject _) implements JSObject {
+  external void wire__crate__api__knowledge__accept_knowledge_proposal_parts(
+    NativePortType port_,
+    String id,
+    JSAny selected_parts,
+    bool accept_applicability,
+    JSAny resolved_issues,
+  );
+
   external void wire__crate__api__entities__add_entity_alias(
     NativePortType port_,
     String entity_kind,
@@ -3268,6 +4118,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content,
   );
 
+  external void wire__crate__api__knowledge_workflows__adopt_artifact_version(
+    NativePortType port_,
+    String slug,
+    String revision_id,
+    bool adopt,
+  );
+
   external void wire__crate__api__goals__archive_goal(
     NativePortType port_,
     String id,
@@ -3284,6 +4141,16 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? idempotency_key,
   );
 
+  external void wire__crate__api__knowledge_workflows__browse_knowledge(
+    NativePortType port_,
+    String query,
+    String? area,
+    String? kind,
+    String? tag,
+    String? state,
+    JSAny offset,
+  );
+
   external void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
@@ -3298,6 +4165,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String source_kind,
     JSAny tags,
     String? expected_snapshot_id,
+  );
+
+  external void
+  wire__crate__api__knowledge_workflows__create_artifact_from_message(
+    NativePortType port_,
+    String slug,
+    String message_id,
+    String content_type,
+    String title,
   );
 
   external void wire__crate__api__conversations__create_conversation(
@@ -3471,6 +4347,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
+  external void wire__crate__api__knowledge__get_knowledge_proposal_diff(
+    NativePortType port_,
+    String id,
+  );
+
   external void wire__crate__api__knowledge__get_knowledge_source_snapshot(
     NativePortType port_,
     String id,
@@ -3487,6 +4368,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__get_message_recordability(
+    NativePortType port_,
+    String message_id,
+  );
+
+  external void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
     NativePortType port_,
     String message_id,
   );
@@ -3512,6 +4398,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? database_path,
   );
 
+  external void wire__crate__api__knowledge_workflows__knowledge_reading_state(
+    NativePortType port_,
+    String slug,
+  );
+
   external void wire__crate__api__goals__list_active_goals(
     NativePortType port_,
   );
@@ -3528,6 +4419,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__goals__list_archived_goals(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__knowledge_workflows__list_artifact_versions(
+    NativePortType port_,
+    String slug,
+    JSAny offset,
   );
 
   external void wire__crate__api__conversations__list_conversations(
@@ -3576,9 +4473,31 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__knowledge__list_knowledge_repair_sources(
+    NativePortType port_,
+    String slug,
+  );
+
+  external void wire__crate__api__knowledge__list_knowledge_resolution_targets(
+    NativePortType port_,
+    String fingerprint,
+  );
+
+  external void wire__crate__api__knowledge__list_knowledge_review_history(
+    NativePortType port_,
+    String slug,
+    JSAny offset,
+  );
+
   external void wire__crate__api__knowledge__list_knowledge_revisions(
     NativePortType port_,
     String slug,
+  );
+
+  external void wire__crate__api__knowledge__list_knowledge_work_queue(
+    NativePortType port_,
+    JSAny offset,
+    String? status,
   );
 
   external void wire__crate__api__conversations__list_messages(
@@ -3611,6 +4530,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? status,
   );
 
+  external void wire__crate__api__knowledge__list_topic_organizations(
+    NativePortType port_,
+    String slug,
+  );
+
   external void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
@@ -3634,6 +4558,24 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__knowledge__prepare_knowledge_restore(
+    NativePortType port_,
+    String slug,
+    String revision_id,
+  );
+
+  external void wire__crate__api__knowledge__prepare_knowledge_source_repair(
+    NativePortType port_,
+    String slug,
+    JSAny snapshot_ids,
+  );
+
+  external void wire__crate__api__knowledge__prepare_topic_organization(
+    NativePortType port_,
+    JSAny slugs,
+    String mode,
+  );
+
   external void wire__crate__api__knowledge__preview_knowledge_source(
     NativePortType port_,
     String source_url,
@@ -3649,6 +4591,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__goals__reactivate_goal(
     NativePortType port_,
     String id,
+  );
+
+  external void wire__crate__api__knowledge_workflows__read_artifact_version(
+    NativePortType port_,
+    String slug,
+    String? revision_id,
   );
 
   external void wire__crate__api__reanalyze_event(
@@ -3672,7 +4620,28 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String title,
   );
 
+  external void wire__crate__api__knowledge_workflows__resolve_knowledge_batch(
+    NativePortType port_,
+    JSAny ids,
+    bool accept,
+  );
+
+  external void
+  wire__crate__api__knowledge__resolve_knowledge_issue_with_revision(
+    NativePortType port_,
+    String fingerprint,
+    String slug,
+    String revision_id,
+    String note,
+  );
+
   external void wire__crate__api__knowledge__resolve_knowledge_proposal(
+    NativePortType port_,
+    String id,
+    bool accept,
+  );
+
+  external void wire__crate__api__knowledge__resolve_topic_organization(
     NativePortType port_,
     String id,
     bool accept,
@@ -3698,6 +4667,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String source_url,
     String source_kind,
     JSAny tags,
+  );
+
+  external void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
+    NativePortType port_,
+    String message_id,
+    String decision,
+    String suggestion,
+    String? rewrite,
   );
 
   external void wire__crate__api__tweet__save_text_page(
@@ -3750,6 +4727,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool recordable,
   );
 
+  external void
+  wire__crate__api__knowledge_workflows__set_knowledge_reading_state(
+    NativePortType port_,
+    String slug,
+    String state,
+  );
+
   external void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
     String slug,
@@ -3774,6 +4758,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void
+  wire__crate__api__knowledge_workflows__topic_organization_history(
+    NativePortType port_,
+    String slug,
+    JSAny offset,
+  );
+
   external void wire__crate__api__trigger_analysis(NativePortType port_);
 
   external void wire__crate__api__knowledge_digest__trigger_knowledge_digest(
@@ -3783,6 +4774,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__entities__undo_entity_merge(
     NativePortType port_,
     String source_slug,
+  );
+
+  external void wire__crate__api__knowledge_workflows__undo_topic_organization(
+    NativePortType port_,
+    String id,
   );
 
   external void wire__crate__api__provider_config__update_ai_provider_config(

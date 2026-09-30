@@ -309,7 +309,7 @@ pub fn generate_reply(
             max_messages: memory_window_size.unwrap_or(10) as usize,
         },
         "sliding_window" => crate::ai::MemoryType::SlidingWindow {
-            max_tokens: memory_window_size.unwrap_or(4096) as usize,
+            max_tokens: memory_window_size.unwrap_or(0) as usize,
         },
         _ => anyhow::bail!("Unsupported memory type"),
     };

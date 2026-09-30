@@ -7,6 +7,12 @@ import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
 
+/// 「最近使用」最多显示的页面数。
+///
+/// 只是渲染截断：数据源是全量 `wikiPagesProvider`（`listWikiPages()` 不带
+/// limit），排序也在客户端完成，所以调大不需要配合任何后端或查询改动。
+const int _kRecentVisiblePages = 20;
+
 /// 主界面左侧栏：主对话 + 最近页面 + 工作区快捷入口。
 class LeftSidebar extends ConsumerWidget {
   const LeftSidebar({super.key});
@@ -64,7 +70,7 @@ class LeftSidebar extends ConsumerWidget {
         final recentPages =
             pages.where((page) => page.status != 'archived').toList()
               ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-        final visiblePages = recentPages.take(10).toList();
+        final visiblePages = recentPages.take(_kRecentVisiblePages).toList();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

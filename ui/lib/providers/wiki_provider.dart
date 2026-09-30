@@ -7,8 +7,7 @@ import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
 import '../bridge/rust_bridge_repository.dart';
-import '../bridge/api.dart'
-    show EntityFactDto, EntityMergeStatusDto;
+import '../bridge/api.dart' show EntityFactDto, EntityMergeStatusDto;
 
 /// 一级导航内容域。待办使用主工作区承载，避免在弹窗里维护持续讨论。
 enum SidebarTab { conversation, wiki }
@@ -20,6 +19,7 @@ final sidebarTabProvider =
 
 /// wiki 页面列表（全部，UI 按 kind 分组展示）
 final wikiPagesProvider = FutureProvider<List<WikiPage>>((ref) async {
+  ref.watch(knowledgeRevisionProvider);
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
   return await bridge.listWikiPages();
 });
@@ -38,6 +38,7 @@ final wikiPageProvider = FutureProvider.family<WikiPage?, String>((
   ref,
   slug,
 ) async {
+  ref.watch(knowledgeRevisionProvider);
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
   return await bridge.getWikiPage(slug);
 });

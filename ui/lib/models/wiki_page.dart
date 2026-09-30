@@ -69,7 +69,7 @@ class WikiPage {
   String get kindLabel {
     const labels = {
       'profile': '档案',
-      'person': '人物',
+      'person': '联系人',
       'recurring_cost': '固定成本',
       'capability': '能力',
       'asset': '资产',
@@ -93,7 +93,7 @@ class WikiPage {
   String get areaLabel {
     const labels = {
       'imported': '素材库',
-      'network': '人物/项目',
+      'network': '联系人/项目',
       'insight': '知识沉淀',
       'derivative': '派生产物',
     };

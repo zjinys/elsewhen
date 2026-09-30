@@ -43,6 +43,9 @@ class RustBridgeRepository implements StorageRepository {
   /// 后台知识消化进行中（标题栏 AI 活动指示订阅，见 [knowledgeDigestBusyProvider]）。
   final ValueNotifier<bool> knowledgeDigestBusy = ValueNotifier(false);
 
+  /// Changes produced by the background worker invalidate visible knowledge views.
+  final ValueNotifier<int> knowledgeRevision = ValueNotifier(0);
+
   /// 打包成 .app（macOS DMG）后，frb 默认加载路径（CWD 相对的 ioDirectory /
   /// elsewhen.framework）在 Finder 启动时找不到 dylib——CWD 是 `/`。
   /// 这里显式从 app 包内 Frameworks 目录加载（打包脚本会把 libelsewhen.dylib
@@ -297,7 +300,11 @@ class RustBridgeRepository implements StorageRepository {
         // 分析排空后再做知识消化：同一 worker 串行，避免与分析并发调用 provider；
         // 消化依赖分析结果（可记录性），先分析后消化也最省重试。
         await _drainKnowledgeDigest();
-        if (!_disposed && !_analysisRerunRequested) await api.tickKnowledgeInsights();
+        if (!_disposed && !_analysisRerunRequested) {
+          knowledgeDigestBusy.value = true;
+          final changed = await api.tickKnowledgeInsights();
+          if (!_disposed && changed > 0) knowledgeRevision.value++;
+        }
       } catch (e) {
         // Queue state remains durable; the next wake retries after startup or
         // the periodic timer without surfacing an error in the save path.
@@ -323,6 +330,7 @@ class RustBridgeRepository implements StorageRepository {
       knowledgeDigestBusy.value = false;
       // Idle / NoProvider / Failed 都停：失败已退避回队，由 timer 在到期后重试。
       if (result is! api.KnowledgeDigestTickResult_Processed) break;
+      if (!_disposed) knowledgeRevision.value++;
     }
   }
 
@@ -585,6 +593,7 @@ class RustBridgeRepository implements StorageRepository {
       reason: reason,
       expectedUpdatedAt: expectedUpdatedAt,
     );
+    if (!_disposed) knowledgeRevision.value++;
     return WikiPage.fromDto(dto);
   }
 
@@ -879,4 +888,14 @@ final knowledgeDigestBusyProvider = Provider<bool>((ref) {
   busy.addListener(onChange);
   ref.onDispose(() => busy.removeListener(onChange));
   return busy.value;
+});
+
+final knowledgeRevisionProvider = Provider<int>((ref) {
+  final repo = ref.watch(storageRepositoryProvider);
+  if (repo is! RustBridgeRepository) return 0;
+  final revision = repo.knowledgeRevision;
+  void onChange() => ref.invalidateSelf();
+  revision.addListener(onChange);
+  ref.onDispose(() => revision.removeListener(onChange));
+  return revision.value;
 });

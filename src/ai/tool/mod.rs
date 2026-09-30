@@ -97,6 +97,7 @@ pub struct ToolContext<'a> {
     pub store: &'a Store,
     pub conversation_id: &'a str,
     pub source_event_id: Option<String>,
+    pub knowledge_candidates: &'a [crate::knowledge::KnowledgeCitation],
 }
 
 /// 一个可被 AI 调用的工具。
@@ -264,8 +265,12 @@ impl ToolRegistry {
     }
 
     pub fn prompt_block_for(&self, allow_record_event: bool) -> String {
+        Self::prompt_for_specs(&self.provider_specs_for(allow_record_event))
+    }
+
+    pub fn prompt_for_specs(specs: &[ToolSpec]) -> String {
         let mut out = String::from("可用工具（name：用途）：\n");
-        for spec in self.provider_specs_for(allow_record_event) {
+        for spec in specs {
             out.push_str(&format!("- {}：{}\n", spec.name, spec.description));
         }
         out
@@ -279,11 +284,22 @@ pub fn dispatch(
     store: &Store,
     conversation_id: &str,
 ) -> ToolResultMsg {
+    dispatch_with_knowledge(call, registry, store, conversation_id, &[])
+}
+
+pub(crate) fn dispatch_with_knowledge(
+    call: &ToolCall,
+    registry: &ToolRegistry,
+    store: &Store,
+    conversation_id: &str,
+    knowledge_candidates: &[crate::knowledge::KnowledgeCitation],
+) -> ToolResultMsg {
     match registry.get(&call.name) {
         Some(tool) => {
             let ctx = ToolContext {
                 store,
                 conversation_id,
+                knowledge_candidates,
                 source_event_id: store
                     .latest_event_id_for_conversation(conversation_id)
                     .ok()
@@ -746,7 +762,7 @@ impl Tool for SaveKnowledgeDraftTool {
         "save_knowledge_draft"
     }
     fn description(&self) -> &'static str {
-        "把对话中形成的一段可复用知识或结论草拟成知识库页面。系统会先按标题查重；已有同名页面时不会覆盖，需改用 save_wiki_revision 提议补充。调用后进入待确认状态，需要用户确认才会真正保存。"
+        "把对话中的知识草拟成页面，用户确认后保存。保存有引用的回答时，source_slugs 填实际采用且已提供的知识页面，applicable_when 写适用条件；系统固定来源版本，确认时再校验。无依据笔记可以保存但不能伪造来源。同名页不覆盖，改用 save_wiki_revision。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -755,7 +771,9 @@ impl Tool for SaveKnowledgeDraftTool {
                 "title":{"type":"string","description":"页面标题，必填"},
                 "content_md":{"type":"string","description":"正文（Markdown），必填"},
                 "kind":{"type":"string","description":"页面类型，可选，默认 topic。已知类型：topic/source/insight/principle/method/case/relationship/decision/habit/project"},
-                "tags":{"type":"array","items":{"type":"string"},"description":"标签数组，可选"}
+                "tags":{"type":"array","items":{"type":"string"},"description":"标签数组，可选"},
+                "source_slugs":{"type":"array","items":{"type":"string"},"description":"实际采用的已检索页面标识，最多 8 项；不填无关来源"},
+                "applicable_when":{"type":"string","description":"适用条件，保存有依据的方法/案例/规律时必填，最多 600 字"}
             },
             "required":["title","content_md"],
             "additionalProperties":false
@@ -784,6 +802,20 @@ impl Tool for SaveKnowledgeDraftTool {
             ));
         }
         let kind = arg_str_opt(args, "kind").unwrap_or_else(|| "topic".to_string());
+        let evidence = crate::knowledge::authoring::draft_sources(
+            ctx.store,
+            ctx.conversation_id,
+            args,
+            ctx.knowledge_candidates,
+        )?;
+        let applicable = arg_str_opt(args, "applicable_when").unwrap_or_default();
+        anyhow::ensure!(applicable.chars().count() <= 600, "适用条件最多 600 字");
+        anyhow::ensure!(
+            evidence.is_empty()
+                || !matches!(kind.as_str(), "method" | "case" | "principle")
+                || !applicable.trim().is_empty(),
+            "有依据的方法、案例或规律需要说明适用条件"
+        );
         let tags: Vec<String> = args
             .get("tags")
             .and_then(|v| v.as_array())
@@ -798,6 +830,8 @@ impl Tool for SaveKnowledgeDraftTool {
             "content_md": content_md,
             "kind": kind,
             "tags": tags,
+            "verified_evidence": evidence,
+            "applicable_when": applicable,
         });
         store_create_pending(
             ctx.store,
@@ -914,16 +948,16 @@ impl Tool for CreateTodoTool {
     }
 }
 
-// ── 人物关系工具 ───────────────────────────────────────────────
+// ── 联系人关系工具 ───────────────────────────────────────────────
 
-/// 把对话里识别出的「人物 + 人↔事情/项目」关系草拟下来（确认后才建档存关系）
+/// 把对话里识别出的「联系人 + 人↔事情/项目」关系草拟下来（确认后才建档存关系）
 struct ProposePeopleRelationsTool;
 impl Tool for ProposePeopleRelationsTool {
     fn name(&self) -> &'static str {
         "propose_people_relations"
     }
     fn description(&self) -> &'static str {
-        "把对话中出现的对用户重要的人物，以及「人物 ↔ 事情/项目」的关系草拟下来。调用后进入待确认状态，用户确认后才建档保存。事件/对话中用户用 @人名 标注的一定是人、#事情/项目 标注的一定是事情，优先纳入草拟。"
+        "把对话中出现的对用户重要的联系人，以及「联系人 ↔ 事情/项目」的关系草拟下来。调用后进入待确认状态，用户确认后才建档保存。事件/对话中用户用 @人名 标注的一定是人、#事情/项目 标注的一定是事情，优先纳入草拟。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -931,11 +965,11 @@ impl Tool for ProposePeopleRelationsTool {
             "properties":{
                 "people":{
                     "type":"array",
-                    "description":"本次要建档的人物（可不填，只补关系时省略）",
+                    "description":"本次要建档的联系人（可不填，只补关系时省略）",
                     "items":{
                         "type":"object",
                         "properties":{
-                            "name":{"type":"string","description":"人物姓名，必填"},
+                            "name":{"type":"string","description":"联系人姓名，必填"},
                             "role_note":{"type":"string","description":"身份/角色/背景一句话，可选"}
                         },
                         "required":["name"],
@@ -944,11 +978,11 @@ impl Tool for ProposePeopleRelationsTool {
                 },
                 "relations":{
                     "type":"array",
-                    "description":"人物与事情/项目的关系（可不填，只建档人物时省略）",
+                    "description":"联系人与事情/项目的关系（可不填，只建档联系人时省略）",
                     "items":{
                         "type":"object",
                         "properties":{
-                            "person":{"type":"string","description":"人物姓名（与 people 中的 name 对应，或知识库已有的人物页）"},
+                            "person":{"type":"string","description":"联系人姓名（与 people 中的 name 对应，或知识库已有的联系人页）"},
                             "target":{"type":"string","description":"事情/项目名称"},
                             "relation":{"type":"string","description":"关系类型：负责/参与/合作/对接/跟进/顾问 等，可选，默认参与"},
                             "note":{"type":"string","description":"补充说明，可选"}
@@ -977,7 +1011,7 @@ impl Tool for ProposePeopleRelationsTool {
             .cloned()
             .unwrap_or_default();
         if people.is_empty() && relations.is_empty() {
-            anyhow::bail!("请至少提供一位人物或一条关系");
+            anyhow::bail!("请至少提供一位联系人或一条关系");
         }
         let source_event_id = ctx.source_event_id.clone();
         let action_args =
@@ -993,7 +1027,7 @@ impl Tool for ProposePeopleRelationsTool {
             let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
             let note = p.get("role_note").and_then(|v| v.as_str()).unwrap_or("");
             lines.push(format!(
-                "人物：{name}{}",
+                "联系人：{name}{}",
                 if note.is_empty() {
                     String::new()
                 } else {
@@ -1012,22 +1046,22 @@ impl Tool for ProposePeopleRelationsTool {
             lines.push(format!("{person} —— {rel} —— {target}"));
         }
         Ok(format!(
-            "已为你草拟人物与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
+            "已为你草拟联系人与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
             lines.join("\n")
         ))
     }
 }
 
-// ── 批量提取：事件 → 人物/关系（草拟确认） ─────────────────────
+// ── 批量提取：事件 → 联系人/关系（草拟确认） ─────────────────────
 
-/// 批量提取：扫描全部事件 → `@人名` / `#事情` 标注 + AI 补全 → 人物/关系草拟（待确认）
+/// 批量提取：扫描全部事件 → `@人名` / `#事情` 标注 + AI 补全 → 联系人/关系草拟（待确认）
 struct BatchExtractPeopleRelationsTool;
 impl Tool for BatchExtractPeopleRelationsTool {
     fn name(&self) -> &'static str {
         "batch_extract_people_relations"
     }
     fn description(&self) -> &'static str {
-        "扫描知识库里全部已保存事件，批量提取人物与「人物 ↔ 事情/项目」关系。事件里 @人名 标注的一定是人、#事情/项目 标注的一定是事情（权威实体，必须纳入）；AI 再根据事件上下文补全角色与关系。只产草拟，用户确认后才保存。"
+        "扫描知识库里全部已保存事件，批量提取联系人与「联系人 ↔ 事情/项目」关系。事件里 @人名 标注的一定是人、#事情/项目 标注的一定是事情（权威实体，必须纳入）；AI 再根据事件上下文补全角色与关系。只产草拟，用户确认后才保存。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -1052,7 +1086,7 @@ impl Tool for BatchExtractPeopleRelationsTool {
             .cloned()
             .unwrap_or_default();
         if people.is_empty() && relations.is_empty() {
-            anyhow::bail!("扫描事件后没有提取到人物或关系");
+            anyhow::bail!("扫描事件后没有提取到联系人或关系");
         }
         store_create_pending(
             ctx.store,
@@ -1065,7 +1099,7 @@ impl Tool for BatchExtractPeopleRelationsTool {
             let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
             let note = p.get("role_note").and_then(|v| v.as_str()).unwrap_or("");
             lines.push(format!(
-                "人物：{name}{}",
+                "联系人：{name}{}",
                 if note.is_empty() {
                     String::new()
                 } else {
@@ -1084,7 +1118,7 @@ impl Tool for BatchExtractPeopleRelationsTool {
             lines.push(format!("{person} —— {rel} —— {target}"));
         }
         Ok(format!(
-            "已从事件批量草拟人物与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
+            "已从事件批量草拟联系人与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
             lines.join("\n")
         ))
     }
@@ -1231,7 +1265,7 @@ impl Tool for RenameWikiPageTool {
         "rename_wiki_page"
     }
     fn description(&self) -> &'static str {
-        "重命名一个知识页（改标题；person/项目 等带前缀的页面会把唯一标识 slug 一起换成新名字，相关的人物关系引用与页内聊天会话自动迁移）。用户说「把 X 改名为 Y」「这个项目不叫 X，实际叫 Y」时使用。草拟确认制：调用后用户确认才真正改名。"
+        "重命名一个知识页（改标题；person/项目 等带前缀的页面会把唯一标识 slug 一起换成新名字，相关的联系人关系引用与页内聊天会话自动迁移）。用户说「把 X 改名为 Y」「这个项目不叫 X，实际叫 Y」时使用。草拟确认制：调用后用户确认才真正改名。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -1286,7 +1320,7 @@ impl Tool for RenameWikiPageTool {
             existing.title, slug, new_title
         )];
         if relations_moved > 0 {
-            lines.push(format!("· 同步迁移 {relations_moved} 条人物关系引用"));
+            lines.push(format!("· 同步迁移 {relations_moved} 条联系人关系引用"));
         }
         if has_chat {
             lines.push("· 页内聊天会话一并迁移到新名字下".to_string());
@@ -1394,7 +1428,7 @@ impl Tool for SaveWikiRevisionTool {
         "save_wiki_revision"
     }
     fn description(&self) -> &'static str {
-        "把处理当前知识页得出的新版本保存到知识库。生成类加工（总结/提炼观点/写文案/翻译等）默认保存为**派生产物**（挂在该页下的新页，不改动当前页）；明确要修改页面本身内容时才用 save_as=revision。调用后进入待确认状态，确认后才保存。"
+        "把处理当前知识页得出的新版本草拟保存。生成类加工默认保存为派生产物，不改原文；明确修改本页才用 save_as=revision。确认修订个人规则也表示确认修订后的规则及适用条件，保留原强度；调用后等待用户确认。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -1405,7 +1439,8 @@ impl Tool for SaveWikiRevisionTool {
                 "content_md":{"type":"string","description":"新内容正文（Markdown，生成的总结/文案就是成品；若是修订则保留旧事实），必填"},
                 "change_note":{"type":"string","description":"本次操作说明（如：生成总结 / 写抖音文案 / 补充要点），必填"},
                 "save_as":{"type":"string","enum":["derivative","revision"],"description":"derivative=保存为派生产物（默认，推荐：总结/提炼/写文案/翻译等生成类操作）；revision=直接修订当前页正文（仅当用户明确要改这页本身、且该页不是素材原文时）"},
-                "content_type":{"type":"string","description":"产物类型标签（save_as=derivative 时必填，如：总结/提炼观点/抖音文案/翻译/学习笔记）"}
+                "content_type":{"type":"string","description":"产物类型标签（save_as=derivative 时必填，如：总结/提炼观点/抖音文案/翻译/学习笔记）"},
+                "applicable_when":{"type":"string","description":"修订后的适用条件；省略则保留已有条件"}
             },
             "required":["slug","title","content_md","change_note"],
             "additionalProperties":false
@@ -1438,6 +1473,15 @@ impl Tool for SaveWikiRevisionTool {
         {
             anyhow::bail!("当前页是受保护原料或派生产物，不能覆盖原文；请用 save_as=derivative 草拟新的派生产物，等待用户确认");
         }
+        let current = current.context("知识页不存在")?;
+        let basis = crate::knowledge::authoring::revision_basis(ctx.store, &current)?;
+        let applicable = arg_str_opt(args, "applicable_when")
+            .unwrap_or_else(|| basis["applicable_when"].as_str().unwrap_or("").to_owned());
+        anyhow::ensure!(applicable.chars().count() <= 600, "适用条件最多 600 字");
+        anyhow::ensure!(
+            basis["strength"] != "rule" || !applicable.trim().is_empty(),
+            "规则必须保留适用条件"
+        );
         let action_args = json!({
             "slug": slug,
             "title": title.clone(),
@@ -1445,7 +1489,9 @@ impl Tool for SaveWikiRevisionTool {
             "change_note": change_note,
             "save_as": save_as,
             "content_type": content_type.clone(),
-            "base_hash":current.map(|p|crate::storage::knowledge::content_hash(&p.content_md)),
+            "base_hash":crate::storage::knowledge::content_hash(&current.content_md),
+            "revision_basis":basis,
+            "applicable_when":applicable,
         });
         store_create_pending(
             ctx.store,
@@ -1459,7 +1505,7 @@ impl Tool for SaveWikiRevisionTool {
                 .unwrap_or_else(|| "内容".to_string());
             format!("作为「{ct}」派生产物（原页不改动）")
         } else {
-            "直接修订当前页".to_string()
+            format!("直接修订当前页；适用条件：{}。若为个人规则，确认即确认修订后的规则与条件，保留原强度", applicable)
         };
         Ok(format!(
             "已草拟（{mode}）：{change_note}\n—— 回复「好」即保存。"
@@ -1515,16 +1561,20 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 reason: "由 AI 工具草拟、用户确认后保存".to_string(),
                 source_url: None,
             };
-            let outcome = store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
+            let page = crate::knowledge::authoring::save_draft(store, &draft, &args)?;
             Ok(format!(
                 "已保存知识页「{}」（{}，slug={}）",
                 title,
-                if outcome.created {
-                    "新创建"
+                if args
+                    .get("verified_evidence")
+                    .and_then(Value::as_array)
+                    .is_some_and(|v| !v.is_empty())
+                {
+                    "来源已保留"
                 } else {
-                    "已更新"
+                    "笔记，尚无可核验来源"
                 },
-                outcome.page.slug
+                page.slug
             ))
         }
         "create_todo" => {
@@ -1728,16 +1778,22 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 );
             }
             if save_as == "derivative" {
+                crate::knowledge::authoring::validate_revision_basis(
+                    store,
+                    &existing,
+                    args.get("revision_basis"),
+                )?;
                 let ct = content_type
                     .clone()
                     .filter(|s| !s.trim().is_empty())
                     .unwrap_or_else(|| "AI 加工".to_string());
-                let page = store.create_derivative(
+                let page = store.create_derivative_with_generation(
                     &slug,
                     &ct,
                     &title,
                     &content_md,
                     &format!("AI 加工派生：{change_note}"),
+                    Some(&pa.conversation_id),
                 )?;
                 Ok(format!(
                     "已保存「{}」的派生产物（{ct}）：{change_note}。原文未改动。",
@@ -1749,6 +1805,11 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     rusqlite::TransactionBehavior::Immediate,
                 )?;
                 let current = store.get_wiki_page(&slug)?.context("知识页不存在")?;
+                crate::knowledge::authoring::validate_revision_basis(
+                    store,
+                    &current,
+                    args.get("revision_basis"),
+                )?;
                 let expected = args
                     .get("base_hash")
                     .and_then(Value::as_str)
@@ -1783,10 +1844,14 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     "UPDATE wiki_pages SET human_edited_at=?1 WHERE id=?2",
                     rusqlite::params![chrono::Utc::now().to_rfc3339(), outcome.page.id],
                 )?;
-                // A revised rule is a different proposition and needs renewed confirmation.
-                store.connection.execute(
-                    "UPDATE knowledge_metadata SET strength='reference' WHERE page_id=?1",
-                    [&outcome.page.id],
+                let metadata = store.knowledge_metadata(&outcome.page.slug)?;
+                let applicable = args["applicable_when"]
+                    .as_str()
+                    .unwrap_or(&metadata.applicable_when);
+                store.confirm_authored_metadata_in_tx(
+                    &outcome.page.id,
+                    applicable,
+                    &metadata.strength,
                 )?;
                 tx.commit()?;
                 Ok(format!(

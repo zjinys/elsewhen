@@ -81,7 +81,7 @@ mod tests {
         migrations().unwrap().validate().unwrap();
     }
 
-    /// 目录发现的结构性保证：五个迁移、按序号取名。
+    /// 目录发现的结构性保证：八个迁移、按序号取名。
     ///
     /// 「新增文件却忘了登记」这类错误在这里不可能发生——`from_directory` 直接
     /// 扫目录，不经过任何手工登记表。这条测试盯的是别一种漂移：有人把子目录
@@ -101,6 +101,10 @@ mod tests {
                 "03-drop-legacy-migrations",
                 "04-knowledge",
                 "05-source-compilation",
+                "06-wiki-maintenance",
+                "07-knowledge-maintenance",
+                "08-knowledge-repair",
+                "09-wiki-workflows",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -132,7 +136,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 5, "五条迁移跑完，user_version 应为 5");
+        assert_eq!(version, 9, "九条迁移跑完，user_version 应为 9");
     }
 
     #[test]
@@ -153,6 +157,40 @@ mod tests {
             )
             .unwrap();
         assert_eq!(origin, "manual");
+    }
+
+    #[test]
+    fn v7_derivatives_keep_unknown_revision_bases_after_upgrade() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 7)
+            .unwrap();
+        connection.execute("INSERT INTO wiki_pages(id,slug,kind,title,content_md,first_seen_at,last_seen_at,created_at,updated_at) VALUES('parent','topic/parent','topic','父知识','人工正文','t','t','t','t')",[]).unwrap();
+        connection.execute("INSERT INTO wiki_pages(id,slug,kind,title,content_md,based_on,area,first_seen_at,last_seen_at,created_at,updated_at) VALUES('child','der/child','derivative','旧产物','旧正文','topic/parent','derivative','t','t','t','t')",[]).unwrap();
+        initialize(&mut connection).unwrap();
+        let row: (String, Option<String>) = connection
+            .query_row(
+                "SELECT upstream_id,basis FROM knowledge_dependencies WHERE page_id='child'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(row, ("parent".into(), None));
+        let text: String = connection
+            .query_row(
+                "SELECT content_md FROM wiki_pages WHERE id='child'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(text, "旧正文");
+        assert!(connection
+            .execute(
+                "UPDATE knowledge_dependencies SET upstream_id='child' WHERE page_id='child'",
+                []
+            )
+            .is_err());
     }
 
     /// 旧迁移链留下的 `schema_migrations` 表必须已被 v3 删掉。

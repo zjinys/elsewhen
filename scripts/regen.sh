@@ -16,27 +16,34 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# ---------- 1. 给 ffigen 准备 stdbool.h（隔离目录，只放这一个头文件） ----------
-# 血泪史续：CPATH 若指向整个 clang 内置头文件目录，codegen 内部的
-# `cargo expand` 会让 GCC 误用 clang 的 stddef.h（__has_feature 等 clang 专有
-# 写法），导致 ring 等 C 依赖编译失败。ffigen 实际只需要 stdbool.h，
-# 故只隔离复制这一个头文件：GCC 照常用自己的系统头，libclang 又能找到 bool 定义。
-CLANG_STDBOOL=""
+# ---------- 1. Clang gets its resource headers; C builds keep their own headers ----------
+FRB_CLANG_INCLUDE=""
 for p in /usr/lib/clang/*/include /usr/local/lib/clang/*/include; do
-  if [ -f "$p/stdbool.h" ]; then
-    CLANG_STDBOOL="$p/stdbool.h"
+  if [ -f "$p/stdbool.h" ] && [ -f "$p/stddef.h" ]; then
+    FRB_CLANG_INCLUDE="$p"
     break
   fi
 done
-if [ -z "$CLANG_STDBOOL" ]; then
-  echo "ERROR: 找不到 clang 内置头文件 (stdbool.h)。请安装 clang: sudo apt install clang" >&2
+if [ -z "$FRB_CLANG_INCLUDE" ]; then
+  echo "ERROR: 找不到 clang 内置头文件。请安装 clang。" >&2
   exit 1
 fi
-FRB_CPATH_SHIM="${TMPDIR:-/tmp}/elsewhen-frb-cpath"
-mkdir -p "$FRB_CPATH_SHIM"
-cp -u "$CLANG_STDBOOL" "$FRB_CPATH_SHIM/stdbool.h"
-export CPATH="$FRB_CPATH_SHIM${CPATH:+:$CPATH}"
-echo "[1/3] CPATH=$FRB_CPATH_SHIM (stdbool.h from $CLANG_STDBOOL)"
+FRB_SHIM_DIR="${TMPDIR:-/tmp}/elsewhen-frb-tools"
+mkdir -p "$FRB_SHIM_DIR"
+cat > "$FRB_SHIM_DIR/cc" <<'WRAPPER'
+#!/bin/sh
+exec env -u CPATH "$FRB_ORIGINAL_CC" "$@"
+WRAPPER
+cat > "$FRB_SHIM_DIR/cxx" <<'WRAPPER'
+#!/bin/sh
+exec env -u CPATH "$FRB_ORIGINAL_CXX" "$@"
+WRAPPER
+chmod +x "$FRB_SHIM_DIR/cc" "$FRB_SHIM_DIR/cxx"
+export FRB_ORIGINAL_CC="${CC:-cc}"
+export FRB_ORIGINAL_CXX="${CXX:-c++}"
+export CC="$FRB_SHIM_DIR/cc" CXX="$FRB_SHIM_DIR/cxx"
+export CPATH="$FRB_CLANG_INCLUDE${CPATH:+:$CPATH}"
+echo "[1/3] Clang headers: $FRB_CLANG_INCLUDE; C compiler header paths isolated"
 
 # ---------- 2. 重新生成 bridge 代码 ----------
 echo "[2/3] flutter_rust_bridge_codegen generate ..."

@@ -52,6 +52,7 @@ fn read_only_request_cannot_end_with_repeated_future_promises() {
     ]);
     let result = run_agent_loop(
         &provider,
+        "test-provider",
         &mut context,
         &ToolRegistry::default(),
         &store,
@@ -90,6 +91,7 @@ fn echoed_empty_model_errors_do_not_replace_a_progress_answer() {
     ]);
     let result = run_agent_loop(
         &provider,
+        "test-provider",
         &mut context,
         &ToolRegistry::default(),
         &store,
@@ -214,6 +216,7 @@ fn status_of_a_previously_saved_page_is_verified_since_the_original_request() {
         RecordingProvider::new(vec![AiReply::text("已保存「测试笔记」，之前就完成了。")]);
     let result = run_agent_loop(
         &provider,
+        "test-provider",
         &mut context,
         &ToolRegistry::default(),
         &store,
@@ -262,6 +265,7 @@ fn native_intermediate_body_is_echoed_and_last_round_finalizes() {
     ]);
     let result = run_agent_loop(
         &provider,
+        "test-provider",
         &mut context,
         &ToolRegistry::default(),
         &store,
@@ -311,6 +315,7 @@ fn finalization_never_dispatches_native_or_text_writes() {
         ]);
         let result = run_agent_loop(
             &provider,
+            "test-provider",
             &mut context,
             &ToolRegistry::default(),
             &store,
@@ -403,6 +408,7 @@ fn status_question_shows_existing_draft_without_confirming_or_duplicating_it() {
     ]);
     let result = run_agent_loop(
         &provider,
+        "test-provider",
         &mut context,
         &ToolRegistry::default(),
         &store,
@@ -449,6 +455,7 @@ fn successful_confirmation_survives_failure_to_generate_final_words() {
     let provider = RecordingProvider::new((0..5).map(|_| AiReply::text("")).collect());
     let result = run_agent_loop(
         &provider,
+        "test-provider",
         &mut context,
         &ToolRegistry::default(),
         &store,
@@ -465,7 +472,7 @@ fn successful_confirmation_survives_failure_to_generate_final_words() {
 }
 
 #[test]
-fn empty_compatibility_attempt_is_counted_in_usage() {
+fn empty_retry_preserves_native_protocol_and_counts_both_requests() {
     let (store, path) = temporary_database();
     let conv = store.create_conversation(Some("test"), None).unwrap();
     let with_usage = |body: &str, n| AiReply {
@@ -484,6 +491,7 @@ fn empty_compatibility_attempt_is_counted_in_usage() {
     let mut context = vec![ContextMessage::new("user", "你好")];
     let result = run_agent_loop(
         &provider,
+        "test-provider",
         &mut context,
         &ToolRegistry::default(),
         &store,
@@ -492,6 +500,8 @@ fn empty_compatibility_attempt_is_counted_in_usage() {
     )
     .unwrap();
     assert_eq!((result.prompt_tokens, result.completion_tokens), (500, 20));
+    assert_eq!(result.rounds_used, 2);
+    assert!(provider.requests.borrow().iter().all(|(_, tools)| *tools));
     drop(store);
     let _ = std::fs::remove_file(path);
 }
@@ -511,6 +521,7 @@ fn fallback_renders_found_knowledge_without_exposing_protocol_json() {
     ]);
     let result = run_agent_loop(
         &provider,
+        "test-provider",
         &mut context,
         &ToolRegistry::default(),
         &store,

@@ -6,6 +6,8 @@ import 'package:elsewhen_ui/bridge/api.dart' as api;
 
 import 'support/isolated_bridge.dart';
 
+import 'package:elsewhen_ui/providers/knowledge_provider.dart';
+
 void main() {
   test('真实桥接：来源更新预览、过期确认与精确历史版本', () async {
     final repo = await createIsolatedBridge();
@@ -120,10 +122,20 @@ void main() {
     );
     final proposals = await api.listKnowledgeProposals();
     expect(proposals.single.id, proposalId);
-    expect(proposals.single.status, 'pending');
+    expect(proposals.single.status, 'accepted');
     expect(proposals.single.snapshotIds, [details.sources.single.id]);
     expect(requests.single, contains('新原文'));
-    expect(await repo.getWikiPage(proposals.single.targetSlug), isNull);
+    final savedReference = await api.getWikiPage(
+      slug: proposals.single.targetSlug,
+    );
+    expect(savedReference, isNotNull);
+    expect(savedReference!.humanEditedAt, isNull);
+    expect(
+      (await api.getKnowledgePageDetails(slug: savedReference.slug))
+          .metadata
+          .confirmedAt,
+      isNull,
+    );
     final method = await api.resolveKnowledgeProposal(
       id: proposalId,
       accept: true,
@@ -154,6 +166,54 @@ void main() {
       (await api.getKnowledgePageDetails(slug: method.slug)).metadata.strength,
       'rule',
     );
+    final oldRevision = (await api.listKnowledgeRevisions(slug: method.slug))
+        .first;
+    await api.saveWikiPageContent(
+      slug: method.slug,
+      contentMd: '人工修订的事务内容',
+      reason: 'bridge review test',
+    );
+    final restoreId = await api.prepareKnowledgeRestore(
+      slug: method.slug,
+      revisionId: oldRevision.id,
+    );
+    final diff = await api.getKnowledgeProposalDiff(id: restoreId);
+    expect(diff.any((p) => p.changed && p.before.contains('人工修订')), isTrue);
+    final reviewRepo = KnowledgeRepository();
+    await reviewRepo.acceptParts(
+      restoreId,
+      [
+        for (var i = 0; i < diff.length; i++)
+          if (diff[i].changed) i,
+      ],
+      false,
+      [],
+    );
+    expect(
+      (await api.getWikiPage(slug: method.slug))!.contentMd,
+      oldRevision.contentMd,
+    );
+    expect(
+      (await api.getKnowledgePageDetails(slug: method.slug)).metadata.strength,
+      'rule',
+    );
+    final providerConfig = (await api.listAiProviderConfigs()).single;
+    await api.saveAiProviderConfig(
+      provider: api.AiProviderConfigDto(
+        id: providerConfig.id,
+        name: providerConfig.name,
+        providerType: providerConfig.providerType,
+        baseUrl: providerConfig.baseUrl,
+        model: providerConfig.model,
+        apiKeySource: providerConfig.apiKeySource,
+        apiKey: '',
+        isActive: true,
+        temperature: providerConfig.temperature,
+        maxTokens: 2048,
+        contextWindow: 16384,
+      ),
+    );
+    expect((await api.listAiProviderConfigs()).single.contextWindow, 16384);
     await api.setWikiOpinion(slug: page.slug, opinion: 'reject');
     expect(
       (await api.getKnowledgePageDetails(slug: derivative.slug)).issues
@@ -189,7 +249,12 @@ void main() {
     expect(requests.length, before + 1);
     expect(
       (await api.listKnowledgeBackgroundRuns()).any(
-        (r) => r.task == 'source-compilation' && r.status == 'succeeded',
+        (r) =>
+            r.task == 'source-compilation' &&
+            r.status == 'succeeded' &&
+            r.sourceTitle == '自动整理原料' &&
+            r.sourceVersion == 1 &&
+            r.detail != null,
       ),
       isTrue,
     );

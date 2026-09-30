@@ -682,7 +682,7 @@ fn rename_wiki_page_is_confirm_gated_then_renames() {
     let result = dispatch(&call, &registry, &store, &conv);
     assert!(result.content.contains("重命名为"), "{}", result.content);
     assert!(
-        result.content.contains("1 条人物关系"),
+        result.content.contains("1 条联系人关系"),
         "{}",
         result.content
     );

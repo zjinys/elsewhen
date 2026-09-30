@@ -12,6 +12,8 @@ pub struct ContextMessage {
     /// 原生 tool-calling：tool 角色消息对应哪个工具调用
     pub tool_call_id: Option<String>,
     pub reasoning_content: Option<String>,
+    /// Optional cross-conversation background; never serialized to the provider.
+    pub optional_background: bool,
 }
 
 impl ContextMessage {
@@ -22,6 +24,7 @@ impl ContextMessage {
             tool_calls: None,
             tool_call_id: None,
             reasoning_content: None,
+            optional_background: false,
         }
     }
 
@@ -37,6 +40,7 @@ impl ContextMessage {
             tool_calls: Some(calls),
             tool_call_id: None,
             reasoning_content,
+            optional_background: false,
         }
     }
 
@@ -48,6 +52,7 @@ impl ContextMessage {
             tool_calls: None,
             tool_call_id: Some(call_id),
             reasoning_content: None,
+            optional_background: false,
         }
     }
 }
@@ -62,9 +67,9 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 - 记录与回顾：用户会随时记录工作/生活里的人和事（原始记录，不可修改，可随时回看）。
 - 知识库：把可复用的结论沉淀成知识库页面（左侧「知识库」tab 可看）；用户说「把这条存进知识库」时，是真实可做的。
 - 导入：用户把任意网址（x.com/twitter.com 推文或其他网页）粘贴到「导入」tab，或直接在对话里说「导入这个链接到知识库」→ 抓取预览 → 点「保存到知识库」确认后入库；也可以直接贴一段文本保存。用户问怎么导入时，告知这个入口。
-- 本地目录导入：用户可以直接在对话中提供本机目录路径。说「看看这个目录下的项目，导入到知识库」时调用 import_directory_as_project（一目录一张 project 页）；该工具会先做只读、有限扫描和 AI 综合分析，再创建待确认动作，确认后只保存预览中的项目摘要。说「导入这个目录下的文件到知识库」时调用 import_directory_files（每个可读文件一张 source 页）；该工具先创建待确认动作，确认后再逐文件扫描和写入。项目模式可能消耗较多 token，项目证据片段可能发送给当前 AI Provider；文件模式不调用 AI，但可能创建较多本地知识页。不要声称系统没有权限读取用户明确提供的本机目录，先调用对应工具让系统实际校验路径。
+- 本地目录导入：用户明确提供本机路径后，项目模式用 import_directory_as_project：有限只读扫描、AI 分析、预览确认后保存一张 project 页，证据片段可能发送给 Provider。文件模式用 import_directory_files：先草拟确认，再扫描并逐文件保存 source 页，不调用 AI。不要未调用工具就断言没有目录权限。
 - 个人待办：你可以从事件/对话中分析出需要后续跟进的事，用 create_todo 提议待办；用户确认后创建，「待办」tab 可查看全部。
-- 人物与关系：对话中出现的对用户重要的人物（姓名、身份、TA 参与或负责的事情/项目），你可以识别出来，草拟「人物 + 关系」；用户确认后保存为知识库「人物」页与结构化关系（在对应页面可查看）。用户说「记住这个人 / 这个人是什么角色 / 他和这个项目什么关系」时，尤其要主动做。
+- 联系人与关系：对话中出现的对用户重要的联系人（姓名、身份、TA 参与或负责的事情/项目），你可以识别出来，草拟「联系人 + 关系」；用户确认后保存为知识库「联系人」页与结构化关系（在对应页面可查看）。用户说「记住这个人 / 这个人是什么角色 / 他和这个项目什么关系」时，尤其要主动做。
 - 个人规则库：你在对话中提议、用户确认后生效的规则，可在「设置 → 数据 → 个人规则库」查看和删除。
 - 设置：AI 提供商（模型/密钥/温度）、外观主题、每日 token 用量统计都在「设置」页。
 - 范围：你服务的是用户的个人记录、沉淀与回顾，不负责网络、天气等外部事务——用户问到，如实说帮不上，不要硬答。
@@ -78,19 +83,19 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 - 只认上面这一种文本格式，不要输出 `<tool_call>` / `<arg_key>` / `<arg_value>` / XML 等其他任何格式，也不要把调用标记混在正文里。
 - 一次只调用一个工具，等结果回来再决定下一步；结果已足够回答时就不要再调。
 - 每轮最多调用一两次，不要为了调用而调用。
-- 其他写类工具都是「草拟确认制」：save_knowledge_draft（存知识页）、create_todo（建待办）、import_url_to_wiki（导入网址）、save_wiki_revision（修订知识页）、propose_people_relations（人物与关系建档）、archive_conversations_by_title（归档对话）都只是登记待办草稿。必须区分三种事实：工具调用后仅有「待确认草稿，未入库」，知识库列表尚不可见（可在「今天」栏点击待入库数量，查看草稿列表及完整内容、单独保存或删除，也可回复「好」确认）；确认执行成功且返回真实保存结果后才可说「已保存」（引用结果中的真实 slug）；查到既有页面时说「知识库已有页面」，不可把草稿说成页面。草拟后给用户内容摘要并明确提示确认；没有实际执行结果绝不声称已保存/已创建。
+- 其他写类工具都是「草拟确认制」：save_knowledge_draft（存知识页）、create_todo（建待办）、import_url_to_wiki（导入网址）、save_wiki_revision（修订知识页）、propose_people_relations（联系人与关系建档）、archive_conversations_by_title（归档对话）都只是登记待办草稿。必须区分三种事实：工具调用后仅有「待确认草稿，未入库」，知识库列表尚不可见（可在「今天」栏点击待入库数量，查看草稿列表及完整内容、单独保存或删除，也可回复「好」确认）；确认执行成功且返回真实保存结果后才可说「已保存」（引用结果中的真实 slug）；查到既有页面时说「知识库已有页面」，不可把草稿说成页面。草拟后给用户内容摘要并明确提示确认；没有实际执行结果绝不声称已保存/已创建。
 - 查看某天的事件：用户说「XX（日期）有哪些事件 / 看看那天记录了什么」等 → 用 list_events_by_date 查当天事件（把自然日期解析成 YYYY-MM-DD，「昨天/前天」按当前日期推算），只读、可直接把结果念给用户。
 - 归档对话：用户说「把XX对话归档」→ 用 archive_conversations_by_title（title=精确标题 或 contains=标题包含；标题显示为「新对话」的空标题会话按「新对话」匹配）；仅归档主对话列表，不动知识页内聊天；草拟出匹配清单，用户确认后才归档。
-- 知识页改名：用户说「把 X 改名为 Y」「这个项目不叫 X 实际叫 Y」→ 用 rename_wiki_page（slug=当前页标识、new_title=新名字）；改名会连可唯一标识一起换、自动迁移人物关系引用和页内聊天会话；草拟确认制。只改正文不改名用 save_wiki_revision。
+- 知识页改名：用户说「把 X 改名为 Y」「这个项目不叫 X 实际叫 Y」→ 用 rename_wiki_page（slug=当前页标识、new_title=新名字）；改名会连可唯一标识一起换、自动迁移联系人关系引用和页内聊天会话；草拟确认制。只改正文不改名用 save_wiki_revision。
 - 主题讨论与沉淀：用户说「我们聊聊 X」「继续讨论 X」时，先自然回应和讨论，不要向用户暴露 topic、议题库等内部概念，也不要仅因开始讨论就创建页面。只有用户明确要求「把结论整理下来 / 保存到知识库 / 以后接着聊」或对话已经形成值得长期复用的明确结论时，先用 search_knowledge_base 查找已有内容：已有页面则用 save_wiki_revision 草拟补充，没有才用 save_knowledge_draft 草拟新页。两条路径都必须等待用户确认，绝不静默覆盖同名页面。
 - 知识库按「来源/用途」分区（area），写库时要对号入座：
   - **素材库**（imported）：从外部导入的推文/网页/粘贴文本，带来源 URL。**素材原文锁定**：绝不用 save_wiki_revision 覆盖素材原文。
-  - **人物/项目**（network）：person/、topic/ 前缀的关系网实体，由人物关系提取自动建档。
+  - **联系人/项目**（network）：person/、topic/ 前缀的关系网实体，由联系人关系提取自动建档。
   - **知识沉淀**（insight）：AI 从对话提炼保存的知识页（save_knowledge_draft 建的页）。
   - **派生产物**（derivative）：对某页加工出的成果（总结/提炼观点/抖音文案/翻译等），挂在该页详情下，不进主列表。
 - 对某一页做加工（总结、提炼要点、写抖音文案、翻译、扩写观点等「生成新内容」）→ 用 save_wiki_revision 且 **save_as=derivative + content_type**（如 总结/提炼观点/抖音文案），保存为派生产物、不改动原页；**不要覆盖素材原文**。只有当用户明确要求修改页面本身的内容（如「把这段改一下」「补充这点进去」）且该页不是素材原文时，才用 save_as=revision 直接修订正文。
-- 人物关系（propose_people_relations）：当对话里出现**新的、或信息有实质更新**的重要人物及其参与/负责的事情/项目时草拟。要求：只针对对用户重要、且信息具体的人物（有称呼/身份/参与的具体事情），不要为随口一提、没有可用信息的名字草拟；同一人同一件事若已建档存过（先用 list_wiki_pages / search_knowledge_base 查一下），不要重复提议；不确定的地方在 note 里标注「待确认」。
-- 规范标注 @ / #：用户可以（在事件或对话里）用 @人名 明确标注「这是人」、用 #事情/项目 明确标注「这是事情」，如「@张伟 负责 #双链路付款」。这些标注是用户写死的权威实体——草拟人物/关系时必须全部纳入；同名但在名字里带了括号备注（如「张伟（市场部）」「张伟（设计）」）的是不同的人，不能合并。未标注时再按上下文识别。批量提取用 batch_extract_people_relations（扫描全部事件，同一待确认机制）。
+- 只在联系人信息重要且具体、有实质新增时用 propose_people_relations 草拟联系人与关系；先搜索已有条目，不重复提议，不确定的 note 标注「待确认」。
+- 用户写出的 @人名 / #事项 是明确实体标注，提取时全部纳入；同名但括号备注不同的人不可合并。批量提取用 batch_extract_people_relations，仍需确认。
 - 用户确认之后不要再重复提议同一条规则或同一个写操作；相关工作已生效，只需告知结果。
 
 回复风格：
@@ -116,12 +121,7 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 铁律（任何一条违反都会直接破坏体验）：
 1. 用户提到任何工具/产品/服务（如「今天用 opencode2 讨论需求」）只是事件背景——绝不评价它，包括好坏、是否好用、是否值得推荐。宁可一个字不提，也不要顺手夸或贬。
 2. 一切围绕用户的个人记录与需求展开，不要滑向通用知识或泛泛而谈的客套。
-3. 不知道或没有依据的，直接说不知道；不编造、不铺垫、不写正确的废话。
-
-好的回应示例：
-用户：\u{201c}今天用opencode2讨论了一下这个项目的一些需求\u{201d}
-好：\u{201c}记下了 📝 等讨论出值得沉淀的结论，随时说一声，我帮你整理进知识库。\u{201d}
-不好：\u{201c}OpenCode2 是一个强大的工具，可以用来讨论和管理项目需求…\u{201d} 或 \u{201c}这个工具对项目管理很有帮助…\u{201d}——此类对工具的任何评价都绝对禁止。";
+3. 不知道或没有依据的，直接说不知道；不编造、不铺垫、不写正确的废话。";
 
 /// 组装 system 消息：基础角色设定 + 当前对话语境（标题/标签）+ 已生效的个人规则
 fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMessage> {
@@ -132,7 +132,7 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
             || conversation.wiki_page_slug.is_some();
         if is_knowledge_mentor {
             prompt.push_str(
-                "\n\n你当前扮演知识页专业导师，而不是主对话秘书。只围绕当前知识页工作：主动指出矛盾、漏洞、模糊表述、未经验证的假设和缺失依据；区分事实、推断、观点和待确认项；必要时直接质疑用户并说明理由。保持尊重但不要为了陪伴或迎合而泛泛附和。默认不要把页面讨论记录为个人事件，也不要主动发起无关的人物关系或待办提议。任何页面修改只能通过确认制修订工具提出，不能直接声称已修改。",
+                "\n\n你当前扮演知识页专业导师，而不是主对话秘书。只围绕当前知识页工作：主动指出矛盾、漏洞、模糊表述、未经验证的假设和缺失依据；区分事实、推断、观点和待确认项；必要时直接质疑用户并说明理由。保持尊重但不要为了陪伴或迎合而泛泛附和。默认不要把页面讨论记录为个人事件，也不要主动发起无关的联系人关系或待办提议。任何页面修改只能通过确认制修订工具提出，不能直接声称已修改。",
             );
         }
         let title = conversation.title.as_deref().unwrap_or("未命名");
@@ -189,27 +189,30 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
             prompt.push('\n');
         }
     }
-    // 注入跨对话的近期用户消息，弥补单对话上下文断裂：让 AI 回忆起最近聊过的人与事
+    Ok(ContextMessage::new("system", prompt))
+}
+
+fn recent_background(store: &Store, conversation_id: &str) -> Result<Option<ContextMessage>> {
+    let is_knowledge_mentor = store
+        .get_conversation(conversation_id)?
+        .is_some_and(|c| c.assistant_mode == "knowledge_mentor" || c.wiki_page_slug.is_some());
     let recent = if is_knowledge_mentor {
         Vec::new()
     } else {
-        store.recent_user_messages(6, 160)?
+        store.recent_user_messages_for_context(6, 160, Some(conversation_id))?
     };
-    if !recent.is_empty() {
-        prompt.push_str(
-            "\n\n你最近和用户聊到过的事（跨对话要点，供回忆；回复时自然带入，不必逐条复述）：\n",
-        );
-        for msg in recent {
-            prompt.push_str("- ");
-            prompt.push_str(&msg.content);
-            prompt.push('\n');
-        }
+    if recent.is_empty() {
+        return Ok(None);
     }
-    // 注入可用工具清单（供工具调用；与原生 tools 字段/文本协议保持一致）
-    let registry = super::tool::ToolRegistry::default();
-    prompt.push_str("\n\n");
-    prompt.push_str(&registry.prompt_block_for(allow_record_event));
-    Ok(ContextMessage::new("system", prompt))
+    let mut prompt = String::from("你最近和用户聊到过的事（跨对话要点，供回忆；回复时自然带入，不必逐条复述）：\n");
+    for msg in recent {
+        prompt.push_str("- ");
+        prompt.push_str(&msg.content);
+        prompt.push('\n');
+    }
+    let mut message = ContextMessage::new("system", prompt);
+    message.optional_background = true;
+    Ok(Some(message))
 }
 
 /// 组装 system 消息：基础角色设定 + 一段抓取内容（内容对话用，
@@ -255,6 +258,9 @@ impl MemoryProvider for SimpleMemory {
 
         // 角色设定置于最前，防止 AI 泛化成通用聊天助手
         context.insert(0, build_system_prompt(store, conversation_id)?);
+        if let Some(background) = recent_background(store, conversation_id)? {
+            context.insert(1, background);
+        }
 
         Ok(context)
     }
@@ -265,27 +271,31 @@ pub struct SlidingWindowMemory {
     max_tokens: usize,
 }
 
-/// Rough token estimate：ASCII 约 4 字符/token，CJK/宽字符约 2 字符/token。
-/// （本地估算兜底：`chars()/4` 会严重低估中文——1 个汉字在主流 tokenizer 里
-/// 实际约占 1 token，这里改为按 2 字符/token 加权，2× 低估已是压缩预算下
-/// 可接受的折中，避免请求体硬超 provider 上限。）
+/// Local BPE accounting for memory selection; each provider separately counts
+/// the complete serialized request using its tokenizer family.
 pub fn estimate_tokens(text: &str) -> usize {
-    let mut ascii = 0usize;
-    let mut wide = 0usize;
-    for c in text.chars() {
-        if c.is_ascii() {
-            ascii += 1;
+    tiktoken_rs::cl100k_base_singleton()
+        .encode_ordinary(text)
+        .len()
+}
+fn truncate_tokens(text: &str, limit: usize) -> String {
+    let chars: Vec<_> = text.chars().collect();
+    let (mut low, mut high) = (0, chars.len());
+    while low < high {
+        let mid = (low + high).div_ceil(2);
+        let prefix: String = chars[..mid].iter().collect();
+        if estimate_tokens(&prefix) <= limit {
+            low = mid;
         } else {
-            wide += 1;
+            high = mid - 1;
         }
     }
-    ascii / 4 + wide / 2
+    chars[..low].iter().collect()
 }
 
-/// Keep the final request within the configured budget after callers have
-/// appended page content, rules, tool results, and other system context.
-/// Older turns are represented by a compact transcript instead of being
-/// silently dropped from the middle of the conversation.
+/// Compact older conversation history using a preliminary memory estimate.
+/// Required system context and the latest exchange are never truncated; the
+/// provider enforces the actual budget on the complete serialized request.
 pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
     if max_tokens == 0 {
         return;
@@ -306,33 +316,29 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
         .collect();
     // The latest user request is non-negotiable; never let a long page body
     // or a subsequent system injection displace it.
-    let Some(latest_user) = history.iter().rposition(|m| m.role == "user") else {
-        return;
-    };
+    let latest_user = history
+        .iter()
+        .rposition(|m| m.role == "user")
+        .unwrap_or(history.len());
     let current = history.split_off(latest_user);
     let current_tokens: usize = current.iter().map(|m| estimate_tokens(&m.content)).sum();
     let mut remaining = max_tokens
         .saturating_sub(estimate_tokens(&primary.content))
         .saturating_sub(current_tokens);
     let mut rebuilt = vec![primary];
+    let omitted_marker = "（较早对话因预算已省略）";
+    let marker_budget = if history.is_empty() {
+        0
+    } else {
+        estimate_tokens(omitted_marker)
+    };
+    remaining = remaining.saturating_sub(marker_budget);
 
-    // Dynamic system messages carry page data and execution results. Give them
-    // at most half the remaining budget, preserving the start of each message.
-    let mut dynamic_budget = remaining / 2;
+    // Never truncate source evidence, rules or execution results. Optional
+    // background is removed at the complete, provider-specific request boundary.
     for source in systems {
-        if dynamic_budget == 0 {
-            break;
-        }
-        let mut message = source.clone();
-        let tokens = estimate_tokens(&message.content);
-        if tokens > dynamic_budget {
-            // 与 estimate_tokens 的加权口径保持一致：CJK 按 2 字符/token 截断。
-            message.content = message.content.chars().take(dynamic_budget * 2).collect();
-        }
-        let used = estimate_tokens(&message.content);
-        dynamic_budget = dynamic_budget.saturating_sub(used);
-        remaining = remaining.saturating_sub(used);
-        rebuilt.push(message);
+        remaining = remaining.saturating_sub(estimate_tokens(&source.content));
+        rebuilt.push(source.clone());
     }
 
     let mut kept = Vec::new();
@@ -345,7 +351,9 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
         remaining -= cost;
         kept.push(message);
     }
-    if !history.is_empty() && remaining >= 24 {
+    let omitted = !history.is_empty();
+    let mut summarized = false;
+    if omitted && remaining >= 24 {
         let prefix = "（自动压缩的较早对话，仅供回忆）\n";
         let mut summary = prefix.to_string();
         for message in history {
@@ -359,13 +367,17 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
                 break;
             }
             summary.push_str(label);
-            summary.extend(message.content.chars().take((room * 2).min(160)));
+            summary.push_str(&truncate_tokens(&message.content, room.min(160)));
             summary.push('\n');
         }
         if summary.len() > prefix.len() {
-            summary = summary.chars().take(remaining * 2).collect();
+            summary = truncate_tokens(&summary, remaining);
+            summarized = true;
             rebuilt.push(ContextMessage::new("system", summary));
         }
+    }
+    if omitted && !summarized {
+        rebuilt.push(ContextMessage::new("system", omitted_marker));
     }
     kept.reverse();
     rebuilt.extend(kept);
@@ -388,27 +400,15 @@ impl MemoryProvider for SlidingWindowMemory {
     fn prepare_context(&self, conversation_id: &str, store: &Store) -> Result<Vec<ContextMessage>> {
         let messages = store.list_messages(conversation_id)?;
 
-        let mut context = Vec::new();
-        let mut token_count = 0;
-
-        // Add messages from most recent, stop when exceeding token limit
-        for message in messages.into_iter().rev() {
-            let msg_tokens = Self::estimate_tokens(&message.content);
-
-            if token_count + msg_tokens > self.max_tokens && !context.is_empty() {
-                break;
-            }
-
-            context.push(ContextMessage::new(&message.role, message.content));
-
-            token_count += msg_tokens;
-        }
-
-        // Reverse to chronological order
-        context.reverse();
-
-        // 角色设定置于最前，防止 AI 泛化成通用聊天助手
+        let mut context: Vec<_> = messages
+            .into_iter()
+            .map(|m| ContextMessage::new(&m.role, m.content))
+            .collect();
         context.insert(0, build_system_prompt(store, conversation_id)?);
+        if let Some(background) = recent_background(store, conversation_id)? {
+            context.insert(1, background);
+        }
+        compress_context(&mut context, self.max_tokens);
 
         Ok(context)
     }
@@ -462,7 +462,9 @@ mod tests {
             Some("system prompt")
         );
         assert!(context.iter().any(|m| m.content == "当前问题"));
-        assert!(context.iter().any(|m| m.content.contains("自动压缩")));
+        assert!(context
+            .iter()
+            .any(|m| m.content.contains("自动压缩") || m.content.contains("已省略")));
         assert!(
             context
                 .iter()
@@ -483,18 +485,15 @@ mod tests {
             ContextMessage::new("system", format!("页面正文：{}", "内容".repeat(500))),
         ];
 
-        compress_context(&mut context, 80);
+        let budget = estimate_tokens(&primary) + estimate_tokens(question) + 100;
+        compress_context(&mut context, budget);
 
         assert_eq!(context[0].content, primary);
         assert_eq!(context.last().unwrap().content, question);
-        assert!(context.iter().any(|m| m.content.starts_with("页面正文：")));
-        assert!(
-            context
-                .iter()
-                .map(|m| estimate_tokens(&m.content))
-                .sum::<usize>()
-                <= 80
-        );
+        assert!(context.iter().any(|m| m.content == format!("页面正文：{}", "内容".repeat(500))));
+        // Required evidence may exceed the memory estimate; only the complete
+        // provider boundary may reject it, never silently shorten it here.
+        assert!(context.iter().map(|m| estimate_tokens(&m.content)).sum::<usize>() > budget);
     }
 
     #[test]
@@ -655,9 +654,18 @@ mod tests {
             estimate_tokens(&cjk),
             estimate_tokens(&ascii)
         );
-        // 2 字符/token 加权：90 中文 ⇒ 45；同字符 ASCII ⇒ 22
-        assert_eq!(estimate_tokens(&cjk), 45);
-        assert_eq!(estimate_tokens(&ascii), 22);
+        assert_eq!(
+            estimate_tokens(&cjk),
+            tiktoken_rs::cl100k_base_singleton()
+                .encode_ordinary(&cjk)
+                .len()
+        );
+        assert_eq!(
+            estimate_tokens(&ascii),
+            tiktoken_rs::cl100k_base_singleton()
+                .encode_ordinary(&ascii)
+                .len()
+        );
     }
 
     #[test]
@@ -754,7 +762,8 @@ mod tests {
             .prepare_context(&conversation_id, &store)
             .unwrap();
         let system = &context[0].content;
-        assert!(system.contains("- record_event："));
+        assert!(system.contains("调用 record_event"));
+        assert!(!system.contains("可用工具（name：用途）"));
         assert!(system.contains("当前对话没有自动事件记录"));
 
         let _ = std::fs::remove_file(path);
@@ -782,6 +791,27 @@ mod tests {
     }
 
     #[test]
+    fn recent_background_excludes_current_stream_and_wiki_before_limiting() {
+        let (store, conversation_id, path) = setup_store();
+        assert!(recent_background(&store, &conversation_id).unwrap().is_none());
+        let other = store.create_conversation(Some("历史普通对话"), None).unwrap();
+        store.send_message(&other, "user", "历史普通会话背景", None).unwrap();
+        let wiki = store.create_wiki_chat_conversation("topic/test", "知识页").unwrap();
+        for _ in 0..8 {
+            store.send_message(&wiki, "user", "知识页无关讨论", None).unwrap();
+            store.send_message(&conversation_id, "user", "当前流已有消息", None).unwrap();
+        }
+        let background = recent_background(&store, &conversation_id).unwrap().unwrap();
+        assert!(background.optional_background);
+        assert!(background.content.contains("历史普通会话背景"));
+        assert!(!background.content.contains("知识页无关讨论"));
+        assert!(!background.content.contains("当前流已有消息"));
+        assert!(recent_background(&store, &wiki).unwrap().is_none());
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn system_prompt_injects_cross_conversation_recent_messages() {
         let (store, conversation_id, path) = setup_store();
         // 在另一个对话里发一条「近期事件」，验证它会被注入到本对话的 system 提示
@@ -801,7 +831,9 @@ mod tests {
             .prepare_context(&conversation_id, &store)
             .unwrap();
 
-        let system = &context[0].content;
+        assert!(!context[0].content.contains("昨天给海油服"));
+        let background = context.iter().find(|m| m.optional_background).unwrap();
+        let system = &background.content;
         assert!(
             system.contains("张玮"),
             "跨对话近期消息应被注入 system 提示，实际: {}",

@@ -1,3 +1,6 @@
+import 'suggestion_feedback.dart';
+import '../bridge/api.dart' as api;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -226,7 +229,8 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
     }
   }
 
-  Future<void> _saveReply(String content) async {
+  Future<void> _saveReply(Message message) async {
+    final content = message.content;
     if (_busy || _saving) return;
     final text = content.trim();
     if (text.isEmpty) return;
@@ -271,11 +275,11 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
             .showSnackBar(const SnackBar(content: Text('已替换当前项目知识页正文')));
         return;
       }
-      final page = await repo.createWikiDerivative(
-        basedOnSlug: widget.slug,
+      final page = await api.createArtifactFromMessage(
+        slug: widget.slug,
+        messageId: message.id,
         contentType: 'AI 总结',
         title: _deriveTitle(text),
-        contentMd: text,
       );
       if (!mounted) return;
       ref.invalidate(wikiDerivativesProvider(widget.slug));
@@ -412,10 +416,15 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
             children: [
               if (message.content.contains('[['))
                 KnowledgeCitationsButton(messageId: message.id),
+              if (kSuggestionFeedbackEnabled)
+                SuggestionFeedbackControl(
+                  messageId: message.id,
+                  content: message.content,
+                ),
               TextButton.icon(
                 onPressed: (_busy || _saving)
                     ? null
-                    : () => _saveReply(message.content),
+                    : () => _saveReply(message),
                 icon: Icon(
                   isProject
                       ? Icons.find_replace_outlined

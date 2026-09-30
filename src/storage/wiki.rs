@@ -155,6 +155,32 @@ impl Store {
         content_md: &str,
         reason: &str,
     ) -> Result<WikiPage> {
+        self.create_derivative_with_generation(
+            based_on_slug,
+            content_type,
+            title,
+            content_md,
+            reason,
+            None,
+        )
+    }
+
+    pub(crate) fn create_derivative_with_generation(
+        &self,
+        based_on_slug: &str,
+        content_type: &str,
+        title: &str,
+        content_md: &str,
+        reason: &str,
+        conversation: Option<&str>,
+    ) -> Result<WikiPage> {
+        anyhow::ensure!(
+            !content_type.trim().is_empty()
+                && content_type.chars().count() <= 80
+                && !title.trim().is_empty()
+                && title.chars().count() <= 200,
+            "产物类型或标题无效"
+        );
         let base = self.get_wiki_page(based_on_slug)?.with_context(|| {
             format!("知识页不存在：{based_on_slug}（不能对不存在的页面创建派生产物）")
         })?;
@@ -202,6 +228,8 @@ impl Store {
             .map(|s| s.id)
             .collect::<Vec<_>>();
         self.bind_page_sources(&id, &snapshots)?;
+        let bases = crate::knowledge::dependencies::capture(self, &[base.slug.clone()])?;
+        crate::knowledge::dependencies::bind(self, &id, &bases)?;
         self.connection.execute(
             "UPDATE wiki_pages SET source_event_ids=?1,evidence_count=?2 WHERE id=?3",
             params![
@@ -210,8 +238,15 @@ impl Store {
                 id
             ],
         )?;
+        self.connection.execute("INSERT INTO knowledge_artifact_versions(page_id,parent_id,content_type,version,created_at) SELECT ?1,?2,?3,COALESCE(MAX(version),0)+1,?4 FROM knowledge_artifact_versions WHERE parent_id=?2 AND content_type=?3",params![id,base.id,content_type.trim(),now])?;
+        let page = self
+            .get_wiki_page(&slug)?
+            .context("派生产物创建后读取失败")?;
+        if let Some(conversation) = conversation {
+            crate::knowledge::workflows::attach_generation(self, &page, conversation)?;
+        }
         tx.commit()?;
-        self.get_wiki_page(&slug)?.context("派生产物创建后读取失败")
+        Ok(page)
     }
 
     /// 新建 wiki 页时按 kind / slug / 来源自动推导「来源/用途」分区。

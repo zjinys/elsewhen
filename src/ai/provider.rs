@@ -62,13 +62,9 @@ pub struct AiReply {
     /// OpenAI 兼容接口的 `choices[0].finish_reason`（`stop` / `length` /
     /// `function_call` / `tool_calls`）。
     ///
-    /// 存在的理由不是「顺手记一下」，而是一个可复现的坏响应签名：部分中转
-    /// 在模型决定调工具时，会返回 `finish_reason: "function_call"` 却把整个
-    /// `tool_calls` 数组丢掉，message 里只剩 `{"role":"assistant"}`。这种响应
-    /// 看起来和「模型返回空」完全一样（content 空、tool_calls 空），但根因在
-    /// 上游而不是模型——实测 2026-09-29 的 hub.oaifree.com 在「要调工具」的
-    /// 请求上 8/8 全部如此，且 `usage.completion_tokens` 照常有值（说明 token
-    /// 生成了、是被中转丢的）。没有这个字段就无法把它和真的空回复区分开。
+    /// 用于区分正常结束、输出耗尽和声明调用工具却缺少调用内容的响应。
+    /// `function_call` 也可能对应旧版合法调用，须先解析旧字段再诊断。
+    /// 该字段和 usage 本身不能证明内容在哪一层丢失。
     pub finish_reason: Option<String>,
 }
 
@@ -109,6 +105,8 @@ pub struct OpenAiCompatibleConfig {
     pub model: String,
     pub temperature: f32,
     pub max_tokens: Option<u32>,
+    #[serde(default)]
+    pub context_window: Option<u32>,
 }
 
 impl Default for OpenAiCompatibleConfig {
@@ -119,6 +117,7 @@ impl Default for OpenAiCompatibleConfig {
             model: "gpt-3.5-turbo".to_string(),
             temperature: 0.7,
             max_tokens: None,
+            context_window: None,
         }
     }
 }
@@ -210,8 +209,7 @@ struct OpenAiUsage {
 #[derive(Deserialize)]
 struct OpenAiChoice {
     message: OpenAiMessageResponse,
-    /// 见 [AiReply::finish_reason]：区分「模型返回空」与「中转吞了 tool_calls」
-    /// 的唯一可用信号。缺省字段不能省——不接的话 serde 会整体解析失败。
+    /// 上游结束原因；缺失时仍允许解析兼容响应。
     #[serde(default)]
     finish_reason: Option<String>,
 }
@@ -222,6 +220,8 @@ struct OpenAiMessageResponse {
     content: Option<String>,
     #[serde(default)]
     tool_calls: Option<Vec<OpenAiResponseToolCall>>,
+    #[serde(default)]
+    function_call: Option<OpenAiResponseToolFunction>,
     #[serde(default)]
     reasoning_content: Option<String>,
 }
@@ -287,12 +287,38 @@ fn response_tool_calls(raw: Vec<OpenAiResponseToolCall>) -> Vec<ToolCall> {
         .collect()
 }
 
+fn response_message_tool_calls(message: &OpenAiMessageResponse) -> Vec<ToolCall> {
+    if let Some(calls) = &message.tool_calls {
+        if !calls.is_empty() {
+            return response_tool_calls(calls.clone());
+        }
+    }
+    // Some compatible endpoints answer modern tools requests with the deprecated
+    // single function_call field. Normalize it once, with a stable ID for the
+    // assistant/result pair; never dispatch both forms if both are present.
+    message
+        .function_call
+        .as_ref()
+        .map(|function| {
+            response_tool_calls(vec![OpenAiResponseToolCall {
+                id: format!("call_{}", uuid::Uuid::new_v4().simple()),
+                function: function.clone(),
+            }])
+        })
+        .unwrap_or_default()
+}
+
 impl AiProvider for OpenAiCompatibleProvider {
     fn generate_reply_with_tools(
         &self,
         messages: Vec<ContextMessage>,
         tools: Option<&[ToolSpec]>,
     ) -> Result<AiReply> {
+        let mut optional_indices: Vec<_> = messages
+            .iter()
+            .enumerate()
+            .filter_map(|(i, m)| (m.optional_background && m.role == "system").then_some(i))
+            .collect();
         let openai_messages: Vec<OpenAiMessage> = messages
             .into_iter()
             .map(|m| OpenAiMessage {
@@ -324,23 +350,46 @@ impl AiProvider for OpenAiCompatibleProvider {
             self.config.base_url.trim_end_matches('/')
         );
 
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.config.api_key))
-            .header("Content-Type", "application/json")
-            .json(&request)
-            .send()
-            .context("Failed to send request to AI provider")?;
-
-        if !response.status().is_success() {
+        let output = self.config.max_tokens.unwrap_or(4096) as usize;
+        request.max_tokens = Some(output as u32);
+        let mut payload = serde_json::to_value(&request)?;
+        let mut window = self
+            .config
+            .context_window
+            .map(|v| v as usize)
+            .unwrap_or_else(|| super::budget::default_window(&self.config.model));
+        let mut retry = false;
+        let response = loop {
+            super::budget::fit_request_with_background(&self.config.model, &mut payload, window, output, &mut optional_indices)?;
+            let response = self
+                .client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", self.config.api_key))
+                .json(&payload)
+                .send()
+                .context("Failed to send request to AI provider")?;
+            if response.status().is_success() {
+                break response;
+            }
             let status = response.status();
             let body = response.text().unwrap_or_default();
+            let code = serde_json::from_str::<Value>(&body)
+                .ok()
+                .and_then(|v| v["error"]["code"].as_str().map(str::to_owned));
+            if !retry
+                && status.as_u16() == 400
+                && code.as_deref() == Some("context_length_exceeded")
+            {
+                let used = super::budget::input_tokens(&self.config.model, &payload);
+                window = (used + output).min(window) / 2;
+                retry = true;
+                continue;
+            }
             anyhow::bail!(
                 "AI provider returned error {}",
                 provider_error_body(status, &body)
             );
-        }
+        };
 
         let ai_response: OpenAiResponse = response
             .json()
@@ -357,11 +406,7 @@ impl AiProvider for OpenAiCompatibleProvider {
             .and_then(|c| c.finish_reason.clone());
 
         let content = message.content.clone().unwrap_or_default();
-        let tool_calls = message
-            .tool_calls
-            .clone()
-            .map(response_tool_calls)
-            .unwrap_or_default();
+        let tool_calls = response_message_tool_calls(message);
 
         let usage = ai_response.usage.map(|u| TokenUsage {
             prompt_tokens: u.prompt_tokens.unwrap_or(0),
@@ -385,6 +430,10 @@ impl AiProvider for OpenAiCompatibleProvider {
 /// Ollama provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OllamaConfig {
+    #[serde(default)]
+    pub context_window: Option<u32>,
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
     pub base_url: String,
     pub model: String,
     pub temperature: f32,
@@ -394,6 +443,8 @@ impl Default for OllamaConfig {
     fn default() -> Self {
         Self {
             base_url: "http://localhost:11434".to_string(),
+            context_window: None,
+            max_tokens: None,
             model: "llama2".to_string(),
             temperature: 0.7,
         }
@@ -462,6 +513,8 @@ struct OllamaRequest {
 #[derive(Serialize)]
 struct OllamaOptions {
     temperature: f32,
+    num_ctx: usize,
+    num_predict: usize,
 }
 
 #[derive(Deserialize)]
@@ -529,6 +582,11 @@ impl AiProvider for OllamaProvider {
         messages: Vec<ContextMessage>,
         tools: Option<&[ToolSpec]>,
     ) -> Result<AiReply> {
+        let mut optional_indices: Vec<_> = messages
+            .iter()
+            .enumerate()
+            .filter_map(|(i, m)| (m.optional_background && m.role == "system").then_some(i))
+            .collect();
         let ollama_messages: Vec<OllamaMessage> = messages
             .into_iter()
             .map(|m| OllamaMessage {
@@ -544,6 +602,8 @@ impl AiProvider for OllamaProvider {
             stream: false,
             options: OllamaOptions {
                 temperature: self.config.temperature,
+                num_ctx: self.config.context_window.unwrap_or(32768) as usize,
+                num_predict: self.config.max_tokens.unwrap_or(4096) as usize,
             },
             tools: None,
         };
@@ -554,12 +614,19 @@ impl AiProvider for OllamaProvider {
         }
 
         let url = format!("{}/api/chat", self.config.base_url.trim_end_matches('/'));
-
+        let mut payload = serde_json::to_value(&request)?;
+        super::budget::fit_request_with_background(
+            &self.config.model,
+            &mut payload,
+            request.options.num_ctx,
+            request.options.num_predict,
+            &mut optional_indices,
+        )?;
         let response = self
             .client
             .post(&url)
             .header("Content-Type", "application/json")
-            .json(&request)
+            .json(&payload)
             .send()
             .context("Failed to send request to Ollama")?;
 
@@ -666,7 +733,7 @@ mod tests {
 
     /// 实测坏响应（2026-09-29，hub.oaifree.com + gpt-4o，8/8 复现）：
     /// 声称调用了函数，却把 tool_calls 整个丢掉，message 里只剩 role。
-    /// `completion_tokens` 照常有值——token 生成了，是被中转丢的。
+    /// `completion_tokens` 有值，只说明上游报告了用量。
     ///
     /// 这条测试的作用是钉住「finish_reason 必须被接住」：没有它，这种响应
     /// 和真的「模型返回空」在下游完全无法区分，排查只能靠人工重放请求。
@@ -690,7 +757,7 @@ mod tests {
         assert!(choice.message.content.is_none());
         assert!(choice.message.tool_calls.is_none());
 
-        // token 生成了却被丢弃——这是「根因在上游而非模型」的唯一硬证据
+        // 用量独立保留，不能推导出被计费内容在链路中哪个位置丢失。
         assert_eq!(resp.usage.unwrap().completion_tokens, Some(58));
     }
 
@@ -741,6 +808,40 @@ mod tests {
         let echoed = openai_message_tool_calls(&calls);
         assert_eq!(echoed.len(), 2);
         assert_eq!(echoed[1].function.arguments, "{\"slug\":\"kb-test\"}");
+    }
+
+    #[test]
+    fn legacy_function_call_is_normalized_without_losing_arguments_or_body() {
+        for tools in [serde_json::Value::Null, serde_json::json!([])] {
+            let raw = serde_json::json!({"choices":[{
+                "message": {"content":"检查规则", "tool_calls": tools,
+                    "function_call":{"name":"list_rules", "arguments":"{  }"}},
+                "finish_reason":"function_call"
+            }]});
+            let resp: OpenAiResponse = serde_json::from_value(raw).unwrap();
+            let calls = response_message_tool_calls(&resp.choices[0].message);
+            assert_eq!(calls.len(), 1);
+            assert_eq!(calls[0].name, "list_rules");
+            assert_eq!(calls[0].arguments, serde_json::json!({}));
+            assert_eq!(calls[0].raw_arguments.as_deref(), Some("{  }"));
+            assert!(!calls[0].id.is_empty());
+            let echoed = openai_message_tool_calls(&calls);
+            assert_eq!(echoed[0].id, calls[0].id);
+            assert_eq!(echoed[0].function.arguments, "{  }");
+            assert_eq!(resp.choices[0].message.content.as_deref(), Some("检查规则"));
+        }
+    }
+
+    #[test]
+    fn modern_and_legacy_fields_do_not_duplicate_a_tool_action() {
+        let raw = serde_json::json!({"choices":[{"message":{
+            "tool_calls":[{"id":"modern", "function":{"name":"list_rules", "arguments":"{}"}}],
+            "function_call":{"name":"list_rules", "arguments":"{}"}
+        }}]});
+        let resp: OpenAiResponse = serde_json::from_value(raw).unwrap();
+        let calls = response_message_tool_calls(&resp.choices[0].message);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "modern");
     }
 
     #[test]

@@ -64,6 +64,7 @@ class AiProviderConfigDto {
   final bool isActive;
   final double temperature;
   final PlatformInt64? maxTokens;
+  final PlatformInt64? contextWindow;
 
   const AiProviderConfigDto({
     required this.id,
@@ -76,6 +77,7 @@ class AiProviderConfigDto {
     required this.isActive,
     required this.temperature,
     this.maxTokens,
+    this.contextWindow,
   });
 
   @override
@@ -89,7 +91,8 @@ class AiProviderConfigDto {
       apiKey.hashCode ^
       isActive.hashCode ^
       temperature.hashCode ^
-      maxTokens.hashCode;
+      maxTokens.hashCode ^
+      contextWindow.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -105,5 +108,6 @@ class AiProviderConfigDto {
           apiKey == other.apiKey &&
           isActive == other.isActive &&
           temperature == other.temperature &&
-          maxTokens == other.maxTokens;
+          maxTokens == other.maxTokens &&
+          contextWindow == other.contextWindow;
 }
