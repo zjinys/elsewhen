@@ -43,6 +43,10 @@ Elsewhen is a local-first personal event system with a **Rust core** and **Flutt
 
 ## Development Commands
 
+> **新环境从零搭建请先读 `docs/development/build-environment.md`** —— 它按
+> Windows / macOS / Linux 分列了完整依赖（含各平台的系统包名）、libclang 这个
+> 容易漏掉的第三工具、以及每平台的验证步骤。本节只列命令，不含环境配置。
+
 ### Rust Core
 
 #### Build and test
