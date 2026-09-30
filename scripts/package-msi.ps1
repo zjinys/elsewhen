@@ -1,4 +1,4 @@
-# package-msi.ps1 - 把 Flutter UI 桌面端打成 Windows MSI（需在 Windows 上运行）
+﻿# package-msi.ps1 - 把 Flutter UI 桌面端打成 Windows MSI（需在 Windows 上运行）
 #
 # 产物：dist\Elsewhen-<version>-x64.msi
 #
