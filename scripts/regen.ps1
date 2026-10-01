@@ -79,6 +79,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# 多行提示**不能**用 throw 直接抛。PowerShell 7 对未捕获异常的默认视图
+# （ConciseView）会折叠连续空白，把排版好的处置说明压成一堵字墙；PS 5.1 的
+# NormalView 不折叠，所以这个坑只在 7+ 暴露 —— 实测：
+#   C:\Program Files\LLVM\bin\   %USERPROFILE%\scoop\apps\llvm\current\bin
+#   它不做 PATH 搜索...两条出路：    1) 装到默认位置   2) 装在别处
+# 换行全没了。改成 Write-Host 逐行输出（两个版本都正常），throw 只带单行摘要，
+# 退出码仍为 1，finally 的 Pop-Location 也不受影响。
+function Stop-WithGuidance([string]$summary, [string]$guidance) {
+    Write-Host ""
+    Write-Host $guidance
+    Write-Host ""
+    throw $summary
+}
+
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Push-Location $root
 
@@ -121,7 +135,7 @@ try {
             $dll = $LlvmPath
         }
         if (-not [System.IO.File]::Exists($dll)) {
-            throw @"
+            Stop-WithGuidance -summary "libclang.dll 未找到（-LlvmPath 指定的 LLVM 下没有）" -guidance @"
 -LlvmPath 指定的 LLVM 下没有找到 libclang.dll：
 
   -LlvmPath $LlvmPath
@@ -150,7 +164,7 @@ try {
         $libclangDirs = @([System.IO.Path]::GetDirectoryName($dll))
     }
     elseif (-not $libclangDirs) {
-        throw @"
+        Stop-WithGuidance -summary "libclang.dll 未找到（ffigen 的两个默认位置都没有）" -guidance @"
 ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上的两个默认位置都没有：
 
   C:\Program Files\LLVM\bin\
@@ -259,9 +273,12 @@ ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上的两个默认位
     if (-not $rustHash) { throw "未能在 src\frb_generated.rs 中找到 FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH" }
 
     if ($dartHash -ne $rustHash) {
-        throw "codegen hash 不一致：Dart=$dartHash Rust=$rustHash。`n" +
-              "说明 codegen 没有真正重新生成，或 Rust 侧未同步重编。`n" +
-              "app 启动时会在 RustLib.init() 报 hash mismatch —— 先解决这个再继续。"
+        Stop-WithGuidance -summary "codegen hash 不一致：Dart=$dartHash Rust=$rustHash" -guidance @"
+codegen hash 不一致：Dart=$dartHash  Rust=$rustHash
+
+说明 codegen 没有真正重新生成，或 Rust 侧未同步重编。
+app 启动时会在 RustLib.init() 报 hash mismatch —— 先解决这个再继续。
+"@
     }
 
     Write-Host "✔ 完成: 生成的 Dart/Rust bridge 与 target\release\elsewhen.dll 已保持一致。"
