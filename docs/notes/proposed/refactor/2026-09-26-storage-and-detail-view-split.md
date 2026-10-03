@@ -1,6 +1,6 @@
 # 结构性重构排期：storage.rs 与 wiki_page_detail_view.dart 拆分
 
-Status: partially done（storage.rs 拆分已完成 2026-09-26；wiki_page_detail_view 待排期）
+Status: done（storage.rs 拆分已完成 2026-09-26；wiki_page_detail_view 拆分已完成 2026-10-03）
 
 来源：deep review P1-1 / C9。两项均为「单文件巨型化」的结构性问题，不影响正确性，
 但抬高后续改动的心智负担与冲突面（本仓库有并行会话，大文件合并冲突风险高）。
@@ -125,3 +125,26 @@ ui/lib/widgets/wiki_detail/
 - 优先级：**storage.rs migrations 抽取 > wiki 详情拆分 > storage.rs 业务域拆分**。
 - storage migrations 抽取是性价比最高的第一步（单点收益大、风险低、有测试兜底）。
 - 两者都建议在无并行活跃改动时各安排一个独立批次，避免与 feature 开发交错。
+
+### ✅ 实际落地记录（2026-10-03，wiki_page_detail_view.dart 拆分）
+
+采用 Dart `part`/`part of` 将 3647 行的 `wiki_page_detail_view.dart` 拆为 1 个主库 +
+4 个 part 文件（纯结构搬运，零行为/可见性变化）：
+
+| part 文件 | 行数 | 迁移内容 |
+|---|---|---|
+| `wiki_detail_import_section.dart` | 428 | `_ImportTab`/`_ImportTabState`/`_ModeBtn`（导入入口 + 4 controller） |
+| `wiki_detail_entity_sections.dart` | 699 | `_WorkItemPanel`/`_WorkItemChip`/`_EntityMergeControls`/`_EntityRelatedTodos`/`_EntityFacts` + `_fmtWorkItemDate` |
+| `wiki_detail_page_chips.dart` | 271 | `_LocalPathChip`/`_SourceChip`/`_RelationChip` |
+| `wiki_detail_import_preview.dart` | 863 | `_ImportFetchTabBody`/`_TweetTabBody` + `_kBeautifyInstruction`/`_unwrapCodeFence` |
+
+主文件 3647 → 1391 行，保留 `WikiPageDetailView`（对外入口，import 路径不变）、
+`_WikiPageDetailViewState`/`_HomeTab`/`_WikiTabBar`/`_WikiTabChip`/`_PageTabBody`/
+`_WikiPageSection`/`_WikiPageBody`/`_WikiPageBodyState`/`_EditTagsDialog`/`_WikiBrowseTab`。
+`WikiContentEditor`（`ui/lib/wiki/`）与 `WikiAiChatPanel`/`WikiDerivatives`（`ui/lib/widgets/`）
+此前已独立为公开类，本次不再重复处理。
+
+验证：`fvm flutter analyze` 0 error、4 条既有 warning（与拆分前一致：`_buildModeSwitch`/
+`_buildCardStrip`/`_hasSummary` 3 处既有 unused_element + `settings_reading_layer_test.dart`
+1 处既有 unused_import，拆分未新增）；`fvm flutter test` 283/283 通过（含 wiki_editor_integration）。
+公开类型名不变，`WikiPageDetailView` import 路径不变。

@@ -1,7 +1,7 @@
 # api.rs 拆分后的 Dart 生成物迁移方案
 
 - Date: 2026-09-26
-- Status: proposed（Rust 侧已拆完并提交，Dart 生成物迁移待 Dart agent 协调）
+- Status: done（方案 A 已落地，见文末完成记录）
 - Area: ui
 - Related: docs/notes/proposed/refactor/2026-09-26-storage-and-detail-view-split.md
 
@@ -76,3 +76,15 @@ export 'generated.dart/api/wiki.dart';
 - `fvm flutter analyze` 无 error
 - `fvm flutter test` 170/170
 - 手动冒烟：App 启动不报 `rustContentHash mismatch`
+
+## 完成记录（2026-10-03）
+
+方案 A 已落地，本文「待办」不再成立：
+
+- `ui/lib/bridge/api.dart` 手写聚合 export 文件存在，逐域 `export` 了
+  `generated.dart/api/*.dart` 全部 12+ 个域文件（及 knowledge 相关子模块）。
+- 全仓已无任何 `import '.../generated.dart/api.dart'` 直连（仅聚合文件内部 export 它）；
+  `rust_bridge_repository.dart` 等调用点统一 `import 'bridge/api.dart' as api;`，
+  129 处调用点（随 AI 对话经验路线 C00–C09 已增至 161 处）零改动。
+- 本方案在 2026-10-02 随 AI 对话经验路线的多次 `scripts/regen.sh` 一并完成，
+  CONTENT_HASH 已与 Rust 侧同步。
