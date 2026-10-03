@@ -86,9 +86,11 @@ fn input_record_is_idempotent_and_links_routed_objects() {
         .unwrap();
     assert_eq!(routed.event_id.as_deref(), Some(event_id.as_str()));
     assert_eq!(routed.route_status, "routed");
-    assert!(store
-        .update_input_route(&first.id, "unknown", None, None, None, None)
-        .is_err());
+    assert!(
+        store
+            .update_input_route(&first.id, "unknown", None, None, None, None)
+            .is_err()
+    );
 
     drop(store);
     let _ = std::fs::remove_file(path);
@@ -248,17 +250,21 @@ fn daily_reviews_are_versioned_and_require_same_day_sources() {
         .unwrap();
     let today = chrono::Local::now().date_naive();
 
-    assert!(store
-        .save_daily_review(today, "daily-review-v1", "{}", &[])
-        .is_err());
-    assert!(store
-        .save_daily_review(
-            today - chrono::Duration::days(1),
-            "daily-review-v1",
-            "{}",
-            std::slice::from_ref(&event_id),
-        )
-        .is_err());
+    assert!(
+        store
+            .save_daily_review(today, "daily-review-v1", "{}", &[])
+            .is_err()
+    );
+    assert!(
+        store
+            .save_daily_review(
+                today - chrono::Duration::days(1),
+                "daily-review-v1",
+                "{}",
+                std::slice::from_ref(&event_id),
+            )
+            .is_err()
+    );
 
     let first = store
         .save_daily_review(
@@ -346,10 +352,12 @@ fn deleting_entity_fact_keeps_source_event() {
         )
         .unwrap();
     assert!(store.delete_entity_fact(&fact.id).unwrap());
-    assert!(store
-        .list_entity_facts("person", "person/张三")
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .list_entity_facts("person", "person/张三")
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(store.list_events().unwrap().len(), 1);
     let _ = std::fs::remove_file(path);
 }
@@ -370,10 +378,12 @@ fn entity_aliases_are_idempotent_and_scoped() {
             .unwrap(),
         vec!["ACME"]
     );
-    assert!(store
-        .list_entity_aliases("project", "project/other")
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .list_entity_aliases("project", "project/other")
+            .unwrap()
+            .is_empty()
+    );
     let _ = std::fs::remove_file(path);
 }
 
@@ -406,10 +416,12 @@ fn events_on_date_uses_local_day_boundaries() {
     let yesterday_events = store.events_on_date(yesterday).unwrap();
     assert_eq!(yesterday_events.len(), 1);
     assert_eq!(yesterday_events[0].raw_text, "昨天的事件");
-    assert!(store
-        .events_on_date(today - chrono::Duration::days(10))
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .events_on_date(today - chrono::Duration::days(10))
+            .unwrap()
+            .is_empty()
+    );
     let _ = std::fs::remove_file(path);
 }
 
@@ -549,14 +561,18 @@ fn manual_recordability_is_append_only_and_preserves_raw_event_and_message() {
         .unwrap();
     assert!(!first.recordable);
     assert_eq!(first.kind, "discussion");
-    assert!(store
-        .list_entity_facts("topic", "topic/回答")
-        .unwrap()
-        .is_empty());
-    assert!(store
-        .pending_actions_for_conversation(&conversation_id)
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .list_entity_facts("topic", "topic/回答")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        store
+            .pending_actions_for_conversation(&conversation_id)
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(
         store
             .get_conversation(&conversation_id)
@@ -697,9 +713,11 @@ fn update_todo_edits_fields_and_clears_optionals() {
     assert_eq!(cleared[0].priority, "normal");
 
     // 空标题拒绝
-    assert!(store
-        .update_todo(&todo.id, "   ", None, None, None)
-        .is_err());
+    assert!(
+        store
+            .update_todo(&todo.id, "   ", None, None, None)
+            .is_err()
+    );
     let _ = std::fs::remove_file(path);
 }
 
@@ -784,10 +802,12 @@ fn find_wiki_page_by_tag_exact_matches_json_array_member() {
     assert_eq!(found.slug, "topic/target");
 
     // 不存在的 tag 返回 None
-    assert!(store
-        .find_wiki_page_by_tag("work-item-id:nope")
-        .unwrap()
-        .is_none());
+    assert!(
+        store
+            .find_wiki_page_by_tag("work-item-id:nope")
+            .unwrap()
+            .is_none()
+    );
 
     let _ = std::fs::remove_file(path);
 }
@@ -882,14 +902,18 @@ fn rename_wiki_page_moves_slug_relations_and_chat() {
     assert_eq!(rels.len(), 1);
     assert_eq!(rels[0].to_slug, "topic/fpso111-尾款");
     // 页内聊天会话已迁移
-    assert!(store
-        .find_wiki_chat_conversation("topic/fpso111-尾款")
-        .unwrap()
-        .is_some());
-    assert!(store
-        .find_wiki_chat_conversation("topic/付款流程")
-        .unwrap()
-        .is_none());
+    assert!(
+        store
+            .find_wiki_chat_conversation("topic/fpso111-尾款")
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        store
+            .find_wiki_chat_conversation("topic/付款流程")
+            .unwrap()
+            .is_none()
+    );
     // 修订历史多了一条重命名记录
     assert_eq!(
         store
@@ -1006,9 +1030,11 @@ fn entity_merge_and_undo_preserve_sources_and_restore_rows() {
         )
         .unwrap();
 
-    assert!(store
-        .merge_entity("person", "person/张伟-a", "person/张伟")
-        .unwrap());
+    assert!(
+        store
+            .merge_entity("person", "person/张伟-a", "person/张伟")
+            .unwrap()
+    );
     assert_eq!(
         store
             .get_wiki_page("person/张伟-a")
@@ -1067,9 +1093,11 @@ fn entity_merge_and_undo_preserve_sources_and_restore_rows() {
         restored_todo.related_wiki_slug.as_deref(),
         Some("person/张伟-a")
     );
-    assert!(store
-        .merge_entity("person", "person/张伟-a", "person/张伟")
-        .unwrap());
+    assert!(
+        store
+            .merge_entity("person", "person/张伟-a", "person/张伟")
+            .unwrap()
+    );
     assert!(store.undo_entity_merge("person/张伟-a").unwrap());
     drop(store);
     let _ = std::fs::remove_file(path);
@@ -1145,9 +1173,11 @@ fn entity_merge_rejects_invalid_targets_and_undo_is_atomic_after_changes() {
     entity_page(&store, "person/b", "person", "B");
     entity_page(&store, "project/b", "project", "B项目");
     assert!(store.merge_entity("person", "person/a", "missing").is_err());
-    assert!(store
-        .merge_entity("person", "person/a", "project/b")
-        .is_err());
+    assert!(
+        store
+            .merge_entity("person", "person/a", "project/b")
+            .is_err()
+    );
     let event_id = store.insert_event(NewEvent::now("A事实")).unwrap();
     let fact = store
         .upsert_entity_fact(
@@ -1174,10 +1204,12 @@ fn entity_merge_rejects_invalid_targets_and_undo_is_atomic_after_changes() {
         store.get_wiki_page("person/a").unwrap().unwrap().status,
         "merged"
     );
-    assert!(store
-        .list_entity_facts("person", "person/a")
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .list_entity_facts("person", "person/a")
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(
         store.list_entity_facts("person", "person/b").unwrap()[0].confidence,
         5
@@ -1203,9 +1235,11 @@ fn entity_merges_allows_repeated_merge_of_same_source_and_keeps_audit() {
             |r| r.get(0),
         )
         .unwrap();
-    assert!(!schema
-        .replace(' ', "")
-        .contains("UNIQUE(entity_kind,source_slug)"));
+    assert!(
+        !schema
+            .replace(' ', "")
+            .contains("UNIQUE(entity_kind,source_slug)")
+    );
 
     // 同一源实体合并到两个不同目标，都应成功
     store
@@ -1255,10 +1289,12 @@ fn find_wiki_page_by_title_matches_exact_ignoring_case_and_trim() {
         )
         .unwrap();
     assert!(store.find_wiki_page_by_title(" 张伟 ").unwrap().is_some());
-    assert!(store
-        .find_wiki_page_by_title("不存在的人")
-        .unwrap()
-        .is_none());
+    assert!(
+        store
+            .find_wiki_page_by_title("不存在的人")
+            .unwrap()
+            .is_none()
+    );
     let _ = std::fs::remove_file(path);
 }
 
@@ -1369,9 +1405,11 @@ fn save_wiki_page_content_sets_human_edited_at_and_rejects_material() {
     assert!(log.iter().any(|(_, e)| e.contains("人工编辑正文")));
 
     // 空正文拒绝
-    assert!(store
-        .save_wiki_page_content("person/张三", "   ", "清空", None)
-        .is_err());
+    assert!(
+        store
+            .save_wiki_page_content("person/张三", "   ", "清空", None)
+            .is_err()
+    );
 
     // 素材页（source/note）只读拒绝
     store
@@ -1380,24 +1418,30 @@ fn save_wiki_page_content_sets_human_edited_at_and_rejects_material() {
             ContentPolicy::Always,
         )
         .unwrap();
-    assert!(store
-        .save_wiki_page_content("tweet-1", "改素材", "不该允许", None)
-        .is_err());
+    assert!(
+        store
+            .save_wiki_page_content("tweet-1", "改素材", "不该允许", None)
+            .is_err()
+    );
     store
         .upsert_wiki_page(
             &wiki_draft("note-x", "note", "笔记内容"),
             ContentPolicy::Always,
         )
         .unwrap();
-    assert!(store
-        .save_wiki_page_content("note-x", "改笔记", "不该允许", None)
-        .is_err());
+    assert!(
+        store
+            .save_wiki_page_content("note-x", "改笔记", "不该允许", None)
+            .is_err()
+    );
 
     // 超过 64k 字符拒绝
     let big = "长".repeat(65537);
-    assert!(store
-        .save_wiki_page_content("person/张三", &big, "超大", None)
-        .is_err());
+    assert!(
+        store
+            .save_wiki_page_content("person/张三", &big, "超大", None)
+            .is_err()
+    );
 
     let _ = std::fs::remove_file(path);
 }
@@ -1498,7 +1542,9 @@ fn digest_preserve_respects_human_edited_and_material_pages() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();
     let event_one = store.insert_event(NewEvent::now("与李四讨论方案")).unwrap();
-    let event_two = store.insert_event(NewEvent::now("李四确认实施步骤")).unwrap();
+    let event_two = store
+        .insert_event(NewEvent::now("李四确认实施步骤"))
+        .unwrap();
 
     // ① 人工编辑过的档案页：PreserveHumanEdits → 正文不动、证据照累、protected=true
     store
@@ -1632,9 +1678,11 @@ fn set_wiki_opinion_only_on_material_and_audits() {
             ContentPolicy::Always,
         )
         .unwrap();
-    assert!(store
-        .set_wiki_opinion("person/王五", Some("endorse"))
-        .is_err());
+    assert!(
+        store
+            .set_wiki_opinion("person/王五", Some("endorse"))
+            .is_err()
+    );
 
     // 审计日志
     let log = store.list_wiki_log(10).unwrap();
@@ -1677,9 +1725,11 @@ fn update_project_path_validates_and_backfills_legacy_pages() {
     let page2 = store.get_wiki_page("project/a").unwrap().unwrap();
     assert_eq!(page2.updated_at, updated_before);
     // 改路径：新目录必须存在
-    assert!(store
-        .update_project_path("project/a", "/definitely/not/here")
-        .is_err());
+    assert!(
+        store
+            .update_project_path("project/a", "/definitely/not/here")
+            .is_err()
+    );
     let moved = store
         .update_project_path("project/a", &dir_b.display().to_string())
         .unwrap();
@@ -1699,9 +1749,11 @@ fn update_project_path_validates_and_backfills_legacy_pages() {
             ContentPolicy::Always,
         )
         .unwrap();
-    assert!(store
-        .update_project_path("person/王五", &dir_b.display().to_string())
-        .is_err());
+    assert!(
+        store
+            .update_project_path("person/王五", &dir_b.display().to_string())
+            .is_err()
+    );
     std::fs::remove_dir_all(&dir_a).ok();
     std::fs::remove_dir_all(&dir_b).ok();
     let _ = std::fs::remove_file(path);

@@ -1,7 +1,7 @@
 //! Human review operates on a frozen base and records the exact accepted changes.
-use crate::storage::{knowledge::content_hash, Store, WikiPage, WikiPageDraft};
-use anyhow::{ensure, Context, Result};
-use rusqlite::{params, Transaction, TransactionBehavior};
+use crate::storage::{Store, WikiPage, WikiPageDraft, knowledge::content_hash};
+use anyhow::{Context, Result, ensure};
+use rusqlite::{Transaction, TransactionBehavior, params};
 
 #[derive(Clone, Debug)]
 pub struct KnowledgeDiffPart {

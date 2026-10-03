@@ -4,7 +4,7 @@
 //! 合并与可撤销合并（entity_merges + entity_merge_snapshots 快照，undo 按快照回滚）。
 
 use anyhow::{Context, Result};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use super::{EntityFact, EntityMergeStatus, Store};

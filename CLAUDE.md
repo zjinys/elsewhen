@@ -47,6 +47,28 @@ Elsewhen is a local-first personal event system with a **Rust core** and **Flutt
 > Windows / macOS / Linux 分列了完整依赖（含各平台的系统包名）、libclang 这个
 > 容易漏掉的第三工具、以及每平台的验证步骤。本节只列命令，不含环境配置。
 
+#### 新 clone 之后第一条命令
+```bash
+git clone https://github.com/zjinys/elsewhen.git && cd elsewhen
+./scripts/bootstrap.sh          # 预检 → 装 Flutter SDK → pub get → 编 Rust → 校验 hash → 启动
+```
+```powershell
+git clone https://github.com/zjinys/elsewhen.git; cd elsewhen
+powershell -File scripts\bootstrap.ps1
+```
+
+前提只有一条：系统依赖与工具链已按 `docs/development/build-environment.md` 装好。
+`bootstrap` **不装任何系统包**（那些要 sudo / 交互式安装器），它做的是把
+「装好之后到跑起来之间」这段固定下来 —— `target/release/`、`.fvm/`、`.dart_tool/`
+三样都不在 git 里，直接跑 `elsewhen.sh` 会在 `RustLib.init()` 才炸。
+
+`bootstrap.sh --setup-only` 只准备不启动；`--regen` 先重生成桥接（改了 Rust 公开
+API 时）；`--device <id>` 换设备。日常开发仍用 `elsewhen.sh` / `debug-run.sh`。
+
+> ⚠ **PowerShell 的参数绑定与 bash 不同**：`-d android`、`--device android` 都会被
+> 前缀匹配绑到 `-Device`，而不是透传给 `flutter run`。Windows 上设备一律用
+> `-Device` 指定。原因与实测见 `docs/development/build-environment.md` §7 末。
+
 ### Rust Core
 
 #### Build and test
@@ -114,6 +136,7 @@ powershell -File scripts/package-msi.ps1   # Windows → dist/Elsewhen-*-x64.msi
 
 | 用途 | bash | PowerShell |
 |---|---|---|
+| **新环境一键准备 + 启动** | `./scripts/bootstrap.sh` | `powershell -File scripts\bootstrap.ps1` |
 | 启动主应用 | `./scripts/elsewhen.sh` | `powershell -File scripts\elsewhen.ps1` |
 | Capture 模式 | `./scripts/elsewhen-capture.sh` | `powershell -File scripts\elsewhen-capture.ps1` |
 | 带诊断日志启动 | `./scripts/debug-run.sh` | `powershell -File scripts\debug-run.ps1` |
@@ -258,3 +281,11 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on Ubuntu, macOS, Wind
 - Dependency epochs accelerate stale checks; full bases remain the final confirmation contract. Background dependency refresh always prepares reviewed proposals, never silently accepts them.
 - Suggestions have append-only feedback, scoped to the originating conversation. Acceptance is not execution and does not create a permanent rule.
 - Library and artifact lists load bounded metadata; queue aggregation is in SQLite. Remaining full scans and measured limits: `docs/llm-wiki-scale-and-refactoring.md`. Do not call the entire app ten-thousand/hundred-thousand-page ready based on one query benchmark.
+
+### AI chat experience and explicit review (schema v10)
+
+- Follow `docs/roadmap/2026-09-30-ai-chat-experience-roadmap.md` as a sub-track of the main roadmap; update both when a step is delivered. Shared contracts and loopback baselines: `docs/testing/ai-chat-contract-and-baseline.md`.
+- `ai/time_context.rs` supplies application and message time as synthetic context. Preserve original messages, count the actual request, and remove old time reminders with their owning turns. A cached clock block is not a source of event facts.
+- Natural-language acknowledgements never execute or discard pending chat actions/rules. FRB review requests bind kind, ID, conversation, proposal version and target token; never fetch a new token for previously displayed content.
+- `storage/approvals.rs` stores durable claims, execution leases and receipts. Local compound writes validate target bases and commit their result together. Stale explicit contact slugs never silently fall back by name. Non-atomic import outcomes may need inspection, not blind replay.
+- Healthy execution leases survive re-initialization; only expired claims recover as uncertain, and late completions are fenced. The main chat, wiki chat and legacy global-rule review use the same review contract. This is not yet the full generation/streaming lifecycle; follow the remaining roadmap steps.

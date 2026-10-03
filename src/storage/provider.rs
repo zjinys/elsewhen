@@ -4,11 +4,11 @@
 //! `set_active`/`save` 用 IMMEDIATE 事务避免并发下的激活竞态（见 deep review B1）。
 
 use anyhow::Result;
-use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
+use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 use uuid::Uuid;
 
-use super::adapter::{AiProviderConfig, AiProviderConfigRow};
 use super::Store;
+use super::adapter::{AiProviderConfig, AiProviderConfigRow};
 
 impl Store {
     pub fn upsert_ai_provider_config(

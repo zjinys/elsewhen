@@ -4,6 +4,8 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/chat_proposals.dart';
+import 'api/chat_runs.dart';
 import 'api/conversations.dart';
 import 'api/entities.dart';
 import 'api/fonts.dart';
@@ -81,6 +83,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  ChatReviewRequest dco_decode_box_autoadd_chat_review_request(dynamic raw);
+
+  @protected
+  ChatRunDto dco_decode_box_autoadd_chat_run_dto(dynamic raw);
+
+  @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
@@ -118,6 +126,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto dco_decode_box_autoadd_wiki_page_dto(dynamic raw);
+
+  @protected
+  ChatDecisionDto dco_decode_chat_decision_dto(dynamic raw);
+
+  @protected
+  ChatInputQueueDto dco_decode_chat_input_queue_dto(dynamic raw);
+
+  @protected
+  ChatProposalDto dco_decode_chat_proposal_dto(dynamic raw);
+
+  @protected
+  ChatQueuedInputDto dco_decode_chat_queued_input_dto(dynamic raw);
+
+  @protected
+  ChatReviewRequest dco_decode_chat_review_request(dynamic raw);
+
+  @protected
+  ChatRunDto dco_decode_chat_run_dto(dynamic raw);
+
+  @protected
+  ChatRunEventDto dco_decode_chat_run_event_dto(dynamic raw);
+
+  @protected
+  ChatRunEventPageDto dco_decode_chat_run_event_page_dto(dynamic raw);
 
   @protected
   ContentChatMessageDto dco_decode_content_chat_message_dto(dynamic raw);
@@ -247,6 +279,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<BatchReviewResult> dco_decode_list_batch_review_result(dynamic raw);
 
   @protected
+  List<ChatDecisionDto> dco_decode_list_chat_decision_dto(dynamic raw);
+
+  @protected
+  List<ChatProposalDto> dco_decode_list_chat_proposal_dto(dynamic raw);
+
+  @protected
+  List<ChatQueuedInputDto> dco_decode_list_chat_queued_input_dto(dynamic raw);
+
+  @protected
+  List<ChatRunDto> dco_decode_list_chat_run_dto(dynamic raw);
+
+  @protected
+  List<ChatRunEventDto> dco_decode_list_chat_run_event_dto(dynamic raw);
+
+  @protected
   List<ContentChatMessageDto> dco_decode_list_content_chat_message_dto(
     dynamic raw,
   );
@@ -359,6 +406,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UnscheduledChatInputDto> dco_decode_list_unscheduled_chat_input_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
 
   @protected
@@ -377,6 +429,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  ChatRunDto? dco_decode_opt_box_autoadd_chat_run_dto(dynamic raw);
 
   @protected
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
@@ -468,6 +523,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
+
+  @protected
+  WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
+
+  @protected
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw);
 
   @protected
@@ -512,6 +573,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  ChatReviewRequest sse_decode_box_autoadd_chat_review_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatRunDto sse_decode_box_autoadd_chat_run_dto(SseDeserializer deserializer);
 
   @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
@@ -559,6 +628,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto sse_decode_box_autoadd_wiki_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatDecisionDto sse_decode_chat_decision_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatInputQueueDto sse_decode_chat_input_queue_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatProposalDto sse_decode_chat_proposal_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatQueuedInputDto sse_decode_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatReviewRequest sse_decode_chat_review_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatRunDto sse_decode_chat_run_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatRunEventDto sse_decode_chat_run_event_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatRunEventPageDto sse_decode_chat_run_event_page_dto(
     SseDeserializer deserializer,
   );
 
@@ -728,6 +829,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<ChatDecisionDto> sse_decode_list_chat_decision_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatProposalDto> sse_decode_list_chat_proposal_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatQueuedInputDto> sse_decode_list_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatRunDto> sse_decode_list_chat_run_dto(SseDeserializer deserializer);
+
+  @protected
+  List<ChatRunEventDto> sse_decode_list_chat_run_event_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<ContentChatMessageDto> sse_decode_list_content_chat_message_dto(
     SseDeserializer deserializer,
   );
@@ -872,6 +996,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UnscheduledChatInputDto> sse_decode_list_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
 
   @protected
@@ -892,6 +1021,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  ChatRunDto? sse_decode_opt_box_autoadd_chat_run_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ConversationDto? sse_decode_opt_box_autoadd_conversation_dto(
@@ -997,6 +1131,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
+  UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiChatMaterialDto sse_decode_wiki_chat_material_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WikiPageDto sse_decode_wiki_page_dto(SseDeserializer deserializer);
 
   @protected
@@ -1026,6 +1170,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Bool> cst_encode_box_autoadd_bool(bool raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return wire.cst_new_box_autoadd_bool(cst_encode_bool(raw));
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_chat_review_request>
+  cst_encode_box_autoadd_chat_review_request(ChatReviewRequest raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_chat_review_request();
+    cst_api_fill_to_wire_chat_review_request(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_chat_run_dto> cst_encode_box_autoadd_chat_run_dto(
+    ChatRunDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_chat_run_dto();
+    cst_api_fill_to_wire_chat_run_dto(raw, ptr.ref);
+    return ptr;
   }
 
   @protected
@@ -1180,6 +1343,62 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_batch_review_result(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_batch_review_result(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_chat_decision_dto>
+  cst_encode_list_chat_decision_dto(List<ChatDecisionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_chat_decision_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_chat_decision_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_chat_proposal_dto>
+  cst_encode_list_chat_proposal_dto(List<ChatProposalDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_chat_proposal_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_chat_proposal_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_chat_queued_input_dto>
+  cst_encode_list_chat_queued_input_dto(List<ChatQueuedInputDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_chat_queued_input_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_chat_queued_input_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_chat_run_dto> cst_encode_list_chat_run_dto(
+    List<ChatRunDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_chat_run_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_chat_run_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_chat_run_event_dto>
+  cst_encode_list_chat_run_event_dto(List<ChatRunEventDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_chat_run_event_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_chat_run_event_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -1554,6 +1773,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_unscheduled_chat_input_dto>
+  cst_encode_list_unscheduled_chat_input_dto(
+    List<UnscheduledChatInputDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_unscheduled_chat_input_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_unscheduled_chat_input_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_wiki_page_dto> cst_encode_list_wiki_page_dto(
     List<WikiPageDto> raw,
   ) {
@@ -1586,6 +1818,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Bool> cst_encode_opt_box_autoadd_bool(bool? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_bool(raw);
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_chat_run_dto> cst_encode_opt_box_autoadd_chat_run_dto(
+    ChatRunDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? ffi.nullptr : cst_encode_box_autoadd_chat_run_dto(raw);
   }
 
   @protected
@@ -1781,6 +2021,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_box_autoadd_chat_review_request(
+    ChatReviewRequest apiObj,
+    ffi.Pointer<wire_cst_chat_review_request> wireObj,
+  ) {
+    cst_api_fill_to_wire_chat_review_request(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_chat_run_dto(
+    ChatRunDto apiObj,
+    ffi.Pointer<wire_cst_chat_run_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_chat_run_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
   void cst_api_fill_to_wire_box_autoadd_conversation_dto(
     ConversationDto apiObj,
     ffi.Pointer<wire_cst_conversation_dto> wireObj,
@@ -1842,6 +2098,119 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_wiki_page_dto> wireObj,
   ) {
     cst_api_fill_to_wire_wiki_page_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_chat_decision_dto(
+    ChatDecisionDto apiObj,
+    wire_cst_chat_decision_dto wireObj,
+  ) {
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.conversation_id = cst_encode_opt_String(apiObj.conversationId);
+    wireObj.version = cst_encode_i_64(apiObj.version);
+    wireObj.decision = cst_encode_String(apiObj.decision);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.result = cst_encode_String(apiObj.result);
+    wireObj.action = cst_encode_String(apiObj.action);
+    wireObj.args_json = cst_encode_String(apiObj.argsJson);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_chat_input_queue_dto(
+    ChatInputQueueDto apiObj,
+    wire_cst_chat_input_queue_dto wireObj,
+  ) {
+    wireObj.paused = cst_encode_bool(apiObj.paused);
+    wireObj.items = cst_encode_list_chat_queued_input_dto(apiObj.items);
+    wireObj.recent_injections = cst_encode_list_chat_queued_input_dto(
+      apiObj.recentInjections,
+    );
+  }
+
+  @protected
+  void cst_api_fill_to_wire_chat_proposal_dto(
+    ChatProposalDto apiObj,
+    wire_cst_chat_proposal_dto wireObj,
+  ) {
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.conversation_id = cst_encode_opt_String(apiObj.conversationId);
+    wireObj.action = cst_encode_String(apiObj.action);
+    wireObj.args_json = cst_encode_String(apiObj.argsJson);
+    wireObj.version = cst_encode_i_64(apiObj.version);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.approval_token = cst_encode_String(apiObj.approvalToken);
+    wireObj.target_basis_json = cst_encode_String(apiObj.targetBasisJson);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_chat_queued_input_dto(
+    ChatQueuedInputDto apiObj,
+    wire_cst_chat_queued_input_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_i_64(apiObj.id);
+    wireObj.input_message_id = cst_encode_String(apiObj.inputMessageId);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.mode = cst_encode_String(apiObj.mode);
+    wireObj.preview = cst_encode_String(apiObj.preview);
+    wireObj.defer_reason = cst_encode_opt_String(apiObj.deferReason);
+    wireObj.run_id = cst_encode_opt_String(apiObj.runId);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_chat_review_request(
+    ChatReviewRequest apiObj,
+    wire_cst_chat_review_request wireObj,
+  ) {
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.proposal_id = cst_encode_String(apiObj.proposalId);
+    wireObj.conversation_id = cst_encode_opt_String(apiObj.conversationId);
+    wireObj.expected_version = cst_encode_i_64(apiObj.expectedVersion);
+    wireObj.approval_token = cst_encode_String(apiObj.approvalToken);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_chat_run_dto(
+    ChatRunDto apiObj,
+    wire_cst_chat_run_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.conversation_id = cst_encode_String(apiObj.conversationId);
+    wireObj.input_message_id = cst_encode_String(apiObj.inputMessageId);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.phase = cst_encode_String(apiObj.phase);
+    wireObj.sequence = cst_encode_i_64(apiObj.sequence);
+    wireObj.request_count = cst_encode_i_64(apiObj.requestCount);
+    wireObj.provider_basis_json = cst_encode_String(apiObj.providerBasisJson);
+    wireObj.content = cst_encode_String(apiObj.content);
+    wireObj.error_kind = cst_encode_opt_String(apiObj.errorKind);
+    wireObj.error_text = cst_encode_opt_String(apiObj.errorText);
+    wireObj.final_message_id = cst_encode_opt_String(apiObj.finalMessageId);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_chat_run_event_dto(
+    ChatRunEventDto apiObj,
+    wire_cst_chat_run_event_dto wireObj,
+  ) {
+    wireObj.run_id = cst_encode_String(apiObj.runId);
+    wireObj.sequence = cst_encode_i_64(apiObj.sequence);
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.payload_json = cst_encode_String(apiObj.payloadJson);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_chat_run_event_page_dto(
+    ChatRunEventPageDto apiObj,
+    wire_cst_chat_run_event_page_dto wireObj,
+  ) {
+    wireObj.run_id = cst_encode_String(apiObj.runId);
+    wireObj.events = cst_encode_list_chat_run_event_dto(apiObj.events);
+    wireObj.next_sequence = cst_encode_i_64(apiObj.nextSequence);
+    wireObj.has_more = cst_encode_bool(apiObj.hasMore);
   }
 
   @protected
@@ -2422,6 +2791,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.action = cst_encode_String(apiObj.action);
     wireObj.args_json = cst_encode_String(apiObj.argsJson);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.version = cst_encode_i_64(apiObj.version);
+    wireObj.approval_token = cst_encode_String(apiObj.approvalToken);
+    wireObj.target_basis_json = cst_encode_String(apiObj.targetBasisJson);
   }
 
   @protected
@@ -2576,6 +2948,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_unscheduled_chat_input_dto(
+    UnscheduledChatInputDto apiObj,
+    wire_cst_unscheduled_chat_input_dto wireObj,
+  ) {
+    wireObj.input_message_id = cst_encode_String(apiObj.inputMessageId);
+    wireObj.preview = cst_encode_String(apiObj.preview);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_wiki_chat_material_dto(
+    WikiChatMaterialDto apiObj,
+    wire_cst_wiki_chat_material_dto wireObj,
+  ) {
+    wireObj.slug = cst_encode_String(apiObj.slug);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.content_md = cst_encode_String(apiObj.contentMd);
+    wireObj.basis_json = cst_encode_String(apiObj.basisJson);
+  }
+
+  @protected
   void cst_api_fill_to_wire_wiki_page_dto(
     WikiPageDto apiObj,
     wire_cst_wiki_page_dto wireObj,
@@ -2675,6 +3068,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_chat_review_request(
+    ChatReviewRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_chat_run_dto(
+    ChatRunDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_conversation_dto(
     ConversationDto self,
     SseSerializer serializer,
@@ -2731,6 +3136,51 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_wiki_page_dto(
     WikiPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_decision_dto(
+    ChatDecisionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_input_queue_dto(
+    ChatInputQueueDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_proposal_dto(
+    ChatProposalDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_queued_input_dto(
+    ChatQueuedInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_review_request(
+    ChatReviewRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_run_dto(ChatRunDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_chat_run_event_dto(
+    ChatRunEventDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_run_event_page_dto(
+    ChatRunEventPageDto self,
     SseSerializer serializer,
   );
 
@@ -2948,6 +3398,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_chat_decision_dto(
+    List<ChatDecisionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_proposal_dto(
+    List<ChatProposalDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_queued_input_dto(
+    List<ChatQueuedInputDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_run_dto(
+    List<ChatRunDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_run_event_dto(
+    List<ChatRunEventDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_content_chat_message_dto(
     List<ContentChatMessageDto> self,
     SseSerializer serializer,
@@ -3128,6 +3608,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_unscheduled_chat_input_dto(
+    List<UnscheduledChatInputDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_wiki_page_dto(
     List<WikiPageDto> self,
     SseSerializer serializer,
@@ -3153,6 +3639,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_chat_run_dto(
+    ChatRunDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_conversation_dto(
@@ -3287,6 +3779,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_unit(void self, SseSerializer serializer);
 
   @protected
+  void sse_encode_unscheduled_chat_input_dto(
+    UnscheduledChatInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_chat_material_dto(
+    WikiChatMaterialDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_wiki_page_dto(WikiPageDto self, SseSerializer serializer);
 }
 
@@ -3343,6 +3847,31 @@ class RustLibWire implements BaseWire {
       );
   late final _cst_new_box_autoadd_bool = _cst_new_box_autoadd_boolPtr
       .asFunction<ffi.Pointer<ffi.Bool> Function(bool)>();
+
+  ffi.Pointer<wire_cst_chat_review_request>
+  cst_new_box_autoadd_chat_review_request() {
+    return _cst_new_box_autoadd_chat_review_request();
+  }
+
+  late final _cst_new_box_autoadd_chat_review_requestPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_chat_review_request> Function()>
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_chat_review_request');
+  late final _cst_new_box_autoadd_chat_review_request =
+      _cst_new_box_autoadd_chat_review_requestPtr
+          .asFunction<ffi.Pointer<wire_cst_chat_review_request> Function()>();
+
+  ffi.Pointer<wire_cst_chat_run_dto> cst_new_box_autoadd_chat_run_dto() {
+    return _cst_new_box_autoadd_chat_run_dto();
+  }
+
+  late final _cst_new_box_autoadd_chat_run_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_chat_run_dto> Function()>
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_chat_run_dto');
+  late final _cst_new_box_autoadd_chat_run_dto =
+      _cst_new_box_autoadd_chat_run_dtoPtr
+          .asFunction<ffi.Pointer<wire_cst_chat_run_dto> Function()>();
 
   ffi.Pointer<wire_cst_conversation_dto>
   cst_new_box_autoadd_conversation_dto() {
@@ -3564,6 +4093,90 @@ class RustLibWire implements BaseWire {
       _cst_new_list_batch_review_resultPtr
           .asFunction<
             ffi.Pointer<wire_cst_list_batch_review_result> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_chat_decision_dto> cst_new_list_chat_decision_dto(
+    int len,
+  ) {
+    return _cst_new_list_chat_decision_dto(len);
+  }
+
+  late final _cst_new_list_chat_decision_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_chat_decision_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_chat_decision_dto');
+  late final _cst_new_list_chat_decision_dto =
+      _cst_new_list_chat_decision_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_chat_decision_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_chat_proposal_dto> cst_new_list_chat_proposal_dto(
+    int len,
+  ) {
+    return _cst_new_list_chat_proposal_dto(len);
+  }
+
+  late final _cst_new_list_chat_proposal_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_chat_proposal_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_chat_proposal_dto');
+  late final _cst_new_list_chat_proposal_dto =
+      _cst_new_list_chat_proposal_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_chat_proposal_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_chat_queued_input_dto>
+  cst_new_list_chat_queued_input_dto(int len) {
+    return _cst_new_list_chat_queued_input_dto(len);
+  }
+
+  late final _cst_new_list_chat_queued_input_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_chat_queued_input_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_chat_queued_input_dto');
+  late final _cst_new_list_chat_queued_input_dto =
+      _cst_new_list_chat_queued_input_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_chat_queued_input_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_chat_run_dto> cst_new_list_chat_run_dto(int len) {
+    return _cst_new_list_chat_run_dto(len);
+  }
+
+  late final _cst_new_list_chat_run_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_chat_run_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_chat_run_dto');
+  late final _cst_new_list_chat_run_dto = _cst_new_list_chat_run_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_chat_run_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_chat_run_event_dto> cst_new_list_chat_run_event_dto(
+    int len,
+  ) {
+    return _cst_new_list_chat_run_event_dto(len);
+  }
+
+  late final _cst_new_list_chat_run_event_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_chat_run_event_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_chat_run_event_dto');
+  late final _cst_new_list_chat_run_event_dto =
+      _cst_new_list_chat_run_event_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_chat_run_event_dto> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_content_chat_message_dto>
@@ -4077,6 +4690,25 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_topic_organization_preview> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_unscheduled_chat_input_dto>
+  cst_new_list_unscheduled_chat_input_dto(int len) {
+    return _cst_new_list_unscheduled_chat_input_dto(len);
+  }
+
+  late final _cst_new_list_unscheduled_chat_input_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_unscheduled_chat_input_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_unscheduled_chat_input_dto');
+  late final _cst_new_list_unscheduled_chat_input_dto =
+      _cst_new_list_unscheduled_chat_input_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_unscheduled_chat_input_dto> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_wiki_page_dto> cst_new_list_wiki_page_dto(int len) {
     return _cst_new_list_wiki_page_dto(len);
   }
@@ -4140,15 +4772,661 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__chat_proposals__decide_chat_proposal(
+    int port_,
+    ffi.Pointer<wire_cst_chat_review_request> request,
+    bool accept,
+  ) {
+    return _wire__crate__api__chat_proposals__decide_chat_proposal(
+      port_,
+      request,
+      accept,
+    );
+  }
+
+  late final _wire__crate__api__chat_proposals__decide_chat_proposalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_chat_review_request>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_proposals__decide_chat_proposal',
+      );
+  late final _wire__crate__api__chat_proposals__decide_chat_proposal =
+      _wire__crate__api__chat_proposals__decide_chat_proposalPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_chat_review_request>, bool)
+          >();
+
+  void wire__crate__api__chat_proposals__edit_chat_proposal(
+    int port_,
+    ffi.Pointer<wire_cst_chat_review_request> request,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
+  ) {
+    return _wire__crate__api__chat_proposals__edit_chat_proposal(
+      port_,
+      request,
+      args_json,
+    );
+  }
+
+  late final _wire__crate__api__chat_proposals__edit_chat_proposalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_chat_review_request>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_proposals__edit_chat_proposal',
+      );
+  late final _wire__crate__api__chat_proposals__edit_chat_proposal =
+      _wire__crate__api__chat_proposals__edit_chat_proposalPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_chat_review_request>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__chat_proposals__list_chat_decisions(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    int offset,
+    int limit,
+  ) {
+    return _wire__crate__api__chat_proposals__list_chat_decisions(
+      port_,
+      conversation_id,
+      offset,
+      limit,
+    );
+  }
+
+  late final _wire__crate__api__chat_proposals__list_chat_decisionsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+            ffi.Uint32,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_proposals__list_chat_decisions',
+      );
+  late final _wire__crate__api__chat_proposals__list_chat_decisions =
+      _wire__crate__api__chat_proposals__list_chat_decisionsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+            )
+          >();
+
+  void wire__crate__api__chat_proposals__list_chat_proposals(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    int offset,
+    int limit,
+  ) {
+    return _wire__crate__api__chat_proposals__list_chat_proposals(
+      port_,
+      conversation_id,
+      offset,
+      limit,
+    );
+  }
+
+  late final _wire__crate__api__chat_proposals__list_chat_proposalsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+            ffi.Uint32,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_proposals__list_chat_proposals',
+      );
+  late final _wire__crate__api__chat_proposals__list_chat_proposals =
+      _wire__crate__api__chat_proposals__list_chat_proposalsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__cancel_chat_run(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id,
+  ) {
+    return _wire__crate__api__chat_runs__cancel_chat_run(
+      port_,
+      conversation_id,
+      run_id,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__cancel_chat_runPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__cancel_chat_run');
+  late final _wire__crate__api__chat_runs__cancel_chat_run =
+      _wire__crate__api__chat_runs__cancel_chat_runPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__dispatch_chat_input_queue(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__chat_runs__dispatch_chat_input_queue(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__dispatch_chat_input_queuePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_runs__dispatch_chat_input_queue',
+      );
+  late final _wire__crate__api__chat_runs__dispatch_chat_input_queue =
+      _wire__crate__api__chat_runs__dispatch_chat_input_queuePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__chat_runs__enqueue_chat_input(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
+  ) {
+    return _wire__crate__api__chat_runs__enqueue_chat_input(
+      port_,
+      conversation_id,
+      input_message_id,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__enqueue_chat_inputPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__enqueue_chat_input');
+  late final _wire__crate__api__chat_runs__enqueue_chat_input =
+      _wire__crate__api__chat_runs__enqueue_chat_inputPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__enqueue_chat_supplement(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> context_json,
+  ) {
+    return _wire__crate__api__chat_runs__enqueue_chat_supplement(
+      port_,
+      conversation_id,
+      input_message_id,
+      run_id,
+      context_json,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__enqueue_chat_supplementPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_runs__enqueue_chat_supplement',
+      );
+  late final _wire__crate__api__chat_runs__enqueue_chat_supplement =
+      _wire__crate__api__chat_runs__enqueue_chat_supplementPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__get_chat_input_queue(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    int after_id,
+    int limit,
+  ) {
+    return _wire__crate__api__chat_runs__get_chat_input_queue(
+      port_,
+      conversation_id,
+      after_id,
+      limit,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__get_chat_input_queuePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+            ffi.Uint32,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__get_chat_input_queue');
+  late final _wire__crate__api__chat_runs__get_chat_input_queue =
+      _wire__crate__api__chat_runs__get_chat_input_queuePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__get_chat_run(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id,
+  ) {
+    return _wire__crate__api__chat_runs__get_chat_run(
+      port_,
+      conversation_id,
+      run_id,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__get_chat_runPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__get_chat_run');
+  late final _wire__crate__api__chat_runs__get_chat_run =
+      _wire__crate__api__chat_runs__get_chat_runPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__get_latest_chat_run(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__chat_runs__get_latest_chat_run(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__get_latest_chat_runPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__get_latest_chat_run');
+  late final _wire__crate__api__chat_runs__get_latest_chat_run =
+      _wire__crate__api__chat_runs__get_latest_chat_runPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__chat_runs__list_chat_run_events(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id,
+    int after_sequence,
+    int limit,
+  ) {
+    return _wire__crate__api__chat_runs__list_chat_run_events(
+      port_,
+      conversation_id,
+      run_id,
+      after_sequence,
+      limit,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__list_chat_run_eventsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+            ffi.Uint32,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__list_chat_run_events');
+  late final _wire__crate__api__chat_runs__list_chat_run_events =
+      _wire__crate__api__chat_runs__list_chat_run_eventsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__list_chat_runs(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    int offset,
+    int limit,
+  ) {
+    return _wire__crate__api__chat_runs__list_chat_runs(
+      port_,
+      conversation_id,
+      offset,
+      limit,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__list_chat_runsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+            ffi.Uint32,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__list_chat_runs');
+  late final _wire__crate__api__chat_runs__list_chat_runs =
+      _wire__crate__api__chat_runs__list_chat_runsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__list_unscheduled_chat_inputs(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    int offset,
+    int limit,
+  ) {
+    return _wire__crate__api__chat_runs__list_unscheduled_chat_inputs(
+      port_,
+      conversation_id,
+      offset,
+      limit,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__list_unscheduled_chat_inputsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+            ffi.Uint32,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_runs__list_unscheduled_chat_inputs',
+      );
+  late final _wire__crate__api__chat_runs__list_unscheduled_chat_inputs =
+      _wire__crate__api__chat_runs__list_unscheduled_chat_inputsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__pause_chat_input_queue(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__chat_runs__pause_chat_input_queue(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__pause_chat_input_queuePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_runs__pause_chat_input_queue',
+      );
+  late final _wire__crate__api__chat_runs__pause_chat_input_queue =
+      _wire__crate__api__chat_runs__pause_chat_input_queuePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__chat_runs__resume_chat_input_queue(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__chat_runs__resume_chat_input_queue(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__resume_chat_input_queuePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_runs__resume_chat_input_queue',
+      );
+  late final _wire__crate__api__chat_runs__resume_chat_input_queue =
+      _wire__crate__api__chat_runs__resume_chat_input_queuePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__chat_runs__schedule_chat_input(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
+  ) {
+    return _wire__crate__api__chat_runs__schedule_chat_input(
+      port_,
+      conversation_id,
+      input_message_id,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__schedule_chat_inputPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__schedule_chat_input');
+  late final _wire__crate__api__chat_runs__schedule_chat_input =
+      _wire__crate__api__chat_runs__schedule_chat_inputPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__shutdown_chat_runs(int port_) {
+    return _wire__crate__api__chat_runs__shutdown_chat_runs(port_);
+  }
+
+  late final _wire__crate__api__chat_runs__shutdown_chat_runsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__chat_runs__shutdown_chat_runs',
+      );
+  late final _wire__crate__api__chat_runs__shutdown_chat_runs =
+      _wire__crate__api__chat_runs__shutdown_chat_runsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__chat_runs__start_chat_run(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> idempotency_key,
+  ) {
+    return _wire__crate__api__chat_runs__start_chat_run(
+      port_,
+      conversation_id,
+      input_message_id,
+      idempotency_key,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__start_chat_runPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__start_chat_run');
+  late final _wire__crate__api__chat_runs__start_chat_run =
+      _wire__crate__api__chat_runs__start_chat_runPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__chat_runs__withdraw_chat_input(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    int queue_id,
+  ) {
+    return _wire__crate__api__chat_runs__withdraw_chat_input(
+      port_,
+      conversation_id,
+      queue_id,
+    );
+  }
+
+  late final _wire__crate__api__chat_runs__withdraw_chat_inputPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__chat_runs__withdraw_chat_input');
+  late final _wire__crate__api__chat_runs__withdraw_chat_input =
+      _wire__crate__api__chat_runs__withdraw_chat_inputPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+          >();
+
   void wire__crate__api__conversations__confirm_knowledge_draft(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> action_id,
+    int expected_version,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> approval_token,
   ) {
     return _wire__crate__api__conversations__confirm_knowledge_draft(
       port_,
       conversation_id,
       action_id,
+      expected_version,
+      approval_token,
     );
   }
 
@@ -4158,6 +5436,8 @@ class RustLibWire implements BaseWire {
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
@@ -4170,6 +5450,8 @@ class RustLibWire implements BaseWire {
             void Function(
               int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
@@ -4212,11 +5494,15 @@ class RustLibWire implements BaseWire {
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> action_id,
+    int expected_version,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> approval_token,
   ) {
     return _wire__crate__api__conversations__decline_knowledge_draft(
       port_,
       conversation_id,
       action_id,
+      expected_version,
+      approval_token,
     );
   }
 
@@ -4226,6 +5512,8 @@ class RustLibWire implements BaseWire {
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
@@ -4238,6 +5526,8 @@ class RustLibWire implements BaseWire {
             void Function(
               int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
@@ -4585,12 +5875,18 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__conversations__update_pending_action_args(
     int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> action_id,
+    int expected_version,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> approval_token,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
   ) {
     return _wire__crate__api__conversations__update_pending_action_args(
       port_,
+      conversation_id,
       action_id,
+      expected_version,
+      approval_token,
       args_json,
     );
   }
@@ -4599,6 +5895,9 @@ class RustLibWire implements BaseWire {
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
@@ -4611,6 +5910,9 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__conversations__update_pending_action_argsPtr
           .asFunction<
             void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
@@ -7766,6 +9068,100 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
+
+  void wire__crate__api__wiki_chat__get_wiki_chat_material(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+  ) {
+    return _wire__crate__api__wiki_chat__get_wiki_chat_material(
+      port_,
+      page_slug,
+    );
+  }
+
+  late final _wire__crate__api__wiki_chat__get_wiki_chat_materialPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__wiki_chat__get_wiki_chat_material',
+      );
+  late final _wire__crate__api__wiki_chat__get_wiki_chat_material =
+      _wire__crate__api__wiki_chat__get_wiki_chat_materialPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__wiki_chat__get_wiki_chat_task(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__wiki_chat__get_wiki_chat_task(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__wiki_chat__get_wiki_chat_taskPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki_chat__get_wiki_chat_task');
+  late final _wire__crate__api__wiki_chat__get_wiki_chat_task =
+      _wire__crate__api__wiki_chat__get_wiki_chat_taskPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__wiki_chat__submit_wiki_chat_input(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> idempotency_key,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> task_json,
+  ) {
+    return _wire__crate__api__wiki_chat__submit_wiki_chat_input(
+      port_,
+      conversation_id,
+      content,
+      idempotency_key,
+      task_json,
+    );
+  }
+
+  late final _wire__crate__api__wiki_chat__submit_wiki_chat_inputPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__wiki_chat__submit_wiki_chat_input',
+      );
+  late final _wire__crate__api__wiki_chat__submit_wiki_chat_input =
+      _wire__crate__api__wiki_chat__submit_wiki_chat_inputPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
 }
 
 final class AnalysisTriggerResultKind extends ffi.Union {
@@ -8039,6 +9435,284 @@ final class wire_cst_batch_review_result extends ffi.Struct {
     ..ref.id = id
     ..ref.success = success
     ..ref.detail = detail;
+}
+
+final class wire_cst_chat_decision_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id;
+
+  @ffi.Int64()
+  external int version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> decision;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> result;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> action;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json;
+
+  static ffi.Pointer<wire_cst_chat_decision_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    required int version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> decision,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> result,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> action,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
+  }) => $allocator<wire_cst_chat_decision_dto>()
+    ..ref.kind = kind
+    ..ref.id = id
+    ..ref.conversation_id = conversation_id
+    ..ref.version = version
+    ..ref.decision = decision
+    ..ref.status = status
+    ..ref.result = result
+    ..ref.action = action
+    ..ref.args_json = args_json;
+}
+
+final class wire_cst_chat_input_queue_dto extends ffi.Struct {
+  @ffi.Bool()
+  external bool paused;
+
+  external ffi.Pointer<wire_cst_list_chat_queued_input_dto> items;
+
+  external ffi.Pointer<wire_cst_list_chat_queued_input_dto> recent_injections;
+
+  static ffi.Pointer<wire_cst_chat_input_queue_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required bool paused,
+    required ffi.Pointer<wire_cst_list_chat_queued_input_dto> items,
+    required ffi.Pointer<wire_cst_list_chat_queued_input_dto> recent_injections,
+  }) => $allocator<wire_cst_chat_input_queue_dto>()
+    ..ref.paused = paused
+    ..ref.items = items
+    ..ref.recent_injections = recent_injections;
+}
+
+final class wire_cst_chat_proposal_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> action;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json;
+
+  @ffi.Int64()
+  external int version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> approval_token;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> target_basis_json;
+
+  static ffi.Pointer<wire_cst_chat_proposal_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> action,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
+    required int version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> approval_token,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> target_basis_json,
+  }) => $allocator<wire_cst_chat_proposal_dto>()
+    ..ref.kind = kind
+    ..ref.id = id
+    ..ref.conversation_id = conversation_id
+    ..ref.action = action
+    ..ref.args_json = args_json
+    ..ref.version = version
+    ..ref.created_at = created_at
+    ..ref.approval_token = approval_token
+    ..ref.target_basis_json = target_basis_json;
+}
+
+final class wire_cst_chat_queued_input_dto extends ffi.Struct {
+  @ffi.Int64()
+  external int id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> mode;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> preview;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> defer_reason;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id;
+
+  static ffi.Pointer<wire_cst_chat_queued_input_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required int id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> preview,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> defer_reason,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id,
+  }) => $allocator<wire_cst_chat_queued_input_dto>()
+    ..ref.id = id
+    ..ref.input_message_id = input_message_id
+    ..ref.status = status
+    ..ref.mode = mode
+    ..ref.preview = preview
+    ..ref.defer_reason = defer_reason
+    ..ref.run_id = run_id;
+}
+
+final class wire_cst_chat_review_request extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> proposal_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id;
+
+  @ffi.Int64()
+  external int expected_version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> approval_token;
+
+  static ffi.Pointer<wire_cst_chat_review_request> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> proposal_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    required int expected_version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> approval_token,
+  }) => $allocator<wire_cst_chat_review_request>()
+    ..ref.kind = kind
+    ..ref.proposal_id = proposal_id
+    ..ref.conversation_id = conversation_id
+    ..ref.expected_version = expected_version
+    ..ref.approval_token = approval_token;
+}
+
+final class wire_cst_chat_run_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> phase;
+
+  @ffi.Int64()
+  external int sequence;
+
+  @ffi.Int64()
+  external int request_count;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> provider_basis_json;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> content;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> error_kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> error_text;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> final_message_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
+
+  static ffi.Pointer<wire_cst_chat_run_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
+    required int sequence,
+    required int request_count,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> provider_basis_json,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> error_kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> error_text,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> final_message_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
+  }) => $allocator<wire_cst_chat_run_dto>()
+    ..ref.id = id
+    ..ref.conversation_id = conversation_id
+    ..ref.input_message_id = input_message_id
+    ..ref.status = status
+    ..ref.phase = phase
+    ..ref.sequence = sequence
+    ..ref.request_count = request_count
+    ..ref.provider_basis_json = provider_basis_json
+    ..ref.content = content
+    ..ref.error_kind = error_kind
+    ..ref.error_text = error_text
+    ..ref.final_message_id = final_message_id
+    ..ref.created_at = created_at
+    ..ref.updated_at = updated_at;
+}
+
+final class wire_cst_chat_run_event_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id;
+
+  @ffi.Int64()
+  external int sequence;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> payload_json;
+
+  static ffi.Pointer<wire_cst_chat_run_event_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id,
+    required int sequence,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> payload_json,
+  }) => $allocator<wire_cst_chat_run_event_dto>()
+    ..ref.run_id = run_id
+    ..ref.sequence = sequence
+    ..ref.kind = kind
+    ..ref.payload_json = payload_json;
+}
+
+final class wire_cst_chat_run_event_page_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id;
+
+  external ffi.Pointer<wire_cst_list_chat_run_event_dto> events;
+
+  @ffi.Int64()
+  external int next_sequence;
+
+  @ffi.Bool()
+  external bool has_more;
+
+  static ffi.Pointer<wire_cst_chat_run_event_page_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> run_id,
+    required ffi.Pointer<wire_cst_list_chat_run_event_dto> events,
+    required int next_sequence,
+    required bool has_more,
+  }) => $allocator<wire_cst_chat_run_event_page_dto>()
+    ..ref.run_id = run_id
+    ..ref.events = events
+    ..ref.next_sequence = next_sequence
+    ..ref.has_more = has_more;
 }
 
 final class wire_cst_content_chat_message_dto extends ffi.Struct {
@@ -9278,6 +10952,81 @@ final class wire_cst_list_batch_review_result extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_chat_decision_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_chat_decision_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_chat_decision_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_chat_decision_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_chat_decision_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_chat_proposal_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_chat_proposal_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_chat_proposal_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_chat_proposal_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_chat_proposal_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_chat_queued_input_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_chat_queued_input_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_chat_queued_input_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_chat_queued_input_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_chat_queued_input_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_chat_run_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_chat_run_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_chat_run_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_chat_run_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_chat_run_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_chat_run_event_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_chat_run_event_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_chat_run_event_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_chat_run_event_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_chat_run_event_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_content_chat_message_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_content_chat_message_dto> ptr;
 
@@ -9758,6 +11507,21 @@ final class wire_cst_list_topic_organization_preview extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_unscheduled_chat_input_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_unscheduled_chat_input_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_unscheduled_chat_input_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_unscheduled_chat_input_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_unscheduled_chat_input_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_wiki_page_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_wiki_page_dto> ptr;
 
@@ -9873,17 +11637,30 @@ final class wire_cst_pending_action_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
 
+  @ffi.Int64()
+  external int version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> approval_token;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> target_basis_json;
+
   static ffi.Pointer<wire_cst_pending_action_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> action,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required int version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> approval_token,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> target_basis_json,
   }) => $allocator<wire_cst_pending_action_dto>()
     ..ref.id = id
     ..ref.action = action
     ..ref.args_json = args_json
-    ..ref.created_at = created_at;
+    ..ref.created_at = created_at
+    ..ref.version = version
+    ..ref.approval_token = approval_token
+    ..ref.target_basis_json = target_basis_json;
 }
 
 final class wire_cst_relation_dto extends ffi.Struct {
@@ -10227,6 +12004,46 @@ final class wire_cst_tweet_fetch_dto extends ffi.Struct {
     ..ref.title = title
     ..ref.author_name = author_name
     ..ref.screen_name = screen_name;
+}
+
+final class wire_cst_unscheduled_chat_input_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> preview;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  static ffi.Pointer<wire_cst_unscheduled_chat_input_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> preview,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+  }) => $allocator<wire_cst_unscheduled_chat_input_dto>()
+    ..ref.input_message_id = input_message_id
+    ..ref.preview = preview
+    ..ref.created_at = created_at;
+}
+
+final class wire_cst_wiki_chat_material_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> basis_json;
+
+  static ffi.Pointer<wire_cst_wiki_chat_material_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> basis_json,
+  }) => $allocator<wire_cst_wiki_chat_material_dto>()
+    ..ref.slug = slug
+    ..ref.title = title
+    ..ref.content_md = content_md
+    ..ref.basis_json = basis_json;
 }
 
 final class wire_cst_wiki_page_dto extends ffi.Struct {

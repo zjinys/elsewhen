@@ -43,9 +43,12 @@ dependencies:
   markdown: ^7.3.1
 
   # Desktop integration
-  # window_manager / screen_retriever 已合并迁移到 nativeapi（同一作者 leanflutter
-  # 的统一原生 API 继任者）：窗口大小/位置/无边框/置顶/事件 + 显示器信息一包覆盖。
-  nativeapi: ^0.4.0
+  # 桌面窗口管理：window_manager。曾迁往其继任者 nativeapi（同作者 leanflutter），
+  # 但 nativeapi 0.4 在 Windows 上透明背景被 DWM 合成白边、且缺
+  # waitUntilReadyToShow 启动编排，遂迁回（FlClash 生产验证的纪律：
+  # 不透明窗口 + 不自裁圆角，圆角交给系统）。
+  window_manager: ^0.5.1
+  screen_retriever: ^0.2.0
 
   # Icons
   cupertino_icons: ^1.0.8

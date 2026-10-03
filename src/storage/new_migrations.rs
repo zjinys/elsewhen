@@ -25,7 +25,7 @@
 //! 库里没有第二张表在记版本。
 
 use anyhow::Result;
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use rusqlite::Connection;
 use rusqlite_migration::Migrations;
 
@@ -49,6 +49,12 @@ fn migrations() -> Result<Migrations<'static>> {
 
 pub(crate) fn initialize(connection: &mut Connection) -> Result<()> {
     migrations()?.to_latest(connection)?;
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) fn initialize_test_version(connection: &mut Connection, version: usize) -> Result<()> {
+    migrations()?.to_version(connection, version)?;
     Ok(())
 }
 
@@ -105,6 +111,12 @@ mod tests {
                 "07-knowledge-maintenance",
                 "08-knowledge-repair",
                 "09-wiki-workflows",
+                "10-chat-approvals",
+                "11-chat-generation",
+                "12-chat-input-queue",
+                "13-chat-summary",
+                "14-chat-page-tasks",
+                "15-chat-supplements",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -136,7 +148,97 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 9, "九条迁移跑完，user_version 应为 9");
+        assert_eq!(version, 15, "十五条迁移跑完，user_version 应为 15");
+    }
+
+    #[test]
+    fn v10_history_survives_generation_schema_without_synthetic_runs() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 10)
+            .unwrap();
+        connection.execute_batch("INSERT INTO conversations(id,title,created_at,updated_at) VALUES('legacy','legacy','t','t');
+            WITH RECURSIVE seq(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM seq WHERE n<1000)
+            INSERT INTO messages(id,conversation_id,role,content,created_at)
+            SELECT 'message-'||n,'legacy','user','original-'||n,'t' FROM seq;").unwrap();
+        let before: String = connection.query_row("SELECT group_concat(id||':'||content,'|') FROM (SELECT id,content FROM messages ORDER BY id)", [], |r| r.get(0)).unwrap();
+        initialize(&mut connection).unwrap();
+        let after: String = connection.query_row("SELECT group_concat(id||':'||content,'|') FROM (SELECT id,content FROM messages ORDER BY id)", [], |r| r.get(0)).unwrap();
+        assert_eq!(before, after);
+        let runs: i64 = connection
+            .query_row("SELECT COUNT(*) FROM chat_runs", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(runs, 0, "old messages never authorize automatic generation");
+    }
+
+    #[test]
+    fn v14_queue_entries_keep_their_eligibility_when_supplement_fields_are_added() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 14)
+            .unwrap();
+        connection.execute_batch("INSERT INTO conversations(id,title,created_at,updated_at) VALUES('queue-legacy','queue','t','t');
+            INSERT INTO messages(id,conversation_id,role,content,created_at) VALUES
+              ('pending-input','queue-legacy','user','pending original','t'),
+              ('withdrawn-input','queue-legacy','user','withdrawn original','t'),
+              ('started-input','queue-legacy','user','started original','t');
+            INSERT INTO chat_runs(id,request_key,conversation_id,input_message_id,input_hash,status,executor_id,lease_until,created_at,updated_at)
+              VALUES('old-run','old-request','queue-legacy','started-input','basis','completed','old-owner','t','t','t');
+            INSERT INTO chat_input_queue(conversation_id,input_message_id,status,run_id,created_at,updated_at) VALUES
+              ('queue-legacy','pending-input','pending',NULL,'t','t'),
+              ('queue-legacy','withdrawn-input','withdrawn',NULL,'t','t'),
+              ('queue-legacy','started-input','started','old-run','t','t');
+            INSERT INTO chat_queue_dispatch(conversation_id,paused,updated_at) VALUES('queue-legacy',1,'t');").unwrap();
+        let before: String = connection.query_row("SELECT group_concat(id||':'||content,'|') FROM (SELECT id,content FROM messages ORDER BY id)", [], |r| r.get(0)).unwrap();
+        initialize(&mut connection).unwrap();
+        let after: String = connection.query_row("SELECT group_concat(id||':'||content,'|') FROM (SELECT id,content FROM messages ORDER BY id)", [], |r| r.get(0)).unwrap();
+        assert_eq!(before, after);
+        let states: String = connection.query_row("SELECT group_concat(status||':'||mode,'|') FROM (SELECT status,mode FROM chat_input_queue ORDER BY id)", [], |r| r.get(0)).unwrap();
+        assert_eq!(states, "pending:next|withdrawn:next|started:next");
+        let plain: i64 = connection.query_row("SELECT count(*) FROM chat_input_queue WHERE input_basis IS NULL AND context_json='{}' AND defer_reason IS NULL AND target_run_id IS NULL", [], |r| r.get(0)).unwrap();
+        assert_eq!(plain, 3, "migration must not infer supplement intent");
+        let preserved: bool = connection.query_row("SELECT EXISTS(SELECT 1 FROM chat_input_queue WHERE input_message_id='started-input' AND run_id='old-run') AND EXISTS(SELECT 1 FROM chat_queue_dispatch WHERE conversation_id='queue-legacy' AND paused=1)", [], |r| r.get(0)).unwrap();
+        assert!(preserved);
+    }
+
+    #[test]
+    fn v9_chat_history_and_pending_proposals_remain_unapproved() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 9)
+            .unwrap();
+        connection.execute_batch("INSERT INTO conversations(id,title,created_at,updated_at) VALUES('old-conv','旧会话','t','t');
+            INSERT INTO messages(id,conversation_id,role,content,created_at) VALUES('old-message','old-conv','user','原始消息不变','t');
+            INSERT INTO rules(id,content,status,created_at,updated_at,conversation_id) VALUES('old-rule','旧规则草稿','pending','t','t','old-conv');
+            INSERT INTO pending_actions(id,conversation_id,action,args_json,created_at) VALUES('old-action','old-conv','create_todo','{\"title\":\"旧草稿\"}','t');").unwrap();
+        initialize(&mut connection).unwrap();
+        let content: String = connection
+            .query_row(
+                "SELECT content FROM messages WHERE id='old-message'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(content, "原始消息不变");
+        for table in ["rules", "pending_actions"] {
+            let (status, version): (String, i64) = connection
+                .query_row(
+                    &format!("SELECT status,review_version FROM {table}"),
+                    [],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!((status, version), ("pending".into(), 1));
+        }
+        let decisions: i64 = connection
+            .query_row("SELECT COUNT(*) FROM chat_proposal_decisions", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(decisions, 0);
     }
 
     #[test]
@@ -185,12 +287,14 @@ mod tests {
             )
             .unwrap();
         assert_eq!(text, "旧正文");
-        assert!(connection
-            .execute(
-                "UPDATE knowledge_dependencies SET upstream_id='child' WHERE page_id='child'",
-                []
-            )
-            .is_err());
+        assert!(
+            connection
+                .execute(
+                    "UPDATE knowledge_dependencies SET upstream_id='child' WHERE page_id='child'",
+                    []
+                )
+                .is_err()
+        );
     }
 
     /// 旧迁移链留下的 `schema_migrations` 表必须已被 v3 删掉。

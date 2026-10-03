@@ -3,19 +3,30 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart' as ui;
-import 'package:nativeapi/nativeapi.dart' as na;
+import 'package:screen_retriever/screen_retriever.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'window_geometry_store.dart';
 import 'window_service.dart';
+import '../bridge/generated.dart/api/chat_runs.dart' as chat_runs;
 
-/// 桌面实现：window_manager / screen_retriever → nativeapi（仅 Linux/macOS/Windows
-/// 参与编译；Android/iOS 走 window_service_stub.dart，cnativeapi FFI 会把
-/// Android AOT 编译器打崩）。
+/// 桌面实现：window_manager（仅 Linux/macOS/Windows 参与编译；
+/// Android/iOS 走 window_service_stub.dart，本文件只在 main_desktop.dart
+/// 注册，不进入 Android main 的可达图）。
+///
+/// 跨平台视觉一致的纪律（FlClash 生产验证）：
+/// - **不设透明背景、不自裁圆角**——窗口不透明直角，圆角交给系统
+///   （Win11 DWM 自动圆角、macOS 系统圆角、Linux 直角）。透明像素在
+///   Windows 上被 DWM 合成为白色，会留一圈白边（踩过）。
+/// - 无边框：macOS/Windows 用 `setTitleBarStyle(TitleBarStyle.hidden)`；
+///   **Linux 在 `my_application.cc` 建窗期 `gtk_window_set_decorated(FALSE)`**
+///   （window_manager/nativeapi 在 GL 上下文建好后再改会崩 GTK，踩过）。
 class DesktopWindowService implements WindowService {
   @override
   WindowMode currentMode = WindowMode.main;
 
-  na.ListenerId? _listenerId;
+  /// 事件监听（window_manager 是 mixin 式回调，这里挂到 WindowListener）。
+  _WindowEventRelay? _eventRelay;
 
   /// 主窗口几何的本地配置存储（window.json，不落数据库）。
   final WindowGeometryStore _geometryStore = const WindowGeometryStore();
@@ -29,48 +40,21 @@ class DesktopWindowService implements WindowService {
   static const ui.Size mainWindowMinSize = ui.Size(800, 600);
   static const ui.Size captureWindowSize = ui.Size(500, 240);
 
-  /// 当前平台窗口（Flutter 引擎窗口，nativeapi 侧以 GTK/NSWindow/HWND 枚举）。
-  na.Window? get _window => na.WindowManager.instance.getCurrent();
-
-  // nativeapi 0.4 uses its own geometry and color value types.
-  static na.Size _naSize(ui.Size s) =>
-      na.Size(width: s.width, height: s.height);
-  static na.Rectangle _naRect(ui.Rect r) =>
-      na.Rectangle(x: r.left, y: r.top, width: r.width, height: r.height);
-  static ui.Rect _uiRect(na.Rectangle r) =>
-      ui.Rect.fromLTWH(r.x, r.y, r.width, r.height);
-  static const na.Color _transparent = na.Color(r: 0, g: 0, b: 0, a: 0);
-
-  /// 等窗口可用（nativeapi 从现有原生窗口枚举，理论上 main() 里就绪；
-  /// 轮询只是多平台保险）。超时返回 null，不阻塞启动。
-  Future<na.Window?> _waitForWindow({
-    Duration timeout = const Duration(seconds: 2),
-  }) async {
-    final deadline = DateTime.now().add(timeout);
-    while (DateTime.now().isBefore(deadline)) {
-      final w = _window;
-      if (w != null) return w;
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    }
-    final w = _window;
-    if (w != null) return w;
-    ui.debugPrint('nativeapi: 窗口未就绪（超时 ${timeout.inMilliseconds}ms）');
-    return null;
+  bool _isDesktop() {
+    return Platform.isLinux || Platform.isMacOS || Platform.isWindows;
   }
 
   /// 主窗口目标尺寸：默认 1440x900，但夹在可用区内。
-  /// 优先级：主显示器工作区（DisplayManager.workArea，扣掉顶栏/dock）>
+  /// 优先级：主显示器工作区（screen_retriever visibleSize）>
   /// 整屏逻辑尺寸（platformDispatcher）> 默认值。
-  /// 小屏/分屏下强制超大尺寸会与 compositor 来回拉扯，
-  /// 启动时表现为 OpenGL frame 尺寸 WARNING（无害但吵）。
-  /// 取不到显示器信息时回退默认值。
-  static ui.Size clampedMainSize() {
+  static Future<ui.Size> clampedMainSize() async {
     const want = mainWindowSize;
     const min = mainWindowMinSize;
     ui.Size? cap;
     try {
-      final r = na.DisplayManager.instance.getPrimary()?.workArea;
-      if (r != null) cap = ui.Size(r.width, r.height);
+      final d = await screenRetriever.getPrimaryDisplay();
+      final v = d.visibleSize;
+      if (v != null) cap = ui.Size(v.width, v.height);
     } catch (_) {
       // 插件不可用时退到整屏尺寸
     }
@@ -96,30 +80,35 @@ class DesktopWindowService implements WindowService {
     }
   }
 
-  /// 应用主窗口外观与落位（启动期调用，早于首帧以规避无边框闪烁）。
-  /// - 无边框标题栏（隐藏原生标题栏）、最小尺寸、任务栏可见、标题；
-  /// - 有保存几何则恢复大小/位置，否则默认尺寸+居中。
-  /// 不主动 show()：Flutter runner 首帧会自动显示窗口。
+  /// 应用主窗口外观与落位（启动期调用）。
+  /// window_manager 的标准编排：ensureInitialized → 保存几何决定 size/center →
+  /// WindowOptions → waitUntilReadyToShow → show。
+  /// 注意：Flutter 桌面 runner 默认建窗即显示，原生标题栏闪现靠 runner 侧
+  /// 隐藏窗口规避（Linux my_application.cc 已处理）；waitUntilReadyToShow
+  /// 之前的 setTitleBarStyle 保证首帧就是无边框。
   @override
   Future<void> applyMainChrome() async {
     if (!_isDesktop()) return;
     currentMode = WindowMode.main;
-    final w = await _waitForWindow();
-    if (w == null) return;
+    await windowManager.ensureInitialized();
 
-    _applyTitleBarHidden(w);
-    w.minimumSize = _naSize(mainWindowMinSize);
-    w.isVisibleInTaskbar = true;
-    w.isClosable = false; // 关闭即隐藏：拦截原生关闭，走自定义关闭按钮 hide()
-    w.title = 'Elsewhen';
-    _applyWindowBackground(w);
+    await _applyTitleBarHidden();
+    await windowManager.setPreventClose(true); // 关闭即隐藏：走 onWindowClose → hide()
 
     final restored = await restoreMainBounds();
-    if (!restored) {
-      // 首次启动（或显示器布局变了）：默认尺寸 + 居中。
-      w.setSize(_naSize(clampedMainSize()), false);
-      w.center();
-    }
+    final size = restored ? null : await clampedMainSize();
+    await windowManager.waitUntilReadyToShow(
+      WindowOptions(
+        size: size,
+        minimumSize: mainWindowMinSize,
+        center: !restored,
+        title: 'Elsewhen',
+      ),
+      () async {
+        await windowManager.show();
+        await windowManager.focus();
+      },
+    );
     ui.debugPrint('Applied main window chrome');
   }
 
@@ -128,56 +117,43 @@ class DesktopWindowService implements WindowService {
   Future<void> applyCaptureChrome() async {
     if (!_isDesktop()) return;
     currentMode = WindowMode.capture;
-    final w = await _waitForWindow();
-    if (w == null) return;
+    await windowManager.ensureInitialized();
 
-    w.setSize(_naSize(captureWindowSize), false);
-    w.isAlwaysOnTop = true;
-    _applyTitleBarHidden(w);
-    w.isClosable = false; // 与主窗口一致：捕获窗点 X 走 hide()
-    _applyWindowBackground(w);
-    w.center();
+    await _applyTitleBarHidden();
+    await windowManager.setPreventClose(true);
+
+    await windowManager.waitUntilReadyToShow(
+      const WindowOptions(
+        size: captureWindowSize,
+        center: true,
+        alwaysOnTop: true,
+        title: 'Elsewhen',
+      ),
+      () async {
+        await windowManager.show();
+        await windowManager.focus();
+      },
+    );
     ui.debugPrint('Applied capture window chrome');
   }
 
   @override
   Future<void> initialize() async {
     if (!_isDesktop()) return;
-
-    _listenerId = na.WindowManager.instance.addListener(_onWindowEvent);
+    _eventRelay ??= _WindowEventRelay(this);
+    windowManager.addListener(_eventRelay!);
   }
 
-  bool _isDesktop() {
-    return Platform.isLinux || Platform.isMacOS || Platform.isWindows;
-  }
-
-  /// 隐藏原生标题栏（无边框）——**macOS/Windows 走 nativeapi，Linux 跳过**。
+  /// 隐藏原生标题栏（无边框）——**macOS/Windows 走 window_manager，Linux 跳过**。
   ///
-  /// Linux 上不能用 nativeapi 改：它在 Flutter 已建好 GL 上下文之后才执行，GTK
-  /// 为此重建窗口 GdkVisual，与已有上下文不匹配，首帧即
-  /// `Could not determine GL version` +
-  /// `Failed to create platform view rendering surface` +
-  /// `FlutterEngineRunTask returned kInvalidArguments`，表现为**窗口只有边框、
-  /// 完全没有内容**。
-  ///
-  /// 逐项二分定位（正确入口 `lib/main_desktop.dart` 下实测）：跳过
-  /// `titleBarStyle` → GL 错误 0；跳过 `backgroundColor` / `minimumSize` /
-  /// `isVisibleInTaskbar` / `isClosable` / `title` / 尺寸落位 → 全部仍失败。
-  ///
-  /// 改由 `linux/runner/my_application.cc` 在 `fl_view_new` 之前用
-  /// `gtk_window_set_decorated(FALSE)` 完成，视觉上等价且时序安全。
-  void _applyTitleBarHidden(na.Window w) {
+  /// Linux 上不能在运行时改：GL 上下文已建好，此时改 GTK 装饰会重建
+  /// GdkVisual 与已有上下文不匹配，首帧即 GL 错误、窗口只有边框没内容
+  /// （nativeapi 时代逐项二分定位的坑，window_manager 同病）。
+  /// 改由 `linux/runner/my_application.cc` 在 `fl_view_new` 之前
+  /// `gtk_window_set_decorated(FALSE)` 完成。
+  Future<void> _applyTitleBarHidden() async {
     if (Platform.isLinux) return;
-    w.titleBarStyle = na.TitleBarStyle.hidden;
-  }
-
-  /// 设置窗口背景色（全平台透明）。
-  ///
-  /// 透明本身是安全的：Linux 上实测设透明背景 GL 错误 0（见下）。真正的坑是
-  /// `titleBarStyle`，见 [_applyTitleBarHidden]。Linux 上的透明让窗口圆角能透出
-  /// 桌面，故不再按平台区分。
-  void _applyWindowBackground(na.Window w) {
-    w.backgroundColor = _transparent;
+    await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
   }
 
   /// Switch to main application mode
@@ -186,44 +162,42 @@ class DesktopWindowService implements WindowService {
     if (!_isDesktop()) return;
 
     currentMode = WindowMode.main;
-    final w = _window;
-    if (w == null) return;
 
     // 恢复上次的主窗口几何；无历史则默认尺寸+居中。
     final restored = await restoreMainBounds();
     if (!restored) {
-      w.setSize(_naSize(clampedMainSize()), false);
-      w.center();
+      await windowManager.setSize(await clampedMainSize());
+      await windowManager.center();
     }
-    w.minimumSize = _naSize(mainWindowMinSize);
-    w.isAlwaysOnTop = false;
-    _applyTitleBarHidden(w);  // Linux 跳过 titleBarStyle（GL 崩溃），见该方法注释
-    w.title = 'Elsewhen';
-    w.show();
-    w.focus();
+    await windowManager.setMinimumSize(mainWindowMinSize);
+    await windowManager.setAlwaysOnTop(false);
+    await _applyTitleBarHidden(); // Linux 跳过（GL 崩溃），见该方法注释
+    await windowManager.setTitle('Elsewhen');
+    await windowManager.show();
+    await windowManager.focus();
 
     ui.debugPrint('Switched to main mode');
   }
 
   /// 恢复上次关闭时保存的主窗口大小/位置（本地 window.json，不落库）。
   /// 返回 true 表示已按保存几何落位，调用方无需再 center。
-  /// 任何失败（非桌面 / 无历史 / 窗口未就绪 / 显示器布局变了）都返回 false，
+  /// 任何失败（非桌面 / 无历史 / 显示器布局变了）都返回 false，
   /// 由调用方退回默认居中，绝不把窗口摆到屏幕外或带着坏数据落位。
   @override
   Future<bool> restoreMainBounds() async {
     if (!_isDesktop()) return false;
     final saved = _geometryStore.load();
     if (saved == null) return false;
-    final w = _window;
-    if (w == null) return false;
 
     // 多显示器工作区：恢复的目标屏未必是主屏，全部参与判断。
     List<ui.Rect> visibleAreas;
     try {
-      visibleAreas = na.DisplayManager.instance
-          .getAll()
-          .map((d) => _uiRect(d.workArea))
-          .toList();
+      final displays = await screenRetriever.getAllDisplays();
+      visibleAreas = displays.map((d) {
+        final pos = d.visiblePosition ?? ui.Offset.zero;
+        final size = d.visibleSize ?? d.size;
+        return ui.Rect.fromLTWH(pos.dx, pos.dy, size.width, size.height);
+      }).toList();
     } catch (_) {
       // 插件不可用时退到默认落位：位置可信度不高，不值得为此多折腾。
       return false;
@@ -236,7 +210,7 @@ class DesktopWindowService implements WindowService {
     );
     if (bounds == null) return false;
 
-    w.bounds = _naRect(bounds);
+    await windowManager.setBounds(null, size: bounds.size, position: bounds.topLeft);
     ui.debugPrint(
       'Restored window bounds: '
       '(${bounds.left.toInt()}, ${bounds.top.toInt()}) '
@@ -251,15 +225,13 @@ class DesktopWindowService implements WindowService {
   void _scheduleGeometrySave() {
     if (!_isDesktop() || currentMode != WindowMode.main) return;
     _saveGeometryDebounce?.cancel();
-    _saveGeometryDebounce = Timer(const Duration(milliseconds: 400), () {
+    _saveGeometryDebounce = Timer(const Duration(milliseconds: 400), () async {
       try {
-        final w = _window;
-        if (w == null) return;
-        if (w.isMaximized) return;
-        if (w.isFullScreen) return;
-        final b = w.bounds;
+        if (await windowManager.isMaximized()) return;
+        if (await windowManager.isFullScreen()) return;
+        final b = await windowManager.getBounds();
         _geometryStore.save(
-          WindowGeometry(x: b.x, y: b.y, width: b.width, height: b.height),
+          WindowGeometry(x: b.left, y: b.top, width: b.width, height: b.height),
         );
       } catch (_) {
         // 落盘失败静默：窗口偏好丢了，下次启动退回默认落位。
@@ -273,15 +245,13 @@ class DesktopWindowService implements WindowService {
     if (!_isDesktop()) return;
 
     currentMode = WindowMode.capture;
-    final w = _window;
-    if (w == null) return;
 
-    w.setSize(_naSize(captureWindowSize), false);
-    w.isAlwaysOnTop = true;
-    _applyTitleBarHidden(w);  // Linux 跳过 titleBarStyle（GL 崩溃），见该方法注释
-    w.center();
-    w.show();
-    w.focus();
+    await windowManager.setSize(captureWindowSize);
+    await windowManager.setAlwaysOnTop(true);
+    await _applyTitleBarHidden(); // Linux 跳过（GL 崩溃），见该方法注释
+    await windowManager.center();
+    await windowManager.show();
+    await windowManager.focus();
 
     ui.debugPrint('Switched to capture mode');
   }
@@ -292,7 +262,7 @@ class DesktopWindowService implements WindowService {
     if (!_isDesktop()) return;
 
     currentMode = WindowMode.hidden;
-    _window?.hide();
+    await windowManager.hide();
 
     ui.debugPrint('Window hidden');
   }
@@ -302,8 +272,8 @@ class DesktopWindowService implements WindowService {
   Future<void> showWindow() async {
     if (!_isDesktop()) return;
 
-    _window?.show();
-    _window?.focus();
+    await windowManager.show();
+    await windowManager.focus();
 
     ui.debugPrint('Window shown');
   }
@@ -323,7 +293,7 @@ class DesktopWindowService implements WindowService {
   Future<void> closeWindow() async {
     if (!_isDesktop()) return;
 
-    _window?.hide();
+    await windowManager.hide();
   }
 
   /// Quit application
@@ -331,52 +301,71 @@ class DesktopWindowService implements WindowService {
   Future<void> quitApp() async {
     if (!_isDesktop()) return;
 
-    na.Application.instance.quit(0);
+    // Only explicit quit stops generation. Closing to tray keeps work alive.
+    // OS termination may skip this hook; durable leases remain the recovery path.
+    try {
+      await chat_runs.shutdownChatRuns().timeout(
+        const Duration(milliseconds: 750),
+      );
+    } catch (_) {
+      ui.debugPrint('Chat shutdown did not finish; durable recovery remains active.');
+    }
+    // 解除 close 拦截后真正退出
+    await windowManager.setPreventClose(false);
+    await windowManager.close();
   }
 
   @override
-  void startDragging() => _window?.startDragging();
+  void startDragging() {
+    windowManager.startDragging();
+  }
 
   @override
-  void minimize() => _window?.minimize();
+  void minimize() {
+    windowManager.minimize();
+  }
 
   @override
   void toggleMaximize() {
-    final w = _window;
-    if (w == null) return;
-    if (w.isMaximized) {
-      w.unmaximize();
-    } else {
-      w.maximize();
-    }
+    windowManager.isMaximized().then((maximized) {
+      if (maximized) {
+        windowManager.unmaximize();
+      } else {
+        windowManager.maximize();
+      }
+    });
   }
 
-  /// nativeapi 事件统一入口（密封类 switch）。
-  void _onWindowEvent(na.WindowEvent event) {
-    switch (event) {
-      case na.WindowClosedEvent():
-        // 关闭即隐藏（isClosable=false 时正常不会走到这里，双保险）。
-        _window?.hide();
-      case na.WindowMovedEvent():
-      case na.WindowResizedEvent():
-        _scheduleGeometrySave();
-      case na.WindowFocusedEvent():
-      case na.WindowBlurredEvent():
-      case na.WindowMinimizedEvent():
-      case na.WindowMaximizedEvent():
-      case na.WindowRestoredEvent():
-      case na.WindowCreatedEvent():
-        break;
-    }
+  /// 事件回调入口（由 _WindowEventRelay 转发）。
+  void _onClose() {
+    // setPreventClose(true) 时拦截关闭：隐藏而非退出（托盘/后台运行）。
+    windowManager.hide();
   }
+
+  void _onMovedOrResized() => _scheduleGeometrySave();
 
   @override
   void dispose() {
     _saveGeometryDebounce?.cancel();
-    final id = _listenerId;
-    if (id != null) {
-      na.WindowManager.instance.removeListener(id);
-      _listenerId = null;
+    final relay = _eventRelay;
+    if (relay != null) {
+      windowManager.removeListener(relay);
+      _eventRelay = null;
     }
   }
+}
+
+/// window_manager 的 WindowListener 回调转发到 DesktopWindowService。
+class _WindowEventRelay with WindowListener {
+  _WindowEventRelay(this._service);
+  final DesktopWindowService _service;
+
+  @override
+  void onWindowClose() => _service._onClose();
+
+  @override
+  void onWindowMoved() => _service._onMovedOrResized();
+
+  @override
+  void onWindowResized() => _service._onMovedOrResized();
 }

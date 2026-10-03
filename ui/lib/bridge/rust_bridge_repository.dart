@@ -19,6 +19,7 @@ import '../models/rule.dart';
 import '../models/relation.dart';
 import '../models/goal.dart';
 import 'api.dart' as api;
+import 'chat_queue_dispatcher.dart';
 import 'generated.dart/frb_generated.dart';
 
 /// Rust bridge implementation of storage repository
@@ -33,6 +34,10 @@ class RustBridgeRepository implements StorageRepository {
   /// 时序随机撞出 `SQLITE_BUSY`——表现为「每次失败的用例和调用点都不同」。
   /// 测试要推进队列时显式调 `triggerAnalysis()` 即可，不需要后台线程代替它。
   final bool runBackgroundWorker;
+  final bool runChatQueueWorker;
+  late final _chatQueueDispatcher = ChatQueueDispatcher(poll: _pollChatQueue);
+  final Map<String, String> _observedQueueRuns = {};
+  final ValueNotifier<api.ChatRunDto?> chatQueueRunStarted = ValueNotifier(null);
   bool _initialized = false;
   bool _analysisWorkerRunning = false;
   bool _analysisWorkerScheduled = false;
@@ -64,7 +69,11 @@ class RustBridgeRepository implements StorageRepository {
     return File(dylib).existsSync() ? ExternalLibrary.open(dylib) : null;
   }
 
-  RustBridgeRepository({this.databasePath, this.runBackgroundWorker = true});
+  RustBridgeRepository({
+    this.databasePath,
+    this.runBackgroundWorker = true,
+    this.runChatQueueWorker = true,
+  });
 
   @override
   Future<void> initialize() async {
@@ -340,6 +349,8 @@ class RustBridgeRepository implements StorageRepository {
     _disposed = true;
     _analysisTimer?.cancel();
     _analysisTimer = null;
+    _chatQueueDispatcher.dispose();
+    _observedQueueRuns.clear();
   }
 
   // Conversation methods
@@ -425,22 +436,67 @@ class RustBridgeRepository implements StorageRepository {
     String conversationId,
   ) => api.listPendingActions(conversationId: conversationId);
 
-  Future<bool> updatePendingActionArgs(String actionId, String argsJson) =>
-      api.updatePendingActionArgs(actionId: actionId, argsJson: argsJson);
+  Future<bool> updatePendingActionArgs(
+    String conversationId,
+    api.PendingActionDto action,
+    String argsJson,
+  ) => api.updatePendingActionArgs(
+    conversationId: conversationId,
+    actionId: action.id,
+    argsJson: argsJson,
+    expectedVersion: action.version,
+    approvalToken: action.approvalToken,
+  );
 
   Future<String> confirmKnowledgeDraft(
     String conversationId,
-    String actionId,
+    api.PendingActionDto action,
   ) => api.confirmKnowledgeDraft(
     conversationId: conversationId,
-    actionId: actionId,
+    actionId: action.id,
+    expectedVersion: action.version,
+    approvalToken: action.approvalToken,
   );
 
-  Future<void> declineKnowledgeDraft(String conversationId, String actionId) =>
-      api.declineKnowledgeDraft(
-        conversationId: conversationId,
-        actionId: actionId,
-      );
+  Future<void> declineKnowledgeDraft(
+    String conversationId,
+    api.PendingActionDto action,
+  ) => api.declineKnowledgeDraft(
+    conversationId: conversationId,
+    actionId: action.id,
+    expectedVersion: action.version,
+    approvalToken: action.approvalToken,
+  );
+
+  Future<List<api.ChatProposalDto>> listChatProposals(
+    String? conversationId, {
+    int offset = 0,
+    int limit = 25,
+  }) => api.listChatProposals(
+    conversationId: conversationId,
+    offset: offset,
+    limit: limit,
+  );
+
+  Future<List<api.ChatDecisionDto>> listChatDecisions(
+    String? conversationId, {
+    int offset = 0,
+    int limit = 25,
+  }) => api.listChatDecisions(
+    conversationId: conversationId,
+    offset: offset,
+    limit: limit,
+  );
+
+  Future<api.ChatProposalDto> editChatProposal(
+    api.ChatReviewRequest request,
+    String argsJson,
+  ) => api.editChatProposal(request: request, argsJson: argsJson);
+
+  Future<api.ChatDecisionDto> decideChatProposal(
+    api.ChatReviewRequest request, {
+    required bool accept,
+  }) => api.decideChatProposal(request: request, accept: accept);
 
   Future<List<Message>> getChildMessages(String parentId) async {
     final dtos = await api.getChildMessages(parentId: parentId);
@@ -474,6 +530,25 @@ class RustBridgeRepository implements StorageRepository {
         .toList();
   }
 
+  bool get supportsPageTasks => _initialized;
+
+  Future<api.WikiChatMaterialDto> getWikiChatMaterial(String slug) =>
+      api.getWikiChatMaterial(pageSlug: slug);
+
+  Future<String?> getWikiChatTask(String conversationId) =>
+      api.getWikiChatTask(conversationId: conversationId);
+
+  Future<Message> submitWikiChatInput(String conversationId, String content, {
+    required String idempotencyKey,
+    required String taskJson,
+  }) async {
+    final dto = await api.submitWikiChatInput(conversationId: conversationId,
+        content: content, idempotencyKey: idempotencyKey, taskJson: taskJson);
+    return Message(id: dto.id, conversationId: dto.conversationId,
+        parentMessageId: dto.parentMessageId, role: MessageRole.fromString(dto.role),
+        content: dto.content, createdAt: DateTime.parse(dto.createdAt).toLocal());
+  }
+
   Future<Message> sendMessage(
     String conversationId,
     String role,
@@ -495,6 +570,133 @@ class RustBridgeRepository implements StorageRepository {
       createdAt: DateTime.parse(dto.createdAt).toLocal(),
     );
   }
+
+  /// Legacy in-memory test repositories can keep their synchronous reply path.
+  /// A successfully initialized real bridge always uses durable generation.
+  bool get supportsChatRuns => _initialized;
+  bool get supportsChatQueue => _initialized;
+
+  void _watchChatQueue(String conversationId) {
+    if (_initialized && !_disposed && runChatQueueWorker) {
+      _chatQueueDispatcher.watch(conversationId);
+    }
+  }
+
+  Future<bool> _pollChatQueue(String conversationId) async {
+    if (_disposed) return false;
+    final started = await dispatchChatInputQueue(conversationId);
+    if (_disposed) return false;
+    // A lost dispatch response can still have committed a run. Reconcile its
+    // identity without recreating input or automatically retrying generation.
+    final latest = started ?? await getLatestChatRun(conversationId);
+    if (_disposed) return false;
+    if (latest != null && _observedQueueRuns[conversationId] != latest.id) {
+      _observedQueueRuns[conversationId] = latest.id;
+      chatQueueRunStarted.value = latest;
+    }
+    final queue = await getChatInputQueue(conversationId);
+    if (queue.paused) _observedQueueRuns.remove(conversationId);
+    return !queue.paused;
+  }
+
+  Future<api.ChatRunDto?> scheduleChatInput(String conversationId, String inputMessageId) async {
+    try {
+      return await api.scheduleChatInput(conversationId: conversationId, inputMessageId: inputMessageId);
+    } finally {
+      _watchChatQueue(conversationId);
+    }
+  }
+  Future<List<api.UnscheduledChatInputDto>> listUnscheduledChatInputs(
+    String conversationId, {
+    int offset = 0,
+  }) => api.listUnscheduledChatInputs(
+    conversationId: conversationId,
+    offset: offset,
+    limit: 20,
+  );
+
+  Future<List<api.ChatRunDto>> listChatRuns(String conversationId, {int offset = 0}) =>
+      api.listChatRuns(conversationId: conversationId, offset: offset, limit: 20);
+
+  Future<int> enqueueChatInput(String conversationId, String inputMessageId) async {
+    try {
+      return await api.enqueueChatInput(
+        conversationId: conversationId,
+        inputMessageId: inputMessageId,
+      );
+    } finally {
+      _watchChatQueue(conversationId);
+    }
+  }
+  Future<int> enqueueChatSupplement(
+    String conversationId,
+    String inputMessageId,
+    String runId, {
+    String contextJson = '{}',
+  }) => api.enqueueChatSupplement(
+    conversationId: conversationId,
+    inputMessageId: inputMessageId,
+    runId: runId,
+    contextJson: contextJson,
+  );
+  Future<api.ChatInputQueueDto> getChatInputQueue(
+    String conversationId, {
+    int afterId = 0,
+  }) => api.getChatInputQueue(
+    conversationId: conversationId,
+    afterId: afterId,
+    limit: 100,
+  );
+  Future<bool> withdrawChatInput(String conversationId, int queueId) =>
+      api.withdrawChatInput(conversationId: conversationId, queueId: queueId);
+  Future<void> resumeChatInputQueue(String conversationId) async {
+    try {
+      await api.resumeChatInputQueue(conversationId: conversationId);
+    } finally {
+      _watchChatQueue(conversationId);
+    }
+  }
+  Future<void> pauseChatInputQueue(String conversationId) async {
+    await api.pauseChatInputQueue(conversationId: conversationId);
+    _chatQueueDispatcher.forget(conversationId);
+    _observedQueueRuns.remove(conversationId);
+  }
+  Future<api.ChatRunDto?> dispatchChatInputQueue(String conversationId) =>
+      api.dispatchChatInputQueue(conversationId: conversationId);
+
+  Future<api.ChatRunDto> startChatRun(
+    String conversationId,
+    String inputMessageId,
+    String idempotencyKey,
+  ) => api.startChatRun(
+    conversationId: conversationId,
+    inputMessageId: inputMessageId,
+    idempotencyKey: idempotencyKey,
+  );
+
+  Future<api.ChatRunDto?> getChatRun(String conversationId, String runId) =>
+      api.getChatRun(conversationId: conversationId, runId: runId);
+
+  Future<api.ChatRunDto?> getLatestChatRun(String conversationId) =>
+      api.getLatestChatRun(conversationId: conversationId);
+
+  Future<api.ChatRunEventPageDto> listChatRunEvents(
+    String conversationId,
+    String runId,
+    int afterSequence, {
+    int limit = 64,
+  }) => api.listChatRunEvents(
+    conversationId: conversationId,
+    runId: runId,
+    afterSequence: afterSequence,
+    limit: limit,
+  );
+
+  /// Call only from an explicit application quit, never chat-view disposal.
+  Future<int> shutdownChatRuns() => api.shutdownChatRuns();
+
+  Future<api.ChatRunDto?> cancelChatRun(String conversationId, String runId) =>
+      api.cancelChatRun(conversationId: conversationId, runId: runId);
 
   Future<String> generateReply(
     String conversationId, {

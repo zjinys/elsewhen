@@ -59,7 +59,7 @@ void main() {
 
     // 模型 tab（默认）：AI provider 是卡片列表（多配置 + 单激活），
     // 活跃卡片应展示库中的真实配置，而非硬编码默认值（openai.com / gpt-3.5-turbo）。
-    expect(find.text('添加配置'), findsOneWidget, reason: '多 provider 入口按钮');
+    expect(find.text('添加'), findsOneWidget, reason: '多 provider 入口按钮');
     expect(find.text('激活中'), findsOneWidget, reason: '库中配置应处于激活状态');
     // 卡片上展示真实 baseUrl / model
     expect(
@@ -165,13 +165,18 @@ void main() {
       findsOneWidget,
       reason: 'Token 用量区块应展示失败原因而非「暂无 AI 调用记录」',
     );
+    // 空状态文案绝不能出现：把故障说成「没数据」比直接报错更误导
+    expect(find.textContaining('暂无 AI 调用记录'), findsNothing);
+
+    // 规则库已迁到独立「规则」tab
+    await tester.tap(find.text('规则'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(
       find.textContaining('规则库读取失败：'),
       findsOneWidget,
       reason: '规则库区块应展示失败原因而非「还没有规则」',
     );
-    // 空状态文案绝不能出现：把故障说成「没数据」比直接报错更误导
-    expect(find.textContaining('暂无 AI 调用记录'), findsNothing);
     expect(find.textContaining('还没有规则'), findsNothing);
   });
 }

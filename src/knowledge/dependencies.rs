@@ -1,6 +1,6 @@
 //! Versioned knowledge-to-knowledge edges; originals use immutable snapshots.
-use crate::storage::{knowledge::content_hash, Store, WikiPage};
-use anyhow::{ensure, Context, Result};
+use crate::storage::{Store, WikiPage, knowledge::content_hash};
+use anyhow::{Context, Result, ensure};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 

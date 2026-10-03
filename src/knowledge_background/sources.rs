@@ -1,7 +1,7 @@
 //! One source version per tick, using the existing durable background ledger.
 use crate::{ai::provider::AiProvider, storage::Store};
 use anyhow::{Context, Result};
-use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
+use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 
 const TASK: &str = "source-compilation";
 

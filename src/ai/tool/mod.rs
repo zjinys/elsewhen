@@ -10,7 +10,7 @@
 use crate::storage::{ContentPolicy, PendingAction, Store};
 use anyhow::{Context, Result};
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// AI 发起的一次工具调用请求
 #[derive(Debug, Clone)]
@@ -92,6 +92,8 @@ pub enum ToolPolicy {
     WriteConfirm,
 }
 
+mod history;
+
 /// 工具运行上下文
 pub struct ToolContext<'a> {
     pub store: &'a Store,
@@ -121,6 +123,8 @@ impl Default for ToolRegistry {
     fn default() -> Self {
         let tools: Vec<Box<dyn Tool>> = vec![
             Box::new(ListRulesTool),
+            Box::new(history::ReadHistoryTool),
+            Box::new(history::SummarySpansTool),
             Box::new(ListWikiPagesTool),
             Box::new(GetWikiPageTool),
             Box::new(DailyTokenUsageTool),
@@ -180,7 +184,9 @@ impl Tool for ImportDirectoryProjectTool {
         });
         store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
         let excerpt: String = preview.content_md.chars().take(2400).collect();
-        Ok(format!("已完成目录 `{directory}` 的只读项目盘点，尚未写入知识库。\n\n{excerpt}\n\n确认后只保存这份项目摘要，不保存完整文件地图；原始目录仍是事实来源。项目证据可能已发送给当前 AI Provider。回复「好」后保存。"))
+        Ok(format!(
+            "已完成目录 `{directory}` 的只读项目盘点，尚未写入知识库。\n\n{excerpt}\n\n确认后只保存这份项目摘要，不保存完整文件地图；原始目录仍是事实来源。项目证据可能已发送给当前 AI Provider。在审阅卡点击接受后保存。"
+        ))
     }
 }
 
@@ -224,8 +230,9 @@ impl Tool for ImportDirectoryFilesTool {
         let action_args = json!({"preview":preview});
         store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
         Ok(format!(
-            "已读取目录 `{directory}` 的 {} 个文件原文，跳过 {} 个超限或不可读文件；尚未写入知识库。以下为前 6 个文件的内容/差异预览：\n{details}\n确认后保存本批读取到的原文，旧版本保留。回复「好」保存，回复「取消」放弃。",
-            preview.entries.len(),preview.skipped.len()
+            "已读取目录 `{directory}` 的 {} 个文件原文，跳过 {} 个超限或不可读文件；尚未写入知识库。以下为前 6 个文件的内容/差异预览：\n{details}\n确认后保存本批读取到的原文，旧版本保留。在审阅卡点击接受保存，在审阅卡点击拒绝放弃。",
+            preview.entries.len(),
+            preview.skipped.len()
         ))
     }
 }
@@ -271,7 +278,10 @@ impl ToolRegistry {
     pub fn prompt_for_specs(specs: &[ToolSpec]) -> String {
         let mut out = String::from("可用工具（name：用途）：\n");
         for spec in specs {
-            out.push_str(&format!("- {}：{}\n", spec.name, spec.description));
+            out.push_str(&format!(
+                "- {}：{}\n参数 JSON Schema：{}\n",
+                spec.name, spec.description, spec.parameters
+            ));
         }
         out
     }
@@ -296,6 +306,23 @@ pub(crate) fn dispatch_with_knowledge(
 ) -> ToolResultMsg {
     match registry.get(&call.name) {
         Some(tool) => {
+            let schema = tool.parameters_schema();
+            let missing: Vec<_> = schema["required"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .filter(|key| call.arguments.get(*key).is_none_or(Value::is_null))
+                .collect();
+            if !missing.is_empty() {
+                return ToolResultMsg::err(
+                    call,
+                    format!(
+                        "缺少必填参数：{}；请按工具的参数 JSON Schema 一次补全，本次未执行。",
+                        missing.join("、")
+                    ),
+                );
+            }
             let ctx = ToolContext {
                 store,
                 conversation_id,
@@ -797,7 +824,7 @@ impl Tool for SaveKnowledgeDraftTool {
             .is_some()
         {
             return Ok(format!(
-                "《{}》已经有一份待确认草稿（尚未保存），本次不重复创建。回复「好」即可保存这一份。",
+                "《{}》已经有一份待确认草稿（尚未保存），本次不重复创建。在审阅卡点击接受即可保存这一份。",
                 title
             ));
         }
@@ -840,7 +867,7 @@ impl Tool for SaveKnowledgeDraftTool {
             &action_args,
         )?;
         Ok(format!(
-            "已为你草拟一篇知识库页面（待确认，尚未保存）：\n标题：{title}\n---\n{content}\n---\n—— 等你确认后才会真正保存，回复「好」即可。",
+            "已为你草拟一篇知识库页面（待确认，尚未保存）：\n标题：{title}\n---\n{content}\n---\n—— 等你确认后才会真正保存，在审阅卡点击接受即可。",
             content = {
                 let mut c = content_md.clone();
                 if c.chars().count() > 120 {
@@ -859,7 +886,15 @@ fn store_create_pending(
     args: &Value,
 ) -> Result<String> {
     let args_json = serde_json::to_string(args)?;
-    store.create_pending_action(conversation_id, action, &args_json)
+    // Analysis may finish after cancellation. Fence the final proposal insert
+    // inside the same write transaction, including tools that do network work.
+    let transaction = store.begin_write_transaction()?;
+    crate::ai::generation::check(store)?;
+    let id = store.create_pending_action(conversation_id, action, &args_json)?;
+    if let Some(transaction) = transaction {
+        transaction.commit()?;
+    }
+    Ok(id)
 }
 
 // ── 个人待办工具 ────────────────────────────────────────────────
@@ -943,7 +978,7 @@ impl Tool for CreateTodoTool {
         });
         store_create_pending(ctx.store, ctx.conversation_id, "create_todo", &action_args)?;
         Ok(format!(
-            "已为你草拟一条待办（待确认，尚未创建）：\n「{title}」\n—— 回复「好」即可建条。"
+            "已为你草拟一条待办（待确认，尚未创建）：\n「{title}」\n—— 在审阅卡点击接受即可建条。"
         ))
     }
 }
@@ -1046,7 +1081,7 @@ impl Tool for ProposePeopleRelationsTool {
             lines.push(format!("{person} —— {rel} —— {target}"));
         }
         Ok(format!(
-            "已为你草拟联系人与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
+            "已为你草拟联系人与关系（待确认，尚未保存）：\n{}\n—— 在审阅卡点击接受即建档保存。",
             lines.join("\n")
         ))
     }
@@ -1118,7 +1153,7 @@ impl Tool for BatchExtractPeopleRelationsTool {
             lines.push(format!("{person} —— {rel} —— {target}"));
         }
         Ok(format!(
-            "已从事件批量草拟联系人与关系（待确认，尚未保存）：\n{}\n—— 回复「好」即建档保存。",
+            "已从事件批量草拟联系人与关系（待确认，尚未保存）：\n{}\n—— 在审阅卡点击接受即建档保存。",
             lines.join("\n")
         ))
     }
@@ -1245,7 +1280,7 @@ impl Tool for ArchiveConversationsByTitleTool {
             &action_args,
         )?;
         Ok(format!(
-            "找到 {} 个匹配的对话，将归档：\n{}\n—— 回复「好」即归档。",
+            "找到 {} 个匹配的对话，将归档：\n{}\n—— 在审阅卡点击接受即归档。",
             matches.len(),
             titles
                 .iter()
@@ -1328,7 +1363,7 @@ impl Tool for RenameWikiPageTool {
         if !reason.is_empty() {
             lines.push(format!("· 原因：{reason}"));
         }
-        lines.push("—— 回复「好」即生效。".to_string());
+        lines.push("—— 在审阅卡点击接受即生效。".to_string());
         Ok(lines.join("\n"))
     }
 }
@@ -1409,7 +1444,7 @@ impl Tool for ImportUrlToWikiTool {
             .trim_end()
             .to_string();
         Ok(format!(
-            "已抓取「{title}」并草拟保存（待确认）：\n{preview}{}\n{change}\n—— 回复「好」保存该版本，回复「取消」放弃；旧原文保留。",
+            "已抓取「{title}」并草拟保存（待确认）：\n{preview}{}\n{change}\n—— 在审阅卡点击接受保存该版本，在审阅卡点击拒绝放弃；旧原文保留。",
             if c.content_md.chars().count() > 160 {
                 "…"
             } else {
@@ -1471,9 +1506,40 @@ impl Tool for SaveWikiRevisionTool {
                 .as_ref()
                 .is_some_and(|p| matches!(p.area.as_str(), "imported" | "derivative"))
         {
-            anyhow::bail!("当前页是受保护原料或派生产物，不能覆盖原文；请用 save_as=derivative 草拟新的派生产物，等待用户确认");
+            anyhow::bail!(
+                "当前页是受保护原料或派生产物，不能覆盖原文；请用 save_as=derivative 草拟新的派生产物，等待用户确认"
+            );
         }
         let current = current.context("知识页不存在")?;
+        let task = ctx.store.current_page_task(ctx.conversation_id)?;
+        let mut content_md = content_md;
+        let mut title = title;
+        if let Some(task) = &task {
+            task.validate(ctx.store)?;
+            anyhow::ensure!(
+                task.pages.first().is_some_and(|p| p.slug == slug),
+                "当前任务没有选择这个修订目标"
+            );
+            anyhow::ensure!(
+                save_as == "derivative"
+                    || matches!(task.kind.as_str(), "local_edit" | "full_revision"),
+                "问答、总结和对照任务只能草拟派生产物；修改本页请明确选择编辑任务"
+            );
+            if task.kind == "local_edit" {
+                let chars: Vec<_> = current.content_md.chars().collect();
+                let (start, end) = (
+                    task.start_char.context("缺少选区")?,
+                    task.end_char.context("缺少选区")?,
+                );
+                content_md = format!(
+                    "{}{}{}",
+                    chars[..start].iter().collect::<String>(),
+                    content_md,
+                    chars[end..].iter().collect::<String>()
+                );
+                title = current.title.clone();
+            }
+        }
         let basis = crate::knowledge::authoring::revision_basis(ctx.store, &current)?;
         let applicable = arg_str_opt(args, "applicable_when")
             .unwrap_or_else(|| basis["applicable_when"].as_str().unwrap_or("").to_owned());
@@ -1491,6 +1557,7 @@ impl Tool for SaveWikiRevisionTool {
             "content_type": content_type.clone(),
             "base_hash":crate::storage::knowledge::content_hash(&current.content_md),
             "revision_basis":basis,
+            "page_task":task,
             "applicable_when":applicable,
         });
         store_create_pending(
@@ -1505,10 +1572,13 @@ impl Tool for SaveWikiRevisionTool {
                 .unwrap_or_else(|| "内容".to_string());
             format!("作为「{ct}」派生产物（原页不改动）")
         } else {
-            format!("直接修订当前页；适用条件：{}。若为个人规则，确认即确认修订后的规则与条件，保留原强度", applicable)
+            format!(
+                "直接修订当前页；适用条件：{}。若为个人规则，确认即确认修订后的规则与条件，保留原强度",
+                applicable
+            )
         };
         Ok(format!(
-            "已草拟（{mode}）：{change_note}\n—— 回复「好」即保存。"
+            "已草拟（{mode}）：{change_note}\n—— 在审阅卡点击接受即保存。"
         ))
     }
 }
@@ -1653,10 +1723,7 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             let source_kind = arg_str(&args, "source_kind")?;
             let title = arg_str(&args, "title")?;
             let content_md = arg_str(&args, "content_md")?;
-            let tx = rusqlite::Transaction::new_unchecked(
-                &store.connection,
-                rusqlite::TransactionBehavior::Immediate,
-            )?;
+            let tx = store.begin_write_transaction()?;
             store.check_source_preview(
                 &source_url,
                 &content_md,
@@ -1703,7 +1770,9 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 source_url: Some(source_url),
             };
             let outcome = store.upsert_wiki_page_in_tx(&draft, ContentPolicy::Always)?;
-            tx.commit()?;
+            if let Some(tx) = tx {
+                tx.commit()?;
+            }
             Ok(format!(
                 "已导入知识库：{}（{}，slug={}）",
                 title,
@@ -1757,6 +1826,8 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             ))
         }
         "save_wiki_revision" => {
+            let tx = store.begin_write_transaction()?;
+            let materials = crate::storage::chat_page_tasks::validate_proposal_task(store, &args)?;
             let slug = arg_str(&args, "slug")?;
             let title = arg_str(&args, "title")?;
             let content_md = arg_str(&args, "content_md")?;
@@ -1777,7 +1848,7 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     existing.title
                 );
             }
-            if save_as == "derivative" {
+            let result = if save_as == "derivative" {
                 crate::knowledge::authoring::validate_revision_basis(
                     store,
                     &existing,
@@ -1795,15 +1866,12 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     &format!("AI 加工派生：{change_note}"),
                     Some(&pa.conversation_id),
                 )?;
-                Ok(format!(
+                crate::storage::chat_page_tasks::bind_proposal_materials(store, &page, &materials)?;
+                format!(
                     "已保存「{}」的派生产物（{ct}）：{change_note}。原文未改动。",
                     page.title
-                ))
+                )
             } else {
-                let tx = rusqlite::Transaction::new_unchecked(
-                    &store.connection,
-                    rusqlite::TransactionBehavior::Immediate,
-                )?;
                 let current = store.get_wiki_page(&slug)?.context("知识页不存在")?;
                 crate::knowledge::authoring::validate_revision_basis(
                     store,
@@ -1853,12 +1921,12 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     applicable,
                     &metadata.strength,
                 )?;
+                format!("知识页「{}」修订已保存：{change_note}", outcome.page.title)
+            };
+            if let Some(tx) = tx {
                 tx.commit()?;
-                Ok(format!(
-                    "知识页「{}」修订已保存：{change_note}",
-                    outcome.page.title
-                ))
             }
+            Ok(result)
         }
         other => anyhow::bail!("未知待执行动作：{other}"),
     }

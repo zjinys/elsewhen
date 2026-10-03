@@ -40,6 +40,9 @@
 ### 1.1 Rust
 
 CI 用 `dtolnay/rust-toolchain@stable`，仓库里**没有 `rust-toolchain.toml`**，所以跟随 stable。
+`Cargo.toml` 使用 **Rust edition 2024**；该 edition 本身至少需要 Rust 1.85，但这不是整个
+依赖链的 MSRV 承诺，开发和 CI 仍使用当前 stable。`rustfmt.toml` 显式设置
+`style_edition = "2024"`，统一 `cargo fmt` 与编辑器的格式风格。
 
 ```bash
 rustup default stable
@@ -348,6 +351,7 @@ fvm flutter build windows --release --target=lib/main_desktop.dart
 
 | 用途 | PowerShell |
 |---|---|
+| **新环境一键准备 + 启动** | `powershell -File scripts\bootstrap.ps1`（见 §7） |
 | 启动主应用 | `powershell -File scripts\elsewhen.ps1` |
 | Capture 模式 | `powershell -File scripts\elsewhen-capture.ps1` |
 | 带诊断日志启动 | `powershell -File scripts\debug-run.ps1` |
@@ -417,6 +421,52 @@ fvm flutter build windows --release --target=lib/main_desktop.dart
 
 ---
 
+## 7. 装好之后：一条命令跑起来 **[仓库]**
+
+上面各节把「装什么」说完了；装完之后到「app 跑起来」之间还有一段固定的活，
+`scripts/bootstrap.{sh,ps1}` 就是把它固化下来的：
+
+```bash
+git clone https://github.com/zjinys/elsewhen.git && cd elsewhen
+./scripts/bootstrap.sh
+```
+
+Windows：`powershell -File scripts\bootstrap.ps1`
+
+它依次做 5 件事：
+
+| 步 | 做什么 | 为什么不能省 |
+|---|---|---|
+| 1 | 预检工具链与系统依赖 | 对着 CMake 的真实查找逻辑查（`pkg-config` + `gtk+-3.0` / `x11` / `xi` / cmake / ninja），缺了在几十秒内报错，而不是等 CMake 在几分钟的 cargo build 之后才失败 |
+| 2 | 解析 Flutter SDK | `.fvm/` 被 gitignore，库里只有 `ui/.fvmrc`。新 clone 出来的仓库必然没有 SDK |
+| 3 | `pub get` | `.dart_tool/` 同样不在 git 里 |
+| 4 | `cargo build --release --lib` | **`target/` 也不在 git 里**，且必须是 release —— Dart 侧 frb 默认从 `../target/release/` dlopen（`ui/lib/bridge/rust_bridge_repository.dart` 注释），打成 debug 会得到 hash mismatch |
+| 5 | 校验桥接 codegen hash | 比对 Dart 侧 `rustContentHash` 与 `src/frb_generated.rs` 的常量。不一致时启动会在 `RustLib.init()` 抛一句看不出该跑 regen 的 `Content hash on Dart side ... is different from Rust side`；这里是唯一能提前抓到它的时机 |
+
+**它不装任何东西。** 系统包要 sudo、Flutter/Rust 要交互式安装器，代劳只会把
+「环境没配好」变成「脚本坏了」。它只做一件装包做不到的事：在动手之前把缺的东西
+指出来，并指回本文档对应小节。
+
+参数：
+
+| 参数 | 作用 |
+|---|---|
+| `--setup-only` / `-SetupOnly` | 只准备不启动（首次验证、CI） |
+| `--regen` / `-Regen` | 先跑 `regen`，用于改了 Rust 侧公开 API 之后 |
+| `--device <id>` / `-Device <id>` | 换设备；默认按平台取桌面设备 |
+
+**首次运行耗时**：release 全量编译约 1 分钟（实测 1m08s，之后增量 12s）。
+之后每次跑都是增量，`cargo` 自己的 fingerprint 让重复构建接近免费。
+
+> ### ⚠ `.sh` 与 `.ps1` 的参数绑定不一样 **[仓库]**
+>
+> bash 里 `--device android` 与 `-d android` 都只是「换个设备」，其余参数原样透传给
+> `flutter run`。PowerShell 不行：它对 `-`/`--` 开头的 token 做**参数名前缀匹配**，
+> 所以 `-d android`、`--device android` 都会被绑到 `-Device`，而不是交给 flutter。
+> 实测确认。设备一律用 `-Device` 指定，`-d` 在 Windows 上不可用作透传。
+
+---
+
 ## 附：本文档的事实来源
 
 | 结论 | 出处 |
@@ -437,3 +487,8 @@ fvm flutter build windows --release --target=lib/main_desktop.dart
 | 打包工具依赖 | `scripts/package-{deb,rpm,pacman,appimage,dmg}.sh` |
 | Windows 脚本与 BOM 要求 | `scripts/*.ps1`、`CLAUDE.md` |
 | CachyOS 实测组合 | 本机 `pacman -Q` 与 `dist/` 产物 |
+| §7 的 5 步与「三样都不在 git 里」 | `scripts/bootstrap.sh`；`.gitignore` 的 `/target/`、`.fvm/`、`ui/build/` |
+| 预检查的 4 个 pkg-config 模块 | `ui/linux/CMakeLists.txt:57-58`、`cnativeapi-0.4.0/cxx_impl/src/CMakeLists.txt:34-37`（仅 `CMAKE_SYSTEM_NAME STREQUAL "Linux"` 分支） |
+| frb 从 `../target/release/` 加载 | `ui/lib/bridge/rust_bridge_repository.dart` 的 `_bundledRustLibrary` 注释 |
+| PowerShell 把 `-d` 绑到 `-Device` | 最小复现脚本实测（`ValueFromRemainingArguments` 仍按参数名前缀匹配） |
+| 首次 release 全量 1m08s / 增量 12s | `/tmp` 下的干净 clone 实测（`cargo build --release --lib`） |

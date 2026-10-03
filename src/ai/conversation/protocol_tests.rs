@@ -1,6 +1,33 @@
 // Included after continuity_tests.rs to share the recording provider fixture.
 
 #[test]
+fn natural_replies_never_execute_or_discard_unbound_proposals() {
+    for reply in ["好", "好的，别保存", "可以不保存", "不用了，先放着"] {
+        let (url, server) = protocol_http_fixture(vec![(200, json!({
+            "choices":[{"message":{"content":"待审内容已保留，请在审阅卡选择具体操作。"},"finish_reason":"stop"}]
+        }))]);
+        let (store, path) = temporary_database();
+        store.upsert_ai_provider_config(&url, "fixture", "fixture-key").unwrap();
+        let conv = store.create_conversation(Some("explicit review"), None).unwrap();
+        for title in ["A", "B"] {
+            store.create_pending_action(&conv, "create_todo", &json!({"title":title}).to_string()).unwrap();
+        }
+        store.add_rule("不能从短回复推断授权", RuleStatus::Pending, Some(&conv)).unwrap();
+        store.send_message(&conv, "user", reply, None).unwrap();
+        generate_conversation_reply(&conv, &store, None).unwrap();
+        let requests = server.join().unwrap();
+        assert_eq!(requests.len(), 1);
+        assert!(store.list_todos(None).unwrap().is_empty(), "{reply}");
+        assert!(store.list_active_rules().unwrap().is_empty(), "{reply}");
+        assert_eq!(store.list_chat_proposals(Some(&conv), 0, 100).unwrap().len(), 3);
+        assert!(store.list_chat_decisions(Some(&conv), 0, 100).unwrap().is_empty());
+        assert!(store.list_events().unwrap().is_empty());
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[test]
 fn short_new_conversation_fits_conservative_32k_budget() {
     let question = "明天就放国庆的假了，我其实挺讨厌放这种假的";
     let (url, server) = protocol_http_fixture(vec![(
@@ -33,6 +60,14 @@ fn short_new_conversation_fits_conservative_32k_budget() {
         "short input exceeds 32K request budget: {count}"
     );
     assert!(!request.to_string().contains("可用工具（name：用途）"));
+    let messages = request["messages"].as_array().unwrap();
+    assert_eq!(messages.iter().filter(|m| m["content"].as_str().is_some_and(|c| c.starts_with("<current_time>"))).count(), 1);
+    assert!(messages.iter().any(|m| m["content"].as_str().is_some_and(|c| c.contains("User sent:"))));
+    for message in messages {
+        assert!(message.get("message_time").is_none());
+        assert!(message.get("sampled_time").is_none());
+        assert!(message.get("time_reminder").is_none());
+    }
 }
 
 #[test]
@@ -417,6 +452,30 @@ fn native_reply_during_text_fallback_does_not_reenable_native_requests() {
         .0
         .iter()
         .all(|m| m.role != "tool" && m.tool_calls.is_none()));
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn native_repair_preserves_opaque_reasoning_without_exposing_it() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("repair"), None).unwrap();
+    let mut context = vec![ContextMessage::new("user", "查一下规则")];
+    let mut promise = AiReply::text("我接下来会查询规则。");
+    promise.reasoning_content = Some("private-repair-context".into());
+    let provider = RecordingProvider::new(vec![
+        promise,
+        native_reply("", "list_rules", json!({})),
+        AiReply::text("当前没有生效的个人规则。"),
+    ]);
+    let outcome = run_agent_loop(&provider, "fixture", &mut context,
+        &ToolRegistry::default(), &store, &conv, chrono::Utc::now()).unwrap();
+    let requests = provider.requests.borrow();
+    assert_eq!(requests.len(), 3);
+    assert!(requests[1].1);
+    let continuation = requests[1].0.iter().find(|m| m.role == "assistant").unwrap();
+    assert_eq!(continuation.reasoning_content.as_deref(), Some("private-repair-context"));
+    assert!(!outcome.content.contains("private-repair-context"));
     drop(store);
     let _ = std::fs::remove_file(path);
 }

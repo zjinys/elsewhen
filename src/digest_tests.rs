@@ -8,8 +8,8 @@ use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, AiReply};
 use crate::ai::tool::ToolSpec;
 use crate::event::NewEvent;
-use crate::storage::{ContentPolicy, Store, WikiPageDraft, DIGEST_MAX_ATTEMPTS};
-use crate::wiki::{process_digest_queue, DigestTick};
+use crate::storage::{ContentPolicy, DIGEST_MAX_ATTEMPTS, Store, WikiPageDraft};
+use crate::wiki::{DigestTick, process_digest_queue};
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use std::cell::Cell;
@@ -500,9 +500,10 @@ fn successful_run_is_logged_without_raw_text() {
     assert!(stats.last_success_at.is_some());
     let jobs = t.store.list_digest_jobs(Some("succeeded"), 10).unwrap();
     assert_eq!(jobs.len(), 2);
-    assert!(jobs
-        .iter()
-        .all(|job| job.batch_id.as_deref() == Some(run.id.as_str())));
+    assert!(
+        jobs.iter()
+            .all(|job| job.batch_id.as_deref() == Some(run.id.as_str()))
+    );
 }
 
 #[test]

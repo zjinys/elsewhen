@@ -4,6 +4,15 @@
 use anyhow::Result;
 use serde_json::Value;
 
+#[cfg(test)]
+mod exchange_tests;
+mod exchanges;
+mod report;
+use super::memory::{
+    ContextSegment, OmissionPolicy, SegmentOrigin, SegmentPurpose, SelectionOmission,
+};
+pub use report::{BudgetReport, SegmentBudget};
+
 #[derive(Debug)]
 pub struct RequestBudgetError(pub String);
 
@@ -15,7 +24,15 @@ impl std::fmt::Display for RequestBudgetError {
 
 impl std::error::Error for RequestBudgetError {}
 
-fn input_limit(window: usize, output: usize) -> Result<usize> {
+pub(crate) fn validate_context_exchanges(messages: &[super::memory::ContextMessage]) -> Result<()> {
+    let exchanges: Vec<_> = messages
+        .iter()
+        .map(exchanges::MessageExchange::from_context)
+        .collect();
+    exchanges::validate(&exchanges)
+}
+
+pub(crate) fn input_limit(window: usize, output: usize) -> Result<usize> {
     let margin = (window / 20).clamp(256, 4096);
     if output == 0 || output >= window.saturating_sub(margin) {
         return Err(RequestBudgetError(
@@ -26,8 +43,232 @@ fn input_limit(window: usize, output: usize) -> Result<usize> {
     Ok(window - output - margin)
 }
 
-/// Indices refer to the initial payload. Clear them before any history removal
-/// changes message positions; on a smaller-window retry they must not be reused.
+#[derive(Clone, Default)]
+struct MessagePolicy {
+    optional_background: bool,
+    time_reminder: bool,
+    time_anchor: Option<String>,
+    native_exchange: exchanges::MessageExchange,
+    segment: ContextSegment,
+    report_id: usize,
+}
+
+fn segment_policy(
+    message: &super::memory::ContextMessage,
+    index: usize,
+    latest_user: Option<usize>,
+) -> ContextSegment {
+    let mut segment = message.segment.clone();
+    // Content can change when current-time blocks refresh or text protocols are normalized.
+    segment.version = crate::storage::knowledge::content_hash(&message.content);
+    if message.time_reminder || message.sampled_time.is_some() {
+        segment.purpose = SegmentPurpose::TimeContext;
+        segment.origin = SegmentOrigin::Clock;
+    } else if Some(index) == latest_user {
+        segment.purpose = SegmentPurpose::CurrentInput;
+        segment.omission = OmissionPolicy::Required;
+    } else if message.role != "system" && latest_user.is_some_and(|latest| index < latest) {
+        segment.omission = OmissionPolicy::WholeEarlierTurn;
+        if message.role == "user" {
+            segment.purpose = SegmentPurpose::History;
+        }
+    }
+    if message.optional_background && message.role == "system" {
+        segment.omission = OmissionPolicy::OptionalBackground;
+    }
+    segment
+}
+
+/// Request-only metadata follows message mutations and smaller-window retries.
+/// It is never added to the serialized payload.
+pub(crate) struct RequestPolicies {
+    messages: Vec<MessagePolicy>,
+    history_omitted: bool,
+    next_report_id: usize,
+    selection_omissions: Vec<SelectionOmission>,
+}
+
+impl RequestPolicies {
+    pub(crate) fn from_context(messages: &[super::memory::ContextMessage]) -> Self {
+        let covered = super::time_context::current_anchor_index(messages);
+        let latest_user = messages.iter().rposition(|m| m.role == "user");
+        Self {
+            messages: messages
+                .iter()
+                .enumerate()
+                .map(|(index, m)| MessagePolicy {
+                    optional_background: m.optional_background && m.role == "system",
+                    time_reminder: m.time_reminder,
+                    native_exchange: exchanges::MessageExchange::from_context(m),
+                    report_id: index,
+                    segment: segment_policy(m, index, latest_user),
+                    time_anchor: (Some(index) != covered)
+                        .then(|| {
+                            super::time_context::reminder_for(m, &super::time_context::SystemClock)
+                        })
+                        .flatten()
+                        .map(|hint| hint.content),
+                })
+                .collect(),
+            history_omitted: false,
+            next_report_id: messages.len(),
+            selection_omissions: messages
+                .iter()
+                .flat_map(|m| m.selection_omissions.clone())
+                .collect(),
+        }
+    }
+
+    fn plain(request: &Value) -> Self {
+        let latest_user = request["messages"]
+            .as_array()
+            .and_then(|messages| messages.iter().rposition(|m| m["role"] == "user"));
+        Self {
+            messages: request["messages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .enumerate()
+                .map(|(index, message)| MessagePolicy {
+                    native_exchange: exchanges::MessageExchange::from_value(message),
+                    report_id: index,
+                    segment: segment_policy(
+                        &super::memory::ContextMessage::new(
+                            message["role"].as_str().unwrap_or(""),
+                            message["content"].as_str().unwrap_or(""),
+                        ),
+                        index,
+                        latest_user,
+                    ),
+                    ..Default::default()
+                })
+                .collect(),
+            history_omitted: false,
+            next_report_id: request["messages"].as_array().map_or(0, Vec::len),
+            selection_omissions: Vec::new(),
+        }
+    }
+
+    fn insert(
+        &mut self,
+        messages: &mut Vec<Value>,
+        index: usize,
+        message: Value,
+        mut policy: MessagePolicy,
+    ) {
+        policy.report_id = self.next_report_id;
+        self.next_report_id += 1;
+        policy.segment = ContextSegment::new(
+            if policy.time_reminder {
+                SegmentPurpose::TimeContext
+            } else {
+                SegmentPurpose::BudgetNotice
+            },
+            if policy.time_reminder {
+                SegmentOrigin::Clock
+            } else {
+                SegmentOrigin::Application
+            },
+            None,
+            message["content"].as_str().unwrap_or(""),
+            OmissionPolicy::Required,
+        );
+        messages.insert(index, message);
+        self.messages.insert(index, policy);
+    }
+
+    pub(crate) fn fit(
+        &mut self,
+        model: &str,
+        request: &mut Value,
+        window: usize,
+        output: usize,
+    ) -> Result<usize> {
+        let limit = input_limit(window, output)?;
+        if request["messages"].as_array().map(Vec::len) != Some(self.messages.len()) {
+            return Err(RequestBudgetError("请求上下文元信息与消息数量不一致".into()).into());
+        }
+        // Reject malformed history before optional removal or turn trimming can
+        // hide it. Identity metadata survives provider-specific serialization.
+        exchanges::validate(self.messages.iter().map(|m| &m.native_exchange))?;
+        if input_tokens(model, request) > limit
+            && self.messages.iter().any(|m| m.optional_background)
+        {
+            let messages = request["messages"]
+                .as_array_mut()
+                .expect("request messages");
+            for i in (0..self.messages.len()).rev() {
+                if self.messages[i].optional_background {
+                    messages.remove(i);
+                    self.messages.remove(i);
+                }
+            }
+            self.insert(messages, 1.min(messages.len()), serde_json::json!({"role":"system", "content":"可选的跨对话背景因请求预算已省略；不要假装记得未提供的背景。"}), MessagePolicy::default());
+        }
+        loop {
+            let messages = request["messages"]
+                .as_array_mut()
+                .expect("request messages");
+            // History removal may expose a user that previously needed no
+            // reminder. Give the first retained user its own true timestamp.
+            if let Some(first) = messages.iter().position(|m| m["role"] == "user") {
+                if !self
+                    .messages
+                    .get(first + 1)
+                    .is_some_and(|m| m.time_reminder)
+                {
+                    if let Some(anchor) = self.messages[first].time_anchor.clone() {
+                        self.insert(
+                            messages,
+                            first + 1,
+                            serde_json::json!({"role":"system", "content":anchor}),
+                            MessagePolicy {
+                                time_reminder: true,
+                                ..Default::default()
+                            },
+                        );
+                    }
+                }
+            }
+            let count = input_tokens(model, request);
+            if count <= limit {
+                exchanges::validate(self.messages.iter().map(|m| &m.native_exchange))?;
+                return Ok(count);
+            }
+            let messages = request["messages"]
+                .as_array_mut()
+                .expect("request messages");
+            let turns: Vec<_> = messages
+                .iter()
+                .enumerate()
+                .filter(|(_, m)| m["role"] == "user")
+                .map(|(i, _)| i)
+                .collect();
+            if turns.len() <= 1 {
+                return Err(RequestBudgetError(format!("请求输入约 {count} token，超过当前输入预算 {limit}（窗口 {window}，输出预留 {output}）；当前问题与必要上下文未截断，请检查 Provider 窗口或减少附带上下文")).into());
+            }
+            // Remove whole earlier user/assistant/tool groups. Required system
+            // evidence survives; temporal hints follow their owner instead.
+            let (start, end) = (turns[0], turns[1]);
+            let old = messages.drain(start..end).collect::<Vec<_>>();
+            let policies = self.messages.drain(start..end).collect::<Vec<_>>();
+            let retained: Vec<_> = old
+                .into_iter()
+                .zip(policies)
+                .filter(|(m, p)| m["role"] == "system" && !p.time_reminder)
+                .collect();
+            let (retained_messages, retained_policies): (Vec<_>, Vec<_>) =
+                retained.into_iter().unzip();
+            messages.splice(start..start, retained_messages);
+            self.messages.splice(start..start, retained_policies);
+            if !self.history_omitted {
+                self.insert(messages, 1.min(messages.len()), serde_json::json!({"role":"system", "content":"较早对话因请求预算已省略；不得假装记得省略内容。如当前问题依赖缺失事实，请明确说明。"}), MessagePolicy::default());
+                self.history_omitted = true;
+            }
+        }
+    }
+}
+
 pub fn fit_request_with_background(
     model: &str,
     request: &mut Value,
@@ -35,24 +276,23 @@ pub fn fit_request_with_background(
     output: usize,
     optional_indices: &mut Vec<usize>,
 ) -> Result<usize> {
-    let limit = input_limit(window, output)?;
-    let mut count = input_tokens(model, request);
-    if count > limit && !optional_indices.is_empty() {
-        let messages = request["messages"]
-            .as_array_mut()
-            .expect("request messages");
-        for index in optional_indices.drain(..).rev() {
-            messages.remove(index);
-        }
-        messages.insert(1.min(messages.len()), serde_json::json!({"role":"system", "content":"可选的跨对话背景因请求预算已省略；不要假装记得未提供的背景。"}));
-        count = input_tokens(model, request);
+    let mut policies = RequestPolicies::plain(request);
+    for &index in optional_indices.iter() {
+        let policy = policies
+            .messages
+            .get_mut(index)
+            .ok_or_else(|| RequestBudgetError("可选上下文索引越界".into()))?;
+        policy.optional_background = true;
+        policy.segment.omission = OmissionPolicy::OptionalBackground;
     }
-    // If the payload already fits, fit_request cannot shift its indices.
-    if count <= limit {
-        return Ok(count);
-    }
-    optional_indices.clear();
-    fit_request(model, request, window, output)
+    let result = policies.fit(model, request, window, output);
+    *optional_indices = policies
+        .messages
+        .iter()
+        .enumerate()
+        .filter_map(|(i, p)| p.optional_background.then_some(i))
+        .collect();
+    result
 }
 
 pub fn text_tokens(model: &str, text: &str) -> usize {
@@ -84,9 +324,13 @@ pub fn default_window(model: &str) -> usize {
     } else if m.starts_with("deepseek") {
         // DeepSeek 官方 API 现役模型 64K 上下文
         65536
-    } else if m.starts_with("glm") || m.starts_with("qwen") || m.starts_with("kimi")
-        || m.starts_with("moonshot") || m.starts_with("doubao")
-        || m.starts_with("claude") || m.starts_with("gemini")
+    } else if m.starts_with("glm")
+        || m.starts_with("qwen")
+        || m.starts_with("kimi")
+        || m.starts_with("moonshot")
+        || m.starts_with("doubao")
+        || m.starts_with("claude")
+        || m.starts_with("gemini")
     {
         // 智谱 GLM / 通义千问 / Kimi(月之暗面) / 豆包 / Claude / Gemini 现役均为 128K 档
         131072
@@ -107,41 +351,119 @@ pub fn fit_request(
     window: usize,
     output: usize,
 ) -> Result<usize> {
-    let limit = input_limit(window, output)?;
-    let mut removed = false;
-    loop {
-        let count = input_tokens(model, request);
-        if count <= limit {
-            return Ok(count);
-        }
-        let messages = request["messages"]
-            .as_array_mut()
-            .expect("request messages");
-        let turns: Vec<_> = messages
-            .iter()
-            .enumerate()
-            .filter(|(_, m)| m["role"] == "user")
-            .map(|(i, _)| i)
-            .collect();
-        if turns.len() <= 1 {
-            return Err(RequestBudgetError(format!("请求输入约 {count} token，超过当前输入预算 {limit}（窗口 {window}，输出预留 {output}）；当前问题与必要上下文未截断，请检查 Provider 窗口或减少附带上下文")).into());
-        }
-        // Remove whole earlier user/assistant/tool groups. System instructions,
-        // source evidence and the complete current tool exchange survive.
-        let (start, end) = (turns[0], turns[1]);
-        let old = messages.drain(start..end).collect::<Vec<_>>();
-        let retained: Vec<_> = old.into_iter().filter(|m| m["role"] == "system").collect();
-        messages.splice(start..start, retained);
-        if !removed {
-            messages.insert(1.min(messages.len()),serde_json::json!({"role":"system","content":"较早对话因请求预算已省略；不得假装记得省略内容。如当前问题依赖缺失事实，请明确说明。"}));
-            removed = true;
-        }
-    }
+    RequestPolicies::plain(request).fit(model, request, window, output)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn time_hints_follow_removed_turns_and_reanchor_after_smaller_retry() {
+        use crate::ai::memory::ContextMessage;
+        use crate::ai::time_context::{SystemClock, enrich_history, reminder_for};
+        let user = |time: &str, content: String| {
+            let mut message = ContextMessage::new("user", content);
+            message.message_time = Some(chrono::DateTime::parse_from_rfc3339(time).unwrap());
+            message
+        };
+        let oldest = user("2026-09-30T10:00:00Z", "old".repeat(4000));
+        let middle = user("2026-09-30T10:01:00Z", "middle".repeat(300));
+        let latest = user("2026-09-30T10:02:00Z", "当前问题".into());
+        let oldest_hint = reminder_for(&oldest, &SystemClock).unwrap().content;
+        let middle_hint = reminder_for(&middle, &SystemClock).unwrap().content;
+        let latest_hint = reminder_for(&latest, &SystemClock).unwrap().content;
+        let context = enrich_history(
+            vec![
+                ContextMessage::new("system", "规则"),
+                oldest,
+                middle,
+                latest,
+                ContextMessage::new("system", "必要来源"),
+                ContextMessage::assistant_with_tool_calls(
+                    String::new(),
+                    vec![super::super::tool::ToolCall {
+                        id: "call_current".into(),
+                        name: "search".into(),
+                        arguments: serde_json::json!({}),
+                        raw_arguments: Some("{}".into()),
+                    }],
+                    None,
+                ),
+                ContextMessage::tool_result("call_current".into(), "真实结果".into()),
+            ],
+            &SystemClock,
+        );
+        assert_eq!(context.iter().filter(|m| m.time_reminder).count(), 1);
+        let mut policies = RequestPolicies::from_context(&context);
+        let mut messages: Vec<_> = context
+            .iter()
+            .map(|m| serde_json::json!({"role":m.role,"content":m.content}))
+            .collect();
+        let n = messages.len();
+        messages[n - 2] = serde_json::json!({"role":"assistant", "tool_calls":[{"id":"call_current","type":"function","function":{"name":"search","arguments":"{}"}}]});
+        messages[n - 1] =
+            serde_json::json!({"role":"tool", "tool_call_id":"call_current", "content":"真实结果"});
+        let exchange = messages[n - 3..].to_vec();
+        let mut request = serde_json::json!({"messages":messages});
+        policies.fit("unknown", &mut request, 4096, 512).unwrap();
+        assert!(!request.to_string().contains(&oldest_hint));
+        assert!(
+            request["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|m| m["content"] == middle_hint)
+        );
+        policies.fit("unknown", &mut request, 2000, 256).unwrap();
+        let messages = request["messages"].as_array().unwrap();
+        assert!(
+            !messages
+                .iter()
+                .any(|m| m["content"] == oldest_hint || m["content"] == middle_hint)
+        );
+        assert!(messages.iter().any(|m| m["content"] == latest_hint));
+        assert_eq!(&messages[messages.len() - 3..], exchange.as_slice());
+        assert_eq!(messages.len(), policies.messages.len());
+        assert_eq!(
+            messages
+                .iter()
+                .filter(|m| m["content"]
+                    .as_str()
+                    .is_some_and(|c| c.starts_with("较早对话因")))
+                .count(),
+            1
+        );
+        assert!(!request.to_string().contains("time_reminder\""));
+    }
+
+    #[test]
+    fn optional_removal_keeps_time_policy_indices_in_sync() {
+        use crate::ai::memory::ContextMessage;
+        let mut background = ContextMessage::new("system", "optional".repeat(2000));
+        background.optional_background = true;
+        let mut hint = ContextMessage::new("system", "<message_time>old hint</message_time>");
+        hint.time_reminder = true;
+        let context = vec![
+            ContextMessage::new("system", "rules"),
+            background,
+            ContextMessage::new("user", "old".repeat(3000)),
+            hint,
+            ContextMessage::new("user", "latest"),
+            ContextMessage::new("system", "evidence"),
+        ];
+        let mut policies = RequestPolicies::from_context(&context);
+        let mut request = serde_json::json!({"messages":context.iter().map(|m| serde_json::json!({"role":m.role,"content":m.content})).collect::<Vec<_>>()});
+        policies.fit("unknown", &mut request, 2048, 256).unwrap();
+        assert!(!request.to_string().contains("old hint"));
+        assert!(request.to_string().contains("evidence"));
+        assert!(request.to_string().contains("latest"));
+        policies.fit("unknown", &mut request, 1536, 256).unwrap();
+        assert_eq!(
+            request["messages"].as_array().unwrap().len(),
+            policies.messages.len()
+        );
+    }
 
     #[test]
     fn default_window_recognizes_mainstream_model_families() {
@@ -183,10 +505,12 @@ mod tests {
             &req["messages"].as_array().unwrap()[2..],
             protected.as_slice()
         );
-        assert!(req["messages"][1]["content"]
-            .as_str()
-            .unwrap()
-            .contains("已省略"));
+        assert!(
+            req["messages"][1]["content"]
+                .as_str()
+                .unwrap()
+                .contains("已省略")
+        );
     }
 
     #[test]

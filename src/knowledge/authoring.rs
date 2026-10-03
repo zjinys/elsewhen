@@ -1,9 +1,9 @@
 //! Bind authored knowledge to the evidence actually supplied to the conversation.
-use super::{current_candidates, latest_citations, KnowledgeCitation};
-use crate::storage::{knowledge::content_hash, ContentPolicy, Store, WikiPage, WikiPageDraft};
-use anyhow::{ensure, Context, Result};
-use rusqlite::{params, Transaction, TransactionBehavior};
-use serde_json::{json, Value};
+use super::{KnowledgeCitation, current_candidates, latest_citations};
+use crate::storage::{ContentPolicy, Store, WikiPage, WikiPageDraft, knowledge::content_hash};
+use anyhow::{Context, Result, ensure};
+use rusqlite::params;
+use serde_json::{Value, json};
 
 pub(crate) fn previous_answer_sources(
     store: &Store,
@@ -86,9 +86,11 @@ pub(crate) fn draft_sources(
 }
 
 pub(crate) fn save_draft(store: &Store, draft: &WikiPageDraft, args: &Value) -> Result<WikiPage> {
-    let tx = Transaction::new_unchecked(&store.connection, TransactionBehavior::Immediate)?;
+    let tx = store.begin_write_transaction()?;
     if let Some(existing) = store.find_wiki_page_by_title(&draft.title)? {
-        tx.commit()?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         return Ok(existing);
     }
     // This is an internal field created by draft_sources, never copied from tool arguments.
@@ -136,7 +138,9 @@ pub(crate) fn save_draft(store: &Store, draft: &WikiPageDraft, args: &Value) -> 
         snapshots.len(),
         draft.source_event_ids.len()
     ))?;
-    tx.commit()?;
+    if let Some(tx) = tx {
+        tx.commit()?;
+    }
     store
         .get_wiki_page(&page.slug)?
         .context("保存后知识页不存在")

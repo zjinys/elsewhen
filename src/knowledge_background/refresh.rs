@@ -1,7 +1,7 @@
 //! Every page affected by a source update owns a durable completion record.
 use crate::{ai::provider::AiProvider, storage::Store};
-use anyhow::{ensure, Context, Result};
-use rusqlite::{params, Transaction, TransactionBehavior};
+use anyhow::{Context, Result, ensure};
+use rusqlite::{Transaction, TransactionBehavior, params};
 
 pub(crate) fn run_knowledge_refresh(store: &Store, provider: &dyn AiProvider) -> Result<i64> {
     let now = chrono::Utc::now();

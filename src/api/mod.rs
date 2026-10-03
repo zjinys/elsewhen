@@ -1,11 +1,13 @@
+pub mod chat_proposals;
+pub mod chat_runs;
 pub mod conversations;
 pub mod entities;
 pub mod fonts;
 pub mod goals;
 pub mod import;
 pub mod knowledge;
-pub mod knowledge_workflows;
 pub mod knowledge_digest;
+pub mod knowledge_workflows;
 pub mod provider_config;
 pub mod relations;
 pub mod rules;
@@ -19,6 +21,8 @@ use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatiblePr
 use crate::event::NewEvent;
 use crate::storage::Store;
 use anyhow::{Context, Result};
+pub use chat_proposals::*;
+pub use chat_runs::*;
 pub use conversations::*;
 pub use entities::*;
 pub use fonts::*;
@@ -352,6 +356,8 @@ pub fn init_bridge(database_path: Option<String>) -> Result<String> {
         .and_then(|store| {
             store.recover_interrupted_analysis_jobs()?;
             store.recover_interrupted_digest_jobs()?;
+            store.recover_chat_proposal_decisions()?;
+            store.recover_expired_chat_runs()?;
             Store::mark_initialized(&config.database_path)?;
             Ok(())
         })
@@ -686,7 +692,9 @@ fn generate_daily_review_with_provider(
         })
         .collect::<Result<Vec<_>>>()?
         .join("\n\n");
-    let prompt = format!("根据以下 {date_text} 的个人事实生成每日回顾。只返回 JSON 对象，不要 Markdown，不要增加字段。schema_version 固定为 daily-review-v1，date 固定为 {date_text}。字段 accomplishments、ideas_decisions、people_projects、follow_ups 都是数组；每项必须是 {{\"text\":string,\"source_event_ids\":[string]}}，来源 ID 必须来自输入。没有可靠内容的分类返回空数组，不要推测。\n\n{facts}");
+    let prompt = format!(
+        "根据以下 {date_text} 的个人事实生成每日回顾。只返回 JSON 对象，不要 Markdown，不要增加字段。schema_version 固定为 daily-review-v1，date 固定为 {date_text}。字段 accomplishments、ideas_decisions、people_projects、follow_ups 都是数组；每项必须是 {{\"text\":string,\"source_event_ids\":[string]}}，来源 ID 必须来自输入。没有可靠内容的分类返回空数组，不要推测。\n\n{facts}"
+    );
     let candidates = crate::knowledge::select_knowledge(store, &facts, "daily_review", 2500)?;
     let mut review_context = vec![
         ContextMessage::new("system", crate::knowledge::CITATION_INSTRUCTIONS),
@@ -933,8 +941,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
         };
         let prompt = format!(
             "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织；付款流程、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}",
-            context,
-            job.raw_text
+            context, job.raw_text
         );
         let mut analysis_context = vec![
             ContextMessage::new("system", crate::knowledge::CITATION_INSTRUCTIONS),
@@ -1222,10 +1229,12 @@ mod daily_review_tests {
             matches!(result, DailyReviewResult::Created { .. }),
             "应返回 Created，实际：{result:?}"
         );
-        assert!(store
-            .latest_daily_review(chrono::Local::now().date_naive())
-            .unwrap()
-            .is_some());
+        assert!(
+            store
+                .latest_daily_review(chrono::Local::now().date_naive())
+                .unwrap()
+                .is_some()
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1319,32 +1328,22 @@ mod record_event_tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    /// 仅在测试内把 ELSEWHEN_DATA_DIR 指向临时目录，Drop 时恢复原值，
-    /// 避免并行测试读到被污染的全局环境变量。Rust 测试默认并行运行。
-    ///
-    /// 同时清掉 `config` 的钉死值：`AppConfig::pin` 之后库路径在进程内固定，而
-    /// 这里每个用例都要换目录，不清就会静默读到上一个用例的库。
+    /// 持 config 测试锁，将库路径钉死到临时目录；Drop 时清掉钉死值。
+    /// 不修改进程环境变量，避免与并行测试中的环境读取发生竞争。
     struct DataDirGuard {
-        prev: Option<String>,
-        /// 持有 config 的测试锁到 Drop：见 `config::test_env_guard`。
         _lock: std::sync::MutexGuard<'static, ()>,
     }
     impl DataDirGuard {
         fn set(dir: &std::path::Path) -> Self {
             let lock = crate::config::test_env_guard();
             crate::config::unpin();
-            let prev = std::env::var("ELSEWHEN_DATA_DIR").ok();
-            std::env::set_var("ELSEWHEN_DATA_DIR", dir);
-            Self { prev, _lock: lock }
+            crate::config::AppConfig::pin(Some(dir.to_str().unwrap())).unwrap();
+            Self { _lock: lock }
         }
     }
     impl Drop for DataDirGuard {
         fn drop(&mut self) {
             crate::config::unpin();
-            match &self.prev {
-                Some(v) => std::env::set_var("ELSEWHEN_DATA_DIR", v),
-                None => std::env::remove_var("ELSEWHEN_DATA_DIR"),
-            }
         }
     }
 

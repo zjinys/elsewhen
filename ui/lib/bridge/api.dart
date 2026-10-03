@@ -7,6 +7,8 @@
 library;
 
 export 'generated.dart/api.dart';
+export 'generated.dart/api/chat_proposals.dart';
+export 'generated.dart/api/chat_runs.dart';
 export 'generated.dart/api/conversations.dart';
 export 'generated.dart/api/entities.dart';
 export 'generated.dart/api/fonts.dart';
@@ -31,3 +33,6 @@ export 'generated.dart/api/wiki.dart';
 
 export 'generated.dart/api/knowledge_workflows.dart';
 export 'generated.dart/knowledge/workflows.dart';
+
+/// Saving, queueing and steering are distinct, explicit user choices.
+enum ChatInputMode { generate, recordOnly, supplement }

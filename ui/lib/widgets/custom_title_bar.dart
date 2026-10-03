@@ -18,7 +18,7 @@ import '../utils/window_service.dart';
 /// 移动端：仅显示标题与 actions（移动窗口由系统管理，无窗口控制概念）。
 ///
 /// 窗口操作通过 [WindowService]（桌面实现由 main_desktop.dart 注册），
-/// 本文件不 import nativeapi——其 FFI 结构会让 Android release AOT 崩溃。
+/// 本文件不 import 任何桌面窗口插件——Android main 可达图保持干净。
 class CustomTitleBar extends ConsumerWidget {
   final String title;
   final List<Widget>? actions;

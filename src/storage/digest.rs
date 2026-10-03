@@ -13,7 +13,7 @@
 //! 都不会漏；证据按事件 id 并集去重，重试不会重复累加。
 
 use anyhow::{Context, Result};
-use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use uuid::Uuid;
 
 use super::{ContentPolicy, EventRecord, Store, WikiPageDraft};

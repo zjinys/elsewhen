@@ -110,7 +110,25 @@ void main() {
     );
     expect(await repo.listWikiPages(), isEmpty);
 
-    final saved = await ask('好');
+    await ask('好');
+    expect(await repo.listWikiPages(), isEmpty);
+    final pending = (await api.listChatProposals(
+      conversationId: conversation.id,
+      offset: 0,
+      limit: 25,
+    )).single;
+    final receipt = await api.decideChatProposal(
+      request: api.ChatReviewRequest(
+        kind: pending.kind,
+        proposalId: pending.id,
+        conversationId: pending.conversationId,
+        expectedVersion: pending.version,
+        approvalToken: pending.approvalToken,
+      ),
+      accept: true,
+    );
+    final saved = receipt.result;
+    expect(receipt.status, 'succeeded');
     expect(saved, contains('视频改进稿'));
     expect(saved, isNot(contains('还没有完成')));
     expect(

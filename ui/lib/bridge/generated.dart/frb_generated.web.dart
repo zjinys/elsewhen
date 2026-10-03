@@ -7,6 +7,8 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api.dart';
+import 'api/chat_proposals.dart';
+import 'api/chat_runs.dart';
 import 'api/conversations.dart';
 import 'api/entities.dart';
 import 'api/fonts.dart';
@@ -83,6 +85,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  ChatReviewRequest dco_decode_box_autoadd_chat_review_request(dynamic raw);
+
+  @protected
+  ChatRunDto dco_decode_box_autoadd_chat_run_dto(dynamic raw);
+
+  @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
@@ -120,6 +128,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto dco_decode_box_autoadd_wiki_page_dto(dynamic raw);
+
+  @protected
+  ChatDecisionDto dco_decode_chat_decision_dto(dynamic raw);
+
+  @protected
+  ChatInputQueueDto dco_decode_chat_input_queue_dto(dynamic raw);
+
+  @protected
+  ChatProposalDto dco_decode_chat_proposal_dto(dynamic raw);
+
+  @protected
+  ChatQueuedInputDto dco_decode_chat_queued_input_dto(dynamic raw);
+
+  @protected
+  ChatReviewRequest dco_decode_chat_review_request(dynamic raw);
+
+  @protected
+  ChatRunDto dco_decode_chat_run_dto(dynamic raw);
+
+  @protected
+  ChatRunEventDto dco_decode_chat_run_event_dto(dynamic raw);
+
+  @protected
+  ChatRunEventPageDto dco_decode_chat_run_event_page_dto(dynamic raw);
 
   @protected
   ContentChatMessageDto dco_decode_content_chat_message_dto(dynamic raw);
@@ -249,6 +281,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<BatchReviewResult> dco_decode_list_batch_review_result(dynamic raw);
 
   @protected
+  List<ChatDecisionDto> dco_decode_list_chat_decision_dto(dynamic raw);
+
+  @protected
+  List<ChatProposalDto> dco_decode_list_chat_proposal_dto(dynamic raw);
+
+  @protected
+  List<ChatQueuedInputDto> dco_decode_list_chat_queued_input_dto(dynamic raw);
+
+  @protected
+  List<ChatRunDto> dco_decode_list_chat_run_dto(dynamic raw);
+
+  @protected
+  List<ChatRunEventDto> dco_decode_list_chat_run_event_dto(dynamic raw);
+
+  @protected
   List<ContentChatMessageDto> dco_decode_list_content_chat_message_dto(
     dynamic raw,
   );
@@ -361,6 +408,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UnscheduledChatInputDto> dco_decode_list_unscheduled_chat_input_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
 
   @protected
@@ -379,6 +431,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  ChatRunDto? dco_decode_opt_box_autoadd_chat_run_dto(dynamic raw);
 
   @protected
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
@@ -470,6 +525,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
+
+  @protected
+  WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
+
+  @protected
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw);
 
   @protected
@@ -514,6 +575,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  ChatReviewRequest sse_decode_box_autoadd_chat_review_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatRunDto sse_decode_box_autoadd_chat_run_dto(SseDeserializer deserializer);
 
   @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
@@ -561,6 +630,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto sse_decode_box_autoadd_wiki_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatDecisionDto sse_decode_chat_decision_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatInputQueueDto sse_decode_chat_input_queue_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatProposalDto sse_decode_chat_proposal_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatQueuedInputDto sse_decode_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatReviewRequest sse_decode_chat_review_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatRunDto sse_decode_chat_run_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatRunEventDto sse_decode_chat_run_event_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatRunEventPageDto sse_decode_chat_run_event_page_dto(
     SseDeserializer deserializer,
   );
 
@@ -730,6 +831,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<ChatDecisionDto> sse_decode_list_chat_decision_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatProposalDto> sse_decode_list_chat_proposal_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatQueuedInputDto> sse_decode_list_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatRunDto> sse_decode_list_chat_run_dto(SseDeserializer deserializer);
+
+  @protected
+  List<ChatRunEventDto> sse_decode_list_chat_run_event_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<ContentChatMessageDto> sse_decode_list_content_chat_message_dto(
     SseDeserializer deserializer,
   );
@@ -874,6 +998,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UnscheduledChatInputDto> sse_decode_list_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
 
   @protected
@@ -894,6 +1023,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  ChatRunDto? sse_decode_opt_box_autoadd_chat_run_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ConversationDto? sse_decode_opt_box_autoadd_conversation_dto(
@@ -997,6 +1131,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiChatMaterialDto sse_decode_wiki_chat_material_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WikiPageDto sse_decode_wiki_page_dto(SseDeserializer deserializer);
@@ -1107,6 +1251,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_box_autoadd_chat_review_request(ChatReviewRequest raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_chat_review_request(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_chat_run_dto(ChatRunDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_chat_run_dto(raw);
+  }
+
+  @protected
   JSAny cst_encode_box_autoadd_conversation_dto(ConversationDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_conversation_dto(raw);
@@ -1176,6 +1332,117 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_wiki_page_dto(WikiPageDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_wiki_page_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_chat_decision_dto(ChatDecisionDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.id),
+      cst_encode_opt_String(raw.conversationId),
+      cst_encode_i_64(raw.version),
+      cst_encode_String(raw.decision),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.result),
+      cst_encode_String(raw.action),
+      cst_encode_String(raw.argsJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_input_queue_dto(ChatInputQueueDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.paused),
+      cst_encode_list_chat_queued_input_dto(raw.items),
+      cst_encode_list_chat_queued_input_dto(raw.recentInjections),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_proposal_dto(ChatProposalDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.id),
+      cst_encode_opt_String(raw.conversationId),
+      cst_encode_String(raw.action),
+      cst_encode_String(raw.argsJson),
+      cst_encode_i_64(raw.version),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.approvalToken),
+      cst_encode_String(raw.targetBasisJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_queued_input_dto(ChatQueuedInputDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.id),
+      cst_encode_String(raw.inputMessageId),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.mode),
+      cst_encode_String(raw.preview),
+      cst_encode_opt_String(raw.deferReason),
+      cst_encode_opt_String(raw.runId),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_review_request(ChatReviewRequest raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.proposalId),
+      cst_encode_opt_String(raw.conversationId),
+      cst_encode_i_64(raw.expectedVersion),
+      cst_encode_String(raw.approvalToken),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_run_dto(ChatRunDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.conversationId),
+      cst_encode_String(raw.inputMessageId),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.phase),
+      cst_encode_i_64(raw.sequence),
+      cst_encode_i_64(raw.requestCount),
+      cst_encode_String(raw.providerBasisJson),
+      cst_encode_String(raw.content),
+      cst_encode_opt_String(raw.errorKind),
+      cst_encode_opt_String(raw.errorText),
+      cst_encode_opt_String(raw.finalMessageId),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_run_event_dto(ChatRunEventDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.runId),
+      cst_encode_i_64(raw.sequence),
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.payloadJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_run_event_page_dto(ChatRunEventPageDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.runId),
+      cst_encode_list_chat_run_event_dto(raw.events),
+      cst_encode_i_64(raw.nextSequence),
+      cst_encode_bool(raw.hasMore),
+    ].jsify()!;
   }
 
   @protected
@@ -1714,6 +1981,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_chat_decision_dto(List<ChatDecisionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_decision_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_chat_proposal_dto(List<ChatProposalDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_proposal_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_chat_queued_input_dto(List<ChatQueuedInputDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_queued_input_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_chat_run_dto(List<ChatRunDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_run_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_chat_run_event_dto(List<ChatRunEventDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_run_event_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_content_chat_message_dto(
     List<ContentChatMessageDto> raw,
   ) {
@@ -1920,6 +2217,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_unscheduled_chat_input_dto(
+    List<UnscheduledChatInputDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_unscheduled_chat_input_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_wiki_page_dto(List<WikiPageDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_wiki_page_dto).toList().jsify()!;
@@ -1972,6 +2277,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? cst_encode_opt_box_autoadd_bool(bool? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_bool(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_chat_run_dto(ChatRunDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_chat_run_dto(raw);
   }
 
   @protected
@@ -2074,6 +2385,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.action),
       cst_encode_String(raw.argsJson),
       cst_encode_String(raw.createdAt),
+      cst_encode_i_64(raw.version),
+      cst_encode_String(raw.approvalToken),
+      cst_encode_String(raw.targetBasisJson),
     ].jsify()!;
   }
 
@@ -2223,6 +2537,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_unscheduled_chat_input_dto(UnscheduledChatInputDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.inputMessageId),
+      cst_encode_String(raw.preview),
+      cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_wiki_chat_material_dto(WikiChatMaterialDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.contentMd),
+      cst_encode_String(raw.basisJson),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_wiki_page_dto(WikiPageDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2322,6 +2657,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_chat_review_request(
+    ChatReviewRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_chat_run_dto(
+    ChatRunDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_conversation_dto(
     ConversationDto self,
     SseSerializer serializer,
@@ -2378,6 +2725,51 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_wiki_page_dto(
     WikiPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_decision_dto(
+    ChatDecisionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_input_queue_dto(
+    ChatInputQueueDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_proposal_dto(
+    ChatProposalDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_queued_input_dto(
+    ChatQueuedInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_review_request(
+    ChatReviewRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_run_dto(ChatRunDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_chat_run_event_dto(
+    ChatRunEventDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_run_event_page_dto(
+    ChatRunEventPageDto self,
     SseSerializer serializer,
   );
 
@@ -2595,6 +2987,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_chat_decision_dto(
+    List<ChatDecisionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_proposal_dto(
+    List<ChatProposalDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_queued_input_dto(
+    List<ChatQueuedInputDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_run_dto(
+    List<ChatRunDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_run_event_dto(
+    List<ChatRunEventDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_content_chat_message_dto(
     List<ContentChatMessageDto> self,
     SseSerializer serializer,
@@ -2775,6 +3197,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_unscheduled_chat_input_dto(
+    List<UnscheduledChatInputDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_wiki_page_dto(
     List<WikiPageDto> self,
     SseSerializer serializer,
@@ -2800,6 +3228,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_chat_run_dto(
+    ChatRunDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_conversation_dto(
@@ -2934,6 +3368,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_unit(void self, SseSerializer serializer);
 
   @protected
+  void sse_encode_unscheduled_chat_input_dto(
+    UnscheduledChatInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_chat_material_dto(
+    WikiChatMaterialDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_wiki_page_dto(WikiPageDto self, SseSerializer serializer);
 }
 
@@ -3038,14 +3484,28 @@ class RustLibWire implements BaseWire {
     offset,
   );
 
+  void wire__crate__api__chat_runs__cancel_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+  ) => wasmModule.wire__crate__api__chat_runs__cancel_chat_run(
+    port_,
+    conversation_id,
+    run_id,
+  );
+
   void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
   ) => wasmModule.wire__crate__api__conversations__confirm_knowledge_draft(
     port_,
     conversation_id,
     action_id,
+    expected_version,
+    approval_token,
   );
 
   void wire__crate__api__knowledge__confirm_knowledge_source(
@@ -3127,14 +3587,28 @@ class RustLibWire implements BaseWire {
     content_md,
   );
 
+  void wire__crate__api__chat_proposals__decide_chat_proposal(
+    NativePortType port_,
+    JSAny request,
+    bool accept,
+  ) => wasmModule.wire__crate__api__chat_proposals__decide_chat_proposal(
+    port_,
+    request,
+    accept,
+  );
+
   void wire__crate__api__conversations__decline_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
   ) => wasmModule.wire__crate__api__conversations__decline_knowledge_draft(
     port_,
     conversation_id,
     action_id,
+    expected_version,
+    approval_token,
   );
 
   void wire__crate__api__provider_config__delete_ai_provider_config(
@@ -3177,6 +3651,48 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__knowledge__dismiss_knowledge_issue(
     port_,
     fingerprint,
+  );
+
+  void wire__crate__api__chat_runs__dispatch_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__chat_runs__dispatch_chat_input_queue(
+    port_,
+    conversation_id,
+  );
+
+  void wire__crate__api__chat_proposals__edit_chat_proposal(
+    NativePortType port_,
+    JSAny request,
+    String args_json,
+  ) => wasmModule.wire__crate__api__chat_proposals__edit_chat_proposal(
+    port_,
+    request,
+    args_json,
+  );
+
+  void wire__crate__api__chat_runs__enqueue_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+  ) => wasmModule.wire__crate__api__chat_runs__enqueue_chat_input(
+    port_,
+    conversation_id,
+    input_message_id,
+  );
+
+  void wire__crate__api__chat_runs__enqueue_chat_supplement(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+    String run_id,
+    String context_json,
+  ) => wasmModule.wire__crate__api__chat_runs__enqueue_chat_supplement(
+    port_,
+    conversation_id,
+    input_message_id,
+    run_id,
+    context_json,
   );
 
   void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
@@ -3253,6 +3769,28 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__get_analysis_job_stats(NativePortType port_) =>
       wasmModule.wire__crate__api__get_analysis_job_stats(port_);
+
+  void wire__crate__api__chat_runs__get_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+    JSAny after_id,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_runs__get_chat_input_queue(
+    port_,
+    conversation_id,
+    after_id,
+    limit,
+  );
+
+  void wire__crate__api__chat_runs__get_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+  ) => wasmModule.wire__crate__api__chat_runs__get_chat_run(
+    port_,
+    conversation_id,
+    run_id,
+  );
 
   void wire__crate__api__conversations__get_child_messages(
     NativePortType port_,
@@ -3335,6 +3873,14 @@ class RustLibWire implements BaseWire {
     id,
   );
 
+  void wire__crate__api__chat_runs__get_latest_chat_run(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__chat_runs__get_latest_chat_run(
+    port_,
+    conversation_id,
+  );
+
   void wire__crate__api__conversations__get_message_chain(
     NativePortType port_,
     String message_id,
@@ -3371,6 +3917,22 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__tweet__get_tweet_fetch_service(NativePortType port_) =>
       wasmModule.wire__crate__api__tweet__get_tweet_fetch_service(port_);
+
+  void wire__crate__api__wiki_chat__get_wiki_chat_material(
+    NativePortType port_,
+    String page_slug,
+  ) => wasmModule.wire__crate__api__wiki_chat__get_wiki_chat_material(
+    port_,
+    page_slug,
+  );
+
+  void wire__crate__api__wiki_chat__get_wiki_chat_task(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__wiki_chat__get_wiki_chat_task(
+    port_,
+    conversation_id,
+  );
 
   void wire__crate__api__wiki__get_wiki_page(
     NativePortType port_,
@@ -3425,6 +3987,56 @@ class RustLibWire implements BaseWire {
     port_,
     slug,
     offset,
+  );
+
+  void wire__crate__api__chat_proposals__list_chat_decisions(
+    NativePortType port_,
+    String? conversation_id,
+    int offset,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_proposals__list_chat_decisions(
+    port_,
+    conversation_id,
+    offset,
+    limit,
+  );
+
+  void wire__crate__api__chat_proposals__list_chat_proposals(
+    NativePortType port_,
+    String? conversation_id,
+    int offset,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_proposals__list_chat_proposals(
+    port_,
+    conversation_id,
+    offset,
+    limit,
+  );
+
+  void wire__crate__api__chat_runs__list_chat_run_events(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+    JSAny after_sequence,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_runs__list_chat_run_events(
+    port_,
+    conversation_id,
+    run_id,
+    after_sequence,
+    limit,
+  );
+
+  void wire__crate__api__chat_runs__list_chat_runs(
+    NativePortType port_,
+    String conversation_id,
+    int offset,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_runs__list_chat_runs(
+    port_,
+    conversation_id,
+    offset,
+    limit,
   );
 
   void wire__crate__api__conversations__list_conversations(
@@ -3584,6 +4196,18 @@ class RustLibWire implements BaseWire {
     slug,
   );
 
+  void wire__crate__api__chat_runs__list_unscheduled_chat_inputs(
+    NativePortType port_,
+    String conversation_id,
+    int offset,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_runs__list_unscheduled_chat_inputs(
+    port_,
+    conversation_id,
+    offset,
+    limit,
+  );
+
   void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
@@ -3614,6 +4238,14 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String id,
   ) => wasmModule.wire__crate__api__todos__open_todo_work_item(port_, id);
+
+  void wire__crate__api__chat_runs__pause_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__chat_runs__pause_chat_input_queue(
+    port_,
+    conversation_id,
+  );
 
   void wire__crate__api__knowledge__prepare_knowledge_restore(
     NativePortType port_,
@@ -3749,6 +4381,14 @@ class RustLibWire implements BaseWire {
     accept,
   );
 
+  void wire__crate__api__chat_runs__resume_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__chat_runs__resume_chat_input_queue(
+    port_,
+    conversation_id,
+  );
+
   void wire__crate__api__provider_config__save_ai_provider_config(
     NativePortType port_,
     JSAny provider,
@@ -3844,6 +4484,16 @@ class RustLibWire implements BaseWire {
     expected_updated_at,
   );
 
+  void wire__crate__api__chat_runs__schedule_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+  ) => wasmModule.wire__crate__api__chat_runs__schedule_chat_input(
+    port_,
+    conversation_id,
+    input_message_id,
+  );
+
   void wire__crate__api__conversations__send_message(
     NativePortType port_,
     String conversation_id,
@@ -3905,6 +4555,21 @@ class RustLibWire implements BaseWire {
   ) =>
       wasmModule.wire__crate__api__wiki__set_wiki_opinion(port_, slug, opinion);
 
+  void wire__crate__api__chat_runs__shutdown_chat_runs(NativePortType port_) =>
+      wasmModule.wire__crate__api__chat_runs__shutdown_chat_runs(port_);
+
+  void wire__crate__api__chat_runs__start_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+    String idempotency_key,
+  ) => wasmModule.wire__crate__api__chat_runs__start_chat_run(
+    port_,
+    conversation_id,
+    input_message_id,
+    idempotency_key,
+  );
+
   void wire__crate__api__submit_conversation_input(
     NativePortType port_,
     String conversation_id,
@@ -3927,6 +4592,20 @@ class RustLibWire implements BaseWire {
     raw_text,
     source,
     idempotency_key,
+  );
+
+  void wire__crate__api__wiki_chat__submit_wiki_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String content,
+    String idempotency_key,
+    String task_json,
+  ) => wasmModule.wire__crate__api__wiki_chat__submit_wiki_chat_input(
+    port_,
+    conversation_id,
+    content,
+    idempotency_key,
+    task_json,
   );
 
   void wire__crate__api__knowledge__tick_knowledge_insights(
@@ -4008,11 +4687,17 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__conversations__update_pending_action_args(
     NativePortType port_,
+    String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
     String args_json,
   ) => wasmModule.wire__crate__api__conversations__update_pending_action_args(
     port_,
+    conversation_id,
     action_id,
+    expected_version,
+    approval_token,
     args_json,
   );
 
@@ -4082,6 +4767,16 @@ class RustLibWire implements BaseWire {
     String slug,
     JSAny tags,
   ) => wasmModule.wire__crate__api__wiki__update_wiki_tags(port_, slug, tags);
+
+  void wire__crate__api__chat_runs__withdraw_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    JSAny queue_id,
+  ) => wasmModule.wire__crate__api__chat_runs__withdraw_chat_input(
+    port_,
+    conversation_id,
+    queue_id,
+  );
 }
 
 @JS('wasm_bindgen')
@@ -4151,10 +4846,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny offset,
   );
 
+  external void wire__crate__api__chat_runs__cancel_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+  );
+
   external void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
   );
 
   external void wire__crate__api__knowledge__confirm_knowledge_source(
@@ -4205,10 +4908,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content_md,
   );
 
+  external void wire__crate__api__chat_proposals__decide_chat_proposal(
+    NativePortType port_,
+    JSAny request,
+    bool accept,
+  );
+
   external void wire__crate__api__conversations__decline_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
   );
 
   external void wire__crate__api__provider_config__delete_ai_provider_config(
@@ -4244,6 +4955,31 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__knowledge__dismiss_knowledge_issue(
     NativePortType port_,
     String fingerprint,
+  );
+
+  external void wire__crate__api__chat_runs__dispatch_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  );
+
+  external void wire__crate__api__chat_proposals__edit_chat_proposal(
+    NativePortType port_,
+    JSAny request,
+    String args_json,
+  );
+
+  external void wire__crate__api__chat_runs__enqueue_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+  );
+
+  external void wire__crate__api__chat_runs__enqueue_chat_supplement(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+    String run_id,
+    String context_json,
   );
 
   external void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
@@ -4302,6 +5038,19 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__get_analysis_job_stats(NativePortType port_);
 
+  external void wire__crate__api__chat_runs__get_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+    JSAny after_id,
+    int limit,
+  );
+
+  external void wire__crate__api__chat_runs__get_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+  );
+
   external void wire__crate__api__conversations__get_child_messages(
     NativePortType port_,
     String parent_id,
@@ -4357,6 +5106,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__chat_runs__get_latest_chat_run(
+    NativePortType port_,
+    String conversation_id,
+  );
+
   external void wire__crate__api__conversations__get_message_chain(
     NativePortType port_,
     String message_id,
@@ -4381,6 +5135,16 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__tweet__get_tweet_fetch_service(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__wiki_chat__get_wiki_chat_material(
+    NativePortType port_,
+    String page_slug,
+  );
+
+  external void wire__crate__api__wiki_chat__get_wiki_chat_task(
+    NativePortType port_,
+    String conversation_id,
   );
 
   external void wire__crate__api__wiki__get_wiki_page(
@@ -4425,6 +5189,35 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     JSAny offset,
+  );
+
+  external void wire__crate__api__chat_proposals__list_chat_decisions(
+    NativePortType port_,
+    String? conversation_id,
+    int offset,
+    int limit,
+  );
+
+  external void wire__crate__api__chat_proposals__list_chat_proposals(
+    NativePortType port_,
+    String? conversation_id,
+    int offset,
+    int limit,
+  );
+
+  external void wire__crate__api__chat_runs__list_chat_run_events(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+    JSAny after_sequence,
+    int limit,
+  );
+
+  external void wire__crate__api__chat_runs__list_chat_runs(
+    NativePortType port_,
+    String conversation_id,
+    int offset,
+    int limit,
   );
 
   external void wire__crate__api__conversations__list_conversations(
@@ -4535,6 +5328,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
+  external void wire__crate__api__chat_runs__list_unscheduled_chat_inputs(
+    NativePortType port_,
+    String conversation_id,
+    int offset,
+    int limit,
+  );
+
   external void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
@@ -4556,6 +5356,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__todos__open_todo_work_item(
     NativePortType port_,
     String id,
+  );
+
+  external void wire__crate__api__chat_runs__pause_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
   );
 
   external void wire__crate__api__knowledge__prepare_knowledge_restore(
@@ -4647,6 +5452,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool accept,
   );
 
+  external void wire__crate__api__chat_runs__resume_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  );
+
   external void wire__crate__api__provider_config__save_ai_provider_config(
     NativePortType port_,
     JSAny provider,
@@ -4701,6 +5511,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? expected_updated_at,
   );
 
+  external void wire__crate__api__chat_runs__schedule_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+  );
+
   external void wire__crate__api__conversations__send_message(
     NativePortType port_,
     String conversation_id,
@@ -4740,6 +5556,17 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? opinion,
   );
 
+  external void wire__crate__api__chat_runs__shutdown_chat_runs(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__chat_runs__start_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+    String idempotency_key,
+  );
+
   external void wire__crate__api__submit_conversation_input(
     NativePortType port_,
     String conversation_id,
@@ -4752,6 +5579,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String raw_text,
     String source,
     String? idempotency_key,
+  );
+
+  external void wire__crate__api__wiki_chat__submit_wiki_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String content,
+    String idempotency_key,
+    String task_json,
   );
 
   external void wire__crate__api__knowledge__tick_knowledge_insights(
@@ -4804,7 +5639,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__conversations__update_pending_action_args(
     NativePortType port_,
+    String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
     String args_json,
   );
 
@@ -4849,5 +5687,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     JSAny tags,
+  );
+
+  external void wire__crate__api__chat_runs__withdraw_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    JSAny queue_id,
   );
 }

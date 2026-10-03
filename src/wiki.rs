@@ -317,11 +317,7 @@ fn extract_title(html: &str) -> Option<String> {
     let inner = &rest[gt + 1..];
     let end = inner.find("</title>").or_else(|| inner.find("</TITLE>"))?;
     let title = inner[..end].trim().to_string();
-    if title.is_empty() {
-        None
-    } else {
-        Some(title)
-    }
+    if title.is_empty() { None } else { Some(title) }
 }
 
 /// 抓取到的推文内容（纯数据，尚未入库；只有点击保存才写库）
@@ -636,6 +632,22 @@ pub fn apply_people_relations(
         anyhow::bail!("没有需要保存的联系人或关系");
     }
 
+    let tx = store.begin_write_transaction()?;
+    for relation in &parsed.relations {
+        for (name, selected) in [
+            (&relation.person, &relation.from_slug),
+            (&relation.target, &relation.to_slug),
+        ] {
+            if let Some(slug) = selected.as_deref() {
+                let candidates = store.find_wiki_pages_by_title_or_alias(name.trim())?;
+                anyhow::ensure!(
+                    candidates.iter().any(|p| p.slug == slug),
+                    "明确选择的目标 {slug} 已失效或不再对应 {name}，请重新消歧审阅"
+                );
+            }
+        }
+    }
+
     // 1) 联系人建档：标题精确查重 → 不存在才建 person 页
     let mut person_entries: Vec<(String, String, String)> = Vec::new(); // (name, slug, kind)
     for p in &parsed.people {
@@ -662,12 +674,17 @@ pub fn apply_people_relations(
                     .join("、")
             );
         }
-        if let Some(page) = selected_slug
-            .as_deref()
-            .and_then(|slug| matches.iter().find(|page| page.slug == slug))
-            .or_else(|| matches.first())
-            .cloned()
-        {
+        let selected = match selected_slug.as_deref() {
+            Some(slug) => Some(
+                matches
+                    .iter()
+                    .find(|page| page.slug == slug)
+                    .cloned()
+                    .with_context(|| format!("选中的联系人 {slug} 已变化，请重新审阅"))?,
+            ),
+            None => matches.first().cloned(),
+        };
+        if let Some(page) = selected {
             person_entries.push((name, page.slug.clone(), page.kind.clone()));
             continue;
         }
@@ -722,12 +739,17 @@ pub fn apply_people_relations(
                     .join("、")
             );
         }
-        let (slug, kind) = match selected_target_slug
-            .as_deref()
-            .and_then(|slug| target_matches.iter().find(|page| page.slug == slug))
-            .or_else(|| target_matches.first())
-            .cloned()
-        {
+        let selected = match selected_target_slug.as_deref() {
+            Some(slug) => Some(
+                target_matches
+                    .iter()
+                    .find(|page| page.slug == slug)
+                    .cloned()
+                    .with_context(|| format!("选中的事项 {slug} 已变化，请重新审阅"))?,
+            ),
+            None => target_matches.first().cloned(),
+        };
+        let (slug, kind) = match selected {
             Some(page) => (page.slug, page.kind),
             None => {
                 let slug = unique_slug(store, &format!("topic/{}", slugify(&target)), &target)?;
@@ -736,7 +758,9 @@ pub fn apply_people_relations(
                     kind: "topic".to_string(),
                     title: target.clone(),
                     summary: format!("{target}（由联系人关系确认时自动建档）"),
-                    content_md: format!("# {target}\n\n（由联系人关系确认时自动创建，待补充内容。）"),
+                    content_md: format!(
+                        "# {target}\n\n（由联系人关系确认时自动创建，待补充内容。）"
+                    ),
                     tags: vec![],
                     source_event_ids: vec![],
                     status: "active".to_string(),
@@ -771,9 +795,23 @@ pub fn apply_people_relations(
             .as_deref()
             .unwrap_or(inferred_from_slug)
             .to_string();
-        let from_kind = inferred_from_kind.clone();
+        let from_kind = if r.from_slug.is_some() {
+            store
+                .get_wiki_page(&from_slug)?
+                .context("选中的联系人已失效")?
+                .kind
+        } else {
+            inferred_from_kind.clone()
+        };
         let to_slug = r.to_slug.as_deref().unwrap_or(inferred_to_slug).to_string();
-        let to_kind = inferred_to_kind.clone();
+        let to_kind = if r.to_slug.is_some() {
+            store
+                .get_wiki_page(&to_slug)?
+                .context("选中的事项已失效")?
+                .kind
+        } else {
+            inferred_to_kind.clone()
+        };
         let relation = if r.relation.trim().is_empty() {
             "参与".to_string()
         } else {
@@ -834,6 +872,9 @@ pub fn apply_people_relations(
     } else {
         out.push_str("（没有落地的关系）");
     }
+    if let Some(tx) = tx {
+        tx.commit()?;
+    }
     Ok(out)
 }
 
@@ -850,7 +891,7 @@ const BATCH_EXTRACT_EVENT_CHARS: usize = 220;
 /// `{ "people": [{name,role_note}], "relations": [{person,target,relation,note}] }`
 /// （落库仍走 execute_pending_action → apply_people_relations，用户确认后才写）。
 pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json::Value> {
-    use crate::event::{parse_annotations_many, AnnotationSet};
+    use crate::event::{AnnotationSet, parse_annotations_many};
 
     let events = store.list_events()?;
     if events.is_empty() {
@@ -1267,8 +1308,16 @@ pub fn export_wiki(store: &Store, dir: &Path) -> Result<ExportReport> {
             page.evidence_count,
             page.status,
             page.updated_at,
-            if tags.is_empty() { "  - []".to_string() } else { tags.join("\n") },
-            if sources.is_empty() { "  - []".to_string() } else { sources.join("\n") },
+            if tags.is_empty() {
+                "  - []".to_string()
+            } else {
+                tags.join("\n")
+            },
+            if sources.is_empty() {
+                "  - []".to_string()
+            } else {
+                sources.join("\n")
+            },
             page.title,
             page.content_md
         );
@@ -1682,10 +1731,12 @@ mod tests {
                 .len(),
             1
         );
-        assert!(store
-            .list_relations_for_page("person/张伟-市场部")
-            .unwrap()
-            .is_empty());
+        assert!(
+            store
+                .list_relations_for_page("person/张伟-市场部")
+                .unwrap()
+                .is_empty()
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1780,7 +1831,10 @@ mod tests {
             out.title.as_deref(),
             Some("为什么你手握 Codex、Claude，依然赚不到钱？")
         );
-        assert_eq!(out.text, "过去，一个人赚不到钱，往往还能找到很多具体的理由。\n\n这些理由过去确实成立，因为技术本身就是门槛。");
+        assert_eq!(
+            out.text,
+            "过去，一个人赚不到钱，往往还能找到很多具体的理由。\n\n这些理由过去确实成立，因为技术本身就是门槛。"
+        );
         assert_eq!(out.author_name.as_deref(), Some("伟大"));
         assert_eq!(out.screen_name.as_deref(), Some("Huouo908070"));
     }

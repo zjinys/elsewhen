@@ -5,4 +5,5 @@
 - [x] 落地「归档对话可删除」方案：docs/notes/proposed/architecture/2026-09-19-archived-conversation-deletion.md
 - [ ] 落地「决策辅助闭环」定位补全方案：docs/notes/proposed/architecture/2026-09-19-decision-support-loop.md
 - [ ] 实现 Today 每日回顾工作台：docs/notes/proposed/product/2026-09-20-today-daily-review-workbench.md（当前暂缓，不先上线空壳页面）
+- [x] Rust edition 与 style edition 升级到 2024：docs/notes/implemented/process/2026-10-01-rust-edition-2024-migration.md（2026-10-03：全仓格式迁移完成；`cargo check --all-targets` / `cargo fmt --check` / release 构建通过；测试命令排除回环代理后 452 个单元测试 + 5 个配置集成测试通过，10 项按原设置忽略。本机 Rust/Cargo 已为 1.99.0，本次不更新全局 rustup）
 - [ ] 落地「单流对话 + 主题沉淀」信息架构方案：docs/notes/proposed/product/2026-09-20-single-stream-conversation-and-topics.md（topic 仅为内部存储类型，不向用户暴露"议题库"；先做主对话中的主题识别、关联与确认回写；议题带状态，主对话流"现在"端按当下状态排序展示进行中议题/待办/分析队列，AI 基于状态提议优先级且可溯源）

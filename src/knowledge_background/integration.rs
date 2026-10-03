@@ -1,8 +1,8 @@
 //! Bounded cross-source topics and versioned, evidence-backed review hints.
 use crate::ai::{memory::ContextMessage, provider::AiProvider};
-use crate::storage::{knowledge::content_hash, SourceSnapshot, Store, WikiPage, WikiPageDraft};
-use anyhow::{ensure, Context, Result};
-use rusqlite::{params, Transaction, TransactionBehavior};
+use crate::storage::{SourceSnapshot, Store, WikiPage, WikiPageDraft, knowledge::content_hash};
+use anyhow::{Context, Result, ensure};
+use rusqlite::{Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 

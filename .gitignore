@@ -10,6 +10,16 @@ packaging/linux/src/
 *.pkg.tar.*
 *.pkg.tar.zst
 
+# Python bytecode cache
+__pycache__/
+*.py[cod]
+
+# Node dependencies (relay/ Cloudflare Worker)
+node_modules/
+
+# Wrangler local state (relay/)
+.wrangler/
+
 # Local data (SQLite, runtime state)
 .data/
 *.db
@@ -20,6 +30,7 @@ packaging/linux/src/
 # Env
 .env
 .env.*
+!.env.example
 
 # 不提交的素材文件（下载的视频/音频/图片/转录稿等）
 # 目录与 README 提交，里面的内容一律不提交

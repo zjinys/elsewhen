@@ -1,4 +1,11 @@
+import 'dart:math';
+
 import 'suggestion_feedback.dart';
+import 'chat_page_task_scope.dart';
+import 'chat_proposal_review.dart';
+import 'chat_run_status.dart';
+import 'chat_input_queue.dart';
+import '../providers/chat_run_provider.dart';
 import '../bridge/api.dart' as api;
 
 import 'package:flutter/material.dart';
@@ -41,11 +48,24 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   String? _conversationId;
   List<Message> _messages = [];
   bool _ready = false;
-  bool _busy = false;
+  bool _sending = false;
+  bool get _busy =>
+      _sending ||
+      (_conversationId != null &&
+          ref.read(conversationRepositoryProvider).supportsChatRuns &&
+          ref.read(chatRunControllerProvider(_conversationId!)).state.busy);
+  bool get _inputBusy =>
+      _sending ||
+      _taskRestoreError != null ||
+      (_busy && !ref.read(conversationRepositoryProvider).supportsChatQueue);
   bool _saving = false;
   bool _reimporting = false;
   bool _rescanning = false;
   String? _error;
+  ChatPageTask? _pageTask;
+  String? _taskRestoreError;
+  String? _pendingInputSignature;
+  String? _pendingInputKey;
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
 
@@ -56,6 +76,24 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   }
 
   @override
+  void didUpdateWidget(covariant WikiAiChatPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.slug != widget.slug) {
+      _conversationId = null;
+      _messages = [];
+      _ready = false;
+      _sending = false;
+      _pageTask = null;
+      _taskRestoreError = null;
+      _error = null;
+      _pendingInputSignature = null;
+      _pendingInputKey = null;
+      _inputController.clear();
+      _ensureConversation();
+    }
+  }
+
+  @override
   void dispose() {
     _inputController.dispose();
     _scrollController.dispose();
@@ -63,21 +101,53 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   }
 
   Future<void> _ensureConversation() async {
+    final slug = widget.slug;
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      final conv = await repo.ensureWikiPageChat(widget.slug);
-      if (!mounted) return;
+      final conv = await repo.ensureWikiPageChat(slug);
+      ChatPageTask? task;
+      String? taskError;
+      if (repo.supportsPageTasks) {
+        try {
+          final saved = await repo.getWikiChatTask(conv.id);
+          task = saved == null
+              ? ChatPageTask('local_question', [await repo.getWikiChatMaterial(slug)])
+              : await ChatPageTask.restore(saved, repo.getWikiChatMaterial);
+        } catch (e) {
+          taskError = '原任务暂不能恢复：$e';
+        }
+      }
+      if (!mounted || widget.slug != slug) return;
       setState(() {
+        _pageTask = task;
+        _taskRestoreError = taskError;
         _conversationId = conv.id;
         _ready = true;
       });
       await _loadMessages();
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || widget.slug != slug) return;
       setState(() {
         _ready = true;
         _error = '会话初始化失败：${e.toString().replaceFirst('Exception: ', '')}';
       });
+    }
+  }
+
+  Future<void> _resetTask() async {
+    final slug = widget.slug;
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    try {
+      final material = await repo.getWikiChatMaterial(slug);
+      if (!mounted || widget.slug != slug) return;
+      setState(() {
+        _pageTask = ChatPageTask('local_question', [material]);
+        _taskRestoreError = null;
+      });
+    } catch (e) {
+      if (mounted && widget.slug == slug) {
+        setState(() => _taskRestoreError = '重新读取材料失败：$e');
+      }
     }
   }
 
@@ -87,7 +157,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final messages = await repo.listMessages(id);
-      if (!mounted) return;
+      if (!mounted || _conversationId != id) return;
       setState(() => _messages = messages);
       _scrollToBottom();
     } catch (e) {
@@ -98,60 +168,98 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
     }
   }
 
-  Future<void> _send(String raw) async {
+  Future<void> _send(
+    String raw, {
+    bool recordOnly = false,
+    bool supplement = false,
+  }) async {
     final text = raw.trim();
     final id = _conversationId;
-    if (text.isEmpty || id == null || _busy) return;
+    if (text.isEmpty || id == null || _inputBusy) return;
+    final target = ref.read(conversationRepositoryProvider).supportsChatRuns
+        ? ref.read(chatRunControllerProvider(id)).state.run
+        : null;
+    if (supplement && (target == null || !chatRunIsActive(target.status))) {
+      setState(() => _error = '当前没有可补充的任务，请选择保存或排队。');
+      return;
+    }
     setState(() {
-      _messages.add(
-        Message(
-          id: 'local-${DateTime.now().microsecondsSinceEpoch}',
-          conversationId: id,
-          role: MessageRole.user,
-          content: text,
-          createdAt: DateTime.now(),
-        ),
-      );
-      _busy = true;
+      _sending = true;
       _error = null;
     });
-    _inputController.clear();
-    _scrollToBottom();
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    final durable = ref.read(conversationRepositoryProvider).supportsChatRuns;
     final generatingNotifier = ref.read(aiGeneratingProvider.notifier);
-    setAiGenerating(ref, id, true);
     try {
-      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      await repo.sendMessage(id, 'user', text);
-      // 追加 AI 回复
-      final reply = await repo.generateReply(id);
-      if (!mounted) return;
-      setState(() {
-        _messages.add(
-          Message(
-            id: 'ai-${DateTime.now().microsecondsSinceEpoch}',
-            conversationId: id,
-            role: MessageRole.assistant,
-            content: reply,
-            createdAt: DateTime.now(),
+      final signature = '$id\n$text\n${_pageTask?.json}';
+      if (_pendingInputSignature != signature) {
+        _pendingInputSignature = signature;
+        _pendingInputKey =
+            'wiki-${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
+      }
+      final saved = repo.supportsPageTasks && _pageTask != null
+          ? await repo.submitWikiChatInput(
+              id,
+              text,
+              idempotencyKey: _pendingInputKey!,
+              taskJson: _pageTask!.json,
+            )
+          : await repo.sendMessage(id, 'user', text);
+      if (!mounted || _conversationId != id) return;
+      _pendingInputSignature = null;
+      _pendingInputKey = null;
+      _inputController.clear();
+      setState(() => _messages.add(saved));
+      _scrollToBottom();
+      if (durable) {
+        ref.invalidate(wikiChatMessagesProvider(id));
+        if (recordOnly) return;
+        try {
+          final repository = ref.read(conversationRepositoryProvider);
+          if (supplement) {
+            await repository.enqueueChatSupplement(id, saved.id, target!.id);
+          } else if (repository.supportsChatQueue) {
+            await repository.scheduleChatInput(id, saved.id);
+            if (mounted)
+              await ref.read(chatRunControllerProvider(id)).restore();
+          } else {
+            await ref.read(chatRunControllerProvider(id)).start(saved.id);
+          }
+        } catch (_) {
+          if (mounted)
+            setState(() => _error = '输入已保存，但生成资格未确认；请从该消息继续生成，不要重新发送。');
+        }
+      } else {
+        setAiGenerating(ref, id, true);
+        final reply = await repo.generateReply(id);
+        if (!mounted || _conversationId != id) return;
+        setState(
+          () => _messages.add(
+            Message(
+              id: 'ai-${DateTime.now().microsecondsSinceEpoch}',
+              conversationId: id,
+              role: MessageRole.assistant,
+              content: reply,
+              createdAt: DateTime.now(),
+            ),
           ),
         );
-        _busy = false;
-      });
-      _scrollToBottom();
-      // 页面内容可能被修订：让页面详情 provider 失效以刷新
-      ref.invalidate(wikiPageProvider(widget.slug));
-      ref.invalidate(pageRelationsProvider(widget.slug));
-      ref.invalidate(wikiDerivativesProvider(widget.slug));
-      ref.invalidate(wikiPagesProvider);
+        ref.invalidate(wikiPageProvider(widget.slug));
+        ref.invalidate(pageRelationsProvider(widget.slug));
+        ref.invalidate(wikiDerivativesProvider(widget.slug));
+        ref.invalidate(wikiPagesProvider);
+      }
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
-      });
-      _scrollToBottom();
+      if (!mounted || _conversationId != id) return;
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
-      generatingNotifier.update((current) => {...current}..remove(id));
+      if (!durable) {
+        generatingNotifier.update((current) => {...current}..remove(id));
+      }
+      if (mounted && _conversationId == id) {
+        setState(() => _sending = false);
+        _scrollToBottom();
+      }
     }
   }
 
@@ -162,6 +270,15 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   }
 
   Future<void> _handleTask(String action) async {
+    if (_pageTask != null && _pageTask!.materials.isNotEmpty &&
+        {'summary', 'extract', 'decisions', 'next', 'copy'}.contains(action)) {
+      setState(
+        () => _pageTask = ChatPageTask(
+          'full_summary',
+          _pageTask!.materials.take(1).toList(),
+        ),
+      );
+    }
     switch (action) {
       case 'summary':
         _fillPrompt('请总结这一页，提炼最重要的信息。');
@@ -172,7 +289,15 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
       case 'next':
         _fillPrompt('请整理这一页的下一步行动和仍未解决的问题。');
       case 'translate':
-        _fillPrompt('请把这一页翻译成 XX 语言，保留结构和专业含义。');
+        if (_pageTask != null && _pageTask!.materials.isNotEmpty) {
+          setState(() => _pageTask = ChatPageTask(
+            'local_question',
+            _pageTask!.materials.take(1).toList(),
+            startChar: _pageTask!.startChar,
+            endChar: _pageTask!.endChar,
+          ));
+        }
+        _fillPrompt('请把选定的原文片段翻译成 XX 语言，保留结构和专业含义；只处理已提供的片段，先说明范围，不声称翻译整页。');
       case 'copy':
         _fillPrompt('请根据这一页内容，写一版适合发布到 XX 渠道的文案，目标受众是 XX，语气是 XX。');
       case 'rescan':
@@ -389,7 +514,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
     });
   }
 
-  Widget _buildMessage(Message message) {
+  Widget _buildMessage(Message message, {bool canGenerate = false}) {
     final isProject =
         ref.watch(wikiPageProvider(widget.slug)).value?.kind == 'project';
     final bubble = WikiChatBubble(
@@ -401,6 +526,20 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
           ? () => _showExpandedReply(message.content)
           : null,
     );
+    if (canGenerate) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          bubble,
+          TextButton(
+            onPressed: () => ref
+                .read(chatRunControllerProvider(message.conversationId))
+                .start(message.id),
+            child: const Text('生成回复'),
+          ),
+        ],
+      );
+    }
     if (message.role != MessageRole.assistant ||
         message.content.trim().isEmpty) {
       return bubble;
@@ -492,6 +631,29 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final id = _conversationId;
+    final durable = ref.watch(conversationRepositoryProvider).supportsChatRuns;
+    if (id != null && durable) {
+      ref.watch(chatRunStateProvider(id).select((value) => value.value?.busy));
+      ref.listen(wikiChatMessagesProvider(id), (previous, next) {
+        if ((next.value?.length ?? 0) > (previous?.value?.length ?? 0)) {
+          _scrollToBottom();
+        }
+      });
+    }
+    final displayedMessages = id != null && durable
+        ? ref.watch(wikiChatMessagesProvider(id)).value ?? _messages
+        : _messages;
+    final runInput = id != null && durable
+        ? ref.watch(
+            chatRunStateProvider(id)
+                .select((value) => value.value?.run?.inputMessageId),
+          )
+        : null;
+    final unansweredInput =
+        displayedMessages.isNotEmpty && displayedMessages.last.isUser
+        ? displayedMessages.last.id
+        : null;
     final page = ref.watch(wikiPageProvider(widget.slug)).value;
     final isProject = page?.kind == 'project';
     final canReimport =
@@ -518,8 +680,18 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                   content: '👋 我可以帮你总结、提取要点、补充或改写这一页；需要写回知识库时会先给你确认。\n如果这是从本地目录导入的项目，也可以直接说“重新扫描这个项目目录”，我会按最新文件重新导入。',
                 ),
               ),
-              for (final m in _messages) _buildMessage(m),
-              if (_busy) const WikiChatBubble.pending(),
+              for (final m in displayedMessages)
+                _buildMessage(
+                  m,
+                  canGenerate:
+                      durable &&
+                      !_busy &&
+                      m.id == unansweredInput &&
+                      m.id != runInput,
+                ),
+              if (durable && id != null) ChatRunStatus(conversationId: id),
+              if (durable && id != null) ChatInputQueue(conversationId: id),
+              if (_busy && !durable) const WikiChatBubble.pending(),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: AppTheme.space2),
@@ -564,6 +736,17 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                         ),
                       ),
                       const Spacer(),
+                      if (_conversationId != null)
+                        ChatProposalReviewButton(
+                          conversationId: _conversationId,
+                          compact: true,
+                          onChanged: () {
+                            ref.invalidate(wikiPageProvider(widget.slug));
+                            ref.invalidate(
+                              wikiDerivativesProvider(widget.slug),
+                            );
+                          },
+                        ),
                       if (widget.onDragUpdate != null)
                         Tooltip(
                           message: '拖动以移动对话窗口',
@@ -635,7 +818,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                               '整理下一步',
                             ),
                             _taskMenuDivider(),
-                            _taskMenuItem('translate', Icons.translate, '翻译'),
+                            _taskMenuItem('translate', Icons.translate, '翻译片段'),
                             _taskMenuItem(
                               'copy',
                               Icons.campaign_outlined,
@@ -671,6 +854,30 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                   constraints: const BoxConstraints(maxHeight: 160),
                   child: messages,
                 ),
+              if (_taskRestoreError != null)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_taskRestoreError!),
+                      const Text('重新选择将使用当前页的新版本，并清除旧选区和对照材料。'),
+                      TextButton(
+                        onPressed: _sending ? null : _resetTask,
+                        child: const Text('明确重新选择任务与材料'),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_pageTask != null)
+                ChatPageTaskScope(
+                  repository: ref.read(
+                    storageRepositoryProvider,
+                  ) as RustBridgeRepository,
+                  task: _pageTask!,
+                  enabled: !_sending,
+                  onChanged: (task) => setState(() => _pageTask = task),
+                ),
               // 输入区
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -684,7 +891,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                     Expanded(
                       child: TextField(
                         controller: _inputController,
-                        enabled: _ready && !_busy,
+                        enabled: _ready && !_inputBusy,
                         maxLines: 1,
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _send(_inputController.text),
@@ -727,7 +934,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                     ),
                     const SizedBox(width: AppTheme.space2),
                     IconButton.filled(
-                      onPressed: (_ready && !_busy)
+                      onPressed: (_ready && !_inputBusy)
                           ? () => _send(_inputController.text)
                           : null,
                       style: IconButton.styleFrom(
@@ -735,8 +942,37 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                         disabledBackgroundColor: AppTheme.surface3,
                       ),
                       icon: const Icon(Icons.arrow_upward, size: 16),
-                      tooltip: '发送',
+                      tooltip: _busy ? '保存并排队下一问' : '发送',
                     ),
+                    if (ref
+                        .watch(conversationRepositoryProvider)
+                        .supportsChatQueue)
+                      PopupMenuButton<String>(
+                        tooltip: '输入保存方式',
+                        enabled: _ready && !_sending,
+                        onSelected: (mode) => _send(
+                          _inputController.text,
+                          recordOnly: mode == 'record',
+                          supplement: mode == 'supplement',
+                        ),
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'record',
+                            child: Text('仅保存，不生成回复'),
+                          ),
+                          if (_conversationId != null &&
+                              ref
+                                  .read(
+                                    chatRunControllerProvider(_conversationId!),
+                                  )
+                                  .state
+                                  .active)
+                            const PopupMenuItem(
+                              value: 'supplement',
+                              child: Text('补充当前任务'),
+                            ),
+                        ],
+                      ),
                   ],
                 ),
               ),

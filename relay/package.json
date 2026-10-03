@@ -1,0 +1,16 @@
+{
+  "name": "elsewhen-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Elsewhen blind relay - end-to-end encrypted sync mailbox (Cloudflare Workers + Durable Objects)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.mjs",
+    "smoke": "node test/e2e-smoke.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.145.0"
+  }
+}

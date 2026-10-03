@@ -1,4 +1,10 @@
 mod adapter;
+pub(crate) mod approvals;
+pub(crate) mod chat_page_tasks;
+pub(crate) mod chat_queue;
+pub(crate) mod chat_runs;
+pub(crate) mod chat_summaries;
+pub(crate) mod chat_supplements;
 mod conversations;
 mod digest;
 mod entities;
@@ -12,7 +18,7 @@ mod wiki;
 
 use crate::event::{EventSummary, NewEvent};
 use anyhow::{Context, Result};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -26,8 +32,8 @@ pub use adapter::{
     AiProviderConfig, AiProviderConfigRow, AnalysisJob, AnalysisSummary, StorageAdapter,
 };
 pub use digest::{
-    DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
     DIGEST_FAILED_COOLDOWN_SECS, DIGEST_MAX_ATTEMPTS, DIGEST_SETTLE_SECS, DIGEST_VERSION,
+    DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
 };
 pub use goals::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
 pub use knowledge::{KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, SourceSnapshot};
@@ -473,29 +479,56 @@ pub(crate) fn map_wiki_page(row: &rusqlite::Row) -> rusqlite::Result<WikiPage> {
 
 /// wiki_pages 行 → WikiPage 的公共列清单。
 /// 顺序必须与 `map_wiki_page` 的按位取值（0..=19）严格一致。
-pub(crate) const WIKI_PAGE_COLS: &str =
-    "id, slug, kind, title, summary, content_md, tags, source_event_ids, \
+pub(crate) const WIKI_PAGE_COLS: &str = "id, slug, kind, title, summary, content_md, tags, source_event_ids, \
      evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at, source_url, \
      COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion";
+
+#[derive(Clone)]
+pub(crate) struct ConversationSnapshot {
+    pub conversation_id: String,
+    pub input_message_id: String,
+    pub messages: std::sync::Arc<[MessageSummary]>,
+}
 
 pub struct Store {
     // pub(crate) 而非私有：storage.rs 拆出的子模块（migrations / provider / …）
     // 在同一 crate 的 `impl Store` 块里需要直接访问连接与路径。
     pub(crate) connection: Connection,
     pub(crate) path: std::path::PathBuf,
+    pub(crate) conversation_snapshot: Option<ConversationSnapshot>,
+    pub(crate) chat_run_identity: Option<crate::ai::generation::RunIdentity>,
+    pub(crate) captured_page_task: std::cell::RefCell<Option<(String, chat_page_tasks::PageTask)>>,
 }
 
 impl Clone for Store {
     fn clone(&self) -> Self {
-        Self::open(&self.path).expect("reopen database")
+        let mut store = Self::open(&self.path).expect("reopen database");
+        store.conversation_snapshot = self.conversation_snapshot.clone();
+        store.chat_run_identity = self.chat_run_identity.clone();
+        store.captured_page_task = self.captured_page_task.clone();
+        store
     }
 }
 
 impl Store {
+    /// Local compound writes may join a caller-owned transaction. The caller
+    /// must propagate errors and own rollback/commit for the entire operation.
+    pub(crate) fn begin_write_transaction(&self) -> Result<Option<rusqlite::Transaction<'_>>> {
+        if self.connection.is_autocommit() {
+            Ok(Some(rusqlite::Transaction::new_unchecked(
+                &self.connection,
+                rusqlite::TransactionBehavior::Immediate,
+            )?))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub fn open(path: &Path) -> Result<Self> {
         let mut connection = Connection::open(path)
             .with_context(|| format!("open SQLite database {}", path.display()))?;
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
+        connection.pragma_update(None, "foreign_keys", true)?;
         let initialized = INITIALIZED_DATABASES
             .get_or_init(|| Mutex::new(HashSet::new()))
             .lock()
@@ -514,6 +547,9 @@ impl Store {
         let store = Self {
             connection,
             path: path.to_path_buf(),
+            conversation_snapshot: None,
+            chat_run_identity: None,
+            captured_page_task: Default::default(),
         };
         if first_open {
             // 启动期一次性完成存量回填和 WAL 收敛；普通 API 打开连接不再写库。
@@ -662,14 +698,5 @@ impl StorageAdapter for Store {
     }
 }
 
-impl Drop for Store {
-    fn drop(&mut self) {
-        // 关闭时再 checkpoint 一次：进程退出前把未合并的 WAL 页写回主库，
-        // 让 -wal 文件保持接近空的状态（P2-8）。
-        let _ = self
-            .connection
-            .execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
-    }
-}
 #[cfg(test)]
 mod tests;

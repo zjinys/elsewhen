@@ -5,7 +5,7 @@
 //! 应用元数据（app_meta）与全量分析列表。
 
 use anyhow::Result;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use super::adapter::AnalysisSummary;

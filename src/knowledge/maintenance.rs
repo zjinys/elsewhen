@@ -1,7 +1,7 @@
 //! Human maintenance commands and their readable audit history.
 use crate::storage::{KnowledgeIssue, Store, WikiPage};
-use anyhow::{ensure, Context, Result};
-use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
+use anyhow::{Context, Result, ensure};
+use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 
 fn issue(store: &Store, fingerprint: &str) -> Result<KnowledgeIssue> {
     store

@@ -7,11 +7,11 @@
 //! 目标改内容走 `update_goal`（同一目标），换阶段或换方向走归档加新增，旧目标保留。
 
 use anyhow::Result;
-use rusqlite::{params, Error as SqliteError};
+use rusqlite::{Error as SqliteError, params};
 use uuid::Uuid;
 
-use super::new_migrations::ACTIVE_GOAL_LIMIT_REACHED;
 use super::Store;
+use super::new_migrations::ACTIVE_GOAL_LIMIT_REACHED;
 
 /// 活跃目标条数上限，与数据库触发器里的常量保持一致。
 pub const MAX_ACTIVE_GOALS: usize = 3;
@@ -419,10 +419,12 @@ mod tests {
     #[test]
     fn unknown_id_reports_not_found() {
         let store = store();
-        assert!(store
-            .store
-            .update_goal("nope", "x", GoalPhase::Near)
-            .is_err());
+        assert!(
+            store
+                .store
+                .update_goal("nope", "x", GoalPhase::Near)
+                .is_err()
+        );
         assert!(store.store.archive_goal("nope").is_err());
         assert!(store.store.reactivate_goal("nope").is_err());
     }

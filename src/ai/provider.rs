@@ -5,6 +5,27 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::{Mutex, OnceLock};
 
+mod streaming;
+
+/// Streaming transport failures are not evidence that native tools are unsupported.
+#[derive(Debug)]
+pub(crate) struct ObservedRequestFailure;
+impl std::fmt::Display for ObservedRequestFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("observable provider request failed")
+    }
+}
+impl std::error::Error for ObservedRequestFailure {}
+
+#[derive(Debug)]
+pub(crate) struct NativeToolsUnsupported;
+impl std::fmt::Display for NativeToolsUnsupported {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("provider explicitly rejected native tools")
+    }
+}
+impl std::error::Error for NativeToolsUnsupported {}
+
 /// 服务端错误体透传前截断：完整 body 可能含用户对话内容或敏感报错堆栈，
 /// 直接落库/展示会给下游（错误聚合、重试原因）引入不必要的信息暴露（P2）。
 const PROVIDER_ERROR_BODY_MAX_CHARS: usize = 300;
@@ -82,6 +103,18 @@ impl AiReply {
     }
 }
 
+/// Distinct channels keep local diagnostics out of model prose and checkpoints.
+#[derive(Debug)]
+pub enum ProviderEvent<'a> {
+    Poll,
+    TextDelta(&'a str),
+    Budget {
+        attempt: u32,
+        trigger: &'static str,
+        report: &'a super::budget::BudgetReport,
+    },
+}
+
 /// AI provider trait for generating replies
 pub trait AiProvider {
     /// 生成回复；`tools` 非空时走原生 tool-calling（服务端支持才生效）
@@ -90,6 +123,29 @@ pub trait AiProvider {
         messages: Vec<ContextMessage>,
         tools: Option<&[ToolSpec]>,
     ) -> Result<AiReply>;
+
+    /// Observable generation. Providers without streaming still preserve request-boundary cancellation.
+    fn generate_observed(
+        &self,
+        messages: Vec<ContextMessage>,
+        tools: Option<&[ToolSpec]>,
+        observer: &mut dyn FnMut(ProviderEvent<'_>) -> Result<()>,
+    ) -> Result<AiReply> {
+        observer(ProviderEvent::Poll)?;
+        let reply = self.generate_reply_with_tools(messages, tools)?;
+        observer(ProviderEvent::Poll)?;
+        Ok(reply)
+    }
+
+    /// Conservative preflight for explicit task supplements. Unknown provider
+    /// protocols retain the input in the queue rather than dropping context.
+    fn accepts_supplement(
+        &self,
+        _messages: &[ContextMessage],
+        _tools: Option<&[ToolSpec]>,
+    ) -> Result<bool> {
+        Ok(false)
+    }
 
     /// 纯文本请求（不带 tools）
     fn generate_reply(&self, messages: Vec<ContextMessage>) -> Result<AiReply> {
@@ -309,41 +365,92 @@ fn response_message_tool_calls(message: &OpenAiMessageResponse) -> Vec<ToolCall>
 }
 
 impl AiProvider for OpenAiCompatibleProvider {
+    fn accepts_supplement(
+        &self,
+        messages: &[ContextMessage],
+        tools: Option<&[ToolSpec]>,
+    ) -> Result<bool> {
+        super::budget::validate_context_exchanges(messages)?;
+        let (mut payload, _) = self.request_parts(messages.to_vec(), tools)?;
+        payload["stream"] = Value::Bool(true);
+        payload["stream_options"] = serde_json::json!({"include_usage":true});
+        let window = self
+            .config
+            .context_window
+            .map(|v| v as usize)
+            .unwrap_or_else(|| super::budget::default_window(&self.config.model));
+        let limit =
+            super::budget::input_limit(window, self.config.max_tokens.unwrap_or(4096) as usize)?;
+        // Do not trim any existing exchange to fit a supplement. Extra reserve
+        // covers clock refresh and protocol framing between probe and request.
+        Ok(super::budget::input_tokens(&self.config.model, &payload).saturating_add(512) <= limit)
+    }
+
     fn generate_reply_with_tools(
         &self,
         messages: Vec<ContextMessage>,
         tools: Option<&[ToolSpec]>,
     ) -> Result<AiReply> {
-        let mut optional_indices: Vec<_> = messages
-            .iter()
-            .enumerate()
-            .filter_map(|(i, m)| (m.optional_background && m.role == "system").then_some(i))
-            .collect();
-        let openai_messages: Vec<OpenAiMessage> = messages
-            .into_iter()
-            .map(|m| OpenAiMessage {
-                role: m.role,
-                content: m.content,
-                tool_calls: m.tool_calls.map(|calls| openai_message_tool_calls(&calls)),
-                tool_call_id: m.tool_call_id,
-                reasoning_content: m.reasoning_content,
-            })
-            .collect();
+        self.generate_impl(messages, tools, None)
+    }
 
-        let mut request = OpenAiRequest {
+    fn generate_observed(
+        &self,
+        messages: Vec<ContextMessage>,
+        tools: Option<&[ToolSpec]>,
+        observer: &mut dyn FnMut(ProviderEvent<'_>) -> Result<()>,
+    ) -> Result<AiReply> {
+        self.generate_impl(messages, tools, Some(observer))
+            .map_err(|error| {
+                if error.downcast_ref::<NativeToolsUnsupported>().is_some() {
+                    error
+                } else {
+                    error.context(ObservedRequestFailure)
+                }
+            })
+    }
+}
+
+impl OpenAiCompatibleProvider {
+    fn request_parts(
+        &self,
+        messages: Vec<ContextMessage>,
+        tools: Option<&[ToolSpec]>,
+    ) -> Result<(Value, super::budget::RequestPolicies)> {
+        let messages =
+            super::time_context::enrich_history(messages, &super::time_context::SystemClock);
+        let policies = super::budget::RequestPolicies::from_context(&messages);
+        let request = OpenAiRequest {
             model: self.config.model.clone(),
-            messages: openai_messages,
+            messages: messages
+                .into_iter()
+                .map(|m| OpenAiMessage {
+                    role: m.role,
+                    content: m.content,
+                    tool_calls: m.tool_calls.map(|calls| openai_message_tool_calls(&calls)),
+                    tool_call_id: m.tool_call_id,
+                    reasoning_content: m.reasoning_content,
+                })
+                .collect(),
             temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            tools: None,
-            tool_choice: None,
+            max_tokens: Some(self.config.max_tokens.unwrap_or(4096)),
+            tools: tools
+                .filter(|tools| !tools.is_empty())
+                .map(openai_tool_defs),
+            tool_choice: tools
+                .filter(|tools| !tools.is_empty())
+                .map(|_| "auto".to_string()),
         };
-        if let Some(tools) = tools {
-            if !tools.is_empty() {
-                request.tools = Some(openai_tool_defs(tools));
-                request.tool_choice = Some("auto".to_string());
-            }
-        }
+        Ok((serde_json::to_value(request)?, policies))
+    }
+
+    fn generate_impl(
+        &self,
+        messages: Vec<ContextMessage>,
+        tools: Option<&[ToolSpec]>,
+        observer: Option<&mut dyn FnMut(ProviderEvent<'_>) -> Result<()>>,
+    ) -> Result<AiReply> {
+        let (mut payload, mut policies) = self.request_parts(messages, tools)?;
 
         let url = format!(
             "{}/chat/completions",
@@ -351,16 +458,25 @@ impl AiProvider for OpenAiCompatibleProvider {
         );
 
         let output = self.config.max_tokens.unwrap_or(4096) as usize;
-        request.max_tokens = Some(output as u32);
-        let mut payload = serde_json::to_value(&request)?;
         let mut window = self
             .config
             .context_window
             .map(|v| v as usize)
             .unwrap_or_else(|| super::budget::default_window(&self.config.model));
+        if let Some(observer) = observer {
+            return streaming::generate(
+                &self.config,
+                &url,
+                payload,
+                policies,
+                window,
+                output,
+                observer,
+            );
+        }
         let mut retry = false;
         let response = loop {
-            super::budget::fit_request_with_background(&self.config.model, &mut payload, window, output, &mut optional_indices)?;
+            policies.fit(&self.config.model, &mut payload, window, output)?;
             let response = self
                 .client
                 .post(&url)
@@ -582,11 +698,30 @@ impl AiProvider for OllamaProvider {
         messages: Vec<ContextMessage>,
         tools: Option<&[ToolSpec]>,
     ) -> Result<AiReply> {
-        let mut optional_indices: Vec<_> = messages
-            .iter()
-            .enumerate()
-            .filter_map(|(i, m)| (m.optional_background && m.role == "system").then_some(i))
-            .collect();
+        self.generate_impl(messages, tools, None)
+    }
+
+    fn generate_observed(
+        &self,
+        messages: Vec<ContextMessage>,
+        tools: Option<&[ToolSpec]>,
+        observer: &mut dyn FnMut(ProviderEvent<'_>) -> Result<()>,
+    ) -> Result<AiReply> {
+        self.generate_impl(messages, tools, Some(observer))
+            .map_err(|error| error.context(ObservedRequestFailure))
+    }
+}
+
+impl OllamaProvider {
+    fn generate_impl(
+        &self,
+        messages: Vec<ContextMessage>,
+        tools: Option<&[ToolSpec]>,
+        mut observer: Option<&mut dyn FnMut(ProviderEvent<'_>) -> Result<()>>,
+    ) -> Result<AiReply> {
+        let messages =
+            super::time_context::enrich_history(messages, &super::time_context::SystemClock);
+        let mut policies = super::budget::RequestPolicies::from_context(&messages);
         let ollama_messages: Vec<OllamaMessage> = messages
             .into_iter()
             .map(|m| OllamaMessage {
@@ -615,47 +750,59 @@ impl AiProvider for OllamaProvider {
 
         let url = format!("{}/api/chat", self.config.base_url.trim_end_matches('/'));
         let mut payload = serde_json::to_value(&request)?;
-        super::budget::fit_request_with_background(
-            &self.config.model,
-            &mut payload,
-            request.options.num_ctx,
-            request.options.num_predict,
-            &mut optional_indices,
-        )?;
-        let response = self
-            .client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .send()
-            .context("Failed to send request to Ollama")?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().unwrap_or_default();
-            anyhow::bail!(
-                "Ollama returned error {}",
-                provider_error_body(status, &body)
+        if let Some(observer) = observer.as_deref_mut() {
+            observer(ProviderEvent::Poll)?;
+            let (result, report) = policies.fit_reported(
+                &self.config.model,
+                &mut payload,
+                request.options.num_ctx,
+                request.options.num_predict,
             );
+            observer(ProviderEvent::Budget {
+                attempt: 1,
+                trigger: "initial",
+                report: &report,
+            })?;
+            result?;
+        } else {
+            policies.fit(
+                &self.config.model,
+                &mut payload,
+                request.options.num_ctx,
+                request.options.num_predict,
+            )?;
         }
-
-        let ollama_response: OllamaResponse =
-            response.json().context("Failed to parse Ollama response")?;
+        let ollama_response: OllamaResponse = if let Some(observer) = observer {
+            serde_json::from_value(streaming::cancellable_json(&url, &payload, observer)?)?
+        } else {
+            let response = self
+                .client
+                .post(&url)
+                .header("Content-Type", "application/json")
+                .json(&payload)
+                .send()
+                .context("Failed to send request to Ollama")?;
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().unwrap_or_default();
+                anyhow::bail!(
+                    "Ollama returned error {}",
+                    provider_error_body(status, &body)
+                );
+            }
+            response.json().context("Failed to parse Ollama response")?
+        };
 
         let usage = match (
             ollama_response.prompt_eval_count,
             ollama_response.eval_count,
         ) {
-            (None, None) => None,
-            (prompt, completion) => {
-                let prompt_tokens = prompt.unwrap_or(0);
-                let completion_tokens = completion.unwrap_or(0);
-                Some(TokenUsage {
-                    prompt_tokens,
-                    completion_tokens,
-                    total_tokens: prompt_tokens + completion_tokens,
-                })
-            }
+            (Some(prompt_tokens), Some(completion_tokens)) => Some(TokenUsage {
+                prompt_tokens,
+                completion_tokens,
+                total_tokens: prompt_tokens.saturating_add(completion_tokens),
+            }),
+            _ => None,
         };
 
         let tool_calls = ollama_response

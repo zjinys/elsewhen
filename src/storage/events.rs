@@ -6,14 +6,15 @@
 //! - analysis_jobs：claim/complete/fail + 指数退避 available_at，重启恢复 running→retry。
 
 use anyhow::{Context, Result};
-use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
+use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 use uuid::Uuid;
 
 use super::adapter::AnalysisJob;
 use super::digest::enqueue_digest_job_on;
 use super::{
-    map_input_record, AnalysisJobStats, DailyEntry, DailyReviewRecord, EventAnalysisDetail,
+    AnalysisJobStats, DailyEntry, DailyReviewRecord, EventAnalysisDetail,
     EventRecordabilityDecision, EventSummary, InputRecord, InsightSummary, NewEvent, Store,
+    map_input_record,
 };
 
 impl Store {
@@ -21,8 +22,40 @@ impl Store {
         let id = Uuid::new_v4().to_string();
         let now_at = chrono::Utc::now();
         let now = now_at.to_rfc3339();
-        let transaction = self.connection.unchecked_transaction()?;
-        transaction.execute(
+        let transaction = self.begin_write_transaction()?;
+        let input_id = self
+            .conversation_snapshot
+            .as_ref()
+            .filter(|_| event.source == "tool")
+            .map(|snapshot| snapshot.input_message_id.as_str());
+        if let Some(input_id) = input_id {
+            let existing = self
+                .connection
+                .query_row(
+                    "SELECT event_id FROM chat_input_effects WHERE input_message_id=?1",
+                    [input_id],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .optional()?;
+            if let Some(existing) = existing {
+                let existing = existing.context("原记录已被移除，不会在生成重试时重新创建")?;
+                if let Some(transaction) = transaction {
+                    transaction.commit()?;
+                }
+                return Ok(existing);
+            }
+            let captured = self.connection.query_row(
+                "SELECT event_id FROM input_records WHERE message_id=?1 AND event_id IS NOT NULL LIMIT 1",
+                [input_id], |row| row.get::<_, String>(0),
+            ).optional()?;
+            if let Some(captured) = captured {
+                if let Some(transaction) = transaction {
+                    transaction.commit()?;
+                }
+                return Ok(captured);
+            }
+        }
+        self.connection.execute(
             "INSERT INTO events
          (id, occurred_at, recorded_at, raw_text, source, status, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6, ?6)",
@@ -35,13 +68,18 @@ impl Store {
                 now,
             ],
         )?;
-        transaction.execute(
+        self.connection.execute(
         "INSERT INTO analysis_jobs (id, event_id, status, attempts, available_at, created_at, updated_at)
          VALUES (?1, ?2, 'pending', 0, ?3, ?3, ?3)",
         params![Uuid::new_v4().to_string(), id, now],
     )?;
-        enqueue_digest_job_on(&transaction, &id, now_at)?;
-        transaction.commit()?;
+        enqueue_digest_job_on(&self.connection, &id, now_at)?;
+        if let Some(input_id) = input_id {
+            self.connection.execute("INSERT INTO chat_input_effects(input_message_id,event_id,created_at) VALUES(?1,?2,?3)", params![input_id,id,now])?;
+        }
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         Ok(id)
     }
 
@@ -245,13 +283,22 @@ impl Store {
         &self,
         conversation_id: &str,
     ) -> Result<Option<String>> {
+        if let Some(snapshot) = &self.conversation_snapshot {
+            if snapshot.conversation_id == conversation_id {
+                return self.connection.query_row(
+                    "SELECT event_id FROM input_records WHERE message_id=?1 AND event_id IS NOT NULL
+                     UNION ALL SELECT event_id FROM chat_input_effects WHERE input_message_id=?1 LIMIT 1",
+                    [&snapshot.input_message_id], |row| row.get::<_, Option<String>>(0),
+                ).optional().map(Option::flatten).map_err(Into::into);
+            }
+        }
         let event_id = self
             .connection
             .query_row(
                 "SELECT i.event_id FROM messages m
          LEFT JOIN input_records i ON i.message_id=m.id
          WHERE m.conversation_id=?1 AND m.role='user'
-         ORDER BY m.created_at DESC LIMIT 1",
+         ORDER BY m.created_at DESC, m.id DESC LIMIT 1",
                 [conversation_id],
                 |row| row.get::<_, Option<String>>(0),
             )
@@ -648,15 +695,6 @@ impl Store {
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
-    }
-
-    /// 按 id 删除事件（AI 尝试失败时回滚 WriteDirect 写入用，见 conversation.rs）。
-    /// events 的防改触发器只拦 UPDATE 特定列，不拦 DELETE。
-    pub fn delete_event(&self, id: &str) -> Result<bool> {
-        let n = self
-            .connection
-            .execute("DELETE FROM events WHERE id=?1", [id])?;
-        Ok(n > 0)
     }
 
     /// 查某个「本地日历日」记录的事件（按 recorded_at，本地时区日界 → UTC 区间，倒序）。

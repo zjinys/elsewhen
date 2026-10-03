@@ -4,7 +4,7 @@
 //! 会话标题缺省时由首条用户消息派生（derive_conversation_title）。
 
 use anyhow::Result;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use super::{ConversationSummary, DailyTokenUsage, MessageSummary, RecentUserMessage, Store};
@@ -230,22 +230,24 @@ impl Store {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
 
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.begin_write_transaction()?;
 
         // Insert message
-        transaction.execute(
+        self.connection.execute(
         "INSERT INTO messages (id, conversation_id, parent_message_id, role, content, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![id, conversation_id, parent_message_id, role, content, now],
     )?;
 
         // Update conversation timestamp
-        transaction.execute(
+        self.connection.execute(
             "UPDATE conversations SET updated_at = ?1 WHERE id = ?2",
             params![now, conversation_id],
         )?;
 
-        transaction.commit()?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         Ok(id)
     }
 
@@ -299,7 +301,74 @@ impl Store {
             .map_err(Into::into)
     }
 
+    pub(crate) fn context_for_input(
+        &self,
+        conversation_id: &str,
+        input_message_id: &str,
+    ) -> Result<Vec<MessageSummary>> {
+        let messages = self.list_messages(conversation_id)?;
+        let index = messages
+            .iter()
+            .position(|m| m.id == input_message_id && m.role == "user")
+            .ok_or_else(|| anyhow::anyhow!("生成输入不存在、不是用户消息或不属于此会话"))?;
+        let earlier: std::collections::HashMap<_, _> = messages[..index]
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| m.role == "user")
+            .map(|(i, m)| (m.id.clone(), i))
+            .collect();
+        let replies: std::collections::HashMap<String, String> = self.connection.prepare(
+            "SELECT final_message_id,input_message_id FROM chat_runs WHERE conversation_id=?1 AND status='completed' AND final_message_id IS NOT NULL",
+        )?.query_map([conversation_id], |r| Ok((r.get(0)?,r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        // Saved queue inputs can precede their answers in wall-clock order. Put
+        // each completed answer back into its owning turn before selecting or
+        // summarizing history; never rewrite the original messages/timestamps.
+        // Unassociated legacy messages keep their order within their old turn.
+        let mut turns = std::collections::BTreeMap::<Option<usize>, Vec<MessageSummary>>::new();
+        let mut current_turn = None;
+        for (position, message) in messages.into_iter().enumerate() {
+            let answer_turn = (message.role == "assistant")
+                .then(|| {
+                    replies
+                        .get(&message.id)
+                        .and_then(|input| earlier.get(input))
+                        .copied()
+                })
+                .flatten();
+            if let Some(owner) = answer_turn {
+                turns.entry(Some(owner)).or_default().push(message);
+            } else if position <= index {
+                if message.role == "user" {
+                    current_turn = Some(position);
+                }
+                turns.entry(current_turn).or_default().push(message);
+            }
+        }
+        Ok(turns.into_values().flatten().collect())
+    }
+
+    pub(crate) fn snapshot_for_input(
+        &self,
+        conversation_id: &str,
+        input_message_id: &str,
+    ) -> Result<Store> {
+        let mut store = Store::open(&self.path)?;
+        let messages = store.context_for_input(conversation_id, input_message_id)?;
+        store.conversation_snapshot = Some(super::ConversationSnapshot {
+            conversation_id: conversation_id.to_owned(),
+            input_message_id: input_message_id.to_owned(),
+            messages: messages.into(),
+        });
+        Ok(store)
+    }
+
     pub fn list_messages(&self, conversation_id: &str) -> Result<Vec<MessageSummary>> {
+        if let Some(snapshot) = &self.conversation_snapshot {
+            if snapshot.conversation_id == conversation_id {
+                return Ok(snapshot.messages.to_vec());
+            }
+        }
         let mut statement = self.connection.prepare(
             "SELECT id, conversation_id, parent_message_id, role, content, created_at
          FROM messages

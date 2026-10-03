@@ -119,9 +119,11 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
           DefaultWidgetsLocalizations.delegate,
           AppFlowyEditorLocalizations.delegate,
         ],
-        home: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: initAsync.when(
+        // 桌面窗口不裁圆角（FlClash 纪律）：窗口不透明直角，圆角交给系统
+        // （Win11 DWM 自动圆角、macOS 系统圆角、Linux 直角）。自裁圆角需要
+        // 透明窗口背景，而透明像素在 Windows 上被 DWM 合成为白色留一圈白边。
+        home: Builder(
+          builder: (context) => initAsync.when(
             data: (initialized) {
               if (!initialized) {
                 return const Scaffold(

@@ -1,4 +1,10 @@
 import 'suggestion_feedback.dart';
+import 'chat_proposal_review.dart';
+import 'chat_run_status.dart';
+import 'chat_input_queue.dart';
+import '../providers/chat_run_provider.dart';
+import '../bridge/api.dart' as api;
+import '../bridge/api.dart' show ChatInputMode;
 
 import 'dart:convert';
 import 'dart:math';
@@ -33,24 +39,29 @@ String? explicitTopicName(String text) {
   return name == null || name.isEmpty ? null : name;
 }
 
-/// 触发一次 AI 生成（发送后自动触发，或失败气泡上的「重新生成」点击）。
-/// 首次发送与重试走完全相同的路径：成功刷新消息/会话列表、失败追加
-/// 「会话内错误气泡」（带重新生成入口），结束统一清除「生成中」状态。
-/// [isMounted]：组件可能已卸载（如生成期间切走 tab），回调返回 false 时
-/// 跳过依赖 ref 的界面刷新（成功入库后的 invalidate 由下次加载兜底）。
+/// 发送与重试均绑定已保存的输入；真实 bridge 交给共享持久 run 控制器。
+/// 未初始化 bridge 的内存测试仓库保留同步应答兼容路径。
 Future<void> runAiGeneration(
   WidgetRef ref,
   String conversationId, {
+  required String inputMessageId,
   bool Function()? isMounted,
   VoidCallback? onError,
 }) async {
+  final repository = ref.read(conversationRepositoryProvider);
+  if (repository.supportsChatRuns) {
+    await ref
+        .read(chatRunControllerProvider(conversationId))
+        .start(inputMessageId);
+    return;
+  }
   final generatingNotifier = ref.read(aiGeneratingProvider.notifier);
   try {
     setAiGenerating(ref, conversationId, true);
     final repo = ref.read(conversationRepositoryProvider);
     await repo.generateReply(conversationId);
-    clearReplyFailed(ref, conversationId);
     if (isMounted == null || isMounted()) {
+      clearReplyFailed(ref, conversationId);
       ref.invalidate(messagesProvider);
       ref.invalidate(conversationsProvider);
       ref.invalidate(pendingActionsProvider);
@@ -70,10 +81,7 @@ Future<void> runAiGeneration(
       ref.read(scrollRequestProvider.notifier).update((v) => v + 1);
       // 记下失败的是**哪一条**消息：重新生成的入口跟着消息 id 走，不再依赖
       // 列表位置——后续追加消息或搜索/日期筛选都会让位置条件失效（P9）。
-      final failedMessageId = await latestUserMessageId(ref, conversationId);
-      if (failedMessageId != null && (isMounted == null || isMounted())) {
-        markReplyFailed(ref, conversationId, failedMessageId);
-      }
+      markReplyFailed(ref, conversationId, inputMessageId);
       onError?.call();
     }
   } finally {
@@ -82,21 +90,6 @@ Future<void> runAiGeneration(
       (current) => {...current}..remove(conversationId),
     );
   }
-}
-
-/// 会话里最后一条 user 消息的 id：生成失败时用它把「重新生成」入口钉在
-/// 那条消息上（Rust 侧 generateReply 始终回复最新一条 user 消息）。
-Future<String?> latestUserMessageId(
-  WidgetRef ref,
-  String conversationId,
-) async {
-  final messages = await ref
-      .read(conversationRepositoryProvider)
-      .getMessages(conversationId);
-  for (final message in messages.reversed) {
-    if (message.isUser) return message.id;
-  }
-  return null;
 }
 
 /// 把 AI 生成失败整理成**一行可读文案**，不展示 Anyhow 的 Caused by 调用链。
@@ -178,6 +171,20 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         ref.watch(conversationNoticeProvider)[selectedId] ?? const <String>[];
     // 正在生成 AI 回复的会话（发送后反馈「AI 生成中」占位气泡）
     final generatingIds = ref.watch(aiGeneratingProvider);
+    final durable = ref.watch(conversationRepositoryProvider).supportsChatRuns;
+    final durableBusy =
+        selectedId != null &&
+        durable &&
+        ref.watch(
+          chatRunStateProvider(selectedId)
+              .select((value) => value.value?.busy ?? true),
+        );
+    final durableRunInput = selectedId != null && durable
+        ? ref.watch(
+            chatRunStateProvider(selectedId)
+                .select((value) => value.value?.run?.inputMessageId),
+          )
+        : null;
     // 待办 / provider / token / 待入库草稿等头部统计一律由 _NowStatus 自己
     // 订阅：放在这里 watch 会让这些与消息无关的状态每次变化都重建整份消息
     // 列表（P13）。
@@ -273,6 +280,10 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                 )
               : null,
         ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ChatProposalReviewButton(conversationId: selectedId),
+        ),
         if (_showSearch) _buildSearchBar(messagesAsync.value ?? const []),
         _PendingRelationsBanner(),
         // Messages list
@@ -280,7 +291,8 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           child: messagesAsync.when(
             data: (messages) {
               // 当前会话是否正在生成 AI 回复（渲染尾部占位气泡）
-              final isAiTyping = generatingIds.contains(selectedId);
+              final legacyTyping = generatingIds.contains(selectedId);
+              final isAiTyping = legacyTyping || durableBusy;
 
               if (messages.isEmpty && notices.isEmpty && !isAiTyping) {
                 return _buildNoMessages();
@@ -346,7 +358,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
               final failedReplyId = ref.watch(
                 failedReplyMessageIdProvider.select((map) => map[selectedId]),
               );
-              final tailCount = notices.length + (isAiTyping ? 1 : 0);
+              final tailCount = notices.length + (legacyTyping ? 1 : 0);
               final rows = <Object>[];
               String? previousDay;
               for (var i = shownSince; i < total; i++) {
@@ -378,6 +390,9 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                     final needsReply =
                         message.isUser &&
                         !isAiTyping &&
+                        (!durable ||
+                            (durableRunInput != message.id &&
+                                message.conversationId == selectedId)) &&
                         ((message.id == latestUserMessageId &&
                                 !latestUserHasReply) ||
                             (failedReplyId != null &&
@@ -385,7 +400,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                     return _MessageBubble(
                       message: message,
                       showRetry: needsReply,
-                      onRetry: () => _retryAiGeneration(selectedId),
+                      onRetry: () => _retryAiGeneration(selectedId, message.id),
                     );
                   }
                   final tailIndex = libIndex - rows.length;
@@ -410,6 +425,18 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           ),
         ),
 
+        if (durable)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  ChatRunStatus(conversationId: selectedId),
+                  ChatInputQueue(conversationId: selectedId),
+                ],
+              ),
+            ),
+          ),
         // Input area
         _MessageInput(),
       ],
@@ -543,11 +570,16 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
   /// 按与首次发送完全相同的路径重启 AI 生成。
   /// 重试期间以「AI 正在思考…」占位反馈；若再次失败，
   /// runAiGeneration 会追加新的错误气泡（仍可继续重试）。
-  void _retryAiGeneration(String conversationId) {
+  void _retryAiGeneration(String conversationId, String inputMessageId) {
     if (ref.read(aiGeneratingProvider).contains(conversationId)) return;
     clearConversationNotices(ref, conversationId);
     if (mounted) setState(() {});
-    runAiGeneration(ref, conversationId, isMounted: () => mounted);
+    runAiGeneration(
+      ref,
+      conversationId,
+      inputMessageId: inputMessageId,
+      isMounted: () => mounted,
+    );
   }
 
   /// 加载更早消息：窗口向前扩展一页，然后回到顶部看旧内容
@@ -676,7 +708,7 @@ class _KnowledgeDraftsDialog extends ConsumerWidget {
                                   context: context,
                                   builder: (_) => _KnowledgeDraftDialog(
                                     conversationId: conversationId,
-                                    actionId: action.id,
+                                    proposal: action,
                                     title: title,
                                     kind:
                                         payload['kind']?.toString() ?? 'topic',
@@ -721,7 +753,7 @@ class _KnowledgeDraftsDialog extends ConsumerWidget {
 class _KnowledgeDraftDialog extends ConsumerStatefulWidget {
   const _KnowledgeDraftDialog({
     required this.conversationId,
-    required this.actionId,
+    required this.proposal,
     required this.title,
     required this.kind,
     required this.content,
@@ -730,7 +762,7 @@ class _KnowledgeDraftDialog extends ConsumerStatefulWidget {
   });
 
   final String conversationId;
-  final String actionId;
+  final api.PendingActionDto proposal;
   final String title;
   final String kind;
   final String content;
@@ -772,7 +804,7 @@ class _KnowledgeDraftDialogState extends ConsumerState<_KnowledgeDraftDialog> {
     try {
       await ref
           .read(conversationRepositoryProvider)
-          .declineKnowledgeDraft(widget.conversationId, widget.actionId);
+          .declineKnowledgeDraft(widget.conversationId, widget.proposal);
       if (!mounted) return;
       ref.invalidate(pendingActionsProvider);
       Navigator.of(context).pop();
@@ -795,7 +827,7 @@ class _KnowledgeDraftDialogState extends ConsumerState<_KnowledgeDraftDialog> {
     try {
       final result = await ref
           .read(conversationRepositoryProvider)
-          .confirmKnowledgeDraft(widget.conversationId, widget.actionId);
+          .confirmKnowledgeDraft(widget.conversationId, widget.proposal);
       if (!mounted) return;
       ref.invalidate(pendingActionsProvider);
       ref.invalidate(wikiPagesProvider);
@@ -921,7 +953,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
             child: Text(
               degraded
                   ? '有一条联系人关联建议，但数据无法解析。'
-                  : '发现联系人：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。',
+                  : '发现联系人：$people\n关联事项：$targets\n请打开“审阅提议”，接受或拒绝这项建议。',
               style: const TextStyle(fontSize: 12, height: 1.5),
             ),
           ),
@@ -967,6 +999,8 @@ class _PendingRelationsBanner extends ConsumerWidget {
     WidgetRef ref,
     dynamic action,
   ) async {
+    final conversationId = ref.read(selectedConversationIdProvider);
+    if (conversationId == null) return;
     final Map<String, dynamic> payload;
     try {
       final decoded = jsonDecode(action.argsJson);
@@ -1031,7 +1065,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
     payload['relations'] = relations;
     await ref
         .read(conversationRepositoryProvider)
-        .updatePendingActionArgs(action.id, jsonEncode(payload));
+        .updatePendingActionArgs(conversationId, action, jsonEncode(payload));
     if (!context.mounted) return;
     ref.invalidate(pendingActionsProvider);
   }
@@ -1161,7 +1195,7 @@ class _NowStatus extends ConsumerWidget {
               m.createdAt.day == today.day,
         )
         .length;
-    final summary = '对话${count}次';
+    final summary = '对话$count次';
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1826,10 +1860,11 @@ class _MessageBubble extends ConsumerWidget {
             .showSnackBar(SnackBar(content: Text(text)));
       }
     } catch (error) {
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(reportUiError('更新消息状态', error))));
+      }
     }
   }
 
@@ -2045,7 +2080,8 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     _focusNode.requestFocus();
   }
 
-  Future<void> _handleSubmit() async {
+  Future<void> _handleSubmit({ChatInputMode mode = ChatInputMode.generate}) async {
+    final recordOnly = mode == ChatInputMode.recordOnly;
     final text = _controller.text.trim();
     if (text.isEmpty || _isSubmitting) return;
 
@@ -2054,16 +2090,30 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       _showError('请先选择一个会话');
       return;
     }
-    // AI 正在生成本会话回复：暂不提交新消息，
-    // 避免并发生成互相覆盖上下文（用户可继续打字，生成完后再发送）。
-    if (ref.read(aiGeneratingProvider).contains(conversationId)) return;
+    final repository = ref.read(conversationRepositoryProvider);
+    final running =
+        ref.read(aiGeneratingProvider).contains(conversationId) ||
+        (repository.supportsChatRuns &&
+            ref.read(chatRunControllerProvider(conversationId)).state.busy);
+    if (running && !repository.supportsChatQueue && !recordOnly) return;
+    // Bind the displayed run before saving. If it finishes during the save,
+    // Rust preserves the input without silently steering a different run.
+    final targetRun = repository.supportsChatRuns
+        ? ref.read(chatRunControllerProvider(conversationId)).state.run
+        : null;
+    if (mode == ChatInputMode.supplement &&
+        (targetRun == null || !chatRunIsActive(targetRun.status))) {
+      _showError('当前没有可补充的任务，请选择保存或排队。');
+      return;
+    }
 
     setState(() => _isSubmitting = true);
     final submissionKey = _submissionKeyFor(text);
+    String? inputMessageId;
 
     try {
       final topic = explicitTopicName(text);
-      if (topic != null) {
+      if (topic != null && !recordOnly && !running) {
         await _enterTopic(topic);
         _controller.clear();
         _pendingSubmissionText = null;
@@ -2076,7 +2126,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
           (uri.scheme == 'http' || uri.scheme == 'https') &&
           uri.host.isNotEmpty &&
           !text.contains(RegExp(r'\s'));
-      if (isUrl) {
+      if (isUrl && !recordOnly && !running) {
         await _routeUrlToImportPreview(text, submissionKey);
         _controller.clear();
         _pendingSubmissionText = null;
@@ -2084,12 +2134,15 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         return;
       }
       final repo = ref.read(conversationRepositoryProvider);
-      // 先把用户消息写入库（不依赖 AI）
-      await repo.sendMessage(
+      // 先把用户消息写入库（不依赖 AI）；返回的消息 id 是后续 AI 生成的
+      // 输入锚点（chat run 绑定 inputMessageId，失败重试也钉在这条消息上）。
+      final sentMessage = await repo.sendMessage(
         conversationId,
         text,
         idempotencyKey: submissionKey,
       );
+      inputMessageId = sentMessage.id;
+      if (!mounted) return;
 
       // 新消息发出，清掉该会话之前的临时错误提示
       clearConversationNotices(ref, conversationId);
@@ -2116,11 +2169,24 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       }
     }
 
-    if (!mounted) return;
+    if (!mounted || recordOnly) return;
+    if (repository.supportsChatQueue) {
+      try {
+        if (mode == ChatInputMode.supplement) {
+          await repository.enqueueChatSupplement(conversationId, inputMessageId, targetRun!.id);
+        } else {
+          await repository.scheduleChatInput(conversationId, inputMessageId);
+          if (mounted) await ref.read(chatRunControllerProvider(conversationId)).restore();
+        }
+      } catch (_) {
+        if (mounted) _showError('输入已保存，但生成资格未确认。请从该消息继续生成，不要重新发送。');
+      }
+      return;
+    }
     // 接着触发 AI 分析生成回复（不阻塞输入，出错单独反馈）。
     // 「生成中」状态由 _generateAiReply 内部设置，确保 invalidate
     // 时列表仍在 data 分支（可渲染 notice），而非 AsyncLoading（空跑）。
-    await _generateAiReply(conversationId);
+    await _generateAiReply(conversationId, inputMessageId);
   }
 
   Future<void> _enterTopic(String title) async {
@@ -2184,12 +2250,15 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     }
   }
 
-  Future<void> _generateAiReply(String conversationId) async {
-    // 生成逻辑集中在顶部 runAiGeneration：重试（错误气泡按钮）与首次发送
-    // 走同一路径，保证成功/失败/收尾行为一致。
+  Future<void> _generateAiReply(
+    String conversationId,
+    String inputMessageId,
+  ) async {
+    // The saved message is the request identity, never a later "latest" input.
     await runAiGeneration(
       ref,
       conversationId,
+      inputMessageId: inputMessageId,
       isMounted: () => mounted,
       onError: () {
         if (mounted) setState(() {});
@@ -2200,11 +2269,20 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
   @override
   Widget build(BuildContext context) {
     final selectedId = ref.watch(selectedConversationIdProvider);
+    final durableBusy =
+        selectedId != null &&
+        ref.watch(conversationRepositoryProvider).supportsChatRuns &&
+        ref.watch(
+          chatRunStateProvider(selectedId)
+              .select((value) => value.value?.busy ?? true),
+        );
     final isGenerating =
         selectedId != null &&
-        ref.watch(aiGeneratingProvider).contains(selectedId);
-    // 三态：写库中（_isSubmitting）或 AI 生成中 → 忙碌
-    final busy = _isSubmitting || isGenerating;
+        (ref.watch(aiGeneratingProvider).contains(selectedId) || durableBusy);
+    final queueEnabled = ref
+        .watch(conversationRepositoryProvider)
+        .supportsChatQueue;
+    final busy = _isSubmitting || (isGenerating && !queueEnabled);
     final pages = ref.watch(wikiPagesProvider).value ?? const [];
     final completionPages = _completionMarker == null
         ? const <WikiPage>[]
@@ -2352,8 +2430,19 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.arrow_upward, size: 16),
-                tooltip: isGenerating ? 'AI 正在思考…' : '发送',
+                tooltip: isGenerating && queueEnabled ? '保存并排队下一问' : '发送',
               ),
+              if (queueEnabled)
+                PopupMenuButton<ChatInputMode>(
+                  tooltip: '输入保存方式',
+                  enabled: !_isSubmitting,
+                  onSelected: (mode) => _handleSubmit(mode: mode),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: ChatInputMode.recordOnly, child: Text('仅保存，不生成回复')),
+                    if (isGenerating)
+                      const PopupMenuItem(value: ChatInputMode.supplement, child: Text('补充当前任务')),
+                  ],
+                ),
             ],
           ),
         ],

@@ -5,12 +5,12 @@
 //! 记录历史，slug 唯一性由 unique_slug 类逻辑保证。
 
 use anyhow::{Context, Result};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use super::{
-    map_wiki_page, ContentPolicy, RenameWikiOutcome, Store, WikiPage, WikiPageDraft,
-    WikiUpsertOutcome, WIKI_PAGE_COLS,
+    ContentPolicy, RenameWikiOutcome, Store, WIKI_PAGE_COLS, WikiPage, WikiPageDraft,
+    WikiUpsertOutcome, map_wiki_page,
 };
 
 impl Store {
@@ -181,6 +181,7 @@ impl Store {
                 && title.chars().count() <= 200,
             "产物类型或标题无效"
         );
+        let tx = self.begin_write_transaction()?;
         let base = self.get_wiki_page(based_on_slug)?.with_context(|| {
             format!("知识页不存在：{based_on_slug}（不能对不存在的页面创建派生产物）")
         })?;
@@ -198,10 +199,6 @@ impl Store {
             .to_string();
         let now = chrono::Utc::now().to_rfc3339();
         let tags_raw = serde_json::to_string(&vec!["派生产物".to_string()])?;
-        let tx = rusqlite::Transaction::new_unchecked(
-            &self.connection,
-            rusqlite::TransactionBehavior::Immediate,
-        )?;
         self.connection.execute(
             "INSERT INTO wiki_pages
          (id, slug, kind, title, summary, content_md, tags, source_event_ids,
@@ -245,7 +242,9 @@ impl Store {
         if let Some(conversation) = conversation {
             crate::knowledge::workflows::attach_generation(self, &page, conversation)?;
         }
-        tx.commit()?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(page)
     }
 
@@ -285,12 +284,11 @@ impl Store {
         draft: &WikiPageDraft,
         policy: ContentPolicy,
     ) -> Result<WikiUpsertOutcome> {
-        let tx = rusqlite::Transaction::new_unchecked(
-            &self.connection,
-            rusqlite::TransactionBehavior::Immediate,
-        )?;
+        let tx = self.begin_write_transaction()?;
         let outcome = self.upsert_wiki_page_in_tx(draft, policy)?;
-        tx.commit()?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(outcome)
     }
 
@@ -623,10 +621,10 @@ impl Store {
             );
             if !consistent {
                 anyhow::bail!(
-                "编辑冲突：页面在你编辑期间已被更新（加载于 {}，当前 {}）；请重新加载后合并修改，或强制覆盖",
-                expected,
-                page.updated_at
-            );
+                    "编辑冲突：页面在你编辑期间已被更新（加载于 {}，当前 {}）；请重新加载后合并修改，或强制覆盖",
+                    expected,
+                    page.updated_at
+                );
             }
         }
         let content_md = content_md.trim().to_string();
@@ -730,6 +728,7 @@ impl Store {
         new_title: &str,
         reason: &str,
     ) -> Result<RenameWikiOutcome> {
+        let tx = self.begin_write_transaction()?;
         let page = self.get_wiki_page(slug)?.with_context(|| {
         format!(
             "知识页不存在：{slug}（可能已被改名或删除——如果刚改过名，请用新名字操作，可在对话里列出知识库确认当前名称）"
@@ -762,32 +761,31 @@ impl Store {
             None => slug.to_string(),
         };
         let now = chrono::Utc::now().to_rfc3339();
-        let tx = self.connection.unchecked_transaction()?;
         // 1) 页面本体：换 slug + 标题，summary 里的旧名同步替换
         let new_summary = if old_title.is_empty() {
             page.summary.clone()
         } else {
             page.summary.replace(&old_title, &new_title)
         };
-        tx.execute(
+        self.connection.execute(
             "UPDATE wiki_pages SET slug=?1, title=?2, summary=?3, updated_at=?4 WHERE id=?5",
             params![new_slug, new_title, new_summary, now, page.id],
         )?;
         // 2) 关系引用迁移
         let mut relations_moved = 0usize;
         if new_slug != slug {
-            relations_moved += tx.execute(
+            relations_moved += self.connection.execute(
                 "UPDATE relations SET from_slug=?1 WHERE from_slug=?2",
                 params![new_slug, slug],
             )? as usize;
-            relations_moved += tx.execute(
+            relations_moved += self.connection.execute(
                 "UPDATE relations SET to_slug=?1 WHERE to_slug=?2",
                 params![new_slug, slug],
             )? as usize;
         }
         // 3) 页内聊天会话迁移
         let chats_moved = if new_slug != slug {
-            tx.execute(
+            self.connection.execute(
                 "UPDATE conversations SET wiki_page_slug=?1 WHERE wiki_page_slug=?2",
                 params![new_slug, slug],
             )? as usize
@@ -795,7 +793,7 @@ impl Store {
             0
         };
         // 4) 审计修订记录
-        tx.execute(
+        self.connection.execute(
         "INSERT INTO wiki_revisions (id, page_id, content_md, reason, source_event_id, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
@@ -807,10 +805,12 @@ impl Store {
             now,
         ],
     )?;
-        tx.commit()?;
         self.append_wiki_log(&format!(
             "知识页重命名：{old_title}（{slug}）→ {new_title}（{new_slug}）"
         ))?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(RenameWikiOutcome {
             old_slug: slug.to_string(),
             new_slug,

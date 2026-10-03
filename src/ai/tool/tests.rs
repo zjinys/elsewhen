@@ -1,4 +1,4 @@
-//! AI 工具行为测试（从 mod.rs 内联外移，只经 ToolRegistry::dispatch 公共入口）。
+//! AI 工具行为与提议提交边界测试（从 mod.rs 内联外移）。
 
 use super::*;
 
@@ -61,6 +61,99 @@ fn project_import_confirmation_saves_the_previewed_report() {
         .expect("confirmed project page should contain the previewed report");
     assert_eq!(page.content_md, expected);
 
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn project_report_staging_rejects_cancelled_and_expired_runs() {
+    for expired in [false, true] {
+        let (mut store, path) = temp_db();
+        Store::mark_initialized(&path).unwrap();
+        let conv = store
+            .create_conversation(Some("staging fence"), None)
+            .unwrap();
+        let input = store
+            .send_message(&conv, "user", "inspect test project", None)
+            .unwrap();
+        let run = store
+            .create_chat_run(&conv, &input, "request", "owner")
+            .unwrap();
+        store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
+            id: run.id.clone(),
+            owner: "owner".into(),
+        });
+        crate::ai::generation::check(&store).unwrap();
+
+        // The report is already prepared; a separate connection stops the run
+        // before the network tool reaches its final staging boundary.
+        let other = Store::open(&path).unwrap();
+        if expired {
+            other
+                .connection
+                .execute(
+                    "UPDATE chat_runs SET lease_until='2000-01-01T00:00:00+00:00' WHERE id=?1",
+                    [&run.id],
+                )
+                .unwrap();
+        } else {
+            other.cancel_chat_run(&conv, &run.id).unwrap();
+        }
+        let error = store_create_pending(
+            &store,
+            &conv,
+            "import_directory_as_project",
+            &json!({"directory":"synthetic-project", "content_md":"prepared report"}),
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .downcast_ref::<crate::storage::chat_runs::ChatRunStopped>()
+                .is_some()
+        );
+        assert!(
+            store
+                .pending_actions_for_conversation(&conv)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(store.connection.is_autocommit());
+        drop(other);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[test]
+fn project_report_staging_commits_for_live_run_and_joins_outer_transaction() {
+    let (mut store, path) = temp_db();
+    let conv = store
+        .create_conversation(Some("staging transaction"), None)
+        .unwrap();
+    let input = store
+        .send_message(&conv, "user", "inspect test project", None)
+        .unwrap();
+    let run = store
+        .create_chat_run(&conv, &input, "request", "owner")
+        .unwrap();
+    store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
+        id: run.id,
+        owner: "owner".into(),
+    });
+    let args = json!({"directory":"synthetic-project", "content_md":"prepared report"});
+    let id = store_create_pending(&store, &conv, "import_directory_as_project", &args).unwrap();
+    assert!(store.connection.is_autocommit());
+    let transaction = store.begin_write_transaction().unwrap().unwrap();
+    store_create_pending(&store, &conv, "import_directory_as_project", &args).unwrap();
+    assert!(!store.connection.is_autocommit());
+    assert_eq!(
+        store.pending_actions_for_conversation(&conv).unwrap().len(),
+        2
+    );
+    drop(transaction);
+    let actions = store.pending_actions_for_conversation(&conv).unwrap();
+    assert_eq!(actions.len(), 1);
+    assert_eq!(actions[0].id, id);
     drop(store);
     let _ = std::fs::remove_file(path);
 }
@@ -149,10 +242,12 @@ fn record_event_writes_directly() {
     // 直接写入了 events 真源
     assert_eq!(store.list_events().unwrap().len(), 1);
     // 不产生待确认动作
-    assert!(store
-        .pending_actions_for_conversation(&conv)
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
     drop(store);
     let _ = std::fs::remove_file(path);
 }
@@ -342,10 +437,12 @@ fn knowledge_draft_does_not_overwrite_same_title() {
         "{}",
         result.content
     );
-    assert!(store
-        .pending_actions_for_conversation(&conv)
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(
         store
             .find_wiki_page_by_title("沟通复盘")
@@ -615,10 +712,12 @@ fn archive_conversations_by_title_is_confirm_gated_then_archives() {
     );
     let result = dispatch(&call, &registry, &store, &conv);
     assert!(result.content.contains("没有找到"), "{}", result.content);
-    assert!(store
-        .pending_actions_for_conversation(&conv)
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
 
     // 5) 知识页聊天始终未被动过
     assert!(
@@ -763,10 +862,12 @@ fn save_wiki_revision_rejects_missing_slug_and_never_creates_ghost_page() {
         "{}",
         result.content
     );
-    assert!(store
-        .pending_actions_for_conversation(&conv)
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
     assert!(
         store
             .get_wiki_page("topic/fpso111整船项目")
@@ -792,10 +893,12 @@ fn save_wiki_revision_rejects_missing_slug_and_never_creates_ghost_page() {
     let pa = store.pending_actions_for_conversation(&conv).unwrap();
     let err = execute_pending_action(&store, &pa[0]).unwrap_err();
     assert!(err.to_string().contains("知识页不存在"), "{err}");
-    assert!(store
-        .get_wiki_page("topic/fpso111整船项目")
-        .unwrap()
-        .is_none());
+    assert!(
+        store
+            .get_wiki_page("topic/fpso111整船项目")
+            .unwrap()
+            .is_none()
+    );
     drop(store);
     let _ = std::fs::remove_file(path);
 }

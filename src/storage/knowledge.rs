@@ -1,7 +1,7 @@
 //! Exact source versions, reviewable compilation and knowledge provenance.
-use super::{map_wiki_page, ContentPolicy, Store, WikiPage, WikiPageDraft, WIKI_PAGE_COLS};
-use anyhow::{bail, Context, Result};
-use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
+use super::{ContentPolicy, Store, WIKI_PAGE_COLS, WikiPage, WikiPageDraft, map_wiki_page};
+use anyhow::{Context, Result, bail};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

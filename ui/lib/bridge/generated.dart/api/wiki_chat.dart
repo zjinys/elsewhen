@@ -8,6 +8,32 @@ import 'conversations.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`
+
+Future<WikiChatMaterialDto> getWikiChatMaterial({required String pageSlug}) =>
+    RustLib.instance.api.crateApiWikiChatGetWikiChatMaterial(
+      pageSlug: pageSlug,
+    );
+
+/// Restore the last saved input's exact task JSON; never refresh its revision tokens.
+Future<String?> getWikiChatTask({required String conversationId}) => RustLib
+    .instance
+    .api
+    .crateApiWikiChatGetWikiChatTask(conversationId: conversationId);
+
+/// Save one version-bound wiki input, without creating a personal event.
+Future<MessageDto> submitWikiChatInput({
+  required String conversationId,
+  required String content,
+  required String idempotencyKey,
+  required String taskJson,
+}) => RustLib.instance.api.crateApiWikiChatSubmitWikiChatInput(
+  conversationId: conversationId,
+  content: content,
+  idempotencyKey: idempotencyKey,
+  taskJson: taskJson,
+);
+
 /// 获取（不存在则创建）某个知识页的处理会话，返回会话 DTO。
 /// 页内 AI 聊天通过该会话进行；生成时自动注入页面内容。
 Future<ConversationDto> ensureWikiPageChat({required String pageSlug}) =>
@@ -18,3 +44,32 @@ Future<void> archiveWikiPageChat({required String pageSlug}) => RustLib
     .instance
     .api
     .crateApiWikiChatArchiveWikiPageChat(pageSlug: pageSlug);
+
+/// Material and its review basis are captured together, then displayed by the UI.
+class WikiChatMaterialDto {
+  final String slug;
+  final String title;
+  final String contentMd;
+  final String basisJson;
+
+  const WikiChatMaterialDto({
+    required this.slug,
+    required this.title,
+    required this.contentMd,
+    required this.basisJson,
+  });
+
+  @override
+  int get hashCode =>
+      slug.hashCode ^ title.hashCode ^ contentMd.hashCode ^ basisJson.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WikiChatMaterialDto &&
+          runtimeType == other.runtimeType &&
+          slug == other.slug &&
+          title == other.title &&
+          contentMd == other.contentMd &&
+          basisJson == other.basisJson;
+}
