@@ -1,9 +1,18 @@
-//! 多设备同步：设备管理、增量协议、三个传输（局域网 P2P / 盲中继 / 文件）。
+//! 多设备同步的协议、认证加密及中继传输底座。
 //!
 //! 设计文档：docs/notes/proposed/architecture/2026-09-30-multi-device-sync.md
-//!
-//! 当前交付：盲中继客户端（transport_relay）+ 自托管 Worker（relay/）。
-//! 局域网 P2P、扫码绑定、文件导出为后续迭代。
+//! 当前有内部复制、配对原语、签名成员授权、密钥库、快照/增量投递与 relay v2；
+//! App 配对/解锁、方向通道协调与生命周期仍以路线图未完成项为准，
+//! 不开放未验证的生产同步入口。
 
+pub mod crypto;
+pub(crate) mod datasets;
+pub(crate) mod engine;
+pub(crate) mod fragments;
+pub(crate) mod membership;
+pub(crate) mod pairing;
+pub(crate) mod runtime;
+pub(crate) mod vault;
+pub mod protocol;
 pub mod transport_relay;
 mod transport_relay_smoke_tests;

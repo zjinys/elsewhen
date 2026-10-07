@@ -25,6 +25,7 @@ export 'generated.dart/api/knowledge_digest.dart';
 export 'generated.dart/api/provider_config.dart';
 export 'generated.dart/api/relations.dart';
 export 'generated.dart/api/rules.dart';
+export 'generated.dart/api/sync.dart';
 export 'generated.dart/api/theme.dart';
 export 'generated.dart/api/todos.dart';
 export 'generated.dart/api/tweet.dart';

@@ -414,10 +414,10 @@ Provider 配置中 `max_tokens = NULL` 只表示客户端没有显式设置，�
 | provider | 状态 |
 | --- | --- |
 | `default`（hub.oaifree.com，gpt-4o） | 活跃；对「模型决定调工具」的请求 100% 返回坏响应 |
-| `glm-5.3-flash@虾蹬王` | 可用 |
-| `deepseek-flash@fengwind` | 实测 503 网关暂时不可用 |
-| `deepseek-flash@deepseek` | **402 Insufficient Balance**（欠费） |
-| `deepseek@zerocat` | **403 Forbidden** |
+| `glm-5.3-flash@账号A` | 可用 |
+| `deepseek-flash@账号B` | 实测 503 网关暂时不可用 |
+| `deepseek-flash@账号C` | **402 Insufficient Balance**（欠费） |
+| `deepseek@账号D` | **403 Forbidden** |
 
 5 个里 2 个已死、1 个当时 503，**failover 实际只有 1 个真实目标**。用户选择暂不处理
 （自行充费或删配置），已记入 backlog。这也说明「改成触发轮换」在当前配置下收益有限：

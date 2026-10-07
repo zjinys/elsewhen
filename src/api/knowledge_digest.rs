@@ -71,6 +71,12 @@ pub struct KnowledgeDigestRunDto {
 pub fn trigger_knowledge_digest() -> Result<KnowledgeDigestTickResult> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
+    let Some(_sync_guard) = crate::sync::runtime::background_guard(&config, &store)? else {
+        return Ok(KnowledgeDigestTickResult::Idle);
+    };
+    if !store.background_processing_allowed()? {
+        return Ok(KnowledgeDigestTickResult::Idle);
+    }
     let Some((provider, model)) = crate::wiki::digest_provider(&store)? else {
         return Ok(KnowledgeDigestTickResult::NoProvider);
     };

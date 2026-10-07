@@ -30,14 +30,22 @@ Future<String> saveAiProviderConfig({required AiProviderConfigDto provider}) =>
     );
 
 /// 将指定配置设为激活（唯一激活项）
-Future<void> setActiveAiProviderConfig({required String id}) => RustLib
-    .instance
-    .api
-    .crateApiProviderConfigSetActiveAiProviderConfig(id: id);
+Future<void> setActiveAiProviderConfig({
+  required String id,
+  String? revisionToken,
+}) => RustLib.instance.api.crateApiProviderConfigSetActiveAiProviderConfig(
+  id: id,
+  revisionToken: revisionToken,
+);
 
 /// 删除一个 AI provider 配置；若删除的是激活项，剩余第一条自动激活
-Future<void> deleteAiProviderConfig({required String id}) =>
-    RustLib.instance.api.crateApiProviderConfigDeleteAiProviderConfig(id: id);
+Future<void> deleteAiProviderConfig({
+  required String id,
+  String? revisionToken,
+}) => RustLib.instance.api.crateApiProviderConfigDeleteAiProviderConfig(
+  id: id,
+  revisionToken: revisionToken,
+);
 
 /// Upsert the active AI provider config (settings page save)
 Future<void> updateAiProviderConfig({
@@ -66,6 +74,9 @@ class AiProviderConfigDto {
   final PlatformInt64? maxTokens;
   final PlatformInt64? contextWindow;
 
+  /// Local edit basis captured with the displayed metadata; never refreshed on save.
+  final String? revisionToken;
+
   const AiProviderConfigDto({
     required this.id,
     required this.name,
@@ -78,6 +89,7 @@ class AiProviderConfigDto {
     required this.temperature,
     this.maxTokens,
     this.contextWindow,
+    this.revisionToken,
   });
 
   @override
@@ -92,7 +104,8 @@ class AiProviderConfigDto {
       isActive.hashCode ^
       temperature.hashCode ^
       maxTokens.hashCode ^
-      contextWindow.hashCode;
+      contextWindow.hashCode ^
+      revisionToken.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -109,5 +122,6 @@ class AiProviderConfigDto {
           isActive == other.isActive &&
           temperature == other.temperature &&
           maxTokens == other.maxTokens &&
-          contextWindow == other.contextWindow;
+          contextWindow == other.contextWindow &&
+          revisionToken == other.revisionToken;
 }

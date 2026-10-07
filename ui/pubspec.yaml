@@ -37,6 +37,9 @@ dependencies:
   # Rust FFI bridge
   flutter_rust_bridge: 2.14.0-beta.2
 
+  # Device-local sync master keys; never replicated with Provider configuration.
+  flutter_secure_storage: ^11.2.0
+
   # UI utilities
   intl: ^0.20.1
   # wiki md⇄JSON codec 行内语法（[[wikilink]] 等，vendored 编辑器同款协议）

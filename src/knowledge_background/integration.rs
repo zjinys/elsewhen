@@ -370,6 +370,7 @@ fn persist(
     run: &str,
 ) -> Result<i64> {
     let tx = Transaction::new_unchecked(&store.connection, TransactionBehavior::Immediate)?;
+    store.require_background_processor()?;
     let active: bool = store.connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM knowledge_background_runs WHERE id=?1 AND status='running')",
         [run],

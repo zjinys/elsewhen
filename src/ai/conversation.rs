@@ -2386,7 +2386,7 @@ mod tests {
             assert!(write_claim_detected(c), "应识别为写声明: {c}");
         }
         let non_claims = [
-            "搜了一下已保存的事件和知识库，确实没有「张玮」「林小昌」的记录。",
+            "搜了一下已保存的事件和知识库，确实没有「张三」「赵六」的记录。",
             "草拟好了，你看下：\n\n**标题**：一个月赚一万元（主题）",
             "回「好」我就存 ✅",
             "翻了下知识库，「感悟」那页其实还没真正建起来（我之前说存好了，说早了，抱歉）。",
@@ -2922,7 +2922,7 @@ mod tests {
     fn direct_query_ignores_normal_questions() {
         let (store, path) = temporary_database();
         for q in [
-            "张玮有和太极沟通吗",
+            "张三有王五沟通吗",
             "帮我记录一下今天的事",
             "把这条存进知识库",
         ] {

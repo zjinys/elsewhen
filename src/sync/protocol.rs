@@ -1,0 +1,398 @@
+//! Versioned domain operations. Wire data never names a SQLite table or SQL statement.
+
+use anyhow::{Result, ensure};
+use serde::{Deserialize, Serialize};
+
+pub const PROTOCOL_VERSION: u32 = 1;
+pub const MAX_OPERATION_BYTES: usize = 16 * 1024 * 1024;
+pub const MAX_BATCH_OPERATIONS: usize = 100;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EnvelopeReceipt {
+    pub dataset_id: String,
+    pub acknowledging_device_id: String,
+    pub target_device_id: String,
+    pub message_id: String,
+    pub payload_hash: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ApplicationReceipt {
+    pub dataset_id: String,
+    pub acknowledging_device_id: String,
+    pub target_device_id: String,
+    pub op_id: String,
+    pub payload_hash: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SyncOperation {
+    pub protocol_version: u32,
+    pub dataset_id: String,
+    pub origin_device_id: String,
+    pub origin_stream_id: String,
+    pub origin_sequence: i64,
+    pub logical_clock: i64,
+    pub op_id: String,
+    pub mutation: SyncMutation,
+}
+
+impl SyncOperation {
+    pub fn decode(bytes: &[u8]) -> Result<Self> {
+        ensure!(
+            bytes.len() <= MAX_OPERATION_BYTES,
+            "sync_operation_too_large"
+        );
+        let operation: Self = serde_json::from_slice(bytes)?;
+        operation.validate()?;
+        Ok(operation)
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        ensure!(
+            self.protocol_version == PROTOCOL_VERSION,
+            "sync_protocol_unsupported"
+        );
+        for id in [
+            &self.dataset_id,
+            &self.origin_device_id,
+            &self.origin_stream_id,
+        ] {
+            validate_id(id)?;
+        }
+        ensure!(self.origin_sequence > 0, "sync_sequence_invalid");
+        ensure!(
+            (1..=9_007_199_254_740_991).contains(&self.logical_clock),
+            "sync_logical_clock_invalid"
+        );
+        ensure!(
+            self.op_id == format!("{}:{}", self.origin_stream_id, self.origin_sequence),
+            "sync_operation_identity_invalid"
+        );
+        self.mutation.validate()
+    }
+}
+
+pub(crate) fn validate_id(id: &str) -> Result<()> {
+    ensure!(
+        !id.is_empty()
+            && id.len() <= 128
+            && id
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_')),
+        "sync_identity_invalid"
+    );
+    Ok(())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SyncMutation {
+    Capture {
+        event: EventRecord,
+        input: Option<InputRecord>,
+        message: Option<MessageRecord>,
+    },
+    MessageAppended {
+        message: MessageRecord,
+    },
+    AnalysisCompleted {
+        analysis: AnalysisRecord,
+    },
+    ConversationChanged {
+        conversation: ConversationRecord,
+        base_revision: Option<String>,
+        deleted: bool,
+        observed_message_ids: Vec<String>,
+    },
+}
+
+impl SyncMutation {
+    fn validate(&self) -> Result<()> {
+        match self {
+            Self::Capture {
+                event,
+                input,
+                message,
+            } => {
+                validate_id(&event.id)?;
+                ensure!(!event.raw_text.trim().is_empty(), "sync_empty_event");
+                if let Some(input) = input {
+                    validate_id(&input.id)?;
+                    ensure!(
+                        input.event_id == event.id && input.raw_text == event.raw_text,
+                        "sync_capture_link_mismatch"
+                    );
+                    ensure!(
+                        input.message_id.as_deref() == message.as_ref().map(|m| m.id.as_str()),
+                        "sync_capture_link_mismatch"
+                    );
+                } else {
+                    ensure!(message.is_none(), "sync_capture_link_missing");
+                }
+                if let Some(message) = message {
+                    message.validate()?;
+                    ensure!(
+                        message.role == "user" && message.content == event.raw_text,
+                        "sync_capture_message_mismatch"
+                    );
+                }
+            }
+            Self::MessageAppended { message } => message.validate()?,
+            Self::AnalysisCompleted { analysis } => {
+                validate_id(&analysis.id)?;
+                validate_id(&analysis.event_id)?;
+                ensure!(
+                    !analysis.prompt_version.is_empty() && analysis.prompt_version.len() <= 128,
+                    "sync_analysis_strategy_invalid"
+                );
+                let json: serde_json::Value = serde_json::from_str(&analysis.result_json)
+                    .map_err(|_| anyhow::anyhow!("sync_analysis_result_invalid"))?;
+                ensure!(json.is_object(), "sync_analysis_result_invalid");
+            }
+            Self::ConversationChanged {
+                conversation,
+                deleted,
+                ..
+            } => {
+                validate_id(&conversation.id)?;
+                ensure!(
+                    conversation
+                        .tag
+                        .as_deref()
+                        .is_none_or(|s| matches!(s, "diary" | "idea" | "discussion" | "general")),
+                    "sync_tag_invalid"
+                );
+                ensure!(
+                    !deleted || conversation.archived,
+                    "sync_delete_requires_archive"
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnalysisRecord {
+    pub id: String,
+    pub event_id: String,
+    pub task_id: String,
+    pub input_hash: String,
+    pub prompt_version: String,
+    pub result_json: String,
+    pub created_at: String,
+}
+
+pub(crate) fn analysis_task_id(
+    dataset: &str,
+    event: &str,
+    input_hash: &str,
+    strategy: &str,
+) -> String {
+    crate::storage::sync::hash(
+        &serde_json::to_vec(&(dataset, event, input_hash, strategy))
+            .expect("string tuple serialization"),
+    )
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EventRecord {
+    pub id: String,
+    pub occurred_at: String,
+    pub recorded_at: String,
+    pub raw_text: String,
+    pub source: String,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InputRecord {
+    pub id: String,
+    pub raw_text: String,
+    pub source: String,
+    pub event_id: String,
+    pub message_id: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MessageRecord {
+    pub id: String,
+    pub conversation_id: String,
+    pub parent_message_id: Option<String>,
+    pub role: String,
+    pub content: String,
+    pub created_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_message_id: Option<String>,
+}
+
+impl MessageRecord {
+    fn validate(&self) -> Result<()> {
+        validate_id(&self.id)?;
+        validate_id(&self.conversation_id)?;
+        if let Some(id) = &self.parent_message_id {
+            validate_id(id)?;
+        }
+        ensure!(
+            matches!(self.role.as_str(), "user" | "assistant"),
+            "sync_message_role_invalid"
+        );
+        if let Some(input) = &self.input_message_id {
+            validate_id(input)?;
+            ensure!(
+                self.role == "assistant" && input != &self.id,
+                "sync_response_input_invalid"
+            );
+        }
+        ensure!(
+            self.parent_message_id.as_deref() != Some(self.id.as_str()),
+            "sync_parent_cycle"
+        );
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConversationRecord {
+    pub id: String,
+    pub title: Option<String>,
+    pub tag: Option<String>,
+    pub archived: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Provider secrets are deliberately not a generic SyncMutation. They must be
+/// sealed before durable synchronization storage and never use settings' empty-key sentinel.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderBundle {
+    pub revision_id: String,
+    pub base_revision: Option<String>,
+    pub profiles: Vec<ProviderProfile>,
+    pub active_id: Option<String>,
+    pub failover_order: Vec<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderProfile {
+    pub id: String,
+    pub name: String,
+    pub provider_type: String,
+    pub base_url: String,
+    pub model: String,
+    pub api_key: String,
+    pub api_key_present: bool,
+    pub enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+    pub temperature: f64,
+    pub max_tokens: Option<i64>,
+    pub context_window: Option<i64>,
+}
+
+impl ProviderBundle {
+    pub fn validate(&self) -> Result<()> {
+        use std::collections::HashSet;
+        validate_id(&self.revision_id)?;
+        ensure!(self.profiles.len() <= 64, "sync_provider_count_exceeded");
+        let mut ids = HashSet::new();
+        let mut names = HashSet::new();
+        for profile in &self.profiles {
+            ensure!(
+                profile.api_key_present || profile.api_key.is_empty(),
+                "sync_provider_key_presence_invalid"
+            );
+            validate_id(&profile.id)?;
+            ensure!(
+                ids.insert(profile.id.as_str()),
+                "sync_provider_duplicate_id"
+            );
+            ensure!(
+                !profile.name.trim().is_empty() && names.insert(profile.name.as_str()),
+                "sync_provider_duplicate_name"
+            );
+            ensure!(
+                !profile.model.trim().is_empty(),
+                "sync_provider_model_empty"
+            );
+            let url = reqwest::Url::parse(&profile.base_url)
+                .map_err(|_| anyhow::anyhow!("sync_provider_url_invalid"))?;
+            ensure!(
+                matches!(url.scheme(), "http" | "https") && url.host_str().is_some(),
+                "sync_provider_url_invalid"
+            );
+            ensure!(
+                profile.temperature.is_finite(),
+                "sync_provider_temperature_invalid"
+            );
+            if let Some(output) = profile.max_tokens {
+                ensure!(
+                    (1..=1_000_000).contains(&output),
+                    "sync_provider_output_invalid"
+                );
+            }
+            if let Some(window) = profile.context_window {
+                ensure!(
+                    (4096..=2_000_000).contains(&window),
+                    "sync_provider_window_invalid"
+                );
+                ensure!(
+                    profile.max_tokens.unwrap_or(4096) + (window / 20).clamp(256, 4096) < window,
+                    "sync_provider_reserve_invalid"
+                );
+            }
+        }
+        ensure!(
+            self.active_id.as_deref().is_none_or(|id| ids.contains(id)),
+            "sync_provider_active_missing"
+        );
+        let order: HashSet<_> = self.failover_order.iter().map(String::as_str).collect();
+        ensure!(
+            order == ids && order.len() == self.failover_order.len(),
+            "sync_provider_order_invalid"
+        );
+        ensure!(
+            self.active_id
+                .as_ref()
+                .is_none_or(|id| self.failover_order.first() == Some(id)),
+            "sync_provider_active_order_invalid"
+        );
+        Ok(())
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self> {
+        ensure!(bytes.len() <= 1024 * 1024, "sync_provider_bundle_too_large");
+        // Serde errors can contain input values. Never return a secret-bearing
+        // parser diagnostic to the settings UI or a synchronization log.
+        let bundle: Self = serde_json::from_slice(bytes)
+            .map_err(|_| anyhow::anyhow!("sync_provider_bundle_invalid"))?;
+        bundle.validate()?;
+        Ok(bundle)
+    }
+}
+
+impl std::fmt::Debug for ProviderBundle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProviderBundle")
+            .field("profiles", &self.profiles.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for ProviderProfile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProviderProfile").finish_non_exhaustive()
+    }
+}

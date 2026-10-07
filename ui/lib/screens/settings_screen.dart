@@ -10,6 +10,8 @@ import '../bridge/api.dart' as api;
 import '../widgets/chat_proposal_review.dart';
 import '../widgets/custom_title_bar.dart';
 import '../widgets/font_picker_dialog.dart';
+import '../widgets/local_sync_settings.dart';
+import '../widgets/provider_endpoint_notice.dart';
 import '../widgets/knowledge_digest_dialog.dart';
 import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
@@ -597,11 +599,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   Widget _buildDataTab() {
+    final repository = ref.watch(storageRepositoryProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildSection(
+            title: '设备同步',
+            icon: Icons.devices_outlined,
+            child: LocalSyncSettings(
+              controller: repository is RustBridgeRepository
+                  ? repository.localSync
+                  : null,
+            ),
+          ),
+          const SizedBox(height: AppTheme.space6),
           _buildSection(
             title: '事件分析队列',
             icon: Icons.sync_outlined,
@@ -752,10 +765,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   color: AppTheme.textPrimary,
                 ),
               ),
-              if (trailing != null) ...[
-                const Spacer(),
-                trailing,
-              ],
+              if (trailing != null) ...[const Spacer(), trailing],
             ],
           ),
           const SizedBox(height: 20),
@@ -804,10 +814,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         final available = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : minCardWidth * 3;
-        final columns = ((available + gap) / (minCardWidth + gap)).floor().clamp(
-          1,
-          4,
-        );
+        final columns = ((available + gap) / (minCardWidth + gap))
+            .floor()
+            .clamp(1, 4);
         final cardWidth = (available - gap * (columns - 1)) / columns;
 
         return Wrap(
@@ -815,10 +824,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           runSpacing: gap,
           children: [
             for (final p in _providers)
-              SizedBox(
-                width: cardWidth,
-                child: _buildProviderCard(p),
-              ),
+              SizedBox(width: cardWidth, child: _buildProviderCard(p)),
           ],
         );
       },
@@ -941,11 +947,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.link_rounded,
-                size: 13,
-                color: AppTheme.textTertiary,
-              ),
+              Icon(Icons.link_rounded, size: 13, color: AppTheme.textTertiary),
               const SizedBox(width: AppTheme.space1),
               Expanded(
                 child: Text(
@@ -961,6 +963,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ),
             ],
           ),
+          ProviderEndpointNotice(baseUrl: p.baseUrl),
           const SizedBox(height: AppTheme.space3),
           // 不能加 const：AppTheme.surface3 是运行时主题色，深浅模式下不同。
           Divider(height: 1, color: AppTheme.surface3),
@@ -1041,7 +1044,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Future<void> _activateProvider(api.AiProviderConfigDto p) async {
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      await repo.setActiveAiProviderConfig(p.id);
+      await repo.setActiveAiProviderConfig(
+        p.id,
+        revisionToken: p.revisionToken,
+      );
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
@@ -1076,7 +1082,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (confirmed != true || !mounted) return;
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      await repo.deleteAiProviderConfig(p.id);
+      await repo.deleteAiProviderConfig(p.id, revisionToken: p.revisionToken);
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
@@ -1121,6 +1127,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           temperature: saved.temperature,
           maxTokens: saved.maxTokens,
           contextWindow: saved.contextWindow,
+          revisionToken: existing?.revisionToken,
         ),
       );
       await _loadProviders();
@@ -1904,7 +1911,10 @@ class _TokenUsageBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final peak = days.fold<int>(1, (m, d) => d.totalTokens > m ? d.totalTokens : m);
+    final peak = days.fold<int>(
+      1,
+      (m, d) => d.totalTokens > m ? d.totalTokens : m,
+    );
     // >10 根柱子时柱顶数字与每日日期会挤成一团：只留今天与首尾日期，
     // 柱顶数字仅最高柱保留。
     final compact = days.length > 10;
@@ -1939,7 +1949,9 @@ class _TokenUsageBarChart extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: d.date == today
                                 ? AppTheme.accentPrimary
-                                : AppTheme.accentPrimary.withValues(alpha: 0.35),
+                                : AppTheme.accentPrimary.withValues(
+                                    alpha: 0.35,
+                                  ),
                             borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(4),
                             ),

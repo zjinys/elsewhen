@@ -1,312 +1,130 @@
-# Elsewhen 盲中继（Blind Relay）使用手册
+# Elsewhen 盲中继
 
-> 设计文档：`docs/notes/proposed/architecture/2026-09-30-multi-device-sync.md` §6.3
-> 客户端实现：`src/sync/transport_relay.rs`（Rust `RelayClient`）
+> **当前：relay v2 的权限、收发与真实 Worker 测试已实现；完整 App 同步仍未完成。**
+> Noise 配对/本机密钥库、owner 签名成员名册、快照/大增量投递、分析结果及回复原输入关联已有内部测试；完整 App 配对/解锁/方向通道及生命周期仍未完成。不要把部署成功当成可用的多设备同步，也不要手工把个人数据或真实 Provider Key 传给底层 `send`。
+>
+> [同步设计](../docs/notes/proposed/architecture/2026-09-30-multi-device-sync.md) · [实施路线](../docs/roadmap/2026-10-03-multi-device-sync-roadmap.md)
 
-## 1. 这是什么
+## 1. 职责与交付边界
 
-relay 是 Elsewhen 多设备同步的**自托管盲中继**：一个部署在你自己 Cloudflare 账户上的
-Worker + Durable Objects 服务，为多设备同步提供两种能力：
+中继运行在用户自己的 Cloudflare 账户，使用 Worker + SQLite-backed Durable Objects 为每个邮箱保存短期信封。它只负责传输，不负责数据库合并、业务授权或加工设备仲裁。
 
-1. **加密邮箱**（异步兜底）：发件设备把端到端加密的增量包暂存到收件设备的邮箱，
-   收件设备上线后取走。电脑白天写的，手机晚上在 4G 下取——不要求同时在线。
-2. **设备发现**（presence/peers）：设备周期性心跳上报"我在线"和**端到端加密的**
-   端点信息，对端查询后优先尝试 P2P 直连，直连失败才退回邮箱取件。
-
-### 威胁模型：中继是不可信传输介质（与网盘同级）
-
-| 中继能做的 | 中继不能做的 |
+| 组件 | 当前状态 |
 |---|---|
-| 用 `relay_cred` 验签（HMAC-SHA256），挡住伪造投递 | 解密任何载荷（密文 blob 端到端加密） |
-| 看到 device_id 的哈希、流量大小与时间（元数据） | 看到明文 device_id、表名、seq、内容 |
-| 丢包 / 阻断服务（可用性风险，协议层用 seq 单调性防重放） | 伪造内容（无凭证签名不通过） |
+| relay v2 邮箱 | owner 绑定创建、owner 授权 sender、续期/撤销、owner 轮换、收发/分页/配额已实现 |
+| Rust `RelayClient` | 已与实际 Worker 互通；严格 URL/响应上限，禁用重定向 |
+| 端到端信封 | `src/sync/crypto.rs` 已实现 ChaCha20-Poly1305 + Ed25519，1 MiB 明文分块上限；与 relay HMAC 分离 |
+| 双库复制/Provider | 已有内部原子复制与加密 Provider 应用测试；尚无完整配对/联网/App 流程 |
+| 快照/增量调度 | 内部一致分块快照、大记录增量、密文暂存/重试、应用回执与有界取件已通过实际 Worker 多库测试；TTL/GC 与 App 调度未完成 |
+| 配对/密钥持久化 | Noise 原语、本机加密 vault 和 Flutter 原生主密钥适配有隔离测试；完整配对/解锁协调及原生平台签收未完成 |
+| 数据集成员授权 | v22 固定 owner 的签名完整名册，Noise 审批绑定版本锚点；入组、撤销和公钥校验不依赖 relay 自签凭证，旧快照不改写权限 |
+| presence/peers | v2 明确返回 410，不提供错误的“对端离线”结论 |
+| P2P、同步文件、App 同步设置 | 未实现，后续按路线推进 |
 
-**密钥派生**（在扫码绑定流程中由双方各自完成，见 `sync/binding.rs`）：
+Provider 完整配置（含 API Key、激活项和参数）属于首版目标；设备身份/配对私钥不复制。撤销同步资格不能回收该设备已经持有的 Provider Key，设备丢失时还需在 Provider 侧吊销或轮换。
 
-```
-relay_cred  = HMAC(shared_key, "relay-auth")        # 只用于验签，不是共享密钥本身
-mailbox_key = hex(HMAC(relay_cred, "relay-mailbox")) # 中继只存这个哈希
-```
+### 两层安全
 
-**自托管，官方不运营**：代码开源，你部署到自己的 Cloudflare 账户（约 5 分钟）。
-不配中继不影响局域网 P2P 与文件导出路径——中继是可选的加速路径，不是唯一路径。
+- relay HMAC 只验证传输访问。中继知道这些密钥，因此也能生成对应认证码；它不是端到端来源证明。
+- 内容离开设备前由独立的认证加密模块封装，可信公钥和内容密钥来自配对层，不能从收到的信封自行建立信任。
+- `send` 仍接收调用方提供的 base64 字符串；base64 不是加密，参数名 `ciphertext` 不保证内容安全。
+- 中继可见连接 IP、邮箱关联、流量、时间和 `seq_hint`，也能丢包/阻断。自托管不代表匿名或没有基础设施提供者。
 
-## 2. 部署
+## 2. 本地测试
 
-### 前置条件
-
-- Node.js 18+
-- 一个 Cloudflare 账户（免费额度 10 万请求/天，个人 2-3 设备远用不完）
-
-### 步骤
-
-```bash
-cd relay
-npm install
-# 认证二选一：
-#  a) npx wrangler login                      # 浏览器 OAuth 授权一次
-#  b) cp .env.example .env 后填入 token      # CI/无浏览器环境推荐
-npm run deploy            # = npx wrangler deploy
-```
-
-### 认证：把 Cloudflare Token 放到 `.env`
-
-wrangler 4 会自动加载 `wrangler.toml` 所在目录的 `.env`（dotenv），所以把 token
-写进 `relay/.env` 即可，`npm run deploy` / `npm run dev` 都能读到：
+使用项目锁定的 Wrangler/Miniflare/esbuild 依赖。当前测试适配已安装的 Miniflare 5（通过官方 `convertV4MiniflareOptions` 适配器），禁用测试 telemetry。
 
 ```bash
 cd relay
-cp .env.example .env
-# 编辑 .env，填入：
-#   CLOUDFLARE_API_TOKEN=xxx      # dash → My Profile → API Tokens，用 "Edit Cloudflare Workers" 模板
-#   CLOUDFLARE_ACCOUNT_ID=xxx     # dash 右侧栏的 Account ID
+npm ci
+npm test
 ```
 
-注意事项：
+`npm test` 启动隔离本地 workerd，执行真实 `worker.ts`，并由随机 loopback 端口驱动 Rust 互通测试。需要 Rust 工具链和当前项目依赖。不会访问个人数据库、线上中继或真实模型。
 
-- **仓库根 `.gitignore` 已忽略 `.env` 和 `.env.*`**（任意目录），token 不会被提交；
-  提交的是 `relay/.env.example` 这个模板。
-- 不要把 token 写进 `wrangler.toml`——它会进 git。
-- shell 里已 `export CLOUDFLARE_API_TOKEN` 会覆盖 `.env` 的值（环境变量优先于 dotenv）。
-- 认证只需一种：已 `wrangler login`（OAuth）的话 `.env` 可以不要；token 方式适合
-  无浏览器环境与 CI。
-- Token 泄漏时到 dash 同一页面 Roll（重置）即可，比全局 API Key 风险面小。
+- `test/crypto.test.mjs`：13 项实际 Worker 用例，覆盖 mailbox 身份、owner/sender 越权、跨邮箱隔离、TTL、排他分页、撤销/轮换、并发 nonce/计账、载荷边界、持久化重启、授权/撤销响应丢失的精确重试和禁用发现。
+- `test/rust-client.test.mjs`：启动本地 Worker 后运行明确指定的 Rust ignored 测试，验证双方签名及实际收发，包含密钥库落盘/Noise/签名成员激活、先到内容不越权、控制与领域回执，以及成员/relay 权限分别撤销。普通 `cargo test` 不再静默探测 `localhost:8787`。
+- `src/sync/crypto.rs`：独立的认证加密测试，不等于配对或业务同步已验收。
 
-首次部署会自动应用 `wrangler.toml` 里的 Durable Objects 迁移（`v1` 创建 `Mailbox`
-类的 SQLite 存储）。部署成功后 wrangler 会输出你的 Worker URL，形如：
+2026-10-03 本地 `npm test`：**13 passed**。首轮因 Miniflare 5 构造参数不兼容而失败，已按安装包导出的适配器修复并重跑；不是用镜像邮箱逻辑替代失败的实际运行时测试。
 
-```
-https://elsewhen-relay.<你的子域>.workers.dev
-```
-
-**注意：URL 的 UI 配置入口尚未实现。** 多设备同步是进行中的路线图功能
-（`docs/notes/proposed/architecture/2026-09-30-multi-device-sync.md`），当前交付状态：
-
-| 组件 | 状态 |
-|---|---|
-| relay Worker（本目录） | ✅ 可部署，API 完整 |
-| Rust 客户端 `src/sync/transport_relay.rs`（`RelayClient`） | ✅ 已实现，有冒烟测试 |
-| 扫码绑定（`sync/binding.rs`）、局域网 P2P、文件导出 | ⬜ 未实现 |
-| 设置页「数据 → 中继配置（relay_url）」UI 入口 | ⬜ 未实现（设计文档 §6.3 的规划，勿在设置页寻找） |
-
-设计文档中的 UI 描述是**目标状态**。当前部署完 relay 后，它已可作为后端等待
-客户端接入；URL 可先记着，待绑定流程落地后再配置。`curl <URL>/health`
-可验证服务存活。
-
-### 配置项（`wrangler.toml` 的 `[vars]`）
-
-| 变量 | 默认值 | 含义 |
-|---|---|---|
-| `MAIL_TTL_MS` | `604800000`（7 天） | 邮箱条目存活时间，到期惰性清理 |
-| `MAILBOX_QUOTA_BYTES` | `52428800`（50 MB） | 每个设备邮箱的最大字节数（防滥用） |
-| `MAX_ENVELOPE_BYTES` | `8388608`（8 MB） | 单条信封最大字节数 |
-
-改完重新 `npm run deploy` 生效。
-
-## 3. 本地开发与测试
+显式开发服务：
 
 ```bash
-cd relay
-npm run dev     # wrangler dev，本地起服务（默认 http://127.0.0.1:8787）
-npm test        # node --test test/*.test.mjs，不依赖 wrangler
-```
-
-测试（`test/crypto.test.mjs`）锁定的是**协议不变量**，客户端与服务端必须共同遵守：
-
-- 签名消息格式（域分隔串 + 参数拼接顺序）
-- 验签拒绝：错误密钥 / 篡改参数 / 过期时间戳
-- nonce 重放拒绝、配额与 TTL 边界
-- 凭证注册不可被覆盖（防陌生人注入）
-
-**改动 `worker.ts` 的签名规范时，必须同步改 Rust 客户端 `src/sync/transport_relay.rs`
-和这份测试**，三方逐字节一致。
-
-### 对已部署实例做端到端冒烟
-
-`test/e2e-smoke.mjs` 模拟两台设备（A 发 / B 收）对线上 Worker 跑完整协议：
-health → register（含重复注册 409）→ send（含 nonce 重放 409、错误凭证 403）→
-status → fetch（校验密文原样返回）→ ack → presence → peers。只依赖 Node 18+，
-零安装：
-
-```bash
-cd relay
-node test/e2e-smoke.mjs https://elsewhen-relay.<你的子域>.workers.dev
-# 或本地：npx wrangler dev 起服务后
+npm run dev
+# 另一个终端，仅对隔离测试实例使用
 node test/e2e-smoke.mjs http://127.0.0.1:8787
 ```
 
-每次运行用随机 cred 派生新邮箱，互不干扰；测试邮件会 ack 删掉，nonce 10 分钟后
-自动过期，不留垃圾。
+该 smoke 只用合成占位载荷，不测试端到端内容加密或两个业务库。邮件清理后仍可能留下凭证记录，不声称完全无残留。对线上测试实例执行需要独立授权；不得自动传输个人数据或 Key。
 
-## 4. HTTP API（v1，轮询式）
+## 3. 部署参考
 
-所有邮箱操作按 `mailbox_key`（64 位小写 hex）路由到对应的 Mailbox Durable Object
-实例——每台设备一个邮箱实例。POST 请求必须 `Content-Type: application/json`。
+部署动作与代码实现分开授权。本轮没有部署服务。
 
-签名公共规则：
-
-- 算法：`HMAC-SHA256(relay_cred, 域分隔串|参数1|参数2|...)`，输出小写 hex；
-  参数均为 hex/数字/固定串，不含 `|`。
-- `ts`（毫秒时间戳）与服务器时间差超过 **±5 分钟**拒绝（`403 stale timestamp`）。
-- `nonce`（32 位 hex）在 **10 分钟**窗口内重放拒绝（`409 nonce replay`）。
-- 除 `/health` 与 `/register` 外，所有接口要求发件人/收件人事先已注册凭证。
-
-### `GET /health`
-
-存活探测，无鉴权。返回 `{"ok": true, "service": "elsewhen-relay", "version": 1}`。
-
-### `POST /register` — 注册验签凭证
-
-```json
-{
-  "mailbox_key": "<收件人邮箱，64-hex>",
-  "sender_mb":   "<发件人 mailbox_key，64-hex>",
-  "cred_hex":    "<relay_cred，64-hex>",
-  "expires_at":  <凭证过期时间，ms epoch，须为未来>,
-  "sig":         "HMAC(cred_hex, \"relay-register\"|sender_mb|mailbox_key|expires_at)"
-}
+```bash
+cd relay
+# 浏览器认证，或使用本目录被 gitignore 的 .env
+npx wrangler login
+# 也可 cp .env.example .env，填写 CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID
+npm run deploy
 ```
 
-- 自证签名：用申报的 `cred_hex` 自己签，证明你确实持有它。
-- **仅当该 (sender → 本邮箱) 尚无有效凭证时接受**；已有则 `409`——陌生人无法
-  覆盖受害者凭证。凭证的首次注入走带外通道（扫码二维码），轮换也必须带外进行。
-- 取件/查状态用的是"自己 → 自己"注册的凭证（recipient = self）。
+不要把真实凭证写进 `wrangler.toml`、测试输出或提交记录。shell 环境变量优先于 `.env`。费用/额度以部署时账户和平台规则为准，不承诺固定免费成本。
 
-### `POST /send` — 投递加密信封
+`wrangler.toml` 的 `Mailbox` 仍是 SQLite-backed DO 类；v2 构造函数建立独立 `relay_v2_*` 表。旧 v1 KV 数据与凭证不被当成 v2 授权，也不会被此变更静默删除。v1 客户端需升级，不能沿用自签注册语义。
 
-```json
-{
-  "mailbox_key": "<收件人邮箱>",
-  "sender_mb":   "<发件人 mailbox_key>",
-  "seq_hint":    1,
-  "ciphertext":  "<base64 端到端密文>",
-  "expires_at":  <期望过期时间，ms epoch；服务端会 clamp 到 now+MAIL_TTL_MS>,
-  "ts": <ms>, "nonce": "<32-hex>",
-  "sig": "HMAC(cred, \"relay-send\"|sender_mb|mailbox_key|seq_hint|expires_at|ts|nonce|SHA256(ciphertext))"
-}
-```
+| 变量 | 当前默认值 | 服务端约束 |
+|---|---|---|
+| `MAIL_TTL_MS` | 7 天 | 配置上限 30 天 |
+| `MAILBOX_QUOTA_BYTES` | 50 MiB | 配置上限 512 MiB |
+| `MAX_ENVELOPE_BYTES` | 8 MiB | 硬上限 8 MiB |
 
-注意：签名里的 `expires_at` 是 **clamp 之后**的值（即 `min(请求值, now+TTL)`），
-客户端要按服务端实际生效的过期时间签名。
+请求读取前/读取中均限量；大邮件按 64 KiB 文本片存入 SQL，不放进超大的单个 KV 值。取件响应有 16 MiB 预算。邮件/nonce 清理在已授权事务中触发，没有请求时不承诺 TTL 时刻立即物理删除；邮箱不是备份。
 
-成功返回 `{"ok": true, "id": "<16 位零填充序号>"}`。错误：
+## 4. relay v2 协议
 
-| 状态码 | 含义 |
-|---|---|
-| 403 | 无凭证 / 签名错误 / 时间戳超窗 |
-| 409 | nonce 重放 |
-| 413 | 单条超过 `MAX_ENVELOPE_BYTES` |
-| 507 | 邮箱配额满（`MAILBOX_QUOTA_BYTES`） |
+请求显式带 `version: 2`；旧版本返回 426。POST 使用 JSON。邮箱标识是 64 位小写 hex，按名称映射到独立 DO。
 
-### `GET /fetch` — 游标取件
+认证公共字段：`ts`（毫秒，±5 分钟）、`nonce`（32 位 hex）、`sig`（64 位 hex）。签名为 HMAC-SHA256，消息按 `|` 拼接。`nonce` 在 10 分钟窗口内不可重用；与操作一同在 SQLite 事务里认领。计数和参数使用安全整数，不接受溢出、负数或非法游标。
 
-```
-GET /fetch?mailbox_key=<自己>&recipient_mb=<自己>&after=<游标>&limit=<n>&ts=<ms>&nonce=<32-hex>&sig=...
-sig = HMAC(cred, "relay-fetch"|mailbox_key|after|limit|ts|nonce)
-```
+### 邮箱 owner 与 sender 分离
 
-- `after`：上次取到的最大信封 `id`，首次传 `0`；`limit` 上限 100。
-- 返回 `{"ok": true, "envelopes": [{id, sender_mb, seq_hint, ciphertext, created_at, expires_at}, ...]}`。
-- `seq_hint` 是发件方本地序号提示，用于乱序/丢包检测；真正的 seq 单调性校验
-  在解密密文后由 sync 协议层做（拒绝 ≤ acked_seq 的包）。
+1. 每台设备独立生成 owner credential，初始邮箱地址为 `HMAC(owner_cred, "relay-mailbox")`。
+2. `/create` 验证此绑定和 owner 签名，不能用自己的密钥抢注另一个已知邮箱。
+3. `/register` 必须由邮箱 owner 授权，sender credential 仅能向该邮箱投递；它不能收件、删除、查状态或授权他人。
+4. sender 授权携带版本；续期、轮换、撤销都检查 `expected_revision`。撤销保留版本，不让旧注册请求恢复权限。
+5. owner 轮换后邮箱地址不变，旧 credential 立即失去该邮箱管理权限；本机须保留地址而不是按新 Key 重算。
 
-### `POST /ack` — 确认删除
+| 接口 | 权限 | 业务签名字段（公共尾部 `ts, nonce` 之前） |
+|---|---|---|
+| `GET /health` | 无 | 无，返回版本 2 |
+| `POST /create` | 新 owner 身份证明 | `relay-v2-create, mailbox_key` |
+| `POST /register` | owner | `relay-v2-register, mailbox_key, sender_mb, cred_hex, expires_at, expected_revision` |
+| `POST /revoke` | owner | `relay-v2-revoke, mailbox_key, sender_mb, expected_revision` |
+| `POST /rotate` | owner | `relay-v2-rotate, mailbox_key, new_cred_hex` |
+| `GET /sender` | owner | `relay-v2-sender, mailbox_key, sender_mb` |
+| `POST /send` | 有效 sender | `relay-v2-send, sender_mb, mailbox_key, seq_hint, expires_at, ts, nonce, SHA256(ciphertext)`（hash 在最后） |
+| `GET /fetch` | owner | `relay-v2-fetch, mailbox_key, after, limit` |
+| `POST /ack` | owner | `relay-v2-ack, mailbox_key, ids_csv` |
+| `GET /status` | owner | `relay-v2-status, mailbox_key` |
 
-```json
-{
-  "mailbox_key": "<自己>", "recipient_mb": "<自己>",
-  "ids": ["0000000000000001", "..."],
-  "ts": <ms>, "nonce": "<32-hex>",
-  "sig": "HMAC(cred, \"relay-ack\"|mailbox_key|ids_csv|ts|nonce)"
-}
-```
+- `/register` 授权到期在未来一年内，返回递增 `revision`；`/sender` 返回版本/有效性，不返回凭证。
+- 授权/撤销响应丢失时，客户端保持原 `expected_revision`、凭证与到期时间，用新 nonce 重签重试。新增逻辑仅在当前状态恰为 `expected_revision + 1` 且凭证/到期逐值相同（撤销则为空凭证、到期为 0）时返回已有修订；不能通过重读新版本盲目重写，旧授权不能恢复撤销成员。2026-10-07 实际 Worker 并发/重启/异文回归与 Rust 互通通过，最新 `npm test` **14 passed**。
+- `/send` 签的是**原请求 expires_at**，验签后服务端再截断 TTL。新 ID 是 16 位零填充的邮箱序号，不是业务操作序号。
+- `/fetch` 的 `after` 为 `0` 或规范化邮件 ID，严格排除起点；`limit` 为 1–100。响应带 `envelopes`、`next_cursor`、`has_more`，受页数和字节双限。
+- `/ack` 接收 1–100 个不重复 ID，删除邮件及其片段。**应用数据/回执未持久化前不得 ack。** 投递成功也不能代替收件设备的应用回执。
+- `/status` 返回 `bytes/count/quota/earliest_expiry`，不能据此宣称业务已同步。
+- `/presence`、`/peers` 返回 410；离线邮箱取件不依赖在线发现。
 
-`ids` 一次 1–100 条，`ids_csv` 是逗号拼接。返回 `{"ok": true, "deleted": n}`。
-**只有密文解密并成功落库后才 ack**——ack 即删除，删了中继上就没有了。
+Rust API：`create_mailbox`、`register_sender`、`sender_status`、`revoke_sender`、`rotate_owner`、`send`、`fetch_page`、`fetch`、`ack`、`status`。旧 `register_credential` 明确报不支持，不自动提升权限。HTTP 客户端拒绝 URL 前缀伪装、凭证/query/fragment 和重定向，并限制响应体；服务端错误正文不透传以免泄露秘密。
 
-### `GET /status` — 邮箱状态
+## 5. 尚未完成的接入与边界
 
-```
-GET /status?mailbox_key=<自己>&recipient_mb=<自己>&ts=<ms>&nonce=<32-hex>&sig=...
-sig = HMAC(cred, "relay-status"|mailbox_key|ts|nonce)
-```
+- 用户设备的配对、可信公钥分发、本机私钥持久化与成员撤销传播；不能用 `/create` 替代加入用户数据集的授权。
+- 完整快照、分块重组、持久传输调度、应用回执/GC、Provider 首次恢复和后台加工归属的 App 闭环。
+- 生产部署还需账户级限流/创建额度、脱敏观测与运维策略；单邮箱配额不限制攻击者创建大量独立邮箱。
+- 未承诺分布式自动加工接管或恰好一次外部副作用，盲中继不会提供全局执行锁。
+- Provider 的 `localhost` 地址不能自动指向旧设备；应保持配置并明确提示可达性，而不是静默改地址发送 Key。
 
-返回 `{"ok": true, bytes, count, quota, earliest_expiry}`，用于 UI 展示用量与
-最早过期时间。
-
-### `POST /presence` — 在线心跳
-
-```json
-{
-  "mailbox_key":   "<自己>",
-  "endpoint_blob": "<base64 端到端加密的端点信息（addr/port/device_id 等）>",
-  "ttl_ms":        120000,
-  "ts": <ms>, "nonce": "<32-hex>",
-  "sig": "HMAC(cred, \"relay-presence\"|mailbox_key|SHA256(endpoint_blob)|ttl_ms|ts|nonce)"
-}
-```
-
-`ttl_ms` 硬上限 5 分钟（建议 2 分钟心跳一次）。端点信息用共享密钥加密，
-中继只作盲索引存着。
-
-### `GET /peers` — 发现在线对端
-
-```
-GET /peers?mailbox_key=<自己>&ts=<ms>&nonce=<32-hex>&sig=...&want=<可选，逗号分隔的对端 mailbox_key>
-sig = HMAC(cred, "relay-peers"|mailbox_key|ts|nonce)
-```
-
-可见性规则：只返回**已在本邮箱注册过有效凭证**（即绑定过）且 presence 未过期的
-对端。返回 `{"ok": true, "peers": [{mailbox_key, endpoint_blob, updated_at}]}`，
-`endpoint_blob` 原样返回密文，由客户端用共享密钥解密。
-
-### 清理行为
-
-无需运维：每次请求顺手做惰性过期清理（每分钟最多一次），清理过期邮件、
-nonce 和 presence；不依赖常驻 alarm。
-
-## 5. 客户端集成（Rust）
-
-App 侧不直接拼 HTTP——用 `src/sync/transport_relay.rs` 的 `RelayClient`：
-
-```rust
-let client = RelayClient::new("https://elsewhen-relay.<sub>.workers.dev")?;
-client.health()?;
-
-// 派生（实际由 binding.rs 在扫码绑定时完成并存好，这里只演示）
-let relay_cred: [u8; 32] = RelayClient::derive_relay_cred(&shared_key);
-let mailbox_key = RelayClient::mailbox_key(&relay_cred); // 自己的邮箱
-
-// 发件：绑定后先向收件人邮箱注册发件凭证（一次性），再投递信封
-client.register_credential(&recipient_mb, &sender_mb, &relay_cred, cred_expires_at)?;
-let id = client.send(&recipient_mb, &sender_mb, &relay_cred,
-                     seq_hint, &ciphertext_b64, expires_at)?;
-
-// 收件：fetch → 解密落库 → ack（取件者用 self→self 凭证自证）
-let envelopes = client.fetch(&mailbox_key, &relay_cred, "0", 50)?;
-// ...解密、apply_increment()...
-client.ack(&mailbox_key, &relay_cred, &ids)?;
-
-// 发现：心跳 + 查对端，能直连则直连，否则退回邮箱
-client.presence(&mailbox_key, &relay_cred, &endpoint_blob_b64, 120_000)?;
-let peers = client.peers(&mailbox_key, &relay_cred, &[])?; // want 为空 = 全部已绑定对端
-
-// 邮箱状态（UI 展示用量）
-let status = client.status(&mailbox_key, &relay_cred)?;
-```
-
-要点：
-
-- `RelayClient::new` 强制 HTTPS（仅 `127.0.0.1`/`localhost` 允许 HTTP，供本地开发）。
-- 客户端只做"信封的密封与投递"，不知道载荷内容；载荷是增量行/回执/快照由
-  sync 协议层决定，三条传输路径（P2P / 中继 / 文件）共用同一个 `apply_increment()`。
-
-## 6. 风险与边界（诚实声明）
-
-1. **元数据泄露**：中继运营者（Cloudflare 或部署者本人）可见"哪些 device 哈希在
-   何时通信、流量多大"。看不到内容。
-2. **可用性依赖**：中继挂了只影响漫游路径；局域网 P2P 与文件导出不受影响。
-3. **恶意中继**可丢包、重放旧密文、阻断服务——协议层用 seq 单调性防重放，
-   签名防伪造，端到端加密防读取；但**可用性攻击无法防**，这是自托管换来的边界。
-4. **凭证轮换必须带外**：`/register` 拒绝覆盖已有凭证，换 cred 需要重新扫码绑定。
-5. WebSocket 实时推送留作后续；当前是轮询式取件。
+完整功能和真实设备验收仍以路线图为准，不因底层 13 项 Worker 测试通过而勾选整个 S02/S04/S06。

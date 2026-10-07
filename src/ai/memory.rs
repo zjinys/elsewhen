@@ -152,7 +152,7 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 - 然后说明本轮已经提供的帮助或可供确认的建议；没有实际执行就不承诺稍后自动完成。
 - 仍然要简短：情绪共情 + 一句要点，两段以内。
 - **严禁**输出「保持自己的节奏」「多留个心眼」「给自己留条后路」「相信自己」「加油」「放轻松」这类万金油套话、空泛建议或鼓励——空洞的话比不说话更糟。
-- 尽量贴着用户给出的具体细节回复：写出具体的人名（如张玮）、事件（如双链路付款、和太极沟通）、时间与你的判断，并给一个可执行的下一步（如：对方没做就主动发消息/邮件留痕确认），哪怕只有一句话。没有细节可贴时，宁可少说。
+- 尽量贴着用户给出的具体细节回复：写出具体的人名（如张三）、事件（如网站改版、王五沟通）、时间与你的判断，并给一个可执行的下一步（如：对方没做就主动发消息/邮件留痕确认），哪怕只有一句话。没有细节可贴时，宁可少说。
 
 个人经验规则库：
 - 用户常分享「踩坑 / 教训 / 心得」类经历，其中往往蕴含一条可复用、可执行的经验准则（例如：「和大型企业的人沟通重要事项必须留痕」）。
@@ -1108,7 +1108,7 @@ mod tests {
             .send_message(
                 &other_id,
                 "user",
-                "昨天给海油服的张玮沟通了双链路付款的事情，必须留痕",
+                "昨天给张三沟通了网站改版的事情，必须留痕",
                 None,
             )
             .unwrap();
@@ -1117,11 +1117,11 @@ mod tests {
             .prepare_context(&conversation_id, &store)
             .unwrap();
 
-        assert!(!context[0].content.contains("昨天给海油服"));
+        assert!(!context[0].content.contains("昨天给张三"));
         let background = context.iter().find(|m| m.optional_background).unwrap();
         let system = &background.content;
         assert!(
-            system.contains("张玮"),
+            system.contains("张三"),
             "跨对话近期消息应被注入 system 提示，实际: {}",
             system
         );

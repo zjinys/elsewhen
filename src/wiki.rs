@@ -923,7 +923,7 @@ pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json:
     let system = r#"你是 elsewhen 个人知识库的「联系人关系」批量提取器。任务：阅读用户的事件，输出「联系人 + 联系人↔事情/项目关系」。
 
 抽取规则：
-- 事件里用 @人名 标注的一定是人、#事情 标注的一定是事情/项目（如「@张伟 负责 #双链路付款」）。已标注实体必须全部纳入 people / relations；同名但备注不同（「张伟（市场部）」「张伟（设计）」）是不同的人，不能合并。
+- 事件里用 @人名 标注的一定是人、#事情 标注的一定是事情/项目（如「@李四 负责 #网站改版」）。已标注实体必须全部纳入 people / relations；同名但备注不同（「李四（市场部）」「李四（设计）」）是不同的人，不能合并。
 - 未标注的联系人：只提取信息具体、对用户重要的人（有称呼、有身份或参与的明确事情），不为随口一提的名字建条目。
 - relations 的 person/target 必须来自 people 或已标注实体；relation 用 负责/参与/合作/对接/跟进/顾问 等 2~4 字动词。
 - role_note 一句话身份/背景，来自事件上下文；没有可写信息就留空字符串。
@@ -1390,29 +1390,29 @@ mod tests {
 
         let parsed = serde_json::json!({
             "people": [
-                {"name": "张伟", "role_note": "对接付款流程"},
+                {"name": "李四", "role_note": "对接网站改版"},
                 {"name": "项目负责人"}
             ],
             "relations": [
-                {"person": "张伟", "target": "双链路付款", "relation": "负责", "note": ""},
+                {"person": "李四", "target": "网站改版", "relation": "负责", "note": ""},
                 {"person": "不存在的人", "target": "幻想的项目", "relation": "负责", "note": ""}
             ]
         });
         let ann = AnnotationSet {
-            people: vec!["张伟".into(), "李婷（客户）".into()],
-            targets: vec!["双链路付款".into()],
+            people: vec!["李四".into(), "孙七（客户）".into()],
+            targets: vec!["网站改版".into()],
         };
         let out = normalize_extraction(&parsed, &ann);
         let people = out["people"].as_array().unwrap();
         let names: Vec<&str> = people.iter().map(|p| p["name"].as_str().unwrap()).collect();
         // LLM 漏掉的标注实体兜底补进 people
-        assert!(names.contains(&"李婷（客户）"));
+        assert!(names.contains(&"孙七（客户）"));
         assert_eq!(people[people.len() - 1]["role_note"].as_str().unwrap(), "");
         // 幻觉关系被过滤（person 不在实体集里）
         let relations = out["relations"].as_array().unwrap();
         assert_eq!(relations.len(), 1);
-        assert_eq!(relations[0]["person"], "张伟");
-        assert_eq!(relations[0]["target"], "双链路付款");
+        assert_eq!(relations[0]["person"], "李四");
+        assert_eq!(relations[0]["target"], "网站改版");
     }
 
     #[test]
@@ -1445,7 +1445,7 @@ mod tests {
             .unwrap();
         // 不同标题 → 后缀避让
         assert_eq!(
-            unique_slug(&store, "person/zhang-wei", "张伟").unwrap(),
+            unique_slug(&store, "person/zhang-wei", "李四").unwrap(),
             "person/zhang-wei-2"
         );
         // 同名 slug 但标题相同 → 直接复用
@@ -1455,7 +1455,7 @@ mod tests {
         );
         // 空闲 slug 直接用
         assert_eq!(
-            unique_slug(&store, "topic/shuang-lian-lu", "双链路").unwrap(),
+            unique_slug(&store, "topic/shuang-lian-lu", "网站改版").unwrap(),
             "topic/shuang-lian-lu"
         );
         let _ = std::fs::remove_file(path);
@@ -1612,7 +1612,7 @@ mod tests {
                 &WikiPageDraft {
                     slug: "project/shuanglian".into(),
                     kind: "project".into(),
-                    title: "双链路付款".into(),
+                    title: "网站改版".into(),
                     summary: "项目简介".into(),
                     content_md: "正文".into(),
                     tags: vec![],
@@ -1627,30 +1627,30 @@ mod tests {
 
         let args = serde_json::json!({
             "people": [
-                {"name": "张玮", "role_note": "双链路付款项目的产研负责人"},
-                {"name": "李婷", "role_note": "客户对接人"}
+                {"name": "张三", "role_note": "网站改版项目的产研负责人"},
+                {"name": "孙七", "role_note": "客户对接人"}
             ],
             "relations": [
-                {"person": "张玮", "target": "双链路付款", "relation": "负责", "note": "主导项目推进"},
-                {"person": "李婷", "target": "双链路付款", "relation": "参与", "note": ""}
+                {"person": "张三", "target": "网站改版", "relation": "负责", "note": "主导项目推进"},
+                {"person": "孙七", "target": "网站改版", "relation": "参与", "note": ""}
             ]
         });
         let summary = apply_people_relations(&args, &store, "conv-1").unwrap();
-        assert!(summary.contains("张玮"), "{summary}");
+        assert!(summary.contains("张三"), "{summary}");
         assert!(summary.contains("负责"), "{summary}");
 
         // 联系人页建档且分别是 person / topic 目标复用已有 project 页
-        let zhangwei = store.get_wiki_page("person/张玮").unwrap().unwrap();
+        let zhangwei = store.get_wiki_page("person/张三").unwrap().unwrap();
         assert_eq!(zhangwei.kind, "person");
         assert!(zhangwei.content_md.contains("产研负责人"));
-        let liting = store.get_wiki_page("person/李婷").unwrap().unwrap();
+        let liting = store.get_wiki_page("person/孙七").unwrap().unwrap();
         assert_eq!(liting.kind, "person");
 
         // 目标页：已存在的 project 页被复用，没有自动建 topic 页
-        assert!(store.get_wiki_page("topic/双链路付款").unwrap().is_none());
+        assert!(store.get_wiki_page("topic/网站改版").unwrap().is_none());
         assert_eq!(
             store
-                .find_wiki_page_by_title("双链路付款")
+                .find_wiki_page_by_title("网站改版")
                 .unwrap()
                 .unwrap()
                 .kind,
@@ -1658,7 +1658,7 @@ mod tests {
         );
 
         // 关系双向可见
-        let rels = store.list_relations_for_page("person/张玮").unwrap();
+        let rels = store.list_relations_for_page("person/张三").unwrap();
         assert_eq!(rels.len(), 1);
         assert_eq!(rels[0].relation, "负责");
         assert_eq!(rels[0].to_slug, "project/shuanglian");
@@ -1672,12 +1672,12 @@ mod tests {
 
         // 再次提交同样的联系人 → 不重复建档
         let again = apply_people_relations(
-            &serde_json::json!({"people": [{"name": "张玮", "role_note": "产研负责人"}]}),
+            &serde_json::json!({"people": [{"name": "张三", "role_note": "产研负责人"}]}),
             &store,
             "conv-1",
         )
         .unwrap();
-        assert!(again.contains("张玮"));
+        assert!(again.contains("张三"));
         assert_eq!(
             store.list_wiki_pages(Some("person"), None).unwrap().len(),
             2,
@@ -1699,13 +1699,13 @@ mod tests {
                 .as_nanos()
         ));
         let store = Store::open(&path).unwrap();
-        for slug in ["person/张伟-市场部", "person/张伟-设计"] {
+        for slug in ["person/李四-市场部", "person/李四-设计"] {
             store
                 .upsert_wiki_page(
                     &WikiPageDraft {
                         slug: slug.into(),
                         kind: "person".into(),
-                        title: "张伟".into(),
+                        title: "李四".into(),
                         summary: slug.into(),
                         content_md: "正文".into(),
                         tags: vec![],
@@ -1719,21 +1719,21 @@ mod tests {
                 .unwrap();
         }
         let args = serde_json::json!({
-            "people": [{"name":"张伟"}],
-            "relations": [{"person":"张伟","target":"新项目","relation":"负责","from_slug":"person/张伟-设计"}]
+            "people": [{"name":"李四"}],
+            "relations": [{"person":"李四","target":"新项目","relation":"负责","from_slug":"person/李四-设计"}]
         });
         let summary = apply_people_relations(&args, &store, "conv-1").unwrap();
-        assert!(summary.contains("张伟"));
+        assert!(summary.contains("李四"));
         assert_eq!(
             store
-                .list_relations_for_page("person/张伟-设计")
+                .list_relations_for_page("person/李四-设计")
                 .unwrap()
                 .len(),
             1
         );
         assert!(
             store
-                .list_relations_for_page("person/张伟-市场部")
+                .list_relations_for_page("person/李四-市场部")
                 .unwrap()
                 .is_empty()
         );

@@ -6,7 +6,7 @@
 //! - analysis_jobs：claim/complete/fail + 指数退避 available_at，重启恢复 running→retry。
 
 use anyhow::{Context, Result};
-use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use uuid::Uuid;
 
 use super::adapter::AnalysisJob;
@@ -16,6 +16,26 @@ use super::{
     EventRecordabilityDecision, EventSummary, InputRecord, InsightSummary, NewEvent, Store,
     map_input_record,
 };
+
+/// Shared raw-event write used by capture and authenticated replication inside
+/// their caller-owned transaction. Job scheduling is a separate local concern.
+pub(crate) fn insert_raw_event_on(
+    connection: &Connection,
+    id: &str,
+    occurred_at: &str,
+    recorded_at: &str,
+    raw_text: &str,
+    source: &str,
+    created_at: &str,
+) -> Result<()> {
+    anyhow::ensure!(!connection.is_autocommit(), "event_requires_transaction");
+    connection.execute(
+        "INSERT INTO events (id,occurred_at,recorded_at,raw_text,source,status,created_at,updated_at)
+         VALUES (?1,?2,?3,?4,?5,'pending',?6,?6)",
+        params![id,occurred_at,recorded_at,raw_text,source,created_at],
+    )?;
+    Ok(())
+}
 
 impl Store {
     pub fn insert_event(&self, event: NewEvent<'_>) -> Result<String> {
@@ -55,18 +75,14 @@ impl Store {
                 return Ok(captured);
             }
         }
-        self.connection.execute(
-            "INSERT INTO events
-         (id, occurred_at, recorded_at, raw_text, source, status, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6, ?6)",
-            params![
-                id,
-                event.occurred_at.to_rfc3339(),
-                event.recorded_at.to_rfc3339(),
-                event.raw_text,
-                event.source,
-                now,
-            ],
+        insert_raw_event_on(
+            &self.connection,
+            &id,
+            &event.occurred_at.to_rfc3339(),
+            &event.recorded_at.to_rfc3339(),
+            event.raw_text,
+            event.source,
+            &now,
         )?;
         self.connection.execute(
         "INSERT INTO analysis_jobs (id, event_id, status, attempts, available_at, created_at, updated_at)
@@ -77,6 +93,7 @@ impl Store {
         if let Some(input_id) = input_id {
             self.connection.execute("INSERT INTO chat_input_effects(input_message_id,event_id,created_at) VALUES(?1,?2,?3)", params![input_id,id,now])?;
         }
+        self.sync_record_capture(&id, None)?;
         if let Some(transaction) = transaction {
             transaction.commit()?;
         }
@@ -157,11 +174,14 @@ impl Store {
         let now = chrono::Utc::now();
         let now_text = now.to_rfc3339();
         let transaction = self.connection.unchecked_transaction()?;
-        transaction.execute(
-            "INSERT INTO events
-         (id,occurred_at,recorded_at,raw_text,source,status,created_at,updated_at)
-         VALUES (?1,?2,?2,?3,?4,'pending',?2,?2)",
-            params![event_id, now_text, raw_text, source],
+        insert_raw_event_on(
+            &transaction,
+            &event_id,
+            &now_text,
+            &now_text,
+            raw_text,
+            source,
+            &now_text,
         )?;
         transaction.execute(
             "INSERT INTO analysis_jobs
@@ -189,6 +209,7 @@ impl Store {
             }
             Err(e) => return Err(e.into()),
         }
+        self.sync_record_capture(&event_id, Some(&input_id))?;
         transaction.commit()?;
         self.get_input_record(&input_id)?
             .context("统一输入提交后读取失败")
@@ -221,11 +242,14 @@ impl Store {
         let now_at = chrono::Utc::now();
         let now = now_at.to_rfc3339();
         let transaction = self.connection.unchecked_transaction()?;
-        transaction.execute(
-            "INSERT INTO events
-         (id,occurred_at,recorded_at,raw_text,source,status,created_at,updated_at)
-         VALUES (?1,?2,?2,?3,'conversation','pending',?2,?2)",
-            params![event_id, now, raw_text],
+        insert_raw_event_on(
+            &transaction,
+            &event_id,
+            &now,
+            &now,
+            raw_text,
+            "conversation",
+            &now,
         )?;
         transaction.execute(
             "INSERT INTO analysis_jobs
@@ -261,6 +285,7 @@ impl Store {
             }
             Err(e) => return Err(e.into()),
         }
+        self.sync_record_capture(&event_id, Some(&input_id))?;
         transaction.commit()?;
         self.get_input_record(&input_id)?
             .context("对话统一输入提交后读取失败")
@@ -374,6 +399,10 @@ impl Store {
     pub fn claim_analysis_job(&self) -> Result<Option<AnalysisJob>> {
         let transaction =
             Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        if !self.background_processing_allowed()? {
+            transaction.commit()?;
+            return Ok(None);
+        }
         let job = transaction.query_row(
         "SELECT j.id, j.event_id, e.raw_text, j.attempts FROM analysis_jobs j JOIN events e ON e.id=j.event_id
          WHERE j.status IN ('pending','retry') AND j.available_at <= ?1 ORDER BY j.created_at LIMIT 1",
@@ -391,6 +420,9 @@ impl Store {
     /// This is called once at bridge startup, never from `Store::open`, so it
     /// cannot steal work from a live worker in the current process.
     pub fn recover_interrupted_analysis_jobs(&self) -> Result<usize> {
+        if !self.background_processing_allowed()? {
+            return Ok(0);
+        }
         let now = chrono::Utc::now().to_rfc3339();
         Ok(self.connection.execute(
             "UPDATE analysis_jobs
@@ -408,8 +440,10 @@ impl Store {
         result_json: &str,
     ) -> Result<()> {
         let transaction = self.connection.unchecked_transaction()?;
+        self.require_background_processor()?;
         let now = chrono::Utc::now().to_rfc3339();
-        transaction.execute("INSERT INTO event_analyses (id,event_id,prompt_version,result_json,created_at) VALUES (?1,?2,?3,?4,?5)", params![Uuid::new_v4().to_string(), job.event_id, prompt_version, result_json, now])?;
+        let result_id = Uuid::new_v4().to_string();
+        transaction.execute("INSERT INTO event_analyses (id,event_id,prompt_version,result_json,created_at) VALUES (?1,?2,?3,?4,?5)", params![result_id, job.event_id, prompt_version, result_json, now])?;
         transaction.execute(
             "UPDATE analysis_jobs SET status='succeeded', updated_at=?2 WHERE id=?1",
             params![job.id, now],
@@ -418,6 +452,7 @@ impl Store {
             "UPDATE events SET status='processed', processed_at=?2, updated_at=?2 WHERE id=?1",
             params![job.event_id, now],
         )?;
+        self.sync_record_analysis(&result_id)?;
         transaction.commit()?;
         Ok(())
     }

@@ -321,12 +321,12 @@ fn recent_user_messages_spans_conversations() {
         .send_message(
             &c1,
             "user",
-            "昨天给海油服的张玮沟通了双链路付款的事情",
+            "昨天给张三沟通了网站改版的事情",
             None,
         )
         .unwrap();
     store
-        .send_message(&c2, "user", "问了问张玮是否有和太极沟通", None)
+        .send_message(&c2, "user", "问了问张三是否有王五沟通", None)
         .unwrap();
     // assistant 消息不应出现在结果里
     store
@@ -337,11 +337,11 @@ fn recent_user_messages_spans_conversations() {
     assert_eq!(recent.len(), 2, "只应返回 user 消息");
     // 最新的在前：c2 的消息应排第一
     assert!(
-        recent[0].content.contains("太极"),
+        recent[0].content.contains("王五"),
         "最晚消息应在前: {:?}",
         recent
     );
-    assert!(recent[1].content.contains("张玮"));
+    assert!(recent[1].content.contains("张三"));
     assert!(
         recent.iter().all(|m| !m.content.contains("AI 回复")),
         "assistant 消息不应混入"

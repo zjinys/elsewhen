@@ -13,7 +13,9 @@ mod goals;
 pub(crate) mod knowledge;
 mod new_migrations;
 mod provider;
+mod provider_keys;
 mod records;
+pub(crate) mod sync;
 mod wiki;
 
 use crate::event::{EventSummary, NewEvent};
@@ -495,6 +497,7 @@ pub struct Store {
     // 在同一 crate 的 `impl Store` 块里需要直接访问连接与路径。
     pub(crate) connection: Connection,
     pub(crate) path: std::path::PathBuf,
+    pub(crate) provider_master: Option<[u8; 32]>,
     pub(crate) conversation_snapshot: Option<ConversationSnapshot>,
     pub(crate) chat_run_identity: Option<crate::ai::generation::RunIdentity>,
     pub(crate) captured_page_task: std::cell::RefCell<Option<(String, chat_page_tasks::PageTask)>>,
@@ -503,6 +506,7 @@ pub struct Store {
 impl Clone for Store {
     fn clone(&self) -> Self {
         let mut store = Self::open(&self.path).expect("reopen database");
+        store.provider_master = self.provider_master;
         store.conversation_snapshot = self.conversation_snapshot.clone();
         store.chat_run_identity = self.chat_run_identity.clone();
         store.captured_page_task = self.captured_page_task.clone();
@@ -547,6 +551,7 @@ impl Store {
         let store = Self {
             connection,
             path: path.to_path_buf(),
+            provider_master: None,
             conversation_snapshot: None,
             chat_run_identity: None,
             captured_page_task: Default::default(),

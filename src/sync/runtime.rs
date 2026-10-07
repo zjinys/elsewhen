@@ -1,0 +1,400 @@
+//! One process owns synchronization in a workspace. Native protected storage
+//! confirms a vault revision before the runtime becomes usable; live background
+//! callers retain the file lease, even if the UI locks the runtime meanwhile.
+
+pub(crate) mod invitations;
+pub(crate) mod pairing;
+
+use crate::{
+    config::AppConfig,
+    storage::{Store, sync::ReplicaIdentity},
+};
+use anyhow::{Context, Result, ensure};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::{File, OpenOptions},
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex, OnceLock},
+};
+
+struct WorkspaceLease {
+    _file: File,
+}
+struct Session {
+    lease: Arc<WorkspaceLease>,
+    database: PathBuf,
+    token: String,
+    operation: String,
+    installation: String,
+    revision: i64,
+    expires_at: i64,
+    master: Option<[u8; 32]>,
+    confirmed: bool,
+    creating: bool,
+    name: String,
+    platform: String,
+    owner_invitation: Option<invitations::OwnerInvitation>,
+}
+impl Drop for Session {
+    fn drop(&mut self) {
+        if let Some(key) = self.master.as_mut() {
+            key.fill(0);
+        }
+    }
+}
+static SESSIONS: OnceLock<Mutex<HashMap<PathBuf, Session>>> = OnceLock::new();
+fn sessions() -> &'static Mutex<HashMap<PathBuf, Session>> {
+    SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct KeyRequest {
+    pub token: String,
+    pub installation_id: String,
+    pub revision: i64,
+    pub creating: bool,
+}
+#[derive(Clone, Debug)]
+pub(crate) struct KeyCommit {
+    pub token: String,
+    pub installation_id: String,
+    pub revision: i64,
+}
+
+pub(crate) struct BackgroundGuard {
+    _lease: Arc<WorkspaceLease>,
+    busy_root: Option<PathBuf>,
+}
+static BACKGROUND_BUSY: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
+fn busy() -> &'static Mutex<HashSet<PathBuf>> {
+    BACKGROUND_BUSY.get_or_init(|| Mutex::new(HashSet::new()))
+}
+impl Drop for BackgroundGuard {
+    fn drop(&mut self) {
+        if let Some(root) = &self.busy_root {
+            busy()
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .remove(root);
+        }
+    }
+}
+
+/// Recovery must not reuse a live worker's lease, even in the same process.
+pub(crate) fn initialization_guard(config: &AppConfig) -> Result<Option<BackgroundGuard>> {
+    match lease(&config.data_dir) {
+        Ok(lease) => Ok(Some(BackgroundGuard {
+            _lease: lease,
+            busy_root: None,
+        })),
+        Err(error) if error.to_string() == "sync_runtime_in_use" => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+fn now() -> i64 {
+    chrono::Utc::now().timestamp_millis()
+}
+fn lease(root: &Path) -> Result<Arc<WorkspaceLease>> {
+    let path = root.join("sync-runtime.lock");
+    if let Ok(meta) = std::fs::symlink_metadata(&path) {
+        ensure!(
+            meta.is_file() && !meta.file_type().is_symlink(),
+            "sync_runtime_lock_invalid"
+        );
+    }
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)?;
+    file.try_lock()
+        .map_err(|_| anyhow::anyhow!("sync_runtime_in_use"))?;
+    Ok(Arc::new(WorkspaceLease { _file: file }))
+}
+
+pub(crate) fn provider_master(database: &Path, revision: i64) -> Option<[u8; 32]> {
+    sessions()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .values()
+        .find(|s| s.database == database && s.revision == revision && s.confirmed)
+        .and_then(|s| s.master)
+}
+
+pub(crate) fn unlocked(config: &AppConfig, revision: i64) -> bool {
+    sessions()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .get(&config.data_dir)
+        .is_some_and(|s| {
+            s.database == config.database_path
+                && s.revision == revision
+                && s.confirmed
+                && s.master.is_some()
+        })
+}
+
+pub(crate) fn lock(config: &AppConfig) {
+    sessions()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .remove(&config.data_dir);
+}
+
+pub(crate) fn release_request(config: &AppConfig, operation: &str) -> bool {
+    let mut sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
+    if sessions
+        .get(&config.data_dir)
+        .is_some_and(|s| s.database == config.database_path && s.operation == operation)
+    {
+        sessions.remove(&config.data_dir);
+        true
+    } else {
+        false
+    }
+}
+
+pub(crate) fn background_guard(
+    config: &AppConfig,
+    store: &Store,
+) -> Result<Option<BackgroundGuard>> {
+    let authority = store.has_sync_authority()?;
+    if !authority && store.sync_identity()?.is_some() {
+        return Ok(None);
+    }
+    let sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
+    let mut busy = busy().lock().unwrap_or_else(|p| p.into_inner());
+    if busy.contains(&config.data_dir) {
+        return Ok(None);
+    }
+    let lease = if let Some(session) = sessions.get(&config.data_dir) {
+        if !authority
+            || session.database != config.database_path
+            || !session.confirmed
+            || session.master.is_none()
+        {
+            return Ok(None);
+        }
+        let revision: i64 = store.connection.query_row(
+            "SELECT revision FROM sync_local_vault WHERE singleton=1",
+            [],
+            |r| r.get(0),
+        )?;
+        if revision != session.revision {
+            return Ok(None);
+        }
+        session.lease.clone()
+    } else {
+        if authority {
+            return Ok(None);
+        }
+        match lease(&config.data_dir) {
+            Ok(lease) => lease,
+            Err(error) if error.to_string() == "sync_runtime_in_use" => return Ok(None),
+            Err(error) => return Err(error),
+        }
+    };
+    busy.insert(config.data_dir.clone());
+    Ok(Some(BackgroundGuard {
+        _lease: lease,
+        busy_root: Some(config.data_dir.clone()),
+    }))
+}
+
+pub(crate) fn prepare_key(
+    config: &AppConfig,
+    name: Option<&str>,
+    platform: Option<&str>,
+) -> Result<KeyRequest> {
+    let store = Store::open(&config.database_path)?;
+    use rusqlite::OptionalExtension;
+    let existing: Option<(String, i64)> = store
+        .connection
+        .query_row(
+            "SELECT installation_id,revision FROM sync_local_vault WHERE singleton=1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let creating = existing.is_none();
+    let (installation, revision) = if let Some(existing) = existing {
+        ensure!(
+            store.has_sync_authority()?,
+            "sync_runtime_setup_requires_repair"
+        );
+        existing
+    } else {
+        ensure!(
+            store.sync_identity()?.is_none(),
+            "sync_runtime_setup_requires_repair"
+        );
+        let tx = store.begin_write_transaction()?;
+        store.require_background_quiescent_for_sync()?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        let name = name.context("sync_device_name_required")?;
+        let platform = platform.context("sync_device_platform_required")?;
+        crate::sync::pairing::PairingDevice {
+            device_id: "pending".into(),
+            stream_id: "pending-stream".into(),
+            name: name.into(),
+            platform: platform.into(),
+            signing_key: [0; 32],
+        }
+        .validate()?;
+        (uuid::Uuid::new_v4().to_string(), 0)
+    };
+    let mut sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
+    if sessions
+        .get(&config.data_dir)
+        .is_some_and(|s| !s.confirmed && s.expires_at <= now())
+    {
+        sessions.remove(&config.data_dir);
+    }
+    ensure!(
+        !sessions.contains_key(&config.data_dir),
+        "sync_runtime_request_already_open"
+    );
+    let lease = lease(&config.data_dir)?;
+    let token = uuid::Uuid::new_v4().to_string();
+    sessions.insert(
+        config.data_dir.clone(),
+        Session {
+            lease,
+            database: config.database_path.clone(),
+            token: token.clone(),
+            operation: token.clone(),
+            installation: installation.clone(),
+            revision,
+            expires_at: now() + 10 * 60 * 1000,
+            master: None,
+            confirmed: false,
+            creating,
+            name: name.unwrap_or_default().into(),
+            platform: platform.unwrap_or_default().into(),
+            owner_invitation: None,
+        },
+    );
+    Ok(KeyRequest {
+        token,
+        installation_id: installation,
+        revision: if creating { 1 } else { revision },
+        creating,
+    })
+}
+
+pub(crate) fn install_key(
+    config: &AppConfig,
+    token: &str,
+    mut key: Vec<u8>,
+    protected_revision: i64,
+) -> Result<KeyCommit> {
+    let master: Result<[u8; 32]> = key
+        .as_slice()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("sync_master_key_invalid"));
+    key.fill(0);
+    let master = master?;
+    let mut sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
+    let session = sessions
+        .get_mut(&config.data_dir)
+        .context("sync_runtime_request_missing")?;
+    ensure!(
+        session.database == config.database_path
+            && session.token == token
+            && session.expires_at > now()
+            && !session.confirmed,
+        "sync_runtime_request_stale"
+    );
+    let store = Store::open(&config.database_path)?;
+    if session.creating {
+        ensure!(
+            protected_revision == 1,
+            "sync_new_installation_revision_not_reserved"
+        );
+        let journal: String = store
+            .connection
+            .query_row("PRAGMA journal_mode", [], |r| r.get(0))?;
+        if !journal.eq_ignore_ascii_case("wal") {
+            store
+                .connection
+                .pragma_update(None, "journal_mode", "WAL")?;
+        }
+        let tx = store.begin_write_transaction()?;
+        let vault = store.create_sync_vault(
+            &session.installation,
+            &master,
+            &session.name,
+            &session.platform,
+        )?;
+        store.initialize_sync_replica(&ReplicaIdentity {
+            dataset_id: uuid::Uuid::new_v4().to_string(),
+            device_id: vault.device().device_id.clone(),
+            stream_id: vault.device().stream_id.clone(),
+            processor_device_id: vault.device().device_id.clone(),
+        })?;
+        store.initialize_sync_authority(vault.device(), vault.identity())?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        session.revision = vault.revision;
+        session.creating = false;
+    } else {
+        ensure!(protected_revision > 0, "sync_protected_revision_missing");
+        let vault = store.load_sync_vault(&session.installation, &master, protected_revision)?;
+        ensure!(
+            vault.revision == session.revision,
+            "sync_runtime_vault_changed"
+        );
+        store.require_sync_signer(vault.identity())?;
+    }
+    session.master = Some(master);
+    session.token = uuid::Uuid::new_v4().to_string();
+    session.expires_at = now() + 10 * 60 * 1000;
+    Ok(KeyCommit {
+        token: session.token.clone(),
+        installation_id: session.installation.clone(),
+        revision: session.revision,
+    })
+}
+
+pub(crate) fn confirm_key(config: &AppConfig, token: &str, protected_revision: i64) -> Result<()> {
+    let mut sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
+    let session = sessions
+        .get_mut(&config.data_dir)
+        .context("sync_runtime_request_missing")?;
+    ensure!(
+        session.database == config.database_path
+            && session.token == token
+            && session.expires_at > now()
+            && protected_revision == session.revision
+            && session.master.is_some(),
+        "sync_runtime_confirmation_stale"
+    );
+    if session.confirmed {
+        return Ok(());
+    }
+    let store =
+        Store::open(&config.database_path)?.with_provider_master(*session.master.as_ref().unwrap());
+    let vault = store.load_sync_vault(
+        &session.installation,
+        session.master.as_ref().unwrap(),
+        protected_revision,
+    )?;
+    ensure!(
+        vault.revision == protected_revision,
+        "sync_runtime_vault_changed"
+    );
+    store.require_sync_signer(vault.identity())?;
+    store.enable_provider_key_sealing()?;
+    store.recover_interrupted_analysis_jobs()?;
+    store.recover_interrupted_digest_jobs()?;
+    session.confirmed = true;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests;

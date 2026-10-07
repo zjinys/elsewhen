@@ -1,6 +1,6 @@
 # Agent Note: Elsewhen 的本地优先与状态边界
 
-Status: proposed
+Status: superseded（具体选型 personald daemon / Slint UI 已被 Flutter 统一 GUI + Rust bridge library 取代；「本地优先、Capture 只写不可变 Raw Event、异步 AI 分析、AI 只产生候选不直接写、派生可重算不建第二事实源」等门禁不变式仍被主路线继承）
 
 ## Problem
 

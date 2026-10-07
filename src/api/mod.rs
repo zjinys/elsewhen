@@ -11,6 +11,7 @@ pub mod knowledge_workflows;
 pub mod provider_config;
 pub mod relations;
 pub mod rules;
+pub mod sync;
 pub mod theme;
 pub mod todos;
 pub mod tweet;
@@ -354,8 +355,12 @@ pub fn init_bridge(database_path: Option<String>) -> Result<String> {
         .map_err(|e| anyhow::anyhow!("Error resolving data directory: {e}"))?;
     Store::open(&config.database_path)
         .and_then(|store| {
-            store.recover_interrupted_analysis_jobs()?;
-            store.recover_interrupted_digest_jobs()?;
+            if !store.has_sync_authority()? && store.sync_identity()?.is_none() {
+                if let Some(_guard) = crate::sync::runtime::initialization_guard(&config)? {
+                    store.recover_interrupted_analysis_jobs()?;
+                    store.recover_interrupted_digest_jobs()?;
+                }
+            }
             store.recover_chat_proposal_decisions()?;
             store.recover_expired_chat_runs()?;
             Store::mark_initialized(&config.database_path)?;
@@ -895,6 +900,12 @@ pub fn get_analysis_job_stats() -> Result<AnalysisJobStatsDto> {
 pub fn trigger_analysis() -> Result<AnalysisTriggerResult> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
+    let Some(_sync_guard) = crate::sync::runtime::background_guard(&config, &store)? else {
+        return Ok(AnalysisTriggerResult::Processed { count: 0 });
+    };
+    if !store.background_processing_allowed()? {
+        return Ok(AnalysisTriggerResult::Processed { count: 0 });
+    }
     let provider_config = store.active_ai_provider_config()?;
     let Some(provider_config) = provider_config else {
         return Ok(AnalysisTriggerResult::NoProvider);
@@ -940,7 +951,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
             }
         };
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织；付款流程、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}",
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}",
             context, job.raw_text
         );
         let mut analysis_context = vec![

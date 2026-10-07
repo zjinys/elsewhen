@@ -5,9 +5,8 @@ pkgdesc='Local-first personal event recorder with global hotkey capture'
 url='https://github.com/zjinys/elsewhen'
 arch=('x86_64')
 license=('MIT')
-# gtk3 一个就够：直接链接库（pango/cairo/glib2/harfbuzz/fontconfig/
-# libepoxy/libxkbcommon/gdk-pixbuf2/at-spi2-core/dbus/...）全在其依赖闭包内。
-depends=('gtk3')
+# Flutter UI needs gtk3; the native sync keystore plugin also links libsecret.
+depends=('gtk3' 'libsecret')
 package() {
   install -d "$pkgdir/usr/lib/elsewhen"
   cp -a "$startdir/../../ui/build/linux/x64/release/bundle/." "$pkgdir/usr/lib/elsewhen/"

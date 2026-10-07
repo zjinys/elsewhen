@@ -107,6 +107,7 @@ powershell -File scripts\regen.ps1   # Windows
 | X11 | `cnativeapi-0.4.0/cxx_impl/src/CMakeLists.txt:36,94` | 窗口管理（nativeapi） |
 | XInput (Xi) | 同上 `:37,94` | 窗口/输入事件 |
 | pkg-config | 两个 CMakeLists 都用 `find_package(PkgConfig REQUIRED)` | 上述查找的前提 |
+| libsecret ≥ 0.18.4 | `flutter_secure_storage_linux` 的 CMake 声明 | 同步安装密钥的系统 Secret Service 适配（2026-10-04 新增依赖） |
 
 加上 Flutter Linux 工具链与 Rust 的 C 编译器：
 
@@ -115,7 +116,7 @@ powershell -File scripts\regen.ps1   # Windows
 sudo apt update
 sudo apt install -y \
   build-essential clang cmake ninja-build pkg-config \
-  libgtk-3-dev libx11-dev libxi-dev liblzma-dev \
+  libgtk-3-dev libx11-dev libxi-dev liblzma-dev libsecret-1-dev \
   sqlite3
 ```
 > 老版本 Ubuntu 还可能需要 `libstdc++-12-dev`（新版本已由 `build-essential` 覆盖）。
@@ -124,7 +125,7 @@ sudo apt install -y \
 ```bash
 sudo dnf install -y \
   gcc clang cmake ninja-build pkgconf-pkg-config \
-  gtk3-devel libX11-devel libXi-devel xz-devel \
+  gtk3-devel libX11-devel libXi-devel xz-devel libsecret-devel \
   sqlite
 ```
 
@@ -132,9 +133,18 @@ sudo dnf install -y \
 ```bash
 sudo pacman -S --needed \
   base-devel clang cmake ninja pkgconf \
-  gtk3 libx11 libxi xz \
+  gtk3 libx11 libxi xz libsecret \
   sqlite
 ```
+
+**同步安全存储补充（2026-10-04）：** `fvm flutter pub get` 引入的
+`flutter_secure_storage_linux` 构建期需要 `libsecret-1 >= 0.18.4`（可用
+`pkg-config --modversion libsecret-1` 预检），运行期还需要可用的 Secret Service
+（如已配置的 GNOME Keyring / 支持 Secret Service 的 KWallet）。没有服务、密钥库锁定、
+读取失败时同步密钥适配器报不可用，不能退回明文文件，也不能自动生成替代密钥。
+这不代表已完成 Linux 原生密钥库、macOS/iOS 签名授权或 Android 备份/恢复验收；
+对应人工门禁仍在同步路线图。Android 仅排除同步密钥命名空间的备份与设备搬迁，
+不关闭整个业务数据库的系统备份；恢复业务库仍需走重新登记安装/来源流的流程。
 
 **已在该开发机上实测通过的组合** **[仓库]**：
 `clang 22.1.8` / `cmake 4.4.3` / `ninja 1.13.2` / `pkgconf 3.0.7` /

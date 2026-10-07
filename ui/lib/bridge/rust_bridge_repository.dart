@@ -18,6 +18,7 @@ import '../models/tweet_fetch.dart';
 import '../models/rule.dart';
 import '../models/relation.dart';
 import '../models/goal.dart';
+import '../sync/sync_setup_controller.dart';
 import 'api.dart' as api;
 import 'chat_queue_dispatcher.dart';
 import 'generated.dart/frb_generated.dart';
@@ -35,9 +36,12 @@ class RustBridgeRepository implements StorageRepository {
   /// 测试要推进队列时显式调 `triggerAnalysis()` 即可，不需要后台线程代替它。
   final bool runBackgroundWorker;
   final bool runChatQueueWorker;
+  late final SyncSetupController localSync;
   late final _chatQueueDispatcher = ChatQueueDispatcher(poll: _pollChatQueue);
   final Map<String, String> _observedQueueRuns = {};
-  final ValueNotifier<api.ChatRunDto?> chatQueueRunStarted = ValueNotifier(null);
+  final ValueNotifier<api.ChatRunDto?> chatQueueRunStarted = ValueNotifier(
+    null,
+  );
   bool _initialized = false;
   bool _analysisWorkerRunning = false;
   bool _analysisWorkerScheduled = false;
@@ -73,7 +77,11 @@ class RustBridgeRepository implements StorageRepository {
     this.databasePath,
     this.runBackgroundWorker = true,
     this.runChatQueueWorker = true,
-  });
+    SyncSetupController? syncSetupController,
+  }) {
+    localSync = syncSetupController ?? SyncSetupController();
+    localSync.onReady = _wakeAnalysisWorker;
+  }
 
   @override
   Future<void> initialize() async {
@@ -88,6 +96,8 @@ class RustBridgeRepository implements StorageRepository {
       throw StateError('初始化存储失败: $e');
     }
     _initialized = true;
+    // Missing/locked native keys pause sync work, not local storage or browsing.
+    await localSync.restoreIfConfigured();
     if (!runBackgroundWorker) return;
     // Resume durable work after process restart. The timer also covers retry
     // backoff expiry and the Rust-side 50-job invocation bound.
@@ -301,7 +311,9 @@ class RustBridgeRepository implements StorageRepository {
             final result = await triggerAnalysis();
             // 结构化结果取代字符串契约（P2-9）：只有明确“已处理”才继续
             // 排空下一批；NoProvider 停表，交给启动/周期 5s timer 重唤。
-            if (result is! api.AnalysisTriggerResult_Processed) break;
+            if (result is! api.AnalysisTriggerResult_Processed ||
+                result.count <= 0)
+              break;
             final stats = await getAnalysisJobStats();
             if (stats.pending == 0) break;
           }
@@ -346,11 +358,13 @@ class RustBridgeRepository implements StorageRepository {
   /// Stop lifecycle polling. Production keeps the repository for the process
   /// lifetime; isolated tests call this before deleting their temporary data.
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     _analysisTimer?.cancel();
     _analysisTimer = null;
     _chatQueueDispatcher.dispose();
     _observedQueueRuns.clear();
+    localSync.dispose();
   }
 
   // Conversation methods
@@ -538,15 +552,26 @@ class RustBridgeRepository implements StorageRepository {
   Future<String?> getWikiChatTask(String conversationId) =>
       api.getWikiChatTask(conversationId: conversationId);
 
-  Future<Message> submitWikiChatInput(String conversationId, String content, {
+  Future<Message> submitWikiChatInput(
+    String conversationId,
+    String content, {
     required String idempotencyKey,
     required String taskJson,
   }) async {
-    final dto = await api.submitWikiChatInput(conversationId: conversationId,
-        content: content, idempotencyKey: idempotencyKey, taskJson: taskJson);
-    return Message(id: dto.id, conversationId: dto.conversationId,
-        parentMessageId: dto.parentMessageId, role: MessageRole.fromString(dto.role),
-        content: dto.content, createdAt: DateTime.parse(dto.createdAt).toLocal());
+    final dto = await api.submitWikiChatInput(
+      conversationId: conversationId,
+      content: content,
+      idempotencyKey: idempotencyKey,
+      taskJson: taskJson,
+    );
+    return Message(
+      id: dto.id,
+      conversationId: dto.conversationId,
+      parentMessageId: dto.parentMessageId,
+      role: MessageRole.fromString(dto.role),
+      content: dto.content,
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
+    );
   }
 
   Future<Message> sendMessage(
@@ -599,13 +624,20 @@ class RustBridgeRepository implements StorageRepository {
     return !queue.paused;
   }
 
-  Future<api.ChatRunDto?> scheduleChatInput(String conversationId, String inputMessageId) async {
+  Future<api.ChatRunDto?> scheduleChatInput(
+    String conversationId,
+    String inputMessageId,
+  ) async {
     try {
-      return await api.scheduleChatInput(conversationId: conversationId, inputMessageId: inputMessageId);
+      return await api.scheduleChatInput(
+        conversationId: conversationId,
+        inputMessageId: inputMessageId,
+      );
     } finally {
       _watchChatQueue(conversationId);
     }
   }
+
   Future<List<api.UnscheduledChatInputDto>> listUnscheduledChatInputs(
     String conversationId, {
     int offset = 0,
@@ -615,10 +647,19 @@ class RustBridgeRepository implements StorageRepository {
     limit: 20,
   );
 
-  Future<List<api.ChatRunDto>> listChatRuns(String conversationId, {int offset = 0}) =>
-      api.listChatRuns(conversationId: conversationId, offset: offset, limit: 20);
+  Future<List<api.ChatRunDto>> listChatRuns(
+    String conversationId, {
+    int offset = 0,
+  }) => api.listChatRuns(
+    conversationId: conversationId,
+    offset: offset,
+    limit: 20,
+  );
 
-  Future<int> enqueueChatInput(String conversationId, String inputMessageId) async {
+  Future<int> enqueueChatInput(
+    String conversationId,
+    String inputMessageId,
+  ) async {
     try {
       return await api.enqueueChatInput(
         conversationId: conversationId,
@@ -628,6 +669,7 @@ class RustBridgeRepository implements StorageRepository {
       _watchChatQueue(conversationId);
     }
   }
+
   Future<int> enqueueChatSupplement(
     String conversationId,
     String inputMessageId,
@@ -656,11 +698,13 @@ class RustBridgeRepository implements StorageRepository {
       _watchChatQueue(conversationId);
     }
   }
+
   Future<void> pauseChatInputQueue(String conversationId) async {
     await api.pauseChatInputQueue(conversationId: conversationId);
     _chatQueueDispatcher.forget(conversationId);
     _observedQueueRuns.remove(conversationId);
   }
+
   Future<api.ChatRunDto?> dispatchChatInputQueue(String conversationId) =>
       api.dispatchChatInputQueue(conversationId: conversationId);
 
@@ -943,12 +987,12 @@ class RustBridgeRepository implements StorageRepository {
       api.saveAiProviderConfig(provider: provider);
 
   /// 设为激活（唯一激活项）
-  Future<void> setActiveAiProviderConfig(String id) =>
-      api.setActiveAiProviderConfig(id: id);
+  Future<void> setActiveAiProviderConfig(String id, {String? revisionToken}) =>
+      api.setActiveAiProviderConfig(id: id, revisionToken: revisionToken);
 
   /// 删除配置（删除激活项时剩余第一个自动接管激活）
-  Future<void> deleteAiProviderConfig(String id) =>
-      api.deleteAiProviderConfig(id: id);
+  Future<void> deleteAiProviderConfig(String id, {String? revisionToken}) =>
+      api.deleteAiProviderConfig(id: id, revisionToken: revisionToken);
 
   // ── 个人待办 ──
 

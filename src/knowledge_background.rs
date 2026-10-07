@@ -22,6 +22,10 @@ pub fn run_automatic_insights(store: &Store, provider: &dyn AiProvider) -> Resul
     // A killed process leaves a running record. The normal provider timeout is
     // 60 seconds; a ten-minute lease also prevents cross-process double work.
     let tx = Transaction::new_unchecked(&store.connection, TransactionBehavior::Immediate)?;
+    if !store.background_processing_allowed()? {
+        tx.commit()?;
+        return Ok(0);
+    }
     store.connection.execute("UPDATE knowledge_background_runs SET status='failed',finished_at=?1,error='上次运行中断，等待重试'
         WHERE status='running' AND task='insight' AND started_at<?2",params![now.to_rfc3339(),(now-chrono::Duration::minutes(10)).to_rfc3339()])?;
     let active:bool=store.connection.query_row("SELECT EXISTS(SELECT 1 FROM knowledge_background_runs WHERE task='insight' AND status='running')",[],|r|r.get(0))?;
@@ -160,6 +164,7 @@ fn generate(
         }
     }
     let tx = Transaction::new_unchecked(&store.connection, TransactionBehavior::Immediate)?;
+    store.require_background_processor()?;
     let current = crate::knowledge::current_candidates(store, &candidates)?;
     // Recheck sources at commit: users may reject material while the model runs.
     for event in events {

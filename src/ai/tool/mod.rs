@@ -1306,7 +1306,7 @@ impl Tool for RenameWikiPageTool {
         json!({
             "type":"object",
             "properties":{
-                "slug":{"type":"string","description":"当前页面的 slug（唯一标识，如 person/谭俊、topic/付款流程），必填"},
+                "slug":{"type":"string","description":"当前页面的 slug（唯一标识，如 person/张三、topic/网站改版），必填"},
                 "new_title":{"type":"string","description":"新的页面标题/名字，必填"},
                 "reason":{"type":"string","description":"改名原因说明，可选，会写进修订历史"}
             },

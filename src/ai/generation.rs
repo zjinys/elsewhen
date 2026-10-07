@@ -44,6 +44,7 @@ pub(crate) fn shutdown(path: &Path) -> Result<usize> {
     let store = Store {
         connection,
         path: path.to_owned(),
+        provider_master: None,
         conversation_snapshot: None,
         chat_run_identity: None,
         captured_page_task: Default::default(),

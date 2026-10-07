@@ -117,6 +117,15 @@ mod tests {
                 "13-chat-summary",
                 "14-chat-page-tasks",
                 "15-chat-supplements",
+                "16-sync-core",
+                "17-sync-snapshot-delivery",
+                "18-sync-operation-fragments",
+                "19-sync-local-vault",
+                "20-sync-processor-guard",
+                "21-chat-response-input",
+                "22-sync-membership-authority",
+                "23-provider-key-sealing",
+                "24-provider-edit-basis",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -148,7 +157,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 15, "十五条迁移跑完，user_version 应为 15");
+        assert_eq!(version, 24, "二十四条迁移跑完，user_version 应为 24");
     }
 
     #[test]

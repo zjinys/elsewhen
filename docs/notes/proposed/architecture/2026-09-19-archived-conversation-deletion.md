@@ -1,6 +1,7 @@
 # Agent Note: 归档对话可删除
 
-Status: proposed
+Status: implemented
+实现记录：总路线 Step 3「归档对话清理」（2026-09-19，提交 aabf15b）：仅允许删除已归档非知识页会话，UI 二次确认，AI 指令走 WriteConfirm，级联清理 messages/pending actions。
 
 ## Problem
 

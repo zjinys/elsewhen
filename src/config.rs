@@ -33,7 +33,7 @@ fn read_pinned() -> Option<AppConfig> {
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
-    /// 数据目录，即 `database_path` 所在目录。仅用于钉死冲突检测与报错信息。
+    /// 本机工作区根目录，用于进程钉死与数据集目录定位；不能在进程内切换。
     pub data_dir: PathBuf,
     pub database_path: PathBuf,
 }
@@ -54,9 +54,13 @@ impl AppConfig {
         std::fs::create_dir_all(data_dir)
             .with_context(|| format!("create data directory {}", data_dir.display()))?;
         secure_directory(data_dir)?;
+        let database_path = match crate::sync::datasets::selected_database_path(data_dir)? {
+            Some(path) => path,
+            None => migrate_db_file(data_dir)?,
+        };
         Ok(Self {
             data_dir: data_dir.to_path_buf(),
-            database_path: migrate_db_file(data_dir)?,
+            database_path,
         })
     }
 

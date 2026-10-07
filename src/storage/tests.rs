@@ -689,23 +689,23 @@ fn update_todo_edits_fields_and_clears_optionals() {
     store
         .update_todo(
             &todo.id,
-            "跟进双链路付款",
-            Some("已和张玮对齐时间"),
+            "跟进网站改版",
+            Some("已和张三对齐时间"),
             Some("high"),
             Some("2026-09-18"),
         )
         .unwrap();
     let updated = store.list_todos(None).unwrap();
     assert_eq!(updated.len(), 1);
-    assert_eq!(updated[0].title, "跟进双链路付款");
-    assert_eq!(updated[0].note.as_deref(), Some("已和张玮对齐时间"));
+    assert_eq!(updated[0].title, "跟进网站改版");
+    assert_eq!(updated[0].note.as_deref(), Some("已和张三对齐时间"));
     assert_eq!(updated[0].priority, "high");
     assert_eq!(updated[0].due_at.as_deref(), Some("2026-09-18"));
     assert_eq!(updated[0].status, TodoStatus::Open, "编辑不改状态");
 
     // 清除可选字段：传 None
     store
-        .update_todo(&todo.id, "跟进双链路付款", None, None, None)
+        .update_todo(&todo.id, "跟进网站改版", None, None, None)
         .unwrap();
     let cleared = store.list_todos(None).unwrap();
     assert!(cleared[0].note.is_none());
@@ -819,7 +819,7 @@ fn relations_upsert_dedupe_and_list_both_directions() {
     let rel = RelationDraft {
         from_slug: "person/张三".to_string(),
         from_kind: "person".to_string(),
-        to_slug: "kb-双链路付款".to_string(),
+        to_slug: "kb-网站改版".to_string(),
         to_kind: "project".to_string(),
         relation: "负责".to_string(),
         note: Some("主导该项目".to_string()),
@@ -831,11 +831,11 @@ fn relations_upsert_dedupe_and_list_both_directions() {
     // 同一条重复写入：去重为 1 条，指向同一页双向都能查到
     store.upsert_relation(&rel).unwrap();
     let from_person = store.list_relations_for_page("person/张三").unwrap();
-    let from_project = store.list_relations_for_page("kb-双链路付款").unwrap();
+    let from_project = store.list_relations_for_page("kb-网站改版").unwrap();
     assert_eq!(from_person.len(), 1);
     assert_eq!(from_project.len(), 1);
     assert_eq!(from_person[0].relation, "负责");
-    assert_eq!(from_person[0].to_slug, "kb-双链路付款");
+    assert_eq!(from_person[0].to_slug, "kb-网站改版");
     assert_eq!(store.list_relations().unwrap().len(), 1);
 
     // 删除
@@ -849,11 +849,11 @@ fn rename_wiki_page_moves_slug_relations_and_chat() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();
     let draft = WikiPageDraft {
-        slug: "topic/付款流程".to_string(),
+        slug: "topic/网站改版".to_string(),
         kind: "topic".to_string(),
-        title: "付款流程".to_string(),
-        summary: "付款流程（由人物关系确认时自动建档）".to_string(),
-        content_md: "# 付款流程\n\n跟进付款相关事宜。".to_string(),
+        title: "网站改版".to_string(),
+        summary: "网站改版（由人物关系确认时自动建档）".to_string(),
+        content_md: "# 网站改版\n\n跟进付款相关事宜。".to_string(),
         tags: vec!["付款".to_string()],
         source_event_ids: vec![],
         status: "active".to_string(),
@@ -865,9 +865,9 @@ fn rename_wiki_page_moves_slug_relations_and_chat() {
         .unwrap();
     store
         .upsert_relation(&RelationDraft {
-            from_slug: "person/谭俊".to_string(),
+            from_slug: "person/张三".to_string(),
             from_kind: "person".to_string(),
-            to_slug: "topic/付款流程".to_string(),
+            to_slug: "topic/网站改版".to_string(),
             to_kind: "topic".to_string(),
             relation: "跟进".to_string(),
             note: Some("处理付款事宜".to_string()),
@@ -877,47 +877,47 @@ fn rename_wiki_page_moves_slug_relations_and_chat() {
         })
         .unwrap();
     store
-        .create_wiki_chat_conversation("topic/付款流程", "[知识页] 付款流程")
+        .create_wiki_chat_conversation("topic/网站改版", "[知识页] 网站改版")
         .unwrap();
-    let before_revisions = store.list_wiki_revisions("topic/付款流程").unwrap().len();
+    let before_revisions = store.list_wiki_revisions("topic/网站改版").unwrap().len();
 
     // 改名：标题 + slug 一起换，关系与会话迁移
     let outcome = store
-        .rename_wiki_page("topic/付款流程", "fpso111 尾款", "项目真名更正")
+        .rename_wiki_page("topic/网站改版", "测试项目 尾款", "项目真名更正")
         .unwrap();
     assert!(outcome.changed);
-    assert_eq!(outcome.new_slug, "topic/fpso111-尾款");
+    assert_eq!(outcome.new_slug, "topic/测试项目-尾款");
     assert_eq!(outcome.relations_moved, 1);
     assert_eq!(outcome.chats_moved, 1);
-    assert!(store.get_wiki_page("topic/付款流程").unwrap().is_none());
-    let renamed = store.get_wiki_page("topic/fpso111-尾款").unwrap().unwrap();
-    assert_eq!(renamed.title, "fpso111 尾款");
+    assert!(store.get_wiki_page("topic/网站改版").unwrap().is_none());
+    let renamed = store.get_wiki_page("topic/测试项目-尾款").unwrap().unwrap();
+    assert_eq!(renamed.title, "测试项目 尾款");
     assert!(
-        renamed.summary.contains("fpso111 尾款"),
+        renamed.summary.contains("测试项目 尾款"),
         "summary 里的旧名应被替换: {}",
         renamed.summary
     );
     // 关系引用已指向新 slug
     let rels = store.list_relations().unwrap();
     assert_eq!(rels.len(), 1);
-    assert_eq!(rels[0].to_slug, "topic/fpso111-尾款");
+    assert_eq!(rels[0].to_slug, "topic/测试项目-尾款");
     // 页内聊天会话已迁移
     assert!(
         store
-            .find_wiki_chat_conversation("topic/fpso111-尾款")
+            .find_wiki_chat_conversation("topic/测试项目-尾款")
             .unwrap()
             .is_some()
     );
     assert!(
         store
-            .find_wiki_chat_conversation("topic/付款流程")
+            .find_wiki_chat_conversation("topic/网站改版")
             .unwrap()
             .is_none()
     );
     // 修订历史多了一条重命名记录
     assert_eq!(
         store
-            .list_wiki_revisions("topic/fpso111-尾款")
+            .list_wiki_revisions("topic/测试项目-尾款")
             .unwrap()
             .len(),
         before_revisions + 1
@@ -925,13 +925,13 @@ fn rename_wiki_page_moves_slug_relations_and_chat() {
 
     // 标题没变：changed=false，零写操作
     let outcome = store
-        .rename_wiki_page("topic/fpso111-尾款", "fpso111 尾款", "x")
+        .rename_wiki_page("topic/测试项目-尾款", "测试项目 尾款", "x")
         .unwrap();
     assert!(!outcome.changed);
 
     // 页面不存在：报错并提示可能已改名
     let err = store
-        .rename_wiki_page("topic/付款流程", "x", "y")
+        .rename_wiki_page("topic/网站改版", "x", "y")
         .unwrap_err();
     assert!(err.to_string().contains("知识页不存在"), "{err}");
 
@@ -987,16 +987,16 @@ fn entity_page(store: &Store, slug: &str, kind: &str, title: &str) {
 fn entity_merge_and_undo_preserve_sources_and_restore_rows() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();
-    entity_page(&store, "person/张伟-a", "person", "张伟（设计）");
-    entity_page(&store, "person/张伟", "person", "张伟");
+    entity_page(&store, "person/李四-a", "person", "李四（设计）");
+    entity_page(&store, "person/李四", "person", "李四");
     entity_page(&store, "project/付款", "project", "付款项目");
     let event_id = store
-        .insert_event(NewEvent::now("张伟负责付款联调"))
+        .insert_event(NewEvent::now("李四负责付款联调"))
         .unwrap();
     let fact = store
         .upsert_entity_fact(
             "person",
-            "person/张伟-a",
+            "person/李四-a",
             "职责：付款联调",
             "2026-09-21",
             4,
@@ -1004,11 +1004,11 @@ fn entity_merge_and_undo_preserve_sources_and_restore_rows() {
         )
         .unwrap();
     store
-        .add_entity_alias("person", "person/张伟-a", "设计张伟")
+        .add_entity_alias("person", "person/李四-a", "设计李四")
         .unwrap();
     let relation = store
         .upsert_relation(&RelationDraft {
-            from_slug: "person/张伟-a".into(),
+            from_slug: "person/李四-a".into(),
             from_kind: "person".into(),
             to_slug: "project/付款".into(),
             to_kind: "project".into(),
@@ -1025,30 +1025,30 @@ fn entity_merge_and_undo_preserve_sources_and_restore_rows() {
             "high",
             None,
             Some(&event_id),
-            Some("person/张伟-a"),
+            Some("person/李四-a"),
             None,
         )
         .unwrap();
 
     assert!(
         store
-            .merge_entity("person", "person/张伟-a", "person/张伟")
+            .merge_entity("person", "person/李四-a", "person/李四")
             .unwrap()
     );
     assert_eq!(
         store
-            .get_wiki_page("person/张伟-a")
+            .get_wiki_page("person/李四-a")
             .unwrap()
             .unwrap()
             .status,
         "merged"
     );
     assert_eq!(
-        store.list_entity_facts("person", "person/张伟").unwrap()[0].id,
+        store.list_entity_facts("person", "person/李四").unwrap()[0].id,
         fact.id
     );
     assert_eq!(
-        store.list_relations_for_page("person/张伟").unwrap()[0].id,
+        store.list_relations_for_page("person/李四").unwrap()[0].id,
         relation.id
     );
     assert_eq!(store.list_events().unwrap().len(), 1);
@@ -1056,33 +1056,33 @@ fn entity_merge_and_undo_preserve_sources_and_restore_rows() {
         store.list_todos(None).unwrap()[0]
             .related_wiki_slug
             .as_deref(),
-        Some("person/张伟")
+        Some("person/李四")
     );
 
-    assert!(store.undo_entity_merge("person/张伟-a").unwrap());
+    assert!(store.undo_entity_merge("person/李四-a").unwrap());
     assert_eq!(
         store
-            .get_wiki_page("person/张伟-a")
+            .get_wiki_page("person/李四-a")
             .unwrap()
             .unwrap()
             .status,
         "active"
     );
     assert_eq!(
-        store.list_entity_facts("person", "person/张伟-a").unwrap()[0].id,
+        store.list_entity_facts("person", "person/李四-a").unwrap()[0].id,
         fact.id
     );
     assert_eq!(
         store
-            .list_entity_aliases("person", "person/张伟-a")
+            .list_entity_aliases("person", "person/李四-a")
             .unwrap(),
-        vec!["设计张伟"]
+        vec!["设计李四"]
     );
     assert_eq!(
-        store.list_relations_for_page("person/张伟-a").unwrap()[0].id,
+        store.list_relations_for_page("person/李四-a").unwrap()[0].id,
         relation.id
     );
-    assert_eq!(store.list_events().unwrap()[0].raw_text, "张伟负责付款联调");
+    assert_eq!(store.list_events().unwrap()[0].raw_text, "李四负责付款联调");
     let restored_todo = store
         .list_todos(None)
         .unwrap()
@@ -1091,14 +1091,14 @@ fn entity_merge_and_undo_preserve_sources_and_restore_rows() {
         .unwrap();
     assert_eq!(
         restored_todo.related_wiki_slug.as_deref(),
-        Some("person/张伟-a")
+        Some("person/李四-a")
     );
     assert!(
         store
-            .merge_entity("person", "person/张伟-a", "person/张伟")
+            .merge_entity("person", "person/李四-a", "person/李四")
             .unwrap()
     );
-    assert!(store.undo_entity_merge("person/张伟-a").unwrap());
+    assert!(store.undo_entity_merge("person/李四-a").unwrap());
     drop(store);
     let _ = std::fs::remove_file(path);
 }
@@ -1274,9 +1274,9 @@ fn find_wiki_page_by_title_matches_exact_ignoring_case_and_trim() {
     store
         .upsert_wiki_page(
             &WikiPageDraft {
-                slug: "person/张伟".to_string(),
+                slug: "person/李四".to_string(),
                 kind: "person".to_string(),
-                title: "张伟".to_string(),
+                title: "李四".to_string(),
                 summary: "简介".to_string(),
                 content_md: "内容".to_string(),
                 tags: vec![],
@@ -1288,7 +1288,7 @@ fn find_wiki_page_by_title_matches_exact_ignoring_case_and_trim() {
             ContentPolicy::Always,
         )
         .unwrap();
-    assert!(store.find_wiki_page_by_title(" 张伟 ").unwrap().is_some());
+    assert!(store.find_wiki_page_by_title(" 李四 ").unwrap().is_some());
     assert!(
         store
             .find_wiki_page_by_title("不存在的人")
@@ -1304,11 +1304,11 @@ fn list_conversations_excludes_wiki_page_chats() {
     let store = Store::open(&path).unwrap();
     let normal = store.create_conversation(Some("普通对话"), None).unwrap();
     let wiki_chat = store
-        .create_wiki_chat_conversation("person/张伟", "处理本页")
+        .create_wiki_chat_conversation("person/李四", "处理本页")
         .unwrap();
     // 知识页聊天有 wiki_page_slug 关联
     let conv = store.get_conversation(&wiki_chat).unwrap().unwrap();
-    assert_eq!(conv.wiki_page_slug.as_deref(), Some("person/张伟"));
+    assert_eq!(conv.wiki_page_slug.as_deref(), Some("person/李四"));
 
     let listed = store.list_conversations().unwrap();
     assert_eq!(listed.len(), 1);

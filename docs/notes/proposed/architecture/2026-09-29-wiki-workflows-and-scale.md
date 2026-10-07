@@ -1,6 +1,7 @@
 # Agent Note: Wiki 采用流程与数据规模
 
-Status: proposed
+Status: implemented
+实现记录：总路线「2026-09-30：Wiki 流程与规模切片」（schema v9）；剩余性能路径见 [功能与规模评估](../../../llm-wiki-scale-and-refactoring.md)。
 
 ## Problem
 

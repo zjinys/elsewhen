@@ -8,7 +8,7 @@
 
 ## 1. 已经准备好的当前数据副本
 
-本次从 `/home/pp/.local/share/elsewhen/elsewhen.db` 以 SQLite 只读连接和 backup API 取得副本，检查结果为 schema v4、`quick_check = ok`。没有运行模型、修改原库内容或启动后台 worker。
+本次从 `$HOME/.local/share/elsewhen/elsewhen.db` 以 SQLite 只读连接和 backup API 取得副本，检查结果为 schema v4、`quick_check = ok`。没有运行模型、修改原库内容或启动后台 worker。
 
 | 数据 | 备份时数量 |
 | --- | ---: |

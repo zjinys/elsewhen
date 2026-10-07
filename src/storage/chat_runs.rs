@@ -426,8 +426,8 @@ impl Store {
             "生成终态无效"
         );
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
-        let row:Option<(String,String)>=self.connection.query_row("SELECT conversation_id,status FROM chat_runs WHERE id=?1 AND executor_id=?2 AND lease_until>?3",params![run,owner,chrono::Utc::now().to_rfc3339()],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
-        let (conversation, current) = row.ok_or(ChatRunStopped)?;
+        let row:Option<(String,String,String)>=self.connection.query_row("SELECT conversation_id,status,input_message_id FROM chat_runs WHERE id=?1 AND executor_id=?2 AND lease_until>?3",params![run,owner,chrono::Utc::now().to_rfc3339()],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
+        let (conversation, current, input) = row.ok_or(ChatRunStopped)?;
         if !matches!(current.as_str(), "preparing" | "running" | "cancelling")
             || (status == "completed" && current == "cancelling")
         {
@@ -443,7 +443,13 @@ impl Store {
             None => self.chat_run_draft(run, i64::MAX)?,
         };
         let message = if status == "completed" {
-            Some(self.send_message(&conversation, "assistant", &text, None)?)
+            Some(self.send_message_with_input(
+                &conversation,
+                "assistant",
+                &text,
+                None,
+                Some(&input),
+            )?)
         } else {
             None
         };

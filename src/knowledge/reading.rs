@@ -106,6 +106,9 @@ fn current(store: &Store, source: &SourceSnapshot) -> Result<bool> {
 }
 
 pub(crate) fn advance(store: &Store, provider: &dyn AiProvider) -> Result<i64> {
+    if !store.background_processing_allowed()? {
+        return Ok(0);
+    }
     let now = chrono::Utc::now();
     store.connection.execute("UPDATE knowledge_background_runs SET status='failed',finished_at=?1,retry_at=?1,detail='阅读中断，自动恢复' WHERE task='source-reading' AND status='running' AND started_at<?2",
         params![now.to_rfc3339(),(now-chrono::Duration::minutes(10)).to_rfc3339()])?;
@@ -242,6 +245,7 @@ fn read_node(
     }
     let result = parsed.context("没有阅读结果")?;
     let tx = Transaction::new_unchecked(&store.connection, TransactionBehavior::Immediate)?;
+    store.require_background_processor()?;
     let active: bool = store.connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM knowledge_background_runs WHERE id=?1 AND status='running')",
         [run],

@@ -13,7 +13,7 @@ import 'package:elsewhen_ui/wiki/wiki_text_span_decorator.dart';
 void main() {
   group('wiki codec · wikilink 编解码', () {
     test('[[target|alias]] → 行内 wikilink 属性 → 编码还原', () {
-      final doc = wikiMarkdownToDocument('见 [[person/刘庆霖|刘庆霖]] 档案。');
+      final doc = wikiMarkdownToDocument('见 [[person/张三|张三]] 档案。');
       final delta = doc.root.children.first.delta!;
 
       final wikilink = delta.whereType<TextInsert>().firstWhere(
@@ -21,10 +21,10 @@ void main() {
             insert.attributes?.containsKey(BuiltInAttributeKey.wikilink) ??
             false,
       );
-      expect(wikilink.text, '刘庆霖');
-      expect(wikilink.attributes![BuiltInAttributeKey.wikilink], 'person/刘庆霖');
+      expect(wikilink.text, '张三');
+      expect(wikilink.attributes![BuiltInAttributeKey.wikilink], 'person/张三');
 
-      expect(wikiDocumentToMarkdown(doc), '见 [[person/刘庆霖|刘庆霖]] 档案。\n');
+      expect(wikiDocumentToMarkdown(doc), '见 [[person/张三|张三]] 档案。\n');
     });
 
     test('alias == target 时省略 [[target]]', () {

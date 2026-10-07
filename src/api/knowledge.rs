@@ -90,6 +90,13 @@ pub fn resolve_topic_organization(id: String, accept: bool) -> Result<Vec<String
 /// Background worker only; no manual insight trigger in the UI.
 pub fn tick_knowledge_insights() -> Result<i64> {
     let store = store()?;
+    let config = crate::config::AppConfig::load()?;
+    let Some(_sync_guard) = crate::sync::runtime::background_guard(&config, &store)? else {
+        return Ok(0);
+    };
+    if !store.background_processing_allowed()? {
+        return Ok(0);
+    }
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         return Ok(0);
     };

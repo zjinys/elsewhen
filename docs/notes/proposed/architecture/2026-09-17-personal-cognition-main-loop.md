@@ -1,6 +1,6 @@
 # Agent Note: 以个人认知主循环重组 Elsewhen
 
-Status: proposed
+Status: adopted（已作为主路线 [2026-09-17-personal-cognition-main-loop-roadmap](../../../roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md) 的架构依据执行；「今天」视图、素材加工流水线等尚未全部完成，进度由主路线承载）
 
 ## Problem
 

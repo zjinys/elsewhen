@@ -1,6 +1,6 @@
 # Agent Note: 对照 RikkaHub Desktop 聊天层，确定上下文稳定性改造顺序
 
-Status: proposed
+Status: archived（研究文档；执行口径已被 [AI 对话体验方案](2026-09-30-ai-chat-experience.md) 取代）
 
 ## Problem
 

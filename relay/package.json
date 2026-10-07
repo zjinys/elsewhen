@@ -11,6 +11,8 @@
     "smoke": "node test/e2e-smoke.mjs"
   },
   "devDependencies": {
+    "esbuild": "0.28.1",
+    "miniflare": "5.20260930.0-alpha",
     "wrangler": "^4.145.0"
   }
 }

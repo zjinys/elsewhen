@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1836696905;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -253006005;
 
 // Section: executor
 
@@ -200,6 +200,38 @@ fn wire__crate__api__knowledge_workflows__adopt_artifact_version_impl(
         },
     )
 }
+fn wire__crate__api__sync__approve_owner_sync_invitation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    invitation_id: impl CstDecode<String>,
+    preview_token: impl CstDecode<String>,
+    acknowledge_provider_key_sharing: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "approve_owner_sync_invitation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_invitation_id = invitation_id.cst_decode();
+            let api_preview_token = preview_token.cst_decode();
+            let api_acknowledge_provider_key_sharing =
+                acknowledge_provider_key_sharing.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::approve_owner_sync_invitation(
+                            api_invitation_id,
+                            api_preview_token,
+                            api_acknowledge_provider_key_sharing,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__goals__archive_goal_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
@@ -336,6 +368,30 @@ fn wire__crate__api__chat_runs__cancel_chat_run_impl(
         },
     )
 }
+fn wire__crate__api__sync__cancel_owner_sync_invitation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    invitation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "cancel_owner_sync_invitation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_invitation_id = invitation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::sync::cancel_owner_sync_invitation(api_invitation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__conversations__confirm_knowledge_draft_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     conversation_id: impl CstDecode<String>,
@@ -403,6 +459,32 @@ fn wire__crate__api__knowledge__confirm_knowledge_source_impl(
                             api_tags,
                             api_expected_snapshot_id,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__confirm_sync_key_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    token: impl CstDecode<String>,
+    protected_revision: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "confirm_sync_key",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_token = token.cst_decode();
+            let api_protected_revision = protected_revision.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::sync::confirm_sync_key(api_token, api_protected_revision)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -489,6 +571,35 @@ fn wire__crate__api__goals__create_goal_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::goals::create_goal(api_content, api_phase)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__create_owner_sync_invitation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    relay_url: impl CstDecode<String>,
+    acknowledge_provider_key_sharing: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_owner_sync_invitation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_relay_url = relay_url.cst_decode();
+            let api_acknowledge_provider_key_sharing =
+                acknowledge_provider_key_sharing.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::create_owner_sync_invitation(
+                            api_relay_url,
+                            api_acknowledge_provider_key_sharing,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -632,6 +743,7 @@ fn wire__crate__api__conversations__decline_knowledge_draft_impl(
 fn wire__crate__api__provider_config__delete_ai_provider_config_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
+    revision_token: impl CstDecode<Option<String>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -641,11 +753,14 @@ fn wire__crate__api__provider_config__delete_ai_provider_config_impl(
         },
         move || {
             let api_id = id.cst_decode();
+            let api_revision_token = revision_token.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::provider_config::delete_ai_provider_config(api_id)?;
+                        let output_ok = crate::api::provider_config::delete_ai_provider_config(
+                            api_id,
+                            api_revision_token,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1518,6 +1633,27 @@ fn wire__crate__api__chat_runs__get_latest_chat_run_impl(
         },
     )
 }
+fn wire__crate__api__sync__get_local_sync_state_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_local_sync_state",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::get_local_sync_state()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__conversations__get_message_chain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     message_id: impl CstDecode<String>,
@@ -1766,6 +1902,61 @@ fn wire__crate__api__init_bridge_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::init_bridge(api_database_path)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__inspect_owner_sync_invitation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    invitation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "inspect_owner_sync_invitation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_invitation_id = invitation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::sync::inspect_owner_sync_invitation(api_invitation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__install_sync_key_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    token: impl CstDecode<String>,
+    key: impl CstDecode<Vec<u8>>,
+    protected_revision: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "install_sync_key",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_token = token.cst_decode();
+            let api_key = key.cst_decode();
+            let api_protected_revision = protected_revision.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::install_sync_key(
+                            api_token,
+                            api_key,
+                            api_protected_revision,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2670,6 +2861,27 @@ fn wire__crate__api__wiki__list_wiki_pages_impl(
         },
     )
 }
+fn wire__crate__api__sync__lock_local_sync_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "lock_local_sync",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::lock_local_sync()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__entities__merge_entity_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     entity_kind: impl CstDecode<String>,
@@ -2796,6 +3008,38 @@ fn wire__crate__api__knowledge__prepare_knowledge_source_repair_impl(
                         let output_ok = crate::api::knowledge::prepare_knowledge_source_repair(
                             api_slug,
                             api_snapshot_ids,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__prepare_sync_key_request_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    name: impl CstDecode<Option<String>>,
+    platform: impl CstDecode<Option<String>>,
+    acknowledge_provider_key_sharing: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "prepare_sync_key_request",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_name = name.cst_decode();
+            let api_platform = platform.cst_decode();
+            let api_acknowledge_provider_key_sharing =
+                acknowledge_provider_key_sharing.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::prepare_sync_key_request(
+                            api_name,
+                            api_platform,
+                            api_acknowledge_provider_key_sharing,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -2997,6 +3241,29 @@ fn wire__crate__api__wiki__refresh_project_page_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::wiki::refresh_project_page(api_slug)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__release_sync_key_request_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    token: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "release_sync_key_request",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_token = token.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::release_sync_key_request(api_token)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3460,9 +3727,34 @@ fn wire__crate__api__conversations__send_message_impl(
         },
     )
 }
+fn wire__crate__api__sync__send_owner_sync_approval_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    invitation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "send_owner_sync_approval",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_invitation_id = invitation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::sync::send_owner_sync_approval(api_invitation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__provider_config__set_active_ai_provider_config_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
+    revision_token: impl CstDecode<Option<String>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -3472,11 +3764,14 @@ fn wire__crate__api__provider_config__set_active_ai_provider_config_impl(
         },
         move || {
             let api_id = id.cst_decode();
+            let api_revision_token = revision_token.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::provider_config::set_active_ai_provider_config(api_id)?;
+                        let output_ok = crate::api::provider_config::set_active_ai_provider_config(
+                            api_id,
+                            api_revision_token,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4278,6 +4573,7 @@ impl SseDecode for crate::api::provider_config::AiProviderConfigDto {
         let mut var_temperature = <f64>::sse_decode(deserializer);
         let mut var_maxTokens = <Option<i64>>::sse_decode(deserializer);
         let mut var_contextWindow = <Option<i64>>::sse_decode(deserializer);
+        let mut var_revisionToken = <Option<String>>::sse_decode(deserializer);
         return crate::api::provider_config::AiProviderConfigDto {
             id: var_id,
             name: var_name,
@@ -4290,6 +4586,7 @@ impl SseDecode for crate::api::provider_config::AiProviderConfigDto {
             temperature: var_temperature,
             max_tokens: var_maxTokens,
             context_window: var_contextWindow,
+            revision_token: var_revisionToken,
         };
     }
 }
@@ -5972,6 +6269,34 @@ impl SseDecode for Vec<crate::api::wiki::WikiPageDto> {
     }
 }
 
+impl SseDecode for crate::api::sync::LocalSyncStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_state = <String>::sse_decode(deserializer);
+        let mut var_installationId = <Option<String>>::sse_decode(deserializer);
+        let mut var_vaultRevision = <i64>::sse_decode(deserializer);
+        let mut var_datasetId = <Option<String>>::sse_decode(deserializer);
+        let mut var_deviceId = <Option<String>>::sse_decode(deserializer);
+        let mut var_deviceName = <Option<String>>::sse_decode(deserializer);
+        let mut var_isOwner = <bool>::sse_decode(deserializer);
+        let mut var_isProcessor = <bool>::sse_decode(deserializer);
+        let mut var_activePeers = <i64>::sse_decode(deserializer);
+        let mut var_pendingOperations = <i64>::sse_decode(deserializer);
+        return crate::api::sync::LocalSyncStateDto {
+            state: var_state,
+            installation_id: var_installationId,
+            vault_revision: var_vaultRevision,
+            dataset_id: var_datasetId,
+            device_id: var_deviceId,
+            device_name: var_deviceName,
+            is_owner: var_isOwner,
+            is_processor: var_isProcessor,
+            active_peers: var_activePeers,
+            pending_operations: var_pendingOperations,
+        };
+    }
+}
+
 impl SseDecode for crate::api::conversations::MessageDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6173,6 +6498,19 @@ impl SseDecode for Option<crate::knowledge::workflows::SuggestionFeedback> {
     }
 }
 
+impl SseDecode for Option<crate::api::sync::SyncInvitationPreviewDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::sync::SyncInvitationPreviewDto>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6353,6 +6691,70 @@ impl SseDecode for crate::knowledge::workflows::SuggestionFeedback {
             suggestion: var_suggestion,
             rewrite: var_rewrite,
             created_at: var_createdAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncInvitationOfferDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_invitationId = <String>::sse_decode(deserializer);
+        let mut var_code = <String>::sse_decode(deserializer);
+        let mut var_expiresAtMs = <i64>::sse_decode(deserializer);
+        return crate::api::sync::SyncInvitationOfferDto {
+            invitation_id: var_invitationId,
+            code: var_code,
+            expires_at_ms: var_expiresAtMs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncInvitationPreviewDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_invitationId = <String>::sse_decode(deserializer);
+        let mut var_token = <String>::sse_decode(deserializer);
+        let mut var_deviceName = <String>::sse_decode(deserializer);
+        let mut var_devicePlatform = <String>::sse_decode(deserializer);
+        let mut var_fingerprint = <String>::sse_decode(deserializer);
+        let mut var_expiresAtMs = <i64>::sse_decode(deserializer);
+        return crate::api::sync::SyncInvitationPreviewDto {
+            invitation_id: var_invitationId,
+            token: var_token,
+            device_name: var_deviceName,
+            device_platform: var_devicePlatform,
+            fingerprint: var_fingerprint,
+            expires_at_ms: var_expiresAtMs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncKeyCommitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_token = <String>::sse_decode(deserializer);
+        let mut var_installationId = <String>::sse_decode(deserializer);
+        let mut var_revision = <i64>::sse_decode(deserializer);
+        return crate::api::sync::SyncKeyCommitDto {
+            token: var_token,
+            installation_id: var_installationId,
+            revision: var_revision,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncKeyRequestDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_token = <String>::sse_decode(deserializer);
+        let mut var_installationId = <String>::sse_decode(deserializer);
+        let mut var_revision = <i64>::sse_decode(deserializer);
+        let mut var_creating = <bool>::sse_decode(deserializer);
+        return crate::api::sync::SyncKeyRequestDto {
+            token: var_token,
+            installation_id: var_installationId,
+            revision: var_revision,
+            creating: var_creating,
         };
     }
 }
@@ -6599,6 +7001,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::provider_config::AiProviderCo
             self.temperature.into_into_dart().into_dart(),
             self.max_tokens.into_into_dart().into_dart(),
             self.context_window.into_into_dart().into_dart(),
+            self.revision_token.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7802,6 +8205,35 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::workflows::LibraryPage>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::LocalSyncStateDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.state.into_into_dart().into_dart(),
+            self.installation_id.into_into_dart().into_dart(),
+            self.vault_revision.into_into_dart().into_dart(),
+            self.dataset_id.into_into_dart().into_dart(),
+            self.device_id.into_into_dart().into_dart(),
+            self.device_name.into_into_dart().into_dart(),
+            self.is_owner.into_into_dart().into_dart(),
+            self.is_processor.into_into_dart().into_dart(),
+            self.active_peers.into_into_dart().into_dart(),
+            self.pending_operations.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::LocalSyncStateDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::LocalSyncStateDto>
+    for crate::api::sync::LocalSyncStateDto
+{
+    fn into_into_dart(self) -> crate::api::sync::LocalSyncStateDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::conversations::MessageDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -8049,6 +8481,98 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::workflows::SuggestionFe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncInvitationOfferDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.invitation_id.into_into_dart().into_dart(),
+            self.code.into_into_dart().into_dart(),
+            self.expires_at_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncInvitationOfferDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncInvitationOfferDto>
+    for crate::api::sync::SyncInvitationOfferDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncInvitationOfferDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncInvitationPreviewDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.invitation_id.into_into_dart().into_dart(),
+            self.token.into_into_dart().into_dart(),
+            self.device_name.into_into_dart().into_dart(),
+            self.device_platform.into_into_dart().into_dart(),
+            self.fingerprint.into_into_dart().into_dart(),
+            self.expires_at_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncInvitationPreviewDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncInvitationPreviewDto>
+    for crate::api::sync::SyncInvitationPreviewDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncInvitationPreviewDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncKeyCommitDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.token.into_into_dart().into_dart(),
+            self.installation_id.into_into_dart().into_dart(),
+            self.revision.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncKeyCommitDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncKeyCommitDto>
+    for crate::api::sync::SyncKeyCommitDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncKeyCommitDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncKeyRequestDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.token.into_into_dart().into_dart(),
+            self.installation_id.into_into_dart().into_dart(),
+            self.revision.into_into_dart().into_dart(),
+            self.creating.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncKeyRequestDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncKeyRequestDto>
+    for crate::api::sync::SyncKeyRequestDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncKeyRequestDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::fonts::SystemFontFace {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -8279,6 +8803,7 @@ impl SseEncode for crate::api::provider_config::AiProviderConfigDto {
         <f64>::sse_encode(self.temperature, serializer);
         <Option<i64>>::sse_encode(self.max_tokens, serializer);
         <Option<i64>>::sse_encode(self.context_window, serializer);
+        <Option<String>>::sse_encode(self.revision_token, serializer);
     }
 }
 
@@ -9400,6 +9925,22 @@ impl SseEncode for Vec<crate::api::wiki::WikiPageDto> {
     }
 }
 
+impl SseEncode for crate::api::sync::LocalSyncStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.state, serializer);
+        <Option<String>>::sse_encode(self.installation_id, serializer);
+        <i64>::sse_encode(self.vault_revision, serializer);
+        <Option<String>>::sse_encode(self.dataset_id, serializer);
+        <Option<String>>::sse_encode(self.device_id, serializer);
+        <Option<String>>::sse_encode(self.device_name, serializer);
+        <bool>::sse_encode(self.is_owner, serializer);
+        <bool>::sse_encode(self.is_processor, serializer);
+        <i64>::sse_encode(self.active_peers, serializer);
+        <i64>::sse_encode(self.pending_operations, serializer);
+    }
+}
+
 impl SseEncode for crate::api::conversations::MessageDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9555,6 +10096,16 @@ impl SseEncode for Option<crate::knowledge::workflows::SuggestionFeedback> {
     }
 }
 
+impl SseEncode for Option<crate::api::sync::SyncInvitationPreviewDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::sync::SyncInvitationPreviewDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9669,6 +10220,46 @@ impl SseEncode for crate::knowledge::workflows::SuggestionFeedback {
         <String>::sse_encode(self.suggestion, serializer);
         <Option<String>>::sse_encode(self.rewrite, serializer);
         <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncInvitationOfferDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.invitation_id, serializer);
+        <String>::sse_encode(self.code, serializer);
+        <i64>::sse_encode(self.expires_at_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncInvitationPreviewDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.invitation_id, serializer);
+        <String>::sse_encode(self.token, serializer);
+        <String>::sse_encode(self.device_name, serializer);
+        <String>::sse_encode(self.device_platform, serializer);
+        <String>::sse_encode(self.fingerprint, serializer);
+        <i64>::sse_encode(self.expires_at_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncKeyCommitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.token, serializer);
+        <String>::sse_encode(self.installation_id, serializer);
+        <i64>::sse_encode(self.revision, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncKeyRequestDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.token, serializer);
+        <String>::sse_encode(self.installation_id, serializer);
+        <i64>::sse_encode(self.revision, serializer);
+        <bool>::sse_encode(self.creating, serializer);
     }
 }
 
@@ -9849,6 +10440,7 @@ mod io {
                 temperature: self.temperature.cst_decode(),
                 max_tokens: self.max_tokens.cst_decode(),
                 context_window: self.context_window.cst_decode(),
+                revision_token: self.revision_token.cst_decode(),
             }
         }
     }
@@ -10013,6 +10605,15 @@ mod io {
         fn cst_decode(self) -> crate::knowledge::workflows::SuggestionFeedback {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<crate::knowledge::workflows::SuggestionFeedback>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncInvitationPreviewDto>
+        for *mut wire_cst_sync_invitation_preview_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncInvitationPreviewDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::sync::SyncInvitationPreviewDto>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<u32> for *mut u32 {
@@ -11032,6 +11633,15 @@ mod io {
             }
         }
     }
+    impl CstDecode<Vec<u8>> for *mut wire_cst_list_prim_u_8_loose {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<u8> {
+            unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            }
+        }
+    }
     impl CstDecode<Vec<u8>> for *mut wire_cst_list_prim_u_8_strict {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<u8> {
@@ -11135,6 +11745,23 @@ mod io {
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
             };
             vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<crate::api::sync::LocalSyncStateDto> for wire_cst_local_sync_state_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::LocalSyncStateDto {
+            crate::api::sync::LocalSyncStateDto {
+                state: self.state.cst_decode(),
+                installation_id: self.installation_id.cst_decode(),
+                vault_revision: self.vault_revision.cst_decode(),
+                dataset_id: self.dataset_id.cst_decode(),
+                device_id: self.device_id.cst_decode(),
+                device_name: self.device_name.cst_decode(),
+                is_owner: self.is_owner.cst_decode(),
+                is_processor: self.is_processor.cst_decode(),
+                active_peers: self.active_peers.cst_decode(),
+                pending_operations: self.pending_operations.cst_decode(),
+            }
         }
     }
     impl CstDecode<crate::api::conversations::MessageDto> for wire_cst_message_dto {
@@ -11266,6 +11893,52 @@ mod io {
                 suggestion: self.suggestion.cst_decode(),
                 rewrite: self.rewrite.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncInvitationOfferDto> for wire_cst_sync_invitation_offer_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncInvitationOfferDto {
+            crate::api::sync::SyncInvitationOfferDto {
+                invitation_id: self.invitation_id.cst_decode(),
+                code: self.code.cst_decode(),
+                expires_at_ms: self.expires_at_ms.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncInvitationPreviewDto>
+        for wire_cst_sync_invitation_preview_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncInvitationPreviewDto {
+            crate::api::sync::SyncInvitationPreviewDto {
+                invitation_id: self.invitation_id.cst_decode(),
+                token: self.token.cst_decode(),
+                device_name: self.device_name.cst_decode(),
+                device_platform: self.device_platform.cst_decode(),
+                fingerprint: self.fingerprint.cst_decode(),
+                expires_at_ms: self.expires_at_ms.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncKeyCommitDto> for wire_cst_sync_key_commit_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncKeyCommitDto {
+            crate::api::sync::SyncKeyCommitDto {
+                token: self.token.cst_decode(),
+                installation_id: self.installation_id.cst_decode(),
+                revision: self.revision.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncKeyRequestDto> for wire_cst_sync_key_request_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncKeyRequestDto {
+            crate::api::sync::SyncKeyRequestDto {
+                token: self.token.cst_decode(),
+                installation_id: self.installation_id.cst_decode(),
+                revision: self.revision.cst_decode(),
+                creating: self.creating.cst_decode(),
             }
         }
     }
@@ -11401,6 +12074,7 @@ mod io {
                 temperature: Default::default(),
                 max_tokens: core::ptr::null_mut(),
                 context_window: core::ptr::null_mut(),
+                revision_token: core::ptr::null_mut(),
             }
         }
     }
@@ -12235,6 +12909,27 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_local_sync_state_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                state: core::ptr::null_mut(),
+                installation_id: core::ptr::null_mut(),
+                vault_revision: Default::default(),
+                dataset_id: core::ptr::null_mut(),
+                device_id: core::ptr::null_mut(),
+                device_name: core::ptr::null_mut(),
+                is_owner: Default::default(),
+                is_processor: Default::default(),
+                active_peers: Default::default(),
+                pending_operations: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_local_sync_state_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_message_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -12403,6 +13098,66 @@ mod io {
         }
     }
     impl Default for wire_cst_suggestion_feedback {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_sync_invitation_offer_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                invitation_id: core::ptr::null_mut(),
+                code: core::ptr::null_mut(),
+                expires_at_ms: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_invitation_offer_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_sync_invitation_preview_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                invitation_id: core::ptr::null_mut(),
+                token: core::ptr::null_mut(),
+                device_name: core::ptr::null_mut(),
+                device_platform: core::ptr::null_mut(),
+                fingerprint: core::ptr::null_mut(),
+                expires_at_ms: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_invitation_preview_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_sync_key_commit_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                token: core::ptr::null_mut(),
+                installation_id: core::ptr::null_mut(),
+                revision: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_key_commit_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_sync_key_request_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                token: core::ptr::null_mut(),
+                installation_id: core::ptr::null_mut(),
+                revision: Default::default(),
+                creating: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_key_request_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -12616,6 +13371,21 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__approve_owner_sync_invitation(
+        port_: i64,
+        invitation_id: *mut wire_cst_list_prim_u_8_strict,
+        preview_token: *mut wire_cst_list_prim_u_8_strict,
+        acknowledge_provider_key_sharing: bool,
+    ) {
+        wire__crate__api__sync__approve_owner_sync_invitation_impl(
+            port_,
+            invitation_id,
+            preview_token,
+            acknowledge_provider_key_sharing,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__archive_goal(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
@@ -12665,6 +13435,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__cancel_owner_sync_invitation(
+        port_: i64,
+        invitation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__cancel_owner_sync_invitation_impl(port_, invitation_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__confirm_knowledge_draft(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -12703,6 +13481,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__confirm_sync_key(
+        port_: i64,
+        token: *mut wire_cst_list_prim_u_8_strict,
+        protected_revision: i64,
+    ) {
+        wire__crate__api__sync__confirm_sync_key_impl(port_, token, protected_revision)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__create_artifact_from_message(
         port_: i64,
         slug: *mut wire_cst_list_prim_u_8_strict,
@@ -12735,6 +13522,19 @@ mod io {
         phase: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__goals__create_goal_impl(port_, content, phase)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__create_owner_sync_invitation(
+        port_: i64,
+        relay_url: *mut wire_cst_list_prim_u_8_strict,
+        acknowledge_provider_key_sharing: bool,
+    ) {
+        wire__crate__api__sync__create_owner_sync_invitation_impl(
+            port_,
+            relay_url,
+            acknowledge_provider_key_sharing,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -12803,8 +13603,9 @@ mod io {
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__provider_config__delete_ai_provider_config(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
+        revision_token: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__provider_config__delete_ai_provider_config_impl(port_, id)
+        wire__crate__api__provider_config__delete_ai_provider_config_impl(port_, id, revision_token)
     }
 
     #[unsafe(no_mangle)]
@@ -13118,6 +13919,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__get_local_sync_state(port_: i64) {
+        wire__crate__api__sync__get_local_sync_state_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__get_message_chain(
         port_: i64,
         message_id: *mut wire_cst_list_prim_u_8_strict,
@@ -13199,6 +14005,24 @@ mod io {
         database_path: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__init_bridge_impl(port_, database_path)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__inspect_owner_sync_invitation(
+        port_: i64,
+        invitation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__inspect_owner_sync_invitation_impl(port_, invitation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__install_sync_key(
+        port_: i64,
+        token: *mut wire_cst_list_prim_u_8_strict,
+        key: *mut wire_cst_list_prim_u_8_loose,
+        protected_revision: i64,
+    ) {
+        wire__crate__api__sync__install_sync_key_impl(port_, token, key, protected_revision)
     }
 
     #[unsafe(no_mangle)]
@@ -13510,6 +14334,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__lock_local_sync(port_: i64) {
+        wire__crate__api__sync__lock_local_sync_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__entities__merge_entity(
         port_: i64,
         entity_kind: *mut wire_cst_list_prim_u_8_strict,
@@ -13551,6 +14380,21 @@ mod io {
         snapshot_ids: *mut wire_cst_list_String,
     ) {
         wire__crate__api__knowledge__prepare_knowledge_source_repair_impl(port_, slug, snapshot_ids)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__prepare_sync_key_request(
+        port_: i64,
+        name: *mut wire_cst_list_prim_u_8_strict,
+        platform: *mut wire_cst_list_prim_u_8_strict,
+        acknowledge_provider_key_sharing: bool,
+    ) {
+        wire__crate__api__sync__prepare_sync_key_request_impl(
+            port_,
+            name,
+            platform,
+            acknowledge_provider_key_sharing,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -13619,6 +14463,14 @@ mod io {
         slug: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__wiki__refresh_project_page_impl(port_, slug)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__release_sync_key_request(
+        port_: i64,
+        token: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__release_sync_key_request_impl(port_, token)
     }
 
     #[unsafe(no_mangle)]
@@ -13816,11 +14668,24 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__send_owner_sync_approval(
+        port_: i64,
+        invitation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__send_owner_sync_approval_impl(port_, invitation_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__provider_config__set_active_ai_provider_config(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
+        revision_token: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__provider_config__set_active_ai_provider_config_impl(port_, id)
+        wire__crate__api__provider_config__set_active_ai_provider_config_impl(
+            port_,
+            id,
+            revision_token,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -14198,6 +15063,14 @@ mod io {
     -> *mut wire_cst_suggestion_feedback {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_suggestion_feedback::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_sync_invitation_preview_dto()
+    -> *mut wire_cst_sync_invitation_preview_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_sync_invitation_preview_dto::new_with_null_ptr(),
         )
     }
 
@@ -14688,6 +15561,17 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_prim_u_8_loose(
+        len: i32,
+    ) -> *mut wire_cst_list_prim_u_8_loose {
+        let ans = wire_cst_list_prim_u_8_loose {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(Default::default(), len),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(ans)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_prim_u_8_strict(
         len: i32,
     ) -> *mut wire_cst_list_prim_u_8_strict {
@@ -14838,6 +15722,7 @@ mod io {
         temperature: f64,
         max_tokens: *mut i64,
         context_window: *mut i64,
+        revision_token: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -15592,6 +16477,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_prim_u_8_loose {
+        ptr: *mut u8,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_prim_u_8_strict {
         ptr: *mut u8,
         len: i32,
@@ -15649,6 +16540,20 @@ mod io {
     pub struct wire_cst_list_wiki_page_dto {
         ptr: *mut wire_cst_wiki_page_dto,
         len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_local_sync_state_dto {
+        state: *mut wire_cst_list_prim_u_8_strict,
+        installation_id: *mut wire_cst_list_prim_u_8_strict,
+        vault_revision: i64,
+        dataset_id: *mut wire_cst_list_prim_u_8_strict,
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        device_name: *mut wire_cst_list_prim_u_8_strict,
+        is_owner: bool,
+        is_processor: bool,
+        active_peers: i64,
+        pending_operations: i64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -15751,6 +16656,38 @@ mod io {
         suggestion: *mut wire_cst_list_prim_u_8_strict,
         rewrite: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_invitation_offer_dto {
+        invitation_id: *mut wire_cst_list_prim_u_8_strict,
+        code: *mut wire_cst_list_prim_u_8_strict,
+        expires_at_ms: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_invitation_preview_dto {
+        invitation_id: *mut wire_cst_list_prim_u_8_strict,
+        token: *mut wire_cst_list_prim_u_8_strict,
+        device_name: *mut wire_cst_list_prim_u_8_strict,
+        device_platform: *mut wire_cst_list_prim_u_8_strict,
+        fingerprint: *mut wire_cst_list_prim_u_8_strict,
+        expires_at_ms: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_key_commit_dto {
+        token: *mut wire_cst_list_prim_u_8_strict,
+        installation_id: *mut wire_cst_list_prim_u_8_strict,
+        revision: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_key_request_dto {
+        token: *mut wire_cst_list_prim_u_8_strict,
+        installation_id: *mut wire_cst_list_prim_u_8_strict,
+        revision: i64,
+        creating: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -15891,8 +16828,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                11,
-                "Expected 11 elements, got {}",
+                12,
+                "Expected 12 elements, got {}",
                 self_.length()
             );
             crate::api::provider_config::AiProviderConfigDto {
@@ -15907,6 +16844,7 @@ mod web {
                 temperature: self_.get(8).cst_decode(),
                 max_tokens: self_.get(9).cst_decode(),
                 context_window: self_.get(10).cst_decode(),
+                revision_token: self_.get(11).cst_decode(),
             }
         }
     }
@@ -17564,6 +18502,34 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<crate::api::sync::LocalSyncStateDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::LocalSyncStateDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                10,
+                "Expected 10 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::LocalSyncStateDto {
+                state: self_.get(0).cst_decode(),
+                installation_id: self_.get(1).cst_decode(),
+                vault_revision: self_.get(2).cst_decode(),
+                dataset_id: self_.get(3).cst_decode(),
+                device_id: self_.get(4).cst_decode(),
+                device_name: self_.get(5).cst_decode(),
+                is_owner: self_.get(6).cst_decode(),
+                is_processor: self_.get(7).cst_decode(),
+                active_peers: self_.get(8).cst_decode(),
+                pending_operations: self_.get(9).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::conversations::MessageDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -17809,6 +18775,94 @@ mod web {
                 suggestion: self_.get(1).cst_decode(),
                 rewrite: self_.get(2).cst_decode(),
                 created_at: self_.get(3).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncInvitationOfferDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncInvitationOfferDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                3,
+                "Expected 3 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncInvitationOfferDto {
+                invitation_id: self_.get(0).cst_decode(),
+                code: self_.get(1).cst_decode(),
+                expires_at_ms: self_.get(2).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncInvitationPreviewDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncInvitationPreviewDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                6,
+                "Expected 6 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncInvitationPreviewDto {
+                invitation_id: self_.get(0).cst_decode(),
+                token: self_.get(1).cst_decode(),
+                device_name: self_.get(2).cst_decode(),
+                device_platform: self_.get(3).cst_decode(),
+                fingerprint: self_.get(4).cst_decode(),
+                expires_at_ms: self_.get(5).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncKeyCommitDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncKeyCommitDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                3,
+                "Expected 3 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncKeyCommitDto {
+                token: self_.get(0).cst_decode(),
+                installation_id: self_.get(1).cst_decode(),
+                revision: self_.get(2).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncKeyRequestDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncKeyRequestDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                4,
+                "Expected 4 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncKeyRequestDto {
+                token: self_.get(0).cst_decode(),
+                installation_id: self_.get(1).cst_decode(),
+                revision: self_.get(2).cst_decode(),
+                creating: self_.get(3).cst_decode(),
             }
         }
     }
@@ -18144,6 +19198,21 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__approve_owner_sync_invitation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        invitation_id: String,
+        preview_token: String,
+        acknowledge_provider_key_sharing: bool,
+    ) {
+        wire__crate__api__sync__approve_owner_sync_invitation_impl(
+            port_,
+            invitation_id,
+            preview_token,
+            acknowledge_provider_key_sharing,
+        )
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__goals__archive_goal(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
@@ -18193,6 +19262,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__cancel_owner_sync_invitation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        invitation_id: String,
+    ) {
+        wire__crate__api__sync__cancel_owner_sync_invitation_impl(port_, invitation_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__confirm_knowledge_draft(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
@@ -18231,6 +19308,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__confirm_sync_key(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        token: String,
+        protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__sync__confirm_sync_key_impl(port_, token, protected_revision)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge_workflows__create_artifact_from_message(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         slug: String,
@@ -18263,6 +19349,19 @@ mod web {
         phase: String,
     ) {
         wire__crate__api__goals__create_goal_impl(port_, content, phase)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__create_owner_sync_invitation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        relay_url: String,
+        acknowledge_provider_key_sharing: bool,
+    ) {
+        wire__crate__api__sync__create_owner_sync_invitation_impl(
+            port_,
+            relay_url,
+            acknowledge_provider_key_sharing,
+        )
     }
 
     #[wasm_bindgen]
@@ -18331,8 +19430,9 @@ mod web {
     pub fn wire__crate__api__provider_config__delete_ai_provider_config(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
+        revision_token: Option<String>,
     ) {
-        wire__crate__api__provider_config__delete_ai_provider_config_impl(port_, id)
+        wire__crate__api__provider_config__delete_ai_provider_config_impl(port_, id, revision_token)
     }
 
     #[wasm_bindgen]
@@ -18648,6 +19748,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__get_local_sync_state(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__get_local_sync_state_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__get_message_chain(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         message_id: String,
@@ -18731,6 +19838,24 @@ mod web {
         database_path: Option<String>,
     ) {
         wire__crate__api__init_bridge_impl(port_, database_path)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__inspect_owner_sync_invitation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        invitation_id: String,
+    ) {
+        wire__crate__api__sync__inspect_owner_sync_invitation_impl(port_, invitation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__install_sync_key(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        token: String,
+        key: Box<[u8]>,
+        protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__sync__install_sync_key_impl(port_, token, key, protected_revision)
     }
 
     #[wasm_bindgen]
@@ -19052,6 +20177,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__lock_local_sync(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__lock_local_sync_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__entities__merge_entity(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         entity_kind: String,
@@ -19093,6 +20225,21 @@ mod web {
         snapshot_ids: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
         wire__crate__api__knowledge__prepare_knowledge_source_repair_impl(port_, slug, snapshot_ids)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__prepare_sync_key_request(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        name: Option<String>,
+        platform: Option<String>,
+        acknowledge_provider_key_sharing: bool,
+    ) {
+        wire__crate__api__sync__prepare_sync_key_request_impl(
+            port_,
+            name,
+            platform,
+            acknowledge_provider_key_sharing,
+        )
     }
 
     #[wasm_bindgen]
@@ -19161,6 +20308,14 @@ mod web {
         slug: String,
     ) {
         wire__crate__api__wiki__refresh_project_page_impl(port_, slug)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__release_sync_key_request(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        token: String,
+    ) {
+        wire__crate__api__sync__release_sync_key_request_impl(port_, token)
     }
 
     #[wasm_bindgen]
@@ -19358,11 +20513,24 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__send_owner_sync_approval(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        invitation_id: String,
+    ) {
+        wire__crate__api__sync__send_owner_sync_approval_impl(port_, invitation_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__provider_config__set_active_ai_provider_config(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
+        revision_token: Option<String>,
     ) {
-        wire__crate__api__provider_config__set_active_ai_provider_config_impl(port_, id)
+        wire__crate__api__provider_config__set_active_ai_provider_config_impl(
+            port_,
+            id,
+            revision_token,
+        )
     }
 
     #[wasm_bindgen]

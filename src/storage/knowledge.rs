@@ -638,6 +638,9 @@ impl Store {
         confirmed: bool,
     ) -> Result<Option<WikiPage>> {
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        if !confirmed {
+            self.require_background_processor()?;
+        }
         let page = self.apply_knowledge_proposal_in_tx(id, accept, confirmed)?;
         tx.commit()?;
         Ok(page)

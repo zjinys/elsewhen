@@ -250,6 +250,8 @@ Real Flutter bridge tests must initialize `RustBridgeRepository` through `ui/tes
 
 The active implementation plan is `docs/roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md`. It supersedes the old phase ordering while retaining the local-first invariants. Every completed roadmap step must immediately update its checkbox and completion evidence in that file.
 
+The cross-cutting proposal backlog index is `docs/proposal-backlog.md` — the single authoritative overview of unfinished proposals. Whenever a proposal is created, advanced, or completed, update that index (status, evidence, date) in the same change and sync the note's `Status` field; do not defer it.
+
 ## CI
 
 GitHub Actions workflow (`.github/workflows/ci.yml`) runs on Ubuntu, macOS, Windows:
