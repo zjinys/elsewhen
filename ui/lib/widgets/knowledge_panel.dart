@@ -7,6 +7,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../models/wiki_page.dart';
@@ -15,6 +17,7 @@ import '../providers/wiki_provider.dart';
 import 'markdown_view.dart';
 import 'wiki_derivatives.dart';
 import '../utils/error_report.dart';
+import '../theme/app_theme.dart';
 
 /// 异常出口：诊断进日志，界面只见通用文案。
 ///
@@ -26,6 +29,43 @@ import '../utils/error_report.dart';
 /// 的三条表单校验、处理提案的来源变更提示。
 String _error(Object error, {String context = '操作', bool showDetail = false}) =>
     reportUiError(context, error, showDetail: showDetail);
+
+/// 产出 tab 内各小节的统一节标题样式（待审建议 / 已整理的参考知识 / 产物版本）。
+Widget _outputsSectionTitle(BuildContext context, String text, {int? count}) =>
+    Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 6),
+      child: Row(
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textSecondary,
+              letterSpacing: 0.3,
+            ),
+          ),
+          if (count != null) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppTheme.surface3,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
 
 Future<void> showKnowledgeText(
   BuildContext context,
@@ -78,6 +118,19 @@ Future<void> _showEvent(BuildContext context, WidgetRef ref, String id) async {
   }
 }
 
+/// RFC3339 时间戳 → 简短可读格式（`MM-dd HH:mm`，当年省年份）。
+/// 解析失败（非标准格式）时原样返回，不丟信息。
+String _shortTime(String rfc3339) {
+  final dt = DateTime.tryParse(rfc3339)?.toLocal();
+  if (dt == null) return rfc3339;
+  String two(int n) => n.toString().padLeft(2, '0');
+  final now = DateTime.now();
+  final date = dt.year == now.year
+      ? '${two(dt.month)}-${two(dt.day)}'
+      : '${dt.year}-${two(dt.month)}-${two(dt.day)}';
+  return '$date ${two(dt.hour)}:${two(dt.minute)}';
+}
+
 void _refresh(WidgetRef ref, String? slug) {
   if (slug != null) {
     ref.invalidate(knowledgeDetailsProvider(slug));
@@ -94,11 +147,13 @@ class KnowledgePageActions extends ConsumerStatefulWidget {
   final WikiPage page;
   final VoidCallback onShowSources;
   final VoidCallback onShowOutputs;
+  final bool showSourcesButton;
   const KnowledgePageActions({
     super.key,
     required this.page,
     required this.onShowSources,
     required this.onShowOutputs,
+    this.showSourcesButton = true,
   });
   @override
   ConsumerState<KnowledgePageActions> createState() =>
@@ -142,12 +197,13 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
       spacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        TextButton.icon(
-          style: style,
-          onPressed: widget.onShowSources,
-          icon: const Icon(Icons.source_outlined, size: 16),
-          label: const Text('来源与修订'),
-        ),
+        if (widget.showSourcesButton)
+          TextButton.icon(
+            style: style,
+            onPressed: widget.onShowSources,
+            icon: const Icon(Icons.source_outlined, size: 16),
+            label: const Text('来源与修订'),
+          ),
         if (_busy)
           const SizedBox(
             height: 36,
@@ -239,6 +295,27 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
   }
 }
 
+class _CountBadge extends StatelessWidget {
+  final int count;
+  const _CountBadge({required this.count});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+    decoration: BoxDecoration(
+      color: AppTheme.surface3,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Text(
+      '$count',
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.textSecondary,
+      ),
+    ),
+  );
+}
+
 /// Provenance is secondary information in the page, not another dialog stack.
 class KnowledgeSourcesSection extends ConsumerWidget {
   final WikiPage page;
@@ -251,64 +328,310 @@ class KnowledgeSourcesSection extends ConsumerWidget {
           loading: () => const LinearProgressIndicator(),
           error: (error, _) => Text(_error(error, context: '读取来源与修订')),
           data: (data) => ListView(
+            padding: const EdgeInsets.only(bottom: 24),
             children: [
               KnowledgeReadingControl(slug: page.slug),
-              const SizedBox(height: 12),
-              const Text('来源用于核对依据，修订记录用于查看知识如何变化。日常阅读和 AI 检索不需要逐项操作。'),
-              for (final origin in data.sourcePages)
-                _KnowledgePageLink(
-                  page: WikiPage.fromDto(origin),
-                  prefix: ['source', 'note'].contains(origin.kind)
-                      ? '原料'
-                      : '上游知识',
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 14),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: AppTheme.textTertiary,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '来源用于核对依据，修订记录用于查看知识演进。日常阅读和 AI 检索不需要逐项操作。',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textTertiary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              for (final source in data.sources) _SourceTile(source: source),
+              ),
+              if (data.sourcePages.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '上游依据',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                ),
+                for (final origin in data.sourcePages)
+                  _KnowledgePageLink(
+                    page: WikiPage.fromDto(origin),
+                    prefix: ['source', 'note'].contains(origin.kind)
+                        ? '原料'
+                        : '上游知识',
+                  ),
+                const SizedBox(height: 6),
+              ],
+              for (var i = 0; i < data.sources.length; i++)
+                _SourceTile(
+                  source: data.sources[i],
+                  page: (i == 0 && ['source', 'note'].contains(page.kind))
+                      ? page
+                      : null,
+                ),
               if (data.sources.isEmpty && page.sourceEventIds.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('尚无可核验来源。'),
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface1,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.surface3),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 16,
+                        color: AppTheme.textTertiary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '尚无可核验来源。',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               for (final id in page.sourceEventIds)
-                ListTile(
-                  title: const Text('来源记录'),
-                  subtitle: Text(id),
-                  onTap: () => _showEvent(context, ref, id),
+                Material(
+                  color: AppTheme.surface1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(color: AppTheme.surface3),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    dense: true,
+                    leading: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface2,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        Icons.history_edu_outlined,
+                        size: 16,
+                        color: AppTheme.accentPrimary,
+                      ),
+                    ),
+                    title: const Text(
+                      '来源事件记录',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      id,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontFamily: 'monospace',
+                        color: AppTheme.textTertiary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: const Icon(Icons.chevron_right, size: 18),
+                    onTap: () => _showEvent(context, ref, id),
+                  ),
                 ),
-              if (['source', 'note'].contains(page.kind))
-                _OpinionControl(
-                  page: page,
-                  opinion: data.sources.firstOrNull?.opinion,
+              if (['source', 'note'].contains(page.kind) &&
+                  data.sources.isEmpty)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface1,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.surface3),
+                  ),
+                  child: _OpinionControl(page: page, opinion: null),
                 ),
               if (['method', 'case', 'principle'].contains(page.kind))
                 _MetadataEditor(slug: page.slug, metadata: data.metadata),
               for (final issue in data.issues) _IssueTile(issue: issue),
               if (!['source', 'note'].contains(page.kind))
-                KnowledgeSourceRepairSection(
-                  slug: page.slug,
-                  hasEvents: page.sourceEventIds.isNotEmpty,
-                  onChanged: () => _refresh(ref, page.slug),
-                  previewBuilder: (proposal) => KnowledgeProposalCard(
-                    key: ValueKey('repair-${proposal.id}'),
-                    proposal: proposal,
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Material(
+                    color: AppTheme.surface1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: AppTheme.surface3),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Theme(
+                      data: Theme.of(context)
+                          .copyWith(dividerColor: Colors.transparent),
+                      child: KnowledgeSourceRepairSection(
+                        slug: page.slug,
+                        hasEvents: page.sourceEventIds.isNotEmpty,
+                        onChanged: () => _refresh(ref, page.slug),
+                        previewBuilder: (proposal) => KnowledgeProposalCard(
+                          key: ValueKey('repair-${proposal.id}'),
+                          proposal: proposal,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              KnowledgeReviewHistorySection(slug: page.slug),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Material(
+                  color: AppTheme.surface1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: AppTheme.surface3),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Theme(
+                    data: Theme.of(context)
+                        .copyWith(dividerColor: Colors.transparent),
+                    child: KnowledgeReviewHistorySection(slug: page.slug),
+                  ),
+                ),
+              ),
               if (data.history.length > 1)
-                ExpansionTile(
-                  title: const Text('原文历史版本'),
-                  children: [
-                    for (final source in data.history)
-                      _SourceTile(source: source),
-                  ],
-                ),
-              ExpansionTile(
-                title: const Text('知识修订记录'),
-                children: [
-                  _RevisionList(
-                    slug: page.slug,
-                    canRestore: !['source', 'note'].contains(page.kind),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Material(
+                    color: AppTheme.surface1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: AppTheme.surface3),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Theme(
+                      data: Theme.of(context)
+                          .copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        tilePadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 4,
+                        ),
+                        title: Row(
+                          children: [
+                            const Text(
+                              '原文历史版本',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _CountBadge(count: data.history.length),
+                          ],
+                        ),
+                        subtitle: Text(
+                          '共有 ${data.history.length} 个历史快照',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textTertiary,
+                          ),
+                        ),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                            child: Column(
+                              children: [
+                                for (final source in data.history)
+                                  _SourceTile(source: source),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ],
+                ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final items = ref
+                      .watch(knowledgeRevisionsProvider(page.slug))
+                      .whenOrNull(data: (items) => items);
+                  final count = items?.length;
+                  final latest = items?.firstOrNull;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Material(
+                      color: AppTheme.surface1,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(color: AppTheme.surface3),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Theme(
+                        data: Theme.of(context)
+                            .copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 4,
+                          ),
+                          title: Row(
+                            children: [
+                              const Text(
+                                '知识修订记录',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (count != null && count > 0) ...[
+                                const SizedBox(width: 8),
+                                _CountBadge(count: count),
+                              ],
+                            ],
+                          ),
+                          subtitle: Text(
+                            latest != null
+                                ? '最新：${latest.reason} · ${_shortTime(latest.createdAt)}'
+                                : '查看本页正文的历次修订与恢复',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textTertiary,
+                            ),
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                              child: _RevisionList(
+                                slug: page.slug,
+                                canRestore: ![
+                                  'source',
+                                  'note',
+                                ].contains(page.kind),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -343,10 +666,39 @@ class _KnowledgePageLink extends ConsumerWidget {
   final String prefix;
   const _KnowledgePageLink({required this.page, required this.prefix});
   @override
-  Widget build(BuildContext context, WidgetRef ref) => TextButton.icon(
-    onPressed: () => openWikiPageTab(ref, page),
-    icon: const Icon(Icons.arrow_outward, size: 16),
-    label: Text('$prefix · ${page.title}'),
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+    margin: const EdgeInsets.only(bottom: 8),
+    decoration: BoxDecoration(
+      color: AppTheme.surface1,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppTheme.surface3),
+    ),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => openWikiPageTab(ref, page),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.link_outlined, size: 16, color: AppTheme.accentPrimary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$prefix · ${page.title}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(Icons.arrow_outward, size: 14, color: AppTheme.textSecondary),
+          ],
+        ),
+      ),
+    ),
   );
 }
 
@@ -380,6 +732,7 @@ class _KnowledgeOutputsSectionState
   Widget build(BuildContext context) {
     final page = widget.page;
     return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
       children: [
         if (page.kind == 'topic')
           TopicOrganizationSection(
@@ -387,10 +740,28 @@ class _KnowledgeOutputsSectionState
             onChanged: () => _refresh(ref, page.slug),
           ),
         if (['source', 'note'].contains(page.kind))
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Text(
-              '后台会整理参考知识，并结合相关资料维护共同主题。按需提炼的新增产出直接保存；涉及人工修改或已确认内容时才需审阅。原文保留，个人规则由你确认。',
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 14,
+                  color: AppTheme.textTertiary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '后台会整理参考知识，并结合相关资料维护共同主题。按需提炼的新增产出直接保存；涉及人工修改或已确认内容时才需审阅。原文保留，个人规则由你确认。',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textTertiary,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ref
@@ -402,42 +773,166 @@ class _KnowledgeOutputsSectionState
                 final pending = data.proposals
                     .where((p) => p.status == 'pending')
                     .toList();
+                final outputs = data.outputPages
+                    .where((p) => p.area != 'derivative')
+                    .toList();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (pending.isNotEmpty) const Text('待审建议'),
+                    if (pending.isNotEmpty)
+                      _outputsSectionTitle(
+                        context,
+                        '待审建议',
+                        count: pending.length,
+                      ),
                     for (final proposal in pending)
                       KnowledgeProposalCard(
                         key: ValueKey(proposal.id),
                         proposal: proposal,
                         sourceSlug: page.slug,
                       ),
-                    if (data.outputPages.isNotEmpty) const Text('已整理的参考知识'),
-                    for (final output in data.outputPages.where(
-                      (p) => p.area != 'derivative',
-                    ))
-                      ExpansionTile(
-                        key: PageStorageKey(output.slug),
-                        title: Text(output.title),
-                        subtitle: Text(
-                          output.slug.startsWith('knowledge-topic/')
-                              ? '跨资料主题 · 包含本页及相关原料'
-                              : '${WikiPage.fromDto(output).kindLabel} · 来自本页原料',
-                        ),
-                        children: [
-                          SelectionArea(
-                            child: MarkdownView(markdown: output.contentMd),
-                          ),
-                          _KnowledgePageLink(
-                            page: WikiPage.fromDto(output),
-                            prefix: '打开知识页',
-                          ),
-                        ],
+                    if (outputs.isNotEmpty)
+                      _outputsSectionTitle(
+                        context,
+                        '已整理的参考知识',
+                        count: outputs.length,
                       ),
-                    if (pending.isEmpty && data.outputPages.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('暂无知识产出。原文仍可直接使用；后台整理会按内容决定是否形成知识。'),
+                    for (final output in outputs)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Material(
+                          color: AppTheme.surface1,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: AppTheme.surface3),
+                          ),
+                          child: Theme(
+                            data: Theme.of(context)
+                                .copyWith(dividerColor: Colors.transparent),
+                            child: ExpansionTile(
+                              key: PageStorageKey(output.slug),
+                              tilePadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 4,
+                              ),
+                              leading: Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surface2,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  output.slug.startsWith('knowledge-topic/')
+                                      ? Icons.hub_outlined
+                                      : Icons.menu_book_outlined,
+                                  size: 16,
+                                  color: AppTheme.accentPrimary,
+                                ),
+                              ),
+                              title: Text(
+                                output.title,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  output.slug.startsWith('knowledge-topic/')
+                                      ? '跨资料主题 · 包含本页及相关原料'
+                                      : '${WikiPage.fromDto(output).kindLabel} · 来自本页原料',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppTheme.textTertiary,
+                                  ),
+                                ),
+                              ),
+                              children: [
+                                Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.fromLTRB(
+                                    10,
+                                    0,
+                                    10,
+                                    10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.surface2,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: AppTheme.surface3,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          14,
+                                          12,
+                                          14,
+                                          8,
+                                        ),
+                                        child: SelectionArea(
+                                          child: MarkdownView(
+                                            markdown: output.contentMd,
+                                          ),
+                                        ),
+                                      ),
+                                      Divider(
+                                        height: 1,
+                                        thickness: 1,
+                                        color: AppTheme.surface3,
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        child: _KnowledgePageLink(
+                                          page: WikiPage.fromDto(output),
+                                          prefix: '打开知识页',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (pending.isEmpty && outputs.isEmpty)
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface1,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.surface3),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.auto_stories_outlined,
+                              size: 20,
+                              color: AppTheme.textTertiary,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                '暂无知识产出。原文仍可直接使用；后台整理会按内容决定是否形成知识。',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
+                                  height: 1.45,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     KnowledgeReviewHistorySection(slug: page.slug),
                   ],
@@ -453,15 +948,166 @@ class _KnowledgeOutputsSectionState
 
 class _SourceTile extends StatelessWidget {
   final api.SourceSnapshot source;
-  const _SourceTile({required this.source});
+  final WikiPage? page;
+  const _SourceTile({required this.source, this.page});
+
+  Future<void> _openLocator(String locator) async {
+    final uri = Uri.tryParse(locator);
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => ExpansionTile(
-    tilePadding: EdgeInsets.zero,
-    leading: const Icon(Icons.description_outlined),
-    title: Text('${source.title} · v${source.version}'),
-    subtitle: Text('${source.locator ?? '粘贴文本'} · ${source.capturedAt}'),
-    children: [SelectionArea(child: MarkdownView(markdown: source.contentMd))],
-  );
+  Widget build(BuildContext context) {
+    final isUrl =
+        source.locator != null &&
+        (source.locator!.startsWith('http://') ||
+            source.locator!.startsWith('https://'));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: AppTheme.surface1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: AppTheme.surface3),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 4,
+            ),
+            leading: Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppTheme.surface2,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.article_outlined,
+                size: 18,
+                color: AppTheme.accentPrimary,
+              ),
+            ),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    source.title,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface2,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'v${source.version}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  if (source.locator != null) ...[
+                    Icon(
+                      isUrl ? Icons.link : Icons.notes,
+                      size: 13,
+                      color: isUrl
+                          ? AppTheme.accentPrimary
+                          : AppTheme.textTertiary,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: isUrl
+                          ? InkWell(
+                              onTap: () => _openLocator(source.locator!),
+                              child: Text(
+                                source.locator!,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppTheme.accentPrimary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            )
+                          : Text(
+                              source.locator!,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppTheme.textTertiary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '·',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    _shortTime(source.capturedAt),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface2,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SelectionArea(
+                  child: MarkdownView(markdown: source.contentMd),
+                ),
+              ),
+              if (page != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                  child: _OpinionControl(page: page!, opinion: source.opinion),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class KnowledgeProposalCard extends ConsumerStatefulWidget {
@@ -555,139 +1201,98 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
   @override
   Widget build(BuildContext context) {
     final p = widget.proposal;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(p.title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(p.reason),
-            if (p.applicableWhen.isNotEmpty) Text('适用条件：${p.applicableWhen}'),
-            if (p.pageId != null)
-              TextButton(
-                onPressed: () async {
-                  try {
-                    final page = await ref.read(
-                      wikiPageProvider(p.targetSlug).future,
-                    );
-                    if (context.mounted) {
-                      setState(() {
-                        _comparisonTitle = '当前正文';
-                        _comparison = page?.contentMd ?? '页面不存在';
-                      });
-                    }
-                  } catch (error) {
-                    if (context.mounted) {
-                      await showKnowledgeText(
-                        context,
-                        '读取失败',
-                        _error(error, context: '读取页面正文'),
-                      );
-                    }
-                  }
-                },
-                child: const Text('对照当前正文'),
-              ),
-            const SizedBox(height: 8),
-            if (p.status == 'pending')
-              TextButton.icon(
-                onPressed: _busy ? null : _loadDiff,
-                icon: const Icon(Icons.difference_outlined),
-                label: const Text('逐段审阅'),
-              ),
-            if (_parts == null)
-              SelectionArea(child: MarkdownView(markdown: p.contentMd))
-            else ...[
-              for (var i = 0; i < _parts!.length; i++)
-                if (_parts![i].changed)
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text('采纳修改 ${i + 1}'),
-                            value: _selectedParts.contains(i),
-                            onChanged: _busy
-                                ? null
-                                : (checked) => setState(() {
-                                    if (checked == true) {
-                                      _selectedParts.add(i);
-                                    } else {
-                                      _selectedParts.remove(i);
-                                    }
-                                  }),
-                          ),
-                          if (_parts![i].before.isNotEmpty) ...[
-                            const Text('原段落'),
-                            SelectionArea(
-                              child: MarkdownView(markdown: _parts![i].before),
-                            ),
-                          ],
-                          if (_parts![i].after.isNotEmpty) ...[
-                            const Text('建议段落'),
-                            SelectionArea(
-                              child: MarkdownView(markdown: _parts![i].after),
-                            ),
-                          ] else
-                            const Text('删除这一段'),
-                        ],
+    final isPending = p.status == 'pending' && !_resolved;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: AppTheme.surface1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(
+            color: isPending
+                ? AppTheme.accentPrimary.withValues(alpha: 0.35)
+                : AppTheme.surface3,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      p.title,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: SelectionArea(
-                      child: MarkdownView(markdown: _parts![i].after),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _resolved
+                          ? AppTheme.surface3
+                          : (p.status == 'pending'
+                                ? AppTheme.accentPrimary.withValues(alpha: 0.12)
+                                : AppTheme.surface3),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      _resolved
+                          ? '已处理'
+                          : (p.status == 'pending' ? '待审阅' : p.status),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _resolved
+                            ? AppTheme.textTertiary
+                            : (p.status == 'pending'
+                                  ? AppTheme.accentPrimary
+                                  : AppTheme.textSecondary),
+                      ),
                     ),
                   ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('同时采纳建议的适用条件'),
-                subtitle: Text(p.applicableWhen),
-                value: _acceptApplicability,
-                onChanged: _busy
-                    ? null
-                    : (v) => setState(() => _acceptApplicability = v ?? false),
+                ],
               ),
-              if (_reviewIssues.isNotEmpty) const Text('本次修订解决了哪些提示（由你确认）：'),
-              for (final issue in _reviewIssues)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(issue.description),
-                  value: _resolvedIssues.contains(issue.fingerprint),
-                  onChanged: _busy
-                      ? null
-                      : (v) => setState(() {
-                          if (v == true) {
-                            _resolvedIssues.add(issue.fingerprint);
-                          } else {
-                            _resolvedIssues.remove(issue.fingerprint);
-                          }
-                        }),
+              const SizedBox(height: 6),
+              Text(
+                p.reason,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppTheme.textSecondary,
+                  height: 1.45,
                 ),
-              const Text('如果来源依据同时变化，需要完整确认；局部采纳只用于来源不变的修订。'),
-            ],
-            Wrap(
-              spacing: 4,
-              children: [
-                for (final id in p.snapshotIds)
-                  TextButton(
+              ),
+              if (p.applicableWhen.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '适用条件：${p.applicableWhen}',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+                ),
+              ],
+              if (p.pageId != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.compare_outlined, size: 15),
+                    label: const Text('对照当前正文', style: TextStyle(fontSize: 12)),
                     onPressed: () async {
                       try {
-                        final snapshot = await ref
-                            .read(knowledgeRepositoryProvider)
-                            .snapshot(id);
-                        if (context.mounted && snapshot != null) {
+                        final page = await ref.read(
+                          wikiPageProvider(p.targetSlug).future,
+                        );
+                        if (context.mounted) {
                           setState(() {
-                            _comparisonTitle =
-                                '${snapshot.title} · v${snapshot.version}';
-                            _comparison = snapshot.contentMd;
+                            _comparisonTitle = '当前正文';
+                            _comparison = page?.contentMd ?? '页面不存在';
                           });
                         }
                       } catch (error) {
@@ -695,84 +1300,345 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                           await showKnowledgeText(
                             context,
                             '读取失败',
-                            _error(error, context: '读取素材快照'),
+                            _error(error, context: '读取页面正文'),
                           );
                         }
                       }
                     },
-                    child: const Text('查看原料'),
                   ),
-                for (final id in p.eventIds)
-                  TextButton(
-                    onPressed: () => _showEvent(context, ref, id),
-                    child: const Text('查看事件'),
+                ),
+              if (p.status == 'pending')
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: TextButton.icon(
+                    onPressed: _busy ? null : _loadDiff,
+                    icon: const Icon(Icons.difference_outlined, size: 15),
+                    label: const Text('逐段审阅', style: TextStyle(fontSize: 12)),
                   ),
-              ],
-            ),
-            if (_comparison != null)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: Text(_comparisonTitle!)),
-                          IconButton(
-                            tooltip: '收起对照',
-                            icon: const Icon(Icons.close),
-                            onPressed: () => setState(() => _comparison = null),
+                ),
+              if (_parts == null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: SelectionArea(
+                    child: MarkdownView(markdown: p.contentMd),
+                  ),
+                )
+              else ...[
+                const SizedBox(height: 6),
+                for (var i = 0; i < _parts!.length; i++)
+                  if (_parts![i].changed)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Material(
+                        color: AppTheme.surface2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(
+                            color: _selectedParts.contains(i)
+                                ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                                : AppTheme.surface3,
                           ),
-                        ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CheckboxListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(
+                                  '采纳修改 ${i + 1}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                value: _selectedParts.contains(i),
+                                onChanged: _busy
+                                    ? null
+                                    : (checked) => setState(() {
+                                        if (checked == true) {
+                                          _selectedParts.add(i);
+                                        } else {
+                                          _selectedParts.remove(i);
+                                        }
+                                      }),
+                              ),
+                              if (_parts![i].before.isNotEmpty) ...[
+                                Text(
+                                  '原段落',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.textTertiary,
+                                  ),
+                                ),
+                                Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.surface1,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: SelectionArea(
+                                    child: MarkdownView(
+                                      markdown: _parts![i].before,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (_parts![i].after.isNotEmpty) ...[
+                                Text(
+                                  '建议段落',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.textTertiary,
+                                  ),
+                                ),
+                                Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.surface1,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: SelectionArea(
+                                    child: MarkdownView(
+                                      markdown: _parts![i].after,
+                                    ),
+                                  ),
+                                ),
+                              ] else
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  child: Text(
+                                    '删除这一段',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textTertiary,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                      SelectionArea(
-                        child: MarkdownView(markdown: _comparison!),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: SelectionArea(
+                        child: MarkdownView(markdown: _parts![i].after),
+                      ),
+                    ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(
+                    '同时采纳建议的适用条件',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  subtitle: Text(
+                    p.applicableWhen,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  value: _acceptApplicability,
+                  onChanged: _busy
+                      ? null
+                      : (v) =>
+                            setState(() => _acceptApplicability = v ?? false),
+                ),
+                if (_reviewIssues.isNotEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4, bottom: 2),
+                    child: Text(
+                      '本次修订解决了哪些提示（由你确认）：',
+                      style: TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+                for (final issue in _reviewIssues)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      issue.description,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    value: _resolvedIssues.contains(issue.fingerprint),
+                    onChanged: _busy
+                        ? null
+                        : (v) => setState(() {
+                            if (v == true) {
+                              _resolvedIssues.add(issue.fingerprint);
+                            } else {
+                              _resolvedIssues.remove(issue.fingerprint);
+                            }
+                          }),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 8),
+                  child: Text(
+                    '如果来源依据同时变化，需要完整确认；局部采纳只用于来源不变的修订。',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
+              Wrap(
+                spacing: 4,
+                children: [
+                  for (final id in p.snapshotIds)
+                    TextButton.icon(
+                      icon: const Icon(Icons.visibility_outlined, size: 14),
+                      label: const Text('查看原料', style: TextStyle(fontSize: 12)),
+                      onPressed: () async {
+                        try {
+                          final snapshot = await ref
+                              .read(knowledgeRepositoryProvider)
+                              .snapshot(id);
+                          if (context.mounted && snapshot != null) {
+                            setState(() {
+                              _comparisonTitle =
+                                  '${snapshot.title} · v${snapshot.version}';
+                              _comparison = snapshot.contentMd;
+                            });
+                          }
+                        } catch (error) {
+                          if (context.mounted) {
+                            await showKnowledgeText(
+                              context,
+                              '读取失败',
+                              _error(error, context: '读取素材快照'),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  for (final id in p.eventIds)
+                    TextButton.icon(
+                      icon: const Icon(Icons.event_note_outlined, size: 14),
+                      label: const Text('查看事件', style: TextStyle(fontSize: 12)),
+                      onPressed: () => _showEvent(context, ref, id),
+                    ),
+                ],
+              ),
+              if (_comparison != null)
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface2,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.surface3),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _comparisonTitle!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: '收起对照',
+                              icon: const Icon(Icons.close, size: 16),
+                              onPressed: () =>
+                                  setState(() => _comparison = null),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 12),
+                        SelectionArea(
+                          child: MarkdownView(markdown: _comparison!),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_failure != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    _failure!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              if (p.status == 'pending' && !_resolved)
+                if (p.pageId != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      '请对照当前正文。确认会应用以上修改；若本页是个人规则，也表示你确认修订后的规则及适用条件。',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textTertiary,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+              if (p.status == 'pending' && !_resolved)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      FilledButton(
+                        onPressed: _busy ? null : () => _resolve(true),
+                        child: Text(
+                          _busy
+                              ? '处理中…'
+                              : p.pageId == null
+                              ? '确认保存'
+                              : '确认修订',
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _busy ? null : () => _resolve(false),
+                        child: const Text('拒绝建议'),
                       ),
                     ],
                   ),
-                ),
-              ),
-            if (_failure != null)
-              Text(
-                _failure!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            if (p.status == 'pending' && !_resolved)
-              if (p.pageId != null)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('请对照当前正文。确认会应用以上修改；若本页是个人规则，也表示你确认修订后的规则及适用条件。'),
-                ),
-            if (p.status == 'pending' && !_resolved)
-              Wrap(
-                spacing: 8,
-                children: [
-                  FilledButton(
-                    onPressed: _busy ? null : () => _resolve(true),
-                    child: Text(
-                      _busy
-                          ? '处理中…'
-                          : p.pageId == null
-                          ? '确认保存'
-                          : '确认修订',
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _resolved
+                        ? '已处理，原文保持不变'
+                        : p.status == 'accepted'
+                        ? '已保存参考知识'
+                        : '已拒绝；保留决定记录',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
-                  TextButton(
-                    onPressed: _busy ? null : () => _resolve(false),
-                    child: const Text('拒绝建议'),
-                  ),
-                ],
-              )
-            else
-              Text(
-                _resolved
-                    ? '已处理，原文保持不变'
-                    : p.status == 'accepted'
-                    ? '已保存参考知识'
-                    : '已拒绝；保留决定记录',
-              ),
-          ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -829,54 +1695,129 @@ class _RevisionList extends ConsumerWidget {
       .when(
         error: (error, _) =>
             Center(child: Text(_error(error, context: '读取修订记录'))),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
         data: (items) => ListView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: [
             for (final revision in items)
-              ExpansionTile(
-                title: Text(revision.reason),
-                subtitle: Text(revision.createdAt),
-                children: [
-                  SelectionArea(
-                    child: MarkdownView(markdown: revision.contentMd),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
+                  color: AppTheme.surface2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(color: AppTheme.surface3),
                   ),
-                  if (canRestore)
-                    TextButton.icon(
-                      icon: const Icon(Icons.restore),
-                      label: const Text('生成恢复提案'),
-                      onPressed: () async {
-                        try {
-                          await ref
-                              .read(knowledgeRepositoryProvider)
-                              .restore(slug, revision.id);
-                          if (context.mounted) {
-                            _refresh(ref, slug);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('恢复提案已放入产出页，确认后生效；当前来源和规则设置保留。'),
-                              ),
-                            );
-                          }
-                        } catch (error) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  _error(
-                                    error,
-                                    context: '准备恢复',
-                                    showDetail: true,
-                                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Theme(
+                    data: Theme.of(context)
+                        .copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      tilePadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 2,
+                      ),
+                      leading: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface3,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          Icons.history,
+                          size: 16,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      title: Text(
+                        revision.reason,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _shortTime(revision.createdAt),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface1,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: SelectionArea(
+                            child: MarkdownView(markdown: revision.contentMd),
+                          ),
+                        ),
+                        if (canRestore)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: 8,
+                              left: 10,
+                              right: 10,
+                            ),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: FilledButton.tonalIcon(
+                                icon: const Icon(Icons.restore, size: 16),
+                                label: const Text('生成恢复提案'),
+                                style: FilledButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  textStyle: const TextStyle(fontSize: 12),
                                 ),
+                                onPressed: () async {
+                                  try {
+                                    await ref
+                                        .read(knowledgeRepositoryProvider)
+                                        .restore(slug, revision.id);
+                                    if (context.mounted) {
+                                      _refresh(ref, slug);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                '恢复提案已放入产出页，确认后生效；当前来源和规则设置保留。',
+                                              ),
+                                            ),
+                                          );
+                                    }
+                                  } catch (error) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                _error(
+                                                  error,
+                                                  context: '准备恢复',
+                                                  showDetail: true,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                    }
+                                  }
+                                },
                               ),
-                            );
-                          }
-                        }
-                      },
+                            ),
+                          ),
+                      ],
                     ),
-                ],
+                  ),
+                ),
               ),
           ],
         ),
@@ -888,13 +1829,43 @@ class _OpinionControl extends ConsumerWidget {
   final String? opinion;
   const _OpinionControl({required this.page, this.opinion});
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Wrap(
-    spacing: 8,
+  Widget build(BuildContext context, WidgetRef ref) => Row(
     children: [
-      const Padding(padding: EdgeInsets.all(8), child: Text('材料评价')),
-      for (final value in ['endorse', 'reject'])
+      Text(
+        '材料评价',
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textSecondary,
+        ),
+      ),
+      const SizedBox(width: 10),
+      for (final value in ['endorse', 'reject']) ...[
         ChoiceChip(
           label: Text(value == 'endorse' ? '认可' : '不认可'),
+          avatar: Icon(
+            value == 'endorse'
+                ? (opinion == value ? Icons.thumb_up : Icons.thumb_up_outlined)
+                : (opinion == value
+                      ? Icons.thumb_down
+                      : Icons.thumb_down_outlined),
+            size: 14,
+            color: opinion == value
+                ? (value == 'endorse' ? AppTheme.accentPrimary : AppTheme.error)
+                : AppTheme.textTertiary,
+          ),
+          visualDensity: VisualDensity.compact,
+          labelStyle: TextStyle(
+            fontSize: 12,
+            fontWeight: opinion == value ? FontWeight.w600 : FontWeight.w400,
+            color: opinion == value
+                ? (value == 'endorse' ? AppTheme.accentPrimary : AppTheme.error)
+                : AppTheme.textSecondary,
+          ),
+          selectedColor: value == 'endorse'
+              ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+              : AppTheme.error.withValues(alpha: 0.15),
+          backgroundColor: AppTheme.surface2,
           selected: opinion == value,
           onSelected: (_) async {
             try {
@@ -914,6 +1885,8 @@ class _OpinionControl extends ConsumerWidget {
             }
           },
         ),
+        const SizedBox(width: 8),
+      ],
     ],
   );
 }
@@ -1009,16 +1982,20 @@ class _MetadataEditorState extends ConsumerState<_MetadataEditor> {
   );
 }
 
+/// 打开全局「知识审阅」对话框（待确认修改 + 来源检查 + 队列 + 记录）。
+/// 供首页入口与按钮共用。
+void showKnowledgeMaintenance(BuildContext context) => showDialog<void>(
+  context: context,
+  builder: (_) => const _MaintenanceDialog(),
+);
+
 class KnowledgeMaintenanceButton extends StatelessWidget {
   const KnowledgeMaintenanceButton({super.key});
   @override
   Widget build(BuildContext context) => TextButton.icon(
     icon: const Icon(Icons.fact_check_outlined, size: 18),
     label: const Text('知识审阅'),
-    onPressed: () => showDialog<void>(
-      context: context,
-      builder: (_) => const _MaintenanceDialog(),
-    ),
+    onPressed: () => showKnowledgeMaintenance(context),
   );
 }
 

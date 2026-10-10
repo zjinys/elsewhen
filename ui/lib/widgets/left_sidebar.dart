@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../models/wiki_page.dart';
+import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
+import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
 
 /// 「最近使用」最多显示的页面数。
@@ -12,6 +14,28 @@ import '../theme/app_theme.dart';
 /// 只是渲染截断：数据源是全量 `wikiPagesProvider`（`listWikiPages()` 不带
 /// limit），排序也在客户端完成，所以调大不需要配合任何后端或查询改动。
 const int _kRecentVisiblePages = 20;
+
+/// AI 从素材**自动消化**出的知识页类型：不进左侧「最近」列表。
+/// 这些是后台提炼产物（方法/案例/规律/洞察），不是用户主动要看的东西。
+const Set<String> _kAiDigestedKinds = {'method', 'case', 'principle', 'insight'};
+
+/// AI 知识整合**自动生成**的主题的 slug 前缀（哈希 slug，如
+/// `knowledge-topic/1cac3d8b...`）。这类主题是后台跨素材整合产出的，不是用户
+/// 主动存的；用户手动建的主题 slug 是 `kb-xxx` / `topic-xxx` / `topic/中文名`
+/// 等形态。以此为唯一可靠区分（无专门来源字段）。
+const String _kAiGeneratedTopicSlugPrefix = 'knowledge-topic/';
+
+/// 左侧「最近」列表显示哪些页：排除两类 AI 产物——
+/// 1. AI 自动提炼的类型（_kAiDigestedKinds：方法/案例/规律/洞察）；
+/// 2. AI 自动整合生成的主题（slug 带 _kAiGeneratedTopicSlugPrefix 前缀）。
+/// 其余都保留——imported 素材（抓取/导入）、network（联系人/项目）、以及用户
+/// **主动存的主题（topic）**等人工意图产物。派生产物（derivative）后端
+/// list_wiki_pages 已默认排除。
+bool _isSidebarVisiblePage(WikiPage page) {
+  if (_kAiDigestedKinds.contains(page.kind)) return false;
+  if (page.slug.startsWith(_kAiGeneratedTopicSlugPrefix)) return false;
+  return true;
+}
 
 /// 主界面左侧栏：主对话 + 最近页面 + 工作区快捷入口。
 class LeftSidebar extends ConsumerWidget {
@@ -68,7 +92,12 @@ class LeftSidebar extends ConsumerWidget {
         }
         final pages = ref.watch(wikiPagesProvider).value ?? const [];
         final recentPages =
-            pages.where((page) => page.status != 'archived').toList()
+            pages
+                .where(
+                  (page) =>
+                      page.status != 'archived' && _isSidebarVisiblePage(page),
+                )
+                .toList()
               ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
         final visiblePages = recentPages.take(_kRecentVisiblePages).toList();
         return Column(
@@ -142,8 +171,11 @@ class LeftSidebar extends ConsumerWidget {
   }
 
   Widget _buildFooter(BuildContext context, WidgetRef ref) {
+    final activeTab = ref.watch(sidebarTabProvider);
     return Container(
+      padding: const EdgeInsets.all(AppTheme.space2),
       decoration: BoxDecoration(
+        color: AppTheme.surface0,
         border: Border(top: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
       child: Column(
@@ -151,18 +183,40 @@ class LeftSidebar extends ConsumerWidget {
           _FooterAction(
             icon: Icons.chat_bubble_outline,
             label: '对话',
+            isActive: activeTab == SidebarTab.conversation,
             onTap: () {
               ref
                   .read(sidebarTabProvider.notifier)
                   .set(SidebarTab.conversation);
             },
           ),
+          const SizedBox(height: 2),
           _FooterAction(
             icon: Icons.menu_book_outlined,
             label: '知识库',
+            isActive: activeTab == SidebarTab.wiki,
             onTap: () {
               ref.read(wikiActiveTabIdProvider.notifier).set('import');
               ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
+            },
+          ),
+          const SizedBox(height: 2),
+          // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与
+          // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。
+          _FooterAction(
+            icon: Icons.settings_outlined,
+            label: '设置',
+            isActive: false,
+            onTap: () async {
+              final scaffold = Scaffold.maybeOf(context);
+              if (scaffold?.isDrawerOpen ?? false) {
+                Navigator.of(context).pop();
+              }
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+              // 从设置页返回后刷新首次运行探测（横幅是否该消失）
+              ref.invalidate(aiProviderConfiguredProvider);
             },
           ),
         ],
@@ -175,30 +229,59 @@ class _FooterAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool isActive;
 
   const _FooterAction({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.isActive = false,
   });
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.space4,
-        vertical: AppTheme.space2,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppTheme.textSecondary),
-          const SizedBox(width: AppTheme.space2),
-          Text(
-            label,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      hoverColor: isActive ? null : AppTheme.surface2.withValues(alpha: 0.6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.space3,
+          vertical: AppTheme.space2,
+        ),
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppTheme.accentPrimary.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          border: Border.all(
+            color: isActive
+                ? AppTheme.accentPrimary.withValues(alpha: 0.28)
+                : Colors.transparent,
+            width: 1,
           ),
-        ],
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isActive ? AppTheme.accentPrimary : AppTheme.textSecondary,
+            ),
+            const SizedBox(width: AppTheme.space2),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? AppTheme.accentPrimary : AppTheme.textSecondary,
+                fontSize: 13,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -230,17 +313,21 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                 );
               }
 
+              // 只显示素材/人工/联系人项目，排除 AI 提炼的 insight 区（见
+              // _isSidebarVisiblePage）；与对话 tab 统一取最近 20 条。
               final filtered =
-                  pages.where((page) => page.status != 'archived').toList()
+                  pages
+                      .where(
+                        (page) =>
+                            page.status != 'archived' &&
+                            _isSidebarVisiblePage(page),
+                      )
+                      .toList()
                     ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-              final recent = filtered.take(10).toList();
+              final recent = filtered.take(_kRecentVisiblePages).toList();
 
-              // 按 kind 分组（组的先后 = 排序后首次出现的顺序）
-              final grouped = <String, List<WikiPage>>{};
-              for (final page in recent) {
-                grouped.putIfAbsent(page.kindLabel, () => []).add(page);
-              }
-
+              // 平铺列表：只按最近更新排序，不再按主题/来源分组（用户反馈分组
+              // 没必要，反而割裂浏览）。
               return Column(
                 children: [
                   // 结果数 + 排序
@@ -275,46 +362,14 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                     child: ListView(
                       padding: const EdgeInsets.only(bottom: AppTheme.space1),
                       children: [
-                        for (final entry in grouped.entries) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppTheme.space3,
-                              AppTheme.space3,
-                              AppTheme.space3,
-                              AppTheme.space1,
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: _kindColor(entry.value.first.kind),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${entry.key}（${entry.value.length}）',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
-                                    color: _kindColor(entry.value.first.kind),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        for (final page in recent)
+                          _WikiPageItem(
+                            page: page,
+                            isSelected: page.slug == selectedSlug,
+                            onTap: () {
+                              openWikiPageTab(ref, page);
+                            },
                           ),
-                          for (final page in entry.value)
-                            _WikiPageItem(
-                              page: page,
-                              isSelected: page.slug == selectedSlug,
-                              onTap: () {
-                                openWikiPageTab(ref, page);
-                              },
-                            ),
-                        ],
                       ],
                     ),
                   ),

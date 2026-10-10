@@ -1,6 +1,10 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/app_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/settings.dart';
 import '../models/token_usage.dart';
@@ -13,8 +17,11 @@ import '../widgets/font_picker_dialog.dart';
 import '../widgets/local_sync_settings.dart';
 import '../widgets/provider_endpoint_notice.dart';
 import '../widgets/knowledge_digest_dialog.dart';
+import '../widgets/web_search_settings.dart';
+import '../widgets/doh_settings.dart';
 import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
+import '../utils/window_service.dart';
 import '../theme/app_theme.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -51,6 +58,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   // 推文抓取服务（当前仅支持 fxtwitter）
   String _tweetService = 'fxtwitter';
+
+  /// 桌面「关闭窗口时」偏好（本地 desktop.json）。
+  CloseAction _closeAction = CloseAction.minimizeToTray;
 
   // 启动期各区块读取失败的原因（区块名 → 异常文本）。
   //
@@ -100,6 +110,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
     final settings = ref.read(settingsProvider);
+    // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
+    _closeAction = ref.read(windowServiceProvider).closeAction;
 
     _maxMessagesController = TextEditingController(
       text: settings.memory.maxMessages?.toString() ?? '20',
@@ -252,28 +264,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    // 移动端：标题栏补状态栏安全区，返回键放左侧（app 惯例）；
+    // 桌面端：返回键在右侧 actions（窗口 chrome 风格）。
+    final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    final topInset = isMobile ? MediaQuery.viewPaddingOf(context).top : 0.0;
 
     return Scaffold(
       body: Column(
         children: [
           CustomTitleBar(
             title: '设置',
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, size: 18),
-                tooltip: '返回主界面',
-                color: const Color(0xFF9BA1AB),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              TextButton.icon(
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('保存'),
-                onPressed: () => _saveSettings(),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.accentPrimary,
-                ),
-              ),
-            ],
+            topInset: topInset,
+            leading: isMobile
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back, size: 20),
+                    tooltip: '返回主界面',
+                    color: AppTheme.textSecondary,
+                    onPressed: () => Navigator.of(context).pop(),
+                  )
+                : null,
+            actions: isMobile
+                ? null
+                : [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, size: 18),
+                      tooltip: '返回主界面',
+                      color: const Color(0xFF9BA1AB),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    // 原 titlebar 的全局「保存」已删：整页除「记忆策略」两个数字字段外
+                    // 都是即时保存，全局按钮名不副实。那两个字段的保存挪进记忆卡片。
+                  ],
           ),
           Expanded(
             child: Container(
@@ -289,6 +310,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 ),
               ),
               child: SafeArea(
+                // top: false —— 状态栏安全区已由 CustomTitleBar 的 topInset 处理，
+                // 这里只保留底部手势条/刘海的安全区。
+                top: false,
                 child: Form(
                   key: _formKey,
                   child: LayoutBuilder(
@@ -561,8 +585,110 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: Icons.palette_outlined,
             child: _buildAppearanceSettings(settings),
           ),
+          if (_isDesktopPlatform) ...[
+            const SizedBox(height: AppTheme.space6),
+            _buildSection(
+              title: '桌面窗口',
+              icon: Icons.desktop_windows_outlined,
+              child: _buildDesktopWindowSettings(),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  /// 是否桌面平台（窗口 chrome / 托盘 / 关闭语义只在这些平台存在）。
+  static bool get _isDesktopPlatform =>
+      Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+
+  /// 「关闭窗口时」设置：托盘可用才给选项，否则只说明「关闭即退出」。
+  /// 二选一用 M3 `SegmentedButton`（而非下拉），选中态走强调色。
+  Widget _buildDesktopWindowSettings() {
+    final windowService = ref.read(windowServiceProvider);
+    final trayAvailable = windowService.trayAvailable;
+    if (!trayAvailable) {
+      return Text(
+        '当前环境没有可用的系统托盘，关闭窗口将直接退出应用。',
+        style: TextStyle(
+          fontSize: 12,
+          color: AppTheme.textTertiary,
+          height: 1.5,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '关闭窗口时',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        SegmentedButton<CloseAction>(
+          segments: [
+            ButtonSegment(
+              value: CloseAction.minimizeToTray,
+              icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+              label: Text(CloseAction.minimizeToTray.displayName),
+            ),
+            ButtonSegment(
+              value: CloseAction.quit,
+              icon: const Icon(Icons.power_settings_new_rounded, size: 18),
+              label: Text(CloseAction.quit.displayName),
+            ),
+          ],
+          selected: {_closeAction},
+          onSelectionChanged: (selection) {
+            final action = selection.first;
+            if (action == _closeAction) return;
+            setState(() => _closeAction = action);
+            windowService.setCloseAction(action);
+          },
+          showSelectedIcon: false,
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              return states.contains(WidgetState.selected)
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.16)
+                  : AppTheme.surface2.withValues(alpha: 0.5);
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              return states.contains(WidgetState.selected)
+                  ? AppTheme.accentPrimary
+                  : AppTheme.textSecondary;
+            }),
+            side: WidgetStateProperty.resolveWith((states) {
+              return BorderSide(
+                color: states.contains(WidgetState.selected)
+                    ? AppTheme.accentPrimary.withValues(alpha: 0.55)
+                    : AppTheme.surface4,
+              );
+            }),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            textStyle: const WidgetStatePropertyAll(
+              TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '关闭后应用继续在后台运行，可从托盘菜单唤回或退出。',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.textTertiary,
+            height: 1.5,
+          ),
+        ),
+      ],
     );
   }
 
@@ -576,6 +702,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: '推文抓取',
             icon: Icons.link_outlined,
             child: _buildTweetFetchSettings(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '外网搜索',
+            icon: Icons.travel_explore_outlined,
+            child: const WebSearchSettings(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '网络（DoH）',
+            icon: Icons.shield_outlined,
+            child: const DohSettings(),
           ),
         ],
       ),
@@ -1183,6 +1321,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             hint: '留空按 Provider 上下文窗口推算',
             keyboardType: TextInputType.number,
           ),
+        const SizedBox(height: 16),
+        // 保存按钮只负责本卡片的两个数字字段（maxMessages / maxTokens）；
+        // 策略类型下拉是 onChanged 即时存。原 titlebar 的全局「保存」已删，
+        // 按钮收进本卡片，语义与作用范围一致。
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('保存'),
+            onPressed: _saveSettings,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.accentPrimary,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1632,7 +1786,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<T>(
-          value: value,
+          initialValue: value,
           items: items,
           onChanged: onChanged,
           style: TextStyle(color: AppTheme.textPrimary),
@@ -1682,7 +1836,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('设置已保存'),
+          content: Text('记忆策略已保存'),
           backgroundColor: AppTheme.accentPrimary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(

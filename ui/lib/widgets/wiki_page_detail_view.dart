@@ -30,6 +30,7 @@ import 'wiki_derivatives.dart';
 import 'markdown_view.dart';
 import 'knowledge_panel.dart';
 import 'knowledge_import.dart';
+import '../providers/knowledge_provider.dart';
 
 part 'wiki_detail_import_section.dart';
 part 'wiki_detail_entity_sections.dart';
@@ -37,7 +38,7 @@ part 'wiki_detail_page_chips.dart';
 part 'wiki_detail_import_preview.dart';
 
 /// 右侧知识库面板：多 tab。
-/// - 固定 Tab 1：导入（粘贴链接抓取或直接文本保存）
+/// - 固定 Tab 1：导入（粘贴链接抓取或文本导入保存）
 /// - 抓取成功后新开「预览」tab：内容 + 保存按钮（点保存才入库）
 /// - 从左侧点击知识库页时新开「页面详情」tab（含 AI 处理面板）
 class WikiPageDetailView extends ConsumerStatefulWidget {
@@ -119,7 +120,9 @@ class _EditTagsDialogState extends State<_EditTagsDialog> {
           child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppTheme.accentPrimary),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppTheme.accentPrimary,
+          ),
           onPressed: () => Navigator.of(context).pop(_controller.text),
           child: const Text('保存'),
         ),
@@ -141,10 +144,6 @@ class _WikiPageDetailViewState extends ConsumerState<WikiPageDetailView> {
     return Column(
       children: [
         _WikiTabBar(tabs: tabs, activeId: active.id),
-        const Align(
-          alignment: Alignment.centerRight,
-          child: KnowledgeMaintenanceButton(),
-        ),
         Expanded(
           // IndexedStack：所有 tab 的子树常驻，切 tab 不销毁详情页编辑器状态
           // （未保存的编辑切走再切回仍在；§6.3 未保存保护的前提）
@@ -168,6 +167,29 @@ class _WikiPageDetailViewState extends ConsumerState<WikiPageDetailView> {
   }
 }
 
+/// 打开知识库导入对话框（文本 / 网址模式）。
+/// 供首页 _HomeAction 与移动端标题栏 _WikiTitleBarActions 共用。
+Future<void> openWikiImportDialog(
+  BuildContext context, {
+  required bool urlMode,
+}) async {
+  await showDialog<void>(
+    context: context,
+    builder: (_) => Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 680),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: _ImportTab(
+            initialUrlMode: urlMode,
+            onCompleted: () => Navigator.of(context).pop(),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// 知识库首页：上方导入，下方浏览。二者属于同一工作区，不再拆成两个 tab。
 class _HomeTab extends StatelessWidget {
   const _HomeTab();
@@ -186,14 +208,15 @@ class _HomeTab extends StatelessWidget {
                       icon: Icons.link_outlined,
                       title: '网址导入',
                       subtitle: '抓取网页或推文，确认后保存',
-                      onTap: () => _showImportDialog(context, urlMode: true),
+                      onTap: () => openWikiImportDialog(context, urlMode: true),
                     ),
                     const SizedBox(height: 8),
                     _HomeAction(
                       icon: Icons.notes_outlined,
-                      title: '直接文本',
+                      title: '文本导入',
                       subtitle: '粘贴内容并创建知识页',
-                      onTap: () => _showImportDialog(context, urlMode: false),
+                      onTap: () =>
+                          openWikiImportDialog(context, urlMode: false),
                     ),
                   ],
                 )
@@ -204,42 +227,99 @@ class _HomeTab extends StatelessWidget {
                         icon: Icons.link_outlined,
                         title: '网址导入',
                         subtitle: '抓取网页或推文，确认后保存',
-                        onTap: () => _showImportDialog(context, urlMode: true),
+                        onTap: () =>
+                            openWikiImportDialog(context, urlMode: true),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _HomeAction(
                         icon: Icons.notes_outlined,
-                        title: '直接文本',
+                        title: '文本导入',
                         subtitle: '粘贴内容并创建知识页',
-                        onTap: () => _showImportDialog(context, urlMode: false),
+                        onTap: () =>
+                            openWikiImportDialog(context, urlMode: false),
                       ),
                     ),
                   ],
                 ),
         ),
+        // 知识审阅入口（全局待办：待确认修改 + 来源检查）。只放首页，不进单页。
+        const _MaintenanceEntry(),
         Divider(height: 1, color: AppTheme.surface3),
         const Expanded(child: _WikiBrowseTab()),
       ],
     );
   }
+}
 
-  Future<void> _showImportDialog(
-    BuildContext context, {
-    required bool urlMode,
-  }) async {
-    await showDialog<void>(
-      context: context,
-      builder: (_) => Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720, maxHeight: 680),
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: _ImportTab(
-              initialUrlMode: urlMode,
-              onCompleted: () => Navigator.of(context).pop(),
-            ),
+/// 首页的「知识审阅」入口条：显示全局待办数量（待确认修改 + 来源检查），
+/// 点击打开审阅对话框。只在首页出现，不进入单个知识页。
+class _MaintenanceEntry extends ConsumerWidget {
+  const _MaintenanceEntry();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final proposals = ref.watch(knowledgeProposalsProvider);
+    final issues = ref.watch(knowledgeIssuesProvider);
+    // 待办数 = 待确认的修改 + 待核对的来源/内容检查项。
+    final pendingCount =
+        (proposals.value?.where((p) => p.status == 'pending').length ?? 0) +
+        (issues.value?.length ?? 0);
+
+    return Material(
+      color: AppTheme.surface1,
+      child: InkWell(
+        onTap: () => showKnowledgeMaintenance(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          child: Row(
+            children: [
+              Icon(
+                Icons.fact_check_outlined,
+                size: 18,
+                color: pendingCount > 0
+                    ? AppTheme.accentPrimary
+                    : AppTheme.textTertiary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '知识审阅',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+              if (pendingCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentPrimary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$pendingCount',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.surface0,
+                    ),
+                  ),
+                )
+              else
+                Text(
+                  '无待办',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+                ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, size: 18, color: AppTheme.textTertiary),
+            ],
           ),
         ),
       ),
@@ -451,12 +531,20 @@ class _WikiTabChip extends StatelessWidget {
   }
 
   Widget _buildCloseButton() {
-    return InkWell(
-      onTap: onClose,
-      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      child: Padding(
-        padding: EdgeInsets.all(4),
-        child: Icon(Icons.close, size: 13, color: AppTheme.textTertiary),
+    return Tooltip(
+      message: '关闭标签页',
+      waitDuration: const Duration(milliseconds: 500),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onClose,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          hoverColor: AppTheme.surface3.withValues(alpha: 0.8),
+          child: Padding(
+            padding: const EdgeInsets.all(5),
+            child: Icon(Icons.close, size: 14, color: AppTheme.textSecondary),
+          ),
+        ),
       ),
     );
   }
@@ -499,6 +587,9 @@ class _PageTabBody extends ConsumerWidget {
 
 /// 阅读栏最大宽度：正文与头部共用，保证长文行宽舒适、视线不来回扫。
 const double _kReadingMaxWidth = 1160;
+
+/// 沉浸阅读专用宽度：比正常阅读栏更窄，接近纸质书行宽，减少眼球横向移动。
+const double _kImmersiveMaxWidth = 780;
 
 /// 编辑冲突对话框中用户选择「取消/重新加载」时中止保存的内部信号：
 /// 让 [WikiContentEditor.save] 返回 false（留在/退出编辑态由调用处控制），
@@ -552,6 +643,10 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
   bool _chatInitialized = false;
   Offset? _chatPosition;
 
+  /// 沉浸阅读：插到 app Overlay 的全屏覆盖层，盖住一切 chrome（含左侧导航 / 顶栏）。
+  /// 非空 = 沉浸中。用 OverlayEntry 而非内部 Stack，才能盖住本 widget 之外的导航栏。
+  OverlayEntry? _immersiveEntry;
+
   /// 保存回调注册表的 notifier 引用：dispose 后 `ref` 不可用，须提前缓存。
   late final StateHolder<Map<String, Future<bool> Function()>> _saveCallbacks;
 
@@ -575,6 +670,9 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
 
   @override
   void dispose() {
+    // 若沉浸覆盖层还挂着（如沉浸中切走了页面），先移除防泄漏。
+    _immersiveEntry?.remove();
+    _immersiveEntry = null;
     // dispose 发生在 widget tree 卸载期内，同步改 provider 会触发
     // 「Tried to modify a provider while the widget tree was building」；
     // 延迟到事件队列空闲时注销。notifier 已提前缓存，不依赖 ref。
@@ -597,6 +695,27 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
 
   @override
   Widget build(BuildContext context) {
+    // 沉浸阅读不再是本 widget 内部的叠层，而是 app Overlay 里的全屏 entry（见
+    // _showImmersive）。这里只画正常 body；覆盖层由 Overlay 管理，故 build 不感知。
+    return _buildNormalBody(context);
+  }
+
+  /// 进入沉浸阅读：创建全屏覆盖层并插入 app Overlay（盖住含左侧导航在内的整个窗口）。
+  void _showImmersive() {
+    if (_immersiveEntry != null) return;
+    final overlay = Overlay.of(context);
+    final entry = OverlayEntry(builder: _buildImmersiveOverlay);
+    _immersiveEntry = entry;
+    overlay.insert(entry);
+  }
+
+  /// 退出沉浸阅读：从 Overlay 移除覆盖层。
+  void _hideImmersive() {
+    _immersiveEntry?.remove();
+    _immersiveEntry = null;
+  }
+
+  Widget _buildNormalBody(BuildContext context) {
     return DefaultTabController(
       length: _WikiPageSection.values.length,
       initialIndex: _section.index,
@@ -634,6 +753,10 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
                         right: 16,
                         bottom: 16,
                         child: FloatingActionButton.small(
+                          // 显式 heroTag：不设时 FAB 用默认 tag，路由切换时
+                          // 若前后页面（或嵌套 Navigator）各有一个 FAB，
+                          // Hero 控制器会抛「multiple heroes share the same tag」。
+                          heroTag: 'wiki-detail-ai-chat-fab',
                           tooltip: '和 AI 讨论此页',
                           onPressed: () => setState(() {
                             _chatOpen = true;
@@ -642,7 +765,9 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
                           child: const Icon(Icons.auto_awesome_outlined),
                         ),
                       ),
-                    if (_chatInitialized)
+                    // 沉浸期间正常态聊天面板不挂载：沉浸覆盖层里有同 slug 的另一个
+                    // panel，并存会成两个独立实例（各自调 AI 后端），状态会乱。
+                    if (_chatInitialized && _immersiveEntry == null)
                       Positioned(
                         left: x,
                         top: y,
@@ -678,6 +803,206 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
 
           _buildFooter(),
         ],
+      ),
+    );
+  }
+
+  /// 沉浸阅读覆盖层：不透明全屏，盖住所有 chrome。
+  /// 内容 = 居中限宽的只读正文 + 右下角 AI 聊天入口（沿用原面板的可拖/可最小化机制）
+  /// + 左上角退出按钮 / Esc 退出。
+  /// 设计要点：
+  /// - 暖纸底色（surface0 微暖调），减少纯白眩光；
+  /// - 正文限宽 780px，接近纸质书行宽，视线不疲劳；
+  /// - 文字色 softened（textSecondary 代替 textPrimary），降低对比度疲劳；
+  /// - 退出按钮 / FAB 用 surface2 底色 + 微阴影，不喧宾夺主；
+  /// - 底部加阅读进度条，给长文位置感。
+  Widget _buildImmersiveOverlay(BuildContext context) {
+    final isDark = AppTheme.brightness == Brightness.dark;
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): _hideImmersive,
+      },
+      child: Focus(
+        autofocus: true,
+        // StatefulBuilder：覆盖层是独立 OverlayEntry，不随 _WikiPageBody 的 build 重建。
+        // 聊天开合 / 拖动 / 最小化这些交互要触发覆盖层自身重建，故用它的局部 setState。
+        child: StatefulBuilder(
+          builder: (context, setOverlayState) => Material(
+            color: isDark ? AppTheme.surface0 : const Color(0xFFF8F6F2),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // 聊天面板定位逻辑与正常态一致（同一份 _chatPosition / 夹取范围）。
+                final width = math.min(
+                  720.0,
+                  math.max(0.0, constraints.maxWidth - 24),
+                );
+                final height = math.min(
+                  760.0,
+                  math.max(0.0, constraints.maxHeight - 24),
+                );
+                final maxX = math.max(0.0, constraints.maxWidth - width);
+                final maxY = math.max(0.0, constraints.maxHeight - height);
+                final x = _chatPosition == null
+                    ? maxX - 12
+                    : _chatPosition!.dx.clamp(0.0, maxX);
+                final y = _chatPosition == null
+                    ? maxY - 12
+                    : _chatPosition!.dy.clamp(0.0, maxY);
+                return Stack(
+                  children: [
+                    // 只读正文：水平居中、限宽，上下留呼吸空间。
+                    // AppFlowyEditor（shrinkWrap:false）需要有界高度才能内部滚动，
+                    // 所以用 Center（保留高度约束）而不是 Align（会松开约束）。
+                    Positioned.fill(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppTheme.space6,
+                          72,
+                          AppTheme.space6,
+                          64,
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: _kImmersiveMaxWidth,
+                            ),
+                            child: SizedBox.expand(
+                              // 沉浸覆盖层是只读的，不能用正常态的 _editorKey：正常态正文
+                              // 编辑器（_buildNormalBody 里）始终挂着、也用这个 key，沉浸再挂
+                              // 会同 key 冲突（Duplicate GlobalKey）。只读不编辑不保存，无需 key。
+                              child: _ImmersiveContent(
+                                slug: widget.page.slug,
+                                contentMd: widget.page.contentMd,
+                                onWikiLinkTap: _openWikiPageFromSlug,
+                                onSave: _persistEdit,
+                                onSaveError: (e) {},
+                                onDirtyChanged: _setDirty,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 左上角退出按钮：surface2 底色 + 微阴影，不喧宾夺主。
+                    Positioned(
+                      left: 20,
+                      top: 20,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface2,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDark
+                                  ? Colors.black.withValues(alpha: 0.3)
+                                  : Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          tooltip: '退出沉浸阅读（Esc）',
+                          onPressed: _hideImmersive,
+                          icon: Icon(
+                            Icons.close,
+                            size: 20,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 右下角 AI 聊天入口（未打开时）。
+                    if (!_chatOpen)
+                      Positioned(
+                        right: 20,
+                        bottom: 20,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface2,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark
+                                    ? Colors.black.withValues(alpha: 0.3)
+                                    : Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => setOverlayState(() {
+                                _chatOpen = true;
+                                _chatInitialized = true;
+                              }),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.auto_awesome_outlined,
+                                      size: 18,
+                                      color: AppTheme.accentPrimary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '问 AI',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    // AI 聊天面板（可拖动、可最小化），与正常态同一份状态。
+                    if (_chatInitialized)
+                      Positioned(
+                        left: x,
+                        top: y,
+                        width: width,
+                        height: height,
+                        child: Offstage(
+                          offstage: !_chatOpen,
+                          child: Material(
+                            elevation: 12,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusMedium,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: WikiAiChatPanel(
+                              slug: widget.page.slug,
+                              onMinimize: () =>
+                                  setOverlayState(() => _chatOpen = false),
+                              onDragUpdate: (delta) => setOverlayState(() {
+                                _chatPosition = Offset(
+                                  (x + delta.dx).clamp(0.0, maxX),
+                                  (y + delta.dy).clamp(0.0, maxY),
+                                );
+                              }),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -728,37 +1053,33 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
                 ),
               ),
               if (_section == _WikiPageSection.content) ...[
-                // 右侧操作组：「正文阅读设置」永远贴最右，编辑操作排在它左
-                // 侧——编辑按钮（编辑正文/取消/完成）显隐不影响阅读按钮位置。
+                // 右侧操作组：「正文阅读设置」永远贴最右；沉浸阅读恒在，排
+                // 在它左侧；编辑操作（编辑正文/取消/完成）只在可编辑页出现，
+                // 排最左——编辑按钮显隐不影响右侧两个阅读按钮的位置。
+                // 三个操作按视口宽度统一：宽 = 图标 + 文字，窄 = 纯图标。
                 Row(
                   mainAxisSize: MainAxisSize.min,
+                  spacing: 6,
                   children: [
                     if (_canEdit) _buildInlineEditActions(compact: compact),
+                    // 沉浸阅读：隐藏标题栏 / Tab 栏 / 页脚 / 侧栏，只留正文 + AI
+                    // 聊天入口。覆盖层是只读的，与可编辑性无关，故素材页
+                    // （source/note 只读）同样要有入口——放在编辑组之外。
+                    _barAction(
+                      compact: compact,
+                      icon: Icons.menu_book_outlined,
+                      label: '沉浸阅读',
+                      tooltip: '沉浸阅读（Esc 退出）',
+                      onPressed: _showImmersive,
+                    ),
                     // 正文阅读参数（AA 浮层：字体/字号/行距，两层覆盖模型）。
-                    // 宽屏与「编辑正文」统一为 tonal 标签按钮（同 32 高、同
-                    // padding、同图标尺寸）；窄视口（compact）与编辑操作一致
-                    // 收成图标按钮，避免手机宽度下 section bar 溢出。
-                    if (compact)
-                      IconButton(
-                        tooltip: '正文阅读设置（字体 / 字号 / 行距）',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () => showWikiReadingSettings(context),
-                        icon: const Icon(Icons.format_size, size: 19),
-                        color: AppTheme.textSecondary,
-                      )
-                    else
-                      Tooltip(
-                        message: '正文阅读设置（字体 / 字号 / 行距）',
-                        child: FilledButton.tonalIcon(
-                          onPressed: () => showWikiReadingSettings(context),
-                          icon: const Icon(Icons.format_size, size: 15),
-                          label: const Text('阅读设置'),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 32),
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                          ),
-                        ),
-                      ),
+                    _barAction(
+                      compact: compact,
+                      icon: Icons.format_size,
+                      label: '阅读设置',
+                      tooltip: '正文阅读设置（字体 / 字号 / 行距）',
+                      onPressed: () => showWikiReadingSettings(context),
+                    ),
                   ],
                 ),
               ],
@@ -866,39 +1187,51 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
         ],
       );
     }
-    final editButton = FilledButton.tonalIcon(
-      onPressed: _enterEditing,
-      icon: const Icon(Icons.edit_outlined, size: 15),
-      label: const Text('编辑正文'),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(0, 32),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _barAction(
+          compact: compact,
+          icon: Icons.edit_outlined,
+          label: '编辑正文',
+          tooltip: '编辑正文',
+          onPressed: _enterEditing,
+        ),
+      ],
     );
-    return editButton;
   }
 
-  /// 卡座：AI 派生产物 / 事实 / 相关待办。
-  /// 编辑器占据主滚动区后，这些区块落在下方，内部自滚动（上限约 42% 高度）。
-  Widget _buildCardStrip(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxStrip = math.min(constraints.maxHeight * 0.42, 420.0);
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxStrip),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: AppTheme.space4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                WikiDerivatives(slug: widget.page.slug),
-                _EntityFacts(slug: widget.page.slug),
-                _EntityRelatedTodos(page: widget.page),
-              ],
-            ),
-          ),
-        );
-      },
+  /// section bar 右侧操作的统一样式，供「编辑正文 / 沉浸阅读 / 阅读设置」共用：
+  /// - 宽视口（!compact）：图标 + 文字的 tonal 标签按钮，统一 32 高、15 图标、
+  ///   10 横向 padding，保证三者同高同距。
+  /// - 窄视口（compact）：纯图标按钮，统一 18 图标 + tooltip，避免挤爆 Tab 栏。
+  Widget _barAction({
+    required bool compact,
+    required IconData icon,
+    required String label,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) {
+    if (compact) {
+      return IconButton(
+        tooltip: tooltip,
+        visualDensity: VisualDensity.compact,
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        color: AppTheme.textSecondary,
+      );
+    }
+    return Tooltip(
+      message: tooltip,
+      child: FilledButton.tonalIcon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 15),
+        label: Text(label),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 32),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+        ),
+      ),
     );
   }
 
@@ -1141,6 +1474,8 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
               _buildTagRow(context),
               KnowledgePageActions(
                 page: widget.page,
+                showSourcesButton:
+                    false, // 来源与修订已在下方 Section TabBar 中直观可见，头部避免重复
                 onShowSources: () => _showSection(_WikiPageSection.sources),
                 onShowOutputs: () => _showSection(_WikiPageSection.outputs),
               ),
@@ -1373,19 +1708,60 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
   String _fmtDate(DateTime t) {
     return '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
   }
-
-  /// 摘要是否有展示价值：非空、且不是标题的重复
-  bool get _hasSummary {
-    final s = widget.page.summary.trim();
-    if (s.isEmpty) return false;
-    return widget.page.title.trim() != s;
-  }
 }
 
 class _WikiBrowseTab extends StatelessWidget {
   const _WikiBrowseTab();
   @override
   Widget build(BuildContext context) => const KnowledgeLibrary();
+}
+
+/// 沉浸阅读专用内容渲染：在 WikiContentEditor 基础上覆盖文字色为
+/// textSecondary（降低对比度疲劳），并注入 ContentFontScope 保证字体链完整。
+class _ImmersiveContent extends ConsumerWidget {
+  const _ImmersiveContent({
+    required this.slug,
+    required this.contentMd,
+    required this.onWikiLinkTap,
+    required this.onSave,
+    required this.onSaveError,
+    required this.onDirtyChanged,
+  });
+
+  final String slug;
+  final String contentMd;
+  final void Function(String slug) onWikiLinkTap;
+  final Future<void> Function(String markdown) onSave;
+  final void Function(Object error) onSaveError;
+  final void Function(bool dirty) onDirtyChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fontFamily = ref.watch(
+      settingsProvider.select((s) => s.contentFontName),
+    );
+    final fontSize = ref.watch(
+      settingsProvider.select((s) => s.contentFontSize),
+    );
+    final lineHeight = ref.watch(
+      settingsProvider.select((s) => s.contentLineHeight),
+    );
+    return WikiContentEditor(
+      slug: slug,
+      contentMd: contentMd,
+      editable: false,
+      onWikiLinkTap: onWikiLinkTap,
+      onSave: onSave,
+      onSaveError: onSaveError,
+      onDirtyChanged: onDirtyChanged,
+      fontFamily: fontFamily,
+      fontSize: fontSize,
+      lineHeight: lineHeight,
+      // 沉浸阅读：文字色 softened（textSecondary 代替 textPrimary），
+      // 降低长文阅读的对比度疲劳，保留足够可读性。
+      textColor: AppTheme.textSecondary,
+    );
+  }
 }
 
 /// 内容对话的气泡（用户右对齐高亮，AI 左侧带头像）
