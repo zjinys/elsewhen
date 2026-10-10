@@ -239,14 +239,29 @@ ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上的两个默认位
 
     # ---------- 2. 重新生成 bridge 代码 ----------
     Write-Host "[2/3] flutter_rust_bridge_codegen generate ..."
+    # codegen 内部会调 flutter pub get / dart build_runner，必须确保它用的是
+    # FVM 的 Flutter 而不是系统 PATH 里的（sky_engine 找不到就是 PATH 指向了
+    # 错误的 SDK）。fvm 存在时优先用 fvm flutter，否则才回落系统 flutter。
+    $flutterCmd = "flutter"
+    if (Get-Command fvm -ErrorAction SilentlyContinue) {
+        $flutterCmd = "fvm"
+        Write-Host "     检测到 FVM，使用 fvm flutter 作为 codegen 的 flutter 命令"
+    }
     $codegen = (Get-Command flutter_rust_bridge_codegen -ErrorAction Stop).Source
+    $codegenArgs = @("generate")
     if ($LlvmPath) {
         # 原样透传：ffigen 的 llvmPathExtractor 接受根目录或 libclang.dll 完整路径两种形式
-        & $codegen generate --llvm-path $LlvmPath
+        $codegenArgs += @("--llvm-path", $LlvmPath)
     }
-    else {
-        & $codegen generate
+    # 关键：设置 FLUTTER_ROOT 让 codegen 内部的 flutter/dart 命令走 FVM 的 SDK
+    if ($flutterCmd -eq "fvm") {
+        $fvmFlutter = (fvm flutter --version --machine 2>$null | ConvertFrom-Json).flutterRoot
+        if ($fvmFlutter) {
+            $env:FLUTTER_ROOT = $fvmFlutter
+            Write-Host "     FLUTTER_ROOT=$fvmFlutter"
+        }
     }
+    & $codegen @codegenArgs
     if ($LASTEXITCODE -ne 0) { throw "flutter_rust_bridge_codegen generate 失败（退出码 $LASTEXITCODE）" }
     Write-Host "     生成完成"
 
