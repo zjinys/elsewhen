@@ -2,6 +2,20 @@
 
 Status: in-progress
 
+**2026-10-10 P2 补验（最终静态检查收尾中）：** 本轮已实际通过 `cargo check --tests`、P2 Rust **16 项**、全量 Rust **640 passed / 16 ignored**（另配置环境 **5 passed**）、实际 Worker **15 项**（含生产 P1→P2 的丢 grant/revoke/回执响应与重开恢复）、桥接重生成及 release；两侧 hash **233902080**。Flutter 控制器 **11 passed**，release 后全量首轮 **343 passed / 2 failed**，两处测试适配后复验 **345 passed**。适配仅把旧正文 finder 改为查找 RichText，为本地模拟 Provider 明确设定 64K 窗口；不回退生产 UI、不删除断言、不放宽生产预算。另修 P2 joiner 控制器括号 lint。P2 Rust 23 文件格式与 Dart 10 文件格式（0 changed）通过；最终静态检查和同步定向仍受间歇执行工具故障影响。全仓 Rust 格式 13 个文件差异、Flutter analyze 首轮 75 项保持失败记录。证据和下一步见 [Handoff §12](../../../roadmap/2026-10-07-multi-device-sync-handoff.md)。P2 暂不勾选，整体继续 in-progress，不进入 P3。
+
+**2026-10-09 P2 接续（未验收）：** 已检查并保留当前工作区，而非从提交重做。补充 enrollment Rust 边界测试、Flutter 自动协调器接线/fake 与隔离 bridge 测试、生产 owner/joiner 全流程的实际 Worker 故障代理用例。正式 grant/revoke 保存原意图 ID、目标及 expected revision；权限/修订冲突区分于可重试的丢响应，不追随新版本。owner 的交接确认走专用路径，不恢复在途加工；确认幂等仍绑定原邀请/token。坏证明不钉住扫描游标；原生提交后停止输出；完成通知等待对端回执而非只看 relay 已接收。失败导出的共享名册不能阻塞新 ready 快照。Flutter 由生产仓库显式启用、按原 operation 单飞推进，关闭等待 native 写入；旧 fake 默认不联网，原数据集不切换。
+
+**验证边界：** 上述是代码与测试定义，不是测试通过。测试、`cargo check --tests`、本会话 `regen.sh` 和统一验证脚本均在命令启动前遇到工具安全检查服务 unavailable/timeout；只有本轮 `git diff --check` 实际执行通过。后来工作区的生成绑定已包含 P2，静态两侧 hash 为 `-558091073`，不能由此推断本会话重生成或最新 release/bridge 通过。继续以 [Handoff §11](../../../roadmap/2026-10-07-multi-device-sync-handoff.md) 的验证脚本/断点推进，P2 与整体方案保持未完成；不进入 P3，也不把 P1 历史数量作为 P2 验收。
+
+**2026-10-08 P2 实施中：** 已开始加密授权意图、可信 bootstrap、限定范围的快照传输及 Rust runtime/API 接入；一次 `cargo check --lib` 通过，不代表测试或桥接交付。Flutter 自动协调器与 P2 测试尚未补齐，`runtime/enrollment.rs` 已声明但尚缺 `runtime/enrollment/tests.rs`，新 session 必须先处理这一断点。P2 批准方案及已写/未写文件见 [Handoff §10](../../../roadmap/2026-10-07-multi-device-sync-handoff.md)；不得用 P1 的通过数宣称 P2 完成，也不丢弃当前并行修改。
+
+**2026-10-08 P1 验证收尾：** 用户提供 `/tmp/elsewhen-joiner-validation.6fu81z`，已核对所有结果：Rust joiner 12／全量 600 passed、11 ignored（另配置环境 5 passed），Flutter 新增定向 11／同步相关定向 36／全量 323 passed，实际 Worker 14 passed（含新 joiner 运行时流程），release、P1 格式和定向 analyze 通过。全仓格式 3 个既有文件差异及 Flutter analyze 78 项仍未通过，不能宣称全仓全绿。P1 工程与自动化验收完成，下一步 P2 自动交接；未激活成员、切换数据集或签收真人原生密钥库，整个方案继续 in-progress。实现与边界详见[Handoff §9](../../../roadmap/2026-10-07-multi-device-sync-handoff.md)。
+
+**2026-10-08 P1 实施（验证前记录）：** joiner 在同一工作区租约/会话注册表中拥有独立用途及暂存目标，使用原目录册、Noise、加密检查点与系统密钥存储。选择专用 joiner 修订确认而不复用 owner `confirm_key`：后者要求活动签名成员并恢复加工队列，不适用于尚未激活的新设备。新加入只安装到空暂存库，原生保存/回读确认后才发请求或安装证明；取消仅释放本机原 operation，不回收已投递请求。未审批重启须新邀请，已审批恢复只读原 master/修订及原证明，不自动替换密钥或切换数据集。Rust 全量 600 passed / 11 ignored（另配置环境 5 passed）、新增 Flutter 定向 10 passed、桥接/release 已通过；实际 Worker 新流程、Flutter 全量和最终格式/analyze 复验未完成，P1 不计验收通过。详见[交接 §9](../../../roadmap/2026-10-07-multi-device-sync-handoff.md)。
+
+**2026-10-07 补验更新：** owner 邀请开发预览的 P0 补验完成；基于 `6743a09`，Rust 588 passed / 11 ignored（另配置环境 5 passed）、release、Flutter 全量 312 passed 与实际 Worker 14 passed，owner 格式和定向 analyze 通过。全仓 Rust 格式 3 个既有文件差异、Flutter 全量 analyze 78 项问题仍未通过，未关闭检查或宣称全仓全绿。下一步是 joiner 独立暂存库原生握手及审批后自动交接；整体方案与真实设备门禁继续 in-progress。日志出处、25 项 Flutter 同步定向和全部例外见[开发交接](../../../roadmap/2026-10-07-multi-device-sync-handoff.md)。
+
 关联路线：[多设备同步实施路线](../../../roadmap/2026-10-03-multi-device-sync-roadmap.md)，归属[个人认知主循环](../../../roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md)。
 
 ## Problem

@@ -44,6 +44,9 @@ dependencies:
   intl: ^0.20.1
   # wiki md⇄JSON codec 行内语法（[[wikilink]] 等，vendored 编辑器同款协议）
   markdown: ^7.3.1
+  # 移动端应用私有目录：directories crate 在 Android 上未实现（ProjectDirs 恒为
+  # None），改由 Dart 侧 path_provider 取应用私有目录显式传给 initBridge。
+  path_provider: ^2.1.6
 
   # Desktop integration
   # 桌面窗口管理：window_manager。曾迁往其继任者 nativeapi（同作者 leanflutter），
@@ -52,6 +55,13 @@ dependencies:
   # 不透明窗口 + 不自裁圆角，圆角交给系统）。
   window_manager: ^0.5.1
   screen_retriever: ^0.2.0
+  # 系统托盘（显示主窗 / 快速捕获 / 退出）。
+  # 锁 0.5.3：0.6+ 迁到 nativeapi，会把那个会把 Android release AOT 打崩、
+  # 且在 Linux 改 GTK 装饰即崩的依赖重新拖回依赖图（本仓库刚从 nativeapi
+  # 迁回 window_manager，见上方注释）。0.5.3 与 window_manager 同代，
+  # platform channel 风格，无 nativeapi。
+  # Linux 需要 libayatana-appindicator3（或 appindicator3）开发包。
+  tray_manager: 0.5.3
 
   # Icons
   cupertino_icons: ^1.0.8
@@ -109,6 +119,7 @@ flutter:
 
   assets:
     - assets/brand/elsewhen-icon-v2.svg
+    - assets/brand/elsewhen-tray.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

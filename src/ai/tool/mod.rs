@@ -131,6 +131,7 @@ impl Default for ToolRegistry {
             Box::new(SearchKnowledgeBaseTool),
             Box::new(FetchTweetTool),
             Box::new(FetchPageTool),
+            Box::new(WebSearchTool),
             Box::new(RecordEventTool),
             Box::new(SaveKnowledgeDraftTool),
             Box::new(ListTodosTool),
@@ -422,10 +423,16 @@ impl Tool for ListWikiPagesTool {
                 "（非 active）"
             };
             out.push_str(&format!(
-                "- {}（{}）{status}：{}\n",
-                p.title, p.kind, p.summary
+                "- {}（{}，slug: {}）{status}：{}\n",
+                p.title, p.kind, p.slug, p.summary
             ));
         }
+        // 预防：模型常拿本列表的 slug 直接当 save_knowledge_draft 的来源，
+        // 被证据校验拒绝后又圆谎说已保存。在此提前声明限制。
+        out.push_str(
+            "（注意：以上 slug 仅供查看页面用；要作为 save_knowledge_draft 的 source_slugs，\n\
+             必须先 search_knowledge_base 或 get_wiki_page 把该页提供给当前对话。）",
+        );
         Ok(out)
     }
 }
@@ -577,6 +584,72 @@ impl Tool for FetchTweetTool {
 }
 
 /// 通用网页抓取（未来的「下载 URL」能力；只读取文本，不入库）
+/// 外网搜索：只在用户显式要求（时效词/搜一下/网上查）时由模型调用。
+/// 未启用/未配置/无结果都返回诚实说明，不编造。
+struct WebSearchTool;
+impl Tool for WebSearchTool {
+    fn name(&self) -> &'static str {
+        "web_search"
+    }
+    fn description(&self) -> &'static str {
+        "搜索外网获取最新/时效信息（新闻、热点）。只在用户明确要求或查时效内容时调用；拿不准先反问是否联网搜。只读，不写入。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type":"object",
+            "properties":{"query":{"type":"string","description":"搜索关键词"}},
+            "required":["query"],
+            "additionalProperties":false
+        })
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let query = arg_str(args, "query")?;
+        let cfg = ctx.store.web_search_config()?;
+        if !cfg.enabled {
+            return Ok("外网搜索未启用。请在「设置 → 外网搜索」开启并配置搜索引擎后再试。".to_string());
+        }
+        // SearxNG 自托管无需 key；Tavily/Brave 需要。需 key 而未填时给出明确引导。
+        if crate::web_search::engine_needs_api_key(&cfg.engine) && cfg.api_key.trim().is_empty() {
+            return Ok(format!(
+                "外网搜索已启用但引擎「{}」尚未填写 API key。请在「设置 → 外网搜索」填入，或改用无需 key 的 SearxNG。",
+                cfg.engine
+            ));
+        }
+        let network = ctx.store.network_settings()?;
+        let max = arg_i64(args, "max_results", cfg.max_results).clamp(1, 10) as u32;
+        let engine = crate::web_search::build_engine(
+            &cfg.engine,
+            &cfg.api_key,
+            &cfg.base_url,
+            &network,
+            std::time::Duration::from_secs(20),
+        )?;
+        let hits = engine.search(&query, max)?;
+        if hits.is_empty() {
+            return Ok(format!("关于「{query}」未检索到结果。"));
+        }
+        // 总量封顶，防止超长上下文。
+        let mut out = format!("关于「{query}」的外网检索结果（{} 条）：\n", hits.len());
+        let mut budget = 3000usize;
+        for (i, h) in hits.iter().enumerate() {
+            let entry = format!(
+                "{}. {}\n   {}\n   {}\n",
+                i + 1,
+                h.title,
+                h.url,
+                h.snippet
+            );
+            if entry.len() > budget {
+                out.push_str("（结果过多，其余略）\n");
+                break;
+            }
+            budget -= entry.len();
+            out.push_str(&entry);
+        }
+        Ok(out)
+    }
+}
+
 struct FetchPageTool;
 impl Tool for FetchPageTool {
     fn name(&self) -> &'static str {

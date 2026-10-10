@@ -10,8 +10,10 @@ pub mod fonts;
 pub mod knowledge;
 mod knowledge_background;
 pub mod local_sources;
+pub mod net_doh;
 pub mod storage;
 pub mod sync;
+pub mod web_search;
 pub mod wiki;
 
 // Bridge API module - exposes Rust core to Flutter

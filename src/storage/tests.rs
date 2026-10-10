@@ -1891,3 +1891,56 @@ fn wiki_pages_schema_exposes_human_edited_at_and_opinion() {
     drop(store);
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn open_background_skips_outdated_database_without_writing() {
+    let path = temporary_database();
+    // 老版本库（v1）：后台打开应返回 None 且不做任何启动写入。
+    {
+        let mut connection = rusqlite::Connection::open(&path).unwrap();
+        crate::storage::new_migrations::initialize_test_version(&mut connection, 1).unwrap();
+    }
+    assert!(Store::open_background(&path).unwrap().is_none());
+    let version: i64 = rusqlite::Connection::open(&path)
+        .unwrap()
+        .query_row("PRAGMA main.user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 1, "后台打开不得把库升级到最新版本");
+    let _ = std::fs::remove_file(&path);
+
+    // 最新版本库：后台打开正常返回连接。
+    let path = temporary_database();
+    drop(Store::open(&path).unwrap());
+    assert!(Store::open_background(&path).unwrap().is_some());
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn busy_retry_retries_busy_and_stops_on_other_errors() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    // BUSY 会先退避重试，最终成功。
+    let attempts = AtomicUsize::new(0);
+    let result = with_busy_retry(|| {
+        if attempts.fetch_add(1, Ordering::SeqCst) == 0 {
+            Err(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
+                None,
+            )
+            .into())
+        } else {
+            Ok(42)
+        }
+    });
+    assert_eq!(result.unwrap(), 42);
+    assert_eq!(attempts.load(Ordering::SeqCst), 2);
+
+    // 非 BUSY 错误不重试，原样上抛。
+    let attempts = AtomicUsize::new(0);
+    let result: Result<i64> = with_busy_retry(|| {
+        attempts.fetch_add(1, Ordering::SeqCst);
+        anyhow::bail!("permanent failure")
+    });
+    assert!(result.is_err());
+    assert_eq!(attempts.load(Ordering::SeqCst), 1);
+}

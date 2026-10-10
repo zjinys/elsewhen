@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,6 +36,18 @@ final appInitializationProvider = FutureProvider<bool>((ref) async {
   // 主对话流在首次运行时还不存在：建会话/改名是**写操作**，只在这里显式做
   // 一次；mainConversationProvider 保持纯读，不会因 invalidate 重跑写路径（P18）。
   await ref.read(conversationRepositoryProvider).ensureMainConversation();
+
+  // 移动端（窄屏 Drawer 导航）启动时直接选中主对话流：桌面端宽屏由
+  // LeftSidebar 顺带选中，但移动端 Drawer 收起时 sidebar 不挂载，
+  // 若不在这里选中，启动后消息区只会停在「选择一个对话开始聊天」空态。
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    final main = await ref
+        .read(conversationRepositoryProvider)
+        .findMainConversation();
+    if (main != null) {
+      ref.read(selectedConversationIdProvider.notifier).set(main.id);
+    }
+  }
 
   debugPrint('App initialized');
 

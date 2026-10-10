@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../sync/sync_setup_controller.dart';
 import 'owner_sync_pairing_settings.dart';
+import 'joiner_sync_pairing_settings.dart';
+import 'sync_enrollment_progress.dart';
 
 class LocalSyncSettings extends StatefulWidget {
   const LocalSyncSettings({super.key, required this.controller});
@@ -162,6 +164,10 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
             ],
             if (ready && state?.isOwner == true && controller.previewEnabled)
               OwnerSyncPairingSettings(controller: controller),
+            if (controller.autoEnrollment)
+              SyncEnrollmentProgress(controller: controller.enrollment),
+            if (controller.previewEnabled)
+              JoinerSyncPairingSettings(controller: controller.joiner),
           ],
         );
       },

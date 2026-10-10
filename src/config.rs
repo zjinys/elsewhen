@@ -1,7 +1,5 @@
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
@@ -164,8 +162,28 @@ fn migrate_db_file(data_dir: &Path) -> Result<PathBuf> {
     Ok(new_path)
 }
 
+/// Unix 权限收紧的统一入口：Android 应用沙箱目录天然只允许本应用访问，
+/// 且对外部存储路径 chmod 会 EPERM 直接让 init_bridge 失败，因此 Android
+/// 一律跳过；桌面/服务器平台才需要显式收紧。
+#[cfg(all(unix, not(target_os = "android")))]
+pub(crate) fn set_unix_permissions(
+    path: &std::path::Path,
+    mode: u32,
+) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn set_unix_permissions(
+    _path: &std::path::Path,
+    _mode: u32,
+) -> std::io::Result<()> {
+    Ok(())
+}
+
 fn secure_directory(path: &std::path::Path) -> Result<()> {
     #[cfg(unix)]
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
+    set_unix_permissions(path, 0o700)?;
     Ok(())
 }

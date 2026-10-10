@@ -79,7 +79,9 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
         const Divider(height: 32),
         Text('邀请设备（开发预览）', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
-        const Text('这里仅提供旧设备的邀请与审批。新设备加入界面、安装确认后的自动同步仍在接入，不能据此认为配对已完成。'),
+        const Text(
+          '这里提供旧设备的邀请与审批。新设备可通过“加入现有数据集”发起加入；安装证明后的名册和初始同步仍在接入，不能据此认为配对已完成。',
+        ),
         if (offer == null) ...[
           const SizedBox(height: 12),
           TextField(

@@ -104,11 +104,6 @@ class ChatRunStatus extends ConsumerWidget {
                 '已提交的操作不会撤销；未完成步骤不会自动重做。',
                 style: TextStyle(fontSize: 11),
               ),
-            if (view.historyResynced)
-              const Text(
-                '进度已重新同步，较早步骤可能未在此列出。',
-                style: TextStyle(fontSize: 11),
-              ),
             if (view.tools.isNotEmpty)
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,
@@ -155,11 +150,7 @@ class ChatRunStatus extends ConsumerWidget {
                   ),
                 ),
               ),
-            ] else if (view.active)
-              const Text(
-                '正文在安全检查后显示；工具进度不代表最终答案。',
-                style: TextStyle(fontSize: 11),
-              ),
+            ]
           ],
         ),
       ),

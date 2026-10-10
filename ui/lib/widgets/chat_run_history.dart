@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/api.dart';
 import '../providers/chat_run_provider.dart';
+import 'markdown_view.dart';
 import '../providers/conversation_provider.dart';
 
 /// A bounded, explicitly opened history keeps older interrupted inputs reachable
@@ -223,7 +224,9 @@ class _RunHistoryDialogState extends State<_RunHistoryDialog> {
                 const Divider(),
                 Text(selected.errorText ?? _label(selected.status)),
                 if (selected.content.isNotEmpty)
-                  SelectableText(selected.content),
+                  SelectionArea(
+                    child: MarkdownView(markdown: selected.content),
+                  ),
                 if (const {
                   'failed',
                   'cancelled',

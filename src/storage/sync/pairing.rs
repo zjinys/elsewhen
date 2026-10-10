@@ -145,6 +145,11 @@ impl Store {
         let invitation_id = record.invitation_id.clone();
         vault.add_pairing(record, now_ms)?;
         vault.install_pair(&pair)?;
+        vault.seed_enrollment(
+            &pair,
+            crate::sync::enrollment::EnrollmentRole::Joiner,
+            now_ms,
+        )?;
         self.initialize_sync_replica(&ReplicaIdentity {
             dataset_id: pair.dataset_id.clone(),
             device_id: vault.device().device_id.clone(),
@@ -239,6 +244,11 @@ impl Store {
                 .revision;
             vault.install_pair(&pair)?;
             self.grant_sync_pair(revision, &pair, vault.identity())?;
+            vault.seed_enrollment(
+                &pair,
+                crate::sync::enrollment::EnrollmentRole::Owner,
+                now_ms,
+            )?;
             vault.pairing_mut(invitation)?.mark_authorized(proof);
             self.save_sync_vault(&mut vault, master)?;
         }
@@ -300,7 +310,7 @@ impl Store {
     ) -> Result<PairingCommit> {
         let tx = self.begin_write_transaction()?;
         let mut vault = self.pairing_vault(installation, master, protected_revision)?;
-        let changed = vault.pairing_mut(invitation)?.mark_joined()?;
+        let mut changed = vault.pairing_mut(invitation)?.mark_joined()?;
         self.apply_signed_roster(roster)?;
         self.require_pairing_peer_active(&vault, invitation)?;
         // Uses the same connection/transaction and the explicitly supplied master.
@@ -309,6 +319,26 @@ impl Store {
             "provider_keys_locked"
         );
         self.enable_provider_key_sealing()?;
+        if vault
+            .enrollments()
+            .iter()
+            .any(|e| e.invitation_id == invitation)
+        {
+            let signed: SignedRoster = serde_json::from_slice(roster)?;
+            let message_id = crate::sync::engine::membership_message_id(&signed)?;
+            let enrollment = vault.enrollment_mut(invitation)?;
+            ensure!(
+                enrollment
+                    .roster_message_id
+                    .as_deref()
+                    .is_none_or(|id| id == message_id),
+                "sync_enrollment_roster_changed"
+            );
+            if enrollment.roster_message_id.is_none() {
+                enrollment.roster_message_id = Some(message_id);
+                changed = true;
+            }
+        }
         if changed {
             self.save_sync_vault(&mut vault, master)?;
         }

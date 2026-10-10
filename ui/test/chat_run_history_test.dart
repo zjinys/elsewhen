@@ -94,7 +94,7 @@ void main() {
       await settleFrames(tester);
       await tester.tap(find.text('输入 old-input'));
       await settleFrames(tester);
-      expect(find.text('保留的部分回答'), findsOneWidget);
+      expect(find.text('保留的部分回答', findRichText: true), findsOneWidget);
       expect(repo.starts, isEmpty);
       await tester.ensureVisible(find.text('重试所选原输入'));
       await tester.tap(find.text('重试所选原输入'));

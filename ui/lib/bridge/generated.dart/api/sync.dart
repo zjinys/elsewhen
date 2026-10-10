@@ -7,7 +7,8 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `enrollment_dto`, `join_dto`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<SyncInvitationOfferDto> createOwnerSyncInvitation({
   required String relayUrl,
@@ -86,6 +87,99 @@ Future<bool> releaseSyncKeyRequest({required String token}) =>
 Future<LocalSyncStateDto> lockLocalSync() =>
     RustLib.instance.api.crateApiSyncLockLocalSync();
 
+/// Parses and binds an invitation preview without contacting its relay.
+Future<SyncJoinStateDto> previewSyncJoin({required String invitationCode}) =>
+    RustLib.instance.api.crateApiSyncPreviewSyncJoin(
+      invitationCode: invitationCode,
+    );
+
+Future<SyncJoinStateDto> prepareSyncJoinKey({
+  required String previewToken,
+  required String name,
+  required String platform,
+  required bool acknowledgeProviderKeySharing,
+}) => RustLib.instance.api.crateApiSyncPrepareSyncJoinKey(
+  previewToken: previewToken,
+  name: name,
+  platform: platform,
+  acknowledgeProviderKeySharing: acknowledgeProviderKeySharing,
+);
+
+Future<List<SyncJoinEntryDto>> listPendingSyncJoins() =>
+    RustLib.instance.api.crateApiSyncListPendingSyncJoins();
+
+Future<SyncJoinStateDto> prepareSyncJoinResume({required String entryId}) =>
+    RustLib.instance.api.crateApiSyncPrepareSyncJoinResume(entryId: entryId);
+
+Future<SyncJoinStateDto> installSyncJoinKey({
+  required String token,
+  required List<int> key,
+  required PlatformInt64 protectedRevision,
+}) => RustLib.instance.api.crateApiSyncInstallSyncJoinKey(
+  token: token,
+  key: key,
+  protectedRevision: protectedRevision,
+);
+
+Future<SyncJoinStateDto> confirmSyncJoinKey({
+  required String token,
+  required PlatformInt64 protectedRevision,
+}) => RustLib.instance.api.crateApiSyncConfirmSyncJoinKey(
+  token: token,
+  protectedRevision: protectedRevision,
+);
+
+Future<SyncJoinStateDto> getSyncJoinState({required String operationId}) =>
+    RustLib.instance.api.crateApiSyncGetSyncJoinState(operationId: operationId);
+
+Future<SyncJoinStateDto> sendSyncJoinRequest({required String operationId}) =>
+    RustLib.instance.api.crateApiSyncSendSyncJoinRequest(
+      operationId: operationId,
+    );
+
+Future<SyncJoinStateDto> inspectSyncJoinApproval({
+  required String operationId,
+}) => RustLib.instance.api.crateApiSyncInspectSyncJoinApproval(
+  operationId: operationId,
+);
+
+Future<SyncJoinStateDto> sendSyncJoinProof({required String operationId}) =>
+    RustLib.instance.api.crateApiSyncSendSyncJoinProof(
+      operationId: operationId,
+    );
+
+/// Stops this local operation only; it neither recalls a delivered proof nor
+/// deletes the staged database/native key, and it cannot release a newer session.
+Future<bool> releaseSyncJoin({required String operationId}) =>
+    RustLib.instance.api.crateApiSyncReleaseSyncJoin(operationId: operationId);
+
+Future<List<SyncEnrollmentStateDto>> listSyncEnrollments() =>
+    RustLib.instance.api.crateApiSyncListSyncEnrollments();
+
+Future<SyncEnrollmentStateDto> advanceSyncEnrollment({
+  required String role,
+  required String operationId,
+  required String invitationId,
+}) => RustLib.instance.api.crateApiSyncAdvanceSyncEnrollment(
+  role: role,
+  operationId: operationId,
+  invitationId: invitationId,
+);
+
+Future<SyncEnrollmentStateDto> confirmSyncEnrollment({
+  required String role,
+  required String operationId,
+  required String invitationId,
+  required String token,
+  required PlatformInt64 protectedRevision,
+}) => RustLib.instance.api.crateApiSyncConfirmSyncEnrollment(
+  role: role,
+  operationId: operationId,
+  invitationId: invitationId,
+  token: token,
+  protectedRevision: protectedRevision,
+);
+
 class LocalSyncStateDto {
   final String state;
   final String? installationId;
@@ -139,6 +233,74 @@ class LocalSyncStateDto {
           isProcessor == other.isProcessor &&
           activePeers == other.activePeers &&
           pendingOperations == other.pendingOperations;
+}
+
+/// Enrollment progress never selects the staged database or claims ongoing sync.
+class SyncEnrollmentStateDto {
+  final String role;
+  final String operationId;
+  final String invitationId;
+  final String installationId;
+  final PlatformInt64 revision;
+  final String? confirmationToken;
+  final String phase;
+  final String? snapshotId;
+  final PlatformInt64 receivedChunks;
+  final PlatformInt64 totalChunks;
+  final bool localApplied;
+  final bool remoteApplied;
+  final bool notificationPending;
+
+  const SyncEnrollmentStateDto({
+    required this.role,
+    required this.operationId,
+    required this.invitationId,
+    required this.installationId,
+    required this.revision,
+    this.confirmationToken,
+    required this.phase,
+    this.snapshotId,
+    required this.receivedChunks,
+    required this.totalChunks,
+    required this.localApplied,
+    required this.remoteApplied,
+    required this.notificationPending,
+  });
+
+  @override
+  int get hashCode =>
+      role.hashCode ^
+      operationId.hashCode ^
+      invitationId.hashCode ^
+      installationId.hashCode ^
+      revision.hashCode ^
+      confirmationToken.hashCode ^
+      phase.hashCode ^
+      snapshotId.hashCode ^
+      receivedChunks.hashCode ^
+      totalChunks.hashCode ^
+      localApplied.hashCode ^
+      remoteApplied.hashCode ^
+      notificationPending.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncEnrollmentStateDto &&
+          runtimeType == other.runtimeType &&
+          role == other.role &&
+          operationId == other.operationId &&
+          invitationId == other.invitationId &&
+          installationId == other.installationId &&
+          revision == other.revision &&
+          confirmationToken == other.confirmationToken &&
+          phase == other.phase &&
+          snapshotId == other.snapshotId &&
+          receivedChunks == other.receivedChunks &&
+          totalChunks == other.totalChunks &&
+          localApplied == other.localApplied &&
+          remoteApplied == other.remoteApplied &&
+          notificationPending == other.notificationPending;
 }
 
 /// Secret-bearing result for the explicit invitation copy UI, not a settings DTO.
@@ -204,6 +366,110 @@ class SyncInvitationPreviewDto {
           devicePlatform == other.devicePlatform &&
           fingerprint == other.fingerprint &&
           expiresAtMs == other.expiresAtMs;
+}
+
+class SyncJoinEntryDto {
+  final String entryId;
+  final String installationId;
+  final String datasetId;
+  final String name;
+
+  const SyncJoinEntryDto({
+    required this.entryId,
+    required this.installationId,
+    required this.datasetId,
+    required this.name,
+  });
+
+  @override
+  int get hashCode =>
+      entryId.hashCode ^
+      installationId.hashCode ^
+      datasetId.hashCode ^
+      name.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncJoinEntryDto &&
+          runtimeType == other.runtimeType &&
+          entryId == other.entryId &&
+          installationId == other.installationId &&
+          datasetId == other.datasetId &&
+          name == other.name;
+}
+
+/// Read-only join progress. The operation and confirmation tokens have distinct
+/// scopes; no arbitrary staging path, Noise frame or transport key crosses FRB.
+class SyncJoinStateDto {
+  final String operationId;
+  final String token;
+  final String? entryId;
+  final String? installationId;
+  final String datasetId;
+  final String ownerName;
+  final String ownerFingerprint;
+  final String? localFingerprint;
+  final String relayUrl;
+  final PlatformInt64 expiresAtMs;
+  final String phase;
+  final PlatformInt64 revision;
+  final bool creating;
+  final bool approvalAckPending;
+
+  const SyncJoinStateDto({
+    required this.operationId,
+    required this.token,
+    this.entryId,
+    this.installationId,
+    required this.datasetId,
+    required this.ownerName,
+    required this.ownerFingerprint,
+    this.localFingerprint,
+    required this.relayUrl,
+    required this.expiresAtMs,
+    required this.phase,
+    required this.revision,
+    required this.creating,
+    required this.approvalAckPending,
+  });
+
+  @override
+  int get hashCode =>
+      operationId.hashCode ^
+      token.hashCode ^
+      entryId.hashCode ^
+      installationId.hashCode ^
+      datasetId.hashCode ^
+      ownerName.hashCode ^
+      ownerFingerprint.hashCode ^
+      localFingerprint.hashCode ^
+      relayUrl.hashCode ^
+      expiresAtMs.hashCode ^
+      phase.hashCode ^
+      revision.hashCode ^
+      creating.hashCode ^
+      approvalAckPending.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncJoinStateDto &&
+          runtimeType == other.runtimeType &&
+          operationId == other.operationId &&
+          token == other.token &&
+          entryId == other.entryId &&
+          installationId == other.installationId &&
+          datasetId == other.datasetId &&
+          ownerName == other.ownerName &&
+          ownerFingerprint == other.ownerFingerprint &&
+          localFingerprint == other.localFingerprint &&
+          relayUrl == other.relayUrl &&
+          expiresAtMs == other.expiresAtMs &&
+          phase == other.phase &&
+          revision == other.revision &&
+          creating == other.creating &&
+          approvalAckPending == other.approvalAckPending;
 }
 
 class SyncKeyCommitDto {

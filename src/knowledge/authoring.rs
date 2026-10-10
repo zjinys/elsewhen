@@ -68,7 +68,7 @@ pub(crate) fn draft_sources(
             available
                 .iter()
                 .find(|c| c.page_slug == slug)
-                .with_context(|| format!("来源 {slug} 未提供给当前对话，请先检索或打开后再保存"))?
+                .with_context(|| format!("来源 {slug} 未提供给当前对话，请用 search_knowledge_base 或 get_wiki_page 获取后再保存（list_wiki_pages 的列表不能作为来源）"))?
                 .clone(),
         );
     }

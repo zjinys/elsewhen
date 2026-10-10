@@ -9,6 +9,7 @@ import '../providers/chat_run_provider.dart';
 import '../bridge/api.dart' as api;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
@@ -67,11 +68,23 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   String? _pendingInputSignature;
   String? _pendingInputKey;
   final _inputController = TextEditingController();
+  final _inputFocus = FocusNode();
   final _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    // 回车行为与主对话一致：Enter 直接发送，Shift+Enter 换行。
+    // 多行输入下 onSubmitted 不触发，需在焦点节点拦 Enter。
+    _inputFocus.onKeyEvent = (node, event) {
+      final isEnter = event.logicalKey == LogicalKeyboardKey.enter;
+      final isShift = HardwareKeyboard.instance.isShiftPressed;
+      if (event is KeyDownEvent && isEnter && !isShift) {
+        _send(_inputController.text);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
     _ensureConversation();
   }
 
@@ -96,6 +109,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   @override
   void dispose() {
     _inputController.dispose();
+    _inputFocus.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -891,12 +905,14 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                     Expanded(
                       child: TextField(
                         controller: _inputController,
+                        focusNode: _inputFocus,
                         enabled: _ready && !_inputBusy,
-                        maxLines: 1,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _send(_inputController.text),
+                        // 与主对话输入框一致：默认 1 行、最多 4 行；
+                        // Enter 发送、Shift+Enter 换行（onKeyEvent 拦截）。
+                        maxLines: 4,
+                        minLines: 1,
                         decoration: InputDecoration(
-                          hintText: '就这一页问问 AI…（回车发送）',
+                          hintText: '就这一页问问 AI…',
                           hintStyle: TextStyle(
                             fontSize: 12,
                             color: AppTheme.textTertiary,
@@ -1058,14 +1074,7 @@ class WikiChatBubble extends StatelessWidget {
                           ),
                         ),
                       )
-                    : MarkdownView(
-                        markdown: message.content,
-                        baseStyle: TextStyle(
-                          fontSize: 13,
-                          height: 1.55,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
+                    : _AiMessageBody(content: message.content),
               ),
             ),
           ),
@@ -1092,6 +1101,61 @@ class WikiChatBubble extends StatelessWidget {
           color: AppTheme.accentPrimary,
         ),
       ),
+    );
+  }
+}
+
+/// AI 消息正文：Markdown 渲染 + 右上角复制按钮。
+/// 复制整条原始 markdown（与主对话「复制这条消息」一致），点击后给轻量反馈。
+class _AiMessageBody extends StatelessWidget {
+  final String content;
+
+  const _AiMessageBody({required this.content});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: MarkdownView(
+            markdown: content,
+            baseStyle: TextStyle(
+              fontSize: 13,
+              height: 1.55,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        ),
+        // 复制入口放正文右下角，轻量不占行高。
+        IconButton(
+          tooltip: '复制这条消息',
+          icon: Icon(
+            Icons.copy_rounded,
+            size: 13,
+            color: AppTheme.textTertiary,
+          ),
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 22, minHeight: 18),
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: content));
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('已复制消息'),
+                duration: const Duration(seconds: 1),
+                behavior: SnackBarBehavior.floating,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(999)),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

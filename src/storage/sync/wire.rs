@@ -146,6 +146,58 @@ impl Store {
         Ok(result)
     }
 
+    /// Enrollment explicitly selects only its control messages and, after the
+    /// selection receipt, its snapshot. Pending business deltas cannot slip in.
+    pub(crate) fn due_enrollment_wires(
+        &self,
+        peer: &str,
+        now_ms: i64,
+        messages: &[String],
+        snapshot: Option<&str>,
+    ) -> Result<Vec<PendingWireEnvelope>> {
+        ensure!(
+            messages.len() <= 8
+                && messages.iter().all(|id| id.len() <= 240
+                    && (id.starts_with("membership:")
+                        || id.starts_with("enrollment-")
+                        || id.starts_with("envelope-receipt-"))),
+            "sync_enrollment_wire_scope_invalid"
+        );
+        self.require_local_sync_membership()?;
+        let encoded = serde_json::to_string(messages)?;
+        let mut query = self.connection.prepare("SELECT message_id,encrypted_envelope FROM sync_wire_outbox w
+            WHERE recipient_device_id=?1 AND state='pending' AND available_at_ms<=?2
+            AND EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1)
+            AND (message_id IN (SELECT value FROM json_each(?3)) OR (?4 IS NOT NULL AND
+                (message_id LIKE 'snapshot:%' OR message_id LIKE 'snapshot-end:%') AND EXISTS(
+                SELECT 1 FROM sync_snapshot_export_wires x WHERE x.snapshot_id=?4 AND x.recipient_device_id=?1 AND x.message_id=w.message_id)))
+            AND (NOT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id)
+                OR EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_snapshot_exports s ON s.id=x.snapshot_id
+                    WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id AND s.state='ready' AND s.key_version=w.key_version))
+            ORDER BY available_at_ms,rowid LIMIT 3")?;
+        let rows = query.query_map(params![peer, now_ms, encoded, snapshot], |r| {
+            Ok(PendingWireEnvelope {
+                message_id: r.get(0)?,
+                encrypted_envelope: r.get(1)?,
+            })
+        })?;
+        let mut result = Vec::new();
+        let mut bytes = 0;
+        for row in rows {
+            let row = row?;
+            ensure!(
+                row.encrypted_envelope.len() <= crypto::MAX_ENVELOPE_BYTES,
+                "sync_stored_wire_too_large"
+            );
+            bytes += row.encrypted_envelope.len();
+            if bytes > 8 * 1024 * 1024 {
+                break;
+            }
+            result.push(row);
+        }
+        Ok(result)
+    }
+
     pub(crate) fn record_sync_wire_attempt(
         &self,
         peer: &str,

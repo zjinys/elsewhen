@@ -190,6 +190,27 @@ void main() {
 
       expect(find.text('素材推文'), findsWidgets);
       expect(find.text('编辑正文'), findsNothing, reason: '素材采集页内容不可改，不提供人工编辑入口');
+      // 沉浸阅读与可编辑性无关（覆盖层只读），素材页同样要有入口。
+      await tester.tap(find.byTooltip('沉浸阅读（Esc 退出）'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byTooltip('退出沉浸阅读（Esc）'),
+        findsOneWidget,
+        reason: '素材页应能进入沉浸阅读',
+      );
+      // 正常态正文编辑器仍挂着 + 沉浸覆盖层里的只读编辑器，都必须只读。
+      final editors = tester.widgetList<WikiContentEditor>(
+        find.byType(WikiContentEditor),
+      );
+      expect(editors, isNotEmpty);
+      expect(
+        editors.every((e) => !e.editable),
+        isTrue,
+        reason: '沉浸覆盖层是只读的',
+      );
+      await tester.tap(find.byTooltip('退出沉浸阅读（Esc）'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('退出沉浸阅读（Esc）'), findsNothing);
     });
 
     testWidgets('浮层回复渲染 Markdown，双击展开阅读', (tester) async {
@@ -466,11 +487,15 @@ void main() {
       // 无溢出/布局异常（RenderFlex overflow 等会在此抛出）
       expect(tester.takeException(), isNull, reason: '窄视口不应有布局溢出');
 
-      // 正文经编辑器渲染、编辑入口可见；窄屏（<1040）聊天不内联，
-      // 入口是右下角 FAB（点开弹 bottom sheet）
+      // 正文经编辑器渲染；窄屏（<1040）聊天不内联，入口是右下角 FAB。
+      // 三个操作按钮在窄视口统一收成纯图标（tooltip 保留，无文字标签）。
       expect(find.byType(WikiContentEditor), findsOneWidget);
       expect(find.text('正文段落提到张三', findRichText: true), findsOneWidget);
-      expect(find.text('编辑正文'), findsOneWidget);
+      expect(find.byTooltip('编辑正文'), findsOneWidget);
+      expect(find.byTooltip('沉浸阅读（Esc 退出）'), findsOneWidget);
+      expect(find.byTooltip('正文阅读设置（字体 / 字号 / 行距）'), findsOneWidget);
+      expect(find.text('编辑正文'), findsNothing, reason: '窄视口应收成纯图标');
+      expect(find.text('阅读设置'), findsNothing, reason: '窄视口应收成纯图标');
       expect(find.byType(WikiAiChatPanel), findsNothing);
       expect(find.byIcon(Icons.auto_awesome_outlined), findsWidgets);
       await tester.tap(find.byTooltip('和 AI 讨论此页'));
@@ -491,7 +516,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 编辑态在窄屏同样可用：进入 → 插入 → 保存
-      await tester.tap(find.text('编辑正文'));
+      await tester.tap(find.byTooltip('编辑正文'));
       await tester.pumpAndSettle();
       await insertText(tester, '窄屏也编辑');
       await tester.tap(find.text('完成'));

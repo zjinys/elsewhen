@@ -6,6 +6,8 @@ import 'package:elsewhen_ui/data/storage_repository.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/providers/settings_provider.dart';
 import 'package:elsewhen_ui/screens/settings_screen.dart';
+import 'package:elsewhen_ui/utils/window_service.dart';
+import 'package:elsewhen_ui/utils/window_service_stub.dart';
 
 import 'support/isolated_bridge.dart';
 
@@ -179,6 +181,65 @@ void main() {
     );
     expect(find.textContaining('还没有规则'), findsNothing);
   });
+
+  testWidgets('桌面窗口：「关闭窗口时」用 SegmentedButton 选择并回写 WindowService', (
+    tester,
+  ) async {
+    final fake = _FakeDesktopWindowService();
+    WindowService.register(fake);
+    addTearDown(() => WindowService.register(StubWindowService()));
+
+    final container = ProviderContainer(
+      overrides: [storageRepositoryProvider.overrideWithValue(repo)],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('外观'));
+    await tester.pumpAndSettle();
+
+    // 托盘可用 → 渲染二选一的 SegmentedButton（不是下拉）
+    expect(find.text('关闭窗口时'), findsOneWidget);
+    expect(
+      find.byType(SegmentedButton<CloseAction>),
+      findsOneWidget,
+      reason: '关闭行为应使用 SegmentedButton 而非 DropdownButtonFormField',
+    );
+    expect(find.byType(DropdownButtonFormField<CloseAction>), findsNothing);
+    expect(find.text('最小化到托盘'), findsOneWidget);
+    expect(find.text('退出应用'), findsOneWidget);
+
+    // 默认选中「最小化到托盘」；点「退出应用」应回写并更新状态
+    expect(fake.closeAction, CloseAction.minimizeToTray);
+    // 该区块在「外观」tab 底部，先滚动进视口再点击
+    await tester.ensureVisible(find.byType(SegmentedButton<CloseAction>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('退出应用'));
+    await tester.pumpAndSettle();
+    expect(fake.closeAction, CloseAction.quit, reason: '选择应回写到 WindowService');
+  });
+}
+
+/// 托盘可用的假桌面窗口服务：只覆盖设置页会用到的三个成员。
+class _FakeDesktopWindowService extends StubWindowService {
+  CloseAction _action = CloseAction.minimizeToTray;
+
+  @override
+  CloseAction get closeAction => _action;
+
+  @override
+  bool get trayAvailable => true;
+
+  @override
+  Future<void> setCloseAction(CloseAction action) async {
+    _action = action;
+  }
 }
 
 /// 全部方法都抛的假仓库。

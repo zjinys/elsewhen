@@ -77,6 +77,15 @@ set_target_properties(${BINARY_NAME}
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# tray_manager 0.5.3 的 Linux 后端（appindicator）调用了已弃用的
+# app_indicator_new。本仓库 APPLY_STANDARD_SETTINGS 给所有目标（含插件）
+# 加了 -Werror，会把这个 deprecation 变成编译错误。只对 tray_manager 目标
+# 放宽这一条，不牺牲我们自己代码的 -Werror。
+if(TARGET tray_manager_plugin)
+  target_compile_options(tray_manager_plugin PRIVATE
+    -Wno-error=deprecated-declarations)
+endif()
+
 
 # === Installation ===
 # By default, "installing" just makes a relocatable bundle in the build

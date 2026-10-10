@@ -29,6 +29,7 @@ export 'generated.dart/api/sync.dart';
 export 'generated.dart/api/theme.dart';
 export 'generated.dart/api/todos.dart';
 export 'generated.dart/api/tweet.dart';
+export 'generated.dart/api/web_search.dart';
 export 'generated.dart/api/wiki_chat.dart';
 export 'generated.dart/api/wiki.dart';
 

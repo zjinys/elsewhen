@@ -217,6 +217,10 @@ impl Store {
 
     /// Queue consumption and run creation commit together. A crash after this
     /// point leaves a recoverable run, never a still-pending item to execute twice.
+    ///
+    /// 只有 paused=1（用户停止生成/补充目标关闭/显式暂停）才需要人工继续；
+    /// 租约过期只说明上一任 dispatcher 已消失（如重启），由当前进程直接接管，
+    /// 不要求用户为一个自己从未要求停止的状态点按钮。
     pub(crate) fn claim_next_chat_input(
         &self,
         conversation: &str,
@@ -225,13 +229,15 @@ impl Store {
     ) -> Result<Option<ChatRun>> {
         self.recover_expired_chat_runs()?;
         let tx = self.begin_write_transaction()?;
-        if self.chat_queue_paused(conversation, dispatcher)? {
+        let explicitly_paused: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM chat_queue_dispatch WHERE conversation_id=?1 AND paused=1)",
+            [conversation], |r| r.get(0))?;
+        if explicitly_paused {
             return Ok(None);
         }
-        self.connection.execute(
-            "UPDATE chat_queue_dispatch SET lease_until=?2 WHERE conversation_id=?1",
-            params![conversation, queue_deadline()],
-        )?;
+        // 租约过期或换进程：幂等接管/续期。多进程同时接管由 ON CONFLICT 序列化，
+        // 且下方的事务原子性保证同一输入不会被创建两个 run。
+        self.resume_chat_queue(conversation, dispatcher)?;
         let active: bool = self.connection.query_row(
             "SELECT EXISTS(SELECT 1 FROM chat_runs WHERE conversation_id=?1 AND status IN ('preparing','running','cancelling'))", [conversation], |r| r.get(0),
         )?;

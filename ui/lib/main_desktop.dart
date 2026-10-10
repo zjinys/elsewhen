@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,8 @@ import 'main.dart' show ElsewhenApp;
 import 'models/app_config.dart';
 import 'screens/capture_screen.dart';
 import 'utils/error_report.dart';
+import 'utils/single_instance.dart';
+import 'utils/window_geometry_store.dart';
 import 'utils/window_service.dart';
 import 'utils/window_service_desktop.dart';
 
@@ -25,11 +28,32 @@ void main(List<String> args) async {
   WindowService.register(DesktopWindowService());
 
   final config = AppConfig.fromArgs(args);
+  final isDesktop =
+      Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+
+  // 单实例守卫：已有实例在跑时，把命令转发给它（capture → 进入捕获模式，
+  // 否则 → 唤回主窗）后本进程退出。必须早于窗口 chrome / Rust bridge 初始化，
+  // 否则第二个进程会先抢数据库。
+  if (isDesktop) {
+    final primary = await SingleInstance.ensurePrimary(
+      identity: WindowGeometryStore.resolveDataDir() ?? 'elsewhen',
+      command: config.mode == AppMode.capture ? 'capture' : 'show',
+      onCommand: (command) {
+        final windowService = WindowService();
+        if (command == 'capture') {
+          unawaited(windowService.switchToCaptureMode());
+        } else {
+          unawaited(windowService.switchToMainMode());
+        }
+      },
+    );
+    if (!primary) exit(0);
+  }
 
   // window_manager 标准启动编排：ensureInitialized → setTitleBarStyle(hidden)
   // → WindowOptions → waitUntilReadyToShow → show（FlClash 同款纪律）。
   // 窗口不透明直角，圆角交给系统；不设透明背景（Windows DWM 白边坑）。
-  if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+  if (isDesktop) {
     final windowService = WindowService();
     if (config.mode == AppMode.capture) {
       await windowService.applyCaptureChrome();

@@ -35,6 +35,23 @@ impl Store {
         Ok(vault)
     }
 
+    /// Join preparation must never adopt a database containing independent data.
+    pub(crate) fn create_sync_join_vault(
+        &self,
+        installation_id: &str,
+        master: &[u8; 32],
+        name: &str,
+        platform: &str,
+    ) -> Result<LocalVault> {
+        let tx = self.begin_write_transaction()?;
+        self.ensure_empty_snapshot_target()?;
+        let vault = self.create_sync_vault(installation_id, master, name, platform)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(vault)
+    }
+
     /// The coordinator can supply its separately protected revision floor. It
     /// must not infer that floor from a potentially restored database itself.
     pub(crate) fn load_sync_vault(

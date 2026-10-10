@@ -777,21 +777,15 @@ fn run_agent_loop_inner(
     let mut prompt_tokens: u64 = 0;
     let mut completion_tokens: u64 = 0;
     let mut model: Option<String> = None;
-    let mut results = Vec::new();
+    let mut results: Vec<crate::ai::tool::ToolResultMsg> = Vec::new();
     let mut must_finalize = false;
     // 协议修复预算：疑似调用但未知格式时的回炉次数（与轮数上限独立，双保险防死循环）
     let mut repairs_used = 0usize;
-    // 写声明核验状态：本轮调用前的用户写意图（上下文 + 库内最后一条用户消息 + 待确认存量）
-    let writes_requested = context
-        .iter()
-        .rev()
-        .find(|m| m.role == "user")
-        .is_some_and(|m| user_text_wants_write(&m.content))
-        || user_requested_write(store, conversation_id)?
-        || followup
-            .as_ref()
-            .is_some_and(|f| user_text_wants_write(&f.request));
+    // 2026-10-08：写声明核验不再要求「用户先说写意图」前置，
+    // writes_requested 变量与 user_requested_write 函数随之删除。
     let mut claim_repaired = false;
+    // 收敛前接地重发的一次性闸门（防 finalizing 空转，见收敛段注释）。
+    let mut grounding_retried = false;
     // 第二次空头预告直接进入最终答复阶段；不能因修复预算用完而放行预告。
     let mut promise_repaired = false;
     // 空回复重发：上游返回空 content 时消耗一轮预算重试，而不是把空串当答案收敛。
@@ -808,6 +802,12 @@ fn run_agent_loop_inner(
         let finalizing = must_finalize || _round == MAX_TOOL_ROUNDS - 1;
         if finalizing {
             context.push(ContextMessage::new("system", FINAL_ANSWER_NUDGE));
+            // 接地注入（治本）：把本轮行为事实（工具成败 + 库内新增）摆进上下文，
+            // 模型看着清单复述，无需靠词表猜它是否撒谎。
+            context.push(ContextMessage::new(
+                "system",
+                turn_grounding(store, registry, conversation_id, &results, verification_start)?,
+            ));
         }
         if protocol == Some(ToolProtocol::Text) {
             text_protocol_history(context);
@@ -1059,10 +1059,10 @@ fn run_agent_loop_inner(
             continue;
         }
 
-        // 写声明核验（接地关）：回复声称写完成 → 按标题查库，用 ID/时间戳验真。
-        // 草拟≠保存、旧页面≠本轮写入、failover 重试——全部以库内事实为准，不存谎言。
-        // 误报最多浪费一轮（修一次即止）。
-        if (writes_requested || !results.is_empty()) && write_claim_detected(&clean) {
+        // 写声明核验（辅助层）：回复命中声明词 → 查库验真。治本靠 finalizing 的
+        // 接地注入（turn_grounding）；这层只兜「一轮收敛且措辞命中词表」的裸谎。
+        // 教学/引用语境（无标题 + 零工具调用 + 无待办）不走回炉，减少误报。
+        if write_claim_detected(&clean) {
             let titles = extract_claimed_titles(&clean);
             match verify_claimed_writes(store, conversation_id, &titles, verification_start)? {
                 ClaimVerdict::Clean => {}
@@ -1111,6 +1111,35 @@ fn run_agent_loop_inner(
                 "[agent] empty reply; retry={empty_retries_used} finalize_next={must_finalize}"
             );
             context.push(ContextMessage::new("system", EMPTY_REPLY_NUDGE));
+            continue;
+        }
+
+        // 收敛前最后一道接地（治本版）：判定依据从「AI 说了什么」换成
+        // 「用户要什么 + AI 做了什么」——用户明确要求写 + 本轮零工具调用 = 强制重发，
+        // 不看 AI 回复措辞。2026-10-08 kimi 模式：用户说「保存为topic」，AI 贴出正文
+        // 说「现在重新提交」但 tool_calls=0——它把「展示内容」当成了「执行保存」，
+        // 任何词表都拦不住这种认知错误，只能从行为（零工具）+ 意图（用户要写）判定。
+        // finalizing 轮不重发：轮首已注入过接地清单，再 continue 会因条件反复命中空转
+        // 到轮数耗尽。grounding_retried 一次性闸门：重发后仍不动手就放行，事实留在上下文。
+        let user_wants_write = context
+            .iter()
+            .rev()
+            .find(|m| m.role == "user")
+            .is_some_and(|m| user_text_wants_write(&m.content));
+        if !finalizing && !grounding_retried && results.is_empty() && user_wants_write {
+            grounding_retried = true;
+            debug_eprintln!("[agent] 用户要求写但本轮零工具调用，强制接地重发");
+            context.push(assistant_continuation(reply));
+            context.push(ContextMessage::new(
+                "system",
+                format!(
+                    "{}\n用户明确要求你执行写操作（保存/提交/整理），但你本轮没有调用任何工具。\
+                     把内容贴给用户看不等于执行——必须调用对应工具（如 save_knowledge_draft），\
+                     或明确告诉用户你无法执行及原因。",
+                    turn_grounding(store, registry, conversation_id, &results, verification_start)?
+                ),
+            ));
+            must_finalize = true;
             continue;
         }
 
@@ -1521,12 +1550,29 @@ fn write_claim_detected(content: &str) -> bool {
         "已生效",
         "已经在知识库",
         "已经在里面",
+        // 2026-10-08 kimi 漏拦补充：模型用变体措辞绕过原词表。
+        "已写入",
+        "已存入",
+        "存进了",
+        "存到",
+        "收录了",
+        "已收录",
+        "已入库",
+        "放进知识库",
+        "放进了知识库",
+        "存进了知识库",
+        "整理成了知识页",
+        "整理成知识页",
+        "已整理成",
+        "已经整理成",
     ];
     // 守卫故意收窄到多字形态：单字（未/查/没）会误伤“未动/查看/没问题，存好了”等正常表述。
     // 漏拦的代价只是一次回炉纠正，误拦则会放过谎言，所以宁可少拦。
-    const GUARDS: &[&str] = &[
-        "搜", "没有", "还没", "失败", "是否", "如果", "假如", "？", "?",
-    ];
+    // 2026-10-08：去掉「？」「?」守卫——模型只要在句尾加一句「需要我再补充吗？」
+    // 就整体豁免核验，等于给谎言留了万能后门。否定/未遂语境仍由多字守卫覆盖。
+    // 「抱歉/对不起」同理：承认「之前没保存」是诚实认错，但「抱歉，已保存」仍是谎言，
+    // 不该豁免（kimi 实测用「抱歉，我刚才说已保存其实没保存」绕过核验后继续不执行）。
+    const GUARDS: &[&str] = &["搜", "没有", "还没", "失败", "是否", "如果", "假如", "抱歉", "对不起"];
     CLAIMS.iter().any(|c| content.contains(c)) && !GUARDS.iter().any(|g| content.contains(g))
 }
 
@@ -1605,32 +1651,82 @@ fn user_text_wants_write(text: &str) -> bool {
     if t.ends_with('吗') || t.ends_with('？') || t.ends_with('?') {
         return false;
     }
-    const WANT: &[&str] = &["存", "保存", "记住", "记下", "创建", "新建", "归档", "入库"];
+    // 否定/搁置守卫：「可以不保存」「别保存」「先放着」「不用了」含写意图词但语义是拒绝。
+    // 原测试 natural_replies_never_execute 的「好的，别保存」「可以不保存」靠这个排除。
+    const NEGATIVE: &[&str] = &[
+        "不保存", "别保存", "不用", "别存", "不要存", "先不", "先放着", "先别", "暂不", "取消",
+    ];
+    if NEGATIVE.iter().any(|n| t.contains(n)) {
+        return false;
+    }
+    // 「提交」补于 2026-10-08：kimi 对「再提交古籍那页」「保存为topic」零工具响应。
+    // 「整理」不列入——「完成了整理/整理房间/整理思路」是日常陈述非写指令，误伤面太大。
+    const WANT: &[&str] =
+        &["存", "保存", "记住", "记下", "创建", "新建", "归档", "入库", "提交"];
     WANT.iter().any(|w| t.contains(w))
 }
 
-/// 本轮调用前是否存在用户写意图：库内最后一条用户消息（确认/拒绝本身就是写流程
-/// 的一部分）或待确认存量。上下文里的用户消息由调用方另行检查。
-fn user_requested_write(store: &Store, conversation_id: &str) -> Result<bool> {
-    let last_user = store
-        .list_messages(conversation_id)?
-        .into_iter()
-        .rev()
-        .find(|m| m.role == "user");
-    match last_user {
-        None => Ok(false),
-        Some(m) => {
-            if is_confirmation(&m.content) || is_declination(&m.content) {
-                return Ok(true);
-            }
-            if user_text_wants_write(&m.content) {
-                return Ok(true);
-            }
-            Ok(!store
-                .pending_actions_for_conversation(conversation_id)?
-                .is_empty())
+/// 宽声明面：比 write_claim_detected 更松的「声称完成」信号，用于收敛前接地重发。
+/// 不含守卫——这里不是判定撒谎，只是决定「要不要给模型看一眼事实清单」，误报代价
+/// 仅是一轮重发。确认/否决短语（「好」「先放着」）天然不含这些词，不受影响。
+fn broad_write_claim(content: &str) -> bool {
+    const SIGNALS: &[&str] = &[
+        "已保存", "存好了", "保存好了", "已创建", "建好了", "记好了", "已归档",
+        "已入库", "已收录", "已写入", "已存入", "存进了", "已经在知识库",
+        "完成了", "搞定了", "妥了", "办好了", "处理好了", "整理好了",
+    ];
+    SIGNALS.iter().any(|s| content.contains(s))
+}
+
+/// 接地注入（治本）：把本轮「行为事实」结构化摆进模型上下文。
+///
+/// 设计原则：凡是需要模型诚实报告自己行为的地方，把行为事实直接注入，
+/// 而不是从它的输出文本反推（关键词匹配永远追不上措辞创造力）。
+/// 事实 = 两层：工具执行结果（成败）+ 库内本轮新增（写定/待确认），后者卡时间窗，
+/// 与 verify_claimed_writes 同源。模型看着清单复述，措辞空间被事实封死。
+fn turn_grounding(
+    store: &Store,
+    registry: &ToolRegistry,
+    conversation_id: &str,
+    results: &[ToolResultMsg],
+    turn_start: chrono::DateTime<chrono::Utc>,
+) -> Result<String> {
+    // 第一层：工具执行清单（含成败），写/读分开说。
+    let mut lines = vec!["【本轮事实——回复必须与此一致】".to_string()];
+    if results.is_empty() {
+        lines.push("本轮未执行任何工具调用，没有任何写入发生。".to_string());
+    } else {
+        for r in results {
+            let policy = registry.get(&r.call_name).map(|t| t.policy()).unwrap_or(ToolPolicy::Read);
+            let kind = match policy {
+                ToolPolicy::Read => "查询",
+                ToolPolicy::WriteDirect => "写入",
+                ToolPolicy::WriteConfirm => "草拟（待确认）",
+            };
+            let outcome = if r.success { "成功" } else { "失败" };
+            lines.push(format!("- {} {}：{}", r.call_name, kind, outcome));
         }
     }
+    // 第二层：库内本轮新增（卡时间窗，与写声明核验同一事实源）。
+    let mut drafts = Vec::new();
+    for pa in store.pending_actions_for_conversation(conversation_id)? {
+        if touched_this_turn(&pa.created_at, &turn_start) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&pa.args_json) {
+                if let Some(t) = v.get("title").and_then(|x| x.as_str()) {
+                    drafts.push(format!("「{t}」（{}）", pa.action));
+                }
+            }
+        }
+    }
+    if !drafts.is_empty() {
+        lines.push(format!("本轮登记的待确认草稿：{}。", drafts.join("、")));
+    }
+    lines.push(
+        "如实说明：什么做成了、什么失败了及原因、哪些仍在等用户确认。\
+         未执行的不得说成已完成；失败的要给出原因。"
+            .to_string(),
+    );
+    Ok(lines.join("\n"))
 }
 
 /// 写声明回炉提示：把库内事实（缺页/旧页/待确认）摆出来，让模型无法再编。
@@ -1662,7 +1758,13 @@ fn write_claim_repair_nudge(
         format!("当前待确认：{}", draft_slugs.join("、"))
     };
     Ok(format!(
-        "系统核实（以知识库为准，你的上一句与事实不符）：{detail}。{drafts}。请区分：待确认草稿仅存于对话，尚未入库；确认执行并返回真实结果才算已保存；查到现有知识页才可说已有页面。若已有草稿，告知用户可在“今天”栏打开待入库草稿列表，查看完整内容并单独保存或删除，并在审阅卡接受具体提议；不要重新草拟同名页，更不要声称草稿已在知识库。没有草稿而需保存时才调用对应工具。"
+        "系统核实（以知识库为准，你的上一句与事实不符）：{detail}。{drafts}。\
+         你有两个选择，必须二选一，不得再用文字声称已保存：\
+         (1) 现在调用工具实际执行（如 save_knowledge_draft），拿到成功结果后才能说已保存；\
+         (2) 明确告诉用户「我还没有保存」，并说明原因或需要用户提供什么。\
+         请区分：待确认草稿仅存于对话，尚未入库；确认执行并返回真实结果才算已保存。\
+         若已有草稿，告知用户可在“今天”栏打开待入库草稿列表查看并单独保存或删除，\
+         不要重新草拟同名页，更不要声称草稿已在知识库。"
     ))
 }
 
@@ -2388,7 +2490,7 @@ mod tests {
         let non_claims = [
             "搜了一下已保存的事件和知识库，确实没有「张三」「赵六」的记录。",
             "草拟好了，你看下：\n\n**标题**：一个月赚一万元（主题）",
-            "回「好」我就存 ✅",
+            "在「今天」栏或审阅卡确认后保存 ✅",
             "翻了下知识库，「感悟」那页其实还没真正建起来（我之前说存好了，说早了，抱歉）。",
             "草稿这次是真的登记进系统了（状态：待确认）——之前几轮是我光说没执行。",
             "知识库里还没有这一页，我草拟好了。",
@@ -2418,7 +2520,7 @@ mod tests {
                 "[工具调用]{\"name\":\"save_knowledge_draft\",\"arguments\":{\"title\":\"感悟\",\"content_md\":\"两条感悟正文\"}}",
             )),
             // 落定：诚实回复（无完成声明，直接收敛）
-            Ok(AiReply::text("草拟好了，标题「感悟」。回「好」我就存。")),
+            Ok(AiReply::text("草拟好了，标题「感悟」，在审阅卡点击接受保存。")),
         ]);
         let outcome = run_agent_loop(
             &provider,
@@ -2430,7 +2532,7 @@ mod tests {
             chrono::Utc::now(),
         )
         .unwrap();
-        assert_eq!(outcome.content, "草拟好了，标题「感悟」。回「好」我就存。");
+        assert_eq!(outcome.content, "草拟好了，标题「感悟」，在审阅卡点击接受保存。");
         // 纠正提示确已下发
         assert!(
             context.iter().any(|m| m.content.contains("系统核实")),
@@ -2473,7 +2575,7 @@ mod tests {
             "这两条 prompt 的差别主要在镜头语言上，我列三点给你看。",
             "你是想把两条合并，还是各自建一页？",
             "抱歉，刚才没能生成回复，请再发一次。",
-            "草拟好了，标题「感悟」。回「好」我就存。",
+            "草拟好了，标题「感悟」，在审阅卡点击接受保存。",
             "已经整理成草稿了，请确认要不要入库。",
         ] {
             assert!(!future_promise_detected(ok), "不应识别为预告: {ok}");
@@ -2500,7 +2602,7 @@ mod tests {
             )),
             // 落定：诚实回复
             Ok(AiReply::text(
-                "草拟好了，标题「视频 prompt 优化版」。回「好」我就存。",
+                "草拟好了，标题「视频 prompt 优化版」，在审阅卡点击接受保存。",
             )),
         ]);
         let outcome = run_agent_loop(
@@ -2515,7 +2617,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             outcome.content,
-            "草拟好了，标题「视频 prompt 优化版」。回「好」我就存。"
+            "草拟好了，标题「视频 prompt 优化版」，在审阅卡点击接受保存。"
         );
         assert!(
             context.iter().any(|m| m.content.contains("承诺不是答案")),
@@ -2607,7 +2709,7 @@ mod tests {
         assert!(titles.contains(&"感悟".to_string()), "{titles:?}");
         assert!(titles.contains(&"视频二创".to_string()), "{titles:?}");
         // 单字虚词引用不是实体
-        assert!(extract_claimed_titles("回「好」我就存").is_empty());
+        assert!(extract_claimed_titles("在审阅卡确认").is_empty());
         assert!(extract_claimed_titles("今天天气不错").is_empty());
     }
 

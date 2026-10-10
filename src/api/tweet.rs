@@ -80,6 +80,23 @@ pub fn save_text_page(
     Ok(WikiPageDto::from(page))
 }
 
+/// 把一段文本保存为「主题」（kind=topic）页。
+/// 供对话消息上的「存为主题」入口使用：前端先弹出编辑框（标题/正文/标签可改），
+/// 用户确认后调此接口直接入库——该确认框本身就是把关，不绕开用户。
+/// title 留空时 Rust 侧取正文首行前 60 字。
+pub fn save_topic_page(
+    text: String,
+    title: Option<String>,
+    tags: Vec<String>,
+) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+
+    let page =
+        crate::wiki::save_text_page_with_kind(&text, title.as_deref(), &tags, "topic", &store)?;
+    Ok(WikiPageDto::from(page))
+}
+
 /// 判断一个网址是否需要走专用抓取 API（当前：x.com/twitter.com 推文 → fxtwitter）。
 /// 返回 "tweet" 或 "web"，供导入入口统一分发，避免前端各自猜测。
 pub fn guess_import_kind(url: String) -> Result<String> {

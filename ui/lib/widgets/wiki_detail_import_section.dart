@@ -144,40 +144,6 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
     );
   }
 
-  Widget _buildModeSwitch() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surface2,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-      ),
-      padding: const EdgeInsets.all(3),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ModeBtn(
-              label: '🌐 网址导入',
-              active: _isUrlMode,
-              onTap: () => setState(() {
-                _isUrlMode = true;
-                _error = null;
-              }),
-            ),
-          ),
-          Expanded(
-            child: _ModeBtn(
-              label: '📝 直接文本',
-              active: !_isUrlMode,
-              onTap: () => setState(() {
-                _isUrlMode = false;
-                _error = null;
-              }),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildUrlInput() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,42 +355,3 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
     );
   }
 }
-
-/// 模式切换按钮
-class _ModeBtn extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _ModeBtn({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: active ? AppTheme.surface3 : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                color: active ? AppTheme.textPrimary : AppTheme.textSecondary,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-

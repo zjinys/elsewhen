@@ -2,7 +2,9 @@
 //! confirms a vault revision before the runtime becomes usable; live background
 //! callers retain the file lease, even if the UI locks the runtime meanwhile.
 
+pub(crate) mod enrollment;
 pub(crate) mod invitations;
+pub(crate) mod joining;
 pub(crate) mod pairing;
 
 use crate::{
@@ -34,6 +36,10 @@ struct Session {
     name: String,
     platform: String,
     owner_invitation: Option<invitations::OwnerInvitation>,
+    joining: Option<joining::JoinState>,
+    enrollment_busy: bool,
+    enrollment_confirmation: Option<(String, crate::sync::enrollment::EnrollmentRole)>,
+    proof_hold_until: i64,
 }
 impl Drop for Session {
     fn drop(&mut self) {
@@ -119,7 +125,9 @@ pub(crate) fn provider_master(database: &Path, revision: i64) -> Option<[u8; 32]
         .lock()
         .unwrap_or_else(|p| p.into_inner())
         .values()
-        .find(|s| s.database == database && s.revision == revision && s.confirmed)
+        .find(|s| {
+            s.joining.is_none() && s.database == database && s.revision == revision && s.confirmed
+        })
         .and_then(|s| s.master)
 }
 
@@ -129,7 +137,8 @@ pub(crate) fn unlocked(config: &AppConfig, revision: i64) -> bool {
         .unwrap_or_else(|p| p.into_inner())
         .get(&config.data_dir)
         .is_some_and(|s| {
-            s.database == config.database_path
+            s.joining.is_none()
+                && s.database == config.database_path
                 && s.revision == revision
                 && s.confirmed
                 && s.master.is_some()
@@ -145,10 +154,9 @@ pub(crate) fn lock(config: &AppConfig) {
 
 pub(crate) fn release_request(config: &AppConfig, operation: &str) -> bool {
     let mut sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
-    if sessions
-        .get(&config.data_dir)
-        .is_some_and(|s| s.database == config.database_path && s.operation == operation)
-    {
+    if sessions.get(&config.data_dir).is_some_and(|s| {
+        s.joining.is_none() && s.database == config.database_path && s.operation == operation
+    }) {
         sessions.remove(&config.data_dir);
         true
     } else {
@@ -170,7 +178,9 @@ pub(crate) fn background_guard(
         return Ok(None);
     }
     let lease = if let Some(session) = sessions.get(&config.data_dir) {
-        if !authority
+        if session.joining.is_some()
+            || session.proof_hold_until > now()
+            || !authority
             || session.database != config.database_path
             || !session.confirmed
             || session.master.is_none()
@@ -250,7 +260,7 @@ pub(crate) fn prepare_key(
     let mut sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
     if sessions
         .get(&config.data_dir)
-        .is_some_and(|s| !s.confirmed && s.expires_at <= now())
+        .is_some_and(|s| s.joining.is_none() && !s.confirmed && s.expires_at <= now())
     {
         sessions.remove(&config.data_dir);
     }
@@ -276,6 +286,10 @@ pub(crate) fn prepare_key(
             name: name.unwrap_or_default().into(),
             platform: platform.unwrap_or_default().into(),
             owner_invitation: None,
+            joining: None,
+            enrollment_busy: false,
+            enrollment_confirmation: None,
+            proof_hold_until: 0,
         },
     );
     Ok(KeyRequest {
@@ -303,7 +317,8 @@ pub(crate) fn install_key(
         .get_mut(&config.data_dir)
         .context("sync_runtime_request_missing")?;
     ensure!(
-        session.database == config.database_path
+        session.joining.is_none()
+            && session.database == config.database_path
             && session.token == token
             && session.expires_at > now()
             && !session.confirmed,
@@ -362,16 +377,36 @@ pub(crate) fn install_key(
 }
 
 pub(crate) fn confirm_key(config: &AppConfig, token: &str, protected_revision: i64) -> Result<()> {
+    confirm_key_inner(config, token, protected_revision, false)
+}
+
+pub(super) fn confirm_enrollment_key(
+    config: &AppConfig,
+    token: &str,
+    protected_revision: i64,
+) -> Result<()> {
+    confirm_key_inner(config, token, protected_revision, true)
+}
+
+fn confirm_key_inner(
+    config: &AppConfig,
+    token: &str,
+    protected_revision: i64,
+    enrollment: bool,
+) -> Result<()> {
     let mut sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
     let session = sessions
         .get_mut(&config.data_dir)
         .context("sync_runtime_request_missing")?;
     ensure!(
-        session.database == config.database_path
+        session.joining.is_none()
+            && session.database == config.database_path
             && session.token == token
             && session.expires_at > now()
             && protected_revision == session.revision
-            && session.master.is_some(),
+            && session.master.is_some()
+            && !session.enrollment_busy
+            && enrollment == session.enrollment_confirmation.is_some(),
         "sync_runtime_confirmation_stale"
     );
     if session.confirmed {
@@ -389,9 +424,34 @@ pub(crate) fn confirm_key(config: &AppConfig, token: &str, protected_revision: i
         "sync_runtime_vault_changed"
     );
     store.require_sync_signer(vault.identity())?;
-    store.enable_provider_key_sealing()?;
-    store.recover_interrupted_analysis_jobs()?;
-    store.recover_interrupted_digest_jobs()?;
+    if enrollment {
+        // Enrollment mutations already required quiescence. Never turn a later
+        // confirmation into recovery of unrelated live background work.
+        ensure!(
+            !busy()
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .contains(&config.data_dir),
+            "sync_runtime_in_use"
+        );
+        let tx = store.begin_write_transaction()?;
+        store.require_background_quiescent_for_sync()?;
+        ensure!(store.provider_keys_sealed()?, "provider_keys_locked");
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+    } else {
+        store.enable_provider_key_sealing()?;
+        store.recover_interrupted_analysis_jobs()?;
+        store.recover_interrupted_digest_jobs()?;
+    }
+    session.proof_hold_until = vault
+        .pairing_statuses(now())
+        .into_iter()
+        .filter(|p| p.state == "awaiting_installation")
+        .map(|p| p.expires_at_ms)
+        .max()
+        .unwrap_or(0);
     session.confirmed = true;
     Ok(())
 }

@@ -2,6 +2,7 @@
 //! identities and keys; this module never discovers trust from an envelope.
 //! Snapshot requests and trust come from pairing; this is not an App entry point.
 
+pub(crate) mod enrollment;
 mod fragments;
 pub(crate) mod snapshot;
 
@@ -32,7 +33,9 @@ fn envelope_receipt_id(message_id: &str) -> String {
     )
 }
 
-fn membership_message_id(signed: &crate::sync::membership::SignedRoster) -> Result<String> {
+pub(crate) fn membership_message_id(
+    signed: &crate::sync::membership::SignedRoster,
+) -> Result<String> {
     Ok(format!(
         "membership:{}:{}",
         signed.roster.revision,
@@ -358,6 +361,50 @@ pub(crate) fn pull_page(
     Ok(report)
 }
 
+pub(super) struct AuthenticatedWire {
+    header: EnvelopeHeader,
+    plaintext: Vec<u8>,
+    bytes: Vec<u8>,
+}
+
+pub(super) fn authenticate_relay_payload(
+    store: &Store,
+    ciphertext_b64: &str,
+    sender: &str,
+    key_version: u64,
+    key: &ContentKey,
+    trusted_sender: &[u8; 32],
+) -> Result<AuthenticatedWire> {
+    ensure!(
+        ciphertext_b64.len() <= crypto::MAX_ENVELOPE_BYTES.div_ceil(3) * 4,
+        "sync_relay_payload_too_large"
+    );
+    let bytes = STANDARD
+        .decode(ciphertext_b64)
+        .map_err(|_| anyhow::anyhow!("sync_relay_payload_invalid"))?;
+    let envelope = EncryptedEnvelope::from_bytes(&bytes)?;
+    let identity = store.sync_identity()?.context("sync_not_initialized")?;
+    let message_id = envelope.unverified_header().message_id.clone();
+    let header = EnvelopeHeader::new(
+        &identity.dataset_id,
+        sender,
+        &identity.device_id,
+        key_version,
+        &message_id,
+    )?;
+    store.require_sync_transport_key(
+        sender,
+        trusted_sender,
+        message_id.starts_with("membership:"),
+    )?;
+    let plaintext = crypto::open(&envelope, &header, key, trusted_sender)?;
+    Ok(AuthenticatedWire {
+        header,
+        plaintext,
+        bytes,
+    })
+}
+
 /// Returns true only when the authenticated operation, receipt or encrypted
 /// snapshot piece is durable and the caller may acknowledge this relay mail.
 /// Snapshot staging is not publication; missing operation dependencies return
@@ -370,29 +417,19 @@ pub(crate) fn accept_relay_payload(
     key: &ContentKey,
     trusted_sender: &[u8; 32],
 ) -> Result<bool> {
-    ensure!(
-        ciphertext_b64.len() <= crypto::MAX_ENVELOPE_BYTES.div_ceil(3) * 4,
-        "sync_relay_payload_too_large"
-    );
-    let bytes = STANDARD
-        .decode(ciphertext_b64)
-        .map_err(|_| anyhow::anyhow!("sync_relay_payload_invalid"))?;
-    let envelope = EncryptedEnvelope::from_bytes(&bytes)?;
-    let identity = store.sync_identity()?.context("sync_not_initialized")?;
-    let message_id = envelope.unverified_header().message_id.clone();
-    let expected = EnvelopeHeader::new(
-        &identity.dataset_id,
+    let wire = authenticate_relay_payload(
+        store,
+        ciphertext_b64,
         sender,
-        &identity.device_id,
         key_version,
-        &message_id,
-    )?;
-    store.require_sync_transport_key(
-        sender,
+        key,
         trusted_sender,
-        message_id.starts_with("membership:"),
     )?;
-    let plaintext = crypto::open(&envelope, &expected, key, trusted_sender)?;
+    let identity = store.sync_identity()?.context("sync_not_initialized")?;
+    let expected = wire.header;
+    let message_id = expected.message_id.clone();
+    let plaintext = wire.plaintext;
+    let bytes = wire.bytes;
     if message_id.starts_with("membership:") {
         let tx = store.begin_write_transaction()?;
         store.apply_signed_roster(&plaintext)?;

@@ -23,7 +23,24 @@ class CustomTitleBar extends ConsumerWidget {
   final String title;
   final List<Widget>? actions;
 
-  const CustomTitleBar({super.key, required this.title, this.actions});
+  /// 标题右侧、窗口/动作按钮左侧的「今天」操作行。
+  /// 仅在传入时显示（移动端主对话界面）；桌面端不传。
+  final List<Widget>? middleActions;
+
+  /// 移动端平台的 app bar 顶部安全区高度（状态栏仍在时由 MainScreen 传入）。
+  final double topInset;
+
+  /// 最左侧的 leading（移动端为抽屉菜单按钮）。
+  final Widget? leading;
+
+  const CustomTitleBar({
+    super.key,
+    required this.title,
+    this.actions,
+    this.middleActions,
+    this.topInset = 0,
+    this.leading,
+  });
 
   static bool get _isDesktop =>
       !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
@@ -39,7 +56,8 @@ class CustomTitleBar extends ConsumerWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
-          height: 48,
+          height: 48 + topInset,
+          padding: EdgeInsets.only(top: topInset),
           decoration: BoxDecoration(
             color: AppTheme.surface1.withValues(alpha: 0.82),
             border: Border(
@@ -50,6 +68,10 @@ class CustomTitleBar extends ConsumerWidget {
           ),
           child: Row(
             children: [
+              ?leading,
+              // 标题/空白区整块可拖拽（桌面端无边框窗口）：Expanded 必须包在
+              // GestureDetector 外层——之前改成普通 Spacer 后空白区不吃手势，
+              // 只剩标题文字那一小块能拖，看起来就像「无法拖动」。
               Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
@@ -57,28 +79,49 @@ class CustomTitleBar extends ConsumerWidget {
                       ? (details) => windowService.startDragging()
                       : null,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: leading != null ? 4 : 16,
+                    ),
                     child: Row(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
-                          child: SvgPicture.asset(
-                            'assets/brand/elsewhen-icon-v2.svg',
-                            width: 24,
-                            height: 24,
-                            semanticsLabel: 'Elsewhen',
+                        // 移动端（有 middleActions）不显示 logo/标题：app 风格
+                        // 顶栏左侧是菜单键，logo 是桌面窗口 chrome 的元素。
+                        if (middleActions == null) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: SvgPicture.asset(
+                              'assets/brand/elsewhen-icon-v2.svg',
+                              width: 24,
+                              height: 24,
+                              semanticsLabel: 'Elsewhen',
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                            letterSpacing: 0,
+                          const SizedBox(width: 10),
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                              letterSpacing: 0,
+                            ),
                           ),
-                        ),
+                          // 桌面端：标题后空白区推开右侧 actions/窗口按钮，
+                          // 整块在 GestureDetector 内，处处可拖。
+                          const Spacer(),
+                        ] else ...[
+                          // 移动端：标题让位给「今天」行，占满中间可横滑。
+                          const Spacer(),
+                          Flexible(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: middleActions!,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -98,9 +141,9 @@ class CustomTitleBar extends ConsumerWidget {
                 ),
                 _WindowButton(
                   icon: Icons.close,
-                  // 关闭即隐藏：窗口 isClosable=false 已拦截原生关闭，
-                  // 这里直接 hide（应用继续驻留后台，热键再唤出）。
-                  onPressed: () => windowService.hideWindow(),
+                  // 关闭走统一入口：按设置「关闭时」决定隐藏到托盘还是退出，
+                  // 与 WM 原生关闭按钮行为一致（原生关闭见 onWindowClose）。
+                  onPressed: () => windowService.requestClose(),
                   isClose: true,
                 ),
               ],

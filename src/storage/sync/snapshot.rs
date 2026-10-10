@@ -170,6 +170,14 @@ pub(crate) struct SnapshotExporter {
 }
 
 impl SnapshotExporter {
+    /// Enrollment sends the roster from this exact WAL view before offering the
+    /// snapshot, not a roster read before/after a concurrent membership change.
+    pub(crate) fn signed_roster(&self) -> Result<crate::sync::membership::SignedRoster> {
+        self.view
+            .current_signed_roster()?
+            .context("sync_snapshot_authority_missing")
+    }
+
     /// The recipient chooses id as a fresh transfer request. A failed export
     /// must get a new request id rather than regenerating different chunks under
     /// a previously used identity.

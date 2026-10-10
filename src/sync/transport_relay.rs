@@ -497,13 +497,20 @@ impl RelayClient {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct RelayHttpError(pub(crate) reqwest::StatusCode);
+impl std::fmt::Display for RelayHttpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "relay HTTP status {}", self.0)
+    }
+}
+impl std::error::Error for RelayHttpError {}
+
 fn response_json<T: DeserializeOwned>(response: reqwest::blocking::Response) -> Result<T> {
     // A compromised relay may return secrets in an error body. Never echo it.
-    ensure!(
-        response.status().is_success(),
-        "relay HTTP status {}",
-        response.status()
-    );
+    if !response.status().is_success() {
+        return Err(RelayHttpError(response.status()).into());
+    }
     if let Some(length) = response.content_length() {
         ensure!(length <= MAX_RESPONSE_BYTES, "relay response too large");
     }

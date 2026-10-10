@@ -39,6 +39,8 @@ pub(crate) struct PairingRecord {
     pub key_version: u64,
     pub expires_at_ms: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bootstrap: Option<super::InvitationRoute>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     delivery: Option<super::PairingDelivery>,
     progress: Progress,
 }
@@ -86,6 +88,7 @@ impl PairingRecord {
             key_version: pair.key_version,
             expires_at_ms: pending.expires_at_ms,
             delivery: pair.delivery,
+            bootstrap: pair.bootstrap,
             progress: Progress::AwaitingInstallation {
                 pair: StoredPair {
                     dataset_id: pair.dataset_id,
@@ -124,6 +127,7 @@ impl PairingRecord {
             key_version: pair.key_version,
             expires_at_ms: pair.expires_at_ms,
             delivery: pair.delivery.clone(),
+            bootstrap: pair.bootstrap.clone(),
             progress: Progress::AwaitingMembership { proof },
         };
         record.validate()?;
@@ -133,6 +137,28 @@ impl PairingRecord {
     pub(crate) fn validate(&self) -> Result<()> {
         validate_id(&self.invitation_id)?;
         self.peer.validate()?;
+        if let Some(route) = &self.bootstrap {
+            route.validate()?;
+            if let Progress::AwaitingInstallation { pair, .. } = &self.progress {
+                ensure!(
+                    route.relay_url == pair.route.relay_url
+                        && route.issuer_mailbox == pair.route.local_mailbox
+                        && route.request_sender != pair.route.local_mailbox
+                        && route.request_sender != pair.route.peer_mailbox,
+                    "sync_pairing_bootstrap_mismatch"
+                );
+            }
+            if let (Progress::AwaitingMembership { .. }, Some(delivery)) =
+                (&self.progress, &self.delivery)
+            {
+                ensure!(
+                    route.relay_url == delivery.relay_url
+                        && route.issuer_mailbox == delivery.recipient_mailbox
+                        && route.request_sender == delivery.sender_mailbox,
+                    "sync_pairing_bootstrap_mismatch"
+                );
+            }
+        }
         ensure!(
             (1..=i64::MAX as u64).contains(&self.key_version) && self.expires_at_ms > 0,
             "sync_pairing_record_invalid"
@@ -260,6 +286,7 @@ impl PairingRecord {
                 authority: Some(pair.authority.clone()),
                 route: Some(pair.route.clone()),
                 delivery: None,
+                bootstrap: self.bootstrap.clone(),
             },
             expires_at_ms: self.expires_at_ms,
         }

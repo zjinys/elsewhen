@@ -1,7 +1,44 @@
 # 拟议需求：给 AI 加外网搜索（只给 elsewhen 自用，不做 MCP server）
 
-**状态**：proposed（设计已定，未实现）
+**状态**：已实现（2026-10-10，migration v25）
 **提出日期**：2026-09-27
+
+## 实现决策留痕（与原设计有出入的部分）
+
+落地为 migration v25 + `src/net_doh/`（DoH+ECH）+ `src/web_search.rs`（多引擎）+ `web_search`
+工具 + 设置页「外网搜索」区块。关键决策：
+
+1. **引擎是选项，不写死 Tavily**。`WebSearchEngine` trait + `build_engine` 工厂，首版三引擎：
+   **Tavily**（托管、面向 AI、Bearer 鉴权）、**Brave Search**（托管、`X-Subscription-Token`
+   鉴权）、**SearxNG**（自托管、无需 key、需开 JSON 输出）。解析都是纯函数便于单测；设置页
+   有引擎下拉，切换自动填默认 base_url、SearxNG 隐藏 key 字段。
+
+2. **传输与引擎解耦**。`Transport::fetch` 统一「直连（reqwest）vs DoH+ECH」，引擎只填请求
+   规格（URL/方法/表头/JSON body），不各自背两套网络代码。通用隧道 `https_request_via_doh`
+   支持 GET/POST + 自定义表头，三引擎共用。
+
+3. **DoH 仅自定义、无内置默认**（与原「公共 DoH 池」设想相反）。留空=直连=现状，填了才走
+   DoH+ECH。理由：不替用户选第三方出口、避免内置池失效/被滥用。`doh_scope` 预留
+   `search_only`/`global`，本版只做 search_only。
+
+4. **弃用 hickory-resolver，DoH 改用自己的 TLS 栈手工做 wire-format**。hickory 0.24 锁定
+   rustls 0.21 旧依赖且实测连用户自建 DoH 握手失败（"invalid data"）；自己的 rustls 0.23 +
+   aws-lc-rs 栈更内聚。DNS 查询/解析手工构造（A/AAAA/HTTPS type-65、压缩指针、ECH SvcParam
+   提取），HTTP/1.1 手写最小实现（不用 hyper）。ECH 的 HPKE 必需 aws-lc-rs（ring 无实现）。
+
+5. **实测验证（真实网络，非 mock）**：经用户自建 DoH，api.tavily.com 通；cloudflare trace
+   确认 `sni=encrypted`（ECH 真生效）；**x.com 拉到 42KB HTML**（被硬封的站经 DoH+ECH 打开，
+   正是核心场景）；Tavily POST 隧道 HTTP 401（传输+鉴权格式都对，只差有效 key）。过程中修复
+   「CDN 无 close_notify 关连接导致 rustls UnexpectedEof」的真实 bug（`read_body_tolerant`）。
+
+6. **能力边界**（与 5.4 一致）：能解 Cloudflare 免费版站点（x.com 等）的 DNS 污染 + SNI 封锁；
+   解不了非 CF 或企业版 CF 且被 IP 黑洞的站。不是万能梯子，是在「能不配代理访问的范围内」
+   最大化可达性。
+
+---
+
+## 原始设计（下文为设计时设想，已按上述调整）
+
 
 ## 需求
 

@@ -24,6 +24,7 @@ import 'api/sync.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
+import 'api/web_search.dart';
 import 'api/wiki.dart';
 import 'api/wiki_chat.dart';
 
@@ -406,6 +407,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SourceSnapshot> dco_decode_list_source_snapshot(dynamic raw);
 
   @protected
+  List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<SyncJoinEntryDto> dco_decode_list_sync_join_entry_dto(dynamic raw);
+
+  @protected
   List<SystemFontFace> dco_decode_list_system_font_face(dynamic raw);
 
   @protected
@@ -432,6 +441,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessageRecordabilityDto dco_decode_message_recordability_dto(dynamic raw);
+
+  @protected
+  NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -517,10 +529,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SuggestionFeedback dco_decode_suggestion_feedback(dynamic raw);
 
   @protected
+  SyncEnrollmentStateDto dco_decode_sync_enrollment_state_dto(dynamic raw);
+
+  @protected
   SyncInvitationOfferDto dco_decode_sync_invitation_offer_dto(dynamic raw);
 
   @protected
   SyncInvitationPreviewDto dco_decode_sync_invitation_preview_dto(dynamic raw);
+
+  @protected
+  SyncJoinEntryDto dco_decode_sync_join_entry_dto(dynamic raw);
+
+  @protected
+  SyncJoinStateDto dco_decode_sync_join_state_dto(dynamic raw);
 
   @protected
   SyncKeyCommitDto dco_decode_sync_key_commit_dto(dynamic raw);
@@ -554,6 +575,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
+
+  @protected
+  WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
   WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
@@ -1021,6 +1045,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SyncJoinEntryDto> sse_decode_list_sync_join_entry_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SystemFontFace> sse_decode_list_system_font_face(
     SseDeserializer deserializer,
   );
@@ -1051,6 +1085,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessageRecordabilityDto sse_decode_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  NetworkSettingsDto sse_decode_network_settings_dto(
     SseDeserializer deserializer,
   );
 
@@ -1154,6 +1193,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SyncEnrollmentStateDto sse_decode_sync_enrollment_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SyncInvitationOfferDto sse_decode_sync_invitation_offer_dto(
     SseDeserializer deserializer,
   );
@@ -1162,6 +1206,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SyncInvitationPreviewDto sse_decode_sync_invitation_preview_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  SyncJoinEntryDto sse_decode_sync_join_entry_dto(SseDeserializer deserializer);
+
+  @protected
+  SyncJoinStateDto sse_decode_sync_join_state_dto(SseDeserializer deserializer);
 
   @protected
   SyncKeyCommitDto sse_decode_sync_key_commit_dto(SseDeserializer deserializer);
@@ -1199,6 +1249,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WebSearchConfigDto sse_decode_web_search_config_dto(
     SseDeserializer deserializer,
   );
 
@@ -2277,6 +2332,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_sync_enrollment_state_dto(
+    List<SyncEnrollmentStateDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_sync_enrollment_state_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_sync_join_entry_dto(List<SyncJoinEntryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_sync_join_entry_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_system_font_face(List<SystemFontFace> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_system_font_face).toList().jsify()!;
@@ -2351,6 +2420,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.source),
       cst_encode_String(raw.jobStatus),
       cst_encode_opt_String(raw.summary),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_network_settings_dto(NetworkSettingsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.dohUri),
+      cst_encode_String(raw.dohScope),
+      cst_encode_String(raw.dohMode),
     ].jsify()!;
   }
 
@@ -2578,6 +2657,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_sync_enrollment_state_dto(SyncEnrollmentStateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.role),
+      cst_encode_String(raw.operationId),
+      cst_encode_String(raw.invitationId),
+      cst_encode_String(raw.installationId),
+      cst_encode_i_64(raw.revision),
+      cst_encode_opt_String(raw.confirmationToken),
+      cst_encode_String(raw.phase),
+      cst_encode_opt_String(raw.snapshotId),
+      cst_encode_i_64(raw.receivedChunks),
+      cst_encode_i_64(raw.totalChunks),
+      cst_encode_bool(raw.localApplied),
+      cst_encode_bool(raw.remoteApplied),
+      cst_encode_bool(raw.notificationPending),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_sync_invitation_offer_dto(SyncInvitationOfferDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2597,6 +2696,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.devicePlatform),
       cst_encode_String(raw.fingerprint),
       cst_encode_i_64(raw.expiresAtMs),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_join_entry_dto(SyncJoinEntryDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.entryId),
+      cst_encode_String(raw.installationId),
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.name),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_join_state_dto(SyncJoinStateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.operationId),
+      cst_encode_String(raw.token),
+      cst_encode_opt_String(raw.entryId),
+      cst_encode_opt_String(raw.installationId),
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.ownerName),
+      cst_encode_String(raw.ownerFingerprint),
+      cst_encode_opt_String(raw.localFingerprint),
+      cst_encode_String(raw.relayUrl),
+      cst_encode_i_64(raw.expiresAtMs),
+      cst_encode_String(raw.phase),
+      cst_encode_i_64(raw.revision),
+      cst_encode_bool(raw.creating),
+      cst_encode_bool(raw.approvalAckPending),
     ].jsify()!;
   }
 
@@ -2694,6 +2825,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.inputMessageId),
       cst_encode_String(raw.preview),
       cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_web_search_config_dto(WebSearchConfigDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.enabled),
+      cst_encode_String(raw.engine),
+      cst_encode_String(raw.baseUrl),
+      cst_encode_String(raw.apiKey),
+      cst_encode_bool(raw.hasApiKey),
+      cst_encode_i_64(raw.maxResults),
     ].jsify()!;
   }
 
@@ -3342,6 +3486,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sync_enrollment_state_dto(
+    List<SyncEnrollmentStateDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_sync_join_entry_dto(
+    List<SyncJoinEntryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_system_font_face(
     List<SystemFontFace> self,
     SseSerializer serializer,
@@ -3380,6 +3536,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_message_recordability_dto(
     MessageRecordabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_network_settings_dto(
+    NetworkSettingsDto self,
     SseSerializer serializer,
   );
 
@@ -3510,6 +3672,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_sync_enrollment_state_dto(
+    SyncEnrollmentStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_sync_invitation_offer_dto(
     SyncInvitationOfferDto self,
     SseSerializer serializer,
@@ -3518,6 +3686,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sync_invitation_preview_dto(
     SyncInvitationPreviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_join_entry_dto(
+    SyncJoinEntryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_join_state_dto(
+    SyncJoinStateDto self,
     SseSerializer serializer,
   );
 
@@ -3566,6 +3746,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_unscheduled_chat_input_dto(
     UnscheduledChatInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_web_search_config_dto(
+    WebSearchConfigDto self,
     SseSerializer serializer,
   );
 
@@ -3639,6 +3825,18 @@ class RustLibWire implements BaseWire {
     slug,
     revision_id,
     adopt,
+  );
+
+  void wire__crate__api__sync__advance_sync_enrollment(
+    NativePortType port_,
+    String role,
+    String operation_id,
+    String invitation_id,
+  ) => wasmModule.wire__crate__api__sync__advance_sync_enrollment(
+    port_,
+    role,
+    operation_id,
+    invitation_id,
   );
 
   void wire__crate__api__sync__approve_owner_sync_invitation(
@@ -3740,6 +3938,32 @@ class RustLibWire implements BaseWire {
     source_kind,
     tags,
     expected_snapshot_id,
+  );
+
+  void wire__crate__api__sync__confirm_sync_enrollment(
+    NativePortType port_,
+    String role,
+    String operation_id,
+    String invitation_id,
+    String token,
+    JSAny protected_revision,
+  ) => wasmModule.wire__crate__api__sync__confirm_sync_enrollment(
+    port_,
+    role,
+    operation_id,
+    invitation_id,
+    token,
+    protected_revision,
+  );
+
+  void wire__crate__api__sync__confirm_sync_join_key(
+    NativePortType port_,
+    String token,
+    JSAny protected_revision,
+  ) => wasmModule.wire__crate__api__sync__confirm_sync_join_key(
+    port_,
+    token,
+    protected_revision,
   );
 
   void wire__crate__api__sync__confirm_sync_key(
@@ -4144,6 +4368,10 @@ class RustLibWire implements BaseWire {
   ) =>
       wasmModule.wire__crate__api__get_message_recordability(port_, message_id);
 
+  void wire__crate__api__web_search__get_network_settings(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__web_search__get_network_settings(port_);
+
   void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -4153,11 +4381,23 @@ class RustLibWire implements BaseWire {
         message_id,
       );
 
+  void wire__crate__api__sync__get_sync_join_state(
+    NativePortType port_,
+    String operation_id,
+  ) => wasmModule.wire__crate__api__sync__get_sync_join_state(
+    port_,
+    operation_id,
+  );
+
   void wire__crate__api__theme__get_theme_prefs(NativePortType port_) =>
       wasmModule.wire__crate__api__theme__get_theme_prefs(port_);
 
   void wire__crate__api__tweet__get_tweet_fetch_service(NativePortType port_) =>
       wasmModule.wire__crate__api__tweet__get_tweet_fetch_service(port_);
+
+  void wire__crate__api__web_search__get_web_search_config(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__web_search__get_web_search_config(port_);
 
   void wire__crate__api__wiki_chat__get_wiki_chat_material(
     NativePortType port_,
@@ -4196,6 +4436,26 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__sync__inspect_owner_sync_invitation(
     port_,
     invitation_id,
+  );
+
+  void wire__crate__api__sync__inspect_sync_join_approval(
+    NativePortType port_,
+    String operation_id,
+  ) => wasmModule.wire__crate__api__sync__inspect_sync_join_approval(
+    port_,
+    operation_id,
+  );
+
+  void wire__crate__api__sync__install_sync_join_key(
+    NativePortType port_,
+    String token,
+    JSAny key,
+    JSAny protected_revision,
+  ) => wasmModule.wire__crate__api__sync__install_sync_join_key(
+    port_,
+    token,
+    key,
+    protected_revision,
   );
 
   void wire__crate__api__sync__install_sync_key(
@@ -4427,6 +4687,9 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
+  void wire__crate__api__sync__list_pending_sync_joins(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_pending_sync_joins(port_);
+
   void wire__crate__api__relations__list_relations(NativePortType port_) =>
       wasmModule.wire__crate__api__relations__list_relations(port_);
 
@@ -4440,6 +4703,9 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__rules__list_rules(NativePortType port_) =>
       wasmModule.wire__crate__api__rules__list_rules(port_);
+
+  void wire__crate__api__sync__list_sync_enrollments(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_sync_enrollments(port_);
 
   void wire__crate__api__fonts__list_system_fonts(NativePortType port_) =>
       wasmModule.wire__crate__api__fonts__list_system_fonts(port_);
@@ -4531,6 +4797,28 @@ class RustLibWire implements BaseWire {
     snapshot_ids,
   );
 
+  void wire__crate__api__sync__prepare_sync_join_key(
+    NativePortType port_,
+    String preview_token,
+    String name,
+    String platform,
+    bool acknowledge_provider_key_sharing,
+  ) => wasmModule.wire__crate__api__sync__prepare_sync_join_key(
+    port_,
+    preview_token,
+    name,
+    platform,
+    acknowledge_provider_key_sharing,
+  );
+
+  void wire__crate__api__sync__prepare_sync_join_resume(
+    NativePortType port_,
+    String entry_id,
+  ) => wasmModule.wire__crate__api__sync__prepare_sync_join_resume(
+    port_,
+    entry_id,
+  );
+
   void wire__crate__api__sync__prepare_sync_key_request(
     NativePortType port_,
     String? name,
@@ -4561,6 +4849,14 @@ class RustLibWire implements BaseWire {
     port_,
     source_url,
     content_md,
+  );
+
+  void wire__crate__api__sync__preview_sync_join(
+    NativePortType port_,
+    String invitation_code,
+  ) => wasmModule.wire__crate__api__sync__preview_sync_join(
+    port_,
+    invitation_code,
   );
 
   void wire__crate__api__knowledge__propose_knowledge_page(
@@ -4600,6 +4896,12 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String slug,
   ) => wasmModule.wire__crate__api__wiki__refresh_project_page(port_, slug);
+
+  void wire__crate__api__sync__release_sync_join(
+    NativePortType port_,
+    String operation_id,
+  ) =>
+      wasmModule.wire__crate__api__sync__release_sync_join(port_, operation_id);
 
   void wire__crate__api__sync__release_sync_key_request(
     NativePortType port_,
@@ -4693,6 +4995,16 @@ class RustLibWire implements BaseWire {
     source_event_ids,
   );
 
+  void wire__crate__api__web_search__save_doh_settings(
+    NativePortType port_,
+    String doh_uri,
+    String doh_mode,
+  ) => wasmModule.wire__crate__api__web_search__save_doh_settings(
+    port_,
+    doh_uri,
+    doh_mode,
+  );
+
   void wire__crate__api__import__save_imported_page(
     NativePortType port_,
     String title,
@@ -4736,6 +5048,18 @@ class RustLibWire implements BaseWire {
     tags,
   );
 
+  void wire__crate__api__tweet__save_topic_page(
+    NativePortType port_,
+    String text,
+    String? title,
+    JSAny tags,
+  ) => wasmModule.wire__crate__api__tweet__save_topic_page(
+    port_,
+    text,
+    title,
+    tags,
+  );
+
   void wire__crate__api__tweet__save_tweet_page(
     NativePortType port_,
     String tweet_id,
@@ -4750,6 +5074,22 @@ class RustLibWire implements BaseWire {
     title,
     author_name,
     screen_name,
+  );
+
+  void wire__crate__api__web_search__save_web_search_config(
+    NativePortType port_,
+    bool enabled,
+    String engine,
+    String base_url,
+    String api_key,
+    JSAny max_results,
+  ) => wasmModule.wire__crate__api__web_search__save_web_search_config(
+    port_,
+    enabled,
+    engine,
+    base_url,
+    api_key,
+    max_results,
   );
 
   void wire__crate__api__wiki__save_wiki_page_content(
@@ -4796,6 +5136,22 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__sync__send_owner_sync_approval(
     port_,
     invitation_id,
+  );
+
+  void wire__crate__api__sync__send_sync_join_proof(
+    NativePortType port_,
+    String operation_id,
+  ) => wasmModule.wire__crate__api__sync__send_sync_join_proof(
+    port_,
+    operation_id,
+  );
+
+  void wire__crate__api__sync__send_sync_join_request(
+    NativePortType port_,
+    String operation_id,
+  ) => wasmModule.wire__crate__api__sync__send_sync_join_request(
+    port_,
+    operation_id,
   );
 
   void wire__crate__api__provider_config__set_active_ai_provider_config(
@@ -4898,6 +5254,14 @@ class RustLibWire implements BaseWire {
     content,
     idempotency_key,
     task_json,
+  );
+
+  void wire__crate__api__web_search__test_doh_connection(
+    NativePortType port_,
+    String doh_uri,
+  ) => wasmModule.wire__crate__api__web_search__test_doh_connection(
+    port_,
+    doh_uri,
   );
 
   void wire__crate__api__knowledge__tick_knowledge_insights(
@@ -5112,6 +5476,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool adopt,
   );
 
+  external void wire__crate__api__sync__advance_sync_enrollment(
+    NativePortType port_,
+    String role,
+    String operation_id,
+    String invitation_id,
+  );
+
   external void wire__crate__api__sync__approve_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
@@ -5172,6 +5543,21 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String source_kind,
     JSAny tags,
     String? expected_snapshot_id,
+  );
+
+  external void wire__crate__api__sync__confirm_sync_enrollment(
+    NativePortType port_,
+    String role,
+    String operation_id,
+    String invitation_id,
+    String token,
+    JSAny protected_revision,
+  );
+
+  external void wire__crate__api__sync__confirm_sync_join_key(
+    NativePortType port_,
+    String token,
+    JSAny protected_revision,
   );
 
   external void wire__crate__api__sync__confirm_sync_key(
@@ -5447,14 +5833,27 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String message_id,
   );
 
+  external void wire__crate__api__web_search__get_network_settings(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
     NativePortType port_,
     String message_id,
   );
 
+  external void wire__crate__api__sync__get_sync_join_state(
+    NativePortType port_,
+    String operation_id,
+  );
+
   external void wire__crate__api__theme__get_theme_prefs(NativePortType port_);
 
   external void wire__crate__api__tweet__get_tweet_fetch_service(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__web_search__get_web_search_config(
     NativePortType port_,
   );
 
@@ -5486,6 +5885,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__sync__inspect_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
+  );
+
+  external void wire__crate__api__sync__inspect_sync_join_approval(
+    NativePortType port_,
+    String operation_id,
+  );
+
+  external void wire__crate__api__sync__install_sync_join_key(
+    NativePortType port_,
+    String token,
+    JSAny key,
+    JSAny protected_revision,
   );
 
   external void wire__crate__api__sync__install_sync_key(
@@ -5636,6 +6047,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
+  external void wire__crate__api__sync__list_pending_sync_joins(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__relations__list_relations(
     NativePortType port_,
   );
@@ -5646,6 +6061,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__rules__list_rules(NativePortType port_);
+
+  external void wire__crate__api__sync__list_sync_enrollments(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__fonts__list_system_fonts(
     NativePortType port_,
@@ -5710,6 +6129,19 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny snapshot_ids,
   );
 
+  external void wire__crate__api__sync__prepare_sync_join_key(
+    NativePortType port_,
+    String preview_token,
+    String name,
+    String platform,
+    bool acknowledge_provider_key_sharing,
+  );
+
+  external void wire__crate__api__sync__prepare_sync_join_resume(
+    NativePortType port_,
+    String entry_id,
+  );
+
   external void wire__crate__api__sync__prepare_sync_key_request(
     NativePortType port_,
     String? name,
@@ -5727,6 +6159,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String source_url,
     String content_md,
+  );
+
+  external void wire__crate__api__sync__preview_sync_join(
+    NativePortType port_,
+    String invitation_code,
   );
 
   external void wire__crate__api__knowledge__propose_knowledge_page(
@@ -5759,6 +6196,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__wiki__refresh_project_page(
     NativePortType port_,
     String slug,
+  );
+
+  external void wire__crate__api__sync__release_sync_join(
+    NativePortType port_,
+    String operation_id,
   );
 
   external void wire__crate__api__sync__release_sync_key_request(
@@ -5817,6 +6259,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny source_event_ids,
   );
 
+  external void wire__crate__api__web_search__save_doh_settings(
+    NativePortType port_,
+    String doh_uri,
+    String doh_mode,
+  );
+
   external void wire__crate__api__import__save_imported_page(
     NativePortType port_,
     String title,
@@ -5841,6 +6289,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny tags,
   );
 
+  external void wire__crate__api__tweet__save_topic_page(
+    NativePortType port_,
+    String text,
+    String? title,
+    JSAny tags,
+  );
+
   external void wire__crate__api__tweet__save_tweet_page(
     NativePortType port_,
     String tweet_id,
@@ -5848,6 +6303,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? title,
     String? author_name,
     String? screen_name,
+  );
+
+  external void wire__crate__api__web_search__save_web_search_config(
+    NativePortType port_,
+    bool enabled,
+    String engine,
+    String base_url,
+    String api_key,
+    JSAny max_results,
   );
 
   external void wire__crate__api__wiki__save_wiki_page_content(
@@ -5875,6 +6339,16 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__sync__send_owner_sync_approval(
     NativePortType port_,
     String invitation_id,
+  );
+
+  external void wire__crate__api__sync__send_sync_join_proof(
+    NativePortType port_,
+    String operation_id,
+  );
+
+  external void wire__crate__api__sync__send_sync_join_request(
+    NativePortType port_,
+    String operation_id,
   );
 
   external void
@@ -5940,6 +6414,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content,
     String idempotency_key,
     String task_json,
+  );
+
+  external void wire__crate__api__web_search__test_doh_connection(
+    NativePortType port_,
+    String doh_uri,
   );
 
   external void wire__crate__api__knowledge__tick_knowledge_insights(

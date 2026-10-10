@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="elsewhen_ui"
+        android:label="Elsewhen"
         android:name="${applicationName}"
         android:fullBackupContent="@xml/sync_backup_rules"
         android:dataExtractionRules="@xml/sync_data_extraction_rules"

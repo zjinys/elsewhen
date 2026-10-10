@@ -44,6 +44,20 @@ Future<WikiPageDto> saveTextPage({
   tags: tags,
 );
 
+/// 把一段文本保存为「主题」（kind=topic）页。
+/// 供对话消息上的「存为主题」入口使用：前端先弹出编辑框（标题/正文/标签可改），
+/// 用户确认后调此接口直接入库——该确认框本身就是把关，不绕开用户。
+/// title 留空时 Rust 侧取正文首行前 60 字。
+Future<WikiPageDto> saveTopicPage({
+  required String text,
+  String? title,
+  required List<String> tags,
+}) => RustLib.instance.api.crateApiTweetSaveTopicPage(
+  text: text,
+  title: title,
+  tags: tags,
+);
+
 /// 判断一个网址是否需要走专用抓取 API（当前：x.com/twitter.com 推文 → fxtwitter）。
 /// 返回 "tweet" 或 "web"，供导入入口统一分发，避免前端各自猜测。
 Future<String> guessImportKind({required String url}) =>

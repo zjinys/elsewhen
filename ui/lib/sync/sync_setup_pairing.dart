@@ -122,6 +122,8 @@ extension OwnerSyncPairing on SyncSetupController {
     _activationDone = done;
     _changed();
     try {
+      await enrollment.pause();
+      _requirePairingOpen();
       await action();
     } catch (failure) {
       final text = failure.toString();
@@ -148,6 +150,7 @@ extension OwnerSyncPairing on SyncSetupController {
       done.complete();
       if (identical(_activationDone, done)) _activationDone = null;
       _changed();
+      _resumeEnrollment();
     }
   }
 }

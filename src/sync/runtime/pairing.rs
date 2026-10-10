@@ -19,7 +19,11 @@ pub(super) fn mutate(
         .get_mut(&config.data_dir)
         .context("sync_runtime_request_missing")?;
     ensure!(
-        session.database == config.database_path && session.confirmed && session.master.is_some(),
+        session.joining.is_none()
+            && !session.enrollment_busy
+            && session.database == config.database_path
+            && session.confirmed
+            && session.master.is_some(),
         "sync_pairing_runtime_locked"
     );
     ensure!(
@@ -40,6 +44,7 @@ pub(super) fn mutate(
     if session.revision != result.vault_revision {
         session.revision = result.vault_revision;
         session.confirmed = false;
+        session.enrollment_confirmation = None;
         session.token = uuid::Uuid::new_v4().to_string();
         session.expires_at = now() + 10 * 60 * 1000;
     }
@@ -94,7 +99,11 @@ pub(crate) fn pairing_dispatch(
         .get(&config.data_dir)
         .context("sync_runtime_request_missing")?;
     ensure!(
-        session.database == config.database_path && session.confirmed && session.master.is_some(),
+        session.joining.is_none()
+            && !session.enrollment_busy
+            && session.database == config.database_path
+            && session.confirmed
+            && session.master.is_some(),
         "sync_pairing_runtime_locked"
     );
     Store::open(&session.database)?.sync_pairing_dispatch(
@@ -112,7 +121,11 @@ pub(crate) fn pairing_frame(config: &AppConfig, invitation: &str) -> Result<Vec<
         .get(&config.data_dir)
         .context("sync_runtime_request_missing")?;
     ensure!(
-        session.database == config.database_path && session.confirmed && session.master.is_some(),
+        session.joining.is_none()
+            && !session.enrollment_busy
+            && session.database == config.database_path
+            && session.confirmed
+            && session.master.is_some(),
         "sync_pairing_runtime_locked"
     );
     let store = Store::open(&session.database)?;
@@ -131,7 +144,11 @@ pub(crate) fn pairing_roster(config: &AppConfig, invitation: &str) -> Result<Vec
         .get(&config.data_dir)
         .context("sync_runtime_request_missing")?;
     ensure!(
-        session.database == config.database_path && session.confirmed && session.master.is_some(),
+        session.joining.is_none()
+            && !session.enrollment_busy
+            && session.database == config.database_path
+            && session.confirmed
+            && session.master.is_some(),
         "sync_pairing_runtime_locked"
     );
     let store = Store::open(&session.database)?;
@@ -153,7 +170,11 @@ pub(crate) fn pairing_statuses(
         .get(&config.data_dir)
         .context("sync_runtime_request_missing")?;
     ensure!(
-        session.database == config.database_path && session.confirmed && session.master.is_some(),
+        session.joining.is_none()
+            && !session.enrollment_busy
+            && session.database == config.database_path
+            && session.confirmed
+            && session.master.is_some(),
         "sync_pairing_runtime_locked"
     );
     Store::open(&session.database)?.sync_pairing_statuses(

@@ -56,8 +56,7 @@ fn directory(path: &Path, create: bool) -> Result<()> {
     );
     #[cfg(unix)]
     if create {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
+        crate::config::set_unix_permissions(path, 0o700)?;
     }
     Ok(())
 }
@@ -127,10 +126,7 @@ impl DatasetCatalog {
             tx.commit()?;
         }
         #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
-        }
+        crate::config::set_unix_permissions(&path, 0o600)?;
         Ok(Self {
             root: root.to_path_buf(),
             connection,

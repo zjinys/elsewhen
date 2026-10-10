@@ -15,6 +15,7 @@ mod new_migrations;
 mod provider;
 mod provider_keys;
 mod records;
+mod web_search;
 pub(crate) mod sync;
 mod wiki;
 
@@ -30,6 +31,35 @@ use std::sync::{Mutex, OnceLock};
 // a database path performs migrations/backfills/checkpointing.
 static INITIALIZED_DATABASES: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
+/// 后台 worker 路径的写冲突重试：`SQLITE_BUSY` 时短暂退避，其余错误直接上抛。
+/// 仅用于「失败可安全重试、下个 tick 也会重来」的幂等写操作（队列回收/领取）；
+/// 前台用户操作不要用——长等待应由 busy_timeout 与明确报错呈现。
+pub(crate) fn with_busy_retry<T>(mut op: impl FnMut() -> Result<T>) -> Result<T> {
+    const BACKOFF_MS: [u64; 2] = [150, 400];
+    for (attempt, backoff) in BACKOFF_MS.iter().enumerate() {
+        match op() {
+            Err(error) if is_busy_error(&error) => {
+                std::thread::sleep(std::time::Duration::from_millis(*backoff));
+                if attempt + 1 == BACKOFF_MS.len() {
+                    return Err(error);
+                }
+            }
+            result => return result,
+        }
+    }
+    op()
+}
+
+fn is_busy_error(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        matches!(
+            cause.downcast_ref::<rusqlite::Error>(),
+            Some(rusqlite::Error::SqliteFailure(ffi, _))
+                if ffi.code == rusqlite::ErrorCode::DatabaseBusy
+        )
+    })
+}
+
 pub use adapter::{
     AiProviderConfig, AiProviderConfigRow, AnalysisJob, AnalysisSummary, StorageAdapter,
 };
@@ -39,6 +69,7 @@ pub use digest::{
 };
 pub use goals::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
 pub use knowledge::{KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, SourceSnapshot};
+pub use web_search::{DohMode, NetworkSettings, WebSearchConfig};
 
 // Conversation and Message summary structs
 #[derive(Debug, Clone)]
@@ -543,10 +574,7 @@ impl Store {
             new_migrations::initialize(&mut connection)?;
             knowledge::backfill_sources_once(&connection)?;
             #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
-            }
+            crate::config::set_unix_permissions(path, 0o600)?;
         }
         let store = Self {
             connection,
@@ -565,6 +593,24 @@ impl Store {
                 .execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
         }
         Ok(store)
+    }
+
+    /// 后台 worker 路径专用打开方式：不做迁移/回填/checkpoint 等启动写入。
+    /// 库版本落后于代码预期（init 尚未跑完或库待升级）时返回 `Ok(None)`，
+    /// 调用方按「本轮无事可做」处理；绝不能由后台补跑启动写入。
+    pub fn open_background(path: &Path) -> Result<Option<Self>> {
+        let expected = new_migrations::latest_version()?;
+        let current: i64 = {
+            let conn = Connection::open(path)
+                .with_context(|| format!("open SQLite database {}", path.display()))?;
+            conn.query_row("PRAGMA main.user_version", [], |row| row.get(0))?
+        };
+        if current < expected {
+            return Ok(None);
+        }
+        // 版本已就绪：标记为已初始化，让 open 走快路径（不写库）。
+        Self::mark_initialized(path)?;
+        Self::open(path).map(Some)
     }
 
     /// Mark a database as initialized after the bridge startup sequence.

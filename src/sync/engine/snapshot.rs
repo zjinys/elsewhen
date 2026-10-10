@@ -18,6 +18,29 @@ pub(crate) fn stage_snapshot(
     key: &ContentKey,
     signer: &DeviceIdentity,
 ) -> Result<()> {
+    stage_snapshot_inner(store, recipient, id, key_version, key, signer, false)
+}
+
+pub(crate) fn stage_enrollment_snapshot(
+    store: &Store,
+    recipient: &str,
+    id: &str,
+    key_version: u64,
+    key: &ContentKey,
+    signer: &DeviceIdentity,
+) -> Result<()> {
+    stage_snapshot_inner(store, recipient, id, key_version, key, signer, true)
+}
+
+fn stage_snapshot_inner(
+    store: &Store,
+    recipient: &str,
+    id: &str,
+    key_version: u64,
+    key: &ContentKey,
+    signer: &DeviceIdentity,
+    with_authority: bool,
+) -> Result<()> {
     ensure!(
         store.connection.is_autocommit(),
         "sync_snapshot_export_requires_autocommit"
@@ -27,6 +50,17 @@ pub(crate) fn stage_snapshot(
     }
     let result = (|| {
         let mut exporter = SnapshotExporter::new(store, recipient, id, key_version)?;
+        if with_authority {
+            let signed = exporter.signed_roster()?;
+            let header = EnvelopeHeader::new(
+                &signed.roster.dataset_id,
+                &signed.roster.owner.device_id,
+                recipient,
+                key_version,
+                membership_message_id(&signed)?,
+            )?;
+            store.stage_snapshot_authority(id, &header, key, signer, &signed.encode()?)?;
+        }
         while let Some(bytes) = exporter.next_encrypted_chunk(key, signer)? {
             stage_piece(store, id, &bytes, key, signer, false)?;
         }

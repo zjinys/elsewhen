@@ -2,6 +2,10 @@
 //! The Node runtime test starts an isolated Worker and supplies its random port.
 
 #[cfg(test)]
+mod enrollment_ui;
+#[cfg(test)]
+mod joiner_ui;
+#[cfg(test)]
 mod membership;
 #[cfg(test)]
 mod owner_ui;
@@ -720,6 +724,7 @@ mod smoke {
         drop(target);
         super::membership::roundtrip(&client, &directory);
         super::owner_ui::roundtrip(&client, &directory);
+        super::joiner_ui::roundtrip(&client, &directory);
         drop(a);
         drop(b);
         std::fs::remove_dir_all(directory).unwrap();

@@ -27,7 +27,7 @@
 use anyhow::Result;
 use include_dir::{Dir, include_dir};
 use rusqlite::Connection;
-use rusqlite_migration::Migrations;
+use rusqlite_migration::{Migrations, SchemaVersion};
 
 /// `migrations/` 整个目录，编译期嵌入二进制。
 ///
@@ -50,6 +50,20 @@ fn migrations() -> Result<Migrations<'static>> {
 pub(crate) fn initialize(connection: &mut Connection) -> Result<()> {
     migrations()?.to_latest(connection)?;
     Ok(())
+}
+
+/// 代码期望的最新 schema 版本（迁移目录的最大序号）。
+/// 后台路径用它判断库是否待升级：版本落后就跳过本轮工作，
+/// 绝不在后台补跑迁移——启动写入只属于前台初始化路径。
+pub(crate) fn latest_version() -> Result<i64> {
+    let mut connection = Connection::open_in_memory()?;
+    debug_assert!(matches!(
+        migrations()?.current_version(&connection)?,
+        SchemaVersion::NoneSet
+    ));
+    initialize(&mut connection)?;
+    let version: i64 = connection.query_row("PRAGMA main.user_version", [], |row| row.get(0))?;
+    Ok(version)
 }
 
 #[cfg(test)]
@@ -126,6 +140,8 @@ mod tests {
                 "22-sync-membership-authority",
                 "23-provider-key-sealing",
                 "24-provider-edit-basis",
+                "25-web-search",
+                "26-doh-mode",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -157,7 +173,12 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 24, "二十四条迁移跑完，user_version 应为 24");
+        assert_eq!(version, 26, "二十六条迁移跑完，user_version 应为 26");
+        assert_eq!(
+            latest_version().unwrap(),
+            version,
+            "latest_version 必须与迁移目录推导出的 user_version 一致"
+        );
     }
 
     #[test]

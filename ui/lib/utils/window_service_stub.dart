@@ -40,6 +40,18 @@ class StubWindowService implements WindowService {
   Future<void> quitApp() async {}
 
   @override
+  CloseAction get closeAction => CloseAction.minimizeToTray;
+
+  @override
+  Future<void> setCloseAction(CloseAction action) async {}
+
+  @override
+  bool get trayAvailable => false;
+
+  @override
+  Future<void> requestClose() async {}
+
+  @override
   void startDragging() {}
 
   @override

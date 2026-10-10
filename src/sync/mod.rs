@@ -8,11 +8,12 @@
 pub mod crypto;
 pub(crate) mod datasets;
 pub(crate) mod engine;
+pub(crate) mod enrollment;
 pub(crate) mod fragments;
 pub(crate) mod membership;
 pub(crate) mod pairing;
-pub(crate) mod runtime;
-pub(crate) mod vault;
 pub mod protocol;
+pub(crate) mod runtime;
 pub mod transport_relay;
 mod transport_relay_smoke_tests;
+pub(crate) mod vault;

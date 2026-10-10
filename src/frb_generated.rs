@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -253006005;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 233902080;
 
 // Section: executor
 
@@ -192,6 +192,37 @@ fn wire__crate__api__knowledge_workflows__adopt_artifact_version_impl(
                             api_slug,
                             api_revision_id,
                             api_adopt,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__advance_sync_enrollment_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    role: impl CstDecode<String>,
+    operation_id: impl CstDecode<String>,
+    invitation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "advance_sync_enrollment",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_role = role.cst_decode();
+            let api_operation_id = operation_id.cst_decode();
+            let api_invitation_id = invitation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::advance_sync_enrollment(
+                            api_role,
+                            api_operation_id,
+                            api_invitation_id,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -458,6 +489,71 @@ fn wire__crate__api__knowledge__confirm_knowledge_source_impl(
                             api_source_kind,
                             api_tags,
                             api_expected_snapshot_id,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__confirm_sync_enrollment_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    role: impl CstDecode<String>,
+    operation_id: impl CstDecode<String>,
+    invitation_id: impl CstDecode<String>,
+    token: impl CstDecode<String>,
+    protected_revision: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "confirm_sync_enrollment",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_role = role.cst_decode();
+            let api_operation_id = operation_id.cst_decode();
+            let api_invitation_id = invitation_id.cst_decode();
+            let api_token = token.cst_decode();
+            let api_protected_revision = protected_revision.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::confirm_sync_enrollment(
+                            api_role,
+                            api_operation_id,
+                            api_invitation_id,
+                            api_token,
+                            api_protected_revision,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__confirm_sync_join_key_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    token: impl CstDecode<String>,
+    protected_revision: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "confirm_sync_join_key",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_token = token.cst_decode();
+            let api_protected_revision = protected_revision.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::confirm_sync_join_key(
+                            api_token,
+                            api_protected_revision,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -1725,6 +1821,27 @@ fn wire__crate__api__get_message_recordability_impl(
         },
     )
 }
+fn wire__crate__api__web_search__get_network_settings_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_network_settings",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::web_search::get_network_settings()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge_workflows__get_suggestion_feedback_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     message_id: impl CstDecode<String>,
@@ -1743,6 +1860,29 @@ fn wire__crate__api__knowledge_workflows__get_suggestion_feedback_impl(
                         let output_ok = crate::api::knowledge_workflows::get_suggestion_feedback(
                             api_message_id,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__get_sync_join_state_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    operation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_sync_join_state",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_operation_id = operation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::get_sync_join_state(api_operation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1785,6 +1925,27 @@ fn wire__crate__api__tweet__get_tweet_fetch_service_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::tweet::get_tweet_fetch_service()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__web_search__get_web_search_config_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_web_search_config",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::web_search::get_web_search_config()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1926,6 +2087,61 @@ fn wire__crate__api__sync__inspect_owner_sync_invitation_impl(
                     (move || {
                         let output_ok =
                             crate::api::sync::inspect_owner_sync_invitation(api_invitation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__inspect_sync_join_approval_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    operation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "inspect_sync_join_approval",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_operation_id = operation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::sync::inspect_sync_join_approval(api_operation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__install_sync_join_key_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    token: impl CstDecode<String>,
+    key: impl CstDecode<Vec<u8>>,
+    protected_revision: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "install_sync_join_key",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_token = token.cst_decode();
+            let api_key = key.cst_decode();
+            let api_protected_revision = protected_revision.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::install_sync_join_key(
+                            api_token,
+                            api_key,
+                            api_protected_revision,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2652,6 +2868,27 @@ fn wire__crate__api__conversations__list_pending_actions_impl(
         },
     )
 }
+fn wire__crate__api__sync__list_pending_sync_joins_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_pending_sync_joins",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::list_pending_sync_joins()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__relations__list_relations_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -2710,6 +2947,27 @@ fn wire__crate__api__rules__list_rules_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::rules::list_rules()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__list_sync_enrollments_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_sync_enrollments",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::list_sync_enrollments()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3016,6 +3274,64 @@ fn wire__crate__api__knowledge__prepare_knowledge_source_repair_impl(
         },
     )
 }
+fn wire__crate__api__sync__prepare_sync_join_key_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    preview_token: impl CstDecode<String>,
+    name: impl CstDecode<String>,
+    platform: impl CstDecode<String>,
+    acknowledge_provider_key_sharing: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "prepare_sync_join_key",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_preview_token = preview_token.cst_decode();
+            let api_name = name.cst_decode();
+            let api_platform = platform.cst_decode();
+            let api_acknowledge_provider_key_sharing =
+                acknowledge_provider_key_sharing.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::prepare_sync_join_key(
+                            api_preview_token,
+                            api_name,
+                            api_platform,
+                            api_acknowledge_provider_key_sharing,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__prepare_sync_join_resume_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    entry_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "prepare_sync_join_resume",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_entry_id = entry_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::prepare_sync_join_resume(api_entry_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__sync__prepare_sync_key_request_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     name: impl CstDecode<Option<String>>,
@@ -3095,6 +3411,29 @@ fn wire__crate__api__knowledge__preview_knowledge_source_impl(
                             api_source_url,
                             api_content_md,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__preview_sync_join_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    invitation_code: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "preview_sync_join",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_invitation_code = invitation_code.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::preview_sync_join(api_invitation_code)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3241,6 +3580,29 @@ fn wire__crate__api__wiki__refresh_project_page_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::wiki::refresh_project_page(api_slug)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__release_sync_join_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    operation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "release_sync_join",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_operation_id = operation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::release_sync_join(api_operation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3495,6 +3857,32 @@ fn wire__crate__api__save_daily_review_impl(
         },
     )
 }
+fn wire__crate__api__web_search__save_doh_settings_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    doh_uri: impl CstDecode<String>,
+    doh_mode: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_doh_settings",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_doh_uri = doh_uri.cst_decode();
+            let api_doh_mode = doh_mode.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::web_search::save_doh_settings(api_doh_uri, api_doh_mode)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__import__save_imported_page_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     title: impl CstDecode<String>,
@@ -3594,6 +3982,34 @@ fn wire__crate__api__tweet__save_text_page_impl(
         },
     )
 }
+fn wire__crate__api__tweet__save_topic_page_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    text: impl CstDecode<String>,
+    title: impl CstDecode<Option<String>>,
+    tags: impl CstDecode<Vec<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_topic_page",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_text = text.cst_decode();
+            let api_title = title.cst_decode();
+            let api_tags = tags.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::tweet::save_topic_page(api_text, api_title, api_tags)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__tweet__save_tweet_page_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     tweet_id: impl CstDecode<String>,
@@ -3623,6 +4039,43 @@ fn wire__crate__api__tweet__save_tweet_page_impl(
                             api_title,
                             api_author_name,
                             api_screen_name,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__web_search__save_web_search_config_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    enabled: impl CstDecode<bool>,
+    engine: impl CstDecode<String>,
+    base_url: impl CstDecode<String>,
+    api_key: impl CstDecode<String>,
+    max_results: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_web_search_config",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_enabled = enabled.cst_decode();
+            let api_engine = engine.cst_decode();
+            let api_base_url = base_url.cst_decode();
+            let api_api_key = api_key.cst_decode();
+            let api_max_results = max_results.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::web_search::save_web_search_config(
+                            api_enabled,
+                            api_engine,
+                            api_base_url,
+                            api_api_key,
+                            api_max_results,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -3744,6 +4197,52 @@ fn wire__crate__api__sync__send_owner_sync_approval_impl(
                     (move || {
                         let output_ok =
                             crate::api::sync::send_owner_sync_approval(api_invitation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__send_sync_join_proof_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    operation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "send_sync_join_proof",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_operation_id = operation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::send_sync_join_proof(api_operation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__send_sync_join_request_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    operation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "send_sync_join_request",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_operation_id = operation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::send_sync_join_request(api_operation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4027,6 +4526,29 @@ fn wire__crate__api__wiki_chat__submit_wiki_chat_input_impl(
                             api_idempotency_key,
                             api_task_json,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__web_search__test_doh_connection_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    doh_uri: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "test_doh_connection",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_doh_uri = doh_uri.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::web_search::test_doh_connection(api_doh_uri)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6203,6 +6725,34 @@ impl SseDecode for Vec<crate::storage::knowledge::SourceSnapshot> {
     }
 }
 
+impl SseDecode for Vec<crate::api::sync::SyncEnrollmentStateDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sync::SyncEnrollmentStateDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::sync::SyncJoinEntryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sync::SyncJoinEntryDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::fonts::SystemFontFace> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6335,6 +6885,20 @@ impl SseDecode for crate::api::MessageRecordabilityDto {
             source: var_source,
             job_status: var_jobStatus,
             summary: var_summary,
+        };
+    }
+}
+
+impl SseDecode for crate::api::web_search::NetworkSettingsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_dohUri = <String>::sse_decode(deserializer);
+        let mut var_dohScope = <String>::sse_decode(deserializer);
+        let mut var_dohMode = <String>::sse_decode(deserializer);
+        return crate::api::web_search::NetworkSettingsDto {
+            doh_uri: var_dohUri,
+            doh_scope: var_dohScope,
+            doh_mode: var_dohMode,
         };
     }
 }
@@ -6695,6 +7259,40 @@ impl SseDecode for crate::knowledge::workflows::SuggestionFeedback {
     }
 }
 
+impl SseDecode for crate::api::sync::SyncEnrollmentStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_role = <String>::sse_decode(deserializer);
+        let mut var_operationId = <String>::sse_decode(deserializer);
+        let mut var_invitationId = <String>::sse_decode(deserializer);
+        let mut var_installationId = <String>::sse_decode(deserializer);
+        let mut var_revision = <i64>::sse_decode(deserializer);
+        let mut var_confirmationToken = <Option<String>>::sse_decode(deserializer);
+        let mut var_phase = <String>::sse_decode(deserializer);
+        let mut var_snapshotId = <Option<String>>::sse_decode(deserializer);
+        let mut var_receivedChunks = <i64>::sse_decode(deserializer);
+        let mut var_totalChunks = <i64>::sse_decode(deserializer);
+        let mut var_localApplied = <bool>::sse_decode(deserializer);
+        let mut var_remoteApplied = <bool>::sse_decode(deserializer);
+        let mut var_notificationPending = <bool>::sse_decode(deserializer);
+        return crate::api::sync::SyncEnrollmentStateDto {
+            role: var_role,
+            operation_id: var_operationId,
+            invitation_id: var_invitationId,
+            installation_id: var_installationId,
+            revision: var_revision,
+            confirmation_token: var_confirmationToken,
+            phase: var_phase,
+            snapshot_id: var_snapshotId,
+            received_chunks: var_receivedChunks,
+            total_chunks: var_totalChunks,
+            local_applied: var_localApplied,
+            remote_applied: var_remoteApplied,
+            notification_pending: var_notificationPending,
+        };
+    }
+}
+
 impl SseDecode for crate::api::sync::SyncInvitationOfferDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6725,6 +7323,58 @@ impl SseDecode for crate::api::sync::SyncInvitationPreviewDto {
             device_platform: var_devicePlatform,
             fingerprint: var_fingerprint,
             expires_at_ms: var_expiresAtMs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncJoinEntryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_entryId = <String>::sse_decode(deserializer);
+        let mut var_installationId = <String>::sse_decode(deserializer);
+        let mut var_datasetId = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        return crate::api::sync::SyncJoinEntryDto {
+            entry_id: var_entryId,
+            installation_id: var_installationId,
+            dataset_id: var_datasetId,
+            name: var_name,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncJoinStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_operationId = <String>::sse_decode(deserializer);
+        let mut var_token = <String>::sse_decode(deserializer);
+        let mut var_entryId = <Option<String>>::sse_decode(deserializer);
+        let mut var_installationId = <Option<String>>::sse_decode(deserializer);
+        let mut var_datasetId = <String>::sse_decode(deserializer);
+        let mut var_ownerName = <String>::sse_decode(deserializer);
+        let mut var_ownerFingerprint = <String>::sse_decode(deserializer);
+        let mut var_localFingerprint = <Option<String>>::sse_decode(deserializer);
+        let mut var_relayUrl = <String>::sse_decode(deserializer);
+        let mut var_expiresAtMs = <i64>::sse_decode(deserializer);
+        let mut var_phase = <String>::sse_decode(deserializer);
+        let mut var_revision = <i64>::sse_decode(deserializer);
+        let mut var_creating = <bool>::sse_decode(deserializer);
+        let mut var_approvalAckPending = <bool>::sse_decode(deserializer);
+        return crate::api::sync::SyncJoinStateDto {
+            operation_id: var_operationId,
+            token: var_token,
+            entry_id: var_entryId,
+            installation_id: var_installationId,
+            dataset_id: var_datasetId,
+            owner_name: var_ownerName,
+            owner_fingerprint: var_ownerFingerprint,
+            local_fingerprint: var_localFingerprint,
+            relay_url: var_relayUrl,
+            expires_at_ms: var_expiresAtMs,
+            phase: var_phase,
+            revision: var_revision,
+            creating: var_creating,
+            approval_ack_pending: var_approvalAckPending,
         };
     }
 }
@@ -6891,6 +7541,26 @@ impl SseDecode for crate::api::chat_runs::UnscheduledChatInputDto {
             input_message_id: var_inputMessageId,
             preview: var_preview,
             created_at: var_createdAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::web_search::WebSearchConfigDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_enabled = <bool>::sse_decode(deserializer);
+        let mut var_engine = <String>::sse_decode(deserializer);
+        let mut var_baseUrl = <String>::sse_decode(deserializer);
+        let mut var_apiKey = <String>::sse_decode(deserializer);
+        let mut var_hasApiKey = <bool>::sse_decode(deserializer);
+        let mut var_maxResults = <i64>::sse_decode(deserializer);
+        return crate::api::web_search::WebSearchConfigDto {
+            enabled: var_enabled,
+            engine: var_engine,
+            base_url: var_baseUrl,
+            api_key: var_apiKey,
+            has_api_key: var_hasApiKey,
+            max_results: var_maxResults,
         };
     }
 }
@@ -8285,6 +8955,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::MessageRecordabilityDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::web_search::NetworkSettingsDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.doh_uri.into_into_dart().into_dart(),
+            self.doh_scope.into_into_dart().into_dart(),
+            self.doh_mode.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::web_search::NetworkSettingsDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::web_search::NetworkSettingsDto>
+    for crate::api::web_search::NetworkSettingsDto
+{
+    fn into_into_dart(self) -> crate::api::web_search::NetworkSettingsDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::knowledge::organization::OrganizedTopic {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -8481,6 +9173,38 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::workflows::SuggestionFe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncEnrollmentStateDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.role.into_into_dart().into_dart(),
+            self.operation_id.into_into_dart().into_dart(),
+            self.invitation_id.into_into_dart().into_dart(),
+            self.installation_id.into_into_dart().into_dart(),
+            self.revision.into_into_dart().into_dart(),
+            self.confirmation_token.into_into_dart().into_dart(),
+            self.phase.into_into_dart().into_dart(),
+            self.snapshot_id.into_into_dart().into_dart(),
+            self.received_chunks.into_into_dart().into_dart(),
+            self.total_chunks.into_into_dart().into_dart(),
+            self.local_applied.into_into_dart().into_dart(),
+            self.remote_applied.into_into_dart().into_dart(),
+            self.notification_pending.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncEnrollmentStateDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncEnrollmentStateDto>
+    for crate::api::sync::SyncEnrollmentStateDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncEnrollmentStateDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncInvitationOfferDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -8524,6 +9248,62 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncInvitationPreviewDt
     for crate::api::sync::SyncInvitationPreviewDto
 {
     fn into_into_dart(self) -> crate::api::sync::SyncInvitationPreviewDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncJoinEntryDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.entry_id.into_into_dart().into_dart(),
+            self.installation_id.into_into_dart().into_dart(),
+            self.dataset_id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncJoinEntryDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncJoinEntryDto>
+    for crate::api::sync::SyncJoinEntryDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncJoinEntryDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncJoinStateDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.operation_id.into_into_dart().into_dart(),
+            self.token.into_into_dart().into_dart(),
+            self.entry_id.into_into_dart().into_dart(),
+            self.installation_id.into_into_dart().into_dart(),
+            self.dataset_id.into_into_dart().into_dart(),
+            self.owner_name.into_into_dart().into_dart(),
+            self.owner_fingerprint.into_into_dart().into_dart(),
+            self.local_fingerprint.into_into_dart().into_dart(),
+            self.relay_url.into_into_dart().into_dart(),
+            self.expires_at_ms.into_into_dart().into_dart(),
+            self.phase.into_into_dart().into_dart(),
+            self.revision.into_into_dart().into_dart(),
+            self.creating.into_into_dart().into_dart(),
+            self.approval_ack_pending.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncJoinStateDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncJoinStateDto>
+    for crate::api::sync::SyncJoinStateDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncJoinStateDto {
         self
     }
 }
@@ -8712,6 +9492,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::chat_runs::UnscheduledChatInp
     for crate::api::chat_runs::UnscheduledChatInputDto
 {
     fn into_into_dart(self) -> crate::api::chat_runs::UnscheduledChatInputDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::web_search::WebSearchConfigDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.enabled.into_into_dart().into_dart(),
+            self.engine.into_into_dart().into_dart(),
+            self.base_url.into_into_dart().into_dart(),
+            self.api_key.into_into_dart().into_dart(),
+            self.has_api_key.into_into_dart().into_dart(),
+            self.max_results.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::web_search::WebSearchConfigDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::web_search::WebSearchConfigDto>
+    for crate::api::web_search::WebSearchConfigDto
+{
+    fn into_into_dart(self) -> crate::api::web_search::WebSearchConfigDto {
         self
     }
 }
@@ -9873,6 +10678,26 @@ impl SseEncode for Vec<crate::storage::knowledge::SourceSnapshot> {
     }
 }
 
+impl SseEncode for Vec<crate::api::sync::SyncEnrollmentStateDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sync::SyncEnrollmentStateDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::sync::SyncJoinEntryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sync::SyncJoinEntryDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::fonts::SystemFontFace> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -9963,6 +10788,15 @@ impl SseEncode for crate::api::MessageRecordabilityDto {
         <String>::sse_encode(self.source, serializer);
         <String>::sse_encode(self.job_status, serializer);
         <Option<String>>::sse_encode(self.summary, serializer);
+    }
+}
+
+impl SseEncode for crate::api::web_search::NetworkSettingsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.doh_uri, serializer);
+        <String>::sse_encode(self.doh_scope, serializer);
+        <String>::sse_encode(self.doh_mode, serializer);
     }
 }
 
@@ -10223,6 +11057,25 @@ impl SseEncode for crate::knowledge::workflows::SuggestionFeedback {
     }
 }
 
+impl SseEncode for crate::api::sync::SyncEnrollmentStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.role, serializer);
+        <String>::sse_encode(self.operation_id, serializer);
+        <String>::sse_encode(self.invitation_id, serializer);
+        <String>::sse_encode(self.installation_id, serializer);
+        <i64>::sse_encode(self.revision, serializer);
+        <Option<String>>::sse_encode(self.confirmation_token, serializer);
+        <String>::sse_encode(self.phase, serializer);
+        <Option<String>>::sse_encode(self.snapshot_id, serializer);
+        <i64>::sse_encode(self.received_chunks, serializer);
+        <i64>::sse_encode(self.total_chunks, serializer);
+        <bool>::sse_encode(self.local_applied, serializer);
+        <bool>::sse_encode(self.remote_applied, serializer);
+        <bool>::sse_encode(self.notification_pending, serializer);
+    }
+}
+
 impl SseEncode for crate::api::sync::SyncInvitationOfferDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -10241,6 +11094,36 @@ impl SseEncode for crate::api::sync::SyncInvitationPreviewDto {
         <String>::sse_encode(self.device_platform, serializer);
         <String>::sse_encode(self.fingerprint, serializer);
         <i64>::sse_encode(self.expires_at_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncJoinEntryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.entry_id, serializer);
+        <String>::sse_encode(self.installation_id, serializer);
+        <String>::sse_encode(self.dataset_id, serializer);
+        <String>::sse_encode(self.name, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncJoinStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.operation_id, serializer);
+        <String>::sse_encode(self.token, serializer);
+        <Option<String>>::sse_encode(self.entry_id, serializer);
+        <Option<String>>::sse_encode(self.installation_id, serializer);
+        <String>::sse_encode(self.dataset_id, serializer);
+        <String>::sse_encode(self.owner_name, serializer);
+        <String>::sse_encode(self.owner_fingerprint, serializer);
+        <Option<String>>::sse_encode(self.local_fingerprint, serializer);
+        <String>::sse_encode(self.relay_url, serializer);
+        <i64>::sse_encode(self.expires_at_ms, serializer);
+        <String>::sse_encode(self.phase, serializer);
+        <i64>::sse_encode(self.revision, serializer);
+        <bool>::sse_encode(self.creating, serializer);
+        <bool>::sse_encode(self.approval_ack_pending, serializer);
     }
 }
 
@@ -10349,6 +11232,18 @@ impl SseEncode for crate::api::chat_runs::UnscheduledChatInputDto {
         <String>::sse_encode(self.input_message_id, serializer);
         <String>::sse_encode(self.preview, serializer);
         <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::web_search::WebSearchConfigDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.enabled, serializer);
+        <String>::sse_encode(self.engine, serializer);
+        <String>::sse_encode(self.base_url, serializer);
+        <String>::sse_encode(self.api_key, serializer);
+        <bool>::sse_encode(self.has_api_key, serializer);
+        <i64>::sse_encode(self.max_results, serializer);
     }
 }
 
@@ -11693,6 +12588,28 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::SyncEnrollmentStateDto>>
+        for *mut wire_cst_list_sync_enrollment_state_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::SyncEnrollmentStateDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::sync::SyncJoinEntryDto>> for *mut wire_cst_list_sync_join_entry_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::SyncJoinEntryDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::fonts::SystemFontFace>> for *mut wire_cst_list_system_font_face {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::fonts::SystemFontFace> {
@@ -11788,6 +12705,16 @@ mod io {
                 source: self.source.cst_decode(),
                 job_status: self.job_status.cst_decode(),
                 summary: self.summary.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::web_search::NetworkSettingsDto> for wire_cst_network_settings_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::web_search::NetworkSettingsDto {
+            crate::api::web_search::NetworkSettingsDto {
+                doh_uri: self.doh_uri.cst_decode(),
+                doh_scope: self.doh_scope.cst_decode(),
+                doh_mode: self.doh_mode.cst_decode(),
             }
         }
     }
@@ -11896,6 +12823,26 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::sync::SyncEnrollmentStateDto> for wire_cst_sync_enrollment_state_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncEnrollmentStateDto {
+            crate::api::sync::SyncEnrollmentStateDto {
+                role: self.role.cst_decode(),
+                operation_id: self.operation_id.cst_decode(),
+                invitation_id: self.invitation_id.cst_decode(),
+                installation_id: self.installation_id.cst_decode(),
+                revision: self.revision.cst_decode(),
+                confirmation_token: self.confirmation_token.cst_decode(),
+                phase: self.phase.cst_decode(),
+                snapshot_id: self.snapshot_id.cst_decode(),
+                received_chunks: self.received_chunks.cst_decode(),
+                total_chunks: self.total_chunks.cst_decode(),
+                local_applied: self.local_applied.cst_decode(),
+                remote_applied: self.remote_applied.cst_decode(),
+                notification_pending: self.notification_pending.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::sync::SyncInvitationOfferDto> for wire_cst_sync_invitation_offer_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::sync::SyncInvitationOfferDto {
@@ -11918,6 +12865,38 @@ mod io {
                 device_platform: self.device_platform.cst_decode(),
                 fingerprint: self.fingerprint.cst_decode(),
                 expires_at_ms: self.expires_at_ms.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncJoinEntryDto> for wire_cst_sync_join_entry_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncJoinEntryDto {
+            crate::api::sync::SyncJoinEntryDto {
+                entry_id: self.entry_id.cst_decode(),
+                installation_id: self.installation_id.cst_decode(),
+                dataset_id: self.dataset_id.cst_decode(),
+                name: self.name.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncJoinStateDto> for wire_cst_sync_join_state_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncJoinStateDto {
+            crate::api::sync::SyncJoinStateDto {
+                operation_id: self.operation_id.cst_decode(),
+                token: self.token.cst_decode(),
+                entry_id: self.entry_id.cst_decode(),
+                installation_id: self.installation_id.cst_decode(),
+                dataset_id: self.dataset_id.cst_decode(),
+                owner_name: self.owner_name.cst_decode(),
+                owner_fingerprint: self.owner_fingerprint.cst_decode(),
+                local_fingerprint: self.local_fingerprint.cst_decode(),
+                relay_url: self.relay_url.cst_decode(),
+                expires_at_ms: self.expires_at_ms.cst_decode(),
+                phase: self.phase.cst_decode(),
+                revision: self.revision.cst_decode(),
+                creating: self.creating.cst_decode(),
+                approval_ack_pending: self.approval_ack_pending.cst_decode(),
             }
         }
     }
@@ -12019,6 +12998,19 @@ mod io {
                 input_message_id: self.input_message_id.cst_decode(),
                 preview: self.preview.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::web_search::WebSearchConfigDto> for wire_cst_web_search_config_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::web_search::WebSearchConfigDto {
+            crate::api::web_search::WebSearchConfigDto {
+                enabled: self.enabled.cst_decode(),
+                engine: self.engine.cst_decode(),
+                base_url: self.base_url.cst_decode(),
+                api_key: self.api_key.cst_decode(),
+                has_api_key: self.has_api_key.cst_decode(),
+                max_results: self.max_results.cst_decode(),
             }
         }
     }
@@ -12965,6 +13957,20 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_network_settings_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                doh_uri: core::ptr::null_mut(),
+                doh_scope: core::ptr::null_mut(),
+                doh_mode: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_network_settings_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_organized_topic {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -13102,6 +14108,30 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_sync_enrollment_state_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                role: core::ptr::null_mut(),
+                operation_id: core::ptr::null_mut(),
+                invitation_id: core::ptr::null_mut(),
+                installation_id: core::ptr::null_mut(),
+                revision: Default::default(),
+                confirmation_token: core::ptr::null_mut(),
+                phase: core::ptr::null_mut(),
+                snapshot_id: core::ptr::null_mut(),
+                received_chunks: Default::default(),
+                total_chunks: Default::default(),
+                local_applied: Default::default(),
+                remote_applied: Default::default(),
+                notification_pending: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_enrollment_state_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_sync_invitation_offer_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -13129,6 +14159,46 @@ mod io {
         }
     }
     impl Default for wire_cst_sync_invitation_preview_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_sync_join_entry_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                entry_id: core::ptr::null_mut(),
+                installation_id: core::ptr::null_mut(),
+                dataset_id: core::ptr::null_mut(),
+                name: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_join_entry_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_sync_join_state_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                operation_id: core::ptr::null_mut(),
+                token: core::ptr::null_mut(),
+                entry_id: core::ptr::null_mut(),
+                installation_id: core::ptr::null_mut(),
+                dataset_id: core::ptr::null_mut(),
+                owner_name: core::ptr::null_mut(),
+                owner_fingerprint: core::ptr::null_mut(),
+                local_fingerprint: core::ptr::null_mut(),
+                relay_url: core::ptr::null_mut(),
+                expires_at_ms: Default::default(),
+                phase: core::ptr::null_mut(),
+                revision: Default::default(),
+                creating: Default::default(),
+                approval_ack_pending: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_join_state_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -13262,6 +14332,23 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_web_search_config_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                enabled: Default::default(),
+                engine: core::ptr::null_mut(),
+                base_url: core::ptr::null_mut(),
+                api_key: core::ptr::null_mut(),
+                has_api_key: Default::default(),
+                max_results: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_web_search_config_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_wiki_chat_material_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -13367,6 +14454,21 @@ mod io {
             slug,
             revision_id,
             adopt,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__advance_sync_enrollment(
+        port_: i64,
+        role: *mut wire_cst_list_prim_u_8_strict,
+        operation_id: *mut wire_cst_list_prim_u_8_strict,
+        invitation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__advance_sync_enrollment_impl(
+            port_,
+            role,
+            operation_id,
+            invitation_id,
         )
     }
 
@@ -13478,6 +14580,34 @@ mod io {
             tags,
             expected_snapshot_id,
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__confirm_sync_enrollment(
+        port_: i64,
+        role: *mut wire_cst_list_prim_u_8_strict,
+        operation_id: *mut wire_cst_list_prim_u_8_strict,
+        invitation_id: *mut wire_cst_list_prim_u_8_strict,
+        token: *mut wire_cst_list_prim_u_8_strict,
+        protected_revision: i64,
+    ) {
+        wire__crate__api__sync__confirm_sync_enrollment_impl(
+            port_,
+            role,
+            operation_id,
+            invitation_id,
+            token,
+            protected_revision,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__confirm_sync_join_key(
+        port_: i64,
+        token: *mut wire_cst_list_prim_u_8_strict,
+        protected_revision: i64,
+    ) {
+        wire__crate__api__sync__confirm_sync_join_key_impl(port_, token, protected_revision)
     }
 
     #[unsafe(no_mangle)]
@@ -13948,11 +15078,26 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__web_search__get_network_settings(
+        port_: i64,
+    ) {
+        wire__crate__api__web_search__get_network_settings_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__get_suggestion_feedback(
         port_: i64,
         message_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__knowledge_workflows__get_suggestion_feedback_impl(port_, message_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__get_sync_join_state(
+        port_: i64,
+        operation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__get_sync_join_state_impl(port_, operation_id)
     }
 
     #[unsafe(no_mangle)]
@@ -13965,6 +15110,13 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__tweet__get_tweet_fetch_service_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__web_search__get_web_search_config(
+        port_: i64,
+    ) {
+        wire__crate__api__web_search__get_web_search_config_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -14013,6 +15165,24 @@ mod io {
         invitation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__sync__inspect_owner_sync_invitation_impl(port_, invitation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__inspect_sync_join_approval(
+        port_: i64,
+        operation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__inspect_sync_join_approval_impl(port_, operation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__install_sync_join_key(
+        port_: i64,
+        token: *mut wire_cst_list_prim_u_8_strict,
+        key: *mut wire_cst_list_prim_u_8_loose,
+        protected_revision: i64,
+    ) {
+        wire__crate__api__sync__install_sync_join_key_impl(port_, token, key, protected_revision)
     }
 
     #[unsafe(no_mangle)]
@@ -14263,6 +15433,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_pending_sync_joins(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__list_pending_sync_joins_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__relations__list_relations(port_: i64) {
         wire__crate__api__relations__list_relations_impl(port_)
     }
@@ -14278,6 +15455,11 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__list_rules(port_: i64) {
         wire__crate__api__rules__list_rules_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_sync_enrollments(port_: i64) {
+        wire__crate__api__sync__list_sync_enrollments_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -14383,6 +15565,31 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__prepare_sync_join_key(
+        port_: i64,
+        preview_token: *mut wire_cst_list_prim_u_8_strict,
+        name: *mut wire_cst_list_prim_u_8_strict,
+        platform: *mut wire_cst_list_prim_u_8_strict,
+        acknowledge_provider_key_sharing: bool,
+    ) {
+        wire__crate__api__sync__prepare_sync_join_key_impl(
+            port_,
+            preview_token,
+            name,
+            platform,
+            acknowledge_provider_key_sharing,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__prepare_sync_join_resume(
+        port_: i64,
+        entry_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__prepare_sync_join_resume_impl(port_, entry_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__prepare_sync_key_request(
         port_: i64,
         name: *mut wire_cst_list_prim_u_8_strict,
@@ -14413,6 +15620,14 @@ mod io {
         content_md: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__knowledge__preview_knowledge_source_impl(port_, source_url, content_md)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__preview_sync_join(
+        port_: i64,
+        invitation_code: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__preview_sync_join_impl(port_, invitation_code)
     }
 
     #[unsafe(no_mangle)]
@@ -14463,6 +15678,14 @@ mod io {
         slug: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__wiki__refresh_project_page_impl(port_, slug)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__release_sync_join(
+        port_: i64,
+        operation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__release_sync_join_impl(port_, operation_id)
     }
 
     #[unsafe(no_mangle)]
@@ -14560,6 +15783,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__web_search__save_doh_settings(
+        port_: i64,
+        doh_uri: *mut wire_cst_list_prim_u_8_strict,
+        doh_mode: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__web_search__save_doh_settings_impl(port_, doh_uri, doh_mode)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__import__save_imported_page(
         port_: i64,
         title: *mut wire_cst_list_prim_u_8_strict,
@@ -14602,6 +15834,16 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__tweet__save_topic_page(
+        port_: i64,
+        text: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        tags: *mut wire_cst_list_String,
+    ) {
+        wire__crate__api__tweet__save_topic_page_impl(port_, text, title, tags)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__tweet__save_tweet_page(
         port_: i64,
         tweet_id: *mut wire_cst_list_prim_u_8_strict,
@@ -14617,6 +15859,25 @@ mod io {
             title,
             author_name,
             screen_name,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__web_search__save_web_search_config(
+        port_: i64,
+        enabled: bool,
+        engine: *mut wire_cst_list_prim_u_8_strict,
+        base_url: *mut wire_cst_list_prim_u_8_strict,
+        api_key: *mut wire_cst_list_prim_u_8_strict,
+        max_results: i64,
+    ) {
+        wire__crate__api__web_search__save_web_search_config_impl(
+            port_,
+            enabled,
+            engine,
+            base_url,
+            api_key,
+            max_results,
         )
     }
 
@@ -14673,6 +15934,22 @@ mod io {
         invitation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__sync__send_owner_sync_approval_impl(port_, invitation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__send_sync_join_proof(
+        port_: i64,
+        operation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__send_sync_join_proof_impl(port_, operation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__send_sync_join_request(
+        port_: i64,
+        operation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__send_sync_join_request_impl(port_, operation_id)
     }
 
     #[unsafe(no_mangle)]
@@ -14790,6 +16067,14 @@ mod io {
             idempotency_key,
             task_json,
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__web_search__test_doh_connection(
+        port_: i64,
+        doh_uri: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__web_search__test_doh_connection_impl(port_, doh_uri)
     }
 
     #[unsafe(no_mangle)]
@@ -15631,6 +16916,34 @@ mod io {
         let wrap = wire_cst_list_source_snapshot {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_source_snapshot>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_sync_enrollment_state_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_sync_enrollment_state_dto {
+        let wrap = wire_cst_list_sync_enrollment_state_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_sync_enrollment_state_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_sync_join_entry_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_sync_join_entry_dto {
+        let wrap = wire_cst_list_sync_join_entry_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_sync_join_entry_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -16513,6 +17826,18 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_sync_enrollment_state_dto {
+        ptr: *mut wire_cst_sync_enrollment_state_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_sync_join_entry_dto {
+        ptr: *mut wire_cst_sync_join_entry_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_system_font_face {
         ptr: *mut wire_cst_system_font_face,
         len: i32,
@@ -16575,6 +17900,13 @@ mod io {
         source: *mut wire_cst_list_prim_u_8_strict,
         job_status: *mut wire_cst_list_prim_u_8_strict,
         summary: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_network_settings_dto {
+        doh_uri: *mut wire_cst_list_prim_u_8_strict,
+        doh_scope: *mut wire_cst_list_prim_u_8_strict,
+        doh_mode: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -16659,6 +17991,23 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_enrollment_state_dto {
+        role: *mut wire_cst_list_prim_u_8_strict,
+        operation_id: *mut wire_cst_list_prim_u_8_strict,
+        invitation_id: *mut wire_cst_list_prim_u_8_strict,
+        installation_id: *mut wire_cst_list_prim_u_8_strict,
+        revision: i64,
+        confirmation_token: *mut wire_cst_list_prim_u_8_strict,
+        phase: *mut wire_cst_list_prim_u_8_strict,
+        snapshot_id: *mut wire_cst_list_prim_u_8_strict,
+        received_chunks: i64,
+        total_chunks: i64,
+        local_applied: bool,
+        remote_applied: bool,
+        notification_pending: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_sync_invitation_offer_dto {
         invitation_id: *mut wire_cst_list_prim_u_8_strict,
         code: *mut wire_cst_list_prim_u_8_strict,
@@ -16673,6 +18022,32 @@ mod io {
         device_platform: *mut wire_cst_list_prim_u_8_strict,
         fingerprint: *mut wire_cst_list_prim_u_8_strict,
         expires_at_ms: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_join_entry_dto {
+        entry_id: *mut wire_cst_list_prim_u_8_strict,
+        installation_id: *mut wire_cst_list_prim_u_8_strict,
+        dataset_id: *mut wire_cst_list_prim_u_8_strict,
+        name: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_join_state_dto {
+        operation_id: *mut wire_cst_list_prim_u_8_strict,
+        token: *mut wire_cst_list_prim_u_8_strict,
+        entry_id: *mut wire_cst_list_prim_u_8_strict,
+        installation_id: *mut wire_cst_list_prim_u_8_strict,
+        dataset_id: *mut wire_cst_list_prim_u_8_strict,
+        owner_name: *mut wire_cst_list_prim_u_8_strict,
+        owner_fingerprint: *mut wire_cst_list_prim_u_8_strict,
+        local_fingerprint: *mut wire_cst_list_prim_u_8_strict,
+        relay_url: *mut wire_cst_list_prim_u_8_strict,
+        expires_at_ms: i64,
+        phase: *mut wire_cst_list_prim_u_8_strict,
+        revision: i64,
+        creating: bool,
+        approval_ack_pending: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -16746,6 +18121,16 @@ mod io {
         input_message_id: *mut wire_cst_list_prim_u_8_strict,
         preview: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_web_search_config_dto {
+        enabled: bool,
+        engine: *mut wire_cst_list_prim_u_8_strict,
+        base_url: *mut wire_cst_list_prim_u_8_strict,
+        api_key: *mut wire_cst_list_prim_u_8_strict,
+        has_api_key: bool,
+        max_results: i64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -18442,6 +19827,30 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::SyncEnrollmentStateDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::SyncEnrollmentStateDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::sync::SyncJoinEntryDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::SyncJoinEntryDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::fonts::SystemFontFace>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -18576,6 +19985,27 @@ mod web {
                 source: self_.get(4).cst_decode(),
                 job_status: self_.get(5).cst_decode(),
                 summary: self_.get(6).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::web_search::NetworkSettingsDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::web_search::NetworkSettingsDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                3,
+                "Expected 3 elements, got {}",
+                self_.length()
+            );
+            crate::api::web_search::NetworkSettingsDto {
+                doh_uri: self_.get(0).cst_decode(),
+                doh_scope: self_.get(1).cst_decode(),
+                doh_mode: self_.get(2).cst_decode(),
             }
         }
     }
@@ -18778,6 +20208,37 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::sync::SyncEnrollmentStateDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncEnrollmentStateDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                13,
+                "Expected 13 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncEnrollmentStateDto {
+                role: self_.get(0).cst_decode(),
+                operation_id: self_.get(1).cst_decode(),
+                invitation_id: self_.get(2).cst_decode(),
+                installation_id: self_.get(3).cst_decode(),
+                revision: self_.get(4).cst_decode(),
+                confirmation_token: self_.get(5).cst_decode(),
+                phase: self_.get(6).cst_decode(),
+                snapshot_id: self_.get(7).cst_decode(),
+                received_chunks: self_.get(8).cst_decode(),
+                total_chunks: self_.get(9).cst_decode(),
+                local_applied: self_.get(10).cst_decode(),
+                remote_applied: self_.get(11).cst_decode(),
+                notification_pending: self_.get(12).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::sync::SyncInvitationOfferDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -18820,6 +20281,60 @@ mod web {
                 device_platform: self_.get(3).cst_decode(),
                 fingerprint: self_.get(4).cst_decode(),
                 expires_at_ms: self_.get(5).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncJoinEntryDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncJoinEntryDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                4,
+                "Expected 4 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncJoinEntryDto {
+                entry_id: self_.get(0).cst_decode(),
+                installation_id: self_.get(1).cst_decode(),
+                dataset_id: self_.get(2).cst_decode(),
+                name: self_.get(3).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncJoinStateDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncJoinStateDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                14,
+                "Expected 14 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncJoinStateDto {
+                operation_id: self_.get(0).cst_decode(),
+                token: self_.get(1).cst_decode(),
+                entry_id: self_.get(2).cst_decode(),
+                installation_id: self_.get(3).cst_decode(),
+                dataset_id: self_.get(4).cst_decode(),
+                owner_name: self_.get(5).cst_decode(),
+                owner_fingerprint: self_.get(6).cst_decode(),
+                local_fingerprint: self_.get(7).cst_decode(),
+                relay_url: self_.get(8).cst_decode(),
+                expires_at_ms: self_.get(9).cst_decode(),
+                phase: self_.get(10).cst_decode(),
+                revision: self_.get(11).cst_decode(),
+                creating: self_.get(12).cst_decode(),
+                approval_ack_pending: self_.get(13).cst_decode(),
             }
         }
     }
@@ -19005,6 +20520,30 @@ mod web {
                 input_message_id: self_.get(0).cst_decode(),
                 preview: self_.get(1).cst_decode(),
                 created_at: self_.get(2).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::web_search::WebSearchConfigDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::web_search::WebSearchConfigDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                6,
+                "Expected 6 elements, got {}",
+                self_.length()
+            );
+            crate::api::web_search::WebSearchConfigDto {
+                enabled: self_.get(0).cst_decode(),
+                engine: self_.get(1).cst_decode(),
+                base_url: self_.get(2).cst_decode(),
+                api_key: self_.get(3).cst_decode(),
+                has_api_key: self_.get(4).cst_decode(),
+                max_results: self_.get(5).cst_decode(),
             }
         }
     }
@@ -19198,6 +20737,21 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__advance_sync_enrollment(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        role: String,
+        operation_id: String,
+        invitation_id: String,
+    ) {
+        wire__crate__api__sync__advance_sync_enrollment_impl(
+            port_,
+            role,
+            operation_id,
+            invitation_id,
+        )
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__sync__approve_owner_sync_invitation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         invitation_id: String,
@@ -19305,6 +20859,34 @@ mod web {
             tags,
             expected_snapshot_id,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__confirm_sync_enrollment(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        role: String,
+        operation_id: String,
+        invitation_id: String,
+        token: String,
+        protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__sync__confirm_sync_enrollment_impl(
+            port_,
+            role,
+            operation_id,
+            invitation_id,
+            token,
+            protected_revision,
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__confirm_sync_join_key(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        token: String,
+        protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__sync__confirm_sync_join_key_impl(port_, token, protected_revision)
     }
 
     #[wasm_bindgen]
@@ -19779,11 +21361,26 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__web_search__get_network_settings(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__web_search__get_network_settings_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge_workflows__get_suggestion_feedback(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         message_id: String,
     ) {
         wire__crate__api__knowledge_workflows__get_suggestion_feedback_impl(port_, message_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__get_sync_join_state(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        operation_id: String,
+    ) {
+        wire__crate__api__sync__get_sync_join_state_impl(port_, operation_id)
     }
 
     #[wasm_bindgen]
@@ -19798,6 +21395,13 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__tweet__get_tweet_fetch_service_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__web_search__get_web_search_config(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__web_search__get_web_search_config_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -19846,6 +21450,24 @@ mod web {
         invitation_id: String,
     ) {
         wire__crate__api__sync__inspect_owner_sync_invitation_impl(port_, invitation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__inspect_sync_join_approval(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        operation_id: String,
+    ) {
+        wire__crate__api__sync__inspect_sync_join_approval_impl(port_, operation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__install_sync_join_key(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        token: String,
+        key: Box<[u8]>,
+        protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__sync__install_sync_join_key_impl(port_, token, key, protected_revision)
     }
 
     #[wasm_bindgen]
@@ -20100,6 +21722,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__list_pending_sync_joins(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__list_pending_sync_joins_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__relations__list_relations(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -20119,6 +21748,13 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__rules__list_rules_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__list_sync_enrollments(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__list_sync_enrollments_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -20228,6 +21864,31 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__prepare_sync_join_key(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        preview_token: String,
+        name: String,
+        platform: String,
+        acknowledge_provider_key_sharing: bool,
+    ) {
+        wire__crate__api__sync__prepare_sync_join_key_impl(
+            port_,
+            preview_token,
+            name,
+            platform,
+            acknowledge_provider_key_sharing,
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__prepare_sync_join_resume(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        entry_id: String,
+    ) {
+        wire__crate__api__sync__prepare_sync_join_resume_impl(port_, entry_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__sync__prepare_sync_key_request(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         name: Option<String>,
@@ -20258,6 +21919,14 @@ mod web {
         content_md: String,
     ) {
         wire__crate__api__knowledge__preview_knowledge_source_impl(port_, source_url, content_md)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__preview_sync_join(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        invitation_code: String,
+    ) {
+        wire__crate__api__sync__preview_sync_join_impl(port_, invitation_code)
     }
 
     #[wasm_bindgen]
@@ -20308,6 +21977,14 @@ mod web {
         slug: String,
     ) {
         wire__crate__api__wiki__refresh_project_page_impl(port_, slug)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__release_sync_join(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        operation_id: String,
+    ) {
+        wire__crate__api__sync__release_sync_join_impl(port_, operation_id)
     }
 
     #[wasm_bindgen]
@@ -20405,6 +22082,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__web_search__save_doh_settings(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        doh_uri: String,
+        doh_mode: String,
+    ) {
+        wire__crate__api__web_search__save_doh_settings_impl(port_, doh_uri, doh_mode)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__import__save_imported_page(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         title: String,
@@ -20447,6 +22133,16 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__tweet__save_topic_page(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        text: String,
+        title: Option<String>,
+        tags: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__tweet__save_topic_page_impl(port_, text, title, tags)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__tweet__save_tweet_page(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         tweet_id: String,
@@ -20462,6 +22158,25 @@ mod web {
             title,
             author_name,
             screen_name,
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__web_search__save_web_search_config(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        enabled: bool,
+        engine: String,
+        base_url: String,
+        api_key: String,
+        max_results: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__web_search__save_web_search_config_impl(
+            port_,
+            enabled,
+            engine,
+            base_url,
+            api_key,
+            max_results,
         )
     }
 
@@ -20518,6 +22233,22 @@ mod web {
         invitation_id: String,
     ) {
         wire__crate__api__sync__send_owner_sync_approval_impl(port_, invitation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__send_sync_join_proof(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        operation_id: String,
+    ) {
+        wire__crate__api__sync__send_sync_join_proof_impl(port_, operation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__send_sync_join_request(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        operation_id: String,
+    ) {
+        wire__crate__api__sync__send_sync_join_request_impl(port_, operation_id)
     }
 
     #[wasm_bindgen]
@@ -20635,6 +22366,14 @@ mod web {
             idempotency_key,
             task_json,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__web_search__test_doh_connection(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        doh_uri: String,
+    ) {
+        wire__crate__api__web_search__test_doh_connection_impl(port_, doh_uri)
     }
 
     #[wasm_bindgen]

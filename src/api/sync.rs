@@ -55,20 +55,33 @@ pub fn create_owner_sync_invitation(
     relay_url: String,
     acknowledge_provider_key_sharing: bool,
 ) -> Result<SyncInvitationOfferDto> {
-    let offer = runtime::invitations::issue(&AppConfig::load()?, &relay_url,
-        acknowledge_provider_key_sharing)?;
+    let offer = runtime::invitations::issue(
+        &AppConfig::load()?,
+        &relay_url,
+        acknowledge_provider_key_sharing,
+    )?;
     Ok(SyncInvitationOfferDto {
-        invitation_id: offer.invitation_id, code: offer.code, expires_at_ms: offer.expires_at_ms,
+        invitation_id: offer.invitation_id,
+        code: offer.code,
+        expires_at_ms: offer.expires_at_ms,
     })
 }
 
-pub fn inspect_owner_sync_invitation(invitation_id: String) -> Result<Option<SyncInvitationPreviewDto>> {
-    Ok(runtime::invitations::poll(&AppConfig::load()?, &invitation_id)?.map(|preview|
-        SyncInvitationPreviewDto {
-            invitation_id: preview.invitation_id, token: preview.token,
-            fingerprint: preview.device.fingerprint(), device_name: preview.device.name,
-            device_platform: preview.device.platform, expires_at_ms: preview.expires_at_ms,
-        }))
+pub fn inspect_owner_sync_invitation(
+    invitation_id: String,
+) -> Result<Option<SyncInvitationPreviewDto>> {
+    Ok(
+        runtime::invitations::poll(&AppConfig::load()?, &invitation_id)?.map(|preview| {
+            SyncInvitationPreviewDto {
+                invitation_id: preview.invitation_id,
+                token: preview.token,
+                fingerprint: preview.device.fingerprint(),
+                device_name: preview.device.name,
+                device_platform: preview.device.platform,
+                expires_at_ms: preview.expires_at_ms,
+            }
+        }),
+    )
 }
 
 /// Bind approval to the original displayed request. Saving the returned revision
@@ -78,10 +91,15 @@ pub fn approve_owner_sync_invitation(
     preview_token: String,
     acknowledge_provider_key_sharing: bool,
 ) -> Result<SyncKeyCommitDto> {
-    let approved = runtime::invitations::approve(&AppConfig::load()?, &invitation_id,
-        &preview_token, acknowledge_provider_key_sharing)?;
+    let approved = runtime::invitations::approve(
+        &AppConfig::load()?,
+        &invitation_id,
+        &preview_token,
+        acknowledge_provider_key_sharing,
+    )?;
     Ok(SyncKeyCommitDto {
-        token: approved.key.token, installation_id: approved.key.installation_id,
+        token: approved.key.token,
+        installation_id: approved.key.installation_id,
         revision: approved.key.revision,
     })
 }
@@ -223,4 +241,224 @@ pub fn lock_local_sync() -> Result<LocalSyncStateDto> {
     let config = AppConfig::load().context("sync_workspace_unavailable")?;
     runtime::lock(&config);
     get_local_sync_state()
+}
+
+/// Read-only join progress. The operation and confirmation tokens have distinct
+/// scopes; no arbitrary staging path, Noise frame or transport key crosses FRB.
+#[derive(Clone, Debug)]
+pub struct SyncJoinStateDto {
+    pub operation_id: String,
+    pub token: String,
+    pub entry_id: Option<String>,
+    pub installation_id: Option<String>,
+    pub dataset_id: String,
+    pub owner_name: String,
+    pub owner_fingerprint: String,
+    pub local_fingerprint: Option<String>,
+    pub relay_url: String,
+    pub expires_at_ms: i64,
+    pub phase: String,
+    pub revision: i64,
+    pub creating: bool,
+    pub approval_ack_pending: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct SyncJoinEntryDto {
+    pub entry_id: String,
+    pub installation_id: String,
+    pub dataset_id: String,
+    pub name: String,
+}
+
+fn join_dto(state: runtime::joining::JoinView) -> SyncJoinStateDto {
+    SyncJoinStateDto {
+        operation_id: state.operation_id,
+        token: state.token,
+        entry_id: state.entry_id,
+        installation_id: state.installation_id,
+        dataset_id: state.dataset_id,
+        owner_name: state.owner_name,
+        owner_fingerprint: state.owner_fingerprint,
+        local_fingerprint: state.local_fingerprint,
+        relay_url: state.relay_url,
+        expires_at_ms: state.expires_at_ms,
+        phase: state.phase,
+        revision: state.revision,
+        creating: state.creating,
+        approval_ack_pending: state.approval_ack_pending,
+    }
+}
+
+/// Parses and binds an invitation preview without contacting its relay.
+pub fn preview_sync_join(invitation_code: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::preview(
+        &AppConfig::load()?,
+        &invitation_code,
+    )?))
+}
+
+pub fn prepare_sync_join_key(
+    preview_token: String,
+    name: String,
+    platform: String,
+    acknowledge_provider_key_sharing: bool,
+) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::prepare_key(
+        &AppConfig::load()?,
+        &preview_token,
+        &name,
+        &platform,
+        acknowledge_provider_key_sharing,
+    )?))
+}
+
+pub fn list_pending_sync_joins() -> Result<Vec<SyncJoinEntryDto>> {
+    Ok(runtime::joining::pending_entries(&AppConfig::load()?)?
+        .into_iter()
+        .map(|entry| SyncJoinEntryDto {
+            entry_id: entry.id,
+            installation_id: entry.installation_id,
+            dataset_id: entry.dataset_id,
+            name: entry.name,
+        })
+        .collect())
+}
+
+pub fn prepare_sync_join_resume(entry_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::prepare_resume(
+        &AppConfig::load()?,
+        &entry_id,
+    )?))
+}
+
+pub fn install_sync_join_key(
+    token: String,
+    key: Vec<u8>,
+    protected_revision: i64,
+) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::install_key(
+        &AppConfig::load()?,
+        &token,
+        key,
+        protected_revision,
+    )?))
+}
+
+pub fn confirm_sync_join_key(token: String, protected_revision: i64) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::confirm_key(
+        &AppConfig::load()?,
+        &token,
+        protected_revision,
+    )?))
+}
+
+pub fn get_sync_join_state(operation_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::state(
+        &AppConfig::load()?,
+        &operation_id,
+    )?))
+}
+
+pub fn send_sync_join_request(operation_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::send_request(
+        &AppConfig::load()?,
+        &operation_id,
+    )?))
+}
+
+pub fn inspect_sync_join_approval(operation_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::poll(
+        &AppConfig::load()?,
+        &operation_id,
+    )?))
+}
+
+pub fn send_sync_join_proof(operation_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::send_proof(
+        &AppConfig::load()?,
+        &operation_id,
+    )?))
+}
+
+/// Stops this local operation only; it neither recalls a delivered proof nor
+/// deletes the staged database/native key, and it cannot release a newer session.
+pub fn release_sync_join(operation_id: String) -> Result<bool> {
+    Ok(runtime::joining::release(
+        &AppConfig::load()?,
+        &operation_id,
+    ))
+}
+
+/// Enrollment progress never selects the staged database or claims ongoing sync.
+#[derive(Clone, Debug)]
+pub struct SyncEnrollmentStateDto {
+    pub role: String,
+    pub operation_id: String,
+    pub invitation_id: String,
+    pub installation_id: String,
+    pub revision: i64,
+    pub confirmation_token: Option<String>,
+    pub phase: String,
+    pub snapshot_id: Option<String>,
+    pub received_chunks: i64,
+    pub total_chunks: i64,
+    pub local_applied: bool,
+    pub remote_applied: bool,
+    pub notification_pending: bool,
+}
+
+fn enrollment_dto(state: runtime::enrollment::EnrollmentView) -> SyncEnrollmentStateDto {
+    SyncEnrollmentStateDto {
+        role: state.role,
+        operation_id: state.operation_id,
+        invitation_id: state.invitation_id,
+        installation_id: state.installation_id,
+        revision: state.revision,
+        confirmation_token: state.confirmation_token,
+        phase: state.phase,
+        snapshot_id: state.snapshot_id,
+        received_chunks: state.received_chunks,
+        total_chunks: state.total_chunks,
+        local_applied: state.local_applied,
+        remote_applied: state.remote_applied,
+        notification_pending: state.notification_pending,
+    }
+}
+
+pub fn list_sync_enrollments() -> Result<Vec<SyncEnrollmentStateDto>> {
+    Ok(runtime::enrollment::list(&AppConfig::load()?)?
+        .into_iter()
+        .map(enrollment_dto)
+        .collect())
+}
+
+pub fn advance_sync_enrollment(
+    role: String,
+    operation_id: String,
+    invitation_id: String,
+) -> Result<SyncEnrollmentStateDto> {
+    Ok(enrollment_dto(runtime::enrollment::advance(
+        &AppConfig::load()?,
+        &role,
+        &operation_id,
+        &invitation_id,
+    )?))
+}
+
+pub fn confirm_sync_enrollment(
+    role: String,
+    operation_id: String,
+    invitation_id: String,
+    token: String,
+    protected_revision: i64,
+) -> Result<SyncEnrollmentStateDto> {
+    Ok(enrollment_dto(runtime::enrollment::confirm(
+        &AppConfig::load()?,
+        &role,
+        &operation_id,
+        &invitation_id,
+        &token,
+        protected_revision,
+    )?))
 }

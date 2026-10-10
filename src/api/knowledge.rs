@@ -89,7 +89,11 @@ pub fn resolve_topic_organization(id: String, accept: bool) -> Result<Vec<String
 
 /// Background worker only; no manual insight trigger in the UI.
 pub fn tick_knowledge_insights() -> Result<i64> {
-    let store = store()?;
+    // 后台路径不做启动写入，库待升级时本轮跳过（与其他 worker 一致）。
+    let path = crate::config::AppConfig::load()?.database_path;
+    let Some(store) = Store::open_background(&path)? else {
+        return Ok(0);
+    };
     let config = crate::config::AppConfig::load()?;
     let Some(_sync_guard) = crate::sync::runtime::background_guard(&config, &store)? else {
         return Ok(0);

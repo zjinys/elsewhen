@@ -40,6 +40,8 @@ struct Material {
     peers: Vec<PeerMaterial>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pairings: Vec<super::pairing::journal::PairingRecord>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    enrollments: Vec<super::enrollment::EnrollmentRecord>,
 }
 
 pub(crate) struct LocalVault {
@@ -84,6 +86,7 @@ impl LocalVault {
                 mailbox_owner,
                 peers: vec![],
                 pairings: vec![],
+                enrollments: vec![],
             },
             identity,
         })
@@ -97,6 +100,76 @@ impl LocalVault {
     }
     pub(crate) fn mailbox_owner(&self) -> &[u8; 32] {
         &self.material.mailbox_owner
+    }
+
+    pub(crate) fn enrollments(&self) -> &[super::enrollment::EnrollmentRecord] {
+        &self.material.enrollments
+    }
+
+    pub(crate) fn enrollment(
+        &self,
+        invitation: &str,
+    ) -> Result<&super::enrollment::EnrollmentRecord> {
+        self.material
+            .enrollments
+            .iter()
+            .find(|e| e.invitation_id == invitation)
+            .context("sync_enrollment_missing_requires_repair")
+    }
+
+    pub(crate) fn enrollment_mut(
+        &mut self,
+        invitation: &str,
+    ) -> Result<&mut super::enrollment::EnrollmentRecord> {
+        self.material
+            .enrollments
+            .iter_mut()
+            .find(|e| e.invitation_id == invitation)
+            .context("sync_enrollment_missing_requires_repair")
+    }
+
+    pub(crate) fn seed_enrollment(
+        &mut self,
+        pair: &ApprovedPair,
+        role: super::enrollment::EnrollmentRole,
+        now_ms: i64,
+    ) -> Result<()> {
+        use super::enrollment::{EnrollmentRecord, MAX_ENROLLMENTS, MAX_PENDING_ENROLLMENTS};
+        // Old internal pairs without relay bootstrap remain readable, but cannot
+        // invent a P2 grant/revocation intent from an unauthenticated mailbox field.
+        if pair.bootstrap.is_none() {
+            return Ok(());
+        }
+        if let Some(old) = self
+            .material
+            .enrollments
+            .iter()
+            .find(|e| e.invitation_id == pair.invitation_id())
+        {
+            ensure!(
+                old.role == role
+                    && old.dataset_id == pair.dataset_id
+                    && old.peer == pair.peer
+                    && old.key_version == pair.key_version,
+                "sync_enrollment_identity_conflict"
+            );
+            return Ok(());
+        }
+        ensure!(
+            self.material.enrollments.len() < MAX_ENROLLMENTS
+                && self
+                    .material
+                    .enrollments
+                    .iter()
+                    .filter(|e| !e.owner_confirmed)
+                    .count()
+                    < MAX_PENDING_ENROLLMENTS,
+            "sync_enrollment_limit"
+        );
+        self.material
+            .enrollments
+            .push(EnrollmentRecord::new(pair, role, now_ms)?);
+        Ok(())
     }
 
     pub(crate) fn peer_keys(
@@ -430,6 +503,29 @@ impl LocalVault {
             ensure!(
                 invitations.insert(&record.invitation_id),
                 "sync_pairing_record_invalid"
+            );
+        }
+        ensure!(
+            material.enrollments.len() <= super::enrollment::MAX_ENROLLMENTS,
+            "sync_enrollment_limit"
+        );
+        let mut enrollment_ids = std::collections::HashSet::new();
+        for record in &material.enrollments {
+            record.validate()?;
+            ensure!(
+                enrollment_ids.insert(&record.invitation_id)
+                    && record.local_device_id == material.device.device_id
+                    && record.route.local_mailbox == mailbox,
+                "sync_enrollment_identity_invalid"
+            );
+            ensure!(
+                material
+                    .peers
+                    .iter()
+                    .any(|p| p.dataset_id == record.dataset_id
+                        && p.peer == record.peer
+                        && p.key_version >= record.key_version),
+                "sync_enrollment_peer_missing"
             );
         }
         Ok(Self {

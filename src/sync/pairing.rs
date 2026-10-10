@@ -290,6 +290,7 @@ pub(crate) struct ApprovedPair {
     pub authority: Option<super::membership::RosterAnchor>,
     pub route: Option<PairedRoute>,
     delivery: Option<PairingDelivery>,
+    pub(crate) bootstrap: Option<InvitationRoute>,
 }
 impl std::fmt::Debug for ApprovedPair {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -479,6 +480,7 @@ impl PendingJoin {
             authority: claims.authority,
             route: paired_route,
             delivery,
+            bootstrap: self.invitation.route().cloned(),
         })
     }
 }
@@ -617,6 +619,7 @@ impl PendingApproval {
                     authority,
                     route: paired_route,
                     delivery,
+                    bootstrap: self.invitation.context.route,
                 },
                 expires_at_ms: self.invitation.context.expires_at_ms,
             },

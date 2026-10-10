@@ -38,6 +38,8 @@ fn fifo_and_stable_input_identity_survive_reopening() {
         store.enqueue_chat_input(&conversation, &inputs[0]).unwrap()
     );
     store.enqueue_chat_input(&conversation, &inputs[1]).unwrap();
+    // enqueue 只登记资格、不取得派发权：从未 resume 过的队列按显式暂停语义
+    // 对待（dispatch 行由 enqueue 创建为 paused=1），仍需显式继续。
     assert!(
         store
             .claim_next_chat_input(&conversation, "process", "worker")
@@ -60,21 +62,9 @@ fn fifo_and_stable_input_identity_survive_reopening() {
         .finish_chat_run(&run.id, "worker", "completed", Some("done"), None)
         .unwrap();
     drop(store);
+    // 重开（模拟重启换进程身份）：租约归属旧进程，但队列未显式暂停，
+    // 新进程的第一次领取应直接接管并继续，不要求人工「继续队列」。
     let store = Store::open(&dir.path().join("queue.db")).unwrap();
-    assert!(
-        store
-            .chat_queue_paused(&conversation, "new-process")
-            .unwrap()
-    );
-    assert!(
-        store
-            .claim_next_chat_input(&conversation, "new-process", "worker2")
-            .unwrap()
-            .is_none()
-    );
-    store
-        .resume_chat_queue(&conversation, "new-process")
-        .unwrap();
     let next = store
         .claim_next_chat_input(&conversation, "new-process", "worker2")
         .unwrap()
@@ -339,7 +329,7 @@ fn concurrent_dispatch_claims_only_one_saved_input() {
 }
 
 #[test]
-fn expired_dispatch_lease_requires_explicit_continuation_and_delete_cascades() {
+fn expired_dispatch_lease_is_taken_over_and_delete_cascades() {
     let (_dir, store, conversation, inputs) = fixture();
     store.enqueue_chat_input(&conversation, &inputs[0]).unwrap();
     store.resume_chat_queue(&conversation, "process").unwrap();
@@ -350,12 +340,12 @@ fn expired_dispatch_lease_requires_explicit_continuation_and_delete_cascades() {
             [&conversation],
         )
         .unwrap();
-    assert!(
-        store
-            .claim_next_chat_input(&conversation, "process", "worker")
-            .unwrap()
-            .is_none()
-    );
+    // 租约过期不再是暂停：当前进程直接接管并领取待生成输入。
+    let run = store
+        .claim_next_chat_input(&conversation, "process", "worker")
+        .unwrap()
+        .unwrap();
+    assert_eq!(run.input_message_id, inputs[0]);
     store
         .connection
         .execute("DELETE FROM conversations WHERE id=?1", [&conversation])

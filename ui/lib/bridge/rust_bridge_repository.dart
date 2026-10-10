@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart'
     show ExternalLibrary;
+import 'package:path_provider/path_provider.dart';
 
 import '../data/storage_repository.dart';
 import '../models/event.dart';
@@ -79,8 +80,20 @@ class RustBridgeRepository implements StorageRepository {
     this.runChatQueueWorker = true,
     SyncSetupController? syncSetupController,
   }) {
-    localSync = syncSetupController ?? SyncSetupController();
+    localSync = syncSetupController ??
+        SyncSetupController(autoEnrollment: runBackgroundWorker);
     localSync.onReady = _wakeAnalysisWorker;
+  }
+
+  /// 桌面平台让 Rust 侧 `ProjectDirs` 自解析；移动端 `directories` crate
+  /// 未实现（ProjectDirs 恒为 None），由 path_provider 取应用私有目录传入。
+  Future<String?> _resolveDatabasePath() async {
+    if (databasePath != null) return databasePath;
+    if (Platform.isAndroid || Platform.isIOS) {
+      final dir = await getApplicationSupportDirectory();
+      return dir.path;
+    }
+    return null;
   }
 
   @override
@@ -91,7 +104,7 @@ class RustBridgeRepository implements StorageRepository {
     // initBridge 走 Result<String> 契约：失败以异常上抛（P2-9），
     // 取代原先 startsWith('Error ') 的字符串判断。
     try {
-      await api.initBridge(databasePath: databasePath);
+      await api.initBridge(databasePath: await _resolveDatabasePath());
     } catch (e) {
       throw StateError('初始化存储失败: $e');
     }
@@ -312,8 +325,9 @@ class RustBridgeRepository implements StorageRepository {
             // 结构化结果取代字符串契约（P2-9）：只有明确“已处理”才继续
             // 排空下一批；NoProvider 停表，交给启动/周期 5s timer 重唤。
             if (result is! api.AnalysisTriggerResult_Processed ||
-                result.count <= 0)
+                result.count <= 0) {
               break;
+            }
             final stats = await getAnalysisJobStats();
             if (stats.pending == 0) break;
           }
@@ -915,6 +929,17 @@ class RustBridgeRepository implements StorageRepository {
     List<String> tags = const [],
   }) async {
     final dto = await api.saveTextPage(text: text, title: title, tags: tags);
+    return WikiPage.fromDto(dto);
+  }
+
+  /// 把一段文本保存为「主题」（kind=topic）页——对话消息「存为主题」入口专用。
+  /// 文本完整写入，标题留空时取正文首行前 60 字；tags 可选。
+  Future<WikiPage> saveTopicPage({
+    required String text,
+    String? title,
+    List<String> tags = const [],
+  }) async {
+    final dto = await api.saveTopicPage(text: text, title: title, tags: tags);
     return WikiPage.fromDto(dto);
   }
 

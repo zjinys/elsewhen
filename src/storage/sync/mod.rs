@@ -3,6 +3,7 @@
 
 mod analysis;
 mod delivery;
+mod enrollment;
 mod fragments;
 mod membership;
 mod pairing;

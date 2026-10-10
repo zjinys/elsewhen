@@ -15,6 +15,7 @@ pub mod sync;
 pub mod theme;
 pub mod todos;
 pub mod tweet;
+pub mod web_search;
 pub mod wiki;
 pub mod wiki_chat;
 use crate::ai::memory::ContextMessage;
@@ -36,6 +37,7 @@ use serde::{Deserialize, Serialize};
 pub use theme::*;
 pub use todos::*;
 pub use tweet::*;
+pub use web_search::*;
 pub use wiki::*;
 pub use wiki_chat::*;
 
@@ -899,7 +901,10 @@ pub fn get_analysis_job_stats() -> Result<AnalysisJobStatsDto> {
 /// Returns `AnalysisTriggerResult`（结构化状态，取代字符串契约）。
 pub fn trigger_analysis() -> Result<AnalysisTriggerResult> {
     let config = crate::config::AppConfig::load()?;
-    let store = Store::open(&config.database_path)?;
+    // 后台路径不做启动写入：库待升级时本轮直接跳过，交由 init 完成迁移。
+    let Some(store) = Store::open_background(&config.database_path)? else {
+        return Ok(AnalysisTriggerResult::Processed { count: 0 });
+    };
     let Some(_sync_guard) = crate::sync::runtime::background_guard(&config, &store)? else {
         return Ok(AnalysisTriggerResult::Processed { count: 0 });
     };
@@ -920,7 +925,11 @@ pub fn trigger_analysis() -> Result<AnalysisTriggerResult> {
     })?;
     // 每次 worker tick 先重新清扫遗留的 running 任务：GUI 只在启动时恢复一次，
     // 若上一次队列运行中途退出，被 claim 的任务会孤悬到下次启动。
-    store.recover_interrupted_analysis_jobs()?;
+    crate::storage::with_busy_retry(|| {
+        store
+            .recover_interrupted_analysis_jobs()
+            .context("analysis worker: recover interrupted jobs")
+    })?;
     let processed = process_analysis_queue(&store, &provider)?;
     Ok(AnalysisTriggerResult::Processed { count: processed })
 }
@@ -938,7 +947,12 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
         if batch_start.elapsed().as_secs() >= ANALYSIS_BATCH_MAX_SECS {
             break;
         }
-        let Some(job) = store.claim_analysis_job()? else {
+        let Some(job) = crate::storage::with_busy_retry(|| {
+            store
+                .claim_analysis_job()
+                .context("analysis worker: claim job")
+        })?
+        else {
             break;
         };
         // 上下文构建属于分析任务的一部分：失败不能把已 claim 的 job

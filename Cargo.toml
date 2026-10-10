@@ -28,6 +28,16 @@ uuid = { version = "1", features = ["v4", "serde"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 tokio = { version = "1", features = ["rt", "time", "macros"] }
 ring = "0.17"
+# DoH+ECH（参照 github.com/Lingyan000/fluxdo_doh 重写）：仅外网搜索用，见 src/net_doh/。
+# ECH 的 HPKE 只在 aws-lc-rs 下有实现（ring 没有），故 rustls 需开启 aws_lc_rs。
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "aws_lc_rs"] }
+tokio-rustls = "0.26"
+rustls-pki-types = "1"
+webpki-roots = "0.26"
+aws-lc-rs = "1"
+# 不引入 hickory-resolver：其 0.24 内部锁定 rustls 0.21 / http 0.2 旧依赖，实测连自建
+# DoH 服务握手异常（invalid data）。改由 net_doh 用自己的 tls_crypto 手工做 DoH wire-format。
+http = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 snow = "0.10"

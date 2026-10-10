@@ -5,6 +5,10 @@ import 'package:flutter/foundation.dart';
 import '../bridge/api.dart' as api;
 import 'sync_key_store.dart';
 import 'sync_pairing_api.dart';
+import 'sync_join_api.dart';
+import 'sync_join_controller.dart';
+import 'sync_enrollment_api.dart';
+import 'sync_enrollment_controller.dart';
 
 part 'sync_setup_pairing.dart';
 
@@ -60,11 +64,39 @@ class SyncSetupController extends ChangeNotifier {
     SyncKeyStore? keyStore,
     SyncSetupApi? bridge,
     SyncPairingApi? pairingBridge,
+    SyncJoinApi? joinBridge,
+    SyncEnrollmentApi? enrollmentBridge,
+    this.autoEnrollment = false,
     this.previewEnabled = const bool.fromEnvironment('ELSEWHEN_SYNC_PREVIEW'),
   }) : _keys = keyStore ?? SyncKeyStore(),
        _bridge = bridge ?? FrbSyncSetupApi(),
-       _pairing = pairingBridge ?? FrbSyncPairingApi();
+       _pairing = pairingBridge ?? FrbSyncPairingApi(),
+       _joinBridge = joinBridge ?? FrbSyncJoinApi(),
+       _enrollmentBridge = enrollmentBridge ?? FrbSyncEnrollmentApi();
 
+  final bool autoEnrollment;
+  final SyncEnrollmentApi _enrollmentBridge;
+  late final SyncEnrollmentController enrollment = SyncEnrollmentController(
+    keyStore: _keys,
+    bridge: _enrollmentBridge,
+    enabled: autoEnrollment,
+    isSessionBusy: () => busy || joiner.busy,
+    onSessionReleased: (released) {
+      if (released.role == 'owner' && released.operationId == _ownedOperation) {
+        _ownedOperation = null;
+      }
+      joiner.enrollmentReleased(released);
+    },
+    onStateChanged: () => unawaited(_refreshEnrollmentState()),
+  );
+  final SyncJoinApi _joinBridge;
+  late final SyncJoinController joiner = SyncJoinController(
+    keyStore: _keys,
+    bridge: _joinBridge,
+    previewEnabled: previewEnabled,
+    enrollment: enrollment,
+    isSessionBusy: () => busy,
+  );
   final SyncKeyStore _keys;
   final SyncSetupApi _bridge;
   final SyncPairingApi _pairing;
@@ -84,6 +116,34 @@ class SyncSetupController extends ChangeNotifier {
 
   void _changed() {
     if (!_disposed) notifyListeners();
+  }
+
+  Future<void> _refreshEnrollmentState() async {
+    if (_closed || _disposed) return;
+    if (joiner.active) {
+      await joiner.refreshFromEnrollment();
+      return;
+    }
+    final operation = _ownedOperation;
+    try {
+      final next = await _bridge.state();
+      if (_closed || _disposed || busy || _ownedOperation != operation) return;
+      final changed = state?.vaultRevision != next.vaultRevision;
+      state = next;
+      _changed();
+      if (changed && next.state == 'local_ready') onReady?.call();
+    } catch (_) {
+      // Keep the last metadata view; never turn a failed read into activation.
+    }
+  }
+
+  void _resumeEnrollment() {
+    if (!_closed &&
+        !_disposed &&
+        _ownedOperation != null &&
+        state?.state == 'local_ready') {
+      unawaited(enrollment.arm(operationId: _ownedOperation));
+    }
   }
 
   Future<void> refresh() async {
@@ -129,6 +189,11 @@ class SyncSetupController extends ChangeNotifier {
     required bool consent,
   }) async {
     if (busy || _disposed || _closed) return;
+    if (joiner.active || joiner.busy) {
+      error = '请先停止本机加入流程，再准备或解锁当前数据集。';
+      _changed();
+      return;
+    }
     busy = true;
     error = null;
     _changed();
@@ -137,6 +202,8 @@ class SyncSetupController extends ChangeNotifier {
     _activationDone = done;
     SyncMasterKey? key;
     try {
+      await enrollment.pause();
+      if (_disposed || _closed) throw StateError('closed');
       final request = await _bridge.prepare(
         name: name,
         platform: platform,
@@ -193,16 +260,23 @@ class SyncSetupController extends ChangeNotifier {
       done.complete();
       if (identical(_activationDone, done)) _activationDone = null;
       _changed();
+      _resumeEnrollment();
     }
   }
 
   Future<void> lock() async {
-    if (busy || _disposed || _closed) return;
+    if (busy || _disposed || _closed || joiner.active) return;
     busy = true;
     error = null;
+    final done = Completer<void>();
+    _activationDone = done;
     _changed();
     try {
-      state = await _bridge.lock();
+      await enrollment.pause();
+      if (_disposed || _closed) throw StateError('closed');
+      final operation = _ownedOperation;
+      if (operation != null) await _bridge.release(operation);
+      state = await _bridge.state();
       invitation = null;
       pairingPreview = null;
       pairingNotice = null;
@@ -211,6 +285,8 @@ class SyncSetupController extends ChangeNotifier {
       error = '锁定操作未确认，请重试；不会重新生成密钥。';
     } finally {
       busy = false;
+      done.complete();
+      if (identical(_activationDone, done)) _activationDone = null;
       _changed();
     }
   }
@@ -219,6 +295,8 @@ class SyncSetupController extends ChangeNotifier {
     _closed = true;
     invitation = null;
     pairingPreview = null;
+    await enrollment.close();
+    await joiner.close();
     await _activationDone?.future;
     final token = _ownedOperation;
     _ownedOperation = null;
@@ -260,6 +338,8 @@ class SyncSetupController extends ChangeNotifier {
     if (_disposed) return;
     _disposed = true;
     onReady = null;
+    enrollment.dispose();
+    joiner.dispose();
     unawaited(close());
     super.dispose();
   }

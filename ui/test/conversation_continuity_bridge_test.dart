@@ -58,10 +58,21 @@ void main() {
       );
       await request.response.close();
     });
-    await api.updateAiProviderConfig(
-      baseUrl: 'http://127.0.0.1:${server.port}/v1',
-      model: 'fixture',
-      apiKey: 'test-key',
+    // This fixture tests continuity and explicit review, not the unknown-model
+    // default window; leave room for the complete tool registry and retries.
+    await api.saveAiProviderConfig(
+      provider: api.AiProviderConfigDto(
+        id: '',
+        name: 'continuity fixture',
+        providerType: 'openai',
+        baseUrl: 'http://127.0.0.1:${server.port}/v1',
+        model: 'fixture',
+        apiKeySource: 'inline',
+        apiKey: 'test-key',
+        isActive: true,
+        temperature: 0.7,
+        contextWindow: 65536,
+      ),
     );
     final conversation = await api.createConversation(title: '视频任务');
     Future<String> ask(String text) async {

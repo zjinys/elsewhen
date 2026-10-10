@@ -21,6 +21,7 @@ import 'api/sync.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
+import 'api/web_search.dart';
 import 'api/wiki.dart';
 import 'api/wiki_chat.dart';
 
@@ -404,6 +405,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SourceSnapshot> dco_decode_list_source_snapshot(dynamic raw);
 
   @protected
+  List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<SyncJoinEntryDto> dco_decode_list_sync_join_entry_dto(dynamic raw);
+
+  @protected
   List<SystemFontFace> dco_decode_list_system_font_face(dynamic raw);
 
   @protected
@@ -430,6 +439,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessageRecordabilityDto dco_decode_message_recordability_dto(dynamic raw);
+
+  @protected
+  NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -515,10 +527,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SuggestionFeedback dco_decode_suggestion_feedback(dynamic raw);
 
   @protected
+  SyncEnrollmentStateDto dco_decode_sync_enrollment_state_dto(dynamic raw);
+
+  @protected
   SyncInvitationOfferDto dco_decode_sync_invitation_offer_dto(dynamic raw);
 
   @protected
   SyncInvitationPreviewDto dco_decode_sync_invitation_preview_dto(dynamic raw);
+
+  @protected
+  SyncJoinEntryDto dco_decode_sync_join_entry_dto(dynamic raw);
+
+  @protected
+  SyncJoinStateDto dco_decode_sync_join_state_dto(dynamic raw);
 
   @protected
   SyncKeyCommitDto dco_decode_sync_key_commit_dto(dynamic raw);
@@ -552,6 +573,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
+
+  @protected
+  WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
   WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
@@ -1019,6 +1043,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SyncJoinEntryDto> sse_decode_list_sync_join_entry_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SystemFontFace> sse_decode_list_system_font_face(
     SseDeserializer deserializer,
   );
@@ -1049,6 +1083,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessageRecordabilityDto sse_decode_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  NetworkSettingsDto sse_decode_network_settings_dto(
     SseDeserializer deserializer,
   );
 
@@ -1152,6 +1191,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SyncEnrollmentStateDto sse_decode_sync_enrollment_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SyncInvitationOfferDto sse_decode_sync_invitation_offer_dto(
     SseDeserializer deserializer,
   );
@@ -1160,6 +1204,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SyncInvitationPreviewDto sse_decode_sync_invitation_preview_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  SyncJoinEntryDto sse_decode_sync_join_entry_dto(SseDeserializer deserializer);
+
+  @protected
+  SyncJoinStateDto sse_decode_sync_join_state_dto(SseDeserializer deserializer);
 
   @protected
   SyncKeyCommitDto sse_decode_sync_key_commit_dto(SseDeserializer deserializer);
@@ -1197,6 +1247,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WebSearchConfigDto sse_decode_web_search_config_dto(
     SseDeserializer deserializer,
   );
 
@@ -1817,6 +1872,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_source_snapshot(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_source_snapshot(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_sync_enrollment_state_dto>
+  cst_encode_list_sync_enrollment_state_dto(List<SyncEnrollmentStateDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_sync_enrollment_state_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_sync_enrollment_state_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_sync_join_entry_dto>
+  cst_encode_list_sync_join_entry_dto(List<SyncJoinEntryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_sync_join_entry_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_sync_join_entry_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -2894,6 +2971,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_network_settings_dto(
+    NetworkSettingsDto apiObj,
+    wire_cst_network_settings_dto wireObj,
+  ) {
+    wireObj.doh_uri = cst_encode_String(apiObj.dohUri);
+    wireObj.doh_scope = cst_encode_String(apiObj.dohScope);
+    wireObj.doh_mode = cst_encode_String(apiObj.dohMode);
+  }
+
+  @protected
   void cst_api_fill_to_wire_organized_topic(
     OrganizedTopic apiObj,
     wire_cst_organized_topic wireObj,
@@ -3001,6 +3088,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_sync_enrollment_state_dto(
+    SyncEnrollmentStateDto apiObj,
+    wire_cst_sync_enrollment_state_dto wireObj,
+  ) {
+    wireObj.role = cst_encode_String(apiObj.role);
+    wireObj.operation_id = cst_encode_String(apiObj.operationId);
+    wireObj.invitation_id = cst_encode_String(apiObj.invitationId);
+    wireObj.installation_id = cst_encode_String(apiObj.installationId);
+    wireObj.revision = cst_encode_i_64(apiObj.revision);
+    wireObj.confirmation_token = cst_encode_opt_String(
+      apiObj.confirmationToken,
+    );
+    wireObj.phase = cst_encode_String(apiObj.phase);
+    wireObj.snapshot_id = cst_encode_opt_String(apiObj.snapshotId);
+    wireObj.received_chunks = cst_encode_i_64(apiObj.receivedChunks);
+    wireObj.total_chunks = cst_encode_i_64(apiObj.totalChunks);
+    wireObj.local_applied = cst_encode_bool(apiObj.localApplied);
+    wireObj.remote_applied = cst_encode_bool(apiObj.remoteApplied);
+    wireObj.notification_pending = cst_encode_bool(apiObj.notificationPending);
+  }
+
+  @protected
   void cst_api_fill_to_wire_sync_invitation_offer_dto(
     SyncInvitationOfferDto apiObj,
     wire_cst_sync_invitation_offer_dto wireObj,
@@ -3021,6 +3130,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.device_platform = cst_encode_String(apiObj.devicePlatform);
     wireObj.fingerprint = cst_encode_String(apiObj.fingerprint);
     wireObj.expires_at_ms = cst_encode_i_64(apiObj.expiresAtMs);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_sync_join_entry_dto(
+    SyncJoinEntryDto apiObj,
+    wire_cst_sync_join_entry_dto wireObj,
+  ) {
+    wireObj.entry_id = cst_encode_String(apiObj.entryId);
+    wireObj.installation_id = cst_encode_String(apiObj.installationId);
+    wireObj.dataset_id = cst_encode_String(apiObj.datasetId);
+    wireObj.name = cst_encode_String(apiObj.name);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_sync_join_state_dto(
+    SyncJoinStateDto apiObj,
+    wire_cst_sync_join_state_dto wireObj,
+  ) {
+    wireObj.operation_id = cst_encode_String(apiObj.operationId);
+    wireObj.token = cst_encode_String(apiObj.token);
+    wireObj.entry_id = cst_encode_opt_String(apiObj.entryId);
+    wireObj.installation_id = cst_encode_opt_String(apiObj.installationId);
+    wireObj.dataset_id = cst_encode_String(apiObj.datasetId);
+    wireObj.owner_name = cst_encode_String(apiObj.ownerName);
+    wireObj.owner_fingerprint = cst_encode_String(apiObj.ownerFingerprint);
+    wireObj.local_fingerprint = cst_encode_opt_String(apiObj.localFingerprint);
+    wireObj.relay_url = cst_encode_String(apiObj.relayUrl);
+    wireObj.expires_at_ms = cst_encode_i_64(apiObj.expiresAtMs);
+    wireObj.phase = cst_encode_String(apiObj.phase);
+    wireObj.revision = cst_encode_i_64(apiObj.revision);
+    wireObj.creating = cst_encode_bool(apiObj.creating);
+    wireObj.approval_ack_pending = cst_encode_bool(apiObj.approvalAckPending);
   }
 
   @protected
@@ -3122,6 +3263,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.input_message_id = cst_encode_String(apiObj.inputMessageId);
     wireObj.preview = cst_encode_String(apiObj.preview);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_web_search_config_dto(
+    WebSearchConfigDto apiObj,
+    wire_cst_web_search_config_dto wireObj,
+  ) {
+    wireObj.enabled = cst_encode_bool(apiObj.enabled);
+    wireObj.engine = cst_encode_String(apiObj.engine);
+    wireObj.base_url = cst_encode_String(apiObj.baseUrl);
+    wireObj.api_key = cst_encode_String(apiObj.apiKey);
+    wireObj.has_api_key = cst_encode_bool(apiObj.hasApiKey);
+    wireObj.max_results = cst_encode_i_64(apiObj.maxResults);
   }
 
   @protected
@@ -3769,6 +3923,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sync_enrollment_state_dto(
+    List<SyncEnrollmentStateDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_sync_join_entry_dto(
+    List<SyncJoinEntryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_system_font_face(
     List<SystemFontFace> self,
     SseSerializer serializer,
@@ -3807,6 +3973,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_message_recordability_dto(
     MessageRecordabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_network_settings_dto(
+    NetworkSettingsDto self,
     SseSerializer serializer,
   );
 
@@ -3937,6 +4109,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_sync_enrollment_state_dto(
+    SyncEnrollmentStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_sync_invitation_offer_dto(
     SyncInvitationOfferDto self,
     SseSerializer serializer,
@@ -3945,6 +4123,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sync_invitation_preview_dto(
     SyncInvitationPreviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_join_entry_dto(
+    SyncJoinEntryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_join_state_dto(
+    SyncJoinStateDto self,
     SseSerializer serializer,
   );
 
@@ -3993,6 +4183,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_unscheduled_chat_input_dto(
     UnscheduledChatInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_web_search_config_dto(
+    WebSearchConfigDto self,
     SseSerializer serializer,
   );
 
@@ -4886,6 +5082,42 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_source_snapshot');
   late final _cst_new_list_source_snapshot = _cst_new_list_source_snapshotPtr
       .asFunction<ffi.Pointer<wire_cst_list_source_snapshot> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_sync_enrollment_state_dto>
+  cst_new_list_sync_enrollment_state_dto(int len) {
+    return _cst_new_list_sync_enrollment_state_dto(len);
+  }
+
+  late final _cst_new_list_sync_enrollment_state_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_sync_enrollment_state_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_sync_enrollment_state_dto');
+  late final _cst_new_list_sync_enrollment_state_dto =
+      _cst_new_list_sync_enrollment_state_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_sync_enrollment_state_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_sync_join_entry_dto>
+  cst_new_list_sync_join_entry_dto(int len) {
+    return _cst_new_list_sync_join_entry_dto(len);
+  }
+
+  late final _cst_new_list_sync_join_entry_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_sync_join_entry_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_sync_join_entry_dto');
+  late final _cst_new_list_sync_join_entry_dto =
+      _cst_new_list_sync_join_entry_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_sync_join_entry_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_system_font_face> cst_new_list_system_font_face(
     int len,
@@ -8547,6 +8779,42 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__sync__advance_sync_enrollment(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> role,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
+  ) {
+    return _wire__crate__api__sync__advance_sync_enrollment(
+      port_,
+      role,
+      operation_id,
+      invitation_id,
+    );
+  }
+
+  late final _wire__crate__api__sync__advance_sync_enrollmentPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__advance_sync_enrollment');
+  late final _wire__crate__api__sync__advance_sync_enrollment =
+      _wire__crate__api__sync__advance_sync_enrollmentPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__sync__approve_owner_sync_invitation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
@@ -8610,6 +8878,78 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__cancel_owner_sync_invitationPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__confirm_sync_enrollment(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> role,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> token,
+    int protected_revision,
+  ) {
+    return _wire__crate__api__sync__confirm_sync_enrollment(
+      port_,
+      role,
+      operation_id,
+      invitation_id,
+      token,
+      protected_revision,
+    );
+  }
+
+  late final _wire__crate__api__sync__confirm_sync_enrollmentPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__confirm_sync_enrollment');
+  late final _wire__crate__api__sync__confirm_sync_enrollment =
+      _wire__crate__api__sync__confirm_sync_enrollmentPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+            )
+          >();
+
+  void wire__crate__api__sync__confirm_sync_join_key(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> token,
+    int protected_revision,
+  ) {
+    return _wire__crate__api__sync__confirm_sync_join_key(
+      port_,
+      token,
+      protected_revision,
+    );
+  }
+
+  late final _wire__crate__api__sync__confirm_sync_join_keyPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__confirm_sync_join_key');
+  late final _wire__crate__api__sync__confirm_sync_join_key =
+      _wire__crate__api__sync__confirm_sync_join_keyPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
   void wire__crate__api__sync__confirm_sync_key(
@@ -8682,6 +9022,28 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__get_local_sync_statePtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__sync__get_sync_join_state(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id,
+  ) {
+    return _wire__crate__api__sync__get_sync_join_state(port_, operation_id);
+  }
+
+  late final _wire__crate__api__sync__get_sync_join_statePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__get_sync_join_state');
+  late final _wire__crate__api__sync__get_sync_join_state =
+      _wire__crate__api__sync__get_sync_join_statePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__sync__inspect_owner_sync_invitation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
@@ -8707,6 +9069,69 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__inspect_owner_sync_invitationPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__inspect_sync_join_approval(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id,
+  ) {
+    return _wire__crate__api__sync__inspect_sync_join_approval(
+      port_,
+      operation_id,
+    );
+  }
+
+  late final _wire__crate__api__sync__inspect_sync_join_approvalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__inspect_sync_join_approval',
+      );
+  late final _wire__crate__api__sync__inspect_sync_join_approval =
+      _wire__crate__api__sync__inspect_sync_join_approvalPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__install_sync_join_key(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> token,
+    ffi.Pointer<wire_cst_list_prim_u_8_loose> key,
+    int protected_revision,
+  ) {
+    return _wire__crate__api__sync__install_sync_join_key(
+      port_,
+      token,
+      key,
+      protected_revision,
+    );
+  }
+
+  late final _wire__crate__api__sync__install_sync_join_keyPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_loose>,
+            ffi.Int64,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__install_sync_join_key');
+  late final _wire__crate__api__sync__install_sync_join_key =
+      _wire__crate__api__sync__install_sync_join_keyPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_loose>,
+              int,
+            )
           >();
 
   void wire__crate__api__sync__install_sync_key(
@@ -8745,6 +9170,30 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__sync__list_pending_sync_joins(int port_) {
+    return _wire__crate__api__sync__list_pending_sync_joins(port_);
+  }
+
+  late final _wire__crate__api__sync__list_pending_sync_joinsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__list_pending_sync_joins',
+      );
+  late final _wire__crate__api__sync__list_pending_sync_joins =
+      _wire__crate__api__sync__list_pending_sync_joinsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__sync__list_sync_enrollments(int port_) {
+    return _wire__crate__api__sync__list_sync_enrollments(port_);
+  }
+
+  late final _wire__crate__api__sync__list_sync_enrollmentsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__list_sync_enrollments',
+      );
+  late final _wire__crate__api__sync__list_sync_enrollments =
+      _wire__crate__api__sync__list_sync_enrollmentsPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__sync__lock_local_sync(int port_) {
     return _wire__crate__api__sync__lock_local_sync(port_);
   }
@@ -8756,6 +9205,68 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__sync__lock_local_sync =
       _wire__crate__api__sync__lock_local_syncPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__sync__prepare_sync_join_key(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> preview_token,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> platform,
+    bool acknowledge_provider_key_sharing,
+  ) {
+    return _wire__crate__api__sync__prepare_sync_join_key(
+      port_,
+      preview_token,
+      name,
+      platform,
+      acknowledge_provider_key_sharing,
+    );
+  }
+
+  late final _wire__crate__api__sync__prepare_sync_join_keyPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__prepare_sync_join_key');
+  late final _wire__crate__api__sync__prepare_sync_join_key =
+      _wire__crate__api__sync__prepare_sync_join_keyPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
+          >();
+
+  void wire__crate__api__sync__prepare_sync_join_resume(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id,
+  ) {
+    return _wire__crate__api__sync__prepare_sync_join_resume(port_, entry_id);
+  }
+
+  late final _wire__crate__api__sync__prepare_sync_join_resumePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__prepare_sync_join_resume');
+  late final _wire__crate__api__sync__prepare_sync_join_resume =
+      _wire__crate__api__sync__prepare_sync_join_resumePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void wire__crate__api__sync__prepare_sync_key_request(
     int port_,
@@ -8791,6 +9302,50 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               bool,
             )
+          >();
+
+  void wire__crate__api__sync__preview_sync_join(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_code,
+  ) {
+    return _wire__crate__api__sync__preview_sync_join(port_, invitation_code);
+  }
+
+  late final _wire__crate__api__sync__preview_sync_joinPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__preview_sync_join');
+  late final _wire__crate__api__sync__preview_sync_join =
+      _wire__crate__api__sync__preview_sync_joinPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__release_sync_join(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id,
+  ) {
+    return _wire__crate__api__sync__release_sync_join(port_, operation_id);
+  }
+
+  late final _wire__crate__api__sync__release_sync_joinPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__release_sync_join');
+  late final _wire__crate__api__sync__release_sync_join =
+      _wire__crate__api__sync__release_sync_joinPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
   void wire__crate__api__sync__release_sync_key_request(
@@ -8836,6 +9391,50 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_wire__crate__api__sync__send_owner_sync_approval');
   late final _wire__crate__api__sync__send_owner_sync_approval =
       _wire__crate__api__sync__send_owner_sync_approvalPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__send_sync_join_proof(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id,
+  ) {
+    return _wire__crate__api__sync__send_sync_join_proof(port_, operation_id);
+  }
+
+  late final _wire__crate__api__sync__send_sync_join_proofPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__send_sync_join_proof');
+  late final _wire__crate__api__sync__send_sync_join_proof =
+      _wire__crate__api__sync__send_sync_join_proofPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__send_sync_join_request(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id,
+  ) {
+    return _wire__crate__api__sync__send_sync_join_request(port_, operation_id);
+  }
+
+  late final _wire__crate__api__sync__send_sync_join_requestPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__send_sync_join_request');
+  late final _wire__crate__api__sync__send_sync_join_request =
+      _wire__crate__api__sync__send_sync_join_requestPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -9238,6 +9837,37 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__tweet__save_topic_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> text,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_String> tags,
+  ) {
+    return _wire__crate__api__tweet__save_topic_page(port_, text, title, tags);
+  }
+
+  late final _wire__crate__api__tweet__save_topic_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_String>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__tweet__save_topic_page');
+  late final _wire__crate__api__tweet__save_topic_page =
+      _wire__crate__api__tweet__save_topic_pagePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_String>,
+            )
+          >();
+
   void wire__crate__api__tweet__save_tweet_page(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> tweet_id,
@@ -9302,6 +9932,130 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__tweet__update_tweet_fetch_service =
       _wire__crate__api__tweet__update_tweet_fetch_servicePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__web_search__get_network_settings(int port_) {
+    return _wire__crate__api__web_search__get_network_settings(port_);
+  }
+
+  late final _wire__crate__api__web_search__get_network_settingsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__web_search__get_network_settings',
+      );
+  late final _wire__crate__api__web_search__get_network_settings =
+      _wire__crate__api__web_search__get_network_settingsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__web_search__get_web_search_config(int port_) {
+    return _wire__crate__api__web_search__get_web_search_config(port_);
+  }
+
+  late final _wire__crate__api__web_search__get_web_search_configPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__web_search__get_web_search_config',
+      );
+  late final _wire__crate__api__web_search__get_web_search_config =
+      _wire__crate__api__web_search__get_web_search_configPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__web_search__save_doh_settings(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_uri,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_mode,
+  ) {
+    return _wire__crate__api__web_search__save_doh_settings(
+      port_,
+      doh_uri,
+      doh_mode,
+    );
+  }
+
+  late final _wire__crate__api__web_search__save_doh_settingsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__web_search__save_doh_settings');
+  late final _wire__crate__api__web_search__save_doh_settings =
+      _wire__crate__api__web_search__save_doh_settingsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__web_search__save_web_search_config(
+    int port_,
+    bool enabled,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> engine,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key,
+    int max_results,
+  ) {
+    return _wire__crate__api__web_search__save_web_search_config(
+      port_,
+      enabled,
+      engine,
+      base_url,
+      api_key,
+      max_results,
+    );
+  }
+
+  late final _wire__crate__api__web_search__save_web_search_configPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Bool,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__web_search__save_web_search_config',
+      );
+  late final _wire__crate__api__web_search__save_web_search_config =
+      _wire__crate__api__web_search__save_web_search_configPtr
+          .asFunction<
+            void Function(
+              int,
+              bool,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+            )
+          >();
+
+  void wire__crate__api__web_search__test_doh_connection(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_uri,
+  ) {
+    return _wire__crate__api__web_search__test_doh_connection(port_, doh_uri);
+  }
+
+  late final _wire__crate__api__web_search__test_doh_connectionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__web_search__test_doh_connection');
+  late final _wire__crate__api__web_search__test_doh_connection =
+      _wire__crate__api__web_search__test_doh_connectionPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -12044,6 +12798,36 @@ final class wire_cst_list_source_snapshot extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_sync_enrollment_state_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_sync_enrollment_state_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_sync_enrollment_state_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_sync_enrollment_state_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_sync_enrollment_state_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_sync_join_entry_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_sync_join_entry_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_sync_join_entry_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_sync_join_entry_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_sync_join_entry_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_system_font_face extends ffi.Struct {
   external ffi.Pointer<wire_cst_system_font_face> ptr;
 
@@ -12233,6 +13017,24 @@ final class wire_cst_message_recordability_dto extends ffi.Struct {
     ..ref.source = source
     ..ref.job_status = job_status
     ..ref.summary = summary;
+}
+
+final class wire_cst_network_settings_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_uri;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_scope;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_mode;
+
+  static ffi.Pointer<wire_cst_network_settings_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_uri,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_scope,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_mode,
+  }) => $allocator<wire_cst_network_settings_dto>()
+    ..ref.doh_uri = doh_uri
+    ..ref.doh_scope = doh_scope
+    ..ref.doh_mode = doh_mode;
 }
 
 final class wire_cst_organized_topic extends ffi.Struct {
@@ -12484,6 +13286,70 @@ final class wire_cst_suggestion_feedback extends ffi.Struct {
     ..ref.created_at = created_at;
 }
 
+final class wire_cst_sync_enrollment_state_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> role;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id;
+
+  @ffi.Int64()
+  external int revision;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> confirmation_token;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> phase;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> snapshot_id;
+
+  @ffi.Int64()
+  external int received_chunks;
+
+  @ffi.Int64()
+  external int total_chunks;
+
+  @ffi.Bool()
+  external bool local_applied;
+
+  @ffi.Bool()
+  external bool remote_applied;
+
+  @ffi.Bool()
+  external bool notification_pending;
+
+  static ffi.Pointer<wire_cst_sync_enrollment_state_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> role,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id,
+    required int revision,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> confirmation_token,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> snapshot_id,
+    required int received_chunks,
+    required int total_chunks,
+    required bool local_applied,
+    required bool remote_applied,
+    required bool notification_pending,
+  }) => $allocator<wire_cst_sync_enrollment_state_dto>()
+    ..ref.role = role
+    ..ref.operation_id = operation_id
+    ..ref.invitation_id = invitation_id
+    ..ref.installation_id = installation_id
+    ..ref.revision = revision
+    ..ref.confirmation_token = confirmation_token
+    ..ref.phase = phase
+    ..ref.snapshot_id = snapshot_id
+    ..ref.received_chunks = received_chunks
+    ..ref.total_chunks = total_chunks
+    ..ref.local_applied = local_applied
+    ..ref.remote_applied = remote_applied
+    ..ref.notification_pending = notification_pending;
+}
+
 final class wire_cst_sync_invitation_offer_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id;
 
@@ -12532,6 +13398,94 @@ final class wire_cst_sync_invitation_preview_dto extends ffi.Struct {
     ..ref.device_platform = device_platform
     ..ref.fingerprint = fingerprint
     ..ref.expires_at_ms = expires_at_ms;
+}
+
+final class wire_cst_sync_join_entry_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  static ffi.Pointer<wire_cst_sync_join_entry_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+  }) => $allocator<wire_cst_sync_join_entry_dto>()
+    ..ref.entry_id = entry_id
+    ..ref.installation_id = installation_id
+    ..ref.dataset_id = dataset_id
+    ..ref.name = name;
+}
+
+final class wire_cst_sync_join_state_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> token;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_fingerprint;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_fingerprint;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> relay_url;
+
+  @ffi.Int64()
+  external int expires_at_ms;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> phase;
+
+  @ffi.Int64()
+  external int revision;
+
+  @ffi.Bool()
+  external bool creating;
+
+  @ffi.Bool()
+  external bool approval_ack_pending;
+
+  static ffi.Pointer<wire_cst_sync_join_state_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> operation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> token,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_fingerprint,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_fingerprint,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> relay_url,
+    required int expires_at_ms,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
+    required int revision,
+    required bool creating,
+    required bool approval_ack_pending,
+  }) => $allocator<wire_cst_sync_join_state_dto>()
+    ..ref.operation_id = operation_id
+    ..ref.token = token
+    ..ref.entry_id = entry_id
+    ..ref.installation_id = installation_id
+    ..ref.dataset_id = dataset_id
+    ..ref.owner_name = owner_name
+    ..ref.owner_fingerprint = owner_fingerprint
+    ..ref.local_fingerprint = local_fingerprint
+    ..ref.relay_url = relay_url
+    ..ref.expires_at_ms = expires_at_ms
+    ..ref.phase = phase
+    ..ref.revision = revision
+    ..ref.creating = creating
+    ..ref.approval_ack_pending = approval_ack_pending;
 }
 
 final class wire_cst_sync_key_commit_dto extends ffi.Struct {
@@ -12748,6 +13702,39 @@ final class wire_cst_unscheduled_chat_input_dto extends ffi.Struct {
     ..ref.input_message_id = input_message_id
     ..ref.preview = preview
     ..ref.created_at = created_at;
+}
+
+final class wire_cst_web_search_config_dto extends ffi.Struct {
+  @ffi.Bool()
+  external bool enabled;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> engine;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key;
+
+  @ffi.Bool()
+  external bool has_api_key;
+
+  @ffi.Int64()
+  external int max_results;
+
+  static ffi.Pointer<wire_cst_web_search_config_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required bool enabled,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> engine,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key,
+    required bool has_api_key,
+    required int max_results,
+  }) => $allocator<wire_cst_web_search_config_dto>()
+    ..ref.enabled = enabled
+    ..ref.engine = engine
+    ..ref.base_url = base_url
+    ..ref.api_key = api_key
+    ..ref.has_api_key = has_api_key
+    ..ref.max_results = max_results;
 }
 
 final class wire_cst_wiki_chat_material_dto extends ffi.Struct {

@@ -62,6 +62,39 @@ impl Store {
         Ok(true)
     }
 
+    pub(crate) fn stage_snapshot_authority(
+        &self,
+        id: &str,
+        header: &EnvelopeHeader,
+        key: &ContentKey,
+        signer: &DeviceIdentity,
+        payload: &[u8],
+    ) -> Result<()> {
+        let tx = self.begin_write_transaction()?;
+        let valid: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_snapshot_exports WHERE id=?1 AND recipient_device_id=?2 AND key_version=?3 AND state='building')",
+            params![id, header.recipient_device_id, header.key_version as i64], |r| r.get(0))?;
+        ensure!(
+            valid && header.message_id.starts_with("membership:"),
+            "sync_snapshot_authority_mismatch"
+        );
+        self.stage_sync_wire_envelope(header, key, signer, payload)?;
+        // A wire has one export owner. Only an abandoned attempt may hand its
+        // identical roster to a new attempt; ready exports keep their bindings.
+        let changed = self.connection.execute(
+            "INSERT INTO sync_snapshot_export_wires(snapshot_id,recipient_device_id,message_id) VALUES(?1,?2,?3)
+             ON CONFLICT(recipient_device_id,message_id) DO UPDATE SET snapshot_id=excluded.snapshot_id
+             WHERE sync_snapshot_export_wires.snapshot_id=excluded.snapshot_id
+                OR EXISTS(SELECT 1 FROM sync_snapshot_exports s WHERE s.id=sync_snapshot_export_wires.snapshot_id AND s.state='aborted')",
+            params![id, header.recipient_device_id, header.message_id],
+        )?;
+        ensure!(changed == 1, "sync_snapshot_authority_already_in_use");
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn stage_snapshot_export_payload(
         &self,
         id: &str,

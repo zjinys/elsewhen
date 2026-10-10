@@ -4,8 +4,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart' as ui;
 import 'package:screen_retriever/screen_retriever.dart';
+import 'package:tray_manager/tray_manager.dart' as tray;
 import 'package:window_manager/window_manager.dart';
 
+import 'desktop_prefs.dart';
+import 'single_instance.dart';
 import 'window_geometry_store.dart';
 import 'window_service.dart';
 import '../bridge/generated.dart/api/chat_runs.dart' as chat_runs;
@@ -27,6 +30,18 @@ class DesktopWindowService implements WindowService {
 
   /// 事件监听（window_manager 是 mixin 式回调，这里挂到 WindowListener）。
   _WindowEventRelay? _eventRelay;
+
+  /// 系统托盘监听（tray_manager 同为 mixin 式回调）。
+  _TrayEventRelay? _trayRelay;
+
+  /// 托盘是否就绪：初始化失败时为 false，「关闭」退化为退出。
+  bool _trayReady = false;
+
+  /// 「关闭窗口时」偏好（本地 desktop.json，不落库）。
+  /// 构造期即读取：`applyMainChrome` 在建窗时就 `setPreventClose(true)`，
+  /// 关闭回调可能早于 `initialize()` 触发，不能在 initialize 里才加载。
+  final DesktopPrefsStore _prefs = const DesktopPrefsStore();
+  CloseAction _closeAction = const DesktopPrefsStore().loadCloseAction();
 
   /// 主窗口几何的本地配置存储（window.json，不落数据库）。
   final WindowGeometryStore _geometryStore = const WindowGeometryStore();
@@ -142,6 +157,53 @@ class DesktopWindowService implements WindowService {
     if (!_isDesktop()) return;
     _eventRelay ??= _WindowEventRelay(this);
     windowManager.addListener(_eventRelay!);
+    await _initTray();
+  }
+
+  /// 创建系统托盘（图标 + 上下文菜单：显示主窗 / 快速捕获 / 退出）。
+  ///
+  /// 托盘不可用（初始化抛错，常见于 Linux 缺 appindicator）时不阻塞启动：
+  /// 记 `_trayReady = false`，并把「关闭时」强制为退出——否则窗口一藏就再也
+  /// 没有唤回入口。设置页据此禁用「最小化到托盘」。
+  Future<void> _initTray() async {
+    try {
+      await tray.trayManager.setIcon('assets/brand/elsewhen-tray.png');
+      // Linux 后端（appindicator）未实现 setToolTip，调用会抛
+      // MissingPluginException 把整个托盘初始化带崩；只在 Windows/macOS 设。
+      if (Platform.isWindows || Platform.isMacOS) {
+        await tray.trayManager.setToolTip('Elsewhen');
+      }
+      await tray.trayManager.setContextMenu(
+        tray.Menu(
+          items: [
+            tray.MenuItem(
+              key: 'show',
+              label: '显示主窗口',
+              onClick: (_) => unawaited(showWindow()),
+            ),
+            tray.MenuItem(
+              key: 'capture',
+              label: '快速捕获',
+              onClick: (_) => unawaited(switchToCaptureMode()),
+            ),
+            tray.MenuItem.separator(),
+            tray.MenuItem(
+              key: 'quit',
+              label: '退出 Elsewhen',
+              onClick: (_) => unawaited(quitApp()),
+            ),
+          ],
+        ),
+      );
+      _trayRelay ??= _TrayEventRelay(this);
+      tray.trayManager.addListener(_trayRelay!);
+      _trayReady = true;
+      ui.debugPrint('Tray initialized');
+    } catch (e) {
+      _trayReady = false;
+      _closeAction = CloseAction.quit;
+      ui.debugPrint('Tray init failed; close now quits: $e');
+    }
   }
 
   /// 隐藏原生标题栏（无边框）——**macOS/Windows 走 window_manager，Linux 跳过**。
@@ -310,9 +372,39 @@ class DesktopWindowService implements WindowService {
     } catch (_) {
       ui.debugPrint('Chat shutdown did not finish; durable recovery remains active.');
     }
-    // 解除 close 拦截后真正退出
+    // 移除托盘与单实例监听，再解除 close 拦截真正退出。
+    try {
+      await tray.trayManager.destroy();
+    } catch (_) {}
+    await SingleInstance.dispose();
     await windowManager.setPreventClose(false);
     await windowManager.close();
+  }
+
+  @override
+  CloseAction get closeAction => _closeAction;
+
+  @override
+  bool get trayAvailable => _trayReady;
+
+  @override
+  Future<void> setCloseAction(CloseAction action) async {
+    // 托盘不可用时不允许「最小化到托盘」，否则窗口藏起来无法唤回。
+    _closeAction = (action == CloseAction.minimizeToTray && !_trayReady)
+        ? CloseAction.quit
+        : action;
+    _prefs.saveCloseAction(_closeAction);
+  }
+
+  /// 统一关闭入口：按「关闭时」偏好决定隐藏到托盘还是退出。
+  @override
+  Future<void> requestClose() async {
+    if (!_isDesktop()) return;
+    if (_closeAction == CloseAction.quit || !_trayReady) {
+      await quitApp();
+    } else {
+      await hideWindow();
+    }
   }
 
   @override
@@ -338,8 +430,28 @@ class DesktopWindowService implements WindowService {
 
   /// 事件回调入口（由 _WindowEventRelay 转发）。
   void _onClose() {
-    // setPreventClose(true) 时拦截关闭：隐藏而非退出（托盘/后台运行）。
-    windowManager.hide();
+    // Wayland 下 onWindowMoved/onWindowResized 不派发（compositor 不向应用暴露
+    // 窗口实时位置），移动时的防抖保存收不到事件；但 onWindowClose 会派发，且
+    // getBounds() 在 Wayland 仍能拿到正确几何。故在关闭这一刻补存一次，让
+    // 「恢复上次关闭位置」在 Wayland 下也能工作（X11 下移动保存仍走防抖路径）。
+    unawaited(_saveGeometryNow());
+    // setPreventClose(true) 拦截原生关闭：按「关闭时」偏好隐藏到托盘或退出。
+    unawaited(requestClose());
+  }
+
+  /// 立即保存当前主窗口几何（不防抖）。供关闭时调用。
+  Future<void> _saveGeometryNow() async {
+    if (!_isDesktop() || currentMode != WindowMode.main) return;
+    try {
+      if (await windowManager.isMaximized()) return;
+      if (await windowManager.isFullScreen()) return;
+      final b = await windowManager.getBounds();
+      _geometryStore.save(
+        WindowGeometry(x: b.left, y: b.top, width: b.width, height: b.height),
+      );
+    } catch (_) {
+      // 落盘失败静默：窗口偏好丢了，下次启动退回默认落位。
+    }
   }
 
   void _onMovedOrResized() => _scheduleGeometrySave();
@@ -351,6 +463,11 @@ class DesktopWindowService implements WindowService {
     if (relay != null) {
       windowManager.removeListener(relay);
       _eventRelay = null;
+    }
+    final trayRelay = _trayRelay;
+    if (trayRelay != null) {
+      tray.trayManager.removeListener(trayRelay);
+      _trayRelay = null;
     }
   }
 }
@@ -368,4 +485,18 @@ class _WindowEventRelay with WindowListener {
 
   @override
   void onWindowResized() => _service._onMovedOrResized();
+}
+
+/// tray_manager 的 TrayListener 回调转发到 DesktopWindowService。
+class _TrayEventRelay with tray.TrayListener {
+  _TrayEventRelay(this._service);
+  final DesktopWindowService _service;
+
+  /// Linux（appindicator）由面板接管点击、直接弹菜单，这里基本不会触发；
+  /// Windows/macOS 上左键单击唤起主窗。
+  @override
+  void onTrayIconMouseDown() => unawaited(_service.showWindow());
+
+  @override
+  void onTrayIconRightMouseDown() => unawaited(_service.showWindow());
 }
