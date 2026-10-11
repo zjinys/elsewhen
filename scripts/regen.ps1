@@ -248,6 +248,36 @@ ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上的两个默认位
         Write-Host "     检测到 FVM，使用 fvm flutter 作为 codegen 的 flutter 命令"
     }
     $codegen = (Get-Command flutter_rust_bridge_codegen -ErrorAction Stop).Source
+
+    # 版本必须与 Cargo.toml 里的 flutter_rust_bridge 严格一致，否则报错的位置
+    # 离病因很远。已踩过的实例：机器上装的是 codegen 2.0.0-dev.41，而本项目用
+    # flutter_rust_bridge 2.14.0-beta.2。旧 codegen 内部绑的 syn 解析不了新版宏
+    # 展开出的 `#[unsafe(no_mangle)]`（Rust 1.82+ 的 unsafe attribute 语法），
+    # 于是在 "Cargo expand & syn parse" 阶段抛
+    #   expected identifier, found keyword `unsafe`
+    # 这跟 libclang / CPATH / 业务代码都无关，很容易被误判成环境问题。
+    $wantVer = (Select-String -Path "Cargo.toml" `
+            -Pattern '^\s*flutter_rust_bridge\s*=\s*"=?\s*([\w.\-+]+)"' |
+        Select-Object -First 1).Matches[0].Groups[1].Value
+    # 输出形如 `flutter_rust_bridge_codegen 2.14.0-beta.2`，取末段版本号。
+    # 只在两边都成功解析出版本号时才比对：解析不出来宁可放过，也不要因为
+    # 格式变了就抛一个假的「版本不匹配」。
+    $gotVer = ((& $codegen --version) -join " ") -replace '^.*?\s', ''
+    $verRe = '^[\w.\-+]+$'
+    if ($wantVer -and $gotVer -match $verRe -and $gotVer -ne $wantVer) {
+        Stop-WithGuidance -summary "codegen 版本不匹配：装的是 $gotVer，Cargo.toml 需要 $wantVer" -guidance @"
+codegen 版本不匹配：装的是 $gotVer，Cargo.toml 需要 $wantVer
+
+flutter_rust_bridge 与 flutter_rust_bridge_codegen 必须是同一个版本。
+装对版本：
+    cargo install flutter_rust_bridge_codegen --version $wantVer --locked --force
+
+版本不匹配的报错通常长得莫名其妙（syn 解析失败、类型不认识、生成结果对不上），
+因为旧 codegen 读不懂新版库/宏展开的产物。改完版本请重跑本脚本。
+"@
+    }
+    Write-Host "     codegen 版本 $gotVer（与 Cargo.toml 一致）"
+
     $codegenArgs = @("generate")
     if ($LlvmPath) {
         # 原样透传：ffigen 的 llvmPathExtractor 接受根目录或 libclang.dll 完整路径两种形式
@@ -279,9 +309,16 @@ ffigen 需要 libclang.dll，但 ffigen 22.0.0 在 Windows 上的两个默认位
     $dartHash = (Select-String -Path "ui\lib\bridge\generated.dart\frb_generated.dart" `
         -Pattern 'int get rustContentHash => (-?\d+);' |
         Select-Object -First 1).Matches[0].Groups[1].Value
+    # 必须是 .Matches[0].Groups[1].Value，不能写成 .Matches[1].Value。
+    # PS 里 MatchInfo.Matches 走的是 MatchCollection 的枚举语义：下标是
+    # 「文件里的第几个匹配」而不是「第几个捕获组」。这段 pattern 在
+    # src\frb_generated.rs 里只匹配一行，于是 Matches[1] 越界成空串，
+    # 下面的 `-not $rustHash` 就报「未找到 CONTENT_HASH」——一个假的失败，
+    # 跟 codegen 有没有真的重生成毫无关系（实测 dartHash 那一行是对的，
+    # 写错的就只有 rust 这行）。
     $rustHash = (Select-String -Path "src\frb_generated.rs" `
         -Pattern 'FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = (-?\d+);' |
-        Select-Object -First 1).Matches[1].Value
+        Select-Object -First 1).Matches[0].Groups[1].Value
 
     Write-Host ""
     if (-not $dartHash) { throw "未能在 ui\lib\bridge\generated.dart\frb_generated.dart 中找到 rustContentHash" }

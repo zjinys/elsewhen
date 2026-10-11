@@ -25,7 +25,8 @@ abstract class StorageRepository {
 - `ui/lib/models/analysis.dart` - AI analysis result model
 - `ui/lib/data/mock_storage_repository.dart` - Mock implementation for testing
 - `ui/test/mock_storage_test.dart` - Comprehensive unit tests (7 tests, all passing)
-- `docs/STORAGE_ADAPTER.md` - Complete documentation
+- `docs/STORAGE_ADAPTER.en.md` - Complete documentation (English)
+- `docs/STORAGE_ADAPTER.cn.md` - 当前实现说明（中文，随代码更新）
 
 #### Modified
 - `ui/lib/models/event.dart` - Renamed Analysis → EventAnalysis to avoid conflicts
