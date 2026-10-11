@@ -167,7 +167,11 @@ class DesktopWindowService implements WindowService {
   /// 没有唤回入口。设置页据此禁用「最小化到托盘」。
   Future<void> _initTray() async {
     try {
-      await tray.trayManager.setIcon('assets/brand/elsewhen-tray.png');
+      // Windows 需要 .ico 格式（tray_manager 文档明确要求），其他平台用 .png
+      final iconPath = Platform.isWindows
+          ? 'assets/brand/elsewhen-tray.ico'
+          : 'assets/brand/elsewhen-tray.png';
+      await tray.trayManager.setIcon(iconPath);
       // Linux 后端（appindicator）未实现 setToolTip，调用会抛
       // MissingPluginException 把整个托盘初始化带崩；只在 Windows/macOS 设。
       if (Platform.isWindows || Platform.isMacOS) {
@@ -272,7 +276,11 @@ class DesktopWindowService implements WindowService {
     );
     if (bounds == null) return false;
 
-    await windowManager.setBounds(null, size: bounds.size, position: bounds.topLeft);
+    await windowManager.setBounds(
+      null,
+      size: bounds.size,
+      position: bounds.topLeft,
+    );
     ui.debugPrint(
       'Restored window bounds: '
       '(${bounds.left.toInt()}, ${bounds.top.toInt()}) '
@@ -370,7 +378,9 @@ class DesktopWindowService implements WindowService {
         const Duration(milliseconds: 750),
       );
     } catch (_) {
-      ui.debugPrint('Chat shutdown did not finish; durable recovery remains active.');
+      ui.debugPrint(
+        'Chat shutdown did not finish; durable recovery remains active.',
+      );
     }
     // 移除托盘与单实例监听，再解除 close 拦截真正退出。
     try {
