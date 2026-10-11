@@ -558,7 +558,7 @@ PRAGMA foreign_key_check;
 
 ## 相关文档
 
-- [存储适配器文档](STORAGE_ADAPTER.md)
+- [存储适配器文档](STORAGE_ADAPTER.ch.md)
 - [Flutter Rust Bridge 配置](../flutter_rust_bridge.yaml)
 - [数据库模式](../src/storage.rs#L98-L114)
 - [API 实现](../src/api.rs#L148-L245)

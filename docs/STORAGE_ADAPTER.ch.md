@@ -42,6 +42,20 @@ pub trait StorageAdapter {
     // AI 配置操作
     fn active_ai_provider_config(&self) -> Result<Option<AiProviderConfig>>;
     fn upsert_ai_provider_config(&self, base_url: &str, model: &str, api_key: &str) -> Result<()>;
+    fn list_ai_provider_configs(&self) -> Result<Vec<AiProviderConfigRow>>;
+    fn save_ai_provider_config(
+        &self,
+        id: Option<&str>,
+        name: &str,
+        provider_type: &str,
+        base_url: &str,
+        model: &str,
+        api_key: &str,
+        temperature: f64,
+        max_tokens: Option<i64>,
+    ) -> Result<String>;
+    fn set_active_ai_provider_config(&self, id: &str) -> Result<()>;
+    fn delete_ai_provider_config(&self, id: &str) -> Result<()>;
 }
 ```
 
@@ -115,9 +129,9 @@ Trait 是对象安全的（object-safe），支持 `Box<dyn StorageAdapter>` 动
 
 ```
 src/
-├── storage/
-│   └── adapter.rs       # Trait 定义和相关类型
-└── storage.rs           # Store 实现 + adapter 实现
+└── storage/
+    ├── adapter.rs       # Trait 定义和相关类型
+    └── mod.rs           # Store 定义 + impl StorageAdapter for Store
 ```
 
 ## 使用示例
