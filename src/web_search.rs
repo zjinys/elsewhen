@@ -101,8 +101,8 @@ impl Transport {
 }
 
 fn fetch_direct(req: &SearchRequest, timeout: Duration) -> Result<String> {
-    let client =
-        crate::ai::provider::shared_blocking_client(timeout.as_secs()).context("创建 HTTP 客户端失败")?;
+    let client = crate::ai::provider::shared_blocking_client(timeout.as_secs())
+        .context("创建 HTTP 客户端失败")?;
     let mut rb = match req.method {
         "GET" => client.get(&req.url),
         "POST" => client.post(&req.url),
@@ -129,7 +129,11 @@ fn fetch_via_doh(req: &SearchRequest, doh_uri: &str, timeout: Duration) -> Resul
         .host_str()
         .ok_or_else(|| anyhow!("搜索 URL 缺少主机名"))?;
     let port = parsed.port().unwrap_or(443);
-    let path = if parsed.path().is_empty() { "/" } else { parsed.path() };
+    let path = if parsed.path().is_empty() {
+        "/"
+    } else {
+        parsed.path()
+    };
     let extra: Vec<String> = req
         .headers
         .iter()
@@ -212,7 +216,10 @@ impl WebSearchEngine for TavilyEngine {
         let req = SearchRequest {
             url: self.base_url.clone(),
             method: "POST",
-            headers: vec![("Authorization".to_string(), format!("Bearer {}", self.api_key))],
+            headers: vec![(
+                "Authorization".to_string(),
+                format!("Bearer {}", self.api_key),
+            )],
             json_body: Some(serde_json::json!({
                 "query": query,
                 "max_results": max_results,
@@ -276,7 +283,11 @@ impl WebSearchEngine for BraveEngine {
         if self.api_key.trim().is_empty() {
             return Err(anyhow!("Brave API key 未配置"));
         }
-        let sep = if self.base_url.contains('?') { "&" } else { "?" };
+        let sep = if self.base_url.contains('?') {
+            "&"
+        } else {
+            "?"
+        };
         let url = format!(
             "{}{}q={}&count={}",
             self.base_url,
@@ -428,22 +439,62 @@ pub fn user_text_wants_search(text: &str) -> bool {
         return false;
     }
     // 否定词优先：用户明确说「别搜/不用查」时不触发，即使句里有「最新」。
-    const NEGATIVE: &[&str] = &["别搜", "不用搜", "不要搜", "别查", "不用查", "不要查", "不用上网", "别上网"];
+    const NEGATIVE: &[&str] = &[
+        "别搜",
+        "不用搜",
+        "不要搜",
+        "别查",
+        "不用查",
+        "不要查",
+        "不用上网",
+        "别上网",
+    ];
     if NEGATIVE.iter().any(|w| t.contains(w)) {
         return false;
     }
     // 直接指令：让 AI 去搜/去查。
     const COMMAND: &[&str] = &[
-        "搜一下", "搜索一下", "搜一搜", "上网搜", "网上搜", "网上查", "上网查", "查一下",
-        "帮我搜", "帮我查", "去搜", "去查", "搜索", "外网", "联网搜", "联网查",
+        "搜一下",
+        "搜索一下",
+        "搜一搜",
+        "上网搜",
+        "网上搜",
+        "网上查",
+        "上网查",
+        "查一下",
+        "帮我搜",
+        "帮我查",
+        "去搜",
+        "去查",
+        "搜索",
+        "外网",
+        "联网搜",
+        "联网查",
     ];
     if COMMAND.iter().any(|w| t.contains(w)) {
         return true;
     }
     // 时效/资讯词：暗示需要当下、模型训练数据之外的信息。
     const TIMELY: &[&str] = &[
-        "最新", "最近", "近期", "这几天", "这两天", "今天", "昨日", "昨天", "本周", "这周",
-        "本月", "新闻", "热点", "时事", "头条", "刚发布", "刚出", "现在怎么样", "现状",
+        "最新",
+        "最近",
+        "近期",
+        "这几天",
+        "这两天",
+        "今天",
+        "昨日",
+        "昨天",
+        "本周",
+        "这周",
+        "本月",
+        "新闻",
+        "热点",
+        "时事",
+        "头条",
+        "刚发布",
+        "刚出",
+        "现在怎么样",
+        "现状",
     ];
     TIMELY.iter().any(|w| t.contains(w))
 }
@@ -486,16 +537,19 @@ mod tests {
 
     #[test]
     fn parse_tavily_invalid_json() {
-        assert!(parse_tavily_response("not json", 5)
-            .unwrap_err()
-            .to_string()
-            .contains("不是合法 JSON"));
+        assert!(
+            parse_tavily_response("not json", 5)
+                .unwrap_err()
+                .to_string()
+                .contains("不是合法 JSON")
+        );
     }
 
     #[test]
     fn snippet_truncated_by_chars() {
         let long = "字".repeat(500);
-        let body = format!(r#"{{"results":[{{"title":"t","url":"https://a.com","content":"{long}"}}]}}"#);
+        let body =
+            format!(r#"{{"results":[{{"title":"t","url":"https://a.com","content":"{long}"}}]}}"#);
         let hits = parse_tavily_response(&body, 5).unwrap();
         assert!(hits[0].snippet.chars().count() <= 201);
         assert!(hits[0].snippet.ends_with('…'));
@@ -565,7 +619,16 @@ mod tests {
         let s = direct_settings();
         assert!(build_engine("tavily", "k", "", &s, Duration::from_secs(5)).is_ok());
         assert!(build_engine("brave", "k", "", &s, Duration::from_secs(5)).is_ok());
-        assert!(build_engine("searxng", "", "http://localhost:8080", &s, Duration::from_secs(5)).is_ok());
+        assert!(
+            build_engine(
+                "searxng",
+                "",
+                "http://localhost:8080",
+                &s,
+                Duration::from_secs(5)
+            )
+            .is_ok()
+        );
         assert!(build_engine("unknown", "", "", &s, Duration::from_secs(5)).is_err());
     }
 
@@ -654,17 +717,30 @@ mod tests {
         use crate::storage::DohMode;
         // off → Direct
         assert!(matches!(
-            Transport::new(&settings_with(DohMode::Off, "https://d/"), Duration::from_secs(5)),
+            Transport::new(
+                &settings_with(DohMode::Off, "https://d/"),
+                Duration::from_secs(5)
+            ),
             Transport::Direct { .. }
         ));
         // force + 地址 → Doh 且不回退
-        match Transport::new(&settings_with(DohMode::Force, "https://d/"), Duration::from_secs(5)) {
-            Transport::Doh { fallback_direct, .. } => assert!(!fallback_direct),
+        match Transport::new(
+            &settings_with(DohMode::Force, "https://d/"),
+            Duration::from_secs(5),
+        ) {
+            Transport::Doh {
+                fallback_direct, ..
+            } => assert!(!fallback_direct),
             _ => panic!("force+地址应走 DoH"),
         }
         // auto + 地址 → Doh 且回退
-        match Transport::new(&settings_with(DohMode::Auto, "https://d/"), Duration::from_secs(5)) {
-            Transport::Doh { fallback_direct, .. } => assert!(fallback_direct),
+        match Transport::new(
+            &settings_with(DohMode::Auto, "https://d/"),
+            Duration::from_secs(5),
+        ) {
+            Transport::Doh {
+                fallback_direct, ..
+            } => assert!(fallback_direct),
             _ => panic!("auto+地址应走 DoH"),
         }
         // auto + 空地址 → Direct
@@ -681,8 +757,8 @@ mod tests {
     #[test]
     #[ignore]
     fn tavily_via_doh_real_network() {
-        let doh = std::env::var("ELSEWHEN_TEST_DOH")
-            .expect("设置 ELSEWHEN_TEST_DOH 为你的 DoH 服务地址");
+        let doh =
+            std::env::var("ELSEWHEN_TEST_DOH").expect("设置 ELSEWHEN_TEST_DOH 为你的 DoH 服务地址");
         let key = std::env::var("TAVILY_API_KEY")
             .unwrap_or_else(|_| "invalid-key-for-transport-test".to_string());
         let engine = build_engine(
@@ -706,7 +782,10 @@ mod tests {
                 println!("返回错误（无效 key 时预期是鉴权错误）: {msg}");
                 if key == "invalid-key-for-transport-test" {
                     assert!(
-                        msg.contains("Tavily") || msg.contains("key") || msg.contains("401") || msg.contains("HTTP"),
+                        msg.contains("Tavily")
+                            || msg.contains("key")
+                            || msg.contains("401")
+                            || msg.contains("HTTP"),
                         "无效 key 时应得到 Tavily 的鉴权错误而非传输错误，实际: {msg}"
                     );
                 } else {

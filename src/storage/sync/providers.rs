@@ -239,8 +239,11 @@ impl Store {
     }
 
     pub(super) fn replace_provider_bundle_on(&self, bundle: &ProviderBundle) -> Result<()> {
-        if self.has_sync_authority()? && bundle.profiles.iter().any(|p|p.api_key_present) {
-            ensure!(self.provider_keys_sealed()?, "provider_key_sealing_required");
+        if self.has_sync_authority()? && bundle.profiles.iter().any(|p| p.api_key_present) {
+            ensure!(
+                self.provider_keys_sealed()?,
+                "provider_key_sealing_required"
+            );
         }
         ensure!(
             !self.connection.is_autocommit(),

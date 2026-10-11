@@ -606,7 +606,9 @@ impl Tool for WebSearchTool {
         let query = arg_str(args, "query")?;
         let cfg = ctx.store.web_search_config()?;
         if !cfg.enabled {
-            return Ok("外网搜索未启用。请在「设置 → 外网搜索」开启并配置搜索引擎后再试。".to_string());
+            return Ok(
+                "外网搜索未启用。请在「设置 → 外网搜索」开启并配置搜索引擎后再试。".to_string(),
+            );
         }
         // SearxNG 自托管无需 key；Tavily/Brave 需要。需 key 而未填时给出明确引导。
         if crate::web_search::engine_needs_api_key(&cfg.engine) && cfg.api_key.trim().is_empty() {
@@ -632,13 +634,7 @@ impl Tool for WebSearchTool {
         let mut out = format!("关于「{query}」的外网检索结果（{} 条）：\n", hits.len());
         let mut budget = 3000usize;
         for (i, h) in hits.iter().enumerate() {
-            let entry = format!(
-                "{}. {}\n   {}\n   {}\n",
-                i + 1,
-                h.title,
-                h.url,
-                h.snippet
-            );
+            let entry = format!("{}. {}\n   {}\n   {}\n", i + 1, h.title, h.url, h.snippet);
             if entry.len() > budget {
                 out.push_str("（结果过多，其余略）\n");
                 break;

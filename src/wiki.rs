@@ -670,12 +670,9 @@ fn download_one_image_via_doh(
     dir: &std::path::Path,
     idx: usize,
 ) -> Result<std::path::PathBuf> {
-    let bytes = crate::net_doh::https_get_bytes_via_doh(
-        url,
-        doh_uri,
-        std::time::Duration::from_secs(30),
-    )
-    .with_context(|| format!("DoH 下载失败 {url}"))?;
+    let bytes =
+        crate::net_doh::https_get_bytes_via_doh(url, doh_uri, std::time::Duration::from_secs(30))
+            .with_context(|| format!("DoH 下载失败 {url}"))?;
     write_image_bytes(&bytes, url, dir, idx)
 }
 
@@ -716,8 +713,7 @@ fn write_image_bytes(
         .filter(|e| matches!(e.as_str(), "jpg" | "jpeg" | "png" | "gif" | "webp"))
         .unwrap_or_else(|| "jpg".to_string());
     let path = dir.join(format!("img_{}.{ext}", idx + 1));
-    std::fs::write(&path, bytes)
-        .with_context(|| format!("写入图片失败 {}", path.display()))?;
+    std::fs::write(&path, bytes).with_context(|| format!("写入图片失败 {}", path.display()))?;
     Ok(path)
 }
 
@@ -2186,7 +2182,10 @@ mod tests {
         }"#;
         let parsed: FxTwitterResponse = serde_json::from_str(json).unwrap();
         let out = parse_tweet_content(parsed).unwrap();
-        assert_eq!(out.text, "看看这个\n\n{{tweet-image-0}}\n\n{{tweet-image-1}}");
+        assert_eq!(
+            out.text,
+            "看看这个\n\n{{tweet-image-0}}\n\n{{tweet-image-1}}"
+        );
         assert_eq!(out.image_urls.len(), 2);
         assert_eq!(out.image_urls[0], "https://pbs.twimg.com/media/X1.jpg");
     }

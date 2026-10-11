@@ -184,7 +184,9 @@ fn selected_dataset_changes_only_after_restart_and_personal_data_is_preserved() 
     let switched = AppConfig::pin(Some(workspace.0.to_str().unwrap())).unwrap();
     assert_eq!(switched.data_dir, workspace.0);
     assert_eq!(switched.database_path, catalog.path_for(&entry.id).unwrap());
-    let joined = Store::open(&switched.database_path).unwrap().with_provider_master(master);
+    let joined = Store::open(&switched.database_path)
+        .unwrap()
+        .with_provider_master(master);
     assert_eq!(joined.list_events().unwrap().len(), 1);
     assert_eq!(joined.list_events().unwrap()[0].raw_text, "shared original");
     assert_eq!(

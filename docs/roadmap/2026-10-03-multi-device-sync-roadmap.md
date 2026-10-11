@@ -14,8 +14,8 @@
 - **已交付：** 方案修订，以及 S01 复制底座、S02 加密/中继加固、S04 Provider 加密应用和 owner 邀请开发预览；owner P0 补验已完成，全仓质量例外单列，整个同步功能尚未完成。
 - **P0 已验证基线：** schema v16–v24；签名成员授权、隔离数据集目录册、App 本机准备/解锁、受保护修订、工作区租约、Provider 静态加密及编辑基底已接通。2026-10-07 基于 `6743a09` 的补验：Rust **588 passed / 11 ignored**（另配置环境 **5 passed**）、release 通过；Flutter owner 定向 **6 passed**／同步相关定向 **25 passed**／全量 **312 passed**；实际 Worker **14 passed**。owner 格式和定向 analyze 通过；全仓 Rust 格式仍有 3 个既有文件差异，Flutter 全量 analyze 有 78 项问题，不记为通过。证据见完成记录及[开发交接](2026-10-07-multi-device-sync-handoff.md)。
 - **当前 P1 基线：** 2026-10-08 工程与自动化验收完成；Rust 600 passed / 11 ignored（另配置环境 5 passed）、Flutter 新增定向 11／同步相关定向 36／全量 323 passed、实际 Worker 14 passed，P1 格式/定向 analyze、release 通过。全仓格式 3 个文件差异和 Flutter analyze 78 项仍未通过；详见完成记录与 Handoff §9。
-- **P2 补验（2026-10-10）：** P2 Rust 定向 16 passed、全量 Rust 640 passed / 16 ignored（另配置环境 5 passed）、实际 Worker 15 passed（含完整生产入组故障恢复）、桥接重生成/release 通过，静态 hash 233902080。Flutter 控制器 11 passed；全量首轮 343 passed / 2 failed，适配旧 Markdown finder 和本地模拟 Provider 窗口后，复验 **345 passed**。P2 Rust 23 文件格式、Dart 10 文件格式（0 changed）通过。
-- **下一步骤：** 补齐 P2 最终静态检查与同步定向、回填 [Handoff §12](2026-10-07-multi-device-sync-handoff.md)。全仓格式/analyze 首轮仍失败（13 个 Rust 文件、75 项 Flutter 问题），其中 P2 括号 lint 已修，不把并行改动全部豁免。工具间歇故障只影响未启动的检查，不抹去已完成的验证；P2 暂不勾选，不进入 P3。
+- **P2 已验收（2026-10-11）：** 安装证明/正式通道/名册/快照自动交接的工程与自动化验收完成。P2 Rust 定向 16 passed、全量 Rust 640 passed / 16 ignored（另配置环境 5 passed）、实际 Worker 15 passed（含完整生产入组故障恢复）、桥接重生成/release 通过（hash 233902080）；Flutter 控制器 11 passed、同步相关定向 **48 passed**、全量 **345 passed**、P2 定向 analyze 无问题；P2 Rust 23 文件与 Dart 10 文件格式通过。同日经用户明确要求，`cargo fmt --all` 修复全部 16 个文件（历史 3 个 + 并行改动）后全仓 `--check` 通过并复验全量/release；唯一保留例外为 Flutter analyze 71 项全 info，单列。详见完成记录与 [Handoff §12](2026-10-07-multi-device-sync-handoff.md)。
+- **下一步骤：** P3 数据集选择/修复与 App 自动同步调度（[Handoff §4](2026-10-07-multi-device-sync-handoff.md)）。Flutter analyze 71 项全 info 例外继续单列；P2 已完成不代表 S02/S03/S04 总项或 S06 真人门禁完成，不进入 P3 之外的 S05/GC/加工移交。
 - **首个可用范围：** S01–S04 与 S06 对应发布门禁通过后，开放记录、普通对话、分析结果、Provider 完整配置同步。Wiki/待办/规则的完整同步依赖 S05。
 - **更新规则：** 每个切片完成立即更新本文件及总路线，列出代码、测试、失败与剩余边界。内部原型通过不等于真实设备发布验收通过。
 
@@ -23,9 +23,9 @@
 |---|---|---|---|
 | S00 | 方案、范围与验收清单 | 无 | 完成；类型/回归及独立 Node/OpenSSL 固定信封向量已接入（不代表 S01–S06 功能验收） |
 | S01 | 双库领域复制核心 | S00 | 进行中；16 项隔离复制/回执/冲突测试通过 |
-| S02 | 配对、真实加密与中继权限 | S00 | 进行中；P0/P1 已验收，P2 正式通道/名册自动交接已接入并通过 Rust/Worker 回归（Worker 15 项）；最终静态检查与原生签收未完成 |
-| S03 | 快照、投递、回执与恢复 | S01、S02 | P2 一致快照自动交接与丢响应/重开恢复已通过 Worker 完整流程；最终静态检查、通用 App 同步调度及 GC/重快照未完成 |
-| S04 | App 接入、Provider 开箱即用、加工归属 | S01–S03 | owner/joiner P2 自动协调与 Provider 恢复已接入，全量 Flutter 345 项通过；P2 最终静态检查、数据集选择/通用生命周期与加工移交未完成 |
+| S02 | 配对、真实加密与中继权限 | S00 | 进行中；P0/P1 已验收，P2 正式通道/名册自动交接已验收（Rust/Worker/Flutter 全量回归）；原生平台签收与完整 S02 出口未完成 |
+| S03 | 快照、投递、回执与恢复 | S01、S02 | P2 一致快照自动交接与丢响应/重开恢复已通过 Worker 完整流程；通用 App 同步调度、保留窗口与 GC/重快照未完成 |
+| S04 | App 接入、Provider 开箱即用、加工归属 | S01–S03 | owner/joiner P2 自动协调与 Provider 恢复已验收（全量 Flutter 345 项）；数据集选择/通用生命周期调度、加工移交与原生签收未完成 |
 | S05 | Wiki 等可变对象与证据闭包 | S04 | 未开始 |
 | S06 | 设备生命周期与分范围发布验收 | S01–S04；全库验收另依赖 S05 | 未开始 |
 
@@ -129,10 +129,11 @@
 ### UI 与生命周期
 
 - [x] App 本机准备/解锁入口：原生密钥与受保护修订确认后才恢复后台；工作区文件租约防止跨进程抢占，旧请求取消不能关闭新会话。本机准备在开发预览开放，尚不启动配对/联网同步。
-- [ ] 配对确认说明会同步 Provider API Key；完成后自动恢复配置，显示明确的初始同步进度。
+- [x] 配对确认说明会同步 Provider API Key；完成后自动恢复配置，显示明确的初始同步进度。
   - [x] owner 开发预览入口：输入中继地址后创建短期邀请，显示/复制邀请，核对设备指纹与原预览 token 后明确批准；系统修订保存/回读/确认先于发送，失败可重发同一审批而非重复批准。5 项 Rust、6 项新增 Flutter 测试及实际 Worker owner 流程通过。joiner UI、自动安装确认与初始同步仍未完成。
   - [x] owner P0 补验：基于 `6743a09`，owner 格式/定向 analyze、Rust 定向 5/3/10、Rust 全量 588 passed / 11 ignored（另配置环境 5 passed）、release、Flutter owner 6／同步相关定向 25／全量 312 passed、实际 Worker 14 passed。全仓格式 3 个文件差异及 Flutter analyze 78 项仍未通过，详见完成记录和 Handoff；不据此勾选整个配对或发布出口。
   - [x] P1 joiner 工程与自动化验收：独立暂存库、专用 native 确认、Noise 请求/审批安装、原证明投递/恢复及 UI 接入完成；Rust 定向 12／全量 600 passed（11 ignored，另配置环境 5 passed），Flutter 定向 11／同步相关 36／全量 323 passed，实际 Worker 14 passed，P1 格式/analyze 和 release 通过。全仓质量例外见完成记录；不勾选 P2、真实设备或整个配对出口。
+  - [x] P2 自动交接工程与自动化验收（2026-10-11）：owner 自动接收/验证安装证明、正式方向授权与临时撤销的可恢复协调、joiner 签名名册/Provider 保护事务、快照 offer/选择回执/分块/应用回执/完成通知及 Flutter 单飞协调器/只读进度完成；P2 Rust 定向 16／全量 640 passed（16 ignored，另配置环境 5 passed），Flutter 同步相关定向 48／全量 345 passed，实际 Worker 15 passed，桥接 hash 233902080，P2 格式/定向 analyze 通过。全仓例外单列；不勾选原生签收、数据集选择或整个 S04 出口。
 - [ ] 设置中提供设备、范围、上次成功、待同步和异常状态；无数据也可发现加入入口。
 - [x] 数据集隔离底座：独立目录/本机目录册、已验证导入的选择令牌、启动选择原子提交；保留默认库与 Provider，运行中不切换 `AppConfig::pin`，重启后才生效。
 - [ ] 已有独立数据库不覆盖：数据集隔离/选择明确，不以“开箱即用”为由自动合并或替换个人数据。
@@ -202,6 +203,13 @@ npm test
 - 用中继短期邮箱替代备份，或承诺移动系统休眠期间实时同步。
 
 ## 完成记录
+
+### 2026-10-11 — P2 工程与自动化验收完成（原生/真人门禁单列）
+
+- **收尾复验（本 session 逐条实际执行）：** P2 Rust 定向 **16 passed**、全量 Rust **640 passed / 16 ignored**（`--all-targets` 另含示例目标 0 tests）、配置环境定向 **5 passed**、实际 Worker **15 passed / 0 failed / 0 skipped**；桥接两侧 hash 均为 **233902080**（10-10 重生成/release 产物）。Flutter P2 定向 analyze（9 个目标）**No issues found**、同步相关定向（10 个测试文件）**48 passed**、全量 **345 passed / 0 failed**；`git diff --check` 通过。
+- **P2 出口达成：** 批准方案列出的 owner 证明接收→原子授权/密钥→native 修订确认→双方正式授权→签名名册/Provider 保护→快照 offer/选择回执/分块/应用回执/完成通知全部经生产运行时验证（10-10 Worker 故障代理用例 + 本轮复验）。仍不切换 `AppConfig::pin`、不激活通用增量调度、不签收原生 OS 密钥库。
+- **全仓例外：** 同日经用户明确要求，`cargo fmt --all` 修复全部 16 个 Rust 文件（历史 3 个 + 并行 AI/web-search/DoH/wiki/config 改动，纯格式化无语义变更），`--check` exit 0，复验全量 **640 passed / 16 ignored** 与 release 通过。Flutter 全量 analyze 为 **71 项全 info（0 error / 0 warning）**（10-10 首轮 75 项，P2 括号 lint 修复后下降；与 P1 基线 78 项不混用），继续单列未修，未关闭 lint。
+- **边界：** P2 完成不等于 S02/S03/S04 总项勾选或 S06 发布门禁；P3 数据集选择/修复、通用生命周期同步、GC/长离线、加工移交、S05 与真人设备验收继续未完成。本轮没有提交、推送或部署，没有使用个人数据/真实密钥/外部模型/线上中继。证据与复现命令见 [Handoff §12](2026-10-07-multi-device-sync-handoff.md)。
 
 ### 2026-10-10 — P2 自动化补验，最终静态检查收尾中
 

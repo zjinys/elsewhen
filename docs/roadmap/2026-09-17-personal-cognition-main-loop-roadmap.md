@@ -93,6 +93,8 @@
 
 **2026-10-09 — P2 接续实现，验收仍待执行：** 已补 enrollment Rust 边界用例、Flutter 单飞/退避/native 确认与 owner/joiner 生命周期接线、只读交接进度，以及完整生产运行时的 Worker 丢响应/重开/Provider 恢复用例。修正原确认 token 的幂等绑定、owner 交接确认不恢复后台、坏证明扫描、完成回执门禁及失败导出的共享名册过滤。原数据集不切换，P3 未开始。本会话测试、编译与重生成命令都在启动前遇到工具服务故障，不能声明通过；`git diff --check` 实际通过。工作区后来出现的 P2 生成绑定两侧 hash 同为 `-558091073`，仍需匹配 release 和回归。统一验证脚本及下一步见 [Handoff §11](2026-10-07-multi-device-sync-handoff.md)；保留并行 web-search、聊天 UI 等修改，不勾选 P2/S02/S04/S06。
 
+**2026-10-11 — P2 自动交接工程与自动化验收完成：** 收尾复验逐条实际执行：P2 Rust 定向 **16 passed**、全量 Rust **640 passed / 16 ignored**（另配置环境 **5 passed**）、实际 Worker **15 passed**（含生产 P1→P2 丢响应/重开/Provider 恢复流程）、桥接 hash 两侧 **233902080**；Flutter 同步相关定向 **48 passed**、全量 **345 passed**、P2 定向 analyze 无问题；P2 格式与 `git diff --check` 通过。owner 证明接收→正式授权→名册→快照/回执全链路经生产运行时验证；不切换当前数据集，不激活通用增量调度。同日经用户明确要求修复全仓 Rust 格式（16 个文件纯格式化）并复验通过；Flutter analyze 71 项全 info 为例外单列。P2 完成不代表 S02/S04/S06 总项或原生/真人门禁；下一步为 P3 数据集选择/修复与 App 自动同步调度。详见 [Handoff §12](2026-10-07-multi-device-sync-handoff.md)。
+
 **2026-10-10 — P2 补验与 Flutter 收尾：** 已实际通过测试目标编译、P2 Rust **16 项**、Rust 全量 **640 passed / 16 ignored**（另配置环境 **5 passed**）、实际 Worker **15 项**及桥接重生成/release（hash **233902080**）。Worker 新完整生产流程包含已提交 grant/revoke/回执丢响应、native 未保存时重开、选定快照恢复和 Provider 保真/受控调用。Flutter 控制器 **11 passed**；release 后全量首轮 **343 passed / 2 failed**，适配旧 Markdown finder 和本地模拟 Provider 窗口后复验 **345 passed**。另修 P2 joiner 括号 lint，未改生产预算或并行功能；P2 Rust 23 文件格式、Dart 10 文件格式（0 changed）通过。最终静态检查与同步定向仍遇命令启动前的工具服务故障。全仓 Rust 格式 13 个文件差异、Flutter analyze 首轮 75 项如实保留，不把历史例外自动豁免。P2 最终门禁仍未完成，不进入 P3；详见 [Handoff §12](2026-10-07-multi-device-sync-handoff.md)。
 
 ### AI 对话体验优化子路线（2026-09-30）

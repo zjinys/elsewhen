@@ -1,6 +1,6 @@
 # 多设备同步开发交接（2026-10-07）
 
-> **当前（2026-10-10）：P1 已验收；P2 Rust/Worker/桥接及 Flutter 全量已补验通过，最终静态检查收尾中。新 session 先读 §12。** Rust 全量 640 passed / 16 ignored（另配置环境 5 passed）、实际 Worker 15 passed、桥接重生成/release 已通过；Flutter 首轮 343 passed / 2 failed，测试适配后复验 **345 passed**。P2 Dart 格式 10 files / 0 changed。最终静态检查与同步定向仍受间歇工具故障影响，P2 暂不勾选；§8/§9 的 600/323/14 是 P1 历史基线。保留全部未提交和并行修改，不进入 P3。
+> **当前（2026-10-11）：P1 已验收；P2 工程与自动化验收已完成（原生平台与真人设备门禁单列）。新 session 先读 §12。** 2026-10-11 收尾复验：P2 Rust 定向 **16 passed**、Rust 全量 **640 passed / 16 ignored**（另配置环境 **5 passed**）、实际 Worker **15 passed**、桥接 hash 两侧 **233902080**、Flutter 同步相关定向 **48 passed**／全量 **345 passed**、P2 定向 analyze **No issues found**、P2 Rust 23 文件与 Dart 10 文件格式通过、`git diff --check` 通过。经用户明确要求，全仓 Rust 格式例外已于 10-11 修复（`cargo fmt --all`，含历史 3 个与并行文件，复验全量 640 passed 与 release）；仅剩 Flutter analyze 71 项全 info 单列（详见 §12）。§8/§9 的 600/323/14 是 P1 历史基线。不进入 P3。
 
 ## 1. 交接范围与阅读顺序
 
@@ -263,7 +263,7 @@ fvm flutter analyze
 
 ### 可直接给下一位开发者的任务摘要
 
-> 阅读本交接与同步 roadmap 最新完成记录。owner P0 与 joiner P1 的工程/自动化验收已完成，先阅读 §9 的结果及全仓质量例外，下一步实现 P2 自动交接，不重做 joiner 独立暂存库原生握手；复用现有 Noise、加密后审批检查点和目录册，不重做底座。随后接 owner 安装证明、正式 relay 授权、签名名册与初始快照的可恢复协调。保持原展示 token、原生修订确认先于输出、固定 AppConfig 路径、后台单加工设备及不自动执行历史动作。所有自动验证只用临时库、合成 Key、fake 原生存储与显式本地 Worker；不要动个人数据、线上服务或其他任务改动。每片完成立即更新 roadmap、总路线、backlog 和设计 Note，真实设备门禁继续单列。
+> 阅读本交接与同步 roadmap 最新完成记录。owner P0、joiner P1 与 P2 自动交接的工程/自动化验收均已完成（结果与全仓质量例外见 §9/§12），下一步实现 P3 数据集选择/修复与 App 自动同步调度，不重做 P1 独立暂存库原生握手或 P2 证明/正式通道/名册/快照交接；复用现有 Noise、加密后审批检查点和目录册，不重做底座。保持原展示 token、原生修订确认先于输出、固定 AppConfig 路径、后台单加工设备及不自动执行历史动作。所有自动验证只用临时库、合成 Key、fake 原生存储与显式本地 Worker；不要动个人数据、线上服务或其他任务改动。每片完成立即更新 roadmap、总路线、backlog 和设计 Note，真实设备门禁继续单列。
 
 ## 8. 2026-10-07 owner 切片补验记录（P0 完成，全仓质量例外单列）
 
@@ -450,7 +450,7 @@ bash /home/pp/playground/ai/elsewhen/ui/build/enrollment-validation/run.sh
 
 ## 12. 2026-10-10 补验与 Flutter 收尾（当前断点）
 
-**状态：P2 Rust、实际 Worker、重生成/release 和 Flutter 全量均已实际通过；最终静态检查与同步定向仍待收尾，P2 暂不勾选。** 本节替代 §11 的“完全没有编译/测试证据”，不回写历史结果。保留 `6743a09` 后的全部未提交及并行变更，不进入 P3。
+**状态：P2 工程与自动化验收已完成（2026-10-11 收尾复验）；原生系统密钥库、真人双端、P3/S05/GC/加工移交单列未完成。** 2026-10-10 完成了 Rust/Worker/桥接与 Flutter 全量补验，2026-10-11 补齐最终定向 analyze 与同步定向并复验全量。保留 `6743a09` 后的全部未提交及并行变更（其后代码已由用户提交/合并，实际 HEAD 接手时核对），不进入 P3。
 
 ### 本轮实际执行结果
 
@@ -469,8 +469,28 @@ bash /home/pp/playground/ai/elsewhen/ui/build/enrollment-validation/run.sh
 | Flutter 全量首轮 | **343 passed / 2 failed**，exit 1；在上述 release 重建后执行 | `b13nwzcvr.output` |
 | Flutter 全量复验 | **345 passed / 0 failed**，exit 0；包含两处测试适配及 P2 括号修正 | `b34rtne5v.output` |
 | P2 Dart 格式 | **10 files / 0 changed**，exit 0 | 本轮 `fvm dart format` 前台输出 |
-| Rust 全仓格式 | exit 1，**13 个文件**有差异，包含历史 3 个及并行 AI/web-search/DoH 等改动 | `bdmie0192.output` |
-| Flutter 全量 analyze | exit 1，**75 项：2 warning / 73 info**；其中 1 项属于 P2，已改代码待复验 | `bg9038o0s.output` |
+| Rust 全仓格式 | 首轮 exit 1，**13 个文件**（历史 3 个 + 并行 AI/web-search/DoH 改动） | `bdmie0192.output` |
+| Flutter 全量 analyze | 首轮 exit 1，**75 项（2 warning / 73 info）**；其中 1 项属于 P2，已修 | `bg9038o0s.output` |
+
+### 2026-10-11 收尾复验（本轮实际执行）
+
+本节命令由本 session 逐条实际执行并观察输出，未依赖旧日志或统一脚本；执行时代码已为用户提交后的工作区（干净），仍不改写 10-10 的原始记录。
+
+| 检查 | 实测结果 |
+|---|---|
+| P2 Rust 定向 | **16 passed / 0 failed** |
+| Rust 全量 `cargo test --all-targets` | **640 passed / 16 ignored**，exit 0 |
+| 配置环境定向 `cargo test --test config_environment` | **5 passed** |
+| 实际本地 Worker `npm --prefix relay test` | **15 passed / 0 failed / 0 skipped**，含 P2 生产运行时故障代理流程 |
+| P2 定向 analyze（9 个目标） | **No issues found** |
+| Flutter 同步相关定向（10 个测试文件：owner/joiner/enrollment/key store/setup/bridge） | **48 passed** |
+| Flutter 全量 | **345 passed / 0 failed** |
+| 桥接静态 hash | Rust `src/frb_generated.rs` 与 Dart 均为 **233902080**；`target/release/libelsewhen.so` 存在（10-10 重生成/release 产物） |
+| `git diff --check` | 通过，exit 0 |
+| Rust 全仓格式 | 首轮 exit 1，**48 处差异 / 16 个文件**（历史 3 个 + 并行 AI/web-search/DoH/wiki/config 改动，P2 文件无差异）；**同日经用户明确要求 `cargo fmt --all` 修复后 `--check` 为 exit 0**，复验全量 Rust 640 passed 与 release（56.51 秒）通过 |
+| Flutter 全量 analyze | exit 1，**71 项全部 info（0 error / 0 warning）**；与 10-10 的 75 项差异来自 P2 括号 lint 修复及并行改动；P2 文件无问题，为当前唯一保留的全仓例外 |
+
+历史基线与当前基线不混用：13 文件/75 项是 10-10 记录，48 处/16 文件与 71 项 info 是 10-11 修复前实测。Flutter analyze 的 71 项 info 继续单列，未关闭 lint。
 
 日志目录为 `/tmp/claude-1000/-home-pp-playground-ai-elsewhen/be258774-e28d-45fe-b44e-80096d7dbe05/tasks/`。临时目录可能被清理，关键结果保留在上表；定向集合包含于全量，不能累加。Rust 全量使用专用临时 `ELSEWHEN_DATA_DIR` 和环回 `NO_PROXY`；P2 fixture/bridge 使用隔离库，Worker 只访问测试创建的环回地址。没有使用个人数据、真实密钥库、外部模型或线上中继。
 
@@ -486,18 +506,10 @@ bash /home/pp/playground/ai/elsewhen/ui/build/enrollment-validation/run.sh
 
 ### 接续顺序
 
-当前 shell 可能在 `ui/`。Rust/Worker/release、Flutter 全量与 P2 格式已有本节证据，下一步先补：
-
-```bash
-fvm flutter analyze lib/sync lib/widgets/sync_enrollment_progress.dart lib/widgets/local_sync_settings.dart lib/widgets/owner_sync_pairing_settings.dart lib/widgets/joiner_sync_pairing_settings.dart test/sync_enrollment_controller_test.dart test/sync_enrollment_bridge_test.dart test/conversation_continuity_bridge_test.dart test/chat_run_history_test.dart
-fvm flutter test test/sync_enrollment_controller_test.dart test/sync_enrollment_bridge_test.dart
-fvm flutter analyze
-```
-
-再核对 §11 脚本列明的同步相关 Flutter 集合与最终 `git diff --check`，更新真实结果后决定 P2 勾选。需要完整复现时，原脚本仍可使用；若执行工具持续不可用，用户可输入 `! bash /home/pp/playground/ai/elsewhen/ui/build/enrollment-validation/run.sh`。不要重建 P1/P2 已有实现，也不要把历史 343/2 当作修正后的最终测试结果。
+P2 工程与自动化验收已完成，下一步为 P3（数据集选择/修复与 App 自动同步调度，见 §4）；不重建 P1/P2 已有实现。复现命令见 §6.2 与 10-11 收尾表；统一脚本 `ui/build/enrollment-validation/run.sh`（忽略目录，不提交）仍可用于完整复验。全仓 Rust 格式已于 10-11 修复为零差异；Flutter analyze 71 项全 info 例外持续单列；真实 OS 密钥库与真人设备签收是独立门禁。
 
 - [x] P2 Rust 编译/16 项边界测试、全量 Rust、实际 Worker 完整流程、桥接重生成/release 已补验。
 - [x] 三处 Flutter 收尾修改经全量 **345 passed** 验证；P2 Dart 格式 **10 files / 0 changed**。
 - [x] 本轮文档回填后的 `git diff --check` 通过。
-- [ ] 最终定向 analyze、同步相关定向，随后完成 P2 工程与自动化验收。
+- [x] 最终定向 analyze（No issues found）与同步相关定向 **48 passed** 补齐；P2 工程与自动化验收完成（2026-10-11）。
 - [ ] P3、S05、GC/加工移交及真人设备发布门禁（本轮不开展）。

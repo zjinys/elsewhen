@@ -102,6 +102,10 @@ pub fn test_doh_connection(doh_uri: String) -> Result<String> {
     let ech_ok = sni == "encrypted";
     Ok(format!(
         "连接成功。出口 IP：{ip}；ECH（SNI 加密）：{}",
-        if ech_ok { "已生效 ✅" } else { "未生效（降级普通 TLS）" }
+        if ech_ok {
+            "已生效 ✅"
+        } else {
+            "未生效（降级普通 TLS）"
+        }
     ))
 }

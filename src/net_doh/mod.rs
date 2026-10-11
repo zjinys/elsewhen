@@ -75,8 +75,7 @@ pub fn https_get_bytes_via_doh(url: &str, doh_uri: &str, timeout: Duration) -> R
         let path = parsed.path().to_string();
         let query = parsed.query().map(|q| q.to_string());
         let tls = connect_via_doh(&host, port, &doh_uri, timeout).await?;
-        tls_crypto::http_get_bytes_over_tls(tls, &host, &path, query.as_deref(), &[], timeout)
-            .await
+        tls_crypto::http_get_bytes_over_tls(tls, &host, &path, query.as_deref(), &[], timeout).await
     })
 }
 
@@ -155,10 +154,14 @@ mod tests {
     /// 依赖网络与用户 DoH 服务，标 `#[ignore]` 不进 CI；手动跑：
     ///   ELSEWHEN_TEST_DOH=https://your-doh/ cargo test --release net_doh -- --ignored --nocapture
     fn probe(url: &str) {
-        let doh = std::env::var("ELSEWHEN_TEST_DOH")
-            .expect("设置 ELSEWHEN_TEST_DOH 为你的 DoH 服务地址");
+        let doh =
+            std::env::var("ELSEWHEN_TEST_DOH").expect("设置 ELSEWHEN_TEST_DOH 为你的 DoH 服务地址");
         match https_get_via_doh(url, &doh, Duration::from_secs(12)) {
-            Ok(text) => println!("OK {url} -> {} bytes: {}", text.len(), &text[..text.len().min(120)]),
+            Ok(text) => println!(
+                "OK {url} -> {} bytes: {}",
+                text.len(),
+                &text[..text.len().min(120)]
+            ),
             Err(e) => panic!("{url} DoH+ECH 请求失败: {e:#}"),
         }
     }

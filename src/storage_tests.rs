@@ -318,12 +318,7 @@ fn recent_user_messages_spans_conversations() {
     let c2 = store.create_conversation(Some("对话二"), None).unwrap();
 
     store
-        .send_message(
-            &c1,
-            "user",
-            "昨天给张三沟通了网站改版的事情",
-            None,
-        )
+        .send_message(&c1, "user", "昨天给张三沟通了网站改版的事情", None)
         .unwrap();
     store
         .send_message(&c2, "user", "问了问张三是否有王五沟通", None)

@@ -31,7 +31,7 @@
 
 | Proposal | 现状 |
 |---|---|
-| [多设备同步](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | 进行中（2026-10-10）：P2 Rust **16 项**、全量 Rust **640 passed / 16 ignored**（另配置环境 **5 passed**）、实际 Worker **15 项**及桥接重生成/release 已实际通过（hash **233902080**）。Flutter 控制器 **11 passed**；全量首轮 343 passed / 2 failed，两处测试适配后复验 **345 passed**；P2 Rust/Dart 格式通过。最终静态检查与同步定向仍受执行工具故障影响，**P2 尚未最终验收**；全仓格式/analyze 失败保留。下一步见 [Handoff §12](roadmap/2026-10-07-multi-device-sync-handoff.md)，不进入 P3，选择/加工移交/S05/GC 与真人设备门禁仍未完成（[同步 roadmap](roadmap/2026-10-03-multi-device-sync-roadmap.md)） |
+| [多设备同步](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | 进行中（2026-10-11）：P2 自动交接工程与自动化验收完成——P2 Rust 定向 **16 passed**、全量 Rust **640 passed / 16 ignored**（另配置环境 **5 passed**）、实际 Worker **15 passed**（含生产 P1→P2 故障代理流程）、桥接重生成/release（hash **233902080**）；Flutter 同步相关定向 **48 passed**、全量 **345 passed**、P2 定向 analyze 无问题、P2 格式通过。同日经用户明确要求修复全仓 Rust 格式（16 个文件，纯格式化）并复验全量/release 通过；Flutter analyze 71 项全 info 为例外单列。下一步为 P3 数据集选择/修复与 App 自动同步调度，见 [Handoff §12](roadmap/2026-10-07-multi-device-sync-handoff.md)；原生密钥库签收、S05/GC/加工移交与真人设备门禁仍未完成（[同步 roadmap](roadmap/2026-10-03-multi-device-sync-roadmap.md)） |
 
 ## 收尾（1 项）
 

@@ -806,7 +806,13 @@ fn run_agent_loop_inner(
             // 模型看着清单复述，无需靠词表猜它是否撒谎。
             context.push(ContextMessage::new(
                 "system",
-                turn_grounding(store, registry, conversation_id, &results, verification_start)?,
+                turn_grounding(
+                    store,
+                    registry,
+                    conversation_id,
+                    &results,
+                    verification_start,
+                )?,
             ));
         }
         if protocol == Some(ToolProtocol::Text) {
@@ -1136,7 +1142,13 @@ fn run_agent_loop_inner(
                     "{}\n用户明确要求你执行写操作（保存/提交/整理），但你本轮没有调用任何工具。\
                      把内容贴给用户看不等于执行——必须调用对应工具（如 save_knowledge_draft），\
                      或明确告诉用户你无法执行及原因。",
-                    turn_grounding(store, registry, conversation_id, &results, verification_start)?
+                    turn_grounding(
+                        store,
+                        registry,
+                        conversation_id,
+                        &results,
+                        verification_start
+                    )?
                 ),
             ));
             must_finalize = true;
@@ -1572,7 +1584,17 @@ fn write_claim_detected(content: &str) -> bool {
     // 就整体豁免核验，等于给谎言留了万能后门。否定/未遂语境仍由多字守卫覆盖。
     // 「抱歉/对不起」同理：承认「之前没保存」是诚实认错，但「抱歉，已保存」仍是谎言，
     // 不该豁免（kimi 实测用「抱歉，我刚才说已保存其实没保存」绕过核验后继续不执行）。
-    const GUARDS: &[&str] = &["搜", "没有", "还没", "失败", "是否", "如果", "假如", "抱歉", "对不起"];
+    const GUARDS: &[&str] = &[
+        "搜",
+        "没有",
+        "还没",
+        "失败",
+        "是否",
+        "如果",
+        "假如",
+        "抱歉",
+        "对不起",
+    ];
     CLAIMS.iter().any(|c| content.contains(c)) && !GUARDS.iter().any(|g| content.contains(g))
 }
 
@@ -1654,15 +1676,25 @@ fn user_text_wants_write(text: &str) -> bool {
     // 否定/搁置守卫：「可以不保存」「别保存」「先放着」「不用了」含写意图词但语义是拒绝。
     // 原测试 natural_replies_never_execute 的「好的，别保存」「可以不保存」靠这个排除。
     const NEGATIVE: &[&str] = &[
-        "不保存", "别保存", "不用", "别存", "不要存", "先不", "先放着", "先别", "暂不", "取消",
+        "不保存",
+        "别保存",
+        "不用",
+        "别存",
+        "不要存",
+        "先不",
+        "先放着",
+        "先别",
+        "暂不",
+        "取消",
     ];
     if NEGATIVE.iter().any(|n| t.contains(n)) {
         return false;
     }
     // 「提交」补于 2026-10-08：kimi 对「再提交古籍那页」「保存为topic」零工具响应。
     // 「整理」不列入——「完成了整理/整理房间/整理思路」是日常陈述非写指令，误伤面太大。
-    const WANT: &[&str] =
-        &["存", "保存", "记住", "记下", "创建", "新建", "归档", "入库", "提交"];
+    const WANT: &[&str] = &[
+        "存", "保存", "记住", "记下", "创建", "新建", "归档", "入库", "提交",
+    ];
     WANT.iter().any(|w| t.contains(w))
 }
 
@@ -1671,9 +1703,25 @@ fn user_text_wants_write(text: &str) -> bool {
 /// 仅是一轮重发。确认/否决短语（「好」「先放着」）天然不含这些词，不受影响。
 fn broad_write_claim(content: &str) -> bool {
     const SIGNALS: &[&str] = &[
-        "已保存", "存好了", "保存好了", "已创建", "建好了", "记好了", "已归档",
-        "已入库", "已收录", "已写入", "已存入", "存进了", "已经在知识库",
-        "完成了", "搞定了", "妥了", "办好了", "处理好了", "整理好了",
+        "已保存",
+        "存好了",
+        "保存好了",
+        "已创建",
+        "建好了",
+        "记好了",
+        "已归档",
+        "已入库",
+        "已收录",
+        "已写入",
+        "已存入",
+        "存进了",
+        "已经在知识库",
+        "完成了",
+        "搞定了",
+        "妥了",
+        "办好了",
+        "处理好了",
+        "整理好了",
     ];
     SIGNALS.iter().any(|s| content.contains(s))
 }
@@ -1697,7 +1745,10 @@ fn turn_grounding(
         lines.push("本轮未执行任何工具调用，没有任何写入发生。".to_string());
     } else {
         for r in results {
-            let policy = registry.get(&r.call_name).map(|t| t.policy()).unwrap_or(ToolPolicy::Read);
+            let policy = registry
+                .get(&r.call_name)
+                .map(|t| t.policy())
+                .unwrap_or(ToolPolicy::Read);
             let kind = match policy {
                 ToolPolicy::Read => "查询",
                 ToolPolicy::WriteDirect => "写入",
@@ -2520,7 +2571,9 @@ mod tests {
                 "[工具调用]{\"name\":\"save_knowledge_draft\",\"arguments\":{\"title\":\"感悟\",\"content_md\":\"两条感悟正文\"}}",
             )),
             // 落定：诚实回复（无完成声明，直接收敛）
-            Ok(AiReply::text("草拟好了，标题「感悟」，在审阅卡点击接受保存。")),
+            Ok(AiReply::text(
+                "草拟好了，标题「感悟」，在审阅卡点击接受保存。",
+            )),
         ]);
         let outcome = run_agent_loop(
             &provider,
@@ -2532,7 +2585,10 @@ mod tests {
             chrono::Utc::now(),
         )
         .unwrap();
-        assert_eq!(outcome.content, "草拟好了，标题「感悟」，在审阅卡点击接受保存。");
+        assert_eq!(
+            outcome.content,
+            "草拟好了，标题「感悟」，在审阅卡点击接受保存。"
+        );
         // 纠正提示确已下发
         assert!(
             context.iter().any(|m| m.content.contains("系统核实")),

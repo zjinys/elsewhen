@@ -15,8 +15,8 @@ mod new_migrations;
 mod provider;
 mod provider_keys;
 mod records;
-mod web_search;
 pub(crate) mod sync;
+mod web_search;
 mod wiki;
 
 use crate::event::{EventSummary, NewEvent};

@@ -117,7 +117,11 @@ pub async fn http_get_over_tls(
     extra_headers: &[String],
     timeout: Duration,
 ) -> Result<String> {
-    let mut target = if path.is_empty() { "/".to_string() } else { path.to_string() };
+    let mut target = if path.is_empty() {
+        "/".to_string()
+    } else {
+        path.to_string()
+    };
     if let Some(q) = query {
         target.push('?');
         target.push_str(q);
@@ -149,7 +153,11 @@ pub async fn http_get_bytes_over_tls(
     extra_headers: &[String],
     timeout: Duration,
 ) -> Result<Vec<u8>> {
-    let mut target = if path.is_empty() { "/".to_string() } else { path.to_string() };
+    let mut target = if path.is_empty() {
+        "/".to_string()
+    } else {
+        path.to_string()
+    };
     if let Some(q) = query {
         target.push('?');
         target.push_str(q);
@@ -180,8 +188,17 @@ pub async fn http_post_over_tls(
     body: &[u8],
     timeout: Duration,
 ) -> Result<Vec<u8>> {
-    http_post(tls, host, path, content_type, body, &[], "application/dns-message", timeout)
-        .await
+    http_post(
+        tls,
+        host,
+        path,
+        content_type,
+        body,
+        &[],
+        "application/dns-message",
+        timeout,
+    )
+    .await
 }
 
 /// 带自定义 header 的 HTTP/1.1 POST，返回响应体 UTF-8 文本（搜索 API 返回 JSON 用）。
@@ -195,8 +212,17 @@ pub async fn http_post_text_over_tls(
     extra_headers: &[String],
     timeout: Duration,
 ) -> Result<String> {
-    let bytes = http_post(tls, host, path, content_type, body, extra_headers, "application/json", timeout)
-        .await?;
+    let bytes = http_post(
+        tls,
+        host,
+        path,
+        content_type,
+        body,
+        extra_headers,
+        "application/json",
+        timeout,
+    )
+    .await?;
     String::from_utf8(bytes).context("响应体不是 UTF-8 文本")
 }
 
@@ -237,10 +263,7 @@ async fn http_post(
 /// 不少 HTTP/1.1 服务器（尤其 CDN 与部分 API）在发完响应后直接关 TCP 而不发 TLS
 /// close_notify；rustls 会把它报成 `UnexpectedEof`，但数据其实已读全。我们发的是
 /// `Connection: close`，对端这样关闭是合法的，故把该 EOF 视为正常结束。
-async fn read_body_tolerant(
-    tls: &mut TlsStream<TcpStream>,
-    timeout: Duration,
-) -> Result<Vec<u8>> {
+async fn read_body_tolerant(tls: &mut TlsStream<TcpStream>, timeout: Duration) -> Result<Vec<u8>> {
     let mut raw = Vec::new();
     let mut buf = [0u8; 16384];
     loop {
@@ -262,8 +285,8 @@ async fn read_body_tolerant(
 
 /// 解析最小 HTTP/1.1 响应为原始字节（供 DoH 二进制响应用）。
 fn parse_http_response_bytes(raw: &[u8]) -> Result<Vec<u8>> {
-    let header_end = find_subsequence(raw, b"\r\n\r\n")
-        .ok_or_else(|| anyhow!("响应缺少 header 结束标记"))?;
+    let header_end =
+        find_subsequence(raw, b"\r\n\r\n").ok_or_else(|| anyhow!("响应缺少 header 结束标记"))?;
     let header = String::from_utf8_lossy(&raw[..header_end]).to_string();
     let status = header
         .lines()
@@ -286,8 +309,8 @@ fn parse_http_response_bytes(raw: &[u8]) -> Result<Vec<u8>> {
 
 /// 解析最小 HTTP/1.1 响应：拆 header/body，处理 chunked 编码，返回 body 的 UTF-8 文本。
 fn parse_http_response(raw: &[u8]) -> Result<String> {
-    let header_end = find_subsequence(raw, b"\r\n\r\n")
-        .ok_or_else(|| anyhow!("响应缺少 header 结束标记"))?;
+    let header_end =
+        find_subsequence(raw, b"\r\n\r\n").ok_or_else(|| anyhow!("响应缺少 header 结束标记"))?;
     let header = String::from_utf8_lossy(&raw[..header_end]).to_string();
     let status = header
         .lines()
@@ -296,14 +319,26 @@ fn parse_http_response(raw: &[u8]) -> Result<String> {
         .and_then(|c| c.parse::<u16>().ok())
         .unwrap_or(0);
     if status >= 400 {
-        return Err(anyhow!("HTTP {status}: {}", &raw[header_end + 4..].iter().take(200).map(|&b| b as char).collect::<String>()));
+        return Err(anyhow!(
+            "HTTP {status}: {}",
+            &raw[header_end + 4..]
+                .iter()
+                .take(200)
+                .map(|&b| b as char)
+                .collect::<String>()
+        ));
     }
     let body = &raw[header_end + 4..];
-    let is_chunked = header
-        .lines()
-        .any(|l| l.eq_ignore_ascii_case("transfer-encoding: chunked")
-            || l.to_ascii_lowercase().starts_with("transfer-encoding:") && l.to_ascii_lowercase().contains("chunked"));
-    let decoded = if is_chunked { decode_chunked(body)? } else { body.to_vec() };
+    let is_chunked = header.lines().any(|l| {
+        l.eq_ignore_ascii_case("transfer-encoding: chunked")
+            || l.to_ascii_lowercase().starts_with("transfer-encoding:")
+                && l.to_ascii_lowercase().contains("chunked")
+    });
+    let decoded = if is_chunked {
+        decode_chunked(body)?
+    } else {
+        body.to_vec()
+    };
     String::from_utf8(decoded).context("响应体不是 UTF-8 文本")
 }
 
@@ -315,7 +350,8 @@ fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 fn decode_chunked(mut data: &[u8]) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     loop {
-        let line_end = find_subsequence(data, b"\r\n").ok_or_else(|| anyhow!("chunked 数据损坏"))?;
+        let line_end =
+            find_subsequence(data, b"\r\n").ok_or_else(|| anyhow!("chunked 数据损坏"))?;
         let size_str = std::str::from_utf8(&data[..line_end]).context("chunk 大小不是文本")?;
         let size = usize::from_str_radix(size_str.split(';').next().unwrap_or("0").trim(), 16)
             .context("chunk 大小解析失败")?;
