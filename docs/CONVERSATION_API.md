@@ -9,7 +9,7 @@
 ✅ **完成** - 所有功能已实现并通过测试
 
 - Rust 后端 API（`src/api.rs`）
-- SQLite 数据库存储（`src/storage.rs`）
+- SQLite 数据库存储（`src/storage/mod.rs`）
 - Flutter Rust Bridge 绑定（`ui/lib/bridge/generated.dart/`）
 - Dart 模型和 Repository（`ui/lib/`）
 - 单元测试覆盖（9个测试全部通过）
@@ -558,7 +558,7 @@ PRAGMA foreign_key_check;
 
 ## 相关文档
 
-- [存储适配器文档](STORAGE_ADAPTER.ch.md)
+- [存储适配器文档](STORAGE_ADAPTER.cn.md)
 - [Flutter Rust Bridge 配置](../flutter_rust_bridge.yaml)
-- [数据库模式](../src/storage.rs#L98-L114)
+- [数据库模式](../migrations/)
 - [API 实现](../src/api.rs#L148-L245)
