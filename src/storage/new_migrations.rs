@@ -142,6 +142,7 @@ mod tests {
                 "24-provider-edit-basis",
                 "25-web-search",
                 "26-doh-mode",
+                "27-sync-source-isolation",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -173,7 +174,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 26, "二十六条迁移跑完，user_version 应为 26");
+        assert_eq!(version, 27, "二十七条迁移跑完，user_version 应为 27");
         assert_eq!(
             latest_version().unwrap(),
             version,
@@ -200,6 +201,55 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM chat_runs", [], |r| r.get(0))
             .unwrap();
         assert_eq!(runs, 0, "old messages never authorize automatic generation");
+    }
+
+    #[test]
+    fn v27_rebuilds_sync_operations_preserving_rows_and_accepting_isolated() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 26)
+            .unwrap();
+        // Pre-v27 data: one applied op in the old table (which must survive the
+        // v27 DROP/RENAME rebuild). Populate the columns the old schema had.
+        connection.execute_batch("INSERT INTO sync_replica(singleton,dataset_id,device_id,stream_id,next_sequence,logical_clock,processor_device_id) VALUES(1,'ds','dev-a','stream-a',1,5,'dev-a');
+            INSERT INTO sync_members(device_id,stream_id,active) VALUES('dev-a','stream-a',1);
+            INSERT INTO sync_frontiers(origin_stream_id,applied_sequence) VALUES('stream-a',1);
+            INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state) VALUES('stream-a:1','dev-a','stream-a',1,'{}','hash',0,'applied');").unwrap();
+        initialize(&mut connection).unwrap();
+        // Row survived the rebuild.
+        let kept: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_operations WHERE op_id='stream-a:1' AND state='applied'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            kept, 1,
+            "v27 rebuild must preserve existing sync_operations rows"
+        );
+        // The new CHECK accepts 'isolated' (and rejects anything outside the set).
+        connection.execute("INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state,error_code) VALUES('stream-a:2','dev-a','stream-a',2,'{}','h2',0,'isolated','sync_operation_content_conflict')", []).unwrap();
+        let iso: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_operations WHERE state='isolated'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(iso, 1);
+        let bad = connection.execute("INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state) VALUES('stream-a:3','dev-a','stream-a',3,'{}','h3',0,'bogus')", []);
+        assert!(
+            bad.is_err(),
+            "state outside the CHECK set must still be rejected"
+        );
+        // The rebuilt unique identity constraint is intact.
+        let dup = connection.execute("INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state) VALUES('other:1','dev-a','stream-a',1,'{}','h4',0,'applied')", []);
+        assert!(
+            dup.is_err(),
+            "UNIQUE(origin_stream_id,origin_sequence) must survive the rebuild"
+        );
     }
 
     #[test]

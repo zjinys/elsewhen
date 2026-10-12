@@ -415,7 +415,45 @@ impl Store {
         authenticated_device: &str,
         bytes: &[u8],
     ) -> Result<ReceiveReport> {
-        let op = SyncOperation::decode(bytes)?;
+        let op = match SyncOperation::decode(bytes) {
+            Ok(op) => op,
+            // Unknown protocol version or structurally-invalid op: quarantine
+            // per source (isolated) instead of aborting the receive, so a
+            // single unsupported op from a real member never blocks the stream
+            // and local capture is unaffected. We never apply what we cannot
+            // fully validate; the stream is healed by upgrade + snapshot.
+            Err(_) => {
+                let identity = self.sync_identity()?.context("sync_not_initialized")?;
+                if let Ok((dataset, device, stream, seq, op_id)) =
+                    SyncOperation::identity_header(bytes)
+                {
+                    if dataset == identity.dataset_id && device == authenticated_device {
+                        let tx = self.begin_write_transaction()?;
+                        self.require_local_sync_membership()?;
+                        let active: bool = self.connection.query_row("SELECT EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND stream_id=?2 AND active=1)",params![authenticated_device,&stream],|r|r.get(0))?;
+                        if active && stream != identity.stream_id {
+                            let digest = hash(bytes);
+                            let payload = String::from_utf8_lossy(bytes).into_owned();
+                            self.connection.execute(
+                                "INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state,error_code) \
+                                 VALUES(?1,?2,?3,?4,?5,?6,0,'isolated','sync_protocol_unsupported') \
+                                 ON CONFLICT(op_id) DO UPDATE SET state='isolated',error_code='sync_protocol_unsupported'",
+                                params![op_id,device,stream,seq,payload,digest],
+                            )?;
+                        }
+                        let report = self.sync_drain_waiting()?;
+                        if let Some(tx) = tx {
+                            tx.commit()?;
+                        }
+                        return Ok(report);
+                    }
+                }
+                // Not attributable to an authenticated member of this dataset:
+                // keep the hard rejection (wrong dataset / spoofed sender / junk).
+                SyncOperation::decode(bytes)?;
+                anyhow::bail!("sync_decode_unreachable")
+            }
+        };
         let identity = self.sync_identity()?.context("sync_not_initialized")?;
         ensure!(op.dataset_id == identity.dataset_id, "sync_wrong_dataset");
         ensure!(
@@ -431,18 +469,50 @@ impl Store {
             [],
             |r| r.get(0),
         )?;
-        ensure!(
-            op.logical_clock <= local_clock.saturating_add(1_000_000),
-            "sync_clock_requires_snapshot"
-        );
         let payload = serde_json::to_string(&op)?;
         let digest = hash(payload.as_bytes());
+        // A clock too far ahead means the peer is far ahead of us (long-offline
+        // / snapshot-needed): quarantine this op per source and let the frontier
+        // advance past it, rather than failing the whole receive. The stream is
+        // re-synced from a later snapshot; we never apply out of a trusted base.
+        if op.logical_clock > local_clock.saturating_add(1_000_000) {
+            self.connection.execute(
+                "INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state,error_code) \
+                 VALUES(?1,?2,?3,?4,?5,?6,0,'isolated','sync_clock_requires_snapshot') \
+                 ON CONFLICT(op_id) DO NOTHING",
+                params![op.op_id,op.origin_device_id,op.origin_stream_id,op.origin_sequence,payload,digest],
+            )?;
+            let report = self.sync_drain_waiting()?;
+            if let Some(tx) = tx {
+                tx.commit()?;
+            }
+            return Ok(report);
+        }
         let existing:Option<(String,String)>=self.connection.query_row("SELECT op_id,payload_hash FROM sync_operations WHERE op_id=?1 OR (origin_stream_id=?2 AND origin_sequence=?3)",params![op.op_id,op.origin_stream_id,op.origin_sequence],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
         if let Some((id, existing_hash)) = existing {
-            ensure!(
-                id == op.op_id && existing_hash == digest,
-                "sync_operation_content_conflict"
-            );
+            if id == op.op_id && existing_hash == digest {
+                // Exact replay of an already-recorded op: fall through to the
+                // shared drain + receipt so a lost acknowledgement is recreated.
+            } else {
+                // Same identity (op_id or stream+sequence) with different bytes:
+                // quarantine this op per source instead of aborting the whole
+                // receive. Persist the isolated row FIRST (flushed before the
+                // drain reads), so the drain's NOT EXISTS guard sees seq as
+                // undecidable and does not apply the divergent payload.
+                self.connection.execute(
+                    "INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state,error_code) \
+                     VALUES(?1,?2,?3,?4,?5,?6,0,'isolated','sync_operation_content_conflict') \
+                     ON CONFLICT(op_id) DO UPDATE SET state='isolated',error_code='sync_operation_content_conflict'",
+                    params![op.op_id,op.origin_device_id,op.origin_stream_id,op.origin_sequence,payload,digest],
+                )?;
+                if let Some(tx) = tx {
+                    tx.commit()?;
+                }
+                // Drain AFTER the isolated row is durable: other streams (and any
+                // already-decidable ops) still make progress.
+                let report = self.sync_drain_waiting()?;
+                return Ok(report);
+            }
         } else {
             let checkpoint:Option<(String,String,String)>=self.connection.query_row("SELECT op_id,payload_hash,origin_device_id FROM sync_checkpoint_operations WHERE op_id=?1 OR (origin_stream_id=?2 AND origin_sequence=?3)",params![op.op_id,op.origin_stream_id,op.origin_sequence],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
             if let Some((id, hash, device)) = checkpoint {
@@ -492,7 +562,16 @@ impl Store {
     fn sync_drain_waiting(&self) -> Result<ReceiveReport> {
         let mut report = ReceiveReport::default();
         for _ in 0..MAX_BATCH_OPERATIONS {
+            // Note: an 'isolated' op is NEVER advanced past. Its stream's
+            // frontier stays put, so later same-stream ops remain 'waiting'
+            // until the divergence is resolved (upgrade + snapshot / manual
+            // repair). We never silently apply one of two divergent payloads.
+            // Other streams drain independently, and local capture is unaffected.
             let operation_ids = {
+                // Drain the next in-order waiting op. An 'isolated' op is never
+                // returned here (its state is not 'waiting'), so a quarantined
+                // divergence is never applied. The frontier only advances through
+                // ops that were genuinely applied, so the real chain continues.
                 let mut q=self.connection.prepare("SELECT o.op_id FROM sync_operations o JOIN sync_frontiers f ON f.origin_stream_id=o.origin_stream_id JOIN sync_members m ON m.stream_id=o.origin_stream_id AND m.device_id=o.origin_device_id WHERE o.state='waiting' AND o.origin_sequence=f.applied_sequence+1 AND m.active=1 ORDER BY o.origin_stream_id LIMIT 100")?;
                 q.query_map([], |r| r.get::<_, String>(0))?
                     .collect::<rusqlite::Result<Vec<_>>>()?
@@ -612,7 +691,7 @@ impl Store {
                     if let Some(existing) = self.sync_input_record(&input.id)? {
                         ensure!(existing == *input, "sync_input_content_conflict");
                     } else {
-                        self.connection.execute("INSERT INTO input_records(id,raw_text,source,route_status,event_id,message_id,created_at,updated_at) VALUES(?1,?2,?3,'routed',?4,?5,?6,?6)",params![input.id,input.raw_text,input.source,input.event_id,input.message_id,input.created_at])?;
+                        self.connection.execute("INSERT INTO input_records(id,raw_text,source,route_status,event_id,message_id,idempotency_key,created_at,updated_at) VALUES(?1,?2,?3,'routed',?4,?5,?6,?7,?7)",params![input.id,input.raw_text,input.source,input.event_id,input.message_id,input.idempotency_key,input.created_at])?;
                     }
                 }
                 Ok(conflict.unwrap_or(Apply::Applied))
@@ -771,7 +850,7 @@ impl Store {
     }
 
     fn sync_input_record(&self, id: &str) -> Result<Option<InputRecord>> {
-        Ok(self.connection.query_row("SELECT id,raw_text,source,event_id,message_id,created_at FROM input_records WHERE id=?1 AND event_id IS NOT NULL",[id],|r|Ok(InputRecord{id:r.get(0)?,raw_text:r.get(1)?,source:r.get(2)?,event_id:r.get(3)?,message_id:r.get(4)?,created_at:r.get(5)?})).optional()?)
+        Ok(self.connection.query_row("SELECT id,raw_text,source,event_id,message_id,idempotency_key,created_at FROM input_records WHERE id=?1 AND event_id IS NOT NULL",[id],|r|Ok(InputRecord{id:r.get(0)?,raw_text:r.get(1)?,source:r.get(2)?,event_id:r.get(3)?,message_id:r.get(4)?,idempotency_key:r.get(5)?,created_at:r.get(6)?})).optional()?)
     }
 
     fn sync_message_record(&self, id: &str) -> Result<Option<MessageRecord>> {

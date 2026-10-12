@@ -1,6 +1,6 @@
 //! Versioned domain operations. Wire data never names a SQLite table or SQL statement.
 
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 
 pub const PROTOCOL_VERSION: u32 = 1;
@@ -49,6 +49,32 @@ impl SyncOperation {
         let operation: Self = serde_json::from_slice(bytes)?;
         operation.validate()?;
         Ok(operation)
+    }
+
+    /// Tolerant identity-only header parse for quarantine. Reads only the
+    /// fields needed to key an isolated row (no version/structural validation),
+    /// so an unknown-version op can be recorded without aborting the receive.
+    pub(crate) fn identity_header(bytes: &[u8]) -> Result<(String, String, String, i64, String)> {
+        ensure!(
+            bytes.len() <= MAX_OPERATION_BYTES,
+            "sync_operation_too_large"
+        );
+        let value: serde_json::Value = serde_json::from_slice(bytes)?;
+        let get_str = |k: &str| {
+            value
+                .get(k)
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+        };
+        let dataset = get_str("dataset_id").context("sync_operation_header_invalid")?;
+        let device = get_str("origin_device_id").context("sync_operation_header_invalid")?;
+        let stream = get_str("origin_stream_id").context("sync_operation_header_invalid")?;
+        let seq = value
+            .get("origin_sequence")
+            .and_then(serde_json::Value::as_i64)
+            .context("sync_operation_header_invalid")?;
+        let op_id = get_str("op_id").context("sync_operation_header_invalid")?;
+        Ok((dataset, device, stream, seq, op_id))
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -219,6 +245,11 @@ pub struct InputRecord {
     pub source: String,
     pub event_id: String,
     pub message_id: Option<String>,
+    /// Idempotency key the user device assigned to this input. Optional so
+    /// captures without a key stay representable; preserved across devices so
+    /// the same logical input is deduplicated instead of duplicated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
     pub created_at: String,
 }
 
