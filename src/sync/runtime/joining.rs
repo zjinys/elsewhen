@@ -560,6 +560,12 @@ pub(super) fn enrollment_scope(
     Ok(Some((store, join.invitation_id.clone())))
 }
 
+/// Read-only session inspection for runtime-level guards (e.g. the repair
+/// handoff in `session_master`); never exposes key material.
+pub(super) fn join_scope(session: &Session) -> Option<&std::path::Path> {
+    session.joining.as_ref().map(|j| j.scope.as_path())
+}
+
 pub(super) fn enrollment_available(session: &Session) -> bool {
     session.joining.as_ref().is_some_and(|join| {
         !join.network_busy

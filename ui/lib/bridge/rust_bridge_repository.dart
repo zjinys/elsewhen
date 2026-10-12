@@ -53,6 +53,15 @@ class RustBridgeRepository implements StorageRepository {
   /// 后台知识消化进行中（标题栏 AI 活动指示订阅，见 [knowledgeDigestBusyProvider]）。
   final ValueNotifier<bool> knowledgeDigestBusy = ValueNotifier(false);
 
+  /// 最近一次网络同步 tick 的结果（状态页展示范围/待同步/最近成功/错误）。
+  /// `ran == false` 表示本轮按防线跳过（锁定/他 worker 占用/快照导入中），不是错误。
+  final ValueNotifier<api.SyncTickResultDto?> lastSyncTick = ValueNotifier(
+    null,
+  );
+
+  /// 最近一次网络同步 tick 的错误（成功或跳过时清空）。
+  final ValueNotifier<String?> lastSyncTickError = ValueNotifier(null);
+
   /// Changes produced by the background worker invalidate visible knowledge views.
   final ValueNotifier<int> knowledgeRevision = ValueNotifier(0);
 
@@ -335,6 +344,16 @@ class RustBridgeRepository implements StorageRepository {
         // 分析排空后再做知识消化：同一 worker 串行，避免与分析并发调用 provider；
         // 消化依赖分析结果（可记录性），先分析后消化也最省重试。
         await _drainKnowledgeDigest();
+        // 网络同步与分析/消化串行复用同一条 worker 通道：P3 的有界 tick
+        // （每 peer ≤3 封 × ≤4 页，≤8 peer）复用持久重试与回执台账，防线在
+        // Rust 侧（确认会话 + 工作区租约 + 活跃成员 + 受信路由）。到达的新
+        // 事件/知识会让下一拍分析与消化自然接续；视图刷新走知识修订号。
+        final before = knowledgeRevision.value;
+        await _runNetworkSyncTick();
+        if (!_disposed && knowledgeRevision.value == before) {
+          // 有新到达时分析与消化已在上面跑过；这里无需额外动作，保留分支
+          // 以便将来按到达内容做定向刷新。
+        }
         if (!_disposed && !_analysisRerunRequested) {
           knowledgeDigestBusy.value = true;
           final changed = await api.tickKnowledgeInsights();
@@ -354,6 +373,27 @@ class RustBridgeRepository implements StorageRepository {
         if (_analysisRerunRequested) _wakeAnalysisWorker();
       }
     });
+  }
+
+  /// P3 网络同步 tick：锁/占用/未初始化时 Rust 返回 `ran == false`；错误
+  /// 只记入状态页，绝不影响本地记录（本地写路径不经过 relay）。
+  Future<void> _runNetworkSyncTick() async {
+    if (_disposed) return;
+    try {
+      final result = await api.triggerNetworkSync();
+      if (_disposed) return;
+      lastSyncTick.value = result;
+      lastSyncTickError.value = null;
+      if (result.ran && (result.pulledAccepted > 0 || result.uploaded > 0)) {
+        // 有新事件到达：唤醒分析队列并让知识视图在消化后刷新。
+        knowledgeRevision.value++;
+        _wakeAnalysisWorker();
+      }
+    } catch (e) {
+      if (_disposed) return;
+      lastSyncTickError.value = e.toString();
+      debugPrint('network sync tick failed: $e');
+    }
   }
 
   /// 逐批排空到期的知识消化任务（没有手动触发入口，只由 worker 调用）。

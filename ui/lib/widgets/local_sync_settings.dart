@@ -2,14 +2,16 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../bridge/rust_bridge_repository.dart';
 import '../sync/sync_setup_controller.dart';
 import 'owner_sync_pairing_settings.dart';
 import 'joiner_sync_pairing_settings.dart';
 import 'sync_enrollment_progress.dart';
 
 class LocalSyncSettings extends StatefulWidget {
-  const LocalSyncSettings({super.key, required this.controller});
+  const LocalSyncSettings({super.key, required this.controller, this.repository});
   final SyncSetupController? controller;
+  final RustBridgeRepository? repository;
 
   @override
   State<LocalSyncSettings> createState() => _LocalSyncSettingsState();
@@ -138,6 +140,16 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               ],
               const SizedBox(height: 8),
               Text('授权的其他设备：${state.activePeers}'),
+              const SizedBox(height: 4),
+              Text('待确认同步操作：${state.pendingOperations}'),
+              if (!state.isProcessor && state.isOwner) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '本设备不是指定处理设备：后台分析/消化任务由指定设备认领。',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+              _NetworkSyncStatus(repository: widget.repository),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -168,6 +180,46 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               SyncEnrollmentProgress(controller: controller.enrollment),
             if (controller.previewEnabled)
               JoinerSyncPairingSettings(controller: controller.joiner),
+          ],
+        );
+      },
+    );
+  }
+}
+
+
+/// P3 网络同步 tick 的只读状态（范围/最近结果/错误），由后台 worker 更新。
+class _NetworkSyncStatus extends StatelessWidget {
+  const _NetworkSyncStatus({required this.repository});
+  final RustBridgeRepository? repository;
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = repository;
+    if (repo == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge([repo.lastSyncTick, repo.lastSyncTickError]),
+      builder: (context, _) {
+        final tick = repo.lastSyncTick.value;
+        final error = repo.lastSyncTickError.value;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (error != null) ...[
+              const SizedBox(height: 4),
+              Text('最近同步错误：$error', style: theme.textTheme.bodySmall),
+            ] else if (tick != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                tick.ran
+                    ? '最近同步：上行 ${tick.uploaded} · 到达 ${tick.pulledAccepted}'
+                          '${tick.pulledWaiting > 0 ? ' · 等待依赖 ${tick.pulledWaiting}' : ''}'
+                          '${tick.acknowledgementFailed ? ' · 回执失败' : ''}'
+                    : '最近同步：本轮跳过（锁定或后台忙碌）',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
           ],
         );
       },

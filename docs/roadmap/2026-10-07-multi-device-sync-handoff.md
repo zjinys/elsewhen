@@ -129,7 +129,7 @@
 
 **出口：** 两个隔离端走业务级入口完成入组、快照及 Provider 恢复；新端不填 Key 即可调用显式受控环回服务；每个持久边界可故障注入并恢复。原生 OS 与真人设备仍另验收。
 
-### P3 — 数据集选择/修复和 App 自动同步
+### P3 — 数据集选择/修复和 App 自动同步（工程与自动化验收已完成，见 §13）
 
 - 复用 `DatasetCatalog::prepare_selection/select_import/select_default`，以用户实际看到的目录册/快照/vault 版本提交选择；仅下次启动生效。
 - 已选数据集丢失、损坏、身份不符时明确提示修复；不静默回默认库，不搬动打开的 SQLite/WAL。
@@ -506,10 +506,40 @@ bash /home/pp/playground/ai/elsewhen/ui/build/enrollment-validation/run.sh
 
 ### 接续顺序
 
-P2 工程与自动化验收已完成，下一步为 P3（数据集选择/修复与 App 自动同步调度，见 §4）；不重建 P1/P2 已有实现。复现命令见 §6.2 与 10-11 收尾表；统一脚本 `ui/build/enrollment-validation/run.sh`（忽略目录，不提交）仍可用于完整复验。全仓 Rust 格式已于 10-11 修复为零差异；Flutter analyze 71 项全 info 例外持续单列；真实 OS 密钥库与真人设备签收是独立门禁。
+P2 与 P3 的工程与自动化验收已完成（P3 见 §13），下一步为 P4（首版剩余语义与发布恢复门禁，见 §4）；不重建 P1/P2/P3 已有实现。复现命令见 §6.2 与 10-11 收尾表；统一脚本 `ui/build/enrollment-validation/run.sh`（忽略目录，不提交）仍可用于完整复验。全仓 Rust 格式已于 10-11 修复为零差异；Flutter analyze 71 项全 info 例外持续单列；真实 OS 密钥库与真人设备签收是独立门禁。
 
 - [x] P2 Rust 编译/16 项边界测试、全量 Rust、实际 Worker 完整流程、桥接重生成/release 已补验。
 - [x] 三处 Flutter 收尾修改经全量 **345 passed** 验证；P2 Dart 格式 **10 files / 0 changed**。
 - [x] 本轮文档回填后的 `git diff --check` 通过。
 - [x] 最终定向 analyze（No issues found）与同步相关定向 **48 passed** 补齐；P2 工程与自动化验收完成（2026-10-11）。
-- [ ] P3、S05、GC/加工移交及真人设备发布门禁（本轮不开展）。
+- [x] P3 工程与自动化验收完成（2026-10-12，见 §13）：数据集选择/修复 API + 网络稳态 tick + App 调度/状态页，环回真实 Worker 16/16、Rust 640/640、Flutter 345/345。
+- [ ] P4（GC/TTL/重快照/加工移交）、P5（S05）、原生 OS 密钥库与真人设备发布门禁（未开展）。
+
+## 13. 2026-10-12 P3 实施（数据集选择/修复与 App 自动同步调度）
+
+### 本轮实际交付
+
+1. **网络稳态 tick（`src/sync/runtime/network.rs`）**：`tick(&AppConfig)` 复用 `engine::stage_operations/stage_provider_updates/stage_receipts/push_due/pull_page` 与持久 outbox/receipt 台账；有界（每 peer ≤3 封、≤4 页、≤8 peer）。防线按 §4/P3 要求：确认会话（master 在场、非 enrollment 中）→ 快照导入待决跳过 → `has_sync_authority` → 本机活跃成员（`require_local_sync_membership`）→ 当前确认 vault 修订/设备身份与 runtime 一致 → vault 路由的 `mailbox_owner` 与本机身份一致 → 受信方向路由（`RelayRoute::validate`）。发送凭证只在 tick 时由 `send_key.to_bytes()` 派生；缺 peer 密钥/签名钥是显式错误而非静默跳过。`stage_receipts` 一并暂存应用回执，否则对端已应用操作永不确认。返回 `Ok(None)` 表示合法跳过（锁定/未初始化/他 worker 占用），错误上抛由状态页展示。
+2. **数据集选择/修复 API（`src/api/sync.rs` + `runtime::session_master` + `DatasetCatalog::selected_id`）**：`list_sync_datasets` 返回目录册与修订；`select_sync_dataset(entry_id)` 只用「用户实际看到的」`prepare_selection` 预览 + 本会话 `session_master`（原生确认过的 vault 修订）提交 `select_import`，仅下次启动生效；`select_default_sync_dataset(expected_catalog_revision)` 防并发选择串改，冲突报 `sync_dataset_catalog_changed`。`session_master` 接受「已完成恢复/选择的 joining 会话」（scope 仍指向默认库），普通会话必须与钉住库一致——不放宽修订/确认/master 检查。
+3. **App 自动同步调度（`ui/lib/bridge/rust_bridge_repository.dart`）**：网络 tick 与分析/消化复用同一条 5 秒后台 worker 通道、串行执行；到达/上行时唤醒分析队列并递增知识修订号刷新视图；错误只记入 `lastSyncTickError` 状态页，绝不影响本地记录。锁定=暂停同步不暂停本地捕获。
+4. **状态页（`ui/lib/widgets/local_sync_settings.dart`）**：待确认操作数、指定处理设备提示（非处理设备不领后台任务）、最近 tick 范围（上行/到达/等待依赖/回执失败）与最近错误。
+5. **测试（环回）**：`src/sync/runtime/network/tests.rs` + `relay/test/network-runtime.test.mjs`。复用真实生产 P1→P2 enrollment（`enrollment_ui::run_with_fault_proxy(false)` 重构暴露 `CompletedEnrollment`）；随后 owner 重启式解锁、joiner 以「恢复后的在线选择」提交暂存目录册、锁定期间本地写入不同步、重解锁后 joiner 推→owner 拉→回执回流→outbox 排空→owner 新写入到达 joiner、默认库全程隔离。`enrollment_ui` 暴露的修订从两侧真实库读取（owner=默认库，joiner=暂存库），不是中间楼层。
+
+### 验证结果（本轮实际执行）
+
+| 检查 | 结果 |
+| --- | --- |
+| `cargo test --all-targets` | **640 passed / 0 failed / 17 ignored**（含新 ignored 环回用例） |
+| `npm --prefix relay test`（真实 Worker，环回） | **16 passed / 0 failed**，含新 **P3 steady-state network ticks move deltas after enrollment completes**（约 14.3 s）与既有 P2/互通用例 |
+| `cargo fmt --all -- --check` | exit 0 |
+| FRB 桥接 | `scripts/regen.sh` 完成，hash 与 release 库一致（56 s 重编） |
+| `cd ui && fvm flutter analyze` | exit 1，**72 项**（上轮 71 项 + 并行任务新增 1 项 warning；P3 改动文件 0 项），继续单列不关闭 |
+| `cd ui && fvm flutter test`（全量） | **345 passed**（含 `local_sync_settings`/worker pause 等同步定向 48 项） |
+
+全程只用隔离 `ELSEWHEN_DATA_DIR`、环回 `NO_PROXY`、合成密钥与本地 Worker；没有使用个人数据、真实密钥库、外部模型或线上中继；没有提交、推送或部署。
+
+### 边界与未完成
+
+- P3 的「选择仅下次启动生效」「锁定暂停同步不暂停捕获」「只有指定处理设备领任务」已按设计落地；**真人双端重启/断网恢复/视图刷新仍属 S06 验收**，不以本轮环回测试替代。
+- 数据集「修复」首版＝明确列出目录册/待决暂存 + 手动选择/回退（不静默回默认库、不搬动打开的 SQLite/WAL）；已选库丢失/损坏的自动引导修复 UI 仍是后续工作。
+- P4（GC/TTL/重快照/加工移交）、P5（S05 Wiki 同步）、原生 OS 密钥库与真人设备签收继续未完成；不进入 P3 之外范围。

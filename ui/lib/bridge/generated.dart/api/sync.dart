@@ -8,7 +8,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `enrollment_dto`, `join_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<SyncInvitationOfferDto> createOwnerSyncInvitation({
   required String relayUrl,
@@ -180,6 +180,34 @@ Future<SyncEnrollmentStateDto> confirmSyncEnrollment({
   protectedRevision: protectedRevision,
 );
 
+/// Runs one bounded push/pull cycle against every active peer. Callers are the
+/// app background worker only; there is no manual "sync now" business trigger.
+/// A failure here never affects local capture, which is purely local.
+Future<SyncTickResultDto> triggerNetworkSync() =>
+    RustLib.instance.api.crateApiSyncTriggerNetworkSync();
+
+/// Read-only catalog for the selection UI. Secret-bearing material is never
+/// part of a dataset entry; repair of a lost identity goes through the
+/// ordinary P2 restore/join flows against the chosen dataset.
+Future<(List<SyncDatasetEntryDto>, PlatformInt64)> listSyncDatasets() =>
+    RustLib.instance.api.crateApiSyncListSyncDatasets();
+
+/// Commits the user's selection of an existing catalog entry. The selection
+/// must be the exact preview the UI displayed: a concurrent repair, staging
+/// change or vault re-confirmation invalidates it instead of being selected
+/// silently. Takes effect on the next process start; the pinned in-process
+/// database never moves and no open SQLite/WAL pair is renamed.
+Future<void> selectSyncDataset({required String entryId}) =>
+    RustLib.instance.api.crateApiSyncSelectSyncDataset(entryId: entryId);
+
+/// Returns to the legacy default database. Same revision contract as
+/// `select_sync_dataset`: the UI must commit the revision it displayed.
+Future<void> selectDefaultSyncDataset({
+  required PlatformInt64 expectedCatalogRevision,
+}) => RustLib.instance.api.crateApiSyncSelectDefaultSyncDataset(
+  expectedCatalogRevision: expectedCatalogRevision,
+);
+
 class LocalSyncStateDto {
   final String state;
   final String? installationId;
@@ -233,6 +261,46 @@ class LocalSyncStateDto {
           isProcessor == other.isProcessor &&
           activePeers == other.activePeers &&
           pendingOperations == other.pendingOperations;
+}
+
+/// One row of the installation-local dataset catalog.
+class SyncDatasetEntryDto {
+  final String entryId;
+  final String datasetId;
+  final String installationId;
+  final String name;
+  final bool ready;
+  final bool selected;
+
+  const SyncDatasetEntryDto({
+    required this.entryId,
+    required this.datasetId,
+    required this.installationId,
+    required this.name,
+    required this.ready,
+    required this.selected,
+  });
+
+  @override
+  int get hashCode =>
+      entryId.hashCode ^
+      datasetId.hashCode ^
+      installationId.hashCode ^
+      name.hashCode ^
+      ready.hashCode ^
+      selected.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncDatasetEntryDto &&
+          runtimeType == other.runtimeType &&
+          entryId == other.entryId &&
+          datasetId == other.datasetId &&
+          installationId == other.installationId &&
+          name == other.name &&
+          ready == other.ready &&
+          selected == other.selected;
 }
 
 /// Enrollment progress never selects the staged database or claims ongoing sync.
@@ -526,4 +594,51 @@ class SyncKeyRequestDto {
           installationId == other.installationId &&
           revision == other.revision &&
           creating == other.creating;
+}
+
+/// What one bounded incremental sync tick actually did. All counters are
+/// best-effort progress signals; receipt confirmation arrives in later ticks.
+class SyncTickResultDto {
+  /// false when a tick must not run now (locked, another worker busy, a
+  /// snapshot import still staging, sync not initialized). Not an error.
+  final bool ran;
+  final PlatformInt64 stagedOperations;
+  final PlatformInt64 uploaded;
+  final PlatformInt64 pulledAccepted;
+  final PlatformInt64 pulledWaiting;
+  final PlatformInt64 pulledRejected;
+  final bool acknowledgementFailed;
+
+  const SyncTickResultDto({
+    required this.ran,
+    required this.stagedOperations,
+    required this.uploaded,
+    required this.pulledAccepted,
+    required this.pulledWaiting,
+    required this.pulledRejected,
+    required this.acknowledgementFailed,
+  });
+
+  @override
+  int get hashCode =>
+      ran.hashCode ^
+      stagedOperations.hashCode ^
+      uploaded.hashCode ^
+      pulledAccepted.hashCode ^
+      pulledWaiting.hashCode ^
+      pulledRejected.hashCode ^
+      acknowledgementFailed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncTickResultDto &&
+          runtimeType == other.runtimeType &&
+          ran == other.ran &&
+          stagedOperations == other.stagedOperations &&
+          uploaded == other.uploaded &&
+          pulledAccepted == other.pulledAccepted &&
+          pulledWaiting == other.pulledWaiting &&
+          pulledRejected == other.pulledRejected &&
+          acknowledgementFailed == other.acknowledgementFailed;
 }

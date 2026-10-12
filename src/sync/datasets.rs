@@ -189,6 +189,16 @@ impl DatasetCatalog {
         ensure!(exists, "sync_dataset_unknown");
         data_path(&self.root, id)
     }
+    /// Read-only: the currently selected entry, if any. A committed selection
+    /// can never point at a staging entry, so this needs no state filtering.
+    pub(crate) fn selected_id(&self) -> Result<Option<String>> {
+        Ok(self.connection.query_row(
+            "SELECT selected_id FROM workspace WHERE singleton=1",
+            [],
+            |r| r.get(0),
+        )?)
+    }
+
     pub(crate) fn revision(&self) -> Result<i64> {
         Ok(self.connection.query_row(
             "SELECT revision FROM workspace WHERE singleton=1",

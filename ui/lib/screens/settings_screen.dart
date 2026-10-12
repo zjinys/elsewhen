@@ -750,6 +750,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               controller: repository is RustBridgeRepository
                   ? repository.localSync
                   : null,
+              repository: repository is RustBridgeRepository
+                  ? repository
+                  : null,
             ),
           ),
           const SizedBox(height: AppTheme.space6),

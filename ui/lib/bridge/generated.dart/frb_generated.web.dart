@@ -407,6 +407,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SourceSnapshot> dco_decode_list_source_snapshot(dynamic raw);
 
   @protected
+  List<SyncDatasetEntryDto> dco_decode_list_sync_dataset_entry_dto(dynamic raw);
+
+  @protected
   List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
     dynamic raw,
   );
@@ -511,6 +514,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
 
   @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  dco_decode_record_list_sync_dataset_entry_dto_i_64(dynamic raw);
+
+  @protected
   RelationDto dco_decode_relation_dto(dynamic raw);
 
   @protected
@@ -527,6 +534,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SuggestionFeedback dco_decode_suggestion_feedback(dynamic raw);
+
+  @protected
+  SyncDatasetEntryDto dco_decode_sync_dataset_entry_dto(dynamic raw);
 
   @protected
   SyncEnrollmentStateDto dco_decode_sync_enrollment_state_dto(dynamic raw);
@@ -548,6 +558,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SyncKeyRequestDto dco_decode_sync_key_request_dto(dynamic raw);
+
+  @protected
+  SyncTickResultDto dco_decode_sync_tick_result_dto(dynamic raw);
 
   @protected
   SystemFontFace dco_decode_system_font_face(dynamic raw);
@@ -1045,6 +1058,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SyncDatasetEntryDto> sse_decode_list_sync_dataset_entry_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
     SseDeserializer deserializer,
   );
@@ -1171,6 +1189,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
 
   @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  sse_decode_record_list_sync_dataset_entry_dto_i_64(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RelationDto sse_decode_relation_dto(SseDeserializer deserializer);
 
   @protected
@@ -1189,6 +1213,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SuggestionFeedback sse_decode_suggestion_feedback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncDatasetEntryDto sse_decode_sync_dataset_entry_dto(
     SseDeserializer deserializer,
   );
 
@@ -1218,6 +1247,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SyncKeyRequestDto sse_decode_sync_key_request_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncTickResultDto sse_decode_sync_tick_result_dto(
     SseDeserializer deserializer,
   );
 
@@ -2332,6 +2366,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_sync_dataset_entry_dto(List<SyncDatasetEntryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_sync_dataset_entry_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_sync_enrollment_state_dto(
     List<SyncEnrollmentStateDto> raw,
   ) {
@@ -2578,6 +2618,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_record_list_sync_dataset_entry_dto_i_64(
+    (List<SyncDatasetEntryDto>, PlatformInt64) raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_list_sync_dataset_entry_dto(raw.$1),
+      cst_encode_i_64(raw.$2),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_relation_dto(RelationDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2653,6 +2704,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.suggestion),
       cst_encode_opt_String(raw.rewrite),
       cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_dataset_entry_dto(SyncDatasetEntryDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.entryId),
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.installationId),
+      cst_encode_String(raw.name),
+      cst_encode_bool(raw.ready),
+      cst_encode_bool(raw.selected),
     ].jsify()!;
   }
 
@@ -2749,6 +2813,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.installationId),
       cst_encode_i_64(raw.revision),
       cst_encode_bool(raw.creating),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_tick_result_dto(SyncTickResultDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.ran),
+      cst_encode_i_64(raw.stagedOperations),
+      cst_encode_i_64(raw.uploaded),
+      cst_encode_i_64(raw.pulledAccepted),
+      cst_encode_i_64(raw.pulledWaiting),
+      cst_encode_i_64(raw.pulledRejected),
+      cst_encode_bool(raw.acknowledgementFailed),
     ].jsify()!;
   }
 
@@ -3486,6 +3564,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sync_dataset_entry_dto(
+    List<SyncDatasetEntryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_sync_enrollment_state_dto(
     List<SyncEnrollmentStateDto> self,
     SseSerializer serializer,
@@ -3642,6 +3726,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_record_list_sync_dataset_entry_dto_i_64(
+    (List<SyncDatasetEntryDto>, PlatformInt64) self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_relation_dto(RelationDto self, SseSerializer serializer);
 
   @protected
@@ -3668,6 +3758,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_suggestion_feedback(
     SuggestionFeedback self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_dataset_entry_dto(
+    SyncDatasetEntryDto self,
     SseSerializer serializer,
   );
 
@@ -3710,6 +3806,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sync_key_request_dto(
     SyncKeyRequestDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_tick_result_dto(
+    SyncTickResultDto self,
     SseSerializer serializer,
   );
 
@@ -4704,6 +4806,9 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__rules__list_rules(NativePortType port_) =>
       wasmModule.wire__crate__api__rules__list_rules(port_);
 
+  void wire__crate__api__sync__list_sync_datasets(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_sync_datasets(port_);
+
   void wire__crate__api__sync__list_sync_enrollments(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__list_sync_enrollments(port_);
 
@@ -5116,6 +5221,19 @@ class RustLibWire implements BaseWire {
     input_message_id,
   );
 
+  void wire__crate__api__sync__select_default_sync_dataset(
+    NativePortType port_,
+    JSAny expected_catalog_revision,
+  ) => wasmModule.wire__crate__api__sync__select_default_sync_dataset(
+    port_,
+    expected_catalog_revision,
+  );
+
+  void wire__crate__api__sync__select_sync_dataset(
+    NativePortType port_,
+    String entry_id,
+  ) => wasmModule.wire__crate__api__sync__select_sync_dataset(port_, entry_id);
+
   void wire__crate__api__conversations__send_message(
     NativePortType port_,
     String conversation_id,
@@ -5287,6 +5405,9 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__knowledge_digest__trigger_knowledge_digest(
     port_,
   );
+
+  void wire__crate__api__sync__trigger_network_sync(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__trigger_network_sync(port_);
 
   void wire__crate__api__entities__undo_entity_merge(
     NativePortType port_,
@@ -6062,6 +6183,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__rules__list_rules(NativePortType port_);
 
+  external void wire__crate__api__sync__list_sync_datasets(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__sync__list_sync_enrollments(
     NativePortType port_,
   );
@@ -6328,6 +6453,16 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String input_message_id,
   );
 
+  external void wire__crate__api__sync__select_default_sync_dataset(
+    NativePortType port_,
+    JSAny expected_catalog_revision,
+  );
+
+  external void wire__crate__api__sync__select_sync_dataset(
+    NativePortType port_,
+    String entry_id,
+  );
+
   external void wire__crate__api__conversations__send_message(
     NativePortType port_,
     String conversation_id,
@@ -6435,6 +6570,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__trigger_analysis(NativePortType port_);
 
   external void wire__crate__api__knowledge_digest__trigger_knowledge_digest(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__sync__trigger_network_sync(
     NativePortType port_,
   );
 

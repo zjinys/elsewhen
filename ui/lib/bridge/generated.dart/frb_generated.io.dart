@@ -405,6 +405,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SourceSnapshot> dco_decode_list_source_snapshot(dynamic raw);
 
   @protected
+  List<SyncDatasetEntryDto> dco_decode_list_sync_dataset_entry_dto(dynamic raw);
+
+  @protected
   List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
     dynamic raw,
   );
@@ -509,6 +512,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
 
   @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  dco_decode_record_list_sync_dataset_entry_dto_i_64(dynamic raw);
+
+  @protected
   RelationDto dco_decode_relation_dto(dynamic raw);
 
   @protected
@@ -525,6 +532,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SuggestionFeedback dco_decode_suggestion_feedback(dynamic raw);
+
+  @protected
+  SyncDatasetEntryDto dco_decode_sync_dataset_entry_dto(dynamic raw);
 
   @protected
   SyncEnrollmentStateDto dco_decode_sync_enrollment_state_dto(dynamic raw);
@@ -546,6 +556,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SyncKeyRequestDto dco_decode_sync_key_request_dto(dynamic raw);
+
+  @protected
+  SyncTickResultDto dco_decode_sync_tick_result_dto(dynamic raw);
 
   @protected
   SystemFontFace dco_decode_system_font_face(dynamic raw);
@@ -1043,6 +1056,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SyncDatasetEntryDto> sse_decode_list_sync_dataset_entry_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
     SseDeserializer deserializer,
   );
@@ -1169,6 +1187,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
 
   @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  sse_decode_record_list_sync_dataset_entry_dto_i_64(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RelationDto sse_decode_relation_dto(SseDeserializer deserializer);
 
   @protected
@@ -1187,6 +1211,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SuggestionFeedback sse_decode_suggestion_feedback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncDatasetEntryDto sse_decode_sync_dataset_entry_dto(
     SseDeserializer deserializer,
   );
 
@@ -1216,6 +1245,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SyncKeyRequestDto sse_decode_sync_key_request_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncTickResultDto sse_decode_sync_tick_result_dto(
     SseDeserializer deserializer,
   );
 
@@ -1872,6 +1906,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_source_snapshot(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_source_snapshot(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_sync_dataset_entry_dto>
+  cst_encode_list_sync_dataset_entry_dto(List<SyncDatasetEntryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_sync_dataset_entry_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_sync_dataset_entry_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3007,6 +3052,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_record_list_sync_dataset_entry_dto_i_64(
+    (List<SyncDatasetEntryDto>, PlatformInt64) apiObj,
+    wire_cst_record_list_sync_dataset_entry_dto_i_64 wireObj,
+  ) {
+    wireObj.field0 = cst_encode_list_sync_dataset_entry_dto(apiObj.$1);
+    wireObj.field1 = cst_encode_i_64(apiObj.$2);
+  }
+
+  @protected
   void cst_api_fill_to_wire_relation_dto(
     RelationDto apiObj,
     wire_cst_relation_dto wireObj,
@@ -3085,6 +3139,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.suggestion = cst_encode_String(apiObj.suggestion);
     wireObj.rewrite = cst_encode_opt_String(apiObj.rewrite);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_sync_dataset_entry_dto(
+    SyncDatasetEntryDto apiObj,
+    wire_cst_sync_dataset_entry_dto wireObj,
+  ) {
+    wireObj.entry_id = cst_encode_String(apiObj.entryId);
+    wireObj.dataset_id = cst_encode_String(apiObj.datasetId);
+    wireObj.installation_id = cst_encode_String(apiObj.installationId);
+    wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.ready = cst_encode_bool(apiObj.ready);
+    wireObj.selected = cst_encode_bool(apiObj.selected);
   }
 
   @protected
@@ -3183,6 +3250,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.installation_id = cst_encode_String(apiObj.installationId);
     wireObj.revision = cst_encode_i_64(apiObj.revision);
     wireObj.creating = cst_encode_bool(apiObj.creating);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_sync_tick_result_dto(
+    SyncTickResultDto apiObj,
+    wire_cst_sync_tick_result_dto wireObj,
+  ) {
+    wireObj.ran = cst_encode_bool(apiObj.ran);
+    wireObj.staged_operations = cst_encode_i_64(apiObj.stagedOperations);
+    wireObj.uploaded = cst_encode_i_64(apiObj.uploaded);
+    wireObj.pulled_accepted = cst_encode_i_64(apiObj.pulledAccepted);
+    wireObj.pulled_waiting = cst_encode_i_64(apiObj.pulledWaiting);
+    wireObj.pulled_rejected = cst_encode_i_64(apiObj.pulledRejected);
+    wireObj.acknowledgement_failed = cst_encode_bool(
+      apiObj.acknowledgementFailed,
+    );
   }
 
   @protected
@@ -3923,6 +4006,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sync_dataset_entry_dto(
+    List<SyncDatasetEntryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_sync_enrollment_state_dto(
     List<SyncEnrollmentStateDto> self,
     SseSerializer serializer,
@@ -4079,6 +4168,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_record_list_sync_dataset_entry_dto_i_64(
+    (List<SyncDatasetEntryDto>, PlatformInt64) self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_relation_dto(RelationDto self, SseSerializer serializer);
 
   @protected
@@ -4105,6 +4200,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_suggestion_feedback(
     SuggestionFeedback self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_dataset_entry_dto(
+    SyncDatasetEntryDto self,
     SseSerializer serializer,
   );
 
@@ -4147,6 +4248,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sync_key_request_dto(
     SyncKeyRequestDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_tick_result_dto(
+    SyncTickResultDto self,
     SseSerializer serializer,
   );
 
@@ -5082,6 +5189,23 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_source_snapshot');
   late final _cst_new_list_source_snapshot = _cst_new_list_source_snapshotPtr
       .asFunction<ffi.Pointer<wire_cst_list_source_snapshot> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_sync_dataset_entry_dto>
+  cst_new_list_sync_dataset_entry_dto(int len) {
+    return _cst_new_list_sync_dataset_entry_dto(len);
+  }
+
+  late final _cst_new_list_sync_dataset_entry_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_sync_dataset_entry_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_sync_dataset_entry_dto');
+  late final _cst_new_list_sync_dataset_entry_dto =
+      _cst_new_list_sync_dataset_entry_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_sync_dataset_entry_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_sync_enrollment_state_dto>
   cst_new_list_sync_enrollment_state_dto(int len) {
@@ -9182,6 +9306,18 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__list_pending_sync_joinsPtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__sync__list_sync_datasets(int port_) {
+    return _wire__crate__api__sync__list_sync_datasets(port_);
+  }
+
+  late final _wire__crate__api__sync__list_sync_datasetsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__list_sync_datasets',
+      );
+  late final _wire__crate__api__sync__list_sync_datasets =
+      _wire__crate__api__sync__list_sync_datasetsPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__sync__list_sync_enrollments(int port_) {
     return _wire__crate__api__sync__list_sync_enrollments(port_);
   }
@@ -9370,6 +9506,46 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__sync__select_default_sync_dataset(
+    int port_,
+    int expected_catalog_revision,
+  ) {
+    return _wire__crate__api__sync__select_default_sync_dataset(
+      port_,
+      expected_catalog_revision,
+    );
+  }
+
+  late final _wire__crate__api__sync__select_default_sync_datasetPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__select_default_sync_dataset',
+      );
+  late final _wire__crate__api__sync__select_default_sync_dataset =
+      _wire__crate__api__sync__select_default_sync_datasetPtr
+          .asFunction<void Function(int, int)>();
+
+  void wire__crate__api__sync__select_sync_dataset(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id,
+  ) {
+    return _wire__crate__api__sync__select_sync_dataset(port_, entry_id);
+  }
+
+  late final _wire__crate__api__sync__select_sync_datasetPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__select_sync_dataset');
+  late final _wire__crate__api__sync__select_sync_dataset =
+      _wire__crate__api__sync__select_sync_datasetPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__sync__send_owner_sync_approval(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
@@ -9438,6 +9614,18 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
+
+  void wire__crate__api__sync__trigger_network_sync(int port_) {
+    return _wire__crate__api__sync__trigger_network_sync(port_);
+  }
+
+  late final _wire__crate__api__sync__trigger_network_syncPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__trigger_network_sync',
+      );
+  late final _wire__crate__api__sync__trigger_network_sync =
+      _wire__crate__api__sync__trigger_network_syncPtr
+          .asFunction<void Function(int)>();
 
   void wire__crate__api__theme__get_theme_prefs(int port_) {
     return _wire__crate__api__theme__get_theme_prefs(port_);
@@ -12798,6 +12986,21 @@ final class wire_cst_list_source_snapshot extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_sync_dataset_entry_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_sync_dataset_entry_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_sync_dataset_entry_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_sync_dataset_entry_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_sync_dataset_entry_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_sync_enrollment_state_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_sync_enrollment_state_dto> ptr;
 
@@ -13098,6 +13301,23 @@ final class wire_cst_pending_action_dto extends ffi.Struct {
     ..ref.target_basis_json = target_basis_json;
 }
 
+final class wire_cst_record_list_sync_dataset_entry_dto_i_64
+    extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_sync_dataset_entry_dto> field0;
+
+  @ffi.Int64()
+  external int field1;
+
+  static ffi.Pointer<wire_cst_record_list_sync_dataset_entry_dto_i_64>
+  $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_sync_dataset_entry_dto> field0,
+    required int field1,
+  }) => $allocator<wire_cst_record_list_sync_dataset_entry_dto_i_64>()
+    ..ref.field0 = field0
+    ..ref.field1 = field1;
+}
+
 final class wire_cst_relation_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
 
@@ -13284,6 +13504,38 @@ final class wire_cst_suggestion_feedback extends ffi.Struct {
     ..ref.suggestion = suggestion
     ..ref.rewrite = rewrite
     ..ref.created_at = created_at;
+}
+
+final class wire_cst_sync_dataset_entry_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  @ffi.Bool()
+  external bool ready;
+
+  @ffi.Bool()
+  external bool selected;
+
+  static ffi.Pointer<wire_cst_sync_dataset_entry_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required bool ready,
+    required bool selected,
+  }) => $allocator<wire_cst_sync_dataset_entry_dto>()
+    ..ref.entry_id = entry_id
+    ..ref.dataset_id = dataset_id
+    ..ref.installation_id = installation_id
+    ..ref.name = name
+    ..ref.ready = ready
+    ..ref.selected = selected;
 }
 
 final class wire_cst_sync_enrollment_state_dto extends ffi.Struct {
@@ -13529,6 +13781,47 @@ final class wire_cst_sync_key_request_dto extends ffi.Struct {
     ..ref.installation_id = installation_id
     ..ref.revision = revision
     ..ref.creating = creating;
+}
+
+final class wire_cst_sync_tick_result_dto extends ffi.Struct {
+  @ffi.Bool()
+  external bool ran;
+
+  @ffi.Int64()
+  external int staged_operations;
+
+  @ffi.Int64()
+  external int uploaded;
+
+  @ffi.Int64()
+  external int pulled_accepted;
+
+  @ffi.Int64()
+  external int pulled_waiting;
+
+  @ffi.Int64()
+  external int pulled_rejected;
+
+  @ffi.Bool()
+  external bool acknowledgement_failed;
+
+  static ffi.Pointer<wire_cst_sync_tick_result_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required bool ran,
+    required int staged_operations,
+    required int uploaded,
+    required int pulled_accepted,
+    required int pulled_waiting,
+    required int pulled_rejected,
+    required bool acknowledgement_failed,
+  }) => $allocator<wire_cst_sync_tick_result_dto>()
+    ..ref.ran = ran
+    ..ref.staged_operations = staged_operations
+    ..ref.uploaded = uploaded
+    ..ref.pulled_accepted = pulled_accepted
+    ..ref.pulled_waiting = pulled_waiting
+    ..ref.pulled_rejected = pulled_rejected
+    ..ref.acknowledgement_failed = acknowledgement_failed;
 }
 
 final class wire_cst_system_font_face extends ffi.Struct {

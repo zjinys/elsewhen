@@ -40,6 +40,18 @@ impl Drop for Cleanup {
     }
 }
 
+fn current_vault_revision(database: &std::path::Path) -> i64 {
+    Store::open(database)
+        .unwrap()
+        .connection
+        .query_row(
+            "SELECT revision FROM sync_local_vault WHERE singleton=1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap()
+}
+
 fn provider() -> (String, Arc<AtomicUsize>, std::thread::JoinHandle<()>) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}/v1", listener.local_addr().unwrap());
@@ -79,9 +91,27 @@ fn provider() -> (String, Arc<AtomicUsize>, std::thread::JoinHandle<()>) {
     (url, calls, thread)
 }
 
-#[test]
-#[ignore = "requires an explicitly launched isolated Worker and fault proxy; run npm test in relay/"]
-fn production_enrollment_recovers_grants_native_writes_and_receipts() {
+/// Final vault revisions and key material of a completed production enrollment,
+/// so follow-up tests (steady-state network ticks) resume without re-pairing.
+pub(crate) struct CompletedEnrollment {
+    pub(crate) owner: AppConfig,
+    pub(crate) joiner: AppConfig,
+    pub(crate) owner_key: [u8; 32],
+    pub(crate) joiner_key: [u8; 32],
+    /// Final durable vault revisions; resume unlocks must use these, not the
+    /// intermediate confirmation floors.
+    pub(crate) owner_revision: i64,
+    pub(crate) joiner_revision: i64,
+    pub(crate) staged_entry: String,
+}
+
+pub(crate) fn run() -> CompletedEnrollment {
+    run_with_fault_proxy(true)
+}
+
+/// The steady-state P3 test uses a plain relay; lost-response recovery itself
+/// is only asserted when the fault proxy is in front.
+pub(crate) fn run_with_fault_proxy(fault_proxy: bool) -> CompletedEnrollment {
     let url =
         std::env::var("ELSEWHEN_RELAY_TEST_URL").expect("isolated test harness supplies relay URL");
     let parsed = reqwest::Url::parse(&url).unwrap();
@@ -277,10 +307,12 @@ fn production_enrollment_recovers_grants_native_writes_and_receipts() {
         std::thread::sleep(Duration::from_millis(40));
     }
     assert!(owner_reopened && joiner_reopened && captured_late);
-    assert!(
-        grant_failures >= 3,
-        "fault proxy must lose both formal grants and the revoke response"
-    );
+    if fault_proxy {
+        assert!(
+            grant_failures >= 3,
+            "fault proxy must lose both formal grants and the revoke response"
+        );
+    }
     let catalog = DatasetCatalog::open(&joiner.data_dir).unwrap();
     let target_path = catalog.path_for(&entry).unwrap();
     let target = Store::open(&target_path)
@@ -366,4 +398,27 @@ fn production_enrollment_recovers_grants_native_writes_and_receipts() {
     assert_eq!(reply.content, "P2 recovered provider");
     provider_thread.join().unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 1);
+    let completed = CompletedEnrollment {
+        owner: owner.clone(),
+        joiner: joiner.clone(),
+        owner_key,
+        joiner_key,
+        owner_revision: current_vault_revision(&fixture.owner.database_path),
+        // The joiner's synced identity lives in the staged dataset database,
+        // never the installation's original default DB.
+        joiner_revision: current_vault_revision(&target_path),
+        staged_entry: entry.clone(),
+    };
+    // Keep the workspace intact for follow-up steady-state tests.
+    std::mem::forget(fixture);
+    completed
+}
+
+#[test]
+#[ignore = "requires an explicitly launched isolated Worker and fault proxy; run npm test in relay/"]
+fn production_enrollment_recovers_grants_native_writes_and_receipts() {
+    let completed = run();
+    crate::sync::runtime::lock(&completed.owner);
+    crate::sync::runtime::lock(&completed.joiner);
+    let _ = std::fs::remove_dir_all(completed.owner.data_dir.parent().unwrap());
 }

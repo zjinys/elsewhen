@@ -5,6 +5,7 @@
 pub(crate) mod enrollment;
 pub(crate) mod invitations;
 pub(crate) mod joining;
+pub(crate) mod network;
 pub(crate) mod pairing;
 
 use crate::{
@@ -143,6 +144,31 @@ pub(crate) fn unlocked(config: &AppConfig, revision: i64) -> bool {
                 && s.confirmed
                 && s.master.is_some()
         })
+}
+
+/// P2 repair handoff: the master for a session's confirmed vault revision.
+/// Callers must re-verify the target dataset themselves; this only proves the
+/// process once held the native-confirmed key for that exact revision. Plain
+/// sessions must be bound to the pinned database; a joining session qualifies
+/// when its original scope matches (a completed restore is the same authority
+/// as a plain unlock, and selection re-verifies entry/revision itself).
+pub(crate) fn session_master(config: &AppConfig, revision: i64) -> Option<[u8; 32]> {
+    sessions()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .get(&config.data_dir)
+        .filter(|s| {
+            s.revision == revision
+                && s.confirmed
+                && s.master.is_some()
+                && match joining::join_scope(s) {
+                    None => s.database == config.database_path,
+                    // A resumed join binds to its catalog entry's database;
+                    // the selection flow re-verifies entry/revision itself.
+                    Some(scope) => scope == config.database_path,
+                }
+        })
+        .and_then(|s| s.master)
 }
 
 pub(crate) fn lock(config: &AppConfig) {

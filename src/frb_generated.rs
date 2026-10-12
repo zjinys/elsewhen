@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 233902080;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -953570092;
 
 // Section: executor
 
@@ -2954,6 +2954,27 @@ fn wire__crate__api__rules__list_rules_impl(
         },
     )
 }
+fn wire__crate__api__sync__list_sync_datasets_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_sync_datasets",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::list_sync_datasets()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__sync__list_sync_enrollments_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -4146,6 +4167,54 @@ fn wire__crate__api__chat_runs__schedule_chat_input_impl(
         },
     )
 }
+fn wire__crate__api__sync__select_default_sync_dataset_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    expected_catalog_revision: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "select_default_sync_dataset",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_expected_catalog_revision = expected_catalog_revision.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::select_default_sync_dataset(
+                            api_expected_catalog_revision,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__select_sync_dataset_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    entry_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "select_sync_dataset",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_entry_id = entry_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::select_sync_dataset(api_entry_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__conversations__send_message_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     conversation_id: impl CstDecode<String>,
@@ -4638,6 +4707,27 @@ fn wire__crate__api__knowledge_digest__trigger_knowledge_digest_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::knowledge_digest::trigger_knowledge_digest()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__trigger_network_sync_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "trigger_network_sync",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::trigger_network_sync()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6725,6 +6815,20 @@ impl SseDecode for Vec<crate::storage::knowledge::SourceSnapshot> {
     }
 }
 
+impl SseDecode for Vec<crate::api::sync::SyncDatasetEntryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sync::SyncDatasetEntryDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::sync::SyncEnrollmentStateDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7137,6 +7241,15 @@ impl SseDecode for crate::api::conversations::PendingActionDto {
     }
 }
 
+impl SseDecode for (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <Vec<crate::api::sync::SyncDatasetEntryDto>>::sse_decode(deserializer);
+        let mut var_field1 = <i64>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
 impl SseDecode for crate::api::relations::RelationDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7255,6 +7368,26 @@ impl SseDecode for crate::knowledge::workflows::SuggestionFeedback {
             suggestion: var_suggestion,
             rewrite: var_rewrite,
             created_at: var_createdAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncDatasetEntryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_entryId = <String>::sse_decode(deserializer);
+        let mut var_datasetId = <String>::sse_decode(deserializer);
+        let mut var_installationId = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_ready = <bool>::sse_decode(deserializer);
+        let mut var_selected = <bool>::sse_decode(deserializer);
+        return crate::api::sync::SyncDatasetEntryDto {
+            entry_id: var_entryId,
+            dataset_id: var_datasetId,
+            installation_id: var_installationId,
+            name: var_name,
+            ready: var_ready,
+            selected: var_selected,
         };
     }
 }
@@ -7405,6 +7538,28 @@ impl SseDecode for crate::api::sync::SyncKeyRequestDto {
             installation_id: var_installationId,
             revision: var_revision,
             creating: var_creating,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncTickResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_ran = <bool>::sse_decode(deserializer);
+        let mut var_stagedOperations = <i64>::sse_decode(deserializer);
+        let mut var_uploaded = <i64>::sse_decode(deserializer);
+        let mut var_pulledAccepted = <i64>::sse_decode(deserializer);
+        let mut var_pulledWaiting = <i64>::sse_decode(deserializer);
+        let mut var_pulledRejected = <i64>::sse_decode(deserializer);
+        let mut var_acknowledgementFailed = <bool>::sse_decode(deserializer);
+        return crate::api::sync::SyncTickResultDto {
+            ran: var_ran,
+            staged_operations: var_stagedOperations,
+            uploaded: var_uploaded,
+            pulled_accepted: var_pulledAccepted,
+            pulled_waiting: var_pulledWaiting,
+            pulled_rejected: var_pulledRejected,
+            acknowledgement_failed: var_acknowledgementFailed,
         };
     }
 }
@@ -9173,6 +9328,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::workflows::SuggestionFe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncDatasetEntryDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.entry_id.into_into_dart().into_dart(),
+            self.dataset_id.into_into_dart().into_dart(),
+            self.installation_id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.ready.into_into_dart().into_dart(),
+            self.selected.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncDatasetEntryDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncDatasetEntryDto>
+    for crate::api::sync::SyncDatasetEntryDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncDatasetEntryDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncEnrollmentStateDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -9349,6 +9529,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncKeyRequestDto>
     for crate::api::sync::SyncKeyRequestDto
 {
     fn into_into_dart(self) -> crate::api::sync::SyncKeyRequestDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncTickResultDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.ran.into_into_dart().into_dart(),
+            self.staged_operations.into_into_dart().into_dart(),
+            self.uploaded.into_into_dart().into_dart(),
+            self.pulled_accepted.into_into_dart().into_dart(),
+            self.pulled_waiting.into_into_dart().into_dart(),
+            self.pulled_rejected.into_into_dart().into_dart(),
+            self.acknowledgement_failed.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncTickResultDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncTickResultDto>
+    for crate::api::sync::SyncTickResultDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncTickResultDto {
         self
     }
 }
@@ -10678,6 +10884,16 @@ impl SseEncode for Vec<crate::storage::knowledge::SourceSnapshot> {
     }
 }
 
+impl SseEncode for Vec<crate::api::sync::SyncDatasetEntryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sync::SyncDatasetEntryDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::sync::SyncEnrollmentStateDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -10984,6 +11200,14 @@ impl SseEncode for crate::api::conversations::PendingActionDto {
     }
 }
 
+impl SseEncode for (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::sync::SyncDatasetEntryDto>>::sse_encode(self.0, serializer);
+        <i64>::sse_encode(self.1, serializer);
+    }
+}
+
 impl SseEncode for crate::api::relations::RelationDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11054,6 +11278,18 @@ impl SseEncode for crate::knowledge::workflows::SuggestionFeedback {
         <String>::sse_encode(self.suggestion, serializer);
         <Option<String>>::sse_encode(self.rewrite, serializer);
         <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncDatasetEntryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.entry_id, serializer);
+        <String>::sse_encode(self.dataset_id, serializer);
+        <String>::sse_encode(self.installation_id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <bool>::sse_encode(self.ready, serializer);
+        <bool>::sse_encode(self.selected, serializer);
     }
 }
 
@@ -11143,6 +11379,19 @@ impl SseEncode for crate::api::sync::SyncKeyRequestDto {
         <String>::sse_encode(self.installation_id, serializer);
         <i64>::sse_encode(self.revision, serializer);
         <bool>::sse_encode(self.creating, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncTickResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.ran, serializer);
+        <i64>::sse_encode(self.staged_operations, serializer);
+        <i64>::sse_encode(self.uploaded, serializer);
+        <i64>::sse_encode(self.pulled_accepted, serializer);
+        <i64>::sse_encode(self.pulled_waiting, serializer);
+        <i64>::sse_encode(self.pulled_rejected, serializer);
+        <bool>::sse_encode(self.acknowledgement_failed, serializer);
     }
 }
 
@@ -12588,6 +12837,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::SyncDatasetEntryDto>>
+        for *mut wire_cst_list_sync_dataset_entry_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::SyncDatasetEntryDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::sync::SyncEnrollmentStateDto>>
         for *mut wire_cst_list_sync_enrollment_state_dto
     {
@@ -12744,6 +13005,14 @@ mod io {
             }
         }
     }
+    impl CstDecode<(Vec<crate::api::sync::SyncDatasetEntryDto>, i64)>
+        for wire_cst_record_list_sync_dataset_entry_dto_i_64
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
+            (self.field0.cst_decode(), self.field1.cst_decode())
+        }
+    }
     impl CstDecode<crate::api::relations::RelationDto> for wire_cst_relation_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::relations::RelationDto {
@@ -12820,6 +13089,19 @@ mod io {
                 suggestion: self.suggestion.cst_decode(),
                 rewrite: self.rewrite.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncDatasetEntryDto> for wire_cst_sync_dataset_entry_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncDatasetEntryDto {
+            crate::api::sync::SyncDatasetEntryDto {
+                entry_id: self.entry_id.cst_decode(),
+                dataset_id: self.dataset_id.cst_decode(),
+                installation_id: self.installation_id.cst_decode(),
+                name: self.name.cst_decode(),
+                ready: self.ready.cst_decode(),
+                selected: self.selected.cst_decode(),
             }
         }
     }
@@ -12918,6 +13200,20 @@ mod io {
                 installation_id: self.installation_id.cst_decode(),
                 revision: self.revision.cst_decode(),
                 creating: self.creating.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncTickResultDto> for wire_cst_sync_tick_result_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncTickResultDto {
+            crate::api::sync::SyncTickResultDto {
+                ran: self.ran.cst_decode(),
+                staged_operations: self.staged_operations.cst_decode(),
+                uploaded: self.uploaded.cst_decode(),
+                pulled_accepted: self.pulled_accepted.cst_decode(),
+                pulled_waiting: self.pulled_waiting.cst_decode(),
+                pulled_rejected: self.pulled_rejected.cst_decode(),
+                acknowledgement_failed: self.acknowledgement_failed.cst_decode(),
             }
         }
     }
@@ -14005,6 +14301,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_record_list_sync_dataset_entry_dto_i_64 {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                field0: core::ptr::null_mut(),
+                field1: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_record_list_sync_dataset_entry_dto_i_64 {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_relation_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -14104,6 +14413,23 @@ mod io {
         }
     }
     impl Default for wire_cst_suggestion_feedback {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_sync_dataset_entry_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                entry_id: core::ptr::null_mut(),
+                dataset_id: core::ptr::null_mut(),
+                installation_id: core::ptr::null_mut(),
+                name: core::ptr::null_mut(),
+                ready: Default::default(),
+                selected: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_dataset_entry_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -14228,6 +14554,24 @@ mod io {
         }
     }
     impl Default for wire_cst_sync_key_request_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_sync_tick_result_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                ran: Default::default(),
+                staged_operations: Default::default(),
+                uploaded: Default::default(),
+                pulled_accepted: Default::default(),
+                pulled_waiting: Default::default(),
+                pulled_rejected: Default::default(),
+                acknowledgement_failed: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_tick_result_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -15458,6 +15802,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_sync_datasets(port_: i64) {
+        wire__crate__api__sync__list_sync_datasets_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_sync_enrollments(port_: i64) {
         wire__crate__api__sync__list_sync_enrollments_impl(port_)
     }
@@ -15912,6 +16261,22 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__select_default_sync_dataset(
+        port_: i64,
+        expected_catalog_revision: i64,
+    ) {
+        wire__crate__api__sync__select_default_sync_dataset_impl(port_, expected_catalog_revision)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__select_sync_dataset(
+        port_: i64,
+        entry_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__select_sync_dataset_impl(port_, entry_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__send_message(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -16103,6 +16468,11 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__knowledge_digest__trigger_knowledge_digest_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__trigger_network_sync(port_: i64) {
+        wire__crate__api__sync__trigger_network_sync_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -16916,6 +17286,20 @@ mod io {
         let wrap = wire_cst_list_source_snapshot {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_source_snapshot>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_sync_dataset_entry_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_sync_dataset_entry_dto {
+        let wrap = wire_cst_list_sync_dataset_entry_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_sync_dataset_entry_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -17826,6 +18210,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_sync_dataset_entry_dto {
+        ptr: *mut wire_cst_sync_dataset_entry_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_sync_enrollment_state_dto {
         ptr: *mut wire_cst_sync_enrollment_state_dto,
         len: i32,
@@ -17930,6 +18320,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_record_list_sync_dataset_entry_dto_i_64 {
+        field0: *mut wire_cst_list_sync_dataset_entry_dto,
+        field1: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_relation_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         from_slug: *mut wire_cst_list_prim_u_8_strict,
@@ -17988,6 +18384,16 @@ mod io {
         suggestion: *mut wire_cst_list_prim_u_8_strict,
         rewrite: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_dataset_entry_dto {
+        entry_id: *mut wire_cst_list_prim_u_8_strict,
+        dataset_id: *mut wire_cst_list_prim_u_8_strict,
+        installation_id: *mut wire_cst_list_prim_u_8_strict,
+        name: *mut wire_cst_list_prim_u_8_strict,
+        ready: bool,
+        selected: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -18063,6 +18469,17 @@ mod io {
         installation_id: *mut wire_cst_list_prim_u_8_strict,
         revision: i64,
         creating: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_tick_result_dto {
+        ran: bool,
+        staged_operations: i64,
+        uploaded: i64,
+        pulled_accepted: i64,
+        pulled_waiting: i64,
+        pulled_rejected: i64,
+        acknowledgement_failed: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -19827,6 +20244,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::SyncDatasetEntryDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::SyncDatasetEntryDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::sync::SyncEnrollmentStateDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -20063,6 +20492,23 @@ mod web {
             }
         }
     }
+    impl CstDecode<(Vec<crate::api::sync::SyncDatasetEntryDto>, i64)>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            (self_.get(0).cst_decode(), self_.get(1).cst_decode())
+        }
+    }
     impl CstDecode<crate::api::relations::RelationDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -20205,6 +20651,30 @@ mod web {
                 suggestion: self_.get(1).cst_decode(),
                 rewrite: self_.get(2).cst_decode(),
                 created_at: self_.get(3).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncDatasetEntryDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncDatasetEntryDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                6,
+                "Expected 6 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncDatasetEntryDto {
+                entry_id: self_.get(0).cst_decode(),
+                dataset_id: self_.get(1).cst_decode(),
+                installation_id: self_.get(2).cst_decode(),
+                name: self_.get(3).cst_decode(),
+                ready: self_.get(4).cst_decode(),
+                selected: self_.get(5).cst_decode(),
             }
         }
     }
@@ -20378,6 +20848,31 @@ mod web {
                 installation_id: self_.get(1).cst_decode(),
                 revision: self_.get(2).cst_decode(),
                 creating: self_.get(3).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncTickResultDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncTickResultDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                7,
+                "Expected 7 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncTickResultDto {
+                ran: self_.get(0).cst_decode(),
+                staged_operations: self_.get(1).cst_decode(),
+                uploaded: self_.get(2).cst_decode(),
+                pulled_accepted: self_.get(3).cst_decode(),
+                pulled_waiting: self_.get(4).cst_decode(),
+                pulled_rejected: self_.get(5).cst_decode(),
+                acknowledgement_failed: self_.get(6).cst_decode(),
             }
         }
     }
@@ -21751,6 +22246,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__list_sync_datasets(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__list_sync_datasets_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__sync__list_sync_enrollments(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -22211,6 +22713,22 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__select_default_sync_dataset(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        expected_catalog_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__sync__select_default_sync_dataset_impl(port_, expected_catalog_revision)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__select_sync_dataset(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        entry_id: String,
+    ) {
+        wire__crate__api__sync__select_sync_dataset_impl(port_, entry_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__send_message(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
@@ -22404,6 +22922,13 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__knowledge_digest__trigger_knowledge_digest_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__trigger_network_sync(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__trigger_network_sync_impl(port_)
     }
 
     #[wasm_bindgen]

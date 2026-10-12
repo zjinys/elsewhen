@@ -95,7 +95,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 233902080;
+  int get rustContentHash => -953570092;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -573,6 +573,9 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<RuleDto>> crateApiRulesListRules();
 
+  Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
+  crateApiSyncListSyncDatasets();
+
   Future<List<SyncEnrollmentStateDto>> crateApiSyncListSyncEnrollments();
 
   Future<List<SystemFontFace>> crateApiFontsListSystemFonts();
@@ -778,6 +781,12 @@ abstract class RustLibApi extends BaseApi {
     required String inputMessageId,
   });
 
+  Future<void> crateApiSyncSelectDefaultSyncDataset({
+    required PlatformInt64 expectedCatalogRevision,
+  });
+
+  Future<void> crateApiSyncSelectSyncDataset({required String entryId});
+
   Future<MessageDto> crateApiConversationsSendMessage({
     required String conversationId,
     required String role,
@@ -863,6 +872,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<KnowledgeDigestTickResult>
   crateApiKnowledgeDigestTriggerKnowledgeDigest();
+
+  Future<SyncTickResultDto> crateApiSyncTriggerNetworkSync();
 
   Future<bool> crateApiEntitiesUndoEntityMerge({required String sourceSlug});
 
@@ -4363,6 +4374,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_rules", argNames: []);
 
   @override
+  Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
+  crateApiSyncListSyncDatasets() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__list_sync_datasets(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_record_list_sync_dataset_entry_dto_i_64,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncListSyncDatasetsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncListSyncDatasetsConstMeta =>
+      const TaskConstMeta(debugName: "list_sync_datasets", argNames: []);
+
+  @override
   Future<List<SyncEnrollmentStateDto>> crateApiSyncListSyncEnrollments() {
     return handler.executeNormal(
       NormalTask(
@@ -5765,6 +5798,61 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiSyncSelectDefaultSyncDataset({
+    required PlatformInt64 expectedCatalogRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_i_64(expectedCatalogRevision);
+          return wire.wire__crate__api__sync__select_default_sync_dataset(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncSelectDefaultSyncDatasetConstMeta,
+        argValues: [expectedCatalogRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncSelectDefaultSyncDatasetConstMeta =>
+      const TaskConstMeta(
+        debugName: "select_default_sync_dataset",
+        argNames: ["expectedCatalogRevision"],
+      );
+
+  @override
+  Future<void> crateApiSyncSelectSyncDataset({required String entryId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entryId);
+          return wire.wire__crate__api__sync__select_sync_dataset(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncSelectSyncDatasetConstMeta,
+        argValues: [entryId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncSelectSyncDatasetConstMeta =>
+      const TaskConstMeta(
+        debugName: "select_sync_dataset",
+        argNames: ["entryId"],
+      );
+
+  @override
   Future<MessageDto> crateApiConversationsSendMessage({
     required String conversationId,
     required String role,
@@ -6352,6 +6440,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKnowledgeDigestTriggerKnowledgeDigestConstMeta =>
       const TaskConstMeta(debugName: "trigger_knowledge_digest", argNames: []);
+
+  @override
+  Future<SyncTickResultDto> crateApiSyncTriggerNetworkSync() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__trigger_network_sync(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_tick_result_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncTriggerNetworkSyncConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncTriggerNetworkSyncConstMeta =>
+      const TaskConstMeta(debugName: "trigger_network_sync", argNames: []);
 
   @override
   Future<bool> crateApiEntitiesUndoEntityMerge({required String sourceSlug}) {
@@ -8066,6 +8175,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SyncDatasetEntryDto> dco_decode_list_sync_dataset_entry_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_sync_dataset_entry_dto).toList();
+  }
+
+  @protected
   List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
     dynamic raw,
   ) {
@@ -8335,6 +8452,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  dco_decode_record_list_sync_dataset_entry_dto_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_list_sync_dataset_entry_dto(arr[0]),
+      dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
   RelationDto dco_decode_relation_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -8428,6 +8559,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       suggestion: dco_decode_String(arr[1]),
       rewrite: dco_decode_opt_String(arr[2]),
       createdAt: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  SyncDatasetEntryDto dco_decode_sync_dataset_entry_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return SyncDatasetEntryDto(
+      entryId: dco_decode_String(arr[0]),
+      datasetId: dco_decode_String(arr[1]),
+      installationId: dco_decode_String(arr[2]),
+      name: dco_decode_String(arr[3]),
+      ready: dco_decode_bool(arr[4]),
+      selected: dco_decode_bool(arr[5]),
     );
   }
 
@@ -8545,6 +8692,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       installationId: dco_decode_String(arr[1]),
       revision: dco_decode_i_64(arr[2]),
       creating: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  SyncTickResultDto dco_decode_sync_tick_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return SyncTickResultDto(
+      ran: dco_decode_bool(arr[0]),
+      stagedOperations: dco_decode_i_64(arr[1]),
+      uploaded: dco_decode_i_64(arr[2]),
+      pulledAccepted: dco_decode_i_64(arr[3]),
+      pulledWaiting: dco_decode_i_64(arr[4]),
+      pulledRejected: dco_decode_i_64(arr[5]),
+      acknowledgementFailed: dco_decode_bool(arr[6]),
     );
   }
 
@@ -10487,6 +10651,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SyncDatasetEntryDto> sse_decode_list_sync_dataset_entry_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SyncDatasetEntryDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sync_dataset_entry_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
     SseDeserializer deserializer,
   ) {
@@ -10906,6 +11084,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  sse_decode_record_list_sync_dataset_entry_dto_i_64(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_list_sync_dataset_entry_dto(deserializer);
+    var var_field1 = sse_decode_i_64(deserializer);
+    return (var_field0, var_field1);
+  }
+
+  @protected
   RelationDto sse_decode_relation_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -11022,6 +11211,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       suggestion: var_suggestion,
       rewrite: var_rewrite,
       createdAt: var_createdAt,
+    );
+  }
+
+  @protected
+  SyncDatasetEntryDto sse_decode_sync_dataset_entry_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_entryId = sse_decode_String(deserializer);
+    var var_datasetId = sse_decode_String(deserializer);
+    var var_installationId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_ready = sse_decode_bool(deserializer);
+    var var_selected = sse_decode_bool(deserializer);
+    return SyncDatasetEntryDto(
+      entryId: var_entryId,
+      datasetId: var_datasetId,
+      installationId: var_installationId,
+      name: var_name,
+      ready: var_ready,
+      selected: var_selected,
     );
   }
 
@@ -11179,6 +11389,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       installationId: var_installationId,
       revision: var_revision,
       creating: var_creating,
+    );
+  }
+
+  @protected
+  SyncTickResultDto sse_decode_sync_tick_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_ran = sse_decode_bool(deserializer);
+    var var_stagedOperations = sse_decode_i_64(deserializer);
+    var var_uploaded = sse_decode_i_64(deserializer);
+    var var_pulledAccepted = sse_decode_i_64(deserializer);
+    var var_pulledWaiting = sse_decode_i_64(deserializer);
+    var var_pulledRejected = sse_decode_i_64(deserializer);
+    var var_acknowledgementFailed = sse_decode_bool(deserializer);
+    return SyncTickResultDto(
+      ran: var_ran,
+      stagedOperations: var_stagedOperations,
+      uploaded: var_uploaded,
+      pulledAccepted: var_pulledAccepted,
+      pulledWaiting: var_pulledWaiting,
+      pulledRejected: var_pulledRejected,
+      acknowledgementFailed: var_acknowledgementFailed,
     );
   }
 
@@ -12793,6 +13026,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_sync_dataset_entry_dto(
+    List<SyncDatasetEntryDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sync_dataset_entry_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_sync_enrollment_state_dto(
     List<SyncEnrollmentStateDto> self,
     SseSerializer serializer,
@@ -13153,6 +13398,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_record_list_sync_dataset_entry_dto_i_64(
+    (List<SyncDatasetEntryDto>, PlatformInt64) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_sync_dataset_entry_dto(self.$1, serializer);
+    sse_encode_i_64(self.$2, serializer);
+  }
+
+  @protected
   void sse_encode_relation_dto(RelationDto self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -13229,6 +13484,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.suggestion, serializer);
     sse_encode_opt_String(self.rewrite, serializer);
     sse_encode_String(self.createdAt, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_dataset_entry_dto(
+    SyncDatasetEntryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.entryId, serializer);
+    sse_encode_String(self.datasetId, serializer);
+    sse_encode_String(self.installationId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_bool(self.ready, serializer);
+    sse_encode_bool(self.selected, serializer);
   }
 
   @protected
@@ -13332,6 +13601,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.installationId, serializer);
     sse_encode_i_64(self.revision, serializer);
     sse_encode_bool(self.creating, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_tick_result_dto(
+    SyncTickResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.ran, serializer);
+    sse_encode_i_64(self.stagedOperations, serializer);
+    sse_encode_i_64(self.uploaded, serializer);
+    sse_encode_i_64(self.pulledAccepted, serializer);
+    sse_encode_i_64(self.pulledWaiting, serializer);
+    sse_encode_i_64(self.pulledRejected, serializer);
+    sse_encode_bool(self.acknowledgementFailed, serializer);
   }
 
   @protected

@@ -2,7 +2,7 @@
 //! The Node runtime test starts an isolated Worker and supplies its random port.
 
 #[cfg(test)]
-mod enrollment_ui;
+pub(crate) mod enrollment_ui;
 #[cfg(test)]
 mod joiner_ui;
 #[cfg(test)]
