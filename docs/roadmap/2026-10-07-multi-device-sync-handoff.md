@@ -141,7 +141,7 @@
 
 ### P4 — 首版剩余语义与发布恢复门禁
 
-- S01 所有记录来源、普通对话生命周期、缺口/未知版本及隔离队列逐项验收。
+- S01 所有记录来源、普通对话生命周期、缺口/未知版本及隔离队列逐项验收。**（P4a 已完成源隔离/idempotency 保真/未知版本容错/长离线追平，见 §14；普通对话生命周期与其余记录来源的逐项首版验收仍在 P4 继续。）**
 - Provider dirty/bundle 和加密投递已存在；补完整冲突掩码审阅、原展示版本确认、轮换/删除/激活端到端及不可达地址提示，不静默改 URL 或外部探测。
 - 补 S03 的 active 成员保留窗口、TTL/满配额、长离线重快照、GC、tombstone 与备份恢复。三个确认分开：**relay 收到 ≠ 对端已应用 ≠ 允许 GC**。
 - 补 S04/S06 的正常加工移交：旧端停领与收尾、交接完整状态、新端确认接管。没有旧端确认时不自动提升另一设备；本地 epoch/锁不是分布式互斥。
@@ -513,7 +513,8 @@ P2 与 P3 的工程与自动化验收已完成（P3 见 §13），下一步为 P
 - [x] 本轮文档回填后的 `git diff --check` 通过。
 - [x] 最终定向 analyze（No issues found）与同步相关定向 **48 passed** 补齐；P2 工程与自动化验收完成（2026-10-11）。
 - [x] P3 工程与自动化验收完成（2026-10-12，见 §13）：数据集选择/修复 API + 网络稳态 tick + App 调度/状态页，环回真实 Worker 16/16、Rust 640/640、Flutter 345/345。
-- [ ] P4（GC/TTL/重快照/加工移交）、P5（S05）、原生 OS 密钥库与真人设备发布门禁（未开展）。
+- [x] P4a 源隔离/idempotency 保真/未知版本容错/长离线追平完成（2026-10-12，见 §14）：迁移 v27 + 7 个同步测试 + v27 迁移测试，Rust 648 全量通过。
+- [ ] P4b–P4e（Provider 冲突掩码/轮换端到端、S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5（S05）、原生 OS 密钥库发布门禁（未开展）。
 
 ## 13. 2026-10-12 P3 实施（数据集选择/修复与 App 自动同步调度）
 
@@ -543,3 +544,37 @@ P2 与 P3 的工程与自动化验收已完成（P3 见 §13），下一步为 P
 - P3 的「选择仅下次启动生效」「锁定暂停同步不暂停捕获」「只有指定处理设备领任务」已按设计落地；**真人双端重启/断网恢复/视图刷新仍属 S06 验收**，不以本轮环回测试替代。
 - 数据集「修复」首版＝明确列出目录册/待决暂存 + 手动选择/回退（不静默回默认库、不搬动打开的 SQLite/WAL）；已选库丢失/损坏的自动引导修复 UI 仍是后续工作。
 - P4（GC/TTL/重快照/加工移交）、P5（S05 Wiki 同步）、原生 OS 密钥库与真人设备签收继续未完成；不进入 P3 之外范围。
+
+## 14. 2026-10-12 P4a 实施（S01 源隔离 / idempotency 保真 / 未知版本容错 / 长离线追平）
+
+### 调查结论（先核对，不从零重做）
+
+P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试存在，不在本增量重做**：去重/同内容异序拒绝、乱序缺口等待与排空、跨源缺基等待不造假冲突、持久应用回执与丢失后重建、被撤销成员不阻塞他设备、捕获原子提交且重放无任务/无回显、非法远程时钟不影响本地捕获、回执失败回滚、协议校验（版本/ID 长度/序号/时钟/`op_id==stream:seq`/`deny_unknown_fields`/消息角色与父环）、`sync_operations` 域校验失败置 `rejected`。据此只补 **4 个真实缺口**。
+
+### 本轮实际交付（单独提交 `3cbe569`）
+
+1. **迁移 v27（`migrations/27-sync-source-isolation/up.sql`）**：`sync_operations.state` CHECK 增加 `'isolated'`。SQLite 不能 ALTER CHECK，故重建表：保留全部行与 `UNIQUE(origin_stream_id,origin_sequence)`，重建 `sync_operations_pending` 索引；先 `PRAGMA legacy_alter_table=ON` 再 DROP/RENAME，避免 `validate_sync_receipt` 触发器引用旧表名导致重建断裂。
+2. **按源隔离替代整批回滚（`src/storage/sync/mod.rs`）**：三类原先会 `ensure!` 中止整个 receive 的情况，改为**按源持久隔离**——先持久隔离行（`state='isolated'` + 持久 `error_code`），commit 后再排水，使排水的 NOT-EXISTS 防护能看到该序号不可判定，从而：
+   - 同 ID/同（流，序号）不同字节（`sync_operation_content_conflict`）：隔离，不回滚本批、不应用分歧负载、不阻塞其他流、本地捕获不受影响。
+   - 逻辑钟远超本地（`sync_clock_requires_snapshot`，长离线/需快照）：隔离该 op，不再硬失败。
+   - 未知协议版本（`sync_protocol_unsupported`）：用新增 `identity_header()` 容错提取身份；若数据集匹配且发送方是活跃已认证成员（且非本机流）则隔离，否则维持硬拒绝。
+   - 排水永不返回 `isolated` 行（其状态非 `waiting`），frontier 只经真正应用的 op 推进，真身链完整时后续同流 op 继续应用。
+3. **idempotency_key 保真（`src/sync/protocol.rs` + 应用侧）**：`InputRecord` 增加可选 `idempotency_key`（`None` 时 `skip_serializing_if`，向后兼容旧格式）；捕获应用的 INSERT 与读取均携带，使跨设备同 key 用户输入可去重。
+4. **测试（`src/storage/sync/tests.rs` 7 个 + `src/storage/new_migrations.rs` 1 个）**：同 ID 异文隔离不回滚、不可判定分歧不应用不阻塞他流、未知版本隔离不阻塞、idempotency 跨设备保真、带 key 重放无重复无任务、三设备长离线追平（每端只转发自己的 op，重放幂等）、不可信设备/数据集/版本永不应用；v27 迁移保留旧行 + 接受 `'isolated'` + 拒绝集外值 + 保留 UNIQUE。
+
+### 验证结果（本轮实际执行）
+
+| 检查 | 结果 |
+| --- | --- |
+| `cargo test --lib` | **648 passed / 0 failed / 17 ignored** |
+| `cargo test --lib storage::sync::tests` | **25 passed**（含 7 个新/重写用例） |
+| `cargo test --lib storage::new_migrations::tests::v27` | **1 passed** |
+| `cargo fmt --all` | 干净 |
+
+全程只用临时目录隔离库与合成身份；未用个人数据、真实密钥库、外部模型或线上中继；已提交 `3cbe569`，未 push。
+
+### 边界与未完成
+
+- **协议固有边界**：接收方**从未见过某序号真身**时，伪造该序号无法识别（无真身可比），会作为合法新 op 应用；需后续签名/序列缺口检测解决，不在本增量。
+- 线格式演进：`InputRecord` 新增可选字段 + `state` 增加 `'isolated'` 属首版前允许的演进；旧设备 `deny_unknown_fields` 会拒新格式，跨版本协商留待后续 P4（见 §4）。
+- S01 的普通对话生命周期与其余记录来源的**逐项首版验收**、P4b–P4e、P5、原生 OS 密钥库与真人设备签收继续未完成。
