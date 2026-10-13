@@ -7,8 +7,10 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `enrollment_dto`, `join_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+import 'provider_reachability.dart';
+
+// These functions are ignored because they are not marked as `pub`: `conflict_profile_dto`, `enrollment_dto`, `join_dto`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<SyncInvitationOfferDto> createOwnerSyncInvitation({
   required String relayUrl,
@@ -208,6 +210,27 @@ Future<void> selectDefaultSyncDataset({
   expectedCatalogRevision: expectedCatalogRevision,
 );
 
+/// 列出待审阅的 Provider 同步冲突；密钥已掩码，锁定状态失败关闭。
+/// UI 必须保存 local_revision / revision_id，裁决时原样回传。
+Future<List<ProviderSyncConflictDto>> listSyncProviderConflicts() =>
+    RustLib.instance.api.crateApiSyncListSyncProviderConflicts();
+
+/// 显式裁决一条 Provider 同步冲突。
+/// `expected_local_revision` 与 `expected_remote_revision` 必须原样回传审阅时
+/// 展示的值；任一不匹配都失败关闭，避免竞态覆盖审阅后的新变更。
+/// `accept_remote` 为 false 时保留本地并把当前本地状态重新广播给对端。
+Future<void> resolveSyncProviderConflict({
+  required String revisionId,
+  required String expectedLocalRevision,
+  required String expectedRemoteRevision,
+  required bool acceptRemote,
+}) => RustLib.instance.api.crateApiSyncResolveSyncProviderConflict(
+  revisionId: revisionId,
+  expectedLocalRevision: expectedLocalRevision,
+  expectedRemoteRevision: expectedRemoteRevision,
+  acceptRemote: acceptRemote,
+);
+
 class LocalSyncStateDto {
   final String state;
   final String? installationId;
@@ -261,6 +284,128 @@ class LocalSyncStateDto {
           isProcessor == other.isProcessor &&
           activePeers == other.activePeers &&
           pendingOperations == other.pendingOperations;
+}
+
+class ProviderConflictProfileDto {
+  final String id;
+  final String name;
+  final String providerType;
+  final String baseUrl;
+  final String model;
+  final String apiKeyMasked;
+  final bool apiKeyPresent;
+  final bool enabled;
+  final bool isActive;
+  final double temperature;
+  final PlatformInt64? maxTokens;
+  final PlatformInt64? contextWindow;
+  final List<ReachabilityHint> reachabilityHints;
+
+  const ProviderConflictProfileDto({
+    required this.id,
+    required this.name,
+    required this.providerType,
+    required this.baseUrl,
+    required this.model,
+    required this.apiKeyMasked,
+    required this.apiKeyPresent,
+    required this.enabled,
+    required this.isActive,
+    required this.temperature,
+    this.maxTokens,
+    this.contextWindow,
+    required this.reachabilityHints,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      providerType.hashCode ^
+      baseUrl.hashCode ^
+      model.hashCode ^
+      apiKeyMasked.hashCode ^
+      apiKeyPresent.hashCode ^
+      enabled.hashCode ^
+      isActive.hashCode ^
+      temperature.hashCode ^
+      maxTokens.hashCode ^
+      contextWindow.hashCode ^
+      reachabilityHints.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProviderConflictProfileDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          providerType == other.providerType &&
+          baseUrl == other.baseUrl &&
+          model == other.model &&
+          apiKeyMasked == other.apiKeyMasked &&
+          apiKeyPresent == other.apiKeyPresent &&
+          enabled == other.enabled &&
+          isActive == other.isActive &&
+          temperature == other.temperature &&
+          maxTokens == other.maxTokens &&
+          contextWindow == other.contextWindow &&
+          reachabilityHints == other.reachabilityHints;
+}
+
+class ProviderSyncConflictDto {
+  final String revisionId;
+  final String? baseRevision;
+  final String senderDeviceId;
+  final String? senderDeviceName;
+  final String localRevision;
+  final List<ProviderConflictProfileDto> remoteProfiles;
+  final String? remoteActiveId;
+  final List<String> remoteFailoverOrder;
+  final List<ProviderConflictProfileDto> localProfiles;
+  final String? localActiveId;
+
+  const ProviderSyncConflictDto({
+    required this.revisionId,
+    this.baseRevision,
+    required this.senderDeviceId,
+    this.senderDeviceName,
+    required this.localRevision,
+    required this.remoteProfiles,
+    this.remoteActiveId,
+    required this.remoteFailoverOrder,
+    required this.localProfiles,
+    this.localActiveId,
+  });
+
+  @override
+  int get hashCode =>
+      revisionId.hashCode ^
+      baseRevision.hashCode ^
+      senderDeviceId.hashCode ^
+      senderDeviceName.hashCode ^
+      localRevision.hashCode ^
+      remoteProfiles.hashCode ^
+      remoteActiveId.hashCode ^
+      remoteFailoverOrder.hashCode ^
+      localProfiles.hashCode ^
+      localActiveId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProviderSyncConflictDto &&
+          runtimeType == other.runtimeType &&
+          revisionId == other.revisionId &&
+          baseRevision == other.baseRevision &&
+          senderDeviceId == other.senderDeviceId &&
+          senderDeviceName == other.senderDeviceName &&
+          localRevision == other.localRevision &&
+          remoteProfiles == other.remoteProfiles &&
+          remoteActiveId == other.remoteActiveId &&
+          remoteFailoverOrder == other.remoteFailoverOrder &&
+          localProfiles == other.localProfiles &&
+          localActiveId == other.localActiveId;
 }
 
 /// One row of the installation-local dataset catalog.

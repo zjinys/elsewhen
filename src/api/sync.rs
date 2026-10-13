@@ -2,7 +2,12 @@
 //! Invitations require an unlocked owner and explicit Provider-key disclosure;
 //! ordinary synchronization is not started by these pairing-only operations.
 
-use crate::{config::AppConfig, storage::Store, sync::runtime};
+use crate::{
+    api::provider_reachability::{ReachabilityHint, assess_base_url},
+    config::AppConfig,
+    storage::{Store, sync::provider_conflicts::ProviderConflictResolution},
+    sync::runtime,
+};
 use anyhow::{Context, Result, ensure};
 use rusqlite::OptionalExtension;
 
@@ -562,4 +567,126 @@ pub fn select_default_sync_dataset(expected_catalog_revision: i64) -> Result<()>
     let config = AppConfig::load()?;
     let catalog = crate::sync::datasets::DatasetCatalog::open(&config.data_dir)?;
     catalog.select_default(expected_catalog_revision)
+}
+
+// ---------------------------------------------------------------------------
+// P4b: Provider sync conflict review. Keys are masked, choices are explicit
+// (keep local / accept remote whole-bundle), and both bindings must match the
+// revisions the user actually reviewed.
+
+#[derive(Clone, Debug)]
+pub struct ProviderConflictProfileDto {
+    pub id: String,
+    pub name: String,
+    pub provider_type: String,
+    pub base_url: String,
+    pub model: String,
+    pub api_key_masked: String,
+    pub api_key_present: bool,
+    pub enabled: bool,
+    pub is_active: bool,
+    pub temperature: f64,
+    pub max_tokens: Option<i64>,
+    pub context_window: Option<i64>,
+    pub reachability_hints: Vec<ReachabilityHint>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ProviderSyncConflictDto {
+    pub revision_id: String,
+    pub base_revision: Option<String>,
+    pub sender_device_id: String,
+    pub sender_device_name: Option<String>,
+    pub local_revision: String,
+    pub remote_profiles: Vec<ProviderConflictProfileDto>,
+    pub remote_active_id: Option<String>,
+    pub remote_failover_order: Vec<String>,
+    pub local_profiles: Vec<ProviderConflictProfileDto>,
+    pub local_active_id: Option<String>,
+}
+
+fn conflict_profile_dto(
+    p: crate::storage::sync::provider_conflicts::ProviderConflictProfile,
+) -> ProviderConflictProfileDto {
+    ProviderConflictProfileDto {
+        reachability_hints: assess_base_url(&p.base_url),
+        id: p.id,
+        name: p.name,
+        provider_type: p.provider_type,
+        base_url: p.base_url,
+        model: p.model,
+        api_key_masked: p.api_key_masked,
+        api_key_present: p.api_key_present,
+        enabled: p.enabled,
+        is_active: p.is_active,
+        temperature: p.temperature,
+        max_tokens: p.max_tokens,
+        context_window: p.context_window,
+    }
+}
+
+/// 列出待审阅的 Provider 同步冲突；密钥已掩码，锁定状态失败关闭。
+/// UI 必须保存 local_revision / revision_id，裁决时原样回传。
+pub fn list_sync_provider_conflicts() -> Result<Vec<ProviderSyncConflictDto>> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let reviews = store.list_sync_provider_conflicts()?;
+    let roster = store.current_signed_roster()?;
+    Ok(reviews
+        .into_iter()
+        .map(|r| {
+            let sender_device_name = roster.as_ref().and_then(|roster| {
+                roster
+                    .roster
+                    .members
+                    .iter()
+                    .find(|m| m.device.device_id == r.sender_device_id)
+                    .map(|m| m.device.name.clone())
+            });
+            ProviderSyncConflictDto {
+                revision_id: r.revision_id,
+                base_revision: r.base_revision,
+                sender_device_id: r.sender_device_id.clone(),
+                sender_device_name,
+                local_revision: r.local_revision,
+                remote_profiles: r
+                    .remote_profiles
+                    .into_iter()
+                    .map(conflict_profile_dto)
+                    .collect(),
+                remote_active_id: r.remote_active_id,
+                remote_failover_order: r.remote_failover_order,
+                local_profiles: r
+                    .local_profiles
+                    .into_iter()
+                    .map(conflict_profile_dto)
+                    .collect(),
+                local_active_id: r.local_active_id,
+            }
+        })
+        .collect())
+}
+
+/// 显式裁决一条 Provider 同步冲突。
+/// `expected_local_revision` 与 `expected_remote_revision` 必须原样回传审阅时
+/// 展示的值；任一不匹配都失败关闭，避免竞态覆盖审阅后的新变更。
+/// `accept_remote` 为 false 时保留本地并把当前本地状态重新广播给对端。
+pub fn resolve_sync_provider_conflict(
+    revision_id: String,
+    expected_local_revision: String,
+    expected_remote_revision: String,
+    accept_remote: bool,
+) -> Result<()> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.resolve_sync_provider_conflict(
+        &revision_id,
+        &expected_local_revision,
+        &expected_remote_revision,
+        if accept_remote {
+            ProviderConflictResolution::AcceptRemote
+        } else {
+            ProviderConflictResolution::KeepLocal
+        },
+    )
 }

@@ -18,6 +18,7 @@ import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
 import 'api/provider_config.dart';
+import 'api/provider_reachability.dart';
 import 'api/relations.dart';
 import 'api/rules.dart';
 import 'api/sync.dart';
@@ -51,8 +52,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_ReachabilityHintPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  ReachabilityHint
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
+
+  @protected
+  ReachabilityHint
+  dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
+
+  @protected
+  ReachabilityHint
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
+
+  @protected
+  ReachabilityHint
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -273,6 +302,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryPage dco_decode_library_page(dynamic raw);
 
   @protected
+  List<ReachabilityHint>
+  dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -395,6 +430,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<ProviderConflictProfileDto>
+  dco_decode_list_provider_conflict_profile_dto(dynamic raw);
+
+  @protected
+  List<ProviderSyncConflictDto> dco_decode_list_provider_sync_conflict_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<RelationDto> dco_decode_list_relation_dto(dynamic raw);
 
   @protected
@@ -514,6 +558,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
 
   @protected
+  ProviderConflictProfileDto dco_decode_provider_conflict_profile_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ProviderSyncConflictDto dco_decode_provider_sync_conflict_dto(dynamic raw);
+
+  @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
   dco_decode_record_list_sync_dataset_entry_dto_i_64(dynamic raw);
 
@@ -590,6 +642,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
 
   @protected
+  BigInt dco_decode_usize(dynamic raw);
+
+  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
@@ -600,6 +655,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  ReachabilityHint
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReachabilityHint
+  sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReachabilityHint
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReachabilityHint
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -880,6 +959,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryPage sse_decode_library_page(SseDeserializer deserializer);
 
   @protected
+  List<ReachabilityHint>
+  sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -1042,6 +1127,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<ProviderConflictProfileDto>
+  sse_decode_list_provider_conflict_profile_dto(SseDeserializer deserializer);
+
+  @protected
+  List<ProviderSyncConflictDto> sse_decode_list_provider_sync_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<RelationDto> sse_decode_list_relation_dto(SseDeserializer deserializer);
 
   @protected
@@ -1189,6 +1283,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
 
   @protected
+  ProviderConflictProfileDto sse_decode_provider_conflict_profile_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProviderSyncConflictDto sse_decode_provider_sync_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
   sse_decode_record_list_sync_dataset_entry_dto_i_64(
     SseDeserializer deserializer,
@@ -1285,6 +1389,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
@@ -2114,6 +2221,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny
+  cst_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    List<ReachabilityHint> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw
+        .map(
+          cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint,
+        )
+        .toList()
+        .jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_String(List<String> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_String).toList().jsify()!;
@@ -2339,6 +2460,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_prim_u_8_strict(Uint8List raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_provider_conflict_profile_dto(
+    List<ProviderConflictProfileDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_provider_conflict_profile_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_provider_sync_conflict_dto(
+    List<ProviderSyncConflictDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_provider_sync_conflict_dto).toList().jsify()!;
   }
 
   @protected
@@ -2614,6 +2751,47 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_64(raw.version),
       cst_encode_String(raw.approvalToken),
       cst_encode_String(raw.targetBasisJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_provider_conflict_profile_dto(
+    ProviderConflictProfileDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.name),
+      cst_encode_String(raw.providerType),
+      cst_encode_String(raw.baseUrl),
+      cst_encode_String(raw.model),
+      cst_encode_String(raw.apiKeyMasked),
+      cst_encode_bool(raw.apiKeyPresent),
+      cst_encode_bool(raw.enabled),
+      cst_encode_bool(raw.isActive),
+      cst_encode_f_64(raw.temperature),
+      cst_encode_opt_box_autoadd_i_64(raw.maxTokens),
+      cst_encode_opt_box_autoadd_i_64(raw.contextWindow),
+      cst_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+        raw.reachabilityHints,
+      ),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_provider_sync_conflict_dto(ProviderSyncConflictDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.revisionId),
+      cst_encode_opt_String(raw.baseRevision),
+      cst_encode_String(raw.senderDeviceId),
+      cst_encode_opt_String(raw.senderDeviceName),
+      cst_encode_String(raw.localRevision),
+      cst_encode_list_provider_conflict_profile_dto(raw.remoteProfiles),
+      cst_encode_opt_String(raw.remoteActiveId),
+      cst_encode_list_String(raw.remoteFailoverOrder),
+      cst_encode_list_provider_conflict_profile_dto(raw.localProfiles),
+      cst_encode_opt_String(raw.localActiveId),
     ].jsify()!;
   }
 
@@ -2907,6 +3085,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_usize(BigInt raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return castNativeBigInt(raw);
+  }
+
+  @protected
   JSAny cst_encode_web_search_config_dto(WebSearchConfigDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2958,6 +3142,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  int
+  cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint raw,
+  );
+
+  @protected
+  int
+  cst_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint raw,
+  );
+
+  @protected
+  int
+  cst_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint raw,
+  );
+
+  @protected
+  int
+  cst_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint raw,
+  );
+
+  @protected
   bool cst_encode_bool(bool raw);
 
   @protected
@@ -2978,6 +3186,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint self,
     SseSerializer serializer,
   );
 
@@ -3339,6 +3575,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_library_page(LibraryPage self, SseSerializer serializer);
 
   @protected
+  void
+  sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    List<ReachabilityHint> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -3543,6 +3786,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_provider_conflict_profile_dto(
+    List<ProviderConflictProfileDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_provider_sync_conflict_dto(
+    List<ProviderSyncConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_relation_dto(
     List<RelationDto> self,
     SseSerializer serializer,
@@ -3726,6 +3981,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_provider_conflict_profile_dto(
+    ProviderConflictProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_provider_sync_conflict_dto(
+    ProviderSyncConflictDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_record_list_sync_dataset_entry_dto_i_64(
     (List<SyncDatasetEntryDto>, PlatformInt64) self,
     SseSerializer serializer,
@@ -3852,6 +4119,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_web_search_config_dto(
     WebSearchConfigDto self,
     SseSerializer serializer,
@@ -3871,6 +4141,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
+
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+  wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address(
+    int that,
+  ) => wasmModule
+      .wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address(
+        that,
+      );
+
+  JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+  wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address(
+    int that,
+    String address,
+  ) => wasmModule
+      .wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address(
+        that,
+        address,
+      );
 
   void wire__crate__api__knowledge__accept_knowledge_proposal_parts(
     NativePortType port_,
@@ -3962,6 +4250,14 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__wiki_chat__archive_wiki_page_chat(
     port_,
     page_slug,
+  );
+
+  void wire__crate__api__provider_reachability__assess_base_url(
+    NativePortType port_,
+    String base_url,
+  ) => wasmModule.wire__crate__api__provider_reachability__assess_base_url(
+    port_,
+    base_url,
   );
 
   void wire__crate__api__begin_url_input(
@@ -4812,6 +5108,10 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__sync__list_sync_enrollments(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__list_sync_enrollments(port_);
 
+  void wire__crate__api__sync__list_sync_provider_conflicts(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__list_sync_provider_conflicts(port_);
+
   void wire__crate__api__fonts__list_system_fonts(NativePortType port_) =>
       wasmModule.wire__crate__api__fonts__list_system_fonts(port_);
 
@@ -5058,6 +5358,20 @@ class RustLibWire implements BaseWire {
     port_,
     id,
     accept,
+  );
+
+  void wire__crate__api__sync__resolve_sync_provider_conflict(
+    NativePortType port_,
+    String revision_id,
+    String expected_local_revision,
+    String expected_remote_revision,
+    bool accept_remote,
+  ) => wasmModule.wire__crate__api__sync__resolve_sync_provider_conflict(
+    port_,
+    revision_id,
+    expected_local_revision,
+    expected_remote_revision,
+    accept_remote,
   );
 
   void wire__crate__api__knowledge__resolve_topic_organization(
@@ -5554,6 +5868,22 @@ class RustLibWire implements BaseWire {
     conversation_id,
     queue_id,
   );
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+        ptr,
+      );
 }
 
 @JS('wasm_bindgen')
@@ -5562,6 +5892,17 @@ external RustLibWasmModule get wasmModule;
 @JS()
 @anonymous
 extension type RustLibWasmModule._(JSObject _) implements JSObject {
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+  wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address(
+    int that,
+  );
+
+  external JSAny? /* flutter_rust_bridge::for_generated::WireSyncRust2DartDco */
+  wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address(
+    int that,
+    String address,
+  );
+
   external void wire__crate__api__knowledge__accept_knowledge_proposal_parts(
     NativePortType port_,
     String id,
@@ -5619,6 +5960,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__wiki_chat__archive_wiki_page_chat(
     NativePortType port_,
     String page_slug,
+  );
+
+  external void wire__crate__api__provider_reachability__assess_base_url(
+    NativePortType port_,
+    String base_url,
   );
 
   external void wire__crate__api__begin_url_input(
@@ -6191,6 +6537,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__sync__list_sync_provider_conflicts(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__fonts__list_system_fonts(
     NativePortType port_,
   );
@@ -6358,6 +6708,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String id,
     bool accept,
+  );
+
+  external void wire__crate__api__sync__resolve_sync_provider_conflict(
+    NativePortType port_,
+    String revision_id,
+    String expected_local_revision,
+    String expected_remote_revision,
+    bool accept_remote,
   );
 
   external void wire__crate__api__knowledge__resolve_topic_organization(
@@ -6664,5 +7022,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String conversation_id,
     JSAny queue_id,
+  );
+
+  external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    int ptr,
   );
 }

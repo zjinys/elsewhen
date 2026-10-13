@@ -108,10 +108,10 @@ impl Store {
             !self.connection.is_autocommit(),
             "provider_key_requires_transaction"
         );
-        if self.provider_keys_sealed()? {
-            if let Some(value) = value {
-                return self.seal_provider_key_on(id, value);
-            }
+        if self.provider_keys_sealed()?
+            && let Some(value) = value
+        {
+            return self.seal_provider_key_on(id, value);
         }
         self.connection
             .execute("DELETE FROM provider_key_secrets WHERE config_id=?1", [id])?;
@@ -151,6 +151,26 @@ impl Store {
             tx.commit()?;
         }
         Ok(())
+    }
+}
+
+/// 掩码后的 API Key：UTF-8 char 边界安全。仅用于冲突审阅展示，
+/// 绝不进入 DTO 之外的存储、日志或诊断字符串。
+pub(crate) fn mask_api_key(key: &str) -> String {
+    if key.is_empty() {
+        return String::new();
+    }
+    let count = key.chars().count();
+    if count <= 8 {
+        "*".repeat(count)
+    } else {
+        let prefix: String = key.chars().take(3).collect();
+        let suffix: String = {
+            let mut rev: Vec<char> = key.chars().rev().take(4).collect();
+            rev.reverse();
+            rev.into_iter().collect()
+        };
+        format!("{prefix}****{suffix}")
     }
 }
 

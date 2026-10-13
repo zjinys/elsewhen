@@ -15,6 +15,7 @@ import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
 import 'api/provider_config.dart';
+import 'api/provider_reachability.dart';
 import 'api/relations.dart';
 import 'api/rules.dart';
 import 'api/sync.dart';
@@ -49,8 +50,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_ReachabilityHintPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHintPtr;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  ReachabilityHint
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
+
+  @protected
+  ReachabilityHint
+  dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
+
+  @protected
+  ReachabilityHint
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
+
+  @protected
+  ReachabilityHint
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -271,6 +300,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryPage dco_decode_library_page(dynamic raw);
 
   @protected
+  List<ReachabilityHint>
+  dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    dynamic raw,
+  );
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -393,6 +428,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<ProviderConflictProfileDto>
+  dco_decode_list_provider_conflict_profile_dto(dynamic raw);
+
+  @protected
+  List<ProviderSyncConflictDto> dco_decode_list_provider_sync_conflict_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<RelationDto> dco_decode_list_relation_dto(dynamic raw);
 
   @protected
@@ -512,6 +556,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
 
   @protected
+  ProviderConflictProfileDto dco_decode_provider_conflict_profile_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ProviderSyncConflictDto dco_decode_provider_sync_conflict_dto(dynamic raw);
+
+  @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
   dco_decode_record_list_sync_dataset_entry_dto_i_64(dynamic raw);
 
@@ -588,6 +640,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
 
   @protected
+  BigInt dco_decode_usize(dynamic raw);
+
+  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
@@ -598,6 +653,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  ReachabilityHint
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReachabilityHint
+  sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReachabilityHint
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReachabilityHint
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -878,6 +957,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryPage sse_decode_library_page(SseDeserializer deserializer);
 
   @protected
+  List<ReachabilityHint>
+  sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -1040,6 +1125,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<ProviderConflictProfileDto>
+  sse_decode_list_provider_conflict_profile_dto(SseDeserializer deserializer);
+
+  @protected
+  List<ProviderSyncConflictDto> sse_decode_list_provider_sync_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<RelationDto> sse_decode_list_relation_dto(SseDeserializer deserializer);
 
   @protected
@@ -1187,6 +1281,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
 
   @protected
+  ProviderConflictProfileDto sse_decode_provider_conflict_profile_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProviderSyncConflictDto sse_decode_provider_sync_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
   sse_decode_record_list_sync_dataset_entry_dto_i_64(
     SseDeserializer deserializer,
@@ -1283,6 +1387,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
@@ -1454,6 +1561,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int cst_encode_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.toInt();
+  }
+
+  @protected
+  ffi.Pointer<
+    wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
+  >
+  cst_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    List<ReachabilityHint> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire
+        .cst_new_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+          raw.length,
+        );
+    for (var i = 0; i < raw.length; ++i) {
+      ans.ref.ptr[i] =
+          cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+            raw[i],
+          );
+    }
+    return ans;
   }
 
   @protected
@@ -1863,6 +1991,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_provider_conflict_profile_dto>
+  cst_encode_list_provider_conflict_profile_dto(
+    List<ProviderConflictProfileDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_provider_conflict_profile_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_provider_conflict_profile_dto(
+        raw[i],
+        ans.ref.ptr[i],
+      );
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_provider_sync_conflict_dto>
+  cst_encode_list_provider_sync_conflict_dto(
+    List<ProviderSyncConflictDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_provider_sync_conflict_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_provider_sync_conflict_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_relation_dto> cst_encode_list_relation_dto(
     List<RelationDto> raw,
   ) {
@@ -2142,6 +2299,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return raw == null
         ? ffi.nullptr
         : cst_encode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  int cst_encode_usize(BigInt raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.toSigned(64).toInt();
   }
 
   @protected
@@ -3052,6 +3215,54 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_provider_conflict_profile_dto(
+    ProviderConflictProfileDto apiObj,
+    wire_cst_provider_conflict_profile_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.provider_type = cst_encode_String(apiObj.providerType);
+    wireObj.base_url = cst_encode_String(apiObj.baseUrl);
+    wireObj.model = cst_encode_String(apiObj.model);
+    wireObj.api_key_masked = cst_encode_String(apiObj.apiKeyMasked);
+    wireObj.api_key_present = cst_encode_bool(apiObj.apiKeyPresent);
+    wireObj.enabled = cst_encode_bool(apiObj.enabled);
+    wireObj.is_active = cst_encode_bool(apiObj.isActive);
+    wireObj.temperature = cst_encode_f_64(apiObj.temperature);
+    wireObj.max_tokens = cst_encode_opt_box_autoadd_i_64(apiObj.maxTokens);
+    wireObj.context_window = cst_encode_opt_box_autoadd_i_64(
+      apiObj.contextWindow,
+    );
+    wireObj.reachability_hints =
+        cst_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+          apiObj.reachabilityHints,
+        );
+  }
+
+  @protected
+  void cst_api_fill_to_wire_provider_sync_conflict_dto(
+    ProviderSyncConflictDto apiObj,
+    wire_cst_provider_sync_conflict_dto wireObj,
+  ) {
+    wireObj.revision_id = cst_encode_String(apiObj.revisionId);
+    wireObj.base_revision = cst_encode_opt_String(apiObj.baseRevision);
+    wireObj.sender_device_id = cst_encode_String(apiObj.senderDeviceId);
+    wireObj.sender_device_name = cst_encode_opt_String(apiObj.senderDeviceName);
+    wireObj.local_revision = cst_encode_String(apiObj.localRevision);
+    wireObj.remote_profiles = cst_encode_list_provider_conflict_profile_dto(
+      apiObj.remoteProfiles,
+    );
+    wireObj.remote_active_id = cst_encode_opt_String(apiObj.remoteActiveId);
+    wireObj.remote_failover_order = cst_encode_list_String(
+      apiObj.remoteFailoverOrder,
+    );
+    wireObj.local_profiles = cst_encode_list_provider_conflict_profile_dto(
+      apiObj.localProfiles,
+    );
+    wireObj.local_active_id = cst_encode_opt_String(apiObj.localActiveId);
+  }
+
+  @protected
   void cst_api_fill_to_wire_record_list_sync_dataset_entry_dto_i_64(
     (List<SyncDatasetEntryDto>, PlatformInt64) apiObj,
     wire_cst_record_list_sync_dataset_entry_dto_i_64 wireObj,
@@ -3400,6 +3611,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  int
+  cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint raw,
+  );
+
+  @protected
+  int
+  cst_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint raw,
+  );
+
+  @protected
+  int
+  cst_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint raw,
+  );
+
+  @protected
+  int
+  cst_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint raw,
+  );
+
+  @protected
   bool cst_encode_bool(bool raw);
 
   @protected
@@ -3420,6 +3655,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ReachabilityHint self,
     SseSerializer serializer,
   );
 
@@ -3781,6 +4044,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_library_page(LibraryPage self, SseSerializer serializer);
 
   @protected
+  void
+  sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    List<ReachabilityHint> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -3985,6 +4255,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_provider_conflict_profile_dto(
+    List<ProviderConflictProfileDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_provider_sync_conflict_dto(
+    List<ProviderSyncConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_relation_dto(
     List<RelationDto> self,
     SseSerializer serializer,
@@ -4168,6 +4450,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_provider_conflict_profile_dto(
+    ProviderConflictProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_provider_sync_conflict_dto(
+    ProviderSyncConflictDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_record_list_sync_dataset_entry_dto_i_64(
     (List<SyncDatasetEntryDto>, PlatformInt64) self,
     SseSerializer serializer,
@@ -4292,6 +4586,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     UnscheduledChatInputDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_web_search_config_dto(
@@ -4551,6 +4848,37 @@ class RustLibWire implements BaseWire {
   late final _cst_new_box_autoadd_wiki_page_dto =
       _cst_new_box_autoadd_wiki_page_dtoPtr
           .asFunction<ffi.Pointer<wire_cst_wiki_page_dto> Function()>();
+
+  ffi.Pointer<
+    wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
+  >
+  cst_new_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    int len,
+  ) {
+    return _cst_new_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+      len,
+    );
+  }
+
+  late final _cst_new_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHintPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<
+            wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
+          >
+          Function(ffi.Int32)
+        >
+      >(
+        'frbgen_elsewhen_ui_cst_new_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint',
+      );
+  late final _cst_new_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint =
+      _cst_new_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHintPtr
+          .asFunction<
+            ffi.Pointer<
+              wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
+            >
+            Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_String> cst_new_list_String(int len) {
     return _cst_new_list_String(len);
@@ -5134,6 +5462,46 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_prim_u_8_strict = _cst_new_list_prim_u_8_strictPtr
       .asFunction<ffi.Pointer<wire_cst_list_prim_u_8_strict> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_provider_conflict_profile_dto>
+  cst_new_list_provider_conflict_profile_dto(int len) {
+    return _cst_new_list_provider_conflict_profile_dto(len);
+  }
+
+  late final _cst_new_list_provider_conflict_profile_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_provider_conflict_profile_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_provider_conflict_profile_dto');
+  late final _cst_new_list_provider_conflict_profile_dto =
+      _cst_new_list_provider_conflict_profile_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_provider_conflict_profile_dto> Function(
+              int,
+            )
+          >();
+
+  ffi.Pointer<wire_cst_list_provider_sync_conflict_dto>
+  cst_new_list_provider_sync_conflict_dto(int len) {
+    return _cst_new_list_provider_sync_conflict_dto(len);
+  }
+
+  late final _cst_new_list_provider_sync_conflict_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_provider_sync_conflict_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_provider_sync_conflict_dto');
+  late final _cst_new_list_provider_sync_conflict_dto =
+      _cst_new_list_provider_sync_conflict_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_provider_sync_conflict_dto> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_relation_dto> cst_new_list_relation_dto(int len) {
     return _cst_new_list_relation_dto(len);
   }
@@ -5332,6 +5700,40 @@ class RustLibWire implements BaseWire {
       );
   late final _dummy_method_to_enforce_bundling =
       _dummy_method_to_enforce_bundlingPtr.asFunction<int Function()>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHintPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_elsewhen_ui_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHintPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHintPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_elsewhen_ui_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHintPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void store_dart_post_cobject(DartPostCObjectFnType ptr) {
     return _store_dart_post_cobject(ptr);
@@ -8566,6 +8968,81 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  WireSyncRust2DartDco
+  wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address(
+    int that,
+  ) {
+    return _wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address(
+      that,
+    );
+  }
+
+  late final _wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_addressPtr =
+      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function(ffi.UintPtr)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address',
+      );
+  late final _wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address =
+      _wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_addressPtr
+          .asFunction<WireSyncRust2DartDco Function(int)>();
+
+  WireSyncRust2DartDco
+  wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address(
+    int that,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> address,
+  ) {
+    return _wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address(
+      that,
+      address,
+    );
+  }
+
+  late final _wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_addressPtr =
+      _lookup<
+        ffi.NativeFunction<
+          WireSyncRust2DartDco Function(
+            ffi.UintPtr,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address',
+      );
+  late final _wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address =
+      _wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_addressPtr
+          .asFunction<
+            WireSyncRust2DartDco Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__provider_reachability__assess_base_url(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url,
+  ) {
+    return _wire__crate__api__provider_reachability__assess_base_url(
+      port_,
+      base_url,
+    );
+  }
+
+  late final _wire__crate__api__provider_reachability__assess_base_urlPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_reachability__assess_base_url',
+      );
+  late final _wire__crate__api__provider_reachability__assess_base_url =
+      _wire__crate__api__provider_reachability__assess_base_urlPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__reanalyze_event(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
@@ -9330,6 +9807,18 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__list_sync_enrollmentsPtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__sync__list_sync_provider_conflicts(int port_) {
+    return _wire__crate__api__sync__list_sync_provider_conflicts(port_);
+  }
+
+  late final _wire__crate__api__sync__list_sync_provider_conflictsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__list_sync_provider_conflicts',
+      );
+  late final _wire__crate__api__sync__list_sync_provider_conflicts =
+      _wire__crate__api__sync__list_sync_provider_conflictsPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__sync__lock_local_sync(int port_) {
     return _wire__crate__api__sync__lock_local_sync(port_);
   }
@@ -9504,6 +9993,48 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__release_sync_key_requestPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__resolve_sync_provider_conflict(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_local_revision,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_remote_revision,
+    bool accept_remote,
+  ) {
+    return _wire__crate__api__sync__resolve_sync_provider_conflict(
+      port_,
+      revision_id,
+      expected_local_revision,
+      expected_remote_revision,
+      accept_remote,
+    );
+  }
+
+  late final _wire__crate__api__sync__resolve_sync_provider_conflictPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__resolve_sync_provider_conflict',
+      );
+  late final _wire__crate__api__sync__resolve_sync_provider_conflict =
+      _wire__crate__api__sync__resolve_sync_provider_conflictPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__sync__select_default_sync_dataset(
@@ -12386,6 +12917,28 @@ final class wire_cst_library_page extends ffi.Struct {
     ..ref.has_more = has_more;
 }
 
+final class wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
+    extends ffi.Struct {
+  external ffi.Pointer<ffi.UintPtr> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<
+    wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
+  >
+  $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<ffi.UintPtr> ptr,
+    required int len,
+  }) =>
+      $allocator<
+          wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
+        >()
+        ..ref.ptr = ptr
+        ..ref.len = len;
+}
+
 final class wire_cst_list_String extends ffi.Struct {
   external ffi.Pointer<ffi.Pointer<wire_cst_list_prim_u_8_strict>> ptr;
 
@@ -12926,6 +13479,36 @@ final class wire_cst_list_prim_u_8_strict extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_provider_conflict_profile_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_provider_conflict_profile_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_provider_conflict_profile_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_provider_conflict_profile_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_provider_conflict_profile_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_provider_sync_conflict_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_provider_sync_conflict_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_provider_sync_conflict_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_provider_sync_conflict_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_provider_sync_conflict_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_relation_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_relation_dto> ptr;
 
@@ -13299,6 +13882,124 @@ final class wire_cst_pending_action_dto extends ffi.Struct {
     ..ref.version = version
     ..ref.approval_token = approval_token
     ..ref.target_basis_json = target_basis_json;
+}
+
+final class wire_cst_provider_conflict_profile_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> provider_type;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> model;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key_masked;
+
+  @ffi.Bool()
+  external bool api_key_present;
+
+  @ffi.Bool()
+  external bool enabled;
+
+  @ffi.Bool()
+  external bool is_active;
+
+  @ffi.Double()
+  external double temperature;
+
+  external ffi.Pointer<ffi.Int64> max_tokens;
+
+  external ffi.Pointer<ffi.Int64> context_window;
+
+  external ffi.Pointer<
+    wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
+  >
+  reachability_hints;
+
+  static ffi.Pointer<wire_cst_provider_conflict_profile_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> provider_type,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> model,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key_masked,
+    required bool api_key_present,
+    required bool enabled,
+    required bool is_active,
+    required double temperature,
+    required ffi.Pointer<ffi.Int64> max_tokens,
+    required ffi.Pointer<ffi.Int64> context_window,
+    required ffi.Pointer<
+      wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
+    >
+    reachability_hints,
+  }) => $allocator<wire_cst_provider_conflict_profile_dto>()
+    ..ref.id = id
+    ..ref.name = name
+    ..ref.provider_type = provider_type
+    ..ref.base_url = base_url
+    ..ref.model = model
+    ..ref.api_key_masked = api_key_masked
+    ..ref.api_key_present = api_key_present
+    ..ref.enabled = enabled
+    ..ref.is_active = is_active
+    ..ref.temperature = temperature
+    ..ref.max_tokens = max_tokens
+    ..ref.context_window = context_window
+    ..ref.reachability_hints = reachability_hints;
+}
+
+final class wire_cst_provider_sync_conflict_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> base_revision;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_revision;
+
+  external ffi.Pointer<wire_cst_list_provider_conflict_profile_dto>
+  remote_profiles;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> remote_active_id;
+
+  external ffi.Pointer<wire_cst_list_String> remote_failover_order;
+
+  external ffi.Pointer<wire_cst_list_provider_conflict_profile_dto>
+  local_profiles;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_active_id;
+
+  static ffi.Pointer<wire_cst_provider_sync_conflict_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> base_revision,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_revision,
+    required ffi.Pointer<wire_cst_list_provider_conflict_profile_dto>
+    remote_profiles,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> remote_active_id,
+    required ffi.Pointer<wire_cst_list_String> remote_failover_order,
+    required ffi.Pointer<wire_cst_list_provider_conflict_profile_dto>
+    local_profiles,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_active_id,
+  }) => $allocator<wire_cst_provider_sync_conflict_dto>()
+    ..ref.revision_id = revision_id
+    ..ref.base_revision = base_revision
+    ..ref.sender_device_id = sender_device_id
+    ..ref.sender_device_name = sender_device_name
+    ..ref.local_revision = local_revision
+    ..ref.remote_profiles = remote_profiles
+    ..ref.remote_active_id = remote_active_id
+    ..ref.remote_failover_order = remote_failover_order
+    ..ref.local_profiles = local_profiles
+    ..ref.local_active_id = local_active_id;
 }
 
 final class wire_cst_record_list_sync_dataset_entry_dto_i_64

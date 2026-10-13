@@ -9,6 +9,7 @@ pub mod knowledge;
 pub mod knowledge_digest;
 pub mod knowledge_workflows;
 pub mod provider_config;
+pub mod provider_reachability;
 pub mod relations;
 pub mod rules;
 pub mod sync;

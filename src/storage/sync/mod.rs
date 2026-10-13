@@ -9,6 +9,7 @@ mod membership;
 mod pairing;
 pub(crate) use pairing::{PairingCommit, PairingDispatch};
 mod processing;
+pub(crate) mod provider_conflicts;
 mod providers;
 pub(crate) mod snapshot;
 mod vault;

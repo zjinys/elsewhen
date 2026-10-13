@@ -143,6 +143,7 @@ mod tests {
                 "25-web-search",
                 "26-doh-mode",
                 "27-sync-source-isolation",
+                "28-sync-provider-conflicts",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -174,7 +175,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 27, "二十七条迁移跑完，user_version 应为 27");
+        assert_eq!(version, 28, "二十八条迁移跑完，user_version 应为 28");
         assert_eq!(
             latest_version().unwrap(),
             version,
@@ -249,6 +250,39 @@ mod tests {
         assert!(
             dup.is_err(),
             "UNIQUE(origin_stream_id,origin_sequence) must survive the rebuild"
+        );
+    }
+
+    #[test]
+    fn v28_rebuilds_sync_provider_versions_preserving_rows_and_accepting_dismissed() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 27)
+            .unwrap();
+        // Pre-v28 data: one applied and one conflicted revision, both of which
+        // must survive the DROP/RENAME rebuild with their ciphertext intact.
+        connection.execute_batch("INSERT INTO sync_provider_versions(revision_id,base_revision,sender_device_id,content_hash,encrypted_envelope,state) VALUES('rev-applied',NULL,'dev-a','hash-a',x'01','applied'),('rev-conflict','rev-applied','dev-b','hash-b',x'0203','conflict');").unwrap();
+        initialize(&mut connection).unwrap();
+        let kept: i64 = connection.query_row("SELECT COUNT(*) FROM sync_provider_versions WHERE (revision_id='rev-applied' AND state='applied' AND encrypted_envelope=x'01') OR (revision_id='rev-conflict' AND state='conflict' AND encrypted_envelope=x'0203')",[],|r|r.get(0)).unwrap();
+        assert_eq!(
+            kept, 2,
+            "v28 rebuild must preserve existing sync_provider_versions rows"
+        );
+        // 'dismissed' is now accepted; states outside the set are still rejected.
+        connection.execute("UPDATE sync_provider_versions SET state='dismissed' WHERE revision_id='rev-conflict'", []).unwrap();
+        let dismissed: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_provider_versions WHERE state='dismissed'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(dismissed, 1);
+        let bad = connection.execute("INSERT INTO sync_provider_versions(revision_id,base_revision,sender_device_id,content_hash,encrypted_envelope,state) VALUES('rev-bogus',NULL,'dev-a','h',x'01','bogus')", []);
+        assert!(
+            bad.is_err(),
+            "state outside the CHECK set must still be rejected"
         );
     }
 

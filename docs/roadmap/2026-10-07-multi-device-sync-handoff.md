@@ -514,7 +514,8 @@ P2 与 P3 的工程与自动化验收已完成（P3 见 §13），下一步为 P
 - [x] 最终定向 analyze（No issues found）与同步相关定向 **48 passed** 补齐；P2 工程与自动化验收完成（2026-10-11）。
 - [x] P3 工程与自动化验收完成（2026-10-12，见 §13）：数据集选择/修复 API + 网络稳态 tick + App 调度/状态页，环回真实 Worker 16/16、Rust 640/640、Flutter 345/345。
 - [x] P4a 源隔离/idempotency 保真/未知版本容错/长离线追平完成（2026-10-12，见 §14）：迁移 v27 + 7 个同步测试 + v27 迁移测试，Rust 648 全量通过。
-- [ ] P4b–P4e（Provider 冲突掩码/轮换端到端、S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5（S05）、原生 OS 密钥库发布门禁（未开展）。
+- [x] P4b Provider 冲突掩码审阅/显式裁决/可达性提示完成（2026-10-13，见 §15）：迁移 v28 + 冲突审阅/裁决存储与 FRB API + 6 个端到端测试 + v28 迁移测试，Rust 660 全量通过；审阅对话框 UI 接线属后续切片。
+- [ ] P4c–P4e（S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5（S05）、原生 OS 密钥库发布门禁（未开展）。
 
 ## 13. 2026-10-12 P3 实施（数据集选择/修复与 App 自动同步调度）
 
@@ -578,3 +579,43 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 - **协议固有边界**：接收方**从未见过某序号真身**时，伪造该序号无法识别（无真身可比），会作为合法新 op 应用；需后续签名/序列缺口检测解决，不在本增量。
 - 线格式演进：`InputRecord` 新增可选字段 + `state` 增加 `'isolated'` 属首版前允许的演进；旧设备 `deny_unknown_fields` 会拒新格式，跨版本协商留待后续 P4（见 §4）。
 - S01 的普通对话生命周期与其余记录来源的**逐项首版验收**、P4b–P4e、P5、原生 OS 密钥库与真人设备签收继续未完成。
+
+## 15. 2026-10-13 P4b 实施（Provider 冲突掩码审阅 / 显式裁决 / 可达性提示）
+
+对应同步 roadmap S04「Provider 完整配置」两项 checkbox（版本化 bundle + 冲突掩码绑定实际所见版本；环回/不可达提示不静默改 URL），见 §4。
+
+### 本轮实际交付
+
+1. **迁移 v28（`migrations/28-sync-provider-conflicts/up.sql`）**：`sync_provider_versions.state` CHECK 增加 `'dismissed'`。沿 v27 先例：`PRAGMA legacy_alter_table=ON` → `CREATE ..._new` → `INSERT ... SELECT` → DROP/RENAME。保留全部行与密文信封；驳回的 revision 保持可识别（重投为幂等 duplicate 而非复活为新冲突），其密文绝不重新解释为 applied。
+2. **冲突审阅与裁决存储层（`src/storage/sync/provider_conflicts.rs`）**：
+   - `list_sync_provider_conflicts`：查询 `state='conflict'` 行，用 vault 包裹密钥 + 名册发送方签名密钥解密信封（与 `apply_encrypted_provider_bundle` 相同的成员双侧 active 判定），本地/远端两侧配置全部掩码返回；锁定状态失败关闭（`provider_key_locked`）。
+   - `resolve_sync_provider_conflict`：**只**支持显式 `KeepLocal`/`AcceptRemote` 整包裁决，绝不按字段拼接 Key/URL。`AcceptRemote` 解密并 `replace_provider_bundle_on` 整包应用、置 `applied`、推进 `sync_provider_state`、清脏标记；`KeepLocal` 置 `dismissed` 并 `sync_mark_provider_dirty` 重新广播当前本地状态。
+   - **双版本绑定**：`expected_local_revision` 与 `expected_remote_revision` 必须原样回传用户审阅时所见版本，任一不匹配失败关闭（`provider_conflict_local_changed` / `provider_conflict_revision_mismatch`），避免审阅期间的并发本地编辑或新冲突被静默覆盖。
+   - 信封重开要求与暂存时记录的 header 完全一致（`crypto::open` 的 `sync envelope context mismatch`），篡改密文不能被重新解释为同一 revision。
+3. **掩码工具（`src/storage/provider_keys.rs::mask_api_key`）**：UTF-8 char 边界安全；`<=8` 字符整体遮蔽，更长保留前 3/后 4（如 `sk-****7890`）；空值返回空。仅用于冲突审阅展示，绝不进入 DTO 之外的存储/日志/诊断字符串。
+4. **可达性提示（`src/api/provider_reachability.rs`）**：纯静态、零 I/O、零新依赖。环回（`localhost`/`127.0.0.0/8`/`::1`/`0.0.0.0`）、私有网段（RFC1918/链路本地/`.local`/`.internal`/`.lan`）、缺 scheme、非常规 scheme、缺 host 五类提示码；**只提示不阻止**，原样回显地址，绝不返回修正后的 URL、不探测外部。
+5. **FRB API（`src/api/sync.rs`）**：`list_sync_provider_conflicts()` 返回 `ProviderSyncConflictDto`（含发送方设备名、双侧掩码 profile 列表 + 逐条可达性提示、远端激活项与故障切换顺序、本地激活项）；`resolve_sync_provider_conflict(revision_id, expected_local_revision, expected_remote_revision, accept_remote)`。DTO 绝不携带明文 Key。
+
+### 验证结果（本轮实际执行）
+
+| 检查 | 结果 |
+| --- | --- |
+| `cargo test --lib` | **660 passed / 0 failed / 17 ignored** |
+| `cargo test --all-targets`（`NO_PROXY=localhost,127.0.0.1,::1`） | **660 passed / 17 ignored** |
+| `cargo test --lib -- sync::provider_conflicts` | **6 passed**（掩码/双版本绑定/接受/保留/轮换+删除+激活/UTF-8 边界） |
+| `cargo test --lib -- new_migrations`（v28 迁移测试） | 通过（保留旧行 + 接受 `'dismissed'` + 拒绝集外值） |
+| `cargo fmt --all -- --check` | 干净 |
+| `cargo build --release` | 通过（经 `./scripts/regen.sh`） |
+| `./scripts/regen.sh` + `./scripts/test_bridge.sh` | 桥接 Dart/Rust hash 一致，桥接校验通过 |
+| `npm --prefix relay test` | **16 passed / 0 failed** |
+| Flutter `fvm flutter test` | **345 passed** |
+| Flutter analyze（`lib/bridge/generated.dart`） | 无问题；全量 analyze 仍为既有例外（1 warning + 70 info，非本切片） |
+
+### 边界与未完成
+
+- **审阅对话框 UI 尚未接线**：FRB API 就绪，Flutter 设置页的冲突列表/裁决弹窗属后续切片；当前无入口可触发裁决，但不影响已完成的存储与 API 语义。
+- **设置保存路径的可达性提示接线未完成**：提示模块就绪且已随冲突审阅 DTO 逐条返回；设置页保存 Provider 时的提示展示仍属后续切片。
+- 快照只导出 `state='applied'` 的 provider checkpoint（`snapshot.rs:157`），冲突/驳回行不进快照——属既有设计，未改动。
+- 用户明确不接受的较早冲突候选保持 `conflict` 终态，绝不随较新候选的接受而自动应用或消失，仍需逐条显式裁决。
+- P4c–P4e（S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5、原生 OS 密钥库发布门禁继续未完成。
+- 全程只用临时目录隔离库与合成 Key/合成身份；未用个人数据、真实密钥库、外部模型或线上中继。

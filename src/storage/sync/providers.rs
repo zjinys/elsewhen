@@ -47,6 +47,19 @@ impl Store {
         Ok(())
     }
 
+    /// Current local provider revision (the head users must bind conflict
+    /// resolutions to). The singleton row always exists once sync was
+    /// initialized; reading it keeps one canonical source for conflict review.
+    pub(crate) fn sync_provider_head_revision(&self) -> Result<String> {
+        self.connection
+            .query_row(
+                "SELECT revision_id FROM sync_provider_state WHERE singleton=1",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(Into::into)
+    }
+
     pub(crate) fn ensure_sync_provider_baseline(&self) -> Result<()> {
         ensure!(self.sync_identity()?.is_some(), "sync_not_initialized");
         self.connection.execute("INSERT OR IGNORE INTO sync_provider_state(singleton,revision_id,base_revision) VALUES(1,?1,NULL)",[uuid::Uuid::new_v4().to_string()])?;
