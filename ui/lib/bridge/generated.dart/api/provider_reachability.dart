@@ -19,9 +19,26 @@ Future<List<ReachabilityHint>> assessBaseUrl({required String baseUrl}) =>
       baseUrl: baseUrl,
     );
 
-// Rust type: RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>
-abstract class ReachabilityHint implements RustOpaqueInterface {
-  String get address;
+/// 单个地址的可达性提示。
+class ReachabilityHint {
+  /// 机器可读的提示码,供 UI 映射为本地化文案。
+  /// 取值为固定的五类常量(见 assess_base_url 中的字面量),Dart 侧
+  /// 作为普通 String 透传。
+  final String code;
 
-  set address(String address);
+  /// 触发提示的原始地址(原样回显,不修改)。
+  final String address;
+
+  const ReachabilityHint({required this.code, required this.address});
+
+  @override
+  int get hashCode => code.hashCode ^ address.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReachabilityHint &&
+          runtimeType == other.runtimeType &&
+          code == other.code &&
+          address == other.address;
 }

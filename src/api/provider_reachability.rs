@@ -9,9 +9,13 @@
 
 /// 单个地址的可达性提示。
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(unexpected_cfgs)] // frb 宏展开使用 frb_expand cfg；仓库未配置 check-cfg 白名单
+#[flutter_rust_bridge::frb(non_opaque)]
 pub struct ReachabilityHint {
     /// 机器可读的提示码,供 UI 映射为本地化文案。
-    pub code: &'static str,
+    /// 取值为固定的五类常量(见 assess_base_url 中的字面量),Dart 侧
+    /// 作为普通 String 透传。
+    pub code: String,
     /// 触发提示的原始地址(原样回显,不修改)。
     pub address: String,
 }
@@ -34,7 +38,7 @@ pub fn assess_base_url(base_url: &str) -> Vec<ReachabilityHint> {
             let scheme = scheme.to_ascii_lowercase();
             if scheme != "http" && scheme != "https" {
                 hints.push(ReachabilityHint {
-                    code: "provider_url_scheme_unusual",
+                    code: "provider_url_scheme_unusual".to_string(),
                     address: trimmed.to_string(),
                 });
             }
@@ -44,7 +48,7 @@ pub fn assess_base_url(base_url: &str) -> Vec<ReachabilityHint> {
             // 没有 scheme:多数 OpenAI 兼容客户端会失败或按 https 猜测,
             // 属于「可能不可达」的明确提示,但仍由用户决定。
             hints.push(ReachabilityHint {
-                code: "provider_url_missing_scheme",
+                code: "provider_url_missing_scheme".to_string(),
                 address: trimmed.to_string(),
             });
             trimmed
@@ -73,7 +77,7 @@ pub fn assess_base_url(base_url: &str) -> Vec<ReachabilityHint> {
     .to_ascii_lowercase();
     if host.is_empty() {
         hints.push(ReachabilityHint {
-            code: "provider_url_missing_host",
+            code: "provider_url_missing_host".to_string(),
             address: trimmed.to_string(),
         });
         return hints;
@@ -81,12 +85,12 @@ pub fn assess_base_url(base_url: &str) -> Vec<ReachabilityHint> {
 
     if is_loopback_host(&host) {
         hints.push(ReachabilityHint {
-            code: "provider_url_loopback",
+            code: "provider_url_loopback".to_string(),
             address: trimmed.to_string(),
         });
     } else if is_private_host(&host) {
         hints.push(ReachabilityHint {
-            code: "provider_url_private_network",
+            code: "provider_url_private_network".to_string(),
             address: trimmed.to_string(),
         });
     }
@@ -138,8 +142,15 @@ fn is_private_host(host: &str) -> bool {
 mod tests {
     use super::*;
 
-    fn codes(url: &str) -> Vec<&'static str> {
-        assess_base_url(url).iter().map(|h| h.code).collect()
+    fn codes(url: &str) -> Vec<String> {
+        assess_base_url(url)
+            .iter()
+            .map(|h| h.code.clone())
+            .collect()
+    }
+
+    fn has(url: &str, code: &str) -> bool {
+        assess_base_url(url).iter().any(|h| h.code == code)
     }
 
     #[test]
@@ -152,7 +163,7 @@ mod tests {
             "http://foo.localhost",
         ] {
             assert!(
-                codes(url).contains(&"provider_url_loopback"),
+                has(url, "provider_url_loopback"),
                 "{url} should be flagged loopback"
             );
         }
@@ -173,21 +184,21 @@ mod tests {
             "http://gateway.internal",
         ] {
             assert!(
-                codes(url).contains(&"provider_url_private_network"),
+                has(url, "provider_url_private_network"),
                 "{url} should be flagged private"
             );
         }
         // 172.15 与 172.32 不在 /12 内。
-        assert!(!codes("http://172.15.0.1").contains(&"provider_url_private_network"));
-        assert!(!codes("http://172.32.0.1").contains(&"provider_url_private_network"));
+        assert!(!has("http://172.15.0.1", "provider_url_private_network"));
+        assert!(!has("http://172.32.0.1", "provider_url_private_network"));
         // "127.example.com" 不是环回。
-        assert!(!codes("http://127.example.com").contains(&"provider_url_loopback"));
+        assert!(!has("http://127.example.com", "provider_url_loopback"));
     }
 
     #[test]
     fn missing_or_unusual_scheme_is_flagged_but_public_https_is_clean() {
-        assert!(codes("api.example.com/v1").contains(&"provider_url_missing_scheme"));
-        assert!(codes("ftp://api.example.com").contains(&"provider_url_scheme_unusual"));
+        assert!(has("api.example.com/v1", "provider_url_missing_scheme"));
+        assert!(has("ftp://api.example.com", "provider_url_scheme_unusual"));
         // 公网标准 https:无任何提示(不探测外部,不等于保证可达)。
         assert!(codes("https://api.openai.com/v1").is_empty());
         assert!(codes("https://api.deepseek.com").is_empty());
@@ -195,8 +206,8 @@ mod tests {
 
     #[test]
     fn missing_host_is_flagged() {
-        assert!(codes("http://").contains(&"provider_url_missing_host"));
-        assert!(codes("https:///path").contains(&"provider_url_missing_host"));
+        assert!(has("http://", "provider_url_missing_host"));
+        assert!(has("https:///path", "provider_url_missing_host"));
     }
 
     #[test]

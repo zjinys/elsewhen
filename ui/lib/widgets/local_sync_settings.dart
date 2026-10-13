@@ -3,15 +3,25 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../bridge/rust_bridge_repository.dart';
+import '../sync/sync_provider_conflicts_controller.dart';
 import '../sync/sync_setup_controller.dart';
 import 'owner_sync_pairing_settings.dart';
 import 'joiner_sync_pairing_settings.dart';
 import 'sync_enrollment_progress.dart';
+import 'sync_provider_conflicts_settings.dart';
 
 class LocalSyncSettings extends StatefulWidget {
-  const LocalSyncSettings({super.key, required this.controller, this.repository});
+  const LocalSyncSettings({
+    super.key,
+    required this.controller,
+    this.repository,
+    this.conflictsController,
+  });
   final SyncSetupController? controller;
   final RustBridgeRepository? repository;
+
+  /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
+  final SyncProviderConflictsController? conflictsController;
 
   @override
   State<LocalSyncSettings> createState() => _LocalSyncSettingsState();
@@ -20,10 +30,21 @@ class LocalSyncSettings extends StatefulWidget {
 class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   final _name = TextEditingController(text: '这台设备');
   bool _consent = false;
+  late final SyncProviderConflictsController _conflicts;
+  late final bool _ownsConflicts;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsConflicts = widget.conflictsController == null;
+    _conflicts =
+        widget.conflictsController ?? SyncProviderConflictsController();
+  }
 
   @override
   void dispose() {
     _name.dispose();
+    if (_ownsConflicts) _conflicts.dispose();
     super.dispose();
   }
 
@@ -150,6 +171,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 ),
               ],
               _NetworkSyncStatus(repository: widget.repository),
+              if (ready) SyncProviderConflictsSettings(controller: _conflicts),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -186,7 +208,6 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     );
   }
 }
-
 
 /// P3 网络同步 tick 的只读状态（范围/最近结果/错误），由后台 worker 更新。
 class _NetworkSyncStatus extends StatelessWidget {

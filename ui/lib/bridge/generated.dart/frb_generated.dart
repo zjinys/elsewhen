@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1016079605;
+  int get rustContentHash => 1080035639;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -108,15 +108,6 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  String crateApiProviderReachabilityReachabilityHintAutoAccessorGetAddress({
-    required ReachabilityHint that,
-  });
-
-  void crateApiProviderReachabilityReachabilityHintAutoAccessorSetAddress({
-    required ReachabilityHint that,
-    required String address,
-  });
-
   Future<WikiPageDto> crateApiKnowledgeAcceptKnowledgeProposalParts({
     required String id,
     required Int64List selectedParts,
@@ -969,15 +960,6 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
     required PlatformInt64 queueId,
   });
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_ReachabilityHint;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_ReachabilityHint;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_ReachabilityHintPtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -987,79 +969,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required super.generalizedFrbRustBinding,
     required super.portManager,
   });
-
-  @override
-  String crateApiProviderReachabilityReachabilityHintAutoAccessorGetAddress({
-    required ReachabilityHint that,
-  }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          var arg0 =
-              cst_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-                that,
-              );
-          return wire
-              .wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address(
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_String,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiProviderReachabilityReachabilityHintAutoAccessorGetAddressConstMeta,
-        argValues: [that],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiProviderReachabilityReachabilityHintAutoAccessorGetAddressConstMeta =>
-      const TaskConstMeta(
-        debugName: "ReachabilityHint_auto_accessor_get_address",
-        argNames: ["that"],
-      );
-
-  @override
-  void crateApiProviderReachabilityReachabilityHintAutoAccessorSetAddress({
-    required ReachabilityHint that,
-    required String address,
-  }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          var arg0 =
-              cst_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-                that,
-              );
-          var arg1 = cst_encode_String(address);
-          return wire
-              .wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address(
-                arg0,
-                arg1,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiProviderReachabilityReachabilityHintAutoAccessorSetAddressConstMeta,
-        argValues: [that, address],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiProviderReachabilityReachabilityHintAutoAccessorSetAddressConstMeta =>
-      const TaskConstMeta(
-        debugName: "ReachabilityHint_auto_accessor_set_address",
-        argNames: ["that", "address"],
-      );
 
   @override
   Future<WikiPageDto> crateApiKnowledgeAcceptKnowledgeProposalParts({
@@ -1380,8 +1289,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: DcoCodec(
-          decodeSuccessData:
-              dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint,
+          decodeSuccessData: dco_decode_list_reachability_hint,
           decodeErrorData: null,
         ),
         constMeta: kCrateApiProviderReachabilityAssessBaseUrlConstMeta,
@@ -7157,54 +7065,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         argNames: ["conversationId", "queueId"],
       );
 
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_ReachabilityHint => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_ReachabilityHint => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint;
-
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AnyhowException(dcoDecodeString(raw));
-  }
-
-  @protected
-  ReachabilityHint
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return ReachabilityHintImpl.frbInternalDcoDecode(dcoDecodeList(raw));
-  }
-
-  @protected
-  ReachabilityHint
-  dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return ReachabilityHintImpl.frbInternalDcoDecode(dcoDecodeList(raw));
-  }
-
-  @protected
-  ReachabilityHint
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return ReachabilityHintImpl.frbInternalDcoDecode(dcoDecodeList(raw));
-  }
-
-  @protected
-  ReachabilityHint
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return ReachabilityHintImpl.frbInternalDcoDecode(dcoDecodeList(raw));
   }
 
   @protected
@@ -8170,19 +8034,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<ReachabilityHint>
-  dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeList(raw)
-        .map(
-          dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint,
-        )
-        .toList();
-  }
-
-  @protected
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_String).toList();
@@ -8433,6 +8284,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return dcoDecodeList(raw)
         .map(dco_decode_provider_sync_conflict_dto)
         .toList();
+  }
+
+  @protected
+  List<ReachabilityHint> dco_decode_list_reachability_hint(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_reachability_hint).toList();
   }
 
   @protected
@@ -8757,10 +8614,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       temperature: dco_decode_f_64(arr[9]),
       maxTokens: dco_decode_opt_box_autoadd_i_64(arr[10]),
       contextWindow: dco_decode_opt_box_autoadd_i_64(arr[11]),
-      reachabilityHints:
-          dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-            arr[12],
-          ),
+      reachabilityHints: dco_decode_list_reachability_hint(arr[12]),
     );
   }
 
@@ -8781,6 +8635,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       remoteFailoverOrder: dco_decode_list_String(arr[7]),
       localProfiles: dco_decode_list_provider_conflict_profile_dto(arr[8]),
       localActiveId: dco_decode_opt_String(arr[9]),
+    );
+  }
+
+  @protected
+  ReachabilityHint dco_decode_reachability_hint(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ReachabilityHint(
+      code: dco_decode_String(arr[0]),
+      address: dco_decode_String(arr[1]),
     );
   }
 
@@ -9158,12 +9024,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt dco_decode_usize(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeU64(raw);
-  }
-
-  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -9228,54 +9088,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
     return AnyhowException(inner);
-  }
-
-  @protected
-  ReachabilityHint
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return ReachabilityHintImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  ReachabilityHint
-  sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return ReachabilityHintImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  ReachabilityHint
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return ReachabilityHintImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  ReachabilityHint
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return ReachabilityHintImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
   }
 
   @protected
@@ -10515,25 +10327,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<ReachabilityHint>
-  sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <ReachabilityHint>[];
-    for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(
-        sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-          deserializer,
-        ),
-      );
-    }
-    return ans_;
-  }
-
-  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -11027,6 +10820,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <ProviderSyncConflictDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_provider_sync_conflict_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ReachabilityHint> sse_decode_list_reachability_hint(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ReachabilityHint>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_reachability_hint(deserializer));
     }
     return ans_;
   }
@@ -11533,10 +11340,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_temperature = sse_decode_f_64(deserializer);
     var var_maxTokens = sse_decode_opt_box_autoadd_i_64(deserializer);
     var var_contextWindow = sse_decode_opt_box_autoadd_i_64(deserializer);
-    var var_reachabilityHints =
-        sse_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-          deserializer,
-        );
+    var var_reachabilityHints = sse_decode_list_reachability_hint(deserializer);
     return ProviderConflictProfileDto(
       id: var_id,
       name: var_name,
@@ -11585,6 +11389,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       localProfiles: var_localProfiles,
       localActiveId: var_localActiveId,
     );
+  }
+
+  @protected
+  ReachabilityHint sse_decode_reachability_hint(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_code = sse_decode_String(deserializer);
+    var var_address = sse_decode_String(deserializer);
+    return ReachabilityHint(code: var_code, address: var_address);
   }
 
   @protected
@@ -12047,12 +11859,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt sse_decode_usize(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
     SseDeserializer deserializer,
   ) {
@@ -12138,46 +11944,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int
-  cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    ReachabilityHint raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    // ignore: invalid_use_of_internal_member
-    return (raw as ReachabilityHintImpl).frbInternalCstEncode(move: true);
-  }
-
-  @protected
-  int
-  cst_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    ReachabilityHint raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    // ignore: invalid_use_of_internal_member
-    return (raw as ReachabilityHintImpl).frbInternalCstEncode(move: false);
-  }
-
-  @protected
-  int
-  cst_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    ReachabilityHint raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    // ignore: invalid_use_of_internal_member
-    return (raw as ReachabilityHintImpl).frbInternalCstEncode(move: false);
-  }
-
-  @protected
-  int
-  cst_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    ReachabilityHint raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    // ignore: invalid_use_of_internal_member
-    return (raw as ReachabilityHintImpl).frbInternalCstEncode();
-  }
-
-  @protected
   bool cst_encode_bool(bool raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw;
@@ -12220,58 +11986,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.message, serializer);
-  }
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    ReachabilityHint self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as ReachabilityHintImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    ReachabilityHint self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as ReachabilityHintImpl).frbInternalSseEncode(move: false),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    ReachabilityHint self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as ReachabilityHintImpl).frbInternalSseEncode(move: false),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    ReachabilityHint self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as ReachabilityHintImpl).frbInternalSseEncode(move: null),
-      serializer,
-    );
   }
 
   @protected
@@ -13161,22 +12875,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void
-  sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-    List<ReachabilityHint> self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    for (final item in self) {
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-        item,
-        serializer,
-      );
-    }
-  }
-
-  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
@@ -13623,6 +13321,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_reachability_hint(
+    List<ReachabilityHint> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_reachability_hint(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_relation_dto(
     List<RelationDto> self,
     SseSerializer serializer,
@@ -14057,10 +13767,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.temperature, serializer);
     sse_encode_opt_box_autoadd_i_64(self.maxTokens, serializer);
     sse_encode_opt_box_autoadd_i_64(self.contextWindow, serializer);
-    sse_encode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-      self.reachabilityHints,
-      serializer,
-    );
+    sse_encode_list_reachability_hint(self.reachabilityHints, serializer);
   }
 
   @protected
@@ -14085,6 +13792,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       serializer,
     );
     sse_encode_opt_String(self.localActiveId, serializer);
+  }
+
+  @protected
+  void sse_encode_reachability_hint(
+    ReachabilityHint self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.code, serializer);
+    sse_encode_String(self.address, serializer);
   }
 
   @protected
@@ -14405,12 +14122,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_usize(BigInt self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putBigUint64(self);
-  }
-
-  @protected
   void sse_encode_web_search_config_dto(
     WebSearchConfigDto self,
     SseSerializer serializer,
@@ -14460,39 +14171,4 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.humanEditedAt, serializer);
     sse_encode_opt_String(self.opinion, serializer);
   }
-}
-
-@sealed
-class ReachabilityHintImpl extends RustOpaque implements ReachabilityHint {
-  // Not to be used by end users
-  ReachabilityHintImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  ReachabilityHintImpl.frbInternalSseDecode(
-    BigInt ptr,
-    int externalSizeOnNative,
-  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_ReachabilityHint,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_ReachabilityHint,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_ReachabilityHintPtr,
-  );
-
-  String get address => RustLib.instance.api
-      .crateApiProviderReachabilityReachabilityHintAutoAccessorGetAddress(
-        that: this,
-      );
-
-  set address(String address) => RustLib.instance.api
-      .crateApiProviderReachabilityReachabilityHintAutoAccessorSetAddress(
-        that: this,
-        address: address,
-      );
 }

@@ -27,7 +27,6 @@
 
 // Section: imports
 
-use crate::api::provider_reachability::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
@@ -40,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1016079605;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1080035639;
 
 // Section: executor
 
@@ -48,80 +47,6 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address_impl(
-    that: impl CstDecode<
-        RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>,
-    >,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ReachabilityHint_auto_accessor_get_address",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let api_that = that.cst_decode();
-            transform_result_dco::<_, _, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_that_guard = api_that_guard.unwrap();
-                let output_ok = Ok::<_, ()>(api_that_guard.address.clone())?;
-                std::result::Result::Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address_impl(
-    that: impl CstDecode<
-        RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>,
-    >,
-    address: impl CstDecode<String>,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "ReachabilityHint_auto_accessor_set_address",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let api_that = that.cst_decode();
-            let api_address = address.cst_decode();
-            transform_result_dco::<_, _, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, true,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref_mut()),
-                        _ => unreachable!(),
-                    }
-                }
-                let mut api_that_guard = api_that_guard.unwrap();
-                let output_ok = Ok::<_, ()>({
-                    {
-                        api_that_guard.address = api_address;
-                    };
-                })?;
-                std::result::Result::Ok(output_ok)
-            })())
-        },
-    )
-}
 fn wire__crate__api__knowledge__accept_knowledge_proposal_parts_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
@@ -5308,37 +5233,11 @@ impl CstDecode<u8> for u8 {
         self
     }
 }
-impl CstDecode<usize> for usize {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    fn cst_decode(self) -> usize {
-        self
-    }
-}
 impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <String>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::anyhow::anyhow!("{}", inner);
-    }
-}
-
-impl SseDecode for ReachabilityHint {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueNom<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return unsafe { decode_rust_opaque_nom(inner) };
     }
 }
 
@@ -6474,18 +6373,6 @@ impl SseDecode for crate::knowledge::workflows::LibraryPage {
     }
 }
 
-impl SseDecode for Vec<ReachabilityHint> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<ReachabilityHint>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
 impl SseDecode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6975,6 +6862,20 @@ impl SseDecode for Vec<crate::api::sync::ProviderSyncConflictDto> {
             ans_.push(<crate::api::sync::ProviderSyncConflictDto>::sse_decode(
                 deserializer,
             ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::provider_reachability::ReachabilityHint> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::provider_reachability::ReachabilityHint>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -7475,7 +7376,8 @@ impl SseDecode for crate::api::sync::ProviderConflictProfileDto {
         let mut var_temperature = <f64>::sse_decode(deserializer);
         let mut var_maxTokens = <Option<i64>>::sse_decode(deserializer);
         let mut var_contextWindow = <Option<i64>>::sse_decode(deserializer);
-        let mut var_reachabilityHints = <Vec<ReachabilityHint>>::sse_decode(deserializer);
+        let mut var_reachabilityHints =
+            <Vec<crate::api::provider_reachability::ReachabilityHint>>::sse_decode(deserializer);
         return crate::api::sync::ProviderConflictProfileDto {
             id: var_id,
             name: var_name,
@@ -7520,6 +7422,18 @@ impl SseDecode for crate::api::sync::ProviderSyncConflictDto {
             remote_failover_order: var_remoteFailoverOrder,
             local_profiles: var_localProfiles,
             local_active_id: var_localActiveId,
+        };
+    }
+}
+
+impl SseDecode for crate::api::provider_reachability::ReachabilityHint {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_code = <String>::sse_decode(deserializer);
+        let mut var_address = <String>::sse_decode(deserializer);
+        return crate::api::provider_reachability::ReachabilityHint {
+            code: var_code,
+            address: var_address,
         };
     }
 }
@@ -7983,13 +7897,6 @@ impl SseDecode for crate::api::chat_runs::UnscheduledChatInputDto {
     }
 }
 
-impl SseDecode for usize {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_u64::<NativeEndian>().unwrap() as _
-    }
-}
-
 impl SseDecode for crate::api::web_search::WebSearchConfigDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8100,21 +8007,6 @@ fn pde_ffi_dispatcher_sync_impl(
 }
 
 // Section: rust2dart
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<ReachabilityHint> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, StdArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<ReachabilityHint> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ReachabilityHint>> for ReachabilityHint {
-    fn into_into_dart(self) -> FrbWrapper<ReachabilityHint> {
-        self.into()
-    }
-}
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::provider_config::AiProviderConfigDto {
@@ -9548,6 +9440,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::ProviderSyncConflictDto
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::provider_reachability::ReachabilityHint {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.code.into_into_dart().into_dart(),
+            self.address.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::provider_reachability::ReachabilityHint
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::provider_reachability::ReachabilityHint>
+    for crate::api::provider_reachability::ReachabilityHint
+{
+    fn into_into_dart(self) -> crate::api::provider_reachability::ReachabilityHint {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::relations::RelationDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -10156,24 +10069,6 @@ impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(format!("{:?}", self), serializer);
-    }
-}
-
-impl SseEncode for ReachabilityHint {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, StdArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
     }
 }
 
@@ -10878,16 +10773,6 @@ impl SseEncode for crate::knowledge::workflows::LibraryPage {
     }
 }
 
-impl SseEncode for Vec<ReachabilityHint> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <ReachabilityHint>::sse_encode(item, serializer);
-        }
-    }
-}
-
 impl SseEncode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11254,6 +11139,16 @@ impl SseEncode for Vec<crate::api::sync::ProviderSyncConflictDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::sync::ProviderSyncConflictDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::provider_reachability::ReachabilityHint> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::provider_reachability::ReachabilityHint>::sse_encode(item, serializer);
         }
     }
 }
@@ -11629,7 +11524,10 @@ impl SseEncode for crate::api::sync::ProviderConflictProfileDto {
         <f64>::sse_encode(self.temperature, serializer);
         <Option<i64>>::sse_encode(self.max_tokens, serializer);
         <Option<i64>>::sse_encode(self.context_window, serializer);
-        <Vec<ReachabilityHint>>::sse_encode(self.reachability_hints, serializer);
+        <Vec<crate::api::provider_reachability::ReachabilityHint>>::sse_encode(
+            self.reachability_hints,
+            serializer,
+        );
     }
 }
 
@@ -11652,6 +11550,14 @@ impl SseEncode for crate::api::sync::ProviderSyncConflictDto {
             serializer,
         );
         <Option<String>>::sse_encode(self.local_active_id, serializer);
+    }
+}
+
+impl SseEncode for crate::api::provider_reachability::ReachabilityHint {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.code, serializer);
+        <String>::sse_encode(self.address, serializer);
     }
 }
 
@@ -11939,16 +11845,6 @@ impl SseEncode for crate::api::chat_runs::UnscheduledChatInputDto {
     }
 }
 
-impl SseEncode for usize {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer
-            .cursor
-            .write_u64::<NativeEndian>(self as _)
-            .unwrap();
-    }
-}
-
 impl SseEncode for crate::api::web_search::WebSearchConfigDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12005,7 +11901,6 @@ mod io {
     // Section: imports
 
     use super::*;
-    use crate::api::provider_reachability::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -12024,33 +11919,6 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> flutter_rust_bridge::for_generated::anyhow::Error {
             unimplemented!()
-        }
-    }
-    impl CstDecode<ReachabilityHint> for usize {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> ReachabilityHint {
-            flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(CstDecode::<
-                RustOpaqueNom<
-                    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>,
-                >,
-            >::cst_decode(
-                self
-            ))
-        }
-    }
-    impl
-        CstDecode<
-            RustOpaqueNom<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>,
-            >,
-        > for usize
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(
-            self,
-        ) -> RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>
-        {
-            unsafe { decode_rust_opaque_nom(self as _) }
         }
     }
     impl CstDecode<String> for *mut wire_cst_list_prim_u_8_strict {
@@ -12885,16 +12753,6 @@ mod io {
             }
         }
     }
-    impl CstDecode<Vec<ReachabilityHint>> for *mut wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint {
-            // Codec=Cst (C-struct based), see doc to use other codecs
-            fn cst_decode(self) -> Vec<ReachabilityHint> {
-                let vec = unsafe {
-        let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
-        flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
-    };
-    vec.into_iter().map(CstDecode::cst_decode).collect()
-            }
-        }
     impl CstDecode<Vec<String>> for *mut wire_cst_list_String {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<String> {
@@ -13322,6 +13180,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::provider_reachability::ReachabilityHint>>
+        for *mut wire_cst_list_reachability_hint
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::provider_reachability::ReachabilityHint> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::relations::RelationDto>> for *mut wire_cst_list_relation_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::relations::RelationDto> {
@@ -13568,6 +13438,15 @@ mod io {
                 remote_failover_order: self.remote_failover_order.cst_decode(),
                 local_profiles: self.local_profiles.cst_decode(),
                 local_active_id: self.local_active_id.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::provider_reachability::ReachabilityHint> for wire_cst_reachability_hint {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::provider_reachability::ReachabilityHint {
+            crate::api::provider_reachability::ReachabilityHint {
+                code: self.code.cst_decode(),
+                address: self.address.cst_decode(),
             }
         }
     }
@@ -14912,6 +14791,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_reachability_hint {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                code: core::ptr::null_mut(),
+                address: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_reachability_hint {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_record_list_sync_dataset_entry_dto_i_64 {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -15349,25 +15241,6 @@ mod io {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address(
-        that: usize,
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address_impl(
-            that,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address(
-        that: usize,
-        address: *mut wire_cst_list_prim_u_8_strict,
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address_impl(
-            that, address,
-        )
     }
 
     #[unsafe(no_mangle)]
@@ -17289,24 +17162,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-        ptr: *const std::ffi::c_void,
-    ) {
-        unsafe {
-            StdArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>::increment_strong_count(ptr as _);
-        }
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-        ptr: *const std::ffi::c_void,
-    ) {
-        unsafe {
-            StdArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>::decrement_strong_count(ptr as _);
-        }
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_ai_provider_config_dto()
     -> *mut wire_cst_ai_provider_config_dto {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -17420,12 +17275,6 @@ mod io {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_wiki_page_dto::new_with_null_ptr(),
         )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(len: i32) -> *mut wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint{
-        let wrap = wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint { ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(Default::default(), len), len };
-        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
     }
 
     #[unsafe(no_mangle)]
@@ -17944,6 +17793,20 @@ mod io {
         let wrap = wire_cst_list_provider_sync_conflict_dto {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_provider_sync_conflict_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_reachability_hint(
+        len: i32,
+    ) -> *mut wire_cst_list_reachability_hint {
+        let wrap = wire_cst_list_reachability_hint {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_reachability_hint>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -18684,13 +18547,6 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
-    pub struct wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint
-    {
-        ptr: *mut usize,
-        len: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
     pub struct wire_cst_list_String {
         ptr: *mut *mut wire_cst_list_prim_u_8_strict,
         len: i32,
@@ -18919,6 +18775,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_reachability_hint {
+        ptr: *mut wire_cst_reachability_hint,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_relation_dto {
         ptr: *mut wire_cst_relation_dto,
         len: i32,
@@ -19053,19 +18915,21 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
-    pub struct wire_cst_provider_conflict_profile_dto { id: *mut wire_cst_list_prim_u_8_strict,
-name: *mut wire_cst_list_prim_u_8_strict,
-provider_type: *mut wire_cst_list_prim_u_8_strict,
-base_url: *mut wire_cst_list_prim_u_8_strict,
-model: *mut wire_cst_list_prim_u_8_strict,
-api_key_masked: *mut wire_cst_list_prim_u_8_strict,
-api_key_present: bool,
-enabled: bool,
-is_active: bool,
-temperature: f64,
-max_tokens: *mut i64,
-context_window: *mut i64,
-reachability_hints: *mut wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint }
+    pub struct wire_cst_provider_conflict_profile_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        name: *mut wire_cst_list_prim_u_8_strict,
+        provider_type: *mut wire_cst_list_prim_u_8_strict,
+        base_url: *mut wire_cst_list_prim_u_8_strict,
+        model: *mut wire_cst_list_prim_u_8_strict,
+        api_key_masked: *mut wire_cst_list_prim_u_8_strict,
+        api_key_present: bool,
+        enabled: bool,
+        is_active: bool,
+        temperature: f64,
+        max_tokens: *mut i64,
+        context_window: *mut i64,
+        reachability_hints: *mut wire_cst_list_reachability_hint,
+    }
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_provider_sync_conflict_dto {
@@ -19079,6 +18943,12 @@ reachability_hints: *mut wire_cst_list_Auto_Owned_RustOpaque_flutter_rust_bridge
         remote_failover_order: *mut wire_cst_list_String,
         local_profiles: *mut wire_cst_list_provider_conflict_profile_dto,
         local_active_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_reachability_hint {
+        code: *mut wire_cst_list_prim_u_8_strict,
+        address: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -19356,7 +19226,6 @@ mod web {
     // Section: imports
 
     use super::*;
-    use crate::api::provider_reachability::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -20553,18 +20422,6 @@ mod web {
             }
         }
     }
-    impl CstDecode<Vec<ReachabilityHint>>
-        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<ReachabilityHint> {
-            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
-                .unwrap()
-                .iter()
-                .map(CstDecode::cst_decode)
-                .collect()
-        }
-    }
     impl CstDecode<Vec<String>> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<String> {
@@ -20995,6 +20852,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::provider_reachability::ReachabilityHint>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::provider_reachability::ReachabilityHint> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::relations::RelationDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -21347,6 +21216,26 @@ mod web {
                 remote_failover_order: self_.get(7).cst_decode(),
                 local_profiles: self_.get(8).cst_decode(),
                 local_active_id: self_.get(9).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::provider_reachability::ReachabilityHint>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::provider_reachability::ReachabilityHint {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::provider_reachability::ReachabilityHint {
+                code: self_.get(0).cst_decode(),
+                address: self_.get(1).cst_decode(),
             }
         }
     }
@@ -21968,37 +21857,6 @@ mod web {
             unimplemented!()
         }
     }
-    impl CstDecode<ReachabilityHint> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> ReachabilityHint {
-            flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(CstDecode::<
-                RustOpaqueNom<
-                    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>,
-                >,
-            >::cst_decode(
-                self
-            ))
-        }
-    }
-    impl
-        CstDecode<
-            RustOpaqueNom<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>,
-            >,
-        > for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(
-            self,
-        ) -> RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>
-        {
-            #[cfg(target_pointer_width = "64")]
-            {
-                compile_error!("64-bit pointers are not supported.");
-            }
-            unsafe { decode_rust_opaque_nom((self.as_f64().unwrap() as usize) as _) }
-        }
-    }
     impl CstDecode<String> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> String {
@@ -22057,31 +21915,6 @@ mod web {
         fn cst_decode(self) -> u8 {
             self.unchecked_into_f64() as _
         }
-    }
-    impl CstDecode<usize> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> usize {
-            ::std::convert::TryInto::<u64>::try_into(self).unwrap() as _
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address(
-        that: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_get_address_impl(
-            that,
-        )
-    }
-
-    #[wasm_bindgen]
-    pub fn wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address(
-        that: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
-        address: String,
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__provider_reachability__ReachabilityHint_auto_accessor_set_address_impl(
-            that, address,
-        )
     }
 
     #[wasm_bindgen]
@@ -24026,24 +23859,6 @@ mod web {
         queue_id: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
         wire__crate__api__chat_runs__withdraw_chat_input_impl(port_, conversation_id, queue_id)
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-        ptr: *const std::ffi::c_void,
-    ) {
-        unsafe {
-            StdArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>::increment_strong_count(ptr as _);
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerReachabilityHint(
-        ptr: *const std::ffi::c_void,
-    ) {
-        unsafe {
-            StdArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ReachabilityHint>>::decrement_strong_count(ptr as _);
-        }
     }
 }
 #[cfg(target_family = "wasm")]

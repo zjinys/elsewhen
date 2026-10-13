@@ -514,7 +514,7 @@ P2 与 P3 的工程与自动化验收已完成（P3 见 §13），下一步为 P
 - [x] 最终定向 analyze（No issues found）与同步相关定向 **48 passed** 补齐；P2 工程与自动化验收完成（2026-10-11）。
 - [x] P3 工程与自动化验收完成（2026-10-12，见 §13）：数据集选择/修复 API + 网络稳态 tick + App 调度/状态页，环回真实 Worker 16/16、Rust 640/640、Flutter 345/345。
 - [x] P4a 源隔离/idempotency 保真/未知版本容错/长离线追平完成（2026-10-12，见 §14）：迁移 v27 + 7 个同步测试 + v27 迁移测试，Rust 648 全量通过。
-- [x] P4b Provider 冲突掩码审阅/显式裁决/可达性提示完成（2026-10-13，见 §15）：迁移 v28 + 冲突审阅/裁决存储与 FRB API + 6 个端到端测试 + v28 迁移测试，Rust 660 全量通过；审阅对话框 UI 接线属后续切片。
+- [x] P4b Provider 冲突掩码审阅/显式裁决/可达性提示完成（2026-10-13，见 §15）：迁移 v28 + 冲突审阅/裁决存储与 FRB API + 6 个端到端测试 + v28 迁移测试，Rust 660 全量通过；审阅对话框 UI 接线完成（§16），Flutter 349 全量通过。
 - [ ] P4c–P4e（S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5（S05）、原生 OS 密钥库发布门禁（未开展）。
 
 ## 13. 2026-10-12 P3 实施（数据集选择/修复与 App 自动同步调度）
@@ -613,9 +613,35 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 
 ### 边界与未完成
 
-- **审阅对话框 UI 尚未接线**：FRB API 就绪，Flutter 设置页的冲突列表/裁决弹窗属后续切片；当前无入口可触发裁决，但不影响已完成的存储与 API 语义。
-- **设置保存路径的可达性提示接线未完成**：提示模块就绪且已随冲突审阅 DTO 逐条返回；设置页保存 Provider 时的提示展示仍属后续切片。
+- **审阅对话框 UI 已接线**（§16）：设置 → 数据 → 设备同步在 `local_ready` 时展示冲突列表与「保留本地/接受远端」按钮；设置保存路径的可达性提示此前已由 `ProviderEndpointNotice` 覆盖，本次未改动。
 - 快照只导出 `state='applied'` 的 provider checkpoint（`snapshot.rs:157`），冲突/驳回行不进快照——属既有设计，未改动。
 - 用户明确不接受的较早冲突候选保持 `conflict` 终态，绝不随较新候选的接受而自动应用或消失，仍需逐条显式裁决。
 - P4c–P4e（S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5、原生 OS 密钥库发布门禁继续未完成。
 - 全程只用临时目录隔离库与合成 Key/合成身份；未用个人数据、真实密钥库、外部模型或线上中继。
+
+## 16. 2026-10-13 P4b 收尾（冲突审阅对话框 UI 接线）
+
+### 本轮实际交付
+
+1. **`ui/lib/sync/sync_provider_conflicts_controller.dart`**：`SyncProviderConflictApi` 接口（默认 `FrbSyncProviderConflictApi`）+ `SyncProviderConflictsController`。首次展示时拉取；裁决成功后重拉确认该冲突确实消失（不乐观移除）；列表/裁决失败保留旧视图并原样展示错误，绝不静默清空。锁定/双版本绑定/已裁决三类失败关闭错误映射为本地化文案。
+2. **`ui/lib/widgets/sync_provider_conflicts_settings.dart`**：冲突卡片展示发送方设备名、本机/远端两侧掩码 profile（名称/模型/激活项/base_url 原样回显/掩码 Key/逐条可达性提示本地化）、「保留本地」/「接受远端」按钮。密钥绝不以明文出现；提示仅为静态分析，不代表实际可达。
+3. **接线（`ui/lib/widgets/local_sync_settings.dart`）**：`local_ready` 时在「设备同步」区展示冲突面板；控制器可注入测试替身，未注入时自建并随 widget 销毁。设置保存路径的可达性提示此前已由 `ProviderEndpointNotice`（Dart 原生静态分析）覆盖，本次未改动。
+4. **`src/api/provider_reachability.rs` 桥接修正**：`ReachabilityHint.code` 由 `&'static str` 改为 `String` 并加 `#[flutter_rust_bridge::frb(non_opaque)]`——`&'static str` 会被 FRB 当作 opaque `str` 生成无法编译的 `RustAutoOpaqueInner<str>`；改后生成普通 Dart DTO（`final String code/address`）。`ui/lib/bridge/api.dart` 补 `provider_reachability.dart` 导出。语义不变。
+
+### 验证结果（本轮实际执行）
+
+| 检查 | 结果 |
+| --- | --- |
+| Flutter `fvm flutter test` | **349 passed**（4 个新 widget 测试：掩码+提示+无明文、保留本地/接受远端原样回传版本、锁定失败关闭不清空列表、审阅期间本地已变双版本绑定上抛） |
+| Flutter analyze（本切片 4 个文件） | 无问题；全量仍为既有 1 warning + 70 info 例外单列 |
+| `fvm dart format --set-exit-if-changed`（本切片文件） | 通过 |
+| `cargo test --all-targets`（`NO_PROXY=localhost,127.0.0.1,::1`） | **660 passed / 17 ignored**（无 Rust 语义变更） |
+| `cargo fmt --all -- --check` / `cargo build --release` | 通过 |
+| `./scripts/regen.sh` + `./scripts/test_bridge.sh` | 桥接 hash 一致，桥接校验通过（**必须用 regen.sh 而非裸 `flutter_rust_bridge_codegen generate`**：裸跑缺 `CPATH` clang 头导致 ffigen 把 `bool` 解析成 NativeFunction，生成无法编译的 `.io.dart`） |
+| `npm --prefix relay test` | **16 passed / 0 failed** |
+
+### 边界与未完成
+
+- 本切片只接通**审阅对话框 UI**；Rust 存储/API 语义未改动。
+- P4c–P4e（S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5、原生 OS 密钥库发布门禁继续未完成。
+- 真实双设备冲突的端到端演示仍需真人设备门禁（P4e），widget 测试不替代之。
