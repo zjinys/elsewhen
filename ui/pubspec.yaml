@@ -85,6 +85,8 @@ dependencies:
   # 详见 third_party/appflowy_editor/README.local.md。
   appflowy_editor:
     path: third_party/appflowy_editor
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.4.2
 
 dependency_overrides:
   # appflowy_editor（vendored）锁死 keyboard_height_plugin ^0.1.5（compileSdk 31，

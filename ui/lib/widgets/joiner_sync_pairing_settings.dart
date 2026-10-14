@@ -3,10 +3,27 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../sync/sync_join_controller.dart';
+import 'joiner_qr_scan_page.dart';
 
 class JoinerSyncPairingSettings extends StatefulWidget {
-  const JoinerSyncPairingSettings({super.key, required this.controller});
+  const JoinerSyncPairingSettings({
+    super.key,
+    required this.controller,
+    this.scanSupported,
+    this.scannerBuilder,
+  });
   final SyncJoinController controller;
+
+  /// 扫码可用性（默认按平台判定；测试注入 true 打开扫码入口）。
+  final bool? scanSupported;
+
+  /// 扫码页取景器注入缝（测试替换相机）；见 JoinerQrScanPage。
+  final Widget Function(BuildContext context, void Function(String code))?
+  scannerBuilder;
+
+  bool get scanAvailable =>
+      scanSupported ??
+      (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
 
   @override
   State<JoinerSyncPairingSettings> createState() =>
@@ -23,6 +40,21 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
     _code.dispose();
     _name.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanCode() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => JoinerQrScanPage(
+          onDetected: (code) => Navigator.of(context).pop(code),
+          scannerBuilder: widget.scannerBuilder,
+        ),
+      ),
+    );
+    if (!mounted || code == null || code.isEmpty) return;
+    setState(() => _consent = false);
+    await widget.controller.preview(code);
+    if (mounted && widget.controller.active) _code.clear();
   }
 
   @override
@@ -55,15 +87,27 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                 border: OutlineInputBorder(),
               ),
             ),
-            OutlinedButton(
-              onPressed: controller.busy
-                  ? null
-                  : () async {
-                      setState(() => _consent = false);
-                      await controller.preview(_code.text);
-                      if (mounted && controller.active) _code.clear();
-                    },
-              child: const Text('预览邀请（不联网）'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: controller.busy
+                      ? null
+                      : () async {
+                          setState(() => _consent = false);
+                          await controller.preview(_code.text);
+                          if (mounted && controller.active) _code.clear();
+                        },
+                  child: const Text('预览邀请（不联网）'),
+                ),
+                if (widget.scanAvailable)
+                  OutlinedButton.icon(
+                    onPressed: controller.busy ? null : () => _scanCode(),
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('扫码'),
+                  ),
+              ],
             ),
           ],
           if (state != null && controller.active) ...[

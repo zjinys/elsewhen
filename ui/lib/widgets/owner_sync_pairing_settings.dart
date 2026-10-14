@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart';
 
 import '../bridge/api.dart' as api;
@@ -114,6 +115,19 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
           const Text('邀请码仅交给可信设备。'),
           Text(
             '到期时间：${DateTime.fromMillisecondsSinceEpoch(offer.expiresAtMs).toLocal()}',
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(8),
+              child: QrImageView(
+                data: offer.code,
+                version: QrVersions.auto,
+                size: 220,
+                backgroundColor: Colors.white,
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           ConstrainedBox(

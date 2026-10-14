@@ -8,5 +8,7 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
-</dict>
+	<key>com.apple.security.device.camera</key>
+	<true/>
+
 </plist>

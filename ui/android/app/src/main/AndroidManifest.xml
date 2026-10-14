@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 仅用于「扫码加入同步」读取邀请二维码；不存储、不上传画面。 -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <application
         android:label="Elsewhen"
         android:name="${applicationName}"

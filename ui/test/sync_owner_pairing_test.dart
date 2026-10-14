@@ -7,6 +7,7 @@ import 'package:elsewhen_ui/sync/sync_key_store.dart';
 import 'package:elsewhen_ui/sync/sync_pairing_api.dart';
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
 import 'package:elsewhen_ui/widgets/local_sync_settings.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import 'support/sync_setup.dart';
 
@@ -276,6 +277,9 @@ void main() {
           ),
         ),
       );
+      // 邀请出示即渲染二维码（扫描通道），原文与复制仍是回退通道。
+      // QrImageView 的 data 字段是私有的；存在性断言 + 同行 data: offer.code。
+      expect(find.byType(QrImageView), findsOneWidget);
       final review = find.text('核对并审批');
       await tester.ensureVisible(review);
       await tester.tap(review);
