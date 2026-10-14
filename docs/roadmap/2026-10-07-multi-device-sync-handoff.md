@@ -691,3 +691,51 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 ### 事故记录：外来 stash 污染
 
 本轮 `cargo fmt --all` 后 `git stash`/`stash pop` 操作意外把 stash@{0} 中**另一工作流的 storage-adapter 重构**混入工作区（`src/storage/adapter.rs`、`src/storage/mod.rs`、多个 UI settings 文件、2 个新架构 note、`proposal-backlog.md` 的两条非本切片提案）。已逐一甄别并 `git checkout HEAD --` 还原全部外来文件，仅保留 P4c 自有改动；stash@{0} 保留未动（属另一工作流）。**教训**：多工作流共用仓库时，`git stash` 不带 message 极易张冠李戴；本仓库禁止无 message 的 stash。
+
+## 18. 2026-10-13 P4c 收尾（自动重快照调度闭环）
+
+**目标**：闭合 §17 遗留的「`needs_resnapshot` 只置标志」——自动检测标志、幂等重建/重发快照、并在对端确认后解除 GC 冻结。本节全部失败关闭。
+
+### 设计：durable 请求行 + 单调 nonce + 请求绑定导出 + 合成应用 ack
+
+- **迁移 v30**（`migrations/30-sync-resnapshot/up.sql`）：
+  - `sync_snapshot_exports` 增加 `roster_revision`（导出嵌入的权威名册修订，接收端完成时交叉校验）。
+  - `sync_resnapshot_requests(device_id, snapshot_id, request_nonce, open)` — 每成员一条 durable 请求；`request_nonce` **单调不减**（完成只把 `open` 置 0 而不删行），因此新一代必得新 id，旧导出永远无法满足新请求。快照 id 在 `begin_snapshot_export` 时绑定（请求先于导出行存在，故无外键）。
+- **`src/storage/sync/resnapshot.rs`**：
+  - `claim_sync_resnapshot` — 仅对「已标记 + active + 非自己 + 无在途导出」的成员产出 claim；已 claim 未建 / 已 abort 的请求**复用同一 id**（重建导出在同一 id 下字节一致），其余情况 nonce+1。幂等跨 tick/重启。
+  - `finish_sync_resnapshot_requests` — 仅当**当前请求 id** 的导出被 ack 才完成：经 `mark_member_snapshotted` 用**构建时 frontier** 重播种水印并清标志（解除 GC 冻结）。
+  - `sync_resnapshot_states` — 只读状态（供 tick 报告）。
+- **完成回路的合成应用 ack**：接收端无法把快照导入非空活库（restore 流程不在本切片），因此当某导出的全部 wire 都已 ack 时，接收端发一条合成应用 ack（`op_id = "resnapshot-ack:{export_id}"`）。发送端 `accept_sync_receipt` 识别该前缀并路由到 `acknowledge_snapshot_export`（不经过普通 op 退休路径）。
+- **tick 顺序**（`runtime/network.rs`）：peers push/pull → `finish_sync_resnapshot_requests` → `run_sync_gc` → claim+stage 重快照（`stage_enrollment_snapshot` 嵌入权威名册）→ 接收端 ack 检测 → 报告。`NetworkTickReport`/`SyncTickResultDto` 增加 `resnapshot_pending`。
+
+### 失败关闭不变量
+
+- 未标记 / 已撤销 / 自己 / 已有在途导出的成员拿不到新导出（claim 返回 `None`）。
+- 重新标记（re-flag）后 nonce 轮换：旧导出即使已 ack 也**不**满足新请求（`finish` 只认当前请求 id）。
+- `begin_snapshot_export` 强制 id 绑定：请求行存在时 id 不匹配即拒绝（`sync_snapshot_resnapshot_request_mismatch`）。
+- 全程只用应用层水印；relay ack（`sync_wire_outbox.state`）不作为 GC 依据。
+
+### 顺手修复的两处潜在 `QueryReturnedNoRows`
+
+- `current_signed_roster`：`sync_authority` 行存在但 `signed_roster` 为 NULL（旧配对流程）时，原裸 `query_row` 抛 `Invalid column type Null`；改为 `.optional()?.flatten()`。这修复了配对/membership 一组测试（v30 前因 `begin_snapshot_export` 尚不读它而潜伏）。
+- `sync_local_gc_floor` 与 `begin_snapshot_export` 的 frontier 查询：无行时改 `.optional()`，不再依赖「恰好有行」。
+
+### 验证结果（本轮实际执行）
+
+| 检查 | 结果 |
+| --- | --- |
+| `cargo test --all-targets`（`NO_PROXY=localhost,127.0.0.1,::1`） | **673 passed / 0 failed / 17 ignored**（新增 6 个重快照存储测试；含上述两处修复后回归全绿） |
+| `cargo fmt --all -- --check` | 通过 |
+| `cargo build --release` | 通过 |
+| `./scripts/regen.sh` | 桥接重生成（`SyncTickResultDto.resnapshot_pending`），hash 一致 |
+| Flutter `fvm flutter test` | **349 passed** |
+| Flutter `fvm flutter analyze` | 72 issues（70 info + 1 warning，均为 third_party/测试文件，非本切片，维持既有基线） |
+
+6 个新测试覆盖：claim 仅对标记成员且幂等、在途导出阻塞新 claim、id 绑定拒绝错配请求、finish 只认当前已 ack 请求并用构建时 frontier 重播种、re-flag 后 nonce 轮换使旧 ack 失效、只读状态报告。
+
+### 边界与未完成
+
+- **接收端消费重快照**仍是 restore 流程的活：活设备收到快照分片会优雅拒绝（在中继过期为传输副本），本切片只闭合「发送端调度 + ack + 解冻结」。
+- 中继 TTL 仅丢传输副本；未确认的源操作重发或安排快照，不以 relay 为准。
+- P4d 加工移交、P4e 撤销 UX/诊断/升级、原生密钥库签收、真人设备门禁继续未完成。
+- 全程只用临时目录隔离库与合成身份；无个人数据/真实密钥/外部模型/线上中继（relay 测试 `ELSEWHEN_RELAY_TEST_URL` 未设，ignored）。

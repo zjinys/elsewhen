@@ -52,6 +52,20 @@ impl Store {
             }
             return Ok(false);
         }
+        // A claimed re-snapshot (v30) may only be built under the request's
+        // current id: an id rotated after re-flagging can never be satisfied
+        // by an export built for the older request.
+        let expected_request: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT snapshot_id FROM sync_resnapshot_requests WHERE device_id=?1",
+                [recipient],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(expected) = expected_request {
+            ensure!(expected == id, "sync_snapshot_resnapshot_request_mismatch");
+        }
         // Pin the recipient's starting application watermark to the LOCAL
         // stream frontier at snapshot-build time. The exported snapshot contains
         // exactly the ops up to this frontier, so this is the correct starting
@@ -64,10 +78,18 @@ impl Store {
                 [&identity.stream_id],
                 |r| r.get(0),
             )
+            .optional()?
+            .unwrap_or(0);
+        // Which signed roster the export will embed as its authority frame.
+        // 0 stays valid for pre-authority flows (none in-tree today); the
+        // receiver cross-checks the embedded roster revision on completion.
+        let roster_revision: i64 = self
+            .current_signed_roster()?
+            .map(|s| s.roster.revision as i64)
             .unwrap_or(0);
         self.connection.execute(
-            "INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state,local_watermark) VALUES(?1,?2,?3,'building',?4)",
-            params![id,recipient,key_version as i64,local_watermark],
+            "INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state,local_watermark,roster_revision) VALUES(?1,?2,?3,'building',?4,?5)",
+            params![id,recipient,key_version as i64,local_watermark,roster_revision],
         )?;
         if let Some(tx) = tx {
             tx.commit()?;

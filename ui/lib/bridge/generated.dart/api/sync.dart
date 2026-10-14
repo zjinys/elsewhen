@@ -754,6 +754,10 @@ class SyncTickResultDto {
   final PlatformInt64 pulledRejected;
   final bool acknowledgementFailed;
 
+  /// Devices waiting for a re-snapshot (fell too far behind); GC stays
+  /// frozen for them until the transfer completes.
+  final List<String> resnapshotPending;
+
   const SyncTickResultDto({
     required this.ran,
     required this.stagedOperations,
@@ -762,6 +766,7 @@ class SyncTickResultDto {
     required this.pulledWaiting,
     required this.pulledRejected,
     required this.acknowledgementFailed,
+    required this.resnapshotPending,
   });
 
   @override
@@ -772,7 +777,8 @@ class SyncTickResultDto {
       pulledAccepted.hashCode ^
       pulledWaiting.hashCode ^
       pulledRejected.hashCode ^
-      acknowledgementFailed.hashCode;
+      acknowledgementFailed.hashCode ^
+      resnapshotPending.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -785,5 +791,6 @@ class SyncTickResultDto {
           pulledAccepted == other.pulledAccepted &&
           pulledWaiting == other.pulledWaiting &&
           pulledRejected == other.pulledRejected &&
-          acknowledgementFailed == other.acknowledgementFailed;
+          acknowledgementFailed == other.acknowledgementFailed &&
+          resnapshotPending == other.resnapshotPending;
 }

@@ -8898,8 +8898,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SyncTickResultDto dco_decode_sync_tick_result_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return SyncTickResultDto(
       ran: dco_decode_bool(arr[0]),
       stagedOperations: dco_decode_i_64(arr[1]),
@@ -8908,6 +8908,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pulledWaiting: dco_decode_i_64(arr[4]),
       pulledRejected: dco_decode_i_64(arr[5]),
       acknowledgementFailed: dco_decode_bool(arr[6]),
+      resnapshotPending: dco_decode_list_String(arr[7]),
     );
   }
 
@@ -11720,6 +11721,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_pulledWaiting = sse_decode_i_64(deserializer);
     var var_pulledRejected = sse_decode_i_64(deserializer);
     var var_acknowledgementFailed = sse_decode_bool(deserializer);
+    var var_resnapshotPending = sse_decode_list_String(deserializer);
     return SyncTickResultDto(
       ran: var_ran,
       stagedOperations: var_stagedOperations,
@@ -11728,6 +11730,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pulledWaiting: var_pulledWaiting,
       pulledRejected: var_pulledRejected,
       acknowledgementFailed: var_acknowledgementFailed,
+      resnapshotPending: var_resnapshotPending,
     );
   }
 
@@ -14023,6 +14026,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.pulledWaiting, serializer);
     sse_encode_i_64(self.pulledRejected, serializer);
     sse_encode_bool(self.acknowledgementFailed, serializer);
+    sse_encode_list_String(self.resnapshotPending, serializer);
   }
 
   @protected

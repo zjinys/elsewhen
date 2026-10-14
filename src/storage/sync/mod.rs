@@ -12,6 +12,7 @@ pub(crate) use pairing::{PairingCommit, PairingDispatch};
 mod processing;
 pub(crate) mod provider_conflicts;
 mod providers;
+mod resnapshot;
 pub(crate) mod snapshot;
 mod vault;
 mod wire;
@@ -397,11 +398,21 @@ impl Store {
             "sync_receipt_identity_mismatch"
         );
         let tx = self.begin_write_transaction()?;
-        self.acknowledge_sync_operation(
-            authenticated_device,
-            &receipt.op_id,
-            &receipt.payload_hash,
-        )?;
+        // A re-snapshot application ack is a synthetic receipt whose op_id is
+        // `resnapshot-ack:{export_id}`: it retires the export (which re-seeds
+        // the member watermark at the build-time frontier), never an
+        // operation. The export binding (id + recipient + state) is the
+        // authority, not the hash — the recipient cannot know the sender's
+        // build-time watermark, so no cross-checkable payload hash exists.
+        if let Some(id) = receipt.op_id.strip_prefix("resnapshot-ack:") {
+            self.acknowledge_snapshot_export(authenticated_device, id, &receipt.payload_hash)?;
+        } else {
+            self.acknowledge_sync_operation(
+                authenticated_device,
+                &receipt.op_id,
+                &receipt.payload_hash,
+            )?;
+        }
         if let Some(tx) = tx {
             tx.commit()?;
         }
@@ -887,3 +898,7 @@ mod tests;
 #[cfg(test)]
 #[path = "gc/tests.rs"]
 mod gc_tests;
+
+#[cfg(test)]
+#[path = "resnapshot/tests.rs"]
+mod resnapshot_tests;

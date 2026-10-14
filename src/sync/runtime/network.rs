@@ -20,6 +20,12 @@ pub(crate) struct NetworkTickReport {
     pub pulled_waiting: usize,
     pub pulled_rejected: usize,
     pub acknowledgement_failed: bool,
+    /// Re-snapshot exports staged this tick for lagging members.
+    pub resnapshot_staged: usize,
+    /// Re-snapshot requests completed this tick (export ack applied).
+    pub resnapshot_completed: usize,
+    /// Members still flagged `needs_resnapshot` after this tick.
+    pub resnapshot_pending: Vec<String>,
 }
 
 impl NetworkTickReport {
@@ -104,7 +110,7 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
         .map(|m| (m.device.device_id.clone(), m.device.signing_key))
         .collect();
     let mut report = NetworkTickReport::default();
-    for (peer_id, peer_signing) in peers {
+    for (peer_id, peer_signing) in &peers {
         // A roster member without usable local key material cannot be
         // contacted; this is a repair signal, not a skippable peer.
         let (send_key, receive_key, key_version) =
@@ -185,6 +191,64 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
         }
         report.merge(&peer_report);
     }
+    // Re-snapshot scheduling: GC flagged members get exactly one in-flight
+    // export each, built with a fresh authority roster frame; the durable
+    // wire outbox owns the upload retries. Completion is what un-freezes GC.
+    report.resnapshot_completed = store.finish_sync_resnapshot_requests()?;
+    let _gc = store.run_sync_gc()?;
+    let pending = store.sync_resnapshot_pending()?;
+    for member in &pending {
+        // The roster peers are also the routed peers; a flagged member whose
+        // route is absent cannot be served by this device (a joiner only
+        // routes to the owner).
+        if !peers.iter().any(|(id, _)| id == member) {
+            continue;
+        }
+        let Some(claim) = store.claim_sync_resnapshot(member)? else {
+            continue;
+        };
+        let (send_key, _, key_version) = vault.peer_keys(&identity.dataset_id, member)?;
+        crate::sync::engine::snapshot::stage_enrollment_snapshot(
+            &store,
+            member,
+            &claim.snapshot_id,
+            key_version,
+            &send_key,
+            vault.identity(),
+        )?;
+        report.resnapshot_staged += 1;
+    }
+    // The receiver of a re-snapshot cannot import it into its live database;
+    // it acknowledges the transfer so the sender's request completes and GC
+    // un-freezes. The snapshot itself stays a transport copy for the restore
+    // flow, never an in-place overwrite.
+    for (peer_id, _) in &peers {
+        let acked: Vec<String> = {
+            let mut q = store.connection.prepare(
+                "SELECT DISTINCT e.id FROM sync_snapshot_exports e
+                 JOIN sync_snapshot_export_wires w
+                   ON w.snapshot_id = e.id AND w.recipient_device_id = ?1
+                 JOIN sync_wire_outbox o
+                   ON o.recipient_device_id = w.recipient_device_id
+                  AND o.message_id = w.message_id
+                 WHERE e.state = 'acknowledged' AND o.state = 'acknowledged'",
+            )?;
+            q.query_map([peer_id], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        for export_id in acked {
+            let (_, receive_key, key_version) = vault.peer_keys(&identity.dataset_id, peer_id)?;
+            crate::sync::engine::snapshot::ack_resnapshot(
+                &store,
+                peer_id,
+                &export_id,
+                key_version,
+                &receive_key,
+                vault.identity(),
+            )?;
+        }
+    }
+    report.resnapshot_pending = store.sync_resnapshot_pending()?;
     Ok(Some(report))
 }
 

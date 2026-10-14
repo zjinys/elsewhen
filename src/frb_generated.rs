@@ -7749,6 +7749,7 @@ impl SseDecode for crate::api::sync::SyncTickResultDto {
         let mut var_pulledWaiting = <i64>::sse_decode(deserializer);
         let mut var_pulledRejected = <i64>::sse_decode(deserializer);
         let mut var_acknowledgementFailed = <bool>::sse_decode(deserializer);
+        let mut var_resnapshotPending = <Vec<String>>::sse_decode(deserializer);
         return crate::api::sync::SyncTickResultDto {
             ran: var_ran,
             staged_operations: var_stagedOperations,
@@ -7757,6 +7758,7 @@ impl SseDecode for crate::api::sync::SyncTickResultDto {
             pulled_waiting: var_pulledWaiting,
             pulled_rejected: var_pulledRejected,
             acknowledgement_failed: var_acknowledgementFailed,
+            resnapshot_pending: var_resnapshotPending,
         };
     }
 }
@@ -9822,6 +9824,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncTickResultDto {
             self.pulled_waiting.into_into_dart().into_dart(),
             self.pulled_rejected.into_into_dart().into_dart(),
             self.acknowledgement_failed.into_into_dart().into_dart(),
+            self.resnapshot_pending.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -11753,6 +11756,7 @@ impl SseEncode for crate::api::sync::SyncTickResultDto {
         <i64>::sse_encode(self.pulled_waiting, serializer);
         <i64>::sse_encode(self.pulled_rejected, serializer);
         <bool>::sse_encode(self.acknowledgement_failed, serializer);
+        <Vec<String>>::sse_encode(self.resnapshot_pending, serializer);
     }
 }
 
@@ -13659,6 +13663,7 @@ mod io {
                 pulled_waiting: self.pulled_waiting.cst_decode(),
                 pulled_rejected: self.pulled_rejected.cst_decode(),
                 acknowledgement_failed: self.acknowledgement_failed.cst_decode(),
+                resnapshot_pending: self.resnapshot_pending.cst_decode(),
             }
         }
     }
@@ -15071,6 +15076,7 @@ mod io {
                 pulled_waiting: Default::default(),
                 pulled_rejected: Default::default(),
                 acknowledgement_failed: Default::default(),
+                resnapshot_pending: core::ptr::null_mut(),
             }
         }
     }
@@ -19112,6 +19118,7 @@ mod io {
         pulled_waiting: i64,
         pulled_rejected: i64,
         acknowledgement_failed: bool,
+        resnapshot_pending: *mut wire_cst_list_String,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -21608,8 +21615,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                7,
-                "Expected 7 elements, got {}",
+                8,
+                "Expected 8 elements, got {}",
                 self_.length()
             );
             crate::api::sync::SyncTickResultDto {
@@ -21620,6 +21627,7 @@ mod web {
                 pulled_waiting: self_.get(4).cst_decode(),
                 pulled_rejected: self_.get(5).cst_decode(),
                 acknowledgement_failed: self_.get(6).cst_decode(),
+                resnapshot_pending: self_.get(7).cst_decode(),
             }
         }
     }

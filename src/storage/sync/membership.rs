@@ -30,11 +30,15 @@ impl Store {
         Ok(anchor)
     }
     pub(crate) fn current_signed_roster(&self) -> Result<Option<SignedRoster>> {
-        let bytes: Option<Vec<u8>> = self.connection.query_row(
-            "SELECT signed_roster FROM sync_authority WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let bytes: Option<Vec<u8>> = self
+            .connection
+            .query_row(
+                "SELECT signed_roster FROM sync_authority WHERE singleton=1",
+                [],
+                |r| r.get::<_, Option<Vec<u8>>>(0),
+            )
+            .optional()?
+            .flatten();
         bytes
             .map(|bytes| SignedRoster::decode(&bytes, &self.sync_pinned_authority()?))
             .transpose()

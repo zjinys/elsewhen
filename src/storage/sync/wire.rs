@@ -244,6 +244,30 @@ impl Store {
         }
         Ok(())
     }
+
+    /// Stages the ack for a message that is about to be staged itself. The row
+    /// must not exist yet; the payload hash is bound eagerly so a later
+    /// per-envelope `acknowledge_sync_wire` on the same id stays hash-checked.
+    pub(crate) fn acknowledge_sync_wire_preemptive(
+        &self,
+        peer: &str,
+        message_id: &str,
+        payload_hash: &str,
+    ) -> Result<()> {
+        let tx = self.begin_write_transaction()?;
+        let active: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1)",
+            [peer],
+            |r| r.get(0),
+        )?;
+        ensure!(active, "sync_member_not_authorized");
+        let changed = self.connection.execute("INSERT INTO sync_wire_outbox(recipient_device_id,message_id,payload_hash,key_version,encrypted_envelope,state) VALUES(?1,?2,?3,1,x'','acknowledged') ON CONFLICT(recipient_device_id,message_id) DO NOTHING",params![peer,message_id,payload_hash])?;
+        ensure!(changed == 1, "sync_wire_ack_conflict");
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

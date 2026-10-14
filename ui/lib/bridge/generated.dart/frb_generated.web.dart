@@ -2948,6 +2948,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_64(raw.pulledWaiting),
       cst_encode_i_64(raw.pulledRejected),
       cst_encode_bool(raw.acknowledgementFailed),
+      cst_encode_list_String(raw.resnapshotPending),
     ].jsify()!;
   }
 

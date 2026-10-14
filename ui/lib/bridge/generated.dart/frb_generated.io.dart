@@ -3413,6 +3413,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.acknowledgement_failed = cst_encode_bool(
       apiObj.acknowledgementFailed,
     );
+    wireObj.resnapshot_pending = cst_encode_list_String(
+      apiObj.resnapshotPending,
+    );
   }
 
   @protected
@@ -14298,6 +14301,8 @@ final class wire_cst_sync_tick_result_dto extends ffi.Struct {
   @ffi.Bool()
   external bool acknowledgement_failed;
 
+  external ffi.Pointer<wire_cst_list_String> resnapshot_pending;
+
   static ffi.Pointer<wire_cst_sync_tick_result_dto> $allocate(
     ffi.Allocator $allocator, {
     required bool ran,
@@ -14307,6 +14312,7 @@ final class wire_cst_sync_tick_result_dto extends ffi.Struct {
     required int pulled_waiting,
     required int pulled_rejected,
     required bool acknowledgement_failed,
+    required ffi.Pointer<wire_cst_list_String> resnapshot_pending,
   }) => $allocator<wire_cst_sync_tick_result_dto>()
     ..ref.ran = ran
     ..ref.staged_operations = staged_operations
@@ -14314,7 +14320,8 @@ final class wire_cst_sync_tick_result_dto extends ffi.Struct {
     ..ref.pulled_accepted = pulled_accepted
     ..ref.pulled_waiting = pulled_waiting
     ..ref.pulled_rejected = pulled_rejected
-    ..ref.acknowledgement_failed = acknowledgement_failed;
+    ..ref.acknowledgement_failed = acknowledgement_failed
+    ..ref.resnapshot_pending = resnapshot_pending;
 }
 
 final class wire_cst_system_font_face extends ffi.Struct {

@@ -254,6 +254,10 @@ pub(crate) fn push_due(
                             &entry.message_id,
                             &crate::storage::sync::hash(&serde_json::to_vec(receipt)?),
                         )?;
+                    } else {
+                        // Synthetic re-snapshot acks are staged preemptively
+                        // acknowledged (see `ack_resnapshot`): no per-envelope
+                        // retirement needed here.
                     }
                     if let Some(tx) = tx {
                         tx.commit()?;

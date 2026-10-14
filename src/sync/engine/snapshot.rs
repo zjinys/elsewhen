@@ -1,11 +1,67 @@
 //! Encrypted snapshot transfer orchestration. The receiver must explicitly select
 //! a fresh staging database and request ID before accepting any snapshot content.
 
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 
 use super::*;
 use crate::storage::sync::snapshot::SnapshotExporter;
-use crate::sync::protocol::validate_id;
+use crate::sync::protocol::{ApplicationReceipt, validate_id};
+
+/// Retires one acknowledged re-snapshot export at the receiver of that
+/// snapshot: queues a synthetic `receipt-…` wire back to the sender carrying
+/// `resnapshot-ack:{export_id}`. The sender's `accept_sync_receipt` turns it
+/// into `acknowledge_snapshot_export`, which re-seeds the member watermark
+/// and lets the request complete. This is a transport repair signal, not a
+/// restore: the receiver's live domain data is untouched.
+pub(crate) fn ack_resnapshot(
+    store: &Store,
+    recipient: &str,
+    export_id: &str,
+    key_version: u64,
+    key: &ContentKey,
+    signer: &DeviceIdentity,
+) -> Result<()> {
+    // Idempotent: once any receipt for this export is queued or acked, the
+    // ack is already durable and retries must not enqueue a second wire.
+    let already: bool = store.connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id=?2)",
+        rusqlite::params![recipient, receipt_message_id(&resnapshot_ack_op_id(export_id))],
+        |r| r.get(0),
+    )?;
+    if already {
+        return Ok(());
+    }
+    let identity = store.sync_identity()?.context("sync_not_initialized")?;
+    let receipt = ApplicationReceipt {
+        dataset_id: identity.dataset_id.clone(),
+        acknowledging_device_id: identity.device_id.clone(),
+        target_device_id: recipient.to_string(),
+        op_id: resnapshot_ack_op_id(export_id),
+        payload_hash: crate::storage::sync::hash(export_id.as_bytes()),
+    };
+    let plaintext = serde_json::to_vec(&receipt)?;
+    let header = EnvelopeHeader::new(
+        &identity.dataset_id,
+        &identity.device_id,
+        recipient,
+        key_version,
+        receipt_message_id(&receipt.op_id),
+    )?;
+    // Local transport retirement binds to the staged payload hash; the sender
+    // side binds to the export id, not this hash (see accept_sync_receipt).
+    store.acknowledge_sync_wire_preemptive(
+        recipient,
+        &header.message_id,
+        &crate::storage::sync::hash(&plaintext),
+    )?;
+    store.stage_sync_wire_envelope(&header, key, signer, &plaintext)?;
+    Ok(())
+}
+
+/// The synthetic op id carried by a re-snapshot application ack.
+pub(crate) fn resnapshot_ack_op_id(export_id: &str) -> String {
+    format!("resnapshot-ack:{export_id}")
+}
 
 /// Writes only ciphertext, one bounded chunk transaction at a time. An export
 /// becomes eligible for upload only when its manifest is durable. A failed or

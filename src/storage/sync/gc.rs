@@ -31,7 +31,7 @@
 //! device's history.
 
 use anyhow::{Context, Result, ensure};
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 
 use crate::storage::Store;
 
@@ -92,6 +92,7 @@ impl Store {
                 [&identity.stream_id],
                 |r| r.get(0),
             )
+            .optional()?
             .unwrap_or(0))
     }
 

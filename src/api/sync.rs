@@ -481,6 +481,9 @@ pub struct SyncTickResultDto {
     pub pulled_waiting: i64,
     pub pulled_rejected: i64,
     pub acknowledgement_failed: bool,
+    /// Devices waiting for a re-snapshot (fell too far behind); GC stays
+    /// frozen for them until the transfer completes.
+    pub resnapshot_pending: Vec<String>,
 }
 
 /// Runs one bounded push/pull cycle against every active peer. Callers are the
@@ -497,6 +500,7 @@ pub fn trigger_network_sync() -> Result<SyncTickResultDto> {
             pulled_waiting: report.pulled_waiting as i64,
             pulled_rejected: report.pulled_rejected as i64,
             acknowledgement_failed: report.acknowledgement_failed,
+            resnapshot_pending: report.resnapshot_pending.clone(),
         }),
         None => Ok(SyncTickResultDto {
             ran: false,
@@ -506,6 +510,7 @@ pub fn trigger_network_sync() -> Result<SyncTickResultDto> {
             pulled_waiting: 0,
             pulled_rejected: 0,
             acknowledgement_failed: false,
+            resnapshot_pending: Vec::new(),
         }),
     }
 }
