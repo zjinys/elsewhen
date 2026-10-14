@@ -36,6 +36,21 @@ enum SyncKeyStoreError {
   revisionRollback,
 }
 
+/// 密钥存储健康状态（诊断探针结果，只读展示用）。
+enum SyncKeyStoreHealth {
+  /// 主密钥记录存在且格式合法。
+  ok,
+
+  /// 记录缺失（新装或换了系统账号/设备）。
+  missing,
+
+  /// 记录存在但内容损坏；绝不自动替换。
+  corrupt,
+
+  /// 系统安全存储不可用/锁定/平台不支持。
+  unavailable,
+}
+
 class SyncKeyStoreException implements Exception {
   const SyncKeyStoreException(this.code);
   final SyncKeyStoreError code;
@@ -191,6 +206,30 @@ class SyncKeyStore {
     }
     return _decode(encoded);
   });
+
+  /// 诊断探针：不修改任何记录，把主密钥记录状态归类为健康枚举。
+  ///
+  /// 与解锁路径共用同一套 `_read`/`_decode`（同一 fail-closed 语义），
+  /// 只是把异常翻译为可展示的状态；平台诊断信息仍不会外泄。
+  /// 注意：探针内**不得**调用 `load()`/`readRevision()`——它们各自要拿
+  /// `_serialized` 锁，从已持锁的操作里再进入会自死锁（宽限：内联实现读取）。
+  Future<SyncKeyStoreHealth> probe(String installationId) =>
+      _serialized(() async {
+        try {
+          final encoded = await _read(_key(installationId));
+          if (encoded == null) {
+            return SyncKeyStoreHealth.missing;
+          }
+          _decode(encoded).dispose();
+          return SyncKeyStoreHealth.ok;
+        } on SyncKeyStoreException catch (error) {
+          return switch (error.code) {
+            SyncKeyStoreError.missing => SyncKeyStoreHealth.missing,
+            SyncKeyStoreError.corrupt => SyncKeyStoreHealth.corrupt,
+            _ => SyncKeyStoreHealth.unavailable,
+          };
+        }
+      });
 
   Future<SyncMasterKey> createForNewInstallation(String installationId) =>
       _serialized(() async {

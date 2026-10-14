@@ -883,14 +883,27 @@ UI 测试：owner 撤销普通成员成功（绑定 revision）；非 owner 本�
 
 ## 21. S06 发版门禁（待办清单，含人工项）
 
-工程项（AI 可做，后续切片）：**原生 OS 密钥链签名**——同步签名/身份私钥目前存于
-应用侧加密 vault（口令/会话解锁后驻内存）。发版前应接入各平台原生安全存储：
+### 核实结论（2026-10-14，修正本节初稿的过度承诺）
 
-- Android：`Keystore`（StrongBox 优先）硬件背书密钥包裹 vault 主密钥；
-- iOS/macOS：`Keychain`（`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`）托管主密钥；
-- Linux/Windows：`libsecret` / `Credential Manager`（DPAPI）；
-- 关键不变量：私钥永不出安全边界（签名在安全硬件内或密钥不出 keychain）；
-  vend 后设备门禁 = 自动注册降级为"需真人确认"，禁止无监督 `join`。
+原生密钥链**大部分已在位**：`ui/lib/sync/sync_key_store.dart` 经 `flutter_secure_storage`
+以平台安全属性托管 master（Android 独立 `storageNamespace`、iOS/macOS
+`first_unlock_this_device` + `synchronizable:false`、桌面 libsecret/DPAPI）；
+设计上**刻意无降级链**（无 file/preferences fallback，失败关闭），错误码
+`unavailable/missing/corrupt/revisionRollback` 完备且吞平台诊断防泄漏。
+设置页有健康探针（`SyncKeyStore.probe` → `SyncKeyHealthSettings` 状态行）。
+
+仍为真实的边界/待办：
+
+1. **Ed25519 签名不出安全边界不可达**：同步签名用 ring 的 Ed25519，而 Android
+   Keystore 与 iOS Secure Enclave 均不支持（Keystore 仅 RSA/EC-P 系，Enclave 仅
+   P-256）。签名私钥在 vault 内、由 master 解密进应用内存是当前算法栈下的唯一
+   可行姿态。发版文案承诺应降级为："master 由 OS 安全存储托管、本机限定、
+   进程内零化；签名私钥不出应用进程"。
+2. **硬件背书不可强制**：flutter_secure_storage 该版本未暴露 Android StrongBox /
+   Secure Enclave 强制开关；如需硬件背书得平台通道自行实现（后续独立切片）。
+3. **工程不变量（必须遵守）**：vend/加入后自动注册降级为"需真人确认"；
+   禁止静默生成替代密钥；`_serialized` 锁不可重入——由此产生的 probe→load
+   自死锁已修（探针内联读取，勿再从持锁操作内调用 load/readRevision）。
 
 人工项（真人双设备门禁，发布前必须逐条执行，AI 不可代做）：
 清单见 `docs/roadmap/2026-10-14-s06-human-gate-checklist.md`。

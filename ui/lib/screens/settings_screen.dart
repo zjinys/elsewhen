@@ -324,7 +324,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           _buildModelTab(settings),
                           _buildAppearanceTab(settings),
                           _buildServiceTab(),
-                          _buildStorageTab(settings),
+                          _buildSyncTab(),
                           _buildDataTab(),
                           _buildRulesTab(),
                         ],
@@ -373,7 +373,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             const SizedBox(height: AppTheme.space1),
             _buildSettingsTabItem(2, '服务', Icons.cloud_outlined),
             const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(3, '存储', Icons.storage_outlined),
+            _buildSettingsTabItem(3, '同步', Icons.devices_outlined),
             const SizedBox(height: AppTheme.space1),
             _buildSettingsTabItem(4, '数据', Icons.dataset_outlined),
             const SizedBox(height: AppTheme.space1),
@@ -399,7 +399,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           Tab(text: '模型', icon: Icon(Icons.smart_toy_outlined, size: 17)),
           Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
           Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
-          Tab(text: '存储', icon: Icon(Icons.storage_outlined, size: 17)),
+          Tab(text: '同步', icon: Icon(Icons.devices_outlined, size: 17)),
           Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
           Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),
         ],
@@ -720,42 +720,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  Widget _buildStorageTab(AppSettings settings) {
+  /// 设备同步独立 tab：本地密钥/移交/名册/冲突态势都聚在区块内。
+  Widget _buildSyncTab() {
+    final repository = ref.watch(storageRepositoryProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSection(
-            title: '存储适配器',
-            icon: Icons.storage_outlined,
-            child: _buildStorageSettings(settings),
-          ),
-        ],
+      child: _buildSection(
+        title: '设备同步',
+        icon: Icons.devices_outlined,
+        child: LocalSyncSettings(
+          controller: repository is RustBridgeRepository
+              ? repository.localSync
+              : null,
+          repository: repository is RustBridgeRepository ? repository : null,
+        ),
       ),
     );
   }
 
   Widget _buildDataTab() {
-    final repository = ref.watch(storageRepositoryProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSection(
-            title: '设备同步',
-            icon: Icons.devices_outlined,
-            child: LocalSyncSettings(
-              controller: repository is RustBridgeRepository
-                  ? repository.localSync
-                  : null,
-              repository: repository is RustBridgeRepository
-                  ? repository
-                  : null,
-            ),
-          ),
-          const SizedBox(height: AppTheme.space6),
           _buildSection(
             title: '事件分析队列',
             icon: Icons.sync_outlined,
@@ -1338,36 +1326,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               backgroundColor: AppTheme.accentPrimary,
               foregroundColor: Colors.white,
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStorageSettings(AppSettings settings) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDropdownField(
-          label: '适配器类型',
-          value: settings.storage.adapterType,
-          items: const [
-            DropdownMenuItem(value: 'sqlite', child: Text('SQLite')),
-          ],
-          onChanged: (value) {
-            if (value != null) {
-              ref
-                  .read(settingsProvider.notifier)
-                  .updateStorage(settings.storage.copyWith(adapterType: value));
-            }
-          },
-        ),
-        const SizedBox(height: 12),
-        Text(
-          '数据库路径: ${settings.storage.databasePath ?? "默认"}',
-          style: TextStyle(
-            fontSize: 13,
-            color: AppTheme.textSecondary.withValues(alpha: 0.7),
           ),
         ),
       ],

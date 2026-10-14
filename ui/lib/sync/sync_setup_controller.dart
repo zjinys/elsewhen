@@ -98,6 +98,9 @@ class SyncSetupController extends ChangeNotifier {
     isSessionBusy: () => busy,
   );
   final SyncKeyStore _keys;
+
+  /// 供诊断探针复用同一个注入的 key store（测试可注入替身）。
+  SyncKeyStore get keys => _keys;
   final SyncSetupApi _bridge;
   final SyncPairingApi _pairing;
   api.SyncInvitationOfferDto? invitation;

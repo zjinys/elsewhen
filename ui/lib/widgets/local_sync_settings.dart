@@ -11,6 +11,7 @@ import '../sync/sync_setup_controller.dart';
 import 'owner_sync_pairing_settings.dart';
 import 'joiner_sync_pairing_settings.dart';
 import 'sync_enrollment_progress.dart';
+import 'sync_key_health_settings.dart';
 import 'sync_members_settings.dart';
 import 'sync_processor_handoff_settings.dart';
 import 'sync_provider_conflicts_settings.dart';
@@ -83,6 +84,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         final state = controller.state;
         final theme = Theme.of(context);
         final configured = state != null && state.state != 'not_configured';
+        final installation = state?.installationId;
         final ready = state?.state == 'local_ready';
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,6 +229,11 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 ],
               ),
               const SizedBox(height: 16),
+              if (ready && installation != null)
+                SyncKeyHealthSettings(
+                  api: FrbSyncKeyHealthApi(controller.keys),
+                  installationId: installation,
+                ),
               if (ready) SyncMembersSettings(controller: _roster),
             ],
             if (ready && state?.isOwner == true && controller.previewEnabled)
