@@ -123,13 +123,24 @@ fn handoff_proof_validation_and_successor_verification() {
         revision: 1,
         processor_device_id: old_p.device_id.clone(),
         members: vec![
-            RosterMember { device: new_p.clone(), active: true },
-            RosterMember { device: old_p.clone(), active: true },
-            RosterMember { device: owner.clone(), active: true },
+            RosterMember {
+                device: new_p.clone(),
+                active: true,
+            },
+            RosterMember {
+                device: old_p.clone(),
+                active: true,
+            },
+            RosterMember {
+                device: owner.clone(),
+                active: true,
+            },
         ],
         handoff: None,
     };
-    roster_v1.members.sort_by(|a, b| a.device.device_id.cmp(&b.device.device_id));
+    roster_v1
+        .members
+        .sort_by(|a, b| a.device.device_id.cmp(&b.device.device_id));
     roster_v1.validate().unwrap();
 
     // 1. Trying to change processor without handoff fails
@@ -137,7 +148,10 @@ fn handoff_proof_validation_and_successor_verification() {
     roster_v2_no_handoff.revision = 2;
     roster_v2_no_handoff.processor_device_id = new_p.device_id.clone();
     assert_eq!(
-        roster_v2_no_handoff.validate_successor(&roster_v1).unwrap_err().to_string(),
+        roster_v2_no_handoff
+            .validate_successor(&roster_v1)
+            .unwrap_err()
+            .to_string(),
         "sync_processing_handoff_required"
     );
 
@@ -149,7 +163,8 @@ fn handoff_proof_validation_and_successor_verification() {
         2,
         42,
         &new_processor_signer, // signed with wrong key
-    ).unwrap();
+    )
+    .unwrap();
     let mut roster_v2_bad_proof = roster_v2_no_handoff.clone();
     roster_v2_bad_proof.handoff = Some(bad_proof);
     assert!(roster_v2_bad_proof.validate_successor(&roster_v1).is_err());
@@ -162,7 +177,8 @@ fn handoff_proof_validation_and_successor_verification() {
         2,
         42,
         &old_processor_signer,
-    ).unwrap();
+    )
+    .unwrap();
     let mut roster_v2_valid = roster_v2_no_handoff.clone();
     roster_v2_valid.handoff = Some(valid_proof);
     assert!(roster_v2_valid.validate_successor(&roster_v1).is_ok());
@@ -170,16 +186,22 @@ fn handoff_proof_validation_and_successor_verification() {
     // 4. Handoff attached when processor didn't change is rejected
     let mut roster_v2_unneeded = roster_v1.clone();
     roster_v2_unneeded.revision = 2;
-    roster_v2_unneeded.handoff = Some(ProcessingYieldProof::sign(
-        "ds",
-        &new_p.device_id,
-        &old_p.device_id,
-        2,
-        42,
-        &new_processor_signer,
-    ).unwrap());
+    roster_v2_unneeded.handoff = Some(
+        ProcessingYieldProof::sign(
+            "ds",
+            &new_p.device_id,
+            &old_p.device_id,
+            2,
+            42,
+            &new_processor_signer,
+        )
+        .unwrap(),
+    );
     assert_eq!(
-        roster_v2_unneeded.validate_successor(&roster_v1).unwrap_err().to_string(),
+        roster_v2_unneeded
+            .validate_successor(&roster_v1)
+            .unwrap_err()
+            .to_string(),
         "sync_handoff_unexpected_without_processor_change"
     );
 }

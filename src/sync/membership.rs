@@ -71,10 +71,7 @@ impl ProcessingYieldProof {
             (1..=i64::MAX as u64).contains(&self.roster_revision),
             "sync_handoff_revision_invalid"
         );
-        ensure!(
-            self.signature.len() == 64,
-            "sync_handoff_signature_invalid"
-        );
+        ensure!(self.signature.len() == 64, "sync_handoff_signature_invalid");
         Ok(())
     }
 
