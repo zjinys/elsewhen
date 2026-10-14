@@ -12,14 +12,14 @@
 
 - **建立日期：** 2026-10-14，基于用户确认「转成 roadmap，从增量维护闭环 + 分层确认起步」。
 - **代码基线：** `f7f6e74`（迁移 34；Rust 711 / Flutter 372 / analyze 0 error/warning）。
-- **当前阶段：** D0（设计冻结）、D1（规则触发引擎）、D2（用户模型增量维护）已完成（同日）；下一步 D3（实体消歧）
+- **当前阶段：** D0–D3 已完成（同日）；下一步 D4（分析升级「提取 + 指导」，MVP 缺口）
 
 | 切片 | 内容 | 依赖 | 状态 |
 |---|---|---|---|
 | D0 | 契约与 schema 设计冻结 | 无 | **完成（2026-10-14，本文件 D0 节即设计冻结）** |
 | D1 | 规则触发引擎 + 分级提醒 | D0 | **完成（2026-10-14，`2aaa174`）** |
 | D2 | 用户模型增量维护 + 分层确认 | D0 | ✅ 已完成（`7d77a96`） |
-| D3 | 实体消歧与别名归一 | D2 | 未开始 |
+| D3 | 实体消歧与别名归一 | D2 | ✅ 已完成（`0b8a41e`） |
 | D4 | 分析升级「提取 + 指导」（挂知识库与用户模型） | D2 | 未开始 |
 | D5 | 情绪维度与陪伴扩展 | D2 | 未开始 |
 | D6 | 闭环度量与「被记得」（主动回引 + 今日记忆检索合并） | D1、D4 | 未开始 |
@@ -90,14 +90,16 @@ note（2026-09-19）的三个缺口判断有两条已随管线演进过期，以
 - [x] 测试：幂等合并（同事件重放不重复计 confidence）、删除后不复活（事件不重放提取）、批量提议与增量并存不冲突。——实现锚点：`relations_upsert_confidence_increments_once_per_event`（storage/tests.rs）；`user_model_tests`（api/mod.rs：标注自动入库/未标注不自动）。删除不复活由「原始事件只分析一次、不重放提取」架构保证（reanalyze 是显式用户动作，接受重建）。
 - **遗留意项（如实）**：①「来源事件跳转」未做——事件详情视图不存在（同 D1 事件旁标记遗留），relations 已存 `source_event_id`，跳转待事件视图出现后接；② 自动入库关系类型固定「参与」，不提取动词（契约不升版，语义完整性让位于不新增调用面）；③ 「锁定期跳过」（不变式 ⑤）尚未实现——锁定期（sync snapshot staging）内分析队列 claim 被 `background_processing_allowed` 挡住属于已有机制，但「跳过后可恢复补跑」无专门测试承托；④ 表格中「新实体走分层确认」现状：新实体（页面不存在）自动降级为草拟卡，草拟卡确认时自动建页（既有路径），未做独立「新实体提示」面。
 
-## D3 — 实体消歧与别名归一
+## D3 — 实体消歧与别名归一——2026-10-14 完成（`0b8a41e`）
 
 **收益：** 表干净可检索，是 D4/D5 检索质量的前提。
 
-- [ ] migration：`entity_aliases` 表（alias ↔ canonical slug，来源标注）。
-- [ ] 归一管道：事件 people 字符串 → slug 归一规则（大小写/空白/常见后缀）→ 疑似别名 LLM 确认（草拟确认制）。
-- [ ] 合并操作：人工把重复 slug 归并（wiki 挪页语义），引用与 relations 边跟随迁移；误合并可拆回。
-- [ ] 测试：归并后 D2 增量管道写 canonical slug；拆回后历史引用仍可溯。
+**先行核实（D0 之外又一项过期判断被推翻）：** `entity_aliases` / `entity_merges` / `entity_merge_snapshots` 三表 baseline 即有，`src/storage/entities.rs` 已实现合并/撤销/别名增删/事实迁移/快照回滚（`entity_merge_and_undo_*` 测试齐全），wiki 详情实体区 UI 已挂合并与撤销。本切片不新增 migration。
+
+- [x] ~~migration：`entity_aliases` 表~~ 已存在（baseline），无需新建。
+- [x] 归一管道：事件 people 字符串 → slug 归一规则——实现锚点：`resolve_entity_slug`（`src/storage/wiki.rs`，标题/别名不区分大小写命中、kind 相符且页面 active 才算归一，多义/无命中返回 None 绝不猜；已合并页不算命中——别名在合并时已迁至目标页）；worker 自动入库路径接归一解析（`src/api/mod.rs` `try_auto_upsert_annotated_relation`：别名命中即写 canonical slug，查不到降级草拟卡——slugify 直译是重复实体成因，已拔除）。**遗留（如实）：** 「疑似别名 LLM 确认」未做——机械归一 + 人工别名编辑（详情区既有）+ merge/undo 已覆盖主场景，LLM 建议面不新增调用面，挂账不闭。
+- [x] 合并操作：已有（`merge_entity`/`undo_entity_merge`，relations/entity_facts/entity_aliases/todos 跟随迁移 + 快照回滚 + 安全拒改），UI 已挂（wiki 详情实体区）。本切片补齐「已合并页不得再被归一命中」语义。
+- [x] 测试：归并后 D2 增量管道写 canonical slug（`alias_hit_writes_canonical_slug_and_survives_merge_replay`：合并后重放边指向新 canonical、不另立第二条边、不复活已合并页）；拆回后历史引用仍可溯（既有 `entity_merge_deduplicates_and_undo_restores_source_copies` 等）。
 
 ## D4 — 分析升级「提取 + 指导」
 
