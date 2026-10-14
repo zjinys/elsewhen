@@ -1245,3 +1245,23 @@ op、没有 base 行（§27/§28 收尾时挂账）。
   不复制（不在同步数据集，不产生 op）——若未来入集，先过门禁归类再实现。
 
 Rust 705 passed（+2）；fmt/release/regen 过；UI 无改动。
+
+## §30 绑定设备扫码（commit `bee3be2`）
+
+发现：邀请码自始就是为 QR/copy 双通道设计的信封（pairing.rs 注释明示；
+实测长度 ~1KB << QR 单码容量；TTL 60s），但 UI 只做了复制/粘贴通道。
+本切片补上扫码，Rust/wire 零改动：
+
+- owner：邀请码旁渲染二维码（QrImageView，白底隔离区），原文/复制仍是
+  桌面↔桌面回退。
+- joiner：`JoinerQrScanPage`（mobile_scanner 7.4.2）→ 读到码即走既有
+  preview 链路（不联网预览→指纹核对→批准）；扫码入口仅 Android/iOS/
+  macOS 显示，Desktop 隐藏；`scannerBuilder` 是测试注入缝（CI 不开相机）。
+- 平台权限：Android CAMERA、iOS NSCameraUsageDescription、macOS 相机
+  entitlements；用途注释「仅扫码、画面不存储不上传」。
+- 踩坑：新测试曾追加到 main() 闭合括号之后 → Dart 顶层 `testWidgets(`
+  被解析成函数声明（报「0 个位置参数」级联错误）；testWidgets 必须在
+  main 体内。
+
+Flutter 372 passed（+1）、analyze 0 error/warning、release、Android debug
+APK 构建过；Rust 复核 705 passed。
