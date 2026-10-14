@@ -13,6 +13,8 @@ class SyncProcessorHandoffSettings extends StatefulWidget {
     required this.controller,
     required this.isProcessor,
     required this.isOwner,
+    this.candidates = const [],
+    this.onChanged,
   });
 
   final SyncProcessorHandoffController controller;
@@ -23,6 +25,12 @@ class SyncProcessorHandoffSettings extends StatefulWidget {
   /// 本机是否是名册 owner（来自 LocalSyncStateDto）。
   final bool isOwner;
 
+  /// 可接收加工权的设备（活跃、非本机成员）；为空时禁用让出。
+  final List<api.SyncRosterMemberDto> candidates;
+
+  /// 移交动作成功后回调（供外层刷新名册等关联视图）。
+  final VoidCallback? onChanged;
+
   @override
   State<SyncProcessorHandoffSettings> createState() =>
       _SyncProcessorHandoffSettingsState();
@@ -31,11 +39,10 @@ class SyncProcessorHandoffSettings extends StatefulWidget {
 class _SyncProcessorHandoffSettingsState
     extends State<SyncProcessorHandoffSettings> {
   bool _requested = false;
-  final _targetDevice = TextEditingController();
+  String? _targetDevice;
 
   @override
   void dispose() {
-    _targetDevice.dispose();
     super.dispose();
   }
 
@@ -82,28 +89,49 @@ class _SyncProcessorHandoffSettingsState
               FilledButton.icon(
                 icon: const Icon(Icons.swap_horiz),
                 label: const Text('确认接管'),
-                onPressed: controller.busy ? null : controller.confirm,
+                onPressed: controller.busy
+                    ? null
+                    : () async {
+                        await controller.confirm();
+                        widget.onChanged?.call();
+                      },
               ),
             ],
             if (phase == 'idle' && widget.isProcessor) ...[
               const SizedBox(height: 8),
-              TextField(
-                controller: _targetDevice,
-                enabled: !controller.busy,
-                maxLength: 64,
-                decoration: const InputDecoration(
-                  labelText: '目标设备 ID',
-                  border: OutlineInputBorder(),
+              if (widget.candidates.isEmpty)
+                Text(
+                  '暂无可接收加工权的其他设备，请先授权设备加入同步。',
+                  style: theme.textTheme.bodySmall,
+                )
+              else ...[
+                DropdownButtonFormField<String>(
+                  initialValue: _targetDevice,
+                  decoration: const InputDecoration(
+                    labelText: '目标设备',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: widget.candidates
+                      .map(
+                        (member) => DropdownMenuItem(
+                          value: member.deviceId,
+                          child: Text('${member.name}（${member.deviceId}）'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: controller.busy
+                      ? null
+                      : (value) => setState(() => _targetDevice = value),
                 ),
-              ),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                icon: const Icon(Icons.logout),
-                label: const Text('让出加工权'),
-                onPressed: controller.busy
-                    ? null
-                    : () => _confirmYield(context, controller),
-              ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  icon: const Icon(Icons.logout),
+                  label: const Text('让出加工权'),
+                  onPressed: controller.busy || _targetDevice == null
+                      ? null
+                      : () => _confirmYield(context, controller),
+                ),
+              ],
             ],
             if (phase == 'relinquished' && !widget.isOwner) ...[
               const SizedBox(height: 8),
@@ -146,14 +174,18 @@ class _SyncProcessorHandoffSettingsState
     BuildContext context,
     SyncProcessorHandoffController controller,
   ) async {
-    final target = _targetDevice.text.trim();
-    if (target.isEmpty) return;
+    final target = _targetDevice;
+    if (target == null) return;
+    final matches = widget.candidates
+        .where((candidate) => candidate.deviceId == target)
+        .toList();
+    final targetLabel = matches.isEmpty ? target : matches.first.name;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('让出加工权？'),
         content: Text(
-          '将把加工权移交给设备 "$target"。\n\n'
+          '将把加工权移交给 "$targetLabel"（$target）。\n\n'
           '本机会立即停止认领后台任务；目标设备需同步到移交边界并显式确认后'
           '才开始加工。确认后本机不能单方面恢复加工。',
         ),
@@ -174,6 +206,7 @@ class _SyncProcessorHandoffSettingsState
         toDeviceId: target,
         isOwnerDevice: widget.isOwner,
       );
+      widget.onChanged?.call();
     }
   }
 }

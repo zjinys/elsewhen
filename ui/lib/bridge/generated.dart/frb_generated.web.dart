@@ -436,6 +436,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SyncJoinEntryDto> dco_decode_list_sync_join_entry_dto(dynamic raw);
 
   @protected
+  List<SyncRosterMemberDto> dco_decode_list_sync_roster_member_dto(dynamic raw);
+
+  @protected
   List<SystemFontFace> dco_decode_list_system_font_face(dynamic raw);
 
   @protected
@@ -593,6 +596,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SyncKeyRequestDto dco_decode_sync_key_request_dto(dynamic raw);
+
+  @protected
+  SyncRosterDto dco_decode_sync_roster_dto(dynamic raw);
+
+  @protected
+  SyncRosterMemberDto dco_decode_sync_roster_member_dto(dynamic raw);
 
   @protected
   SyncTickResultDto dco_decode_sync_tick_result_dto(dynamic raw);
@@ -1127,6 +1136,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SyncRosterMemberDto> sse_decode_list_sync_roster_member_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SystemFontFace> sse_decode_list_system_font_face(
     SseDeserializer deserializer,
   );
@@ -1324,6 +1338,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SyncKeyRequestDto sse_decode_sync_key_request_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncRosterDto sse_decode_sync_roster_dto(SseDeserializer deserializer);
+
+  @protected
+  SyncRosterMemberDto sse_decode_sync_roster_member_dto(
     SseDeserializer deserializer,
   );
 
@@ -2493,6 +2515,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_sync_roster_member_dto(List<SyncRosterMemberDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_sync_roster_member_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_system_font_face(List<SystemFontFace> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_system_font_face).toList().jsify()!;
@@ -2993,6 +3021,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.installationId),
       cst_encode_i_64(raw.revision),
       cst_encode_bool(raw.creating),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_roster_dto(SyncRosterDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.revision),
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.ownerDeviceId),
+      cst_encode_String(raw.processorDeviceId),
+      cst_encode_opt_String(raw.localDeviceId),
+      cst_encode_list_sync_roster_member_dto(raw.members),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_roster_member_dto(SyncRosterMemberDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.deviceId),
+      cst_encode_String(raw.name),
+      cst_encode_String(raw.platform),
+      cst_encode_bool(raw.active),
+      cst_encode_bool(raw.isOwner),
+      cst_encode_bool(raw.isProcessor),
+      cst_encode_bool(raw.isLocal),
     ].jsify()!;
   }
 
@@ -3787,6 +3842,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sync_roster_member_dto(
+    List<SyncRosterMemberDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_system_font_face(
     List<SystemFontFace> self,
     SseSerializer serializer,
@@ -4041,6 +4102,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sync_key_request_dto(
     SyncKeyRequestDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_roster_dto(SyncRosterDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sync_roster_member_dto(
+    SyncRosterMemberDto self,
     SseSerializer serializer,
   );
 
@@ -4750,6 +4820,9 @@ class RustLibWire implements BaseWire {
     operation_id,
   );
 
+  void wire__crate__api__sync__get_sync_roster(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__get_sync_roster(port_);
+
   void wire__crate__api__theme__get_theme_prefs(NativePortType port_) =>
       wasmModule.wire__crate__api__theme__get_theme_prefs(port_);
 
@@ -5353,6 +5426,16 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__chat_runs__resume_chat_input_queue(
     port_,
     conversation_id,
+  );
+
+  void wire__crate__api__sync__revoke_sync_member(
+    NativePortType port_,
+    String device_id,
+    JSAny expected_revision,
+  ) => wasmModule.wire__crate__api__sync__revoke_sync_member(
+    port_,
+    device_id,
+    expected_revision,
   );
 
   void wire__crate__api__provider_config__save_ai_provider_config(
@@ -6271,6 +6354,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String operation_id,
   );
 
+  external void wire__crate__api__sync__get_sync_roster(NativePortType port_);
+
   external void wire__crate__api__theme__get_theme_prefs(NativePortType port_);
 
   external void wire__crate__api__tweet__get_tweet_fetch_service(
@@ -6684,6 +6769,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__chat_runs__resume_chat_input_queue(
     NativePortType port_,
     String conversation_id,
+  );
+
+  external void wire__crate__api__sync__revoke_sync_member(
+    NativePortType port_,
+    String device_id,
+    JSAny expected_revision,
   );
 
   external void wire__crate__api__provider_config__save_ai_provider_config(

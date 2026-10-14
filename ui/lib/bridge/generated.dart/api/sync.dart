@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'provider_reachability.dart';
 
 // These functions are ignored because they are not marked as `pub`: `conflict_profile_dto`, `enrollment_dto`, `join_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<SyncInvitationOfferDto> createOwnerSyncInvitation({
   required String relayUrl,
@@ -229,6 +229,20 @@ Future<void> resolveSyncProviderConflict({
   expectedLocalRevision: expectedLocalRevision,
   expectedRemoteRevision: expectedRemoteRevision,
   acceptRemote: acceptRemote,
+);
+
+/// 查询当前名册设备列表。非活跃（已撤销）成员也展示，供 owner 审计。
+Future<SyncRosterDto> getSyncRoster() =>
+    RustLib.instance.api.crateApiSyncGetSyncRoster();
+
+/// 名册 owner 撤销成员设备（需本机已解锁）。修订号必须与 UI 审阅时所见一致；
+/// 撤销 owner/加工设备会被 sync_membership_handoff_required 硬拦。
+Future<void> revokeSyncMember({
+  required String deviceId,
+  required PlatformInt64 expectedRevision,
+}) => RustLib.instance.api.crateApiSyncRevokeSyncMember(
+  deviceId: deviceId,
+  expectedRevision: expectedRevision,
 );
 
 /// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。
@@ -835,6 +849,89 @@ class SyncKeyRequestDto {
           installationId == other.installationId &&
           revision == other.revision &&
           creating == other.creating;
+}
+
+class SyncRosterDto {
+  final PlatformInt64 revision;
+  final String datasetId;
+  final String ownerDeviceId;
+  final String processorDeviceId;
+  final String? localDeviceId;
+  final List<SyncRosterMemberDto> members;
+
+  const SyncRosterDto({
+    required this.revision,
+    required this.datasetId,
+    required this.ownerDeviceId,
+    required this.processorDeviceId,
+    this.localDeviceId,
+    required this.members,
+  });
+
+  @override
+  int get hashCode =>
+      revision.hashCode ^
+      datasetId.hashCode ^
+      ownerDeviceId.hashCode ^
+      processorDeviceId.hashCode ^
+      localDeviceId.hashCode ^
+      members.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncRosterDto &&
+          runtimeType == other.runtimeType &&
+          revision == other.revision &&
+          datasetId == other.datasetId &&
+          ownerDeviceId == other.ownerDeviceId &&
+          processorDeviceId == other.processorDeviceId &&
+          localDeviceId == other.localDeviceId &&
+          members == other.members;
+}
+
+/// 名册设备列表（只读公开信息：设备名/平台/角色，不含密钥）。
+class SyncRosterMemberDto {
+  final String deviceId;
+  final String name;
+  final String platform;
+  final bool active;
+  final bool isOwner;
+  final bool isProcessor;
+  final bool isLocal;
+
+  const SyncRosterMemberDto({
+    required this.deviceId,
+    required this.name,
+    required this.platform,
+    required this.active,
+    required this.isOwner,
+    required this.isProcessor,
+    required this.isLocal,
+  });
+
+  @override
+  int get hashCode =>
+      deviceId.hashCode ^
+      name.hashCode ^
+      platform.hashCode ^
+      active.hashCode ^
+      isOwner.hashCode ^
+      isProcessor.hashCode ^
+      isLocal.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncRosterMemberDto &&
+          runtimeType == other.runtimeType &&
+          deviceId == other.deviceId &&
+          name == other.name &&
+          platform == other.platform &&
+          active == other.active &&
+          isOwner == other.isOwner &&
+          isProcessor == other.isProcessor &&
+          isLocal == other.isLocal;
 }
 
 /// What one bounded incremental sync tick actually did. All counters are

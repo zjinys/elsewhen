@@ -80,6 +80,20 @@ pub(crate) fn confirm_takeover(config: &AppConfig) -> Result<()> {
     store.confirm_processor_takeover()
 }
 
+/// Owner revokes a roster member. The UI must bind to the revision it
+/// displayed; the store fails closed on any concurrent membership change.
+pub(crate) fn revoke_member(
+    config: &AppConfig,
+    device_id: &str,
+    expected_revision: u64,
+) -> Result<()> {
+    with_unlocked_vault(config, |store, signer| {
+        store.require_sync_signer(signer)?;
+        store.revoke_signed_sync_member(expected_revision, device_id, signer)?;
+        Ok(())
+    })
+}
+
 /// Read-only handoff state for the settings page.
 pub(crate) fn state(config: &AppConfig) -> Result<crate::storage::sync::ProcessorHandoffState> {
     let store = Store::open(&config.database_path)?;

@@ -69,26 +69,51 @@ class FakeHandoffApi implements ProcessorHandoffApi {
   }
 }
 
-Widget _host(SyncProcessorHandoffController controller) => MaterialApp(
-  home: Scaffold(
-    body: SingleChildScrollView(
-      child: SyncProcessorHandoffSettings(
-        controller: controller,
-        isProcessor: true,
-        isOwner: true,
-      ),
-    ),
-  ),
+api.SyncRosterMemberDto _candidate(String id) => api.SyncRosterMemberDto(
+  deviceId: id,
+  name: '设备 $id',
+  platform: 'android',
+  active: true,
+  isOwner: false,
+  isProcessor: false,
+  isLocal: false,
 );
 
 Future<SyncProcessorHandoffController> _pump(
   WidgetTester tester,
-  FakeHandoffApi bridge,
-) async {
+  FakeHandoffApi bridge, {
+  List<api.SyncRosterMemberDto> candidates = const [],
+  bool isOwner = true,
+}) async {
   final controller = SyncProcessorHandoffController(bridge: bridge);
-  await tester.pumpWidget(_host(controller));
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: SyncProcessorHandoffSettings(
+            controller: controller,
+            isProcessor: true,
+            isOwner: isOwner,
+            candidates: candidates,
+          ),
+        ),
+      ),
+    ),
+  );
   await tester.pumpAndSettle();
   return controller;
+}
+
+/// 从下拉中选择目标设备并让出（含二次确认）。
+Future<void> _yieldViaDropdown(WidgetTester tester, String deviceName) async {
+  await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.textContaining(deviceName).last);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('让出加工权'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.widgetWithText(FilledButton, '让出'));
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -97,23 +122,22 @@ void main() {
       _state(state: 'idle', from: null),
       _state(state: 'relinquished', to: 'b', finalSequence: 2),
     ]);
-    await _pump(tester, bridge);
+    await _pump(tester, bridge, candidates: [_candidate('b')]);
     expect(bridge.yieldCalls, 0);
     expect(find.text('本机状态：未参与移交。'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'b');
-    // 二次确认对话框。
-    await tester.tap(find.text('让出加工权'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '让出'));
-    await tester.pumpAndSettle();
+    await _yieldViaDropdown(tester, '设备 b');
 
     expect(bridge.yieldCalls, 1);
     expect(bridge.approveCalls, 1, reason: 'owner 同机时必须自动审批');
     expect(bridge.yieldedTo, 'b');
     expect(bridge.approvedProof, isNotNull);
     expect(find.text('本机已让出加工权，等待目标设备确认接管。'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing, reason: '让出后不再重复让出');
+    expect(
+      find.byType(DropdownButtonFormField<String>),
+      findsNothing,
+      reason: '让出后不再重复让出',
+    );
   });
 
   testWidgets('让出被静默防线拦下时展示可读文案且不审批', (tester) async {
@@ -121,13 +145,9 @@ void main() {
     bridge.yieldError = Exception(
       'sync_background_processing_must_finish_before_enable',
     );
-    await _pump(tester, bridge);
+    await _pump(tester, bridge, candidates: [_candidate('b')]);
 
-    await tester.enterText(find.byType(TextField), 'b');
-    await tester.tap(find.text('让出加工权'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '让出'));
-    await tester.pumpAndSettle();
+    await _yieldViaDropdown(tester, '设备 b');
 
     expect(bridge.yieldCalls, 1);
     expect(bridge.approveCalls, 0, reason: '证明生成失败绝不能继续审批');
@@ -148,6 +168,7 @@ void main() {
               controller: controller,
               isProcessor: true,
               isOwner: false,
+              candidates: [_candidate('b')],
             ),
           ),
         ),
@@ -155,11 +176,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'b');
-    await tester.tap(find.text('让出加工权'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '让出'));
-    await tester.pumpAndSettle();
+    await _yieldViaDropdown(tester, '设备 b');
 
     expect(bridge.yieldCalls, 1);
     expect(bridge.approveCalls, 0, reason: '非 owner 本机绝不能自动审批');

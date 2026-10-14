@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -854603378;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -474669710;
 
 // Section: executor
 
@@ -1971,6 +1971,27 @@ fn wire__crate__api__sync__get_sync_join_state_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::sync::get_sync_join_state(api_operation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__get_sync_roster_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_sync_roster",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::get_sync_roster()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3956,6 +3977,34 @@ fn wire__crate__api__chat_runs__resume_chat_input_queue_impl(
                     (move || {
                         let output_ok =
                             crate::api::chat_runs::resume_chat_input_queue(api_conversation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__revoke_sync_member_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    device_id: impl CstDecode<String>,
+    expected_revision: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "revoke_sync_member",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            let api_expected_revision = expected_revision.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::revoke_sync_member(
+                            api_device_id,
+                            api_expected_revision,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -7065,6 +7114,20 @@ impl SseDecode for Vec<crate::api::sync::SyncJoinEntryDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::sync::SyncRosterMemberDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sync::SyncRosterMemberDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::fonts::SystemFontFace> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7861,6 +7924,49 @@ impl SseDecode for crate::api::sync::SyncKeyRequestDto {
             installation_id: var_installationId,
             revision: var_revision,
             creating: var_creating,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncRosterDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_revision = <i64>::sse_decode(deserializer);
+        let mut var_datasetId = <String>::sse_decode(deserializer);
+        let mut var_ownerDeviceId = <String>::sse_decode(deserializer);
+        let mut var_processorDeviceId = <String>::sse_decode(deserializer);
+        let mut var_localDeviceId = <Option<String>>::sse_decode(deserializer);
+        let mut var_members =
+            <Vec<crate::api::sync::SyncRosterMemberDto>>::sse_decode(deserializer);
+        return crate::api::sync::SyncRosterDto {
+            revision: var_revision,
+            dataset_id: var_datasetId,
+            owner_device_id: var_ownerDeviceId,
+            processor_device_id: var_processorDeviceId,
+            local_device_id: var_localDeviceId,
+            members: var_members,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::SyncRosterMemberDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deviceId = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_platform = <String>::sse_decode(deserializer);
+        let mut var_active = <bool>::sse_decode(deserializer);
+        let mut var_isOwner = <bool>::sse_decode(deserializer);
+        let mut var_isProcessor = <bool>::sse_decode(deserializer);
+        let mut var_isLocal = <bool>::sse_decode(deserializer);
+        return crate::api::sync::SyncRosterMemberDto {
+            device_id: var_deviceId,
+            name: var_name,
+            platform: var_platform,
+            active: var_active,
+            is_owner: var_isOwner,
+            is_processor: var_isProcessor,
+            is_local: var_isLocal,
         };
     }
 }
@@ -9989,6 +10095,57 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncKeyRequestDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncRosterDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.revision.into_into_dart().into_dart(),
+            self.dataset_id.into_into_dart().into_dart(),
+            self.owner_device_id.into_into_dart().into_dart(),
+            self.processor_device_id.into_into_dart().into_dart(),
+            self.local_device_id.into_into_dart().into_dart(),
+            self.members.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncRosterDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncRosterDto>
+    for crate::api::sync::SyncRosterDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncRosterDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncRosterMemberDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.device_id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.platform.into_into_dart().into_dart(),
+            self.active.into_into_dart().into_dart(),
+            self.is_owner.into_into_dart().into_dart(),
+            self.is_processor.into_into_dart().into_dart(),
+            self.is_local.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::SyncRosterMemberDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncRosterMemberDto>
+    for crate::api::sync::SyncRosterMemberDto
+{
+    fn into_into_dart(self) -> crate::api::sync::SyncRosterMemberDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncTickResultDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -11401,6 +11558,16 @@ impl SseEncode for Vec<crate::api::sync::SyncJoinEntryDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::sync::SyncRosterMemberDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sync::SyncRosterMemberDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::fonts::SystemFontFace> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11941,6 +12108,31 @@ impl SseEncode for crate::api::sync::SyncKeyRequestDto {
         <String>::sse_encode(self.installation_id, serializer);
         <i64>::sse_encode(self.revision, serializer);
         <bool>::sse_encode(self.creating, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncRosterDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i64>::sse_encode(self.revision, serializer);
+        <String>::sse_encode(self.dataset_id, serializer);
+        <String>::sse_encode(self.owner_device_id, serializer);
+        <String>::sse_encode(self.processor_device_id, serializer);
+        <Option<String>>::sse_encode(self.local_device_id, serializer);
+        <Vec<crate::api::sync::SyncRosterMemberDto>>::sse_encode(self.members, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::SyncRosterMemberDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.device_id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <String>::sse_encode(self.platform, serializer);
+        <bool>::sse_encode(self.active, serializer);
+        <bool>::sse_encode(self.is_owner, serializer);
+        <bool>::sse_encode(self.is_processor, serializer);
+        <bool>::sse_encode(self.is_local, serializer);
     }
 }
 
@@ -13479,6 +13671,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::SyncRosterMemberDto>>
+        for *mut wire_cst_list_sync_roster_member_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::SyncRosterMemberDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::fonts::SystemFontFace>> for *mut wire_cst_list_system_font_face {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::fonts::SystemFontFace> {
@@ -13883,6 +14087,33 @@ mod io {
                 installation_id: self.installation_id.cst_decode(),
                 revision: self.revision.cst_decode(),
                 creating: self.creating.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncRosterDto> for wire_cst_sync_roster_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncRosterDto {
+            crate::api::sync::SyncRosterDto {
+                revision: self.revision.cst_decode(),
+                dataset_id: self.dataset_id.cst_decode(),
+                owner_device_id: self.owner_device_id.cst_decode(),
+                processor_device_id: self.processor_device_id.cst_decode(),
+                local_device_id: self.local_device_id.cst_decode(),
+                members: self.members.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncRosterMemberDto> for wire_cst_sync_roster_member_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncRosterMemberDto {
+            crate::api::sync::SyncRosterMemberDto {
+                device_id: self.device_id.cst_decode(),
+                name: self.name.cst_decode(),
+                platform: self.platform.cst_decode(),
+                active: self.active.cst_decode(),
+                is_owner: self.is_owner.cst_decode(),
+                is_processor: self.is_processor.cst_decode(),
+                is_local: self.is_local.cst_decode(),
             }
         }
     }
@@ -15333,6 +15564,41 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_sync_roster_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                revision: Default::default(),
+                dataset_id: core::ptr::null_mut(),
+                owner_device_id: core::ptr::null_mut(),
+                processor_device_id: core::ptr::null_mut(),
+                local_device_id: core::ptr::null_mut(),
+                members: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_roster_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_sync_roster_member_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                device_id: core::ptr::null_mut(),
+                name: core::ptr::null_mut(),
+                platform: core::ptr::null_mut(),
+                active: Default::default(),
+                is_owner: Default::default(),
+                is_processor: Default::default(),
+                is_local: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_roster_member_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_sync_tick_result_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -16251,6 +16517,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__get_sync_roster(port_: i64) {
+        wire__crate__api__sync__get_sync_roster_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__theme__get_theme_prefs(port_: i64) {
         wire__crate__api__theme__get_theme_prefs_impl(port_)
     }
@@ -16934,6 +17205,15 @@ mod io {
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__chat_runs__resume_chat_input_queue_impl(port_, conversation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__revoke_sync_member(
+        port_: i64,
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        expected_revision: i64,
+    ) {
+        wire__crate__api__sync__revoke_sync_member_impl(port_, device_id, expected_revision)
     }
 
     #[unsafe(no_mangle)]
@@ -18224,6 +18504,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_sync_roster_member_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_sync_roster_member_dto {
+        let wrap = wire_cst_list_sync_roster_member_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_sync_roster_member_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_system_font_face(
         len: i32,
     ) -> *mut wire_cst_list_system_font_face {
@@ -19134,6 +19428,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_sync_roster_member_dto {
+        ptr: *mut wire_cst_sync_roster_member_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_system_font_face {
         ptr: *mut wire_cst_system_font_face,
         len: i32,
@@ -19431,6 +19731,27 @@ mod io {
         installation_id: *mut wire_cst_list_prim_u_8_strict,
         revision: i64,
         creating: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_roster_dto {
+        revision: i64,
+        dataset_id: *mut wire_cst_list_prim_u_8_strict,
+        owner_device_id: *mut wire_cst_list_prim_u_8_strict,
+        processor_device_id: *mut wire_cst_list_prim_u_8_strict,
+        local_device_id: *mut wire_cst_list_prim_u_8_strict,
+        members: *mut wire_cst_list_sync_roster_member_dto,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_roster_member_dto {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+        name: *mut wire_cst_list_prim_u_8_strict,
+        platform: *mut wire_cst_list_prim_u_8_strict,
+        active: bool,
+        is_owner: bool,
+        is_processor: bool,
+        is_local: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -21279,6 +21600,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::SyncRosterMemberDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::SyncRosterMemberDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::fonts::SystemFontFace>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -21973,6 +22306,55 @@ mod web {
                 installation_id: self_.get(1).cst_decode(),
                 revision: self_.get(2).cst_decode(),
                 creating: self_.get(3).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncRosterDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncRosterDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                6,
+                "Expected 6 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncRosterDto {
+                revision: self_.get(0).cst_decode(),
+                dataset_id: self_.get(1).cst_decode(),
+                owner_device_id: self_.get(2).cst_decode(),
+                processor_device_id: self_.get(3).cst_decode(),
+                local_device_id: self_.get(4).cst_decode(),
+                members: self_.get(5).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::SyncRosterMemberDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::SyncRosterMemberDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                7,
+                "Expected 7 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::SyncRosterMemberDto {
+                device_id: self_.get(0).cst_decode(),
+                name: self_.get(1).cst_decode(),
+                platform: self_.get(2).cst_decode(),
+                active: self_.get(3).cst_decode(),
+                is_owner: self_.get(4).cst_decode(),
+                is_processor: self_.get(5).cst_decode(),
+                is_local: self_.get(6).cst_decode(),
             }
         }
     }
@@ -23035,6 +23417,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__get_sync_roster(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__get_sync_roster_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__theme__get_theme_prefs(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -23736,6 +24125,15 @@ mod web {
         conversation_id: String,
     ) {
         wire__crate__api__chat_runs__resume_chat_input_queue_impl(port_, conversation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__revoke_sync_member(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        device_id: String,
+        expected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__sync__revoke_sync_member_impl(port_, device_id, expected_revision)
     }
 
     #[wasm_bindgen]

@@ -434,6 +434,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SyncJoinEntryDto> dco_decode_list_sync_join_entry_dto(dynamic raw);
 
   @protected
+  List<SyncRosterMemberDto> dco_decode_list_sync_roster_member_dto(dynamic raw);
+
+  @protected
   List<SystemFontFace> dco_decode_list_system_font_face(dynamic raw);
 
   @protected
@@ -591,6 +594,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SyncKeyRequestDto dco_decode_sync_key_request_dto(dynamic raw);
+
+  @protected
+  SyncRosterDto dco_decode_sync_roster_dto(dynamic raw);
+
+  @protected
+  SyncRosterMemberDto dco_decode_sync_roster_member_dto(dynamic raw);
 
   @protected
   SyncTickResultDto dco_decode_sync_tick_result_dto(dynamic raw);
@@ -1125,6 +1134,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SyncRosterMemberDto> sse_decode_list_sync_roster_member_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SystemFontFace> sse_decode_list_system_font_face(
     SseDeserializer deserializer,
   );
@@ -1322,6 +1336,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SyncKeyRequestDto sse_decode_sync_key_request_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncRosterDto sse_decode_sync_roster_dto(SseDeserializer deserializer);
+
+  @protected
+  SyncRosterMemberDto sse_decode_sync_roster_member_dto(
     SseDeserializer deserializer,
   );
 
@@ -2067,6 +2089,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_sync_join_entry_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_sync_join_entry_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_sync_roster_member_dto>
+  cst_encode_list_sync_roster_member_dto(List<SyncRosterMemberDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_sync_roster_member_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_sync_roster_member_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3472,6 +3505,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_sync_roster_dto(
+    SyncRosterDto apiObj,
+    wire_cst_sync_roster_dto wireObj,
+  ) {
+    wireObj.revision = cst_encode_i_64(apiObj.revision);
+    wireObj.dataset_id = cst_encode_String(apiObj.datasetId);
+    wireObj.owner_device_id = cst_encode_String(apiObj.ownerDeviceId);
+    wireObj.processor_device_id = cst_encode_String(apiObj.processorDeviceId);
+    wireObj.local_device_id = cst_encode_opt_String(apiObj.localDeviceId);
+    wireObj.members = cst_encode_list_sync_roster_member_dto(apiObj.members);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_sync_roster_member_dto(
+    SyncRosterMemberDto apiObj,
+    wire_cst_sync_roster_member_dto wireObj,
+  ) {
+    wireObj.device_id = cst_encode_String(apiObj.deviceId);
+    wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.platform = cst_encode_String(apiObj.platform);
+    wireObj.active = cst_encode_bool(apiObj.active);
+    wireObj.is_owner = cst_encode_bool(apiObj.isOwner);
+    wireObj.is_processor = cst_encode_bool(apiObj.isProcessor);
+    wireObj.is_local = cst_encode_bool(apiObj.isLocal);
+  }
+
+  @protected
   void cst_api_fill_to_wire_sync_tick_result_dto(
     SyncTickResultDto apiObj,
     wire_cst_sync_tick_result_dto wireObj,
@@ -4270,6 +4330,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sync_roster_member_dto(
+    List<SyncRosterMemberDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_system_font_face(
     List<SystemFontFace> self,
     SseSerializer serializer,
@@ -4524,6 +4590,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sync_key_request_dto(
     SyncKeyRequestDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_roster_dto(SyncRosterDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sync_roster_member_dto(
+    SyncRosterMemberDto self,
     SseSerializer serializer,
   );
 
@@ -5592,6 +5667,23 @@ class RustLibWire implements BaseWire {
       _cst_new_list_sync_join_entry_dtoPtr
           .asFunction<
             ffi.Pointer<wire_cst_list_sync_join_entry_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_sync_roster_member_dto>
+  cst_new_list_sync_roster_member_dto(int len) {
+    return _cst_new_list_sync_roster_member_dto(len);
+  }
+
+  late final _cst_new_list_sync_roster_member_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_sync_roster_member_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_sync_roster_member_dto');
+  late final _cst_new_list_sync_roster_member_dto =
+      _cst_new_list_sync_roster_member_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_sync_roster_member_dto> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_system_font_face> cst_new_list_system_font_face(
@@ -9592,6 +9684,18 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__sync__get_sync_roster(int port_) {
+    return _wire__crate__api__sync__get_sync_roster(port_);
+  }
+
+  late final _wire__crate__api__sync__get_sync_rosterPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__get_sync_roster',
+      );
+  late final _wire__crate__api__sync__get_sync_roster =
+      _wire__crate__api__sync__get_sync_rosterPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__sync__inspect_owner_sync_invitation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
@@ -9982,6 +10086,34 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               bool,
             )
+          >();
+
+  void wire__crate__api__sync__revoke_sync_member(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    int expected_revision,
+  ) {
+    return _wire__crate__api__sync__revoke_sync_member(
+      port_,
+      device_id,
+      expected_revision,
+    );
+  }
+
+  late final _wire__crate__api__sync__revoke_sync_memberPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__revoke_sync_member');
+  late final _wire__crate__api__sync__revoke_sync_member =
+      _wire__crate__api__sync__revoke_sync_memberPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
   void wire__crate__api__sync__select_default_sync_dataset(
@@ -13576,6 +13708,21 @@ final class wire_cst_list_sync_join_entry_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_sync_roster_member_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_sync_roster_member_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_sync_roster_member_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_sync_roster_member_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_sync_roster_member_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_system_font_face extends ffi.Struct {
   external ffi.Pointer<wire_cst_system_font_face> ptr;
 
@@ -14511,6 +14658,75 @@ final class wire_cst_sync_key_request_dto extends ffi.Struct {
     ..ref.installation_id = installation_id
     ..ref.revision = revision
     ..ref.creating = creating;
+}
+
+final class wire_cst_sync_roster_dto extends ffi.Struct {
+  @ffi.Int64()
+  external int revision;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> processor_device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_device_id;
+
+  external ffi.Pointer<wire_cst_list_sync_roster_member_dto> members;
+
+  static ffi.Pointer<wire_cst_sync_roster_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required int revision,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_device_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> processor_device_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_device_id,
+    required ffi.Pointer<wire_cst_list_sync_roster_member_dto> members,
+  }) => $allocator<wire_cst_sync_roster_dto>()
+    ..ref.revision = revision
+    ..ref.dataset_id = dataset_id
+    ..ref.owner_device_id = owner_device_id
+    ..ref.processor_device_id = processor_device_id
+    ..ref.local_device_id = local_device_id
+    ..ref.members = members;
+}
+
+final class wire_cst_sync_roster_member_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> platform;
+
+  @ffi.Bool()
+  external bool active;
+
+  @ffi.Bool()
+  external bool is_owner;
+
+  @ffi.Bool()
+  external bool is_processor;
+
+  @ffi.Bool()
+  external bool is_local;
+
+  static ffi.Pointer<wire_cst_sync_roster_member_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> platform,
+    required bool active,
+    required bool is_owner,
+    required bool is_processor,
+    required bool is_local,
+  }) => $allocator<wire_cst_sync_roster_member_dto>()
+    ..ref.device_id = device_id
+    ..ref.name = name
+    ..ref.platform = platform
+    ..ref.active = active
+    ..ref.is_owner = is_owner
+    ..ref.is_processor = is_processor
+    ..ref.is_local = is_local;
 }
 
 final class wire_cst_sync_tick_result_dto extends ffi.Struct {

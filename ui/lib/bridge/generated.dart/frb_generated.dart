@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -854603378;
+  int get rustContentHash => -474669710;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -428,6 +428,8 @@ abstract class RustLibApi extends BaseApi {
     required String operationId,
   });
 
+  Future<SyncRosterDto> crateApiSyncGetSyncRoster();
+
   Future<ThemePrefsDto> crateApiThemeGetThemePrefs();
 
   Future<String> crateApiTweetGetTweetFetchService();
@@ -730,6 +732,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiChatRunsResumeChatInputQueue({
     required String conversationId,
+  });
+
+  Future<void> crateApiSyncRevokeSyncMember({
+    required String deviceId,
+    required PlatformInt64 expectedRevision,
   });
 
   Future<String> crateApiProviderConfigSaveAiProviderConfig({
@@ -3275,6 +3282,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<SyncRosterDto> crateApiSyncGetSyncRoster() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__get_sync_roster(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_roster_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncGetSyncRosterConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncGetSyncRosterConstMeta =>
+      const TaskConstMeta(debugName: "get_sync_roster", argNames: []);
+
+  @override
   Future<ThemePrefsDto> crateApiThemeGetThemePrefs() {
     return handler.executeNormal(
       NormalTask(
@@ -5594,6 +5622,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "resume_chat_input_queue",
         argNames: ["conversationId"],
+      );
+
+  @override
+  Future<void> crateApiSyncRevokeSyncMember({
+    required String deviceId,
+    required PlatformInt64 expectedRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_i_64(expectedRevision);
+          return wire.wire__crate__api__sync__revoke_sync_member(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncRevokeSyncMemberConstMeta,
+        argValues: [deviceId, expectedRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncRevokeSyncMemberConstMeta =>
+      const TaskConstMeta(
+        debugName: "revoke_sync_member",
+        argNames: ["deviceId", "expectedRevision"],
       );
 
   @override
@@ -8468,6 +8529,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SyncRosterMemberDto> dco_decode_list_sync_roster_member_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_sync_roster_member_dto).toList();
+  }
+
+  @protected
   List<SystemFontFace> dco_decode_list_system_font_face(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_system_font_face).toList();
@@ -9049,6 +9118,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       installationId: dco_decode_String(arr[1]),
       revision: dco_decode_i_64(arr[2]),
       creating: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  SyncRosterDto dco_decode_sync_roster_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return SyncRosterDto(
+      revision: dco_decode_i_64(arr[0]),
+      datasetId: dco_decode_String(arr[1]),
+      ownerDeviceId: dco_decode_String(arr[2]),
+      processorDeviceId: dco_decode_String(arr[3]),
+      localDeviceId: dco_decode_opt_String(arr[4]),
+      members: dco_decode_list_sync_roster_member_dto(arr[5]),
+    );
+  }
+
+  @protected
+  SyncRosterMemberDto dco_decode_sync_roster_member_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return SyncRosterMemberDto(
+      deviceId: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      platform: dco_decode_String(arr[2]),
+      active: dco_decode_bool(arr[3]),
+      isOwner: dco_decode_bool(arr[4]),
+      isProcessor: dco_decode_bool(arr[5]),
+      isLocal: dco_decode_bool(arr[6]),
     );
   }
 
@@ -11100,6 +11202,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SyncRosterMemberDto> sse_decode_list_sync_roster_member_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SyncRosterMemberDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sync_roster_member_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<SystemFontFace> sse_decode_list_system_font_face(
     SseDeserializer deserializer,
   ) {
@@ -11912,6 +12028,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       installationId: var_installationId,
       revision: var_revision,
       creating: var_creating,
+    );
+  }
+
+  @protected
+  SyncRosterDto sse_decode_sync_roster_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_revision = sse_decode_i_64(deserializer);
+    var var_datasetId = sse_decode_String(deserializer);
+    var var_ownerDeviceId = sse_decode_String(deserializer);
+    var var_processorDeviceId = sse_decode_String(deserializer);
+    var var_localDeviceId = sse_decode_opt_String(deserializer);
+    var var_members = sse_decode_list_sync_roster_member_dto(deserializer);
+    return SyncRosterDto(
+      revision: var_revision,
+      datasetId: var_datasetId,
+      ownerDeviceId: var_ownerDeviceId,
+      processorDeviceId: var_processorDeviceId,
+      localDeviceId: var_localDeviceId,
+      members: var_members,
+    );
+  }
+
+  @protected
+  SyncRosterMemberDto sse_decode_sync_roster_member_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_platform = sse_decode_String(deserializer);
+    var var_active = sse_decode_bool(deserializer);
+    var var_isOwner = sse_decode_bool(deserializer);
+    var var_isProcessor = sse_decode_bool(deserializer);
+    var var_isLocal = sse_decode_bool(deserializer);
+    return SyncRosterMemberDto(
+      deviceId: var_deviceId,
+      name: var_name,
+      platform: var_platform,
+      active: var_active,
+      isOwner: var_isOwner,
+      isProcessor: var_isProcessor,
+      isLocal: var_isLocal,
     );
   }
 
@@ -13632,6 +13790,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_sync_roster_member_dto(
+    List<SyncRosterMemberDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sync_roster_member_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_system_font_face(
     List<SystemFontFace> self,
     SseSerializer serializer,
@@ -14253,6 +14423,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.installationId, serializer);
     sse_encode_i_64(self.revision, serializer);
     sse_encode_bool(self.creating, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_roster_dto(
+    SyncRosterDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.revision, serializer);
+    sse_encode_String(self.datasetId, serializer);
+    sse_encode_String(self.ownerDeviceId, serializer);
+    sse_encode_String(self.processorDeviceId, serializer);
+    sse_encode_opt_String(self.localDeviceId, serializer);
+    sse_encode_list_sync_roster_member_dto(self.members, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_roster_member_dto(
+    SyncRosterMemberDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.platform, serializer);
+    sse_encode_bool(self.active, serializer);
+    sse_encode_bool(self.isOwner, serializer);
+    sse_encode_bool(self.isProcessor, serializer);
+    sse_encode_bool(self.isLocal, serializer);
   }
 
   @protected

@@ -717,6 +717,72 @@ pub fn resolve_sync_provider_conflict(
     )
 }
 
+/// 名册设备列表（只读公开信息：设备名/平台/角色，不含密钥）。
+#[derive(Clone, Debug)]
+pub struct SyncRosterMemberDto {
+    pub device_id: String,
+    pub name: String,
+    pub platform: String,
+    pub active: bool,
+    pub is_owner: bool,
+    pub is_processor: bool,
+    pub is_local: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct SyncRosterDto {
+    pub revision: i64,
+    pub dataset_id: String,
+    pub owner_device_id: String,
+    pub processor_device_id: String,
+    pub local_device_id: Option<String>,
+    pub members: Vec<SyncRosterMemberDto>,
+}
+
+/// 查询当前名册设备列表。非活跃（已撤销）成员也展示，供 owner 审计。
+pub fn get_sync_roster() -> Result<SyncRosterDto> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let identity = store.sync_identity()?;
+    let signed = store
+        .current_signed_roster()?
+        .context("sync_authority_not_ready")?;
+    let roster = &signed.roster;
+    Ok(SyncRosterDto {
+        revision: roster.revision as i64,
+        dataset_id: roster.dataset_id.clone(),
+        owner_device_id: roster.owner.device_id.clone(),
+        processor_device_id: roster.processor_device_id.clone(),
+        local_device_id: identity.as_ref().map(|i| i.device_id.clone()),
+        members: roster
+            .members
+            .iter()
+            .map(|m| SyncRosterMemberDto {
+                is_owner: m.device.device_id == roster.owner.device_id,
+                is_processor: m.device.device_id == roster.processor_device_id,
+                is_local: identity
+                    .as_ref()
+                    .is_some_and(|i| i.device_id == m.device.device_id),
+                active: m.active,
+                device_id: m.device.device_id.clone(),
+                name: m.device.name.clone(),
+                platform: m.device.platform.clone(),
+            })
+            .collect(),
+    })
+}
+
+/// 名册 owner 撤销成员设备（需本机已解锁）。修订号必须与 UI 审阅时所见一致；
+/// 撤销 owner/加工设备会被 sync_membership_handoff_required 硬拦。
+pub fn revoke_sync_member(device_id: String, expected_revision: i64) -> Result<()> {
+    ensure!(
+        expected_revision > 0 && expected_revision <= i64::MAX,
+        "sync_membership_revision_invalid"
+    );
+    let config = AppConfig::load()?;
+    runtime::handoff::revoke_member(&config, &device_id, expected_revision as u64)
+}
+
 /// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。
 pub fn get_processor_handoff_state() -> Result<ProcessorHandoffStateDto> {
     let config = AppConfig::load()?;

@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../bridge/rust_bridge_repository.dart';
+import '../bridge/api.dart' as api;
 import '../sync/sync_processor_handoff_controller.dart';
+import '../sync/sync_roster_controller.dart';
 import '../sync/sync_provider_conflicts_controller.dart';
 import '../sync/sync_setup_controller.dart';
 import 'owner_sync_pairing_settings.dart';
 import 'joiner_sync_pairing_settings.dart';
 import 'sync_enrollment_progress.dart';
+import 'sync_members_settings.dart';
 import 'sync_processor_handoff_settings.dart';
 import 'sync_provider_conflicts_settings.dart';
 
@@ -19,6 +22,7 @@ class LocalSyncSettings extends StatefulWidget {
     this.repository,
     this.conflictsController,
     this.handoffController,
+    this.rosterController,
   });
   final SyncSetupController? controller;
   final RustBridgeRepository? repository;
@@ -28,6 +32,9 @@ class LocalSyncSettings extends StatefulWidget {
 
   /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
   final SyncProcessorHandoffController? handoffController;
+
+  /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
+  final SyncRosterController? rosterController;
 
   @override
   State<LocalSyncSettings> createState() => _LocalSyncSettingsState();
@@ -40,6 +47,8 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   late final bool _ownsConflicts;
   late final SyncProcessorHandoffController _handoff;
   late final bool _ownsHandoff;
+  late final SyncRosterController _roster;
+  late final bool _ownsRoster;
 
   @override
   void initState() {
@@ -49,6 +58,8 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         widget.conflictsController ?? SyncProviderConflictsController();
     _ownsHandoff = widget.handoffController == null;
     _handoff = widget.handoffController ?? SyncProcessorHandoffController();
+    _ownsRoster = widget.rosterController == null;
+    _roster = widget.rosterController ?? SyncRosterController();
   }
 
   @override
@@ -56,6 +67,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     _name.dispose();
     if (_ownsConflicts) _conflicts.dispose();
     if (_ownsHandoff) _handoff.dispose();
+    if (_ownsRoster) _roster.dispose();
     super.dispose();
   }
 
@@ -187,6 +199,8 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                   controller: _handoff,
                   isProcessor: state.isProcessor,
                   isOwner: state.isOwner,
+                  candidates: _handoffCandidates(),
+                  onChanged: _roster.refresh,
                 ),
               if (ready) SyncProviderConflictsSettings(controller: _conflicts),
               const SizedBox(height: 12),
@@ -212,6 +226,8 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              if (ready) SyncMembersSettings(controller: _roster),
             ],
             if (ready && state?.isOwner == true && controller.previewEnabled)
               OwnerSyncPairingSettings(controller: controller),
@@ -223,6 +239,16 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         );
       },
     );
+  }
+
+  /// 可接收加工权的设备：活跃、非本机成员（owner 也可接收，用于移交回 owner）。
+  List<api.SyncRosterMemberDto> _handoffCandidates() {
+    final roster = _roster.roster;
+    final local = roster?.localDeviceId;
+    if (roster == null || local == null) return const [];
+    return roster.members
+        .where((member) => member.active && member.deviceId != local)
+        .toList();
   }
 }
 
