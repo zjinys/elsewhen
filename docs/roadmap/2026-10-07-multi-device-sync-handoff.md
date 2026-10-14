@@ -516,7 +516,8 @@ P2 与 P3 的工程与自动化验收已完成（P3 见 §13），下一步为 P
 - [x] P4a 源隔离/idempotency 保真/未知版本容错/长离线追平完成（2026-10-12，见 §14）：迁移 v27 + 7 个同步测试 + v27 迁移测试，Rust 648 全量通过。
 - [x] P4b Provider 冲突掩码审阅/显式裁决/可达性提示完成（2026-10-13，见 §15）：迁移 v28 + 冲突审阅/裁决存储与 FRB API + 6 个端到端测试 + v28 迁移测试，Rust 660 全量通过；审阅对话框 UI 接线完成（§16），Flutter 349 全量通过。
 - [x] P4c S03 生命周期 GC/水印/补快照完成（2026-10-13，见 §17）：迁移 v29 + 每成员应用水印 + catch-up 窗口 + needs_resnapshot + GC 游标，7 个新测试，Rust 667 全量通过；加工移交与撤销 UX 属后续切片。
-- [ ] P4c–P4e（S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5（S05）、原生 OS 密钥库发布门禁（未开展）。
+- [x] P4d S04/S06 正常加工移交完成（2026-10-14，见 §19）：迁移 v31 + 移交凭据/状态机 + frontier 门禁确认接管 + 延迟分析放行，Rust 675 全量通过，Flutter 349 全量通过。
+- [ ] P4e（撤销 UX、真人设备签收）、P5（S05）、原生 OS 密钥库发布门禁（未开展）。
 
 ## 13. 2026-10-12 P3 实施（数据集选择/修复与 App 自动同步调度）
 
@@ -685,8 +686,7 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 
 - 本切片实现 **GC/水印/补快照状态**；`needs_resnapshot` 只置标志，**自动重发快照的调度**（检测标志后自动为新成员重建快照）属后续切片。
 - **tombstone 生命周期**：对话删除的 tombstone 防复活已在 `sync_object_heads.deleted` + `sync_known_revisions`；其**回收**需考虑离线设备与快照世代（§5），本切片未实现 tombstone 回收（保守保留，永不自动清）。
-- P4d 加工移交、P4e 撤销 UX/诊断/升级、原生密钥库签收、真人设备门禁继续未完成。
-- 全程只用临时目录隔离库与合成身份；无个人数据/真实密钥/外部模型/线上中继。
+- P4d 加工移交已完成（§19）；P4e 撤销 UX/诊断/升级、原生密钥库签收、真人设备门禁继续未完成。
 
 ### 事故记录：外来 stash 污染
 
@@ -737,5 +737,50 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 
 - **接收端消费重快照**仍是 restore 流程的活：活设备收到快照分片会优雅拒绝（在中继过期为传输副本），本切片只闭合「发送端调度 + ack + 解冻结」。
 - 中继 TTL 仅丢传输副本；未确认的源操作重发或安排快照，不以 relay 为准。
-- P4d 加工移交、P4e 撤销 UX/诊断/升级、原生密钥库签收、真人设备门禁继续未完成。
+- P4e 撤销 UX/诊断/升级、原生密钥库签收、真人设备门禁继续未完成。
 - 全程只用临时目录隔离库与合成身份；无个人数据/真实密钥/外部模型/线上中继（relay 测试 `ELSEWHEN_RELAY_TEST_URL` 未设，ignored）。
+
+## 19. 2026-10-14 P4d（S04/S06 正常加工移交）
+
+**目标**：实现跨设备后台加工归属的安全移交——旧端停止领取并收尾在途任务，通过密码学凭据完成状态交接，新端在 frontier 追平后显式确认接管。
+
+### 实现内容
+
+- **迁移 v31**（`migrations/31-sync-processor-handoff/up.sql`）：
+  - `sync_processor_handoffs`：记录所有已批准的 handoff 凭据（主键 `roster_revision`）。
+  - `sync_processor_state`：单例状态机（`idle` | `relinquished` | `pending_takeover` | `active`）。
+  - `sync_background_permission` 视图：排除 `relinquished` 和 `pending_takeover` 状态。
+
+- **`src/sync/membership.rs`**：
+  - `ProcessingYieldProof`：旧端 Ed25519 签名的移交凭据（绑定 dataset_id、from/to device、roster_revision、final_sequence）。
+  - `MembershipRoster.handoff`：向前兼容的 Option 字段，携带移交证明。
+  - `validate_successor`：无加工端变更时拒绝附带 handoff；有变更时强制要求旧加工端签名凭据且 revision 匹配。
+
+- **`src/storage/sync/membership.rs`**：
+  - `yield_processor_role`：校验当前为 active processor → `require_background_quiescent_for_sync` → 计算 `final_sequence = next_sequence - 1` → 生成并签名 proof → 置 `sync_processor_state` 为 `relinquished`。
+  - `apply_signed_roster`：检测到 `processor_device_id` 变更且带合法 handoff 时 → 记录 `sync_processor_handoffs` → 目标端置 `pending_takeover`（不更新 `processor_device_id`）→ 观察端直接更新 `processor_device_id`。
+  - `confirm_processor_takeover`：校验状态为 `pending_takeover` + `applied_sequence >= final_sequence` → 更新 `sync_replica.processor_device_id` → 置状态为 `active`。
+  - `get_processor_handoff_state`：查询当前移交状态（独立 DTO，不影响 `LocalSyncStateDto`）。
+
+- **`src/storage/sync/analysis.rs`**：
+  - `apply_sync_analysis`：若来源非当前 processor，查询 `sync_processor_handoffs` 中该设备的 `MAX(final_sequence)`；`op.origin_sequence <= final_sequence` 时允许应用，否则拒绝（`sync_analysis_wrong_processor`）。
+
+- **API 层**（`src/api/sync.rs`）：
+  - `yield_sync_processor`：旧端让出加工权，返回 `ProcessingYieldProofDto`。
+  - `confirm_processor_takeover`：新端确认接管。
+  - `get_processor_handoff_state`：查询移交状态，返回 `ProcessorHandoffStateDto`。
+
+### 验证结果
+
+| 检查 | 结果 |
+| --- | --- |
+| `cargo test` | **675 passed / 0 failed / 17 ignored** |
+| `cargo fmt --all -- --check` | 通过（修复 2 处新引入差异） |
+| `cargo build --release` | 通过 |
+| `./scripts/regen.sh` | 桥接重生成，hash 一致 |
+| Flutter `fvm flutter test` | **349 passed** |
+
+### 边界与未完成
+
+- P4e 撤销 UX/诊断/升级、原生密钥库签收、真人设备门禁继续未完成。
+- 全程只用临时目录隔离库与合成身份；无个人数据/真实密钥/外部模型/线上中继。
