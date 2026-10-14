@@ -1162,3 +1162,50 @@ reason 分支。op_id 含 `:`，过不了 `validate_id` 字符集，用非空检
 
 **剩余 S05**：三对象冲突候选的人工审阅 UI（复用 S05 审阅框架的通用化）、
 Wiki 专属会话引用开放；S06 真人门禁未动。
+
+## §28 S05 收尾：Wiki 专属会话开放 + 三对象冲突审阅（commits `2f1ccde` / `28cd15c`）
+
+**Wiki 专属会话与引用随依赖复制开放（`2f1ccde`）**：
+- `ConversationRecord` 增 `wiki_page_slug` / `assistant_mode`；`ConversationChanged`
+  校验 mode 枚举、slug 只允许 knowledge_mentor 会话携带（按 wiki slug 规则）。
+  **跨版本语义**：快照 serde `deny_unknown_fields` + op decode 严格 ==，旧端收到新
+  payload 会显式隔离（与新增枚举变体同等先例，不 bump PROTOCOL_VERSION）。
+- 捕获/应用不再排除 wiki 专属（`sync_is_syncable_conversation` = 会话行存在）；
+  基线 seeding 纳入全部会话。会话 INSERT 前检查引用锚 slug 是否在本端真实
+  出现过，未出现 → `Waiting` 等待补齐，不推断（同名新页不得自动收养旧引用）。
+- **stream 防永久阻塞关键设计**：新增 `sync_wiki_slug_seen` 足迹表（迁移 32）——
+  页面物理删除后 slug→head 映射丢失，足迹提供「该 slug 曾真实出现过」的事实；
+  捕获（含 rename 新 slug）、应用、快照三入口写入。**捕获端**：会话引用的页面
+  无 head 时（P5a 前的旧页）自动补发页面 op，保证页面 op 严格先于会话 op 同流
+  有序，对端不会因依赖未到而永久 wedge 同流后续 op。
+- snapshot 四查询（会话/消息/输入/head）纳入 wiki 专属；应用端复用足迹。
+- `create_wiki_chat_conversation` 包事务并接捕获；消息走既有
+  `send_message_with_input` 捕获路径（守卫放开后自动生效）。
+- 测试 +2：全量复制（普通列表不混入）；gap-wait 驱动的等待→同名本地行不收养
+  →页面 op 到达后收敛。
+
+**三对象冲突候选人工审阅（`28cd15c`，`object_conflicts.rs`）**：
+- `list_object_conflicts` / `resolve_object_conflict`：todo/goal/rule 候选通用化
+  wiki 审阅框架。双绑定失败关闭（行 updated_at 原样回传 + op state='conflict'）；
+  绑定失败报 `object_conflict_local_changed`（"本端记录已变化，请刷新后重新审阅"）。
+- 保留本端：head 活跃 → 重捕广播（对端见反向候选，对称收敛）；head 已删 →
+  删除态即裁决，仅清案。采纳对端：强制落整行（已删行复活未删态）。
+- **goal_active_limit 的采纳显式拒绝**（活跃上限是业务不变式，不旁路触发器），
+  候选保持待决；遗留问题（本地归档后远端目标如何补齐）仍记后续。
+- 审阅绑定注意：采纳一条会改写本端行 → 同对象其余候选的绑定失效，UI须重拉
+  （测试内以重拉列表取新绑定收尾，是失败关闭语义的必然闭环）。
+- API + regen：`ObjectConflictDto`；UI：`sync_object_conflicts_controller` /
+  `sync_object_conflicts_settings`，挂 local_sync_settings（wiki 卡片之后）。
+- 既有 `local_sync_settings_test` 视口抬高至 800×1000 并注入
+  `_EmptyObjectConflictApi`（新卡片挤出 800×600 视口按钮，已知坑再证实）。
+- 顺手清理：`settings_reading_layer_test` 遗留未用 appflowy import。
+
+**门禁**：Rust 703 passed（+5）、Flutter 371 passed（+3）、analyze 0 error/warning、
+fmt --check、release、regen hash 全过。日志最新：`28cd15c` → `2f1ccde` → `f8ee96b`。
+
+**关于快照缺口（既知既有）**：snapshot 查询不含 wiki 页/修订与 todo/goal/rule——
+新设备靠快照恢复后这些对象只能靠后续 op 或重放补齐，断档恢复缺口仍在
+（S06「断档快照恢复」验证项挂账）。
+
+**剩余 S05/S06**：S05 两个切片已全部完成；S06 真人双设备门禁待用户按
+`docs/roadmap/2026-10-14-s06-human-gate-checklist.md` 执行。
