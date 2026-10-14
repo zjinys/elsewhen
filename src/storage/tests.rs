@@ -2060,3 +2060,53 @@ fn relations_upsert_confidence_increments_once_per_event() {
     assert_eq!(rel.confidence, 5, "置信封顶 5");
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn resolve_entity_slug_normalizes_title_and_alias() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    let page = |slug: &str, kind: &str, title: &str| {
+        store
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: slug.to_string(),
+                    kind: kind.to_string(),
+                    title: title.to_string(),
+                    summary: String::new(),
+                    content_md: format!("# {title}"),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: "test".to_string(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
+            .unwrap();
+    };
+    page("person/王大山", "person", "王大山");
+    // 标题命中（大小写/空白不敏感）
+    assert_eq!(
+        store.resolve_entity_slug("person", "王大山").unwrap(),
+        Some("person/王大山".to_string())
+    );
+    // 别名命中：canonical 即页 slug
+    store
+        .add_entity_alias("person", "person/王大山", "小王")
+        .unwrap();
+    assert_eq!(
+        store.resolve_entity_slug("person", "小王").unwrap(),
+        Some("person/王大山".to_string())
+    );
+    // kind 不符 → 不得冒名：只有 topic 同名页时，person 解析为 None
+    page("topic/王大山", "topic", "王大山");
+    store.delete_wiki_page("person/王大山").unwrap();
+    assert_eq!(store.resolve_entity_slug("person", "王大山").unwrap(), None);
+    assert_eq!(
+        store.resolve_entity_slug("topic", "王大山").unwrap(),
+        Some("topic/王大山".to_string())
+    );
+    // 未命中 → None（调用方降级草拟，绝不猜）
+    assert_eq!(store.resolve_entity_slug("person", "不存在").unwrap(), None);
+    let _ = std::fs::remove_file(path);
+}

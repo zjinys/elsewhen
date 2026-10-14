@@ -1207,12 +1207,17 @@ fn try_auto_upsert_annotated_relation(
     target: &str,
     event_id: &str,
 ) -> Result<bool> {
-    let from_slug = crate::wiki::slugify(person);
-    let to_slug = crate::wiki::slugify(target);
-    let (Some(from), Some(to)) = (
-        store.get_wiki_page(&from_slug)?,
-        store.get_wiki_page(&to_slug)?,
+    // D3 归一管道：标题/别名命中即写 canonical slug；查不到或多义则降级草拟。绝
+    // 不盲写 slugify 直译 slug——那正是重复实体的成因。
+    let (Some(from_slug), Some(to_slug)) = (
+        store.resolve_entity_slug("person", person)?,
+        store.resolve_entity_slug("topic", target)?,
     ) else {
+        return Ok(false);
+    };
+    let from = store.get_wiki_page(&from_slug)?;
+    let to = store.get_wiki_page(&to_slug)?;
+    let (Some(from), Some(to)) = (from, to) else {
         return Ok(false);
     };
     store.upsert_relation(&crate::storage::RelationDraft {
@@ -1342,6 +1347,56 @@ mod user_model_tests {
         assert_eq!(relations[0].from_slug, crate::wiki::slugify("李四"));
         assert_eq!(relations[0].to_slug, crate::wiki::slugify("网站改版"));
         assert_eq!(relations[0].confidence, 4);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn alias_hit_writes_canonical_slug_and_survives_merge_replay() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        // canonical 页「王大山」，分析输出用别名「小王」——归一管道写 canonical
+        page_for_test(&store, "person", "王大山");
+        store
+            .add_entity_alias("person", &crate::wiki::slugify("王大山"), "小王")
+            .unwrap();
+        page_for_test(&store, "topic", "网站改版");
+        store
+            .insert_event(NewEvent::now("@小王 把 #网站改版 上线了"))
+            .unwrap();
+        let provider = AnalysisStub(Box::leak(reply(&["小王"], &["网站改版"]).into_boxed_str()));
+        assert_eq!(process_analysis_queue(&store, &provider).unwrap(), 1);
+        let relations = store.list_relations().unwrap();
+        assert_eq!(relations.len(), 1, "别名命中应自动入库");
+        assert_eq!(
+            relations[0].from_slug,
+            crate::wiki::slugify("王大山"),
+            "必须写 canonical"
+        );
+        assert_eq!(relations[0].confidence, 4);
+
+        // 归并后重放（新事件、同别名）：alias 已迁到目标页 → 边继续写新 canonical，
+        // 不复活已合并页、不产生分裂的第二条边。
+        page_for_test(&store, "person", "王大山二号");
+        store
+            .merge_entity(
+                "person",
+                &crate::wiki::slugify("王大山"),
+                &crate::wiki::slugify("王大山二号"),
+            )
+            .unwrap();
+        store
+            .insert_event(NewEvent::now("@小王 又推动了 #网站改版 一步"))
+            .unwrap();
+        let provider2 = AnalysisStub(Box::leak(reply(&["小王"], &["网站改版"]).into_boxed_str()));
+        assert_eq!(process_analysis_queue(&store, &provider2).unwrap(), 1);
+        let relations = store.list_relations().unwrap();
+        assert_eq!(relations.len(), 1, "重放不得另立第二条边");
+        assert_eq!(
+            relations[0].from_slug,
+            crate::wiki::slugify("王大山二号"),
+            "重放边应指向合并后的 canonical"
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }

@@ -85,6 +85,23 @@ impl Store {
             .map_err(Into::into)
     }
 
+    /// 实体名 → canonical slug（D3 归一管道）：标题/别名不区分大小写命中；
+    /// 恰好命中一页且 kind 相符、页面 active 才算归一成功（多义或无命中 →
+    /// None，调用方降级到草拟确认/人工消歧，绝不猜）。
+    /// 已合并页不算命中：其别名在合并时已迁到目标页，标题指向旧页是历史。
+    pub fn resolve_entity_slug(&self, kind: &str, name: &str) -> Result<Option<String>> {
+        let exact: Vec<WikiPage> = self
+            .find_wiki_pages_by_title_or_alias(name)?
+            .into_iter()
+            .filter(|p| p.kind == kind && p.status == "active")
+            .collect();
+        Ok(if exact.len() == 1 {
+            Some(exact[0].slug.clone())
+        } else {
+            None
+        })
+    }
+
     /// 列出知识库页面（主列表）。
     /// - `kind`：按内容类型过滤；`area`：按来源/用途分区过滤（imported/network/insight）。
     /// - 默认排除派生产物（area=derivative，它们只经 `list_derivatives` 按原文展开读取）。
