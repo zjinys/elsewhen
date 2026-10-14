@@ -134,6 +134,11 @@ pub enum SyncMutation {
         deleted: bool,
         observed_message_ids: Vec<String>,
     },
+    WikiPageChanged {
+        page: WikiPageRecord,
+        base_revision: Option<String>,
+        deleted: bool,
+    },
 }
 
 impl SyncMutation {
@@ -195,6 +200,39 @@ impl SyncMutation {
                 ensure!(
                     !deleted || conversation.archived,
                     "sync_delete_requires_archive"
+                );
+            }
+            Self::WikiPageChanged { page, deleted, .. } => {
+                validate_id(&page.id)?;
+                ensure!(
+                    !page.slug.is_empty()
+                        && page.slug.len() <= 255
+                        && !page
+                            .slug
+                            .bytes()
+                            .any(|b| b.is_ascii_control() || matches!(b, b' ' | b'\t')),
+                    "sync_wiki_slug_invalid"
+                );
+                ensure!(
+                    !page.title.trim().is_empty() && page.title.len() <= 512,
+                    "sync_wiki_title_invalid"
+                );
+                ensure!(
+                    page.kind.len() <= 64 && page.area.len() <= 64 && page.status.len() <= 64,
+                    "sync_wiki_field_invalid"
+                );
+                for event_id in &page.source_event_ids {
+                    validate_id(event_id)?;
+                }
+                if let Some(based_on) = &page.based_on {
+                    ensure!(
+                        !based_on.is_empty() && based_on.len() <= 255,
+                        "sync_wiki_based_on_invalid"
+                    );
+                }
+                ensure!(
+                    !deleted || page.status == "active",
+                    "sync_wiki_delete_status_invalid"
                 );
             }
         }
@@ -299,6 +337,32 @@ pub struct ConversationRecord {
     pub title: Option<String>,
     pub tag: Option<String>,
     pub archived: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// P5a：wiki 页面的可复制记录。`id` 是行身份，`slug` 是对外身份锚；
+/// 两者在任何一端的漂移都必须显式冲突处理（`slug_owned_by_other_id` /
+/// `slug_changed`），不得静默重挂。证据（`source_event_ids`）在接收端
+/// 只做并集与存在性等待，不推断、不采信同名新页。
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WikiPageRecord {
+    pub id: String,
+    pub slug: String,
+    pub kind: String,
+    pub title: String,
+    pub summary: String,
+    pub content_md: String,
+    pub tags: Vec<String>,
+    pub source_event_ids: Vec<String>,
+    pub status: String,
+    pub area: String,
+    pub based_on: Option<String>,
+    pub content_type: Option<String>,
+    pub source_url: Option<String>,
+    pub human_edited_at: Option<String>,
+    pub opinion: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }

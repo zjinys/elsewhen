@@ -928,3 +928,181 @@ fn outbox_lists_local_ops_in_sequence_order() {
     assert_eq!(ops[0].origin_sequence, 1);
     assert_eq!(ops[1].origin_sequence, 2);
 }
+
+fn capture_wiki(db: &Database, id: &str) {
+    let tx = db.store.begin_write_transaction().unwrap();
+    db.store.sync_record_wiki_page(id, false).unwrap();
+    if let Some(tx) = tx {
+        tx.commit().unwrap();
+    }
+}
+
+fn seed_wiki_page(
+    db: &Database,
+    id: &str,
+    slug: &str,
+    title: &str,
+    content: &str,
+    evidence: &[&str],
+) {
+    let now = chrono::Utc::now().to_rfc3339();
+    let mut all_evidence: Vec<String> = evidence.iter().map(|e| e.to_string()).collect();
+    all_evidence.sort();
+    all_evidence.dedup();
+    db.store
+        .connection
+        .execute(
+            "INSERT INTO wiki_pages(id,slug,kind,title,summary,content_md,tags,source_event_ids, \
+             evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,area) \
+             VALUES(?1,?2,'topic',?3,'',?4,'[]',?5,?6,'2026-01-01T00:00:00+00:00','2026-01-01T00:00:00+00:00','active','2026-01-01T00:00:00+00:00','2026-01-01T00:00:00+00:00','insight')",
+            params![
+                id,
+                slug,
+                title,
+                content,
+                serde_json::to_string(&all_evidence).unwrap(),
+                (all_evidence.len() as i64).max(1),
+            ],
+        )
+        .unwrap();
+}
+
+#[test]
+fn wiki_page_edits_replicate_and_stop_at_revision_cas() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    seed_wiki_page(&a, "page-1", "topic/p1", "页面一", "v1", &[]);
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    assert_eq!(
+        b.store
+            .get_wiki_page("topic/p1")
+            .unwrap()
+            .unwrap()
+            .content_md,
+        "v1"
+    );
+    // 双端离线并发编辑：两端从同一 base 出发的修改都到达对端时，
+    // 各自至少落一条冲突候选，且没有任何一端被时间更新顺序覆盖丢失。
+    a.store
+        .save_wiki_page_content("topic/p1", "edit-from-a", "a 改", None)
+        .unwrap();
+    b.store
+        .save_wiki_page_content("topic/p1", "edit-from-b", "b 改", None)
+        .unwrap();
+    deliver(&b, &a);
+    deliver(&a, &b);
+    assert!(a.count("sync_conflicts") >= 1, "A 端必须保留冲突候选");
+    assert!(b.count("sync_conflicts") >= 1, "B 端必须保留冲突候选");
+    let a_page = a.store.get_wiki_page("topic/p1").unwrap().unwrap();
+    assert_eq!(a_page.content_md, "edit-from-a", "冲突版本不得被静默覆盖");
+    let b_page = b.store.get_wiki_page("topic/p1").unwrap().unwrap();
+    assert_eq!(b_page.content_md, "edit-from-b", "冲突版本不得被静默覆盖");
+}
+
+#[test]
+fn wiki_page_same_slug_from_two_ids_is_an_explicit_conflict_not_a_remap() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    // 两个各自的 device stream 上各自建页：slug 撞车（同名不同 id）。
+    seed_wiki_page(&a, "page-a", "topic/dup", "同名页 A", "from-a", &[]);
+    seed_wiki_page(&b, "page-b", "topic/dup", "同名页 B", "from-b", &[]);
+    capture_wiki(&a, "page-a");
+    deliver(&a, &b);
+    assert_eq!(b.count("sync_conflicts"), 1, "slug 撞车必须显式冲突");
+    let winner = b.store.get_wiki_page("topic/dup").unwrap().unwrap();
+    assert_eq!(winner.id, "page-b", "本地页引用不得被静默重挂到对端 id");
+    let conflict: String = b
+        .store
+        .connection
+        .query_row("SELECT reason FROM sync_conflicts LIMIT 1", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(conflict, "slug_owned_by_other_id");
+}
+
+#[test]
+fn wiki_page_evidence_waits_for_missing_event_then_applies() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    // 先在 A 捕获一个事件，再给出一页把它当证据引用；但只把「页」送到 B。
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(&a, "page-ev", "topic/ev", "证据页", "正文", &[&event_id]);
+    capture_wiki(&a, "page-ev");
+    let ai = a.store.sync_identity().unwrap().unwrap();
+    let bi = b.store.sync_identity().unwrap().unwrap();
+    let ops = a.store.pending_sync_operations(&bi.device_id, 100).unwrap();
+    // 只投递引用页面的 op（跳过事件 op），证据未到：等待，不落库、不推断。
+    let wiki_idx = ops
+        .iter()
+        .position(|op| {
+            matches!(
+                op.mutation,
+                crate::sync::protocol::SyncMutation::WikiPageChanged { .. }
+            )
+        })
+        .unwrap();
+    let report = b
+        .store
+        .receive_sync_operation(&ai.device_id, &serde_json::to_vec(&ops[wiki_idx]).unwrap())
+        .unwrap();
+    assert_eq!(report.waiting, 1, "证据缺失必须等待");
+    assert_eq!(b.count("wiki_pages"), 0);
+    // 事件随后补齐，容忍等待态重投：页成功落地且证据继续存在。
+    for op in &ops {
+        b.store
+            .receive_sync_operation(&ai.device_id, &serde_json::to_vec(op).unwrap())
+            .unwrap();
+    }
+    let page = b.store.get_wiki_page("topic/ev").unwrap().unwrap();
+    assert_eq!(page.content_md, "正文");
+    assert_eq!(b.count("events"), 1);
+}
+
+#[test]
+fn wiki_page_edit_after_delete_keeps_candidate() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    seed_wiki_page(&b, "page-1", "topic/gone", "被删页", "旧正文", &[]);
+    capture_wiki(&b, "page-1");
+    deliver(&b, &a);
+    // A 端离线编辑，B 端删除；A 的编辑到达已删除的页面时保留候选。
+    a.store
+        .save_wiki_page_content("topic/gone", "offline edit", "离线改", None)
+        .unwrap();
+    {
+        let tx = b.store.begin_write_transaction().unwrap();
+        b.store.sync_record_wiki_page("page-1", true).unwrap();
+        if let Some(tx) = tx {
+            tx.commit().unwrap();
+        }
+    }
+    deliver(&a, &b);
+    assert_eq!(b.count("sync_conflicts"), 1);
+    let conflict: String = b
+        .store
+        .connection
+        .query_row("SELECT reason FROM sync_conflicts LIMIT 1", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(conflict, "wiki_page_deleted");
+    // 冲突版本不落库：b 的本地行保持原内容，物理删除由未来业务删除 API 负责
+    // （P5a 只交付复制底座；capture(deleted=true) 不再改写本地行）。
+    let row = b.store.get_wiki_page("topic/gone").unwrap().unwrap();
+    assert_eq!(row.content_md, "旧正文");
+    let deleted: bool = b
+        .store
+        .connection
+        .query_row("SELECT deleted FROM sync_object_heads WHERE object_kind='wiki_page' AND object_id='page-1'", [], |r| r.get(0))
+        .unwrap();
+    assert!(deleted, "删除捕获必须推进 head");
+}

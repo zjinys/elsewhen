@@ -468,6 +468,7 @@ impl Store {
         }
         let now = chrono::Utc::now().to_rfc3339();
         let tags_raw = serde_json::to_string(&cleaned)?;
+        let transaction = self.begin_write_transaction()?;
         self.connection.execute(
             "UPDATE wiki_pages SET tags = ?1, updated_at = ?2 WHERE id = ?3",
             params![tags_raw, now, page.id],
@@ -479,6 +480,10 @@ impl Store {
             format!("标签更新：{}", cleaned.join(", "))
         };
         self.record_wiki_revision(&page.id, &page.content_md, &reason, None)?;
+        self.sync_record_wiki_page(&page.id, false)?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         self.get_wiki_page(slug)?.context("标签更新后读取失败")
     }
 
@@ -636,6 +641,7 @@ impl Store {
             anyhow::bail!("正文超过 64k 字符上限（当前 {char_count} 字符）");
         }
         let now = chrono::Utc::now().to_rfc3339();
+        let transaction = self.begin_write_transaction()?;
         self.connection.execute(
             "UPDATE wiki_pages SET content_md=?1, human_edited_at=?2, updated_at=?2 WHERE id=?3",
             params![content_md, now, page.id],
@@ -662,6 +668,10 @@ impl Store {
                 reason
             }
         ))?;
+        self.sync_record_wiki_page(&page.id, false)?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         self.get_wiki_page(slug)?.context("人工编辑保存后读取失败")
     }
 
@@ -713,6 +723,18 @@ impl Store {
             _ => "清空（回归未表态，缺省认可）",
         };
         self.append_wiki_log(&format!("素材评价：{slug} → {label}"))?;
+        let affected: Vec<String> = {
+            let mut stmt = self.connection.prepare(
+                "SELECT id FROM wiki_pages WHERE id=?1 OR id IN\
+                    (SELECT m.page_id FROM knowledge_source_pages m WHERE m.source_id IN\
+                     (SELECT source_id FROM knowledge_source_pages WHERE page_id=?1))",
+            )?;
+            let rows = stmt.query_map(params![page.id], |r| r.get::<_, String>(0))?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        for id in affected {
+            self.sync_record_wiki_page(&id, false)?;
+        }
         tx.commit()?;
         self.get_wiki_page(slug)?.context("评价保存后读取失败")
     }

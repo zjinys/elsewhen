@@ -913,3 +913,38 @@ UI 测试：owner 撤销普通成员成功（绑定 revision）；非 owner 本�
 （`--dart-define=ELSEWHEN_SYNC_PREVIEW=false` 仍是发布关断手段）。
 对应调整：设置页「同步」独立 tab；关断态文案改为明确写出编译开关名；
 历史章节中"仅由开发预览打开"的表述不再反映当前默认值。
+
+## 22. P5a：Wiki 页面复制底座（2026-10-14）
+
+**范围（S05 第一片，只做 Rust 存储层，不接 FRB/UI）：**
+`SyncMutation::WikiPageChanged { page, base_revision, deleted }`（新
+`WikiPageRecord`，serde deny_unknown_fields）+ `src/storage/sync/wiki.rs`
+（`sync_wiki_page_record` / `sync_record_wiki_page` / `apply_sync_wiki_page`）。
+捕获点：`save_wiki_page_content`、`update_wiki_tags`、`set_wiki_opinion`
+（opinion 级联更新素材组多页，逐页捕获），全部包在领域事务内（追加
+`begin_write_transaction`；此前 `set_wiki_opinion` 的裸 `new_unchecked`
+事务不满足 `sync_requires_domain_transaction` 检查，钩子已移入其内提交）。
+
+**S05 语义落实：**
+- 修订 CAS 与会话同款：base_revision → Waiting（修订未见过）/ Conflict
+  `base_revision_changed`；**冲突候选不覆盖、不按时间取胜**（双端并发编辑
+  各自保留本地版，`sync_conflicts` 各记一条）。
+- **slug 是身份锚**：同 slug 不同 id → Conflict `slug_owned_by_other_id`
+  （同名新页不得静默重挂旧引用）；同 id 换 slug → 直接拒绝
+  `sync_wiki_slug_changed`（重命名通道后续切片再设计）。
+- **证据闭包**：`source_event_ids` 引用的事件未抵达 → Waiting；重新投递后
+  自动应用（依赖 outbox 未 ack 重发）。接收端证据/tags/last_seen_at 只并集
+  不回退（系统合并列），内容列随记录整行替换。
+- 删除：capture(deleted=true) 只推进 head，不改本地行（业务删除 API 归后续
+  切片）；已删 head 优先报 `wiki_page_deleted`（先于 base CAS 的 generic
+  原因）。
+
+**测试（`src/storage/sync/tests.rs` +4）：** 复制+双端并发编辑冲突保留 /
+同名 slug 显式冲突不重挂 / 证据缺失等待后补齐 / 删除后离线编辑保留候选。
+门禁：**Rust 684 passed / 0 failed**，fmt --check、release、`scripts/regen.sh`
+hash 一致（无 FRB 改动）。坑：Rust `\<newline>` 继续符会吞下一行缩进，
+SQL 关键词（`FROM`/`UNION`/`VALUES`）被粘连——续接符前必须留空格。
+
+**仍未完成（S05 余项）：** wiki_revisions 历史/来源快照闭包、的人工/AI 冲突
+审阅 UI 与确认 token、待办/目标/规则对象、Wiki 专属会话引用、删除业务 API，
+S05 门禁整体不因本片通过而勾选。

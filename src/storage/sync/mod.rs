@@ -16,6 +16,7 @@ mod providers;
 mod resnapshot;
 pub(crate) mod snapshot;
 mod vault;
+mod wiki;
 mod wire;
 
 use anyhow::{Context, Result, ensure};
@@ -789,6 +790,11 @@ impl Store {
                 self.sync_set_head("conversation", &conversation.id, &op.op_id, *deleted)?;
                 Ok(Apply::Applied)
             }
+            SyncMutation::WikiPageChanged {
+                page,
+                base_revision,
+                deleted,
+            } => self.apply_sync_wiki_page(op, page, base_revision, *deleted),
         }
     }
 
