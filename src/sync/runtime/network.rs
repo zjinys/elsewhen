@@ -18,6 +18,10 @@ pub(crate) struct NetworkTickReport {
     pub uploaded: usize,
     pub pulled_accepted: usize,
     pub pulled_waiting: usize,
+    /// 拒绝里因协议版本不匹配（对端需要升级）的数量。
+    pub pulled_version_mismatch: usize,
+    /// 本轮为该成员补发了当前名册修订（owner 收敛）。
+    pub roster_converged: bool,
     pub pulled_rejected: usize,
     pub acknowledgement_failed: bool,
     /// Re-snapshot exports staged this tick for lagging members.
@@ -34,6 +38,8 @@ impl NetworkTickReport {
         self.uploaded += other.uploaded;
         self.pulled_accepted += other.pulled_accepted;
         self.pulled_waiting += other.pulled_waiting;
+        self.pulled_version_mismatch += other.pulled_version_mismatch;
+        self.roster_converged |= other.roster_converged;
         self.pulled_rejected += other.pulled_rejected;
         self.acknowledgement_failed |= other.acknowledgement_failed;
     }
@@ -149,6 +155,17 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
             &send_key,
             vault.identity(),
         )?;
+        // P4e 名册收敛：owner 对未确认当前名册修订的活跃成员自动补发。
+        // 长离线成员回连后的恢复通道；撤销/移交后新修订由此到达其余成员。
+        if crate::sync::engine::stage_membership_roster_if_stale(
+            &store,
+            &peer_id,
+            key_version,
+            &send_key,
+            vault.identity(),
+        )? {
+            peer_report.roster_converged = true;
+        }
         // The durable send credential for this direction was agreed at
         // enrollment; never re-derive it from newer relay state.
         let credential = crate::sync::transport_relay::RelayClient::derive_sender_credential(
@@ -184,6 +201,7 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
             peer_report.pulled_accepted += pulled.accepted;
             peer_report.pulled_waiting += pulled.waiting;
             peer_report.pulled_rejected += pulled.rejected;
+            peer_report.pulled_version_mismatch += pulled.rejected_version_mismatch;
             peer_report.acknowledgement_failed |= pulled.acknowledgement_failed;
             if pulled.accepted + pulled.waiting + pulled.rejected < 3 {
                 break;

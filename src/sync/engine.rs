@@ -202,6 +202,42 @@ pub(crate) fn stage_receipts(
     Ok(receipts.len() + envelopes.len())
 }
 
+/// P4e 名册收敛：owner 周期性确保每个活跃成员都持有当前名册修订。
+/// 长离线成员回连后，下一个 owner tick 自动补发当前修订；对端已确认或
+/// 该修订在途则跳过。成员侧无推送义务（各自等待 owner），返回 false。
+pub(crate) fn stage_membership_roster_if_stale(
+    store: &Store,
+    recipient: &str,
+    key_version: u64,
+    key: &ContentKey,
+    signer: &DeviceIdentity,
+) -> Result<bool> {
+    let identity = store.sync_identity()?.context("sync_not_initialized")?;
+    let Some(signed) = store.current_signed_roster()? else {
+        return Ok(false);
+    };
+    if identity.device_id != signed.roster.owner.device_id {
+        return Ok(false);
+    }
+    if !store.sync_member_active(recipient)? {
+        return Ok(false);
+    }
+    let note = format!(
+        "membership:{}:{}",
+        signed.roster.revision,
+        signed.roster.digest()?
+    );
+    let tx = store.begin_write_transaction()?;
+    let needed = store.membership_envelope_needed(recipient, &note)?;
+    if needed {
+        stage_membership_roster(store, recipient, key_version, key, signer)?;
+    }
+    if let Some(tx) = tx {
+        tx.commit()?;
+    }
+    Ok(needed)
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct PushReport {
     pub uploaded: usize,
@@ -304,6 +340,8 @@ pub(crate) struct PullReport {
     pub accepted: usize,
     pub waiting: usize,
     pub rejected: usize,
+    /// 拒绝中因协议版本不匹配者（升级容差/诊断：不是内容错误，是部署错位）。
+    pub rejected_version_mismatch: usize,
     pub acknowledgement_failed: bool,
 }
 
@@ -346,7 +384,13 @@ pub(crate) fn pull_page(
                 report.accepted += 1;
             }
             Ok(false) => report.waiting += 1,
-            Err(_) => report.rejected += 1,
+            Err(err) => {
+                report.rejected += 1;
+                // 错误链文本匹配而非 downcast：错误可能被 context 层包装。
+                if format!("{err:#}").contains("sync_protocol_unsupported") {
+                    report.rejected_version_mismatch += 1;
+                }
+            }
         }
     }
     if !acknowledged.is_empty() {

@@ -313,6 +313,15 @@ impl Store {
 
     /// A roster is complete state. Skipped revisions are safe only because every
     /// previously known identity and irreversible revocation must be retained.
+    pub(crate) fn sync_member_active(&self, device: &str) -> Result<bool> {
+        let active: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1)",
+            params![device],
+            |r| r.get(0),
+        )?;
+        Ok(active)
+    }
+
     pub(crate) fn apply_signed_roster(&self, bytes: &[u8]) -> Result<bool> {
         let tx = self.begin_write_transaction()?;
         let signed = SignedRoster::decode(bytes, &self.sync_pinned_authority()?)?;

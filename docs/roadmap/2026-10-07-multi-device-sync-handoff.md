@@ -948,3 +948,49 @@ SQL 关键词（`FROM`/`UNION`/`VALUES`）被粘连——续接符前必须留�
 **仍未完成（S05 余项）：** wiki_revisions 历史/来源快照闭包、的人工/AI 冲突
 审阅 UI 与确认 token、待办/目标/规则对象、Wiki 专属会话引用、删除业务 API，
 S05 门禁整体不因本片通过而勾选。
+
+## 23. P4e 收官：长离线名册收敛 + 版本不匹配可诊断（2026-10-14）
+
+**缺口（勘察结论）：** `stage_membership_roster` 此前只在配对/加入时手动调用；
+`revoke_signed_sync_member`、加工移交审定等名册推进**只落本地**，无向其余成员
+的再分发通道。长离线成员回连后永远停在旧名册：撤销对它不生效（仍按 active
+成员收发）、移交边的另一端永远不知道 processor 已换手——名册不收敛是正确性
+缺口，不只是体验问题。
+
+**实现（owner 单向推送，成员无拉取义务）：**
+- `Store::membership_envelope_needed(recipient, message_id)`（wire.rs）：outbox
+  已有该 `membership:{revision}:{digest}` 记录（pending 在途或 acknowledged
+  已确认）⇒ 不再补发；依赖既有重试与回执 ack 语义。非 autocommit 下调用
+  （`sync_requires_domain_transaction`）。
+- `Store::sync_member_active(device)`：名册成员活跃查询。
+- `engine::stage_membership_roster_if_stale(...)`：仅 owner 生效（身份对齐
+  `roster.owner`）；计算当前修订的 membership message_id，_needed 时在领域
+  事务内 `stage_membership_roster`。成员/已撤销成员/无名册一律静默返回 false。
+- `runtime/network.rs` tick 每成员循环接线（stage_receipts 之后）：任何名册
+  推进后下一个 owner tick 自动扩散；回连成员被下轮 tick 补齐。
+- NetworkTickReport 增 `roster_converged`（本轮为该成员补发过当前修订），
+  仅做信号，不新增 API 面。
+
+**版本不匹配可诊断（升级容差最小片）：**
+- `PullReport` 增 `rejected_version_mismatch`：pull 拒绝分支用错误链文本
+  匹配 `sync_protocol_unsupported`（不用 downcast，错误可能被 context 包装）。
+- receive 层保持既有语义：无法 decode 的 op 按来源隔离（`isolated` +
+  `error_code='sync_protocol_unsupported'`），不阻塞流、不应用；本片只是让
+  该信号在 pull 报表可见，不做版本窗口兼容（真多版本共存需升级协商，留
+  后续）。
+
+**测试（membership/tests.rs +2）：**
+- `owner_converges_stale_member_to_current_roster_revision`：b 加收 c 与撤销
+  c 两次修订期间离线 → owner stage-if-stale 补发 head 修订 → b 应用收敛；
+  在途幂等（不重复补发，仅留既有重试条目）；成员侧无分发义务；已撤销成员
+  不再补发。
+- `protocol_version_mismatch_rejects_as_version_mismatch`：伪造
+  protocol_version=999 的 op → receive 按 isolated + sync_protocol_unsupported
+  落库，applied=0（验证隔离语义而非 Err）。
+
+**门禁：Rust 686 passed / 0 failed（+2）；fmt --check、release、regen hash
+一致（无 FRB/Dart 改动）。**
+
+**仍未完成：** P4e 的真人设备签收属 S06 人工门禁；S06 第 169 行整项（含
+可用性降级、禁用/重启用、诊断面板展示该新信号）保持未勾选；多版本共存
+协商未做（当前仍是严格 `== PROTOCOL_VERSION` + 隔离失败关闭）。

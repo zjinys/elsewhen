@@ -61,6 +61,28 @@ impl Store {
         Ok(())
     }
 
+    /// P4e 名册收敛：该成员是否仍需要这条名册信封。outbox 记录存在且
+    /// 已确认（对端回执）⇒ 无需再投；在途或不存在 ⇒ 允许补发/重试。
+    pub(crate) fn membership_envelope_needed(
+        &self,
+        recipient: &str,
+        message_id: &str,
+    ) -> Result<bool> {
+        ensure!(
+            !self.connection.is_autocommit(),
+            "sync_requires_domain_transaction"
+        );
+        let state: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT state FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id=?2",
+                params![recipient, message_id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(state.is_none())
+    }
+
     pub(crate) fn rearm_sync_wire_receipt(&self, target: &str, message_id: &str) -> Result<()> {
         self.connection.execute("UPDATE sync_wire_outbox SET state='pending',available_at_ms=0 WHERE recipient_device_id=?1 AND message_id=?2 AND state='acknowledged'",params![target,message_id])?;
         Ok(())
