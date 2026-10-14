@@ -41,6 +41,10 @@
 - **整体状态：** 进行中，当前执行 Phase 4C
 - **下一步骤：** [AI 对话体验优化子路线](2026-09-30-ai-chat-experience-roadmap.md) C00–C09 工程、自动化和真实端点合成场景均完成；真人GUI点按签收已移交独立[人工验收 roadmap](2026-10-04-ai-chat-manual-acceptance-roadmap.md)（S1–S6，尚未执行）。既有建议反馈、素材采用和规模验证继续独立记录，不因对话优化而视为完成。
 
+### 决策辅助子路线（2026-10-14）
+
+用户确认把[决策辅助闭环 Agent Note](../notes/proposed/architecture/2026-09-19-decision-support-loop.md)（决策辅助 + 情绪陪伴定位）转为实施：规则触发引擎、用户模型增量维护、分析「提取+指导」、情绪维度与闭环度量，切片 D0–D6 见[决策辅助闭环 Roadmap](2026-10-14-decision-support-loop-roadmap.md)。全部未开工；首个可用范围为 D1+D2+D4 真人验收。
+
 ### 多设备同步子路线（2026-10-03）
 
 用户确认采用“多端离线记录、加密中继优先、后台加工有归属、修改有版本”，并要求新设备加入后完整恢复 Provider 配置（含 API Key、当前激活项和运行参数），无需重新填写。规范见[同步设计 Note](../notes/proposed/architecture/2026-09-30-multi-device-sync.md)，实施与验收见[同步子路线 S00–S06](2026-10-03-multi-device-sync-roadmap.md)。这不替代既有 AI 对话人工签收，也不代表完整 Wiki 同步已经完成。

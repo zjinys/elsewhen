@@ -1,6 +1,8 @@
 # Agent Note: 决策辅助闭环（定位补全）
 
-Status: proposed
+Status: adopted（2026-10-14）——本文的定位、缺口与红线已转为实施路线
+[决策辅助闭环 Roadmap（决策辅助 + 情绪陪伴）](../../../roadmap/2026-10-14-decision-support-loop-roadmap.md)（D0–D6 切片），
+后续进度由该 roadmap 承载；本文保留为决策记录，不再更新实现状态。
 
 ## Problem
 

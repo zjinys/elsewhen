@@ -17,11 +17,11 @@
 | Proposal | 缺失内容 | 优先级 |
 |---|---|---|
 | [对话框 → 抽屉改造](notes/proposed/product/2026-10-04-chat-dialog-to-drawer.md) | 方案已定，未动手 | 高 |
-| [决策辅助闭环](notes/proposed/architecture/2026-09-19-decision-support-loop.md) | 自动提醒 + 完整行动度量（Phase 4C 收尾） | 高 |
+| [决策辅助闭环](notes/proposed/architecture/2026-09-19-decision-support-loop.md) | 已转实施路线：[D0–D6](roadmap/2026-10-14-decision-support-loop-roadmap.md)（2026-10-14）；规则触发引擎 / 用户模型增量 / 分析指导 / 情绪陪伴 / 闭环度量 | 高 |
 | [目标偏差检测](notes/proposed/architecture/2026-09-28-goal-schema-and-deviation.md) + [周期统计报告](notes/proposed/architecture/2026-09-30-periodic-deviation-report.md) | 周期统计 + 偏差检测（`goals` 表已建） | 中 |
 | [单流主题后续演进](notes/proposed/product/2026-10-05-single-stream-topic-follow-ups.md) | 主题生命周期与状态排序、分析队列摘要、同名候选确认、AI 建议归拢 | 中 |
 | [工作项一等页面](notes/proposed/architecture/2026-09-22-work-items-as-first-class-pages.md) | 未做 | 中 |
-| [今日记忆检索](notes/proposed/2026-09-15-daily-memory-retrieval.md) | 待实现 | 低 |
+| [今日记忆检索](notes/proposed/2026-09-15-daily-memory-retrieval.md) | 并入[决策辅助闭环 D6](roadmap/2026-10-14-decision-support-loop-roadmap.md)（对话出口） | 低 |
 | [save_knowledge_draft 来源发现死循环](notes/proposed/bug-fix/2026-10-08-save-draft-source-discovery-loop.md) | 错误消息指路 + list_wiki_pages 输出带 slug | 中 |
 | [Linux/Wayland 窗口位置记忆失效](notes/proposed/bug-fix/2026-10-10-window-geometry-wayland.md) | 关闭时补存已落地但仍不恢复；疑似 Wayland 下 setBounds position 被忽略，需补恢复侧诊断 | 中 |
 | [快速捕获切不到 CaptureScreen UI](notes/proposed/bug-fix/2026-10-10-quick-capture-no-ui-switch.md) | tray/单实例转发只改窗口外观不改 UI（渲染只认启动 config.mode）；需运行期 mode provider，全局快捷键 + tray 项存留待定 | 中 |
