@@ -907,3 +907,9 @@ UI 测试：owner 撤销普通成员成功（绑定 revision）；非 owner 本�
 
 人工项（真人双设备门禁，发布前必须逐条执行，AI 不可代做）：
 清单见 `docs/roadmap/2026-10-14-s06-human-gate-checklist.md`。
+
+**2026-10-14 决定：开发预览默认关闭改为默认开启。** P4d 全链路完成后，
+`ELSEWHEN_SYNC_PREVIEW` 从"默认关、显式开"翻转为"默认开、可显式关"
+（`--dart-define=ELSEWHEN_SYNC_PREVIEW=false` 仍是发布关断手段）。
+对应调整：设置页「同步」独立 tab；关断态文案改为明确写出编译开关名；
+历史章节中"仅由开发预览打开"的表述不再反映当前默认值。

@@ -7,6 +7,23 @@ import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
 import 'support/sync_setup.dart';
 
 void main() {
+  test(
+    'sync setup is enabled by default (compile gate can still opt out)',
+    () async {
+      final storage = TestSyncSecureStorage();
+      final bridge = TestSyncSetupApi(storage);
+      final controller = SyncSetupController(
+        keyStore: SyncKeyStore(storage: storage),
+        bridge: bridge,
+      );
+      await controller.createOwner('owner', 'test', consent: true);
+      expect(controller.error, isNull, reason: '默认构建必须开放本机准备');
+      expect(bridge.current.state, 'local_ready');
+      await controller.close();
+      controller.dispose();
+    },
+  );
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('creation needs preview and consent, then stores revision before activation', () async {

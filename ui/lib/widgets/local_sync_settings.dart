@@ -99,7 +99,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
             }, style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             Text(
-              '配对、跨设备传输和恢复界面仍在接入。本机准备不会启动联网同步，原有记录和 Provider 配置会保留。',
+              '配对与跨设备传输由 owner 邀请发起。本机准备不会启动联网同步，原有记录和 Provider 配置会保留。',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
@@ -166,7 +166,10 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               ),
             ] else if (!configured && state != null) ...[
               const SizedBox(height: 12),
-              Text('本机准备仅在同步开发预览中开放。', style: theme.textTheme.bodySmall),
+              Text(
+                '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。',
+                style: theme.textTheme.bodySmall,
+              ),
             ],
             if (state == null && !controller.busy)
               TextButton(

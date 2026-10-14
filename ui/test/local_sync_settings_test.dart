@@ -68,7 +68,8 @@ void main() {
         ),
       );
       expect(find.text('准备本机'), findsNothing);
-      expect(find.textContaining('开发预览'), findsOneWidget);
+      expect(find.textContaining('当前构建中关闭'), findsOneWidget);
+      expect(find.textContaining('ELSEWHEN_SYNC_PREVIEW'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       controller.dispose();
     },

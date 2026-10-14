@@ -67,7 +67,11 @@ class SyncSetupController extends ChangeNotifier {
     SyncJoinApi? joinBridge,
     SyncEnrollmentApi? enrollmentBridge,
     this.autoEnrollment = false,
-    this.previewEnabled = const bool.fromEnvironment('ELSEWHEN_SYNC_PREVIEW'),
+    this.previewEnabled = // 默认开启（P4d 全链路已完成）；发布门禁前如需关断：--dart-define=ELSEWHEN_SYNC_PREVIEW=false
+    const bool.fromEnvironment(
+      'ELSEWHEN_SYNC_PREVIEW',
+      defaultValue: true,
+    ),
   }) : _keys = keyStore ?? SyncKeyStore(),
        _bridge = bridge ?? FrbSyncSetupApi(),
        _pairing = pairingBridge ?? FrbSyncPairingApi(),
