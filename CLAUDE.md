@@ -291,3 +291,12 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on Ubuntu, macOS, Wind
 - Natural-language acknowledgements never execute or discard pending chat actions/rules. FRB review requests bind kind, ID, conversation, proposal version and target token; never fetch a new token for previously displayed content.
 - `storage/approvals.rs` stores durable claims, execution leases and receipts. Local compound writes validate target bases and commit their result together. Stale explicit contact slugs never silently fall back by name. Non-atomic import outcomes may need inspection, not blind replay.
 - Healthy execution leases survive re-initialization; only expired claims recover as uncertain, and late completions are fenced. The main chat, wiki chat and legacy global-rule review use the same review contract. This is not yet the full generation/streaming lifecycle; follow the remaining roadmap steps.
+
+## Flutter UI Guidelines
+
+### ListTile style constraints
+- **禁止**将 `ListTile` 直接作为 `DecoratedBox`/`Container`/`Card` 等带 `color`/`decoration.color` 背景的容器的直接子组件，容易导致 `ListTile background color or ink splashes may be invisible` 警告。
+- 当 `ListTile` 需要在带背景的容器内使用时，必须在其外层包裹 `Material`（推荐 `Material(type: MaterialType.transparency)` 或显式指定 `color` 的 `Material`）来提供 ink splash 的绘制祖先。
+- 对于 `PopupMenuItem`、`DropdownMenuItem`、`BottomSheet`、`Dialog` 等菜单/面板内的列表项：优先考虑使用 `ListTile` 自带的 `tileColor`，或在 `ListTile` 外包 `Material` 以避免背景色冲突。不要让中间层的带色容器遮挡 ListTile 的背景和 ripple 效果。
+- 修复原则：要么移除中间容器的背景色，要么确保 `ListTile` 拥有最近的 `Material` 祖先。
+
