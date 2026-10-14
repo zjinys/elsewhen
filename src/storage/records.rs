@@ -448,26 +448,32 @@ impl Store {
     pub fn upsert_relation(&self, draft: &RelationDraft) -> Result<Relation> {
         let now = chrono::Utc::now().to_rfc3339();
         self.connection.execute(
-        "INSERT INTO relations
+            "INSERT INTO relations
            (id, from_slug, from_kind, to_slug, to_kind, relation, note, confidence,
             source_conversation_id, source_event_id, created_at, last_seen_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)
          ON CONFLICT(from_slug, to_slug, relation) DO UPDATE SET
-           note = ?7, confidence = ?8, source_event_id = COALESCE(?10, relations.source_event_id), last_seen_at = ?11",
-        params![
-            Uuid::new_v4().to_string(),
-            draft.from_slug,
-            draft.from_kind,
-            draft.to_slug,
-            draft.to_kind,
-            draft.relation,
-            draft.note,
-            draft.confidence,
-            draft.source_conversation_id,
-            draft.source_event_id,
-            now.clone(),
-        ],
-    )?;
+           note = ?7,
+           -- 增量合并（D2）：同一事件重复贡献（重放/reanalyze）不重复加权；
+           -- 新事件贡献走渐进增强，封顶 5（宁缺毋滥——置信只认来源多样）。
+           confidence = CASE
+             WHEN ?10 IS NOT NULL AND relations.source_event_id = ?10 THEN relations.confidence
+             ELSE MIN(5, relations.confidence + 1) END,
+           source_event_id = COALESCE(?10, relations.source_event_id), last_seen_at = ?11",
+            params![
+                Uuid::new_v4().to_string(),
+                draft.from_slug,
+                draft.from_kind,
+                draft.to_slug,
+                draft.to_kind,
+                draft.relation,
+                draft.note,
+                draft.confidence,
+                draft.source_conversation_id,
+                draft.source_event_id,
+                now.clone(),
+            ],
+        )?;
         // 读回真实行（拿到真实 id）
         let mut statement = self.connection.prepare(
             "SELECT id, from_slug, from_kind, to_slug, to_kind, relation, note, confidence,

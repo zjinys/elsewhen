@@ -1117,44 +1117,70 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
                         &candidates,
                         &cited,
                     )?;
+                    // 用户模型增量维护（D2）：@/# 双向标注的组合是用户写死的
+                    // 权威实体，双方页面都已存在时直接增量入库（不用等确认）；
+                    // 其余组合保留草拟确认卡（低置信才草拟，防打扰）。
                     if value.recordable && !value.people.is_empty() && !value.projects.is_empty() {
-                        if let Some(conversation_id) =
-                            store.conversation_id_for_event(&job.event_id)?
-                        {
-                            let exists = store.action_exists_for_event(
-                                &conversation_id,
-                                "propose_people_relations",
-                                &job.event_id,
-                            )?;
-                            if !exists {
-                                let people: Vec<_> = value
-                                    .people
-                                    .iter()
-                                    .map(|name| serde_json::json!({"name": name}))
-                                    .collect();
-                                let relations: Vec<_> = value
-                                    .people
-                                    .iter()
-                                    .flat_map(|person| {
-                                        value.projects.iter().map(move |project| {
+                        let annotations = crate::event::parse_annotations_many(std::iter::once(
+                            job.raw_text.as_str(),
+                        ));
+                        let mut draft_pairs: Vec<(String, String)> = Vec::new();
+                        for person in &value.people {
+                            let person_authoritative =
+                                annotations.people.iter().any(|p| p == person);
+                            for target in &value.projects {
+                                let target_authoritative =
+                                    annotations.targets.iter().any(|t| t == target);
+                                let authoritative = person_authoritative && target_authoritative;
+                                if authoritative
+                                    && try_auto_upsert_annotated_relation(
+                                        store,
+                                        person,
+                                        target,
+                                        &job.event_id,
+                                    )
+                                    .unwrap_or(false)
+                                {
+                                    continue; // 自动入库成功，不再出草拟卡
+                                }
+                                draft_pairs.push((person.clone(), target.clone()));
+                            }
+                        }
+                        if !draft_pairs.is_empty() {
+                            if let Some(conversation_id) =
+                                store.conversation_id_for_event(&job.event_id)?
+                            {
+                                let exists = store.action_exists_for_event(
+                                    &conversation_id,
+                                    "propose_people_relations",
+                                    &job.event_id,
+                                )?;
+                                if !exists {
+                                    let people: Vec<_> = draft_pairs
+                                        .iter()
+                                        .map(|(person, _)| serde_json::json!({"name": person}))
+                                        .collect();
+                                    let relations: Vec<_> = draft_pairs
+                                        .iter()
+                                        .map(|(person, target)| {
                                             serde_json::json!({
                                                 "person": person,
-                                                "target": project,
+                                                "target": target,
                                                 "relation": "参与"
                                             })
                                         })
-                                    })
-                                    .collect();
-                                let args = serde_json::json!({
-                                    "people": people,
-                                    "relations": relations,
-                                    "source_event_id": job.event_id
-                                });
-                                store.create_pending_action(
-                                    &conversation_id,
-                                    "propose_people_relations",
-                                    &args.to_string(),
-                                )?;
+                                        .collect();
+                                    let args = serde_json::json!({
+                                        "people": people,
+                                        "relations": relations,
+                                        "source_event_id": job.event_id
+                                    });
+                                    store.create_pending_action(
+                                        &conversation_id,
+                                        "propose_people_relations",
+                                        &args.to_string(),
+                                    )?;
+                                }
                             }
                         }
                     }
@@ -1169,6 +1195,38 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
         }
     }
     Ok(processed as i64)
+}
+
+/// D2 增量合并的自动入库窄集：person/target 双双来自 @/# 标注（用户写死的
+/// 权威实体），且对应页面都已存在时，直接以「参与」关系入库（confidence 4、
+/// 记 source_event_id）。任何前置不满足（页面缺失等）都返回 false，走草拟卡。
+/// 返回 Ok(false) 不算错误——只是「这组关系不适合自动入库」。
+fn try_auto_upsert_annotated_relation(
+    store: &Store,
+    person: &str,
+    target: &str,
+    event_id: &str,
+) -> Result<bool> {
+    let from_slug = crate::wiki::slugify(person);
+    let to_slug = crate::wiki::slugify(target);
+    let (Some(from), Some(to)) = (
+        store.get_wiki_page(&from_slug)?,
+        store.get_wiki_page(&to_slug)?,
+    ) else {
+        return Ok(false);
+    };
+    store.upsert_relation(&crate::storage::RelationDraft {
+        from_slug,
+        from_kind: from.kind,
+        to_slug,
+        to_kind: to.kind,
+        relation: "参与".to_string(),
+        note: None,
+        confidence: 4,
+        source_conversation_id: None,
+        source_event_id: Some(event_id.to_string()),
+    })?;
+    Ok(true)
 }
 
 /// Build bounded, read-only context for Phase 4C. This makes existing rules and
@@ -1188,6 +1246,127 @@ fn decision_support_material(
     let candidates = crate::knowledge::select_knowledge(store, query, "analysis", 2500)?;
     lines.push(crate::knowledge::context_text(&candidates)?);
     Ok((lines.join("\n"), candidates))
+}
+
+#[cfg(test)]
+mod user_model_tests {
+    use super::*;
+    use crate::ai::provider::AiReply;
+    use crate::ai::tool::ToolSpec;
+    use crate::event::NewEvent;
+    use crate::storage::Store;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temporary_database() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "elsewhen-user-model-test-{}.db",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    struct AnalysisStub(&'static str);
+
+    impl crate::ai::provider::AiProvider for AnalysisStub {
+        fn generate_reply_with_tools(
+            &self,
+            _: Vec<ContextMessage>,
+            tools: Option<&[ToolSpec]>,
+        ) -> Result<AiReply> {
+            assert!(tools.is_none());
+            Ok(AiReply::text(self.0))
+        }
+    }
+
+    fn reply(people: &[&str], projects: &[&str]) -> String {
+        format!(
+            r#"{{"schema_version":"event-analysis-v3","recordable":true,"kind":"event","event_type":"note","confidence":0.9,"summary":"s","clarifications":[],"people":{p},"projects":{q},"activities":[],"follow_ups":[]}}"#,
+            p = serde_json::to_string(people).unwrap(),
+            q = serde_json::to_string(projects).unwrap(),
+        )
+    }
+
+    fn page_for_test(store: &Store, kind: &str, title: &str) {
+        let slug = crate::wiki::slugify(title);
+        store
+            .upsert_wiki_page(
+                &crate::storage::WikiPageDraft {
+                    slug,
+                    kind: kind.to_string(),
+                    title: title.to_string(),
+                    summary: String::new(),
+                    content_md: format!("# {title}"),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: "test".to_string(),
+                    source_url: None,
+                },
+                crate::storage::ContentPolicy::Always,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn annotated_pair_auto_upserts_without_draft_card() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        page_for_test(&store, "person", "李四");
+        let slug = crate::wiki::slugify("网站改版");
+        page_for_test(&store, "topic", "网站改版");
+        let _ = slug;
+        // @/# 双标注：权威组合，页面齐备 → 直接增量入库
+        store
+            .insert_event(NewEvent::now("@李四 负责 #网站改版 上线了"))
+            .unwrap();
+        let provider = AnalysisStub(Box::leak(reply(&["李四"], &["网站改版"]).into_boxed_str()));
+        assert_eq!(process_analysis_queue(&store, &provider).unwrap(), 1);
+        let relations = store.list_relations().unwrap();
+        let stats = store.analysis_job_stats().unwrap();
+        eprintln!("DEBUG stats={stats:?} relations={relations:?}");
+        {
+            let mut stmt = store
+                .connection
+                .prepare("SELECT event_id, COALESCE(last_error,'') FROM analysis_jobs")
+                .unwrap();
+            let errs: Vec<(String, String)> = stmt
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+                .unwrap()
+                .map(|x| x.unwrap())
+                .collect();
+            eprintln!("DEBUG jobs={errs:?}");
+        }
+        assert_eq!(relations.len(), 1, "标注组合应自动入库");
+        assert_eq!(relations[0].from_slug, crate::wiki::slugify("李四"));
+        assert_eq!(relations[0].to_slug, crate::wiki::slugify("网站改版"));
+        assert_eq!(relations[0].confidence, 4);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn unannotated_or_missing_pages_do_not_auto_upsert() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        page_for_test(&store, "person", "王五");
+        page_for_test(&store, "person", "赵六");
+        // 无标注：即使页面存在也不自动入库（低置信走草拟）
+        store
+            .insert_event(NewEvent::now("和王五 赵六 开会聊了网站改版"))
+            .unwrap();
+        let provider = AnalysisStub(Box::leak(
+            reply(&["王五", "赵六"], &["网站改版"]).into_boxed_str(),
+        ));
+        assert_eq!(process_analysis_queue(&store, &provider).unwrap(), 1);
+        assert!(
+            store.list_relations().unwrap().is_empty(),
+            "未标注组合不得自动入库"
+        );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
 }
 
 #[cfg(test)]

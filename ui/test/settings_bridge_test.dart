@@ -108,6 +108,26 @@ void main() {
     }
   });
 
+  test('用户模型面板（D2）：读面结构 + 建页前置校验', () async {
+    // 读面：不假设库非空，只验证接口可用与结构正确（模型面板直接消费）。
+    final listed = await repo.listRelations();
+    for (final r in listed) {
+      expect(r.fromSlug, isNotEmpty);
+      expect(r.toSlug, isNotEmpty);
+      expect(r.relation, isNotEmpty);
+      expect(r.confidence, inExclusiveRange(0, 6));
+    }
+    // add_relation 的前置校验：页面不存在时明确报错（不静默挂空引用）。
+    await expectLater(
+      repo.addRelation(
+        fromSlug: '__no_such_person__',
+        toSlug: '__no_such_topic__',
+        relation: '参与',
+      ),
+      throwsA(anything),
+    );
+  });
+
   test('theme prefs 读写 roundtrip（含正文字号）', () async {
     await repo.updateThemePrefs(
       mode: 'light',

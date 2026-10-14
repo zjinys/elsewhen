@@ -2008,3 +2008,55 @@ fn backfill_folds_legacy_tweet_image_paths_and_collects_assets() {
     assert_eq!(again, folded);
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn relations_upsert_confidence_increments_once_per_event() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    let draft = |source_event_id: Option<&str>| RelationDraft {
+        from_slug: "person/张三".to_string(),
+        from_kind: "person".to_string(),
+        to_slug: "topic/网站改版".to_string(),
+        to_kind: "topic".to_string(),
+        relation: "参与".to_string(),
+        note: None,
+        confidence: 4,
+        source_conversation_id: None,
+        source_event_id: source_event_id.map(|s| s.to_string()),
+    };
+    // 首次（事件 E1）：confidence 落在提供值 4
+    store.upsert_relation(&draft(Some("E1"))).unwrap();
+    let read = |store: &Store| {
+        let rel = store.upsert_relation(&draft(Some("E1"))).unwrap();
+        rel
+    };
+    // 同一事件重放（reanalyze 场景）：幂等，confidence 不重复加权
+    let rel = read(&store);
+    assert_eq!(rel.confidence, 4, "同事件重放不得重复加 confidence");
+    let src: Option<String> = store
+        .connection
+        .query_row(
+            "SELECT source_event_id FROM relations WHERE from_slug='person/张三'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(src.as_deref(), Some("E1"));
+
+    // 新事件来源（E2）：渐进增强 +1，封顶 5
+    let rel = store.upsert_relation(&draft(Some("E2"))).unwrap();
+    assert_eq!(rel.confidence, 5, "新事件来源应渐进 +1");
+    let src: String = store
+        .connection
+        .query_row(
+            "SELECT source_event_id FROM relations WHERE from_slug='person/张三'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(src, "E2");
+    // 已封顶后再来新事件：保持 5
+    let rel = store.upsert_relation(&draft(Some("E3"))).unwrap();
+    assert_eq!(rel.confidence, 5, "置信封顶 5");
+    let _ = std::fs::remove_file(path);
+}
