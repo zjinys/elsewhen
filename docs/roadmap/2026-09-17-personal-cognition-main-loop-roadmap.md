@@ -46,12 +46,14 @@
 用户确认采用“多端离线记录、加密中继优先、后台加工有归属、修改有版本”，并要求新设备加入后完整恢复 Provider 配置（含 API Key、当前激活项和运行参数），无需重新填写。规范见[同步设计 Note](../notes/proposed/architecture/2026-09-30-multi-device-sync.md)，实施与验收见[同步子路线 S00–S06](2026-10-03-multi-device-sync-roadmap.md)。这不替代既有 AI 对话人工签收，也不代表完整 Wiki 同步已经完成。
 
 - [x] S00：修订同步方案、建立实施路线与验收清单；2026-10-06 补齐类型/回归与独立 Node/OpenSSL 固定信封向量。协议基线不代表 S01–S06 功能验收完成。
-- [ ] S01：两/三份隔离数据库的身份、领域操作、outbox/inbox、版本/删除与原子复制。
-- [ ] S02：安全配对、真实端到端加密、Provider 敏感载荷保护与中继权限加固。
-- [ ] S03：首次一致快照、持久投递、应用回执、TTL/GC 和恢复。
-- [ ] S04：App 接入、Provider 开箱即用、前台生成身份与指定后台加工。
-- [ ] S05：Wiki/来源/修订/依赖及待办/规则的完整同步与冲突审阅。
-- [ ] S06：设备撤销、明确移交、备份恢复与分范围真实设备发布验收。
+- [x] S01：两/三份隔离数据库的身份、领域操作、outbox/inbox、版本/删除与原子复制。（2026-10-14 关闭）
+- [x] S02：安全配对、真实端到端加密、Provider 敏感载荷保护与中继权限加固。（2026-10-14 关闭）
+- [x] S03：首次一致快照、持久投递、应用回执、TTL/GC 和恢复。（2026-10-14 关闭）
+- [x] S04：App 接入、Provider 开箱即用、前台生成身份与指定后台加工。（2026-10-14 关闭）
+- [x] S05：Wiki/来源/修订/依赖及待办/规则的完整同步与冲突审阅。（2026-10-14 关闭）
+- [ ] S06：设备撤销、明确移交、备份恢复与分范围真实设备发布验收。（开发侧完成；等待真人按
+  [人工测试路线 M0–M7](2026-10-14-sync-manual-test-roadmap.md) 与
+  [S06 门禁清单](2026-10-14-s06-human-gate-checklist.md) 验收）
 
 **2026-10-03 — S00 完成证据：** 原位修订同步 Note，新增同步子路线并更新 `relay/README.md`。Provider 全部信息从首版通过认证加密同步，设备身份私钥不复制；普通设置 DTO 继续不返回明文 Key。当前仅有 Rust RelayClient/Worker 传输原型，尚未接入配对/加密/业务复制。中继权限与发现路由问题仅作源码风险记录，未在本轮运行复现或修复；四份文档的 40 个相对链接、Note 结构、状态与文档限定范围检查通过，`git diff --check` 通过。文档校验不计为 S01–S06 或人工验收完成，既有 C00–C09 状态不变。
 
@@ -94,6 +96,8 @@
 **2026-10-09 — P2 接续实现，验收仍待执行：** 已补 enrollment Rust 边界用例、Flutter 单飞/退避/native 确认与 owner/joiner 生命周期接线、只读交接进度，以及完整生产运行时的 Worker 丢响应/重开/Provider 恢复用例。修正原确认 token 的幂等绑定、owner 交接确认不恢复后台、坏证明扫描、完成回执门禁及失败导出的共享名册过滤。原数据集不切换，P3 未开始。本会话测试、编译与重生成命令都在启动前遇到工具服务故障，不能声明通过；`git diff --check` 实际通过。工作区后来出现的 P2 生成绑定两侧 hash 同为 `-558091073`，仍需匹配 release 和回归。统一验证脚本及下一步见 [Handoff §11](2026-10-07-multi-device-sync-handoff.md)；保留并行 web-search、聊天 UI 等修改，不勾选 P2/S02/S04/S06。
 
 **2026-10-13 — P4b Provider 冲突掩码审阅/显式裁决/可达性提示验收完成：** 迁移 v28 为 `sync_provider_versions.state` 增 `'dismissed'`；冲突审阅用 vault 密钥解密信封并双侧掩码（UTF-8 安全），裁决只支持显式 KeepLocal/AcceptRemote 整包、双版本绑定失败关闭、绝不字段拼接；纯静态可达性提示码零 I/O、不静默改 URL；FRB API 完成。Rust 全量 **660 passed / 17 ignored**（6 个新端到端用例 + v28 迁移测试）、relay **16 passed**、Flutter 全量 **345 passed**、桥接/release 与 `cargo fmt --check` 通过。审阅对话框 UI 接线同日完成（设置 → 数据 → 设备同步展示双侧掩码配置与显式裁决按钮，Flutter 全量 **349 passed**）；不签收原生/真人门禁。详见 [Handoff §15/§16](2026-10-07-multi-device-sync-handoff.md)。
+
+**2026-10-14 — 多设备同步子路线开发关闭（等待真人验收）：** S00–S05 全部交付。自 10-13 后完成：P4d/P4e 加工移交与撤销 UX、S05 全部切片（Handoff §24–§28）、快照 v2 断档恢复类型化管线（§29）、绑定设备扫码（§30）、URL 导入配图同步三连（§31 正文占位符不变式 / §31a 存量回填与应用端补口 / §31b 快照目录段——字节直达磁盘、wiki_assets 瘦身为台账）。代码基线 `f7f6e74`，迁移 34，快照版本 3；最终门禁 Rust **711 passed**、Flutter **372 passed**、analyze 0 error/warning、fmt/regen/release/APK 通过。同步开发路线已关闭（细项勾选不再回填，以 Handoff 为准）；**发版唯一阻塞项为 S06 真人门禁**，按[人工测试路线](2026-10-14-sync-manual-test-roadmap.md)执行后回填 [S06 清单](2026-10-14-s06-human-gate-checklist.md)。
 
 **2026-10-13 — P4c S03 生命周期 GC/水印/补快照验收完成：** 迁移 v29 建 `sync_member_state`（每成员应用水印 + needs_resnapshot）与 `sync_gc_state`（每流单调 GC 游标）；「relay 收到 ≠ 对端已应用 ≠ 允许 GC」三个确认分开——GC 只用应用层水印（`acknowledge_sync_operation` 推进），绝不用 relay ack；所有 active 成员纳入水印计算，缺水位按 0 计不过滤；落后成员（`confirmed < floor - catch_up_window`）翻 `needs_resnapshot` 并令 GC 完全停摆，绝不静默清历史；保留窗口额外保底最新 N 条本地 op；GC 只修剪本流已确认历史，绝不动域数据或他设备历史；快照 ack 用建快照时的 frontier 播种成员水印（不是 0 也不是实时值）。Rust 全量 **667 passed / 17 ignored**（7 个新测试）、relay **16 passed**、Flutter 全量 **349 passed**、桥接/release 与 `cargo fmt --check` 通过。加工移交与撤销 UX 属后续切片；不签收原生/真人门禁。详见 [Handoff §17](2026-10-07-multi-device-sync-handoff.md)。
 
