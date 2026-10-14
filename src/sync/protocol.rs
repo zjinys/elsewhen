@@ -139,6 +139,13 @@ pub enum SyncMutation {
         base_revision: Option<String>,
         deleted: bool,
     },
+    /// 重命名（slug 迁移 + 标题）。收端必须做与本端 rename_wiki_page 相同
+    /// 的关系/会话迁移；两端各自改名（old_slug 对不上本端行）属于显式冲突。
+    WikiPageRenamed {
+        old_slug: String,
+        page: WikiPageRecord,
+        base_revision: Option<String>,
+    },
 }
 
 impl SyncMutation {
@@ -200,6 +207,32 @@ impl SyncMutation {
                 ensure!(
                     !deleted || conversation.archived,
                     "sync_delete_requires_archive"
+                );
+            }
+            Self::WikiPageRenamed { old_slug, page, .. } => {
+                // old_slug 复用 slug 有效性规则；重命名必须真的换 slug，
+                // 未换 slug 的标题修改走 WikiPageChanged。
+                ensure!(old_slug != &page.slug, "sync_wiki_rename_noop");
+                ensure!(
+                    !old_slug.is_empty()
+                        && old_slug.len() <= 255
+                        && !old_slug
+                            .bytes()
+                            .any(|b| b.is_ascii_control() || matches!(b, b' ' | b'\t')),
+                    "sync_wiki_slug_invalid"
+                );
+                ensure!(
+                    !page.slug.is_empty()
+                        && page.slug.len() <= 255
+                        && !page
+                            .slug
+                            .bytes()
+                            .any(|b| b.is_ascii_control() || matches!(b, b' ' | b'\t')),
+                    "sync_wiki_slug_invalid"
+                );
+                ensure!(
+                    !page.title.trim().is_empty() && page.title.len() <= 512,
+                    "sync_wiki_title_invalid"
                 );
             }
             Self::WikiPageChanged { page, deleted, .. } => {

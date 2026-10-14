@@ -773,6 +773,8 @@ impl Store {
                 chats_moved: 0,
             });
         }
+        // P5b：重命名同步的 base 锚点必须在本地变更前读取（CAS 锚）。
+        let sync_base_revision = self.sync_wiki_base_revision(&page.id)?;
         // 计算新 slug：带前缀的页面重算（撞名避让），无前缀的保留原 slug
         let new_slug = match slug.rsplit_once('/') {
             Some((prefix, _)) => crate::wiki::unique_slug(
@@ -830,6 +832,13 @@ impl Store {
         self.append_wiki_log(&format!(
             "知识页重命名：{old_title}（{slug}）→ {new_title}（{new_slug}）"
         ))?;
+        // 捕获在领域事务内：真正换 slug 走专用 rename 变体（收端做同样的
+        // 关系/会话迁移）；标题-only（前缀页保留原 slug）走整行捕获。
+        if new_slug != slug {
+            self.sync_record_wiki_rename(&page.id, slug, sync_base_revision)?;
+        } else {
+            self.sync_record_wiki_page(&page.id, false)?;
+        }
         if let Some(tx) = tx {
             tx.commit()?;
         }

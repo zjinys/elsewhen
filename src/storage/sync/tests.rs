@@ -1155,3 +1155,143 @@ fn wiki_page_business_delete_removes_row_and_replicates() {
             .is_some()
     );
 }
+
+#[test]
+fn wiki_page_rename_replicates_and_migrates_references() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(
+        &a,
+        "page-1",
+        "topic/网站改版",
+        "网站改版",
+        "正文",
+        &[&event_id],
+    );
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    // b 端建一条指向该页的关系与一个页内会话（rename 应用端要迁移它们）。
+    b.store
+        .connection
+        .execute(
+            "INSERT INTO relations(id,from_slug,from_kind,to_slug,to_kind,relation,confidence,created_at,last_seen_at) \
+             VALUES('rel-1','person/张三','person','topic/网站改版','topic','跟进',3,'2026-01-01T00:00:00+00:00','2026-01-01T00:00:00+00:00')",
+            [],
+        )
+        .unwrap();
+    b.store
+        .create_wiki_chat_conversation("topic/网站改版", "[知识页] 网站改版")
+        .unwrap();
+    // a 端业务重命名（捕获在 rename_wiki_page 内部）。
+    let outcome = a
+        .store
+        .rename_wiki_page("topic/网站改版", "测试项目 尾款", "更正项目名")
+        .unwrap();
+    assert!(outcome.changed);
+    assert_eq!(outcome.new_slug, "topic/测试项目-尾款");
+    assert!(a.store.get_wiki_page("topic/网站改版").unwrap().is_none());
+    deliver(&a, &b);
+    // b 端：页换 slug，关系与会话同步迁移，旧 slug 释放。
+    assert!(b.store.get_wiki_page("topic/网站改版").unwrap().is_none());
+    let renamed = b
+        .store
+        .get_wiki_page("topic/测试项目-尾款")
+        .unwrap()
+        .unwrap();
+    assert_eq!(renamed.title, "测试项目 尾款");
+    let rel_to: String = b
+        .store
+        .connection
+        .query_row(
+            "SELECT to_slug FROM relations WHERE from_slug='person/张三'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(rel_to, "topic/测试项目-尾款");
+    let chats: i64 = b
+        .store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM conversations WHERE wiki_page_slug='topic/测试项目-尾款'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(chats, 1);
+    // 幂等重放：重复投递不产生新效果。
+    deliver(&a, &b);
+    assert!(
+        b.store
+            .get_wiki_page("topic/测试项目-尾款")
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[test]
+fn offline_renames_on_both_sides_conflict_explicitly() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(&a, "page-1", "topic/项目", "项目", "正文", &[&event_id]);
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    // 双端离线各自改名（不同标题/不同 slug）。
+    a.store.rename_wiki_page("topic/项目", "甲名", "a").unwrap();
+    b.store.rename_wiki_page("topic/项目", "乙名", "b").unwrap();
+    // 交叉投递：两端各自保留本端改名，b→a 的到达 op 落显式冲突不选边。
+    deliver(&a, &b);
+    deliver(&b, &a);
+    let diverged_a: i64 = a
+        .store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM sync_conflicts WHERE reason='wiki_page_rename_diverged'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(diverged_a > 0, "两端各自改名必须显式冲突");
+    // 两端均保留本端改名结果，未被对端覆盖。
+    assert!(b.store.get_wiki_page("topic/乙名").unwrap().is_some());
+    assert!(a.store.get_wiki_page("topic/甲名").unwrap().is_some());
+}
+
+#[test]
+fn rename_arriving_after_delete_stays_conflict_candidate() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(&a, "page-1", "topic/项目", "项目", "正文", &[&event_id]);
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    // b 离线删除；a 端改名后再投递。
+    assert!(b.store.delete_wiki_page("topic/项目").unwrap());
+    a.store.rename_wiki_page("topic/项目", "新名", "a").unwrap();
+    deliver(&a, &b);
+    // b 端页已被业务删除物理移除：重命名 op 落冲突候选（等删除态对齐后人工审）。
+    let pending: i64 = b
+        .store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM sync_conflicts WHERE reason='wiki_page_deleted'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(pending > 0, "删除后的迟到重命名应保留为候选");
+}

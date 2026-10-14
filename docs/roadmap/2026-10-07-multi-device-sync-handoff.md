@@ -994,3 +994,50 @@ S05 门禁整体不因本片通过而勾选。
 **仍未完成：** P4e 的真人设备签收属 S06 人工门禁；S06 第 169 行整项（含
 可用性降级、禁用/重启用、诊断面板展示该新信号）保持未勾选；多版本共存
 协商未做（当前仍是严格 `== PROTOCOL_VERSION` + 隔离失败关闭）。
+
+## 24. P5b：Wiki 业务删除（复制）+ 业务重命名双端（2026-10-14）
+
+**切片 1——业务删除 API（commit `1a6d45f`）：**
+- `Store::delete_wiki_page(slug)`：同领域事务内先 `sync_record_wiki_page(id,
+  deleted=true)` 捕获（趁行在），再物理删除本行；修订与素材链接随外键级联。
+  不存在的页返回 `Ok(false)`（幂等）；非同步库退化普通删除。
+- 删除语义 = 全端一致物理删除（收端 P5a 起 deleted op 即物理删除），不是本
+  端标记；对端离线迟到编辑落 `wiki_page_deleted` 冲突候选，不静默覆盖。
+- slug 随物理删除释放（新页可重用）；老 id 的 head 保留用于冲突报告。
+- UI：详情页正文栏新增「删除页面」（仅人工页可删，素材页留给导入维护），
+  破坏性确认披露不可恢复 + 冲突候选语义，删除后关页 tab、失效列表。
+- 测试 `wiki_page_business_delete_removes_row_and_replicates`。
+
+**切片 2——业务重命名双端（本片）：**
+- 缺口：`rename_wiki_page` 本端完整（换 slug、迁移 relations/conversations、
+  撞名避让），但无捕获——slug 变更从不复制，多端必漂移。
+- 协议新增 `SyncMutation::WikiPageRenamed { old_slug, page, base_revision }`：
+  真正换 slug 的 rename 捕获为该变体；标题-only（无前缀页保留 slug）仍走
+  `WikiPageChanged` 整行捕获。validate：old_slug 走 slug 规则，且必须
+  `old_slug != page.slug`（`sync_wiki_rename_noop`）。
+- 捕获点在 `rename_wiki_page` 领域事务内：**base 锚点在本地变更前读取**
+  （`sync_wiki_base_revision`），变更后 `sync_record_wiki_rename`。
+- 应用端 `apply_sync_wiki_rename` 判序（关键：**先按 slug 判序，再做 CAS**）：
+  1. head 已删 → `wiki_page_deleted` 候选；
+  2. 本端无该 id 行 → Waiting（页本体 op 在途）；
+  3. local_slug == 新 slug → 幂等重放只推进 head（含两端殊途同归改到同
+     slug 的情况）；
+  4. local_slug != old_slug → **`wiki_page_rename_diverged`**（两端各自改名，
+     显式冲突不选边）；
+  5. 过了 slug 判序才做 base CAS（未知 → Waiting；不匹配 →
+     base_revision_changed）——两端改名时 head 必然双双推进，CAS 先行会把
+     真分歧掩盖成 Waiting/泛化冲突（第一版实测踩过）；
+  6. 新 slug 被别的 id 持有 → `slug_owned_by_other_id`；
+  7. 通过：换 slug/title/summary + 本端同语义迁移 relations/conversations。
+- 派生 slug 的撞名避让在起源端定名，收端原样采用；收端撞名即显式冲突，
+  人工审（与 slug 身份锚立场一致，不静默改名）。
+- 测试 +3（sync/tests.rs）：重命名复制+收端引用迁移+幂等重放；双端离线
+  各自改名 → `wiki_page_rename_diverged` 且各自保留本端；删除后迟到重命名
+  落 `wiki_page_deleted` 候选。
+
+**门禁：Rust 690 passed / 0 failed（+4 累计）；fmt --check、release、regen
+一致（无 FRB/Dart 改动，WikiPageRenamed 未暴露 Dart——无 UI 重命名入口，
+rename 目前只有 AI/审批工具链调用）。**
+
+**P5b 仍未完成：** 修订/来源快照闭包；Wiki 专属会话引用（S05）；冲突候选
+人工审阅 UI（S05 大项，含 rename_diverged / slug_owned_by_other_id 的展示）。

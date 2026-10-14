@@ -795,6 +795,11 @@ impl Store {
                 base_revision,
                 deleted,
             } => self.apply_sync_wiki_page(op, page, base_revision, *deleted),
+            SyncMutation::WikiPageRenamed {
+                old_slug,
+                page,
+                base_revision,
+            } => self.apply_sync_wiki_rename(op, old_slug, page, base_revision),
         }
     }
 

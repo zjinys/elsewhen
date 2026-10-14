@@ -121,6 +121,150 @@ impl Store {
         Ok(())
     }
 
+    /// 重命名前读取当前 head（作为 base_revision 的 CAS 锚点）。
+    pub(crate) fn sync_wiki_base_revision(&self, id: &str) -> Result<Option<String>> {
+        Ok(self.sync_object_head("wiki_page", id)?.map(|h| h.0))
+    }
+
+    /// rename_wiki_page 的捕获点：变更与本端迁移同事务提交。page 记录为
+    /// 重命名后的整行（按 id 读取）；old_slug 是迁移前的 slug（换 slug 才
+    /// 走这里，标题-only 修改走 sync_record_wiki_page）。
+    pub(crate) fn sync_record_wiki_rename(
+        &self,
+        id: &str,
+        old_slug: &str,
+        base_revision: Option<String>,
+    ) -> Result<()> {
+        if self.sync_identity()?.is_none() {
+            return Ok(());
+        }
+        let page = self
+            .sync_wiki_page_record(id)?
+            .context("sync_wiki_page_missing")?;
+        if let Some(op_id) = self.append_sync_mutation(SyncMutation::WikiPageRenamed {
+            old_slug: old_slug.to_string(),
+            page,
+            base_revision,
+        })? {
+            self.sync_set_head("wiki_page", id, &op_id, false)?;
+        }
+        Ok(())
+    }
+
+    /// 重命名（slug 迁移）的应用端：
+    /// 1) head 已删 → 删除后到达的重命名保留为 wiki_page_deleted 候选；
+    /// 2) base CAS 未知/不匹配 → Waiting / base_revision_changed；
+    /// 3) 本端没有该 id 行 → Waiting（页本体 op 可能还在途）；
+    /// 4) 本端行 slug == 新 slug → 幂等重放：只推进 head；
+    /// 5) 本端行 slug != old_slug → 两端各自改名的显式冲突（不自动选边）；
+    /// 6) 新 slug 已被别的 id 持有 → slug_owned_by_other_id；
+    /// 7) 通过后：换 slug + 标题 + summary（base CAS 保证双端行内容一致），
+    ///    并按本端 rename_wiki_page 同语义迁移关系与会话引用。
+    pub(super) fn apply_sync_wiki_rename(
+        &self,
+        op: &SyncOperation,
+        old_slug: &str,
+        page: &crate::sync::protocol::WikiPageRecord,
+        base_revision: &Option<String>,
+    ) -> Result<Apply> {
+        let head = self.sync_object_head("wiki_page", &page.id)?;
+        // 重命名的判序以 slug 为准，先于 CAS：两端各自改名时 head 必然
+        // 双双推进，base_revision_changed Waiting/blame 都会把真正的分歧
+        // （old_slug 对不上本端行）掩盖掉。
+        if head.as_ref().is_some_and(|h| h.1) {
+            return Ok(Apply::Conflict {
+                kind: "wiki_page",
+                id: page.id.clone(),
+                revision: head.as_ref().map(|h| h.0.clone()),
+                reason: "wiki_page_deleted",
+            });
+        }
+        let local_slug: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT slug FROM wiki_pages WHERE id=?1",
+                params![page.id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let Some(local_slug) = local_slug else {
+            // 本端没有该页：页本体 op 可能在途，等齐再判。
+            return Ok(Apply::Waiting);
+        };
+        if local_slug == page.slug {
+            // 幂等重放（或本端已独立改到同名 slug，殊途同归）。
+            self.sync_set_head("wiki_page", &page.id, &op.op_id, false)?;
+            return Ok(Apply::Applied);
+        }
+        if local_slug != old_slug {
+            return Ok(Apply::Conflict {
+                kind: "wiki_page",
+                id: page.id.clone(),
+                revision: head.as_ref().map(|h| h.0.clone()),
+                reason: "wiki_page_rename_diverged",
+            });
+        }
+        if let Some(base) = base_revision {
+            let known: bool = self.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sync_operations WHERE op_id=?1 AND state IN ('applied','conflict') \
+                 UNION ALL SELECT 1 FROM sync_known_revisions WHERE object_kind='wiki_page' AND object_id=?2 AND revision_id=?1)",
+                params![base, page.id],
+                |r| r.get(0),
+            )?;
+            if !known && head.as_ref().map(|h| &h.0) != Some(base) {
+                return Ok(Apply::Waiting);
+            }
+        }
+        if head.as_ref().map(|h| h.0.as_str()) != base_revision.as_deref() {
+            return Ok(Apply::Conflict {
+                kind: "wiki_page",
+                id: page.id.clone(),
+                revision: head.as_ref().map(|h| h.0.clone()),
+                reason: "base_revision_changed",
+            });
+        }
+        let slug_owner: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT id FROM wiki_pages WHERE slug=?1",
+                params![page.slug],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if slug_owner.is_some_and(|owner| owner != page.id) {
+            return Ok(Apply::Conflict {
+                kind: "wiki_page",
+                id: page.id.clone(),
+                revision: head.as_ref().map(|h| h.0.clone()),
+                reason: "slug_owned_by_other_id",
+            });
+        }
+        self.connection.execute(
+            "UPDATE wiki_pages SET slug=?1, title=?2, summary=?3, updated_at=?4 WHERE id=?5",
+            params![
+                page.slug,
+                page.title,
+                page.summary,
+                page.updated_at,
+                page.id
+            ],
+        )?;
+        self.connection.execute(
+            "UPDATE relations SET from_slug=?1 WHERE from_slug=?2",
+            params![page.slug, old_slug],
+        )?;
+        self.connection.execute(
+            "UPDATE relations SET to_slug=?1 WHERE to_slug=?2",
+            params![page.slug, old_slug],
+        )?;
+        self.connection.execute(
+            "UPDATE conversations SET wiki_page_slug=?1 WHERE wiki_page_slug=?2",
+            params![page.slug, old_slug],
+        )?;
+        self.sync_set_head("wiki_page", &page.id, &op.op_id, false)?;
+        Ok(Apply::Applied)
+    }
+
     pub(super) fn apply_sync_wiki_page(
         &self,
         op: &SyncOperation,
