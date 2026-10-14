@@ -1209,3 +1209,39 @@ fmt --check、release、regen hash 全过。日志最新：`28cd15c` → `2f1ccd
 
 **剩余 S05/S06**：S05 两个切片已全部完成；S06 真人双设备门禁待用户按
 `docs/roadmap/2026-10-14-s06-human-gate-checklist.md` 执行。
+
+## §29 快照 v2：断档恢复缺口收口（commit `76200be`）
+
+**缺口回顾**：快照 QUERIES 只覆盖会话数据集；P5a/P5b/S05 加入的 wiki 页/修订、
+待办、目标、规则全都不在——新设备/落后设备走快照恢复后这些对象只有后续
+op、没有 base 行（§27/§28 收尾时挂账）。
+
+**方案取舍（重要，后续人勿翻案无据）**：曾考虑「VACUUM INTO 整库文件
+拷贝 + 清洗」。读完整链条后否决：现快照每条记录带类型校验/attestation/
+完整性摘要，文件直拷绕开全部校验；且排除清单漏剥一张表是 fail-open
+（静默泄露私钥），漏同步是 fail-closed（缺数据可见）。**取舍为扩展
+类型化管线 + schema 覆盖门禁**——后者给了文件拷贝想要的「新表自动
+归类」保证，失败模式仍是免审带来的可见报错。
+
+- manifest.version 1→2；接收端 `sync_snapshot_version_unsupported` 显式
+  拒绝旧代（跨代 = 隔离，与 wire 语义一致，不 bump 传输版本）。
+- Head/KnownRevision 泛化 `object_kind`（conversation/wiki_page/todo/
+  goal/rule）；导出按依赖排序：事件→页面→修订→会话→消息→输入→
+  分析/分类→三对象→heads→known_revisions→成员→位点→provider。
+- 应用端强校验：状态枚举白名单、tags/source_event_ids 必须合法 JSON、
+  修订行孤儿拒绝、goal 活跃上限不旁路（违限行触发器 fail-closed）。
+  **注意 head 的 revision_id 即 op_id（含冒号），不能过 validate_id；
+  闸门是领域表存在性复核**。
+- 页面行应用时重建 `sync_wiki_slug_seen` 足迹：快照恢复后会话引用锚
+  不悬空（与 §28 的足迹语义闭环）。
+- **门禁测试**（`snapshot_carries_every_table_or_explicitly_excludes_it`）：
+  live schema 105 张表逐一归类——SNAPSHOT_CARRIED_TABLES（23，且必须在
+  QUERIES 字面出现）或 SNAPSHOT_EXCLUDED_TABLES（82，每张附理由：本机
+  身份/私钥、provider 秘密、enrollment 通道、本机 watermarks、本地
+  AI/knowledge/chat 产物、传输暂存等）。新迁移加表未归类 → CI 红。
+- e2e：五对象 + 五类 head + 足迹 + 已知修订 roundtrip，恢复后同流
+  增量继续且零冲突。
+- 既知余项：knowledge_*、entity_*、daily_reviews 等本地 AI 产物仍
+  不复制（不在同步数据集，不产生 op）——若未来入集，先过门禁归类再实现。
+
+Rust 705 passed（+2）；fmt/release/regen 过；UI 无改动。
