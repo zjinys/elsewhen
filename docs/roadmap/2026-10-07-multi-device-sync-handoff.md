@@ -1299,3 +1299,10 @@ L3 渲染层启发式判断均被驳回）后定型为**存储态占位符**：
 Rust 709 passed（+4：e2e 字节跨机/自愈落盘/rel·mime·hash 负向 + 折叠
 单测）；Flutter 372 passed、analyze 0 error/warning、regen、Android
 debug APK 构建过。迁移 33。
+
+**§31a 历史数据回填（commit `3871c18`）**：按用户确认把「懒迁移」升级为
+启动即迁移——`Store::open` first_open 序列新增
+`backfill_wiki_image_placeholders`（折叠 + 字节入库，幂等，裸 UPDATE +
+wiki_log 惯例，不记 revision 不发 op）。同时补上应用端不变式缺口：
+op 应用（replace_sync_wiki_row）与快照 apply 的 WikiPage arm 落地前
+折叠，旧端传来的绝对路径在接收端归一化，不再二次感染。
