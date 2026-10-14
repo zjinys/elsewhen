@@ -783,6 +783,17 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 
 测试 `owner_approves_handoff_and_enforces_proof_boundaries` 覆盖 owner == 旧加工端与 owner != 旧加工端（移交回 owner）两个完整环路、全部审批防线，及目标端在新名册下保持 `pending_takeover`（processor 指针不提前切换）。
 
+### 设置页接线
+
+移交流程已接入设置页（`ui/lib/widgets/sync_processor_handoff_settings.dart` + `ui/lib/sync/sync_processor_handoff_controller.dart`，注入 `LocalSyncSettings`）：
+
+- 只读展示状态机位置（idle / relinquished / pending_takeover 且区分 canConfirm）；
+- 加工端 idle 态展示「让出加工权」：需填写目标设备 ID + 二次确认对话框（明确告知不可单方面恢复）；
+- owner 同机时让出后自动 approve 并刷新；非 owner 本机让出后仅提示等待 owner 审批（对应下方跨设备传输边界）；
+- 目标端仅 `canConfirm`（frontier 已追平）时展示「确认接管」按钮；
+- 同步错误码全部映射为可读文案（未识别的原样透传），失败保留旧视图，绝不静默清空；
+- API 层可注入测试替身（`ProcessorHandoffApi`），5 个 widget 测试覆盖让出/审批/接管/拦截文案。
+
 ### 验证结果
 
 | 检查 | 结果 |
@@ -791,7 +802,8 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 | `cargo fmt --all -- --check` | 通过 |
 | `cargo build --release` | 通过 |
 | `./scripts/regen.sh` | 桥接重生成，hash 一致（API 签名修正，Dart 桥接同步更新） |
-| Flutter `fvm flutter test` | **349 passed** |
+| Flutter analyze（触碰文件） | No issues found |
+| Flutter `fvm flutter test` | **354 passed**（含 5 个移交设置页 widget 测试） |
 
 ### 防线集成测试（`storage::sync::membership::tests`）
 
@@ -807,6 +819,6 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 ### 边界与未完成
 
 - 旧加工端 != owner 时，yield 产生的 proof 尚无自动跨设备传输通道（v1 需 owner 设备与旧加工端同机，或用户手动携带 proof 审批）；后续作为 P4e/后续切片补充。
-- 移交流程尚未接入设置页 UI（存储/运行时/API 已就绪，Dart 桥接已生成）。
+- 移交目标设备选择仍为手动输入设备 ID（设置页未提供活跃设备列表下拉）。
 - P4e 撤销 UX/诊断/升级、原生密钥库签收、真人设备门禁继续未完成。
 - 全程只用临时目录隔离库与合成身份；无个人数据/真实密钥/外部模型/线上中继。

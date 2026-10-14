@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../bridge/rust_bridge_repository.dart';
+import '../sync/sync_processor_handoff_controller.dart';
 import '../sync/sync_provider_conflicts_controller.dart';
 import '../sync/sync_setup_controller.dart';
 import 'owner_sync_pairing_settings.dart';
 import 'joiner_sync_pairing_settings.dart';
 import 'sync_enrollment_progress.dart';
+import 'sync_processor_handoff_settings.dart';
 import 'sync_provider_conflicts_settings.dart';
 
 class LocalSyncSettings extends StatefulWidget {
@@ -16,12 +18,16 @@ class LocalSyncSettings extends StatefulWidget {
     required this.controller,
     this.repository,
     this.conflictsController,
+    this.handoffController,
   });
   final SyncSetupController? controller;
   final RustBridgeRepository? repository;
 
   /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
   final SyncProviderConflictsController? conflictsController;
+
+  /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
+  final SyncProcessorHandoffController? handoffController;
 
   @override
   State<LocalSyncSettings> createState() => _LocalSyncSettingsState();
@@ -32,6 +38,8 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   bool _consent = false;
   late final SyncProviderConflictsController _conflicts;
   late final bool _ownsConflicts;
+  late final SyncProcessorHandoffController _handoff;
+  late final bool _ownsHandoff;
 
   @override
   void initState() {
@@ -39,12 +47,15 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     _ownsConflicts = widget.conflictsController == null;
     _conflicts =
         widget.conflictsController ?? SyncProviderConflictsController();
+    _ownsHandoff = widget.handoffController == null;
+    _handoff = widget.handoffController ?? SyncProcessorHandoffController();
   }
 
   @override
   void dispose() {
     _name.dispose();
     if (_ownsConflicts) _conflicts.dispose();
+    if (_ownsHandoff) _handoff.dispose();
     super.dispose();
   }
 
@@ -171,6 +182,12 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 ),
               ],
               _NetworkSyncStatus(repository: widget.repository),
+              if (ready)
+                SyncProcessorHandoffSettings(
+                  controller: _handoff,
+                  isProcessor: state.isProcessor,
+                  isOwner: state.isOwner,
+                ),
               if (ready) SyncProviderConflictsSettings(controller: _conflicts),
               const SizedBox(height: 12),
               Wrap(
