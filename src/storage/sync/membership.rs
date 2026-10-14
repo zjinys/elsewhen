@@ -201,8 +201,9 @@ impl Store {
         )?;
 
         self.connection.execute(
-            "INSERT OR REPLACE INTO sync_processor_state (singleton, state, from_sequence, to_device_id)\n             VALUES (1, 'relinquished', ?1, ?2)",
-            params![final_sequence, to_device_id],
+            "INSERT INTO sync_processor_state(singleton,state,from_device_id,to_device_id,final_sequence) VALUES(1,'relinquished',?1,?2,?3)
+             ON CONFLICT(singleton) DO UPDATE SET state=excluded.state,from_device_id=excluded.from_device_id,to_device_id=excluded.to_device_id,final_sequence=excluded.final_sequence,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+            params![identity.device_id, to_device_id, final_sequence],
         )?;
 
         if let Some(tx) = tx {
@@ -216,30 +217,49 @@ impl Store {
         let tx = self.begin_write_transaction()?;
         let identity = self.sync_identity()?.context("sync_not_initialized")?;
 
-        let row: Option<(String, String, i64)> = self.connection
+        let row: Option<(
+            String,
+            Option<String>,
+            Option<String>,
+            i64,
+        )> = self
+            .connection
             .query_row(
-                "SELECT state, to_device_id, from_sequence FROM sync_processor_state WHERE singleton=1",
+                "SELECT state,from_device_id,to_device_id,final_sequence FROM sync_processor_state WHERE singleton=1",
                 [],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .optional()?;
 
-        let (st, target, final_seq) = row.context("sync_processor_not_in_pending_takeover")?;
+        let (st, from_device, target, final_seq) =
+            row.context("sync_processor_not_in_pending_takeover")?;
         ensure!(
             st == "pending_takeover",
             "sync_processor_not_in_pending_takeover"
         );
         ensure!(
-            identity.device_id == target,
+            identity.device_id == target.as_deref().unwrap_or(""),
             "sync_processor_takeover_target_mismatch"
         );
+        let from_device = from_device.context("sync_processor_takeover_source_missing")?;
 
-        let applied: i64 = self.connection.query_row(
-            "SELECT applied_sequence FROM sync_frontiers WHERE origin_stream_id=?1",
-            [&identity.device_id],
-            |r| r.get(0),
-        )?;
-
+        // Frontier gate: the takeover source's stream must be fully applied up
+        // to the final sequence the old processor certified in the handoff.
+        let stream: String = self
+            .connection
+            .query_row(
+                "SELECT stream_id FROM sync_members WHERE device_id=?1",
+                [&from_device],
+                |r| r.get(0),
+            )
+            .context("sync_processor_takeover_source_missing")?;
+        let applied: i64 = self
+            .connection
+            .query_row(
+                "SELECT COALESCE((SELECT applied_sequence FROM sync_frontiers WHERE origin_stream_id=?1),0)",
+                [&stream],
+                |r| r.get(0),
+            )?;
         ensure!(applied >= final_seq, "sync_frontier_lagging");
 
         self.connection.execute(
@@ -261,26 +281,27 @@ impl Store {
     /// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。
     pub(crate) fn get_processor_handoff_state(&self) -> Result<ProcessorHandoffState> {
         let identity = self.sync_identity()?;
-        let row: Option<(String, String, i64)> = self.connection
+        let row: Option<(String, Option<String>, Option<String>, i64)> = self
+            .connection
             .query_row(
-                "SELECT state, to_device_id, from_sequence FROM sync_processor_state WHERE singleton=1",
+                "SELECT state,from_device_id,to_device_id,final_sequence FROM sync_processor_state WHERE singleton=1",
                 [],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .optional()?;
 
         let mut dto = ProcessorHandoffState {
             state: row
                 .as_ref()
-                .map(|(s, _, _)| s.clone())
+                .map(|(s, _, _, _)| s.clone())
                 .unwrap_or_else(|| "idle".to_string()),
-            from_device_id: row.as_ref().map(|(_, f, _)| f.clone()),
-            to_device_id: row.as_ref().map(|(_, t, _)| t.clone()),
-            final_sequence: row.as_ref().map(|(_, _, f)| *f),
+            from_device_id: row.as_ref().and_then(|(_, f, _, _)| f.clone()),
+            to_device_id: row.as_ref().and_then(|(_, _, t, _)| t.clone()),
+            final_sequence: row.as_ref().map(|(_, _, _, f)| *f),
             can_confirm: false,
         };
 
-        if let Some((st, _, _)) = row {
+        if let Some((st, _, _, _)) = row {
             if st == "pending_takeover" {
                 if let Some(id) = identity {
                     dto.can_confirm = id.device_id == dto.to_device_id.as_deref().unwrap_or("");
@@ -332,13 +353,15 @@ impl Store {
         );
 
         if roster.processor_device_id != identity.processor_device_id {
-            // Handoff roster: validate proof and transition state.
+            // Handoff roster: validate_successor already enforced that the proof
+            // is signed by the previous processor and revision-bound; here we
+            // only re-check it against the locally recorded last processor.
             let handoff = roster
                 .handoff
                 .as_ref()
                 .context("sync_handoff_proof_required")?;
             ensure!(
-                handoff.from_device_id == identity.device_id,
+                handoff.from_device_id == identity.processor_device_id,
                 "sync_handoff_proof_source_mismatch"
             );
             ensure!(
@@ -346,28 +369,45 @@ impl Store {
                 "sync_handoff_proof_target_mismatch"
             );
 
+            // Record the cryptographic handoff credential for delayed-analysis
+            // boundary enforcement and future audits.
             self.connection.execute(
-                "INSERT OR REPLACE INTO sync_processor_handoffs (roster_revision, from_device_id, to_device_id, final_sequence, proof)\n                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                "INSERT INTO sync_processor_handoffs(roster_revision,dataset_id,from_device_id,to_device_id,from_sequence,proof_json) VALUES(?1,?2,?3,?4,?5,?6)
+                 ON CONFLICT(roster_revision) DO UPDATE SET proof_json=excluded.proof_json",
                 params![
                     roster.revision as i64,
+                    handoff.dataset_id,
                     handoff.from_device_id,
                     handoff.to_device_id,
                     handoff.final_sequence as i64,
-                    serde_json::to_vec(handoff)?,
+                    serde_json::to_string(handoff)?,
                 ],
             )?;
 
             if identity.device_id == handoff.to_device_id {
-                // This device is the new processor target.
+                // This device is the takeover target: keep the previous
+                // processor as the effective processor and wait for the local
+                // frontier to catch up before an explicit confirm.
                 self.connection.execute(
-                    "UPDATE sync_processor_state SET state='pending_takeover', from_sequence=?1, to_device_id=?2 WHERE singleton=1",
-                    params![handoff.final_sequence as i64, handoff.to_device_id],
+                    "INSERT INTO sync_processor_state(singleton,state,from_device_id,to_device_id,final_sequence) VALUES(1,'pending_takeover',?1,?2,?3)
+                     ON CONFLICT(singleton) DO UPDATE SET state=excluded.state,from_device_id=excluded.from_device_id,to_device_id=excluded.to_device_id,final_sequence=excluded.final_sequence,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+                    params![
+                        handoff.from_device_id,
+                        handoff.to_device_id,
+                        handoff.final_sequence as i64,
+                    ],
                 )?;
             } else {
-                // Observer or old processor: update processor_device_id directly.
+                // Old processor or observer: adopt the successor immediately.
                 self.connection.execute(
                     "UPDATE sync_replica SET processor_device_id=?1 WHERE singleton=1",
                     params![roster.processor_device_id],
+                )?;
+                // The old processor already marked itself 'relinquished' at
+                // yield; observers without a state row stay out of this table.
+                self.connection.execute(
+                    "UPDATE sync_processor_state SET to_device_id=?1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE singleton=1 AND state='relinquished'",
+                    [handoff.to_device_id.as_str()],
                 )?;
             }
         }

@@ -774,11 +774,22 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 
 | 检查 | 结果 |
 | --- | --- |
-| `cargo test` | **675 passed / 0 failed / 17 ignored** |
-| `cargo fmt --all -- --check` | 通过（修复 2 处新引入差异） |
+| `cargo test` | **679 passed / 0 failed / 17 ignored**（含 4 个 P4d 防线集成测试） |
+| `cargo fmt --all -- --check` | 通过 |
 | `cargo build --release` | 通过 |
-| `./scripts/regen.sh` | 桥接重生成，hash 一致 |
+| `./scripts/regen.sh` | 桥接重生成，hash 一致（API 面未变，无 Dart 差异） |
 | Flutter `fvm flutter test` | **349 passed** |
+
+### 防线集成测试（`storage::sync::membership::tests`）
+
+- `yield_requires_quiescence_and_disables_background_claims`：running 后台任务拦截 yield（`sync_background_processing_must_finish_before_enable`）且不留状态行；非加工端拒绝 yield；`relinquished` 后视图硬阻断 claim。
+- `handoff_roster_moves_old_processor_and_holds_target_at_pending_takeover`：无 proof 的加工端变更拒绝；旧端立即采纳后继；目标端停在 `pending_takeover`（不切换本机 processor，无后台权利，状态跨重启保持）。
+- `takeover_requires_frontier_alignment_and_restores_processing`：frontier 未追平拒绝接管（`sync_frontier_lagging`）；追平后确认切换并恢复后台权利；确认是单次状态机，不可隐式重放。
+- `delayed_analysis_from_former_processor_is_bounded_by_handoff`：边界内 `<= final_sequence` 延迟分析放行（含 pending\_takeover 与接管后两个阶段）；超出边界严格拒绝且不落库。
+
+### 实现修正（随本测试补齐时发现）
+
+初版实现与 v31 迁移列名不一致（`from_sequence` vs `final_sequence`、`proof_json`/`dataset_id` 缺失）且 `confirm_processor_takeover` 误用本机流查 frontier——原有全量绿仅证明无回归，未覆盖这些路径。已修正为：handoffs 写入完整列（含 `dataset_id`/`proof_json`）；frontier 门禁改从 `from_device_id` 的成员流取水印；`apply_sync_analysis` 查 `MAX(from_sequence)`。
 
 ### 边界与未完成
 

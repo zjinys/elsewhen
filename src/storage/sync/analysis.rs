@@ -71,27 +71,20 @@ impl Store {
         analysis: &AnalysisRecord,
     ) -> Result<Apply> {
         let identity = self.sync_identity()?.context("sync_not_initialized")?;
-        // Allow analysis from the current processor, or from a previous processor
-        // within the handoff final_sequence boundary.
+        // Analysis may originate from the current processor, or from a previous
+        // processor within the cryptographic handoff boundary (delayed ops
+        // authored before the yield are legitimate; beyond it they are not).
         if op.origin_device_id != identity.processor_device_id {
-            let max_allowed: Option<i64> = self.connection
+            let handoff_sequence: Option<i64> = self
+                .connection
                 .query_row(
-                    "SELECT MAX(final_sequence) FROM sync_processor_handoffs WHERE from_device_id = ?1",
+                    "SELECT MAX(from_sequence) FROM sync_processor_handoffs WHERE from_device_id=?1",
                     [&op.origin_device_id],
                     |r| r.get(0),
                 )
                 .optional()?;
-            match max_allowed {
-                Some(max) if op.origin_sequence <= max => {
-                    // Old processor's delayed analysis within handoff boundary: allowed.
-                }
-                _ => {
-                    ensure!(
-                        op.origin_device_id == identity.processor_device_id,
-                        "sync_analysis_wrong_processor"
-                    );
-                }
-            }
+            let within_handoff = handoff_sequence.is_some_and(|max| op.origin_sequence <= max);
+            ensure!(within_handoff, "sync_analysis_wrong_processor");
         }
         let Some(event) = self.sync_event_record(&analysis.event_id)? else {
             return Ok(Apply::Waiting);

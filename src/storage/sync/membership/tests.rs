@@ -695,3 +695,282 @@ fn old_content_snapshot_cannot_reactivate_a_revoked_member_or_assign_processor()
             .is_err()
     );
 }
+
+// ---------- P4d processor handoff defense lines ----------
+
+fn handoff_fixture() -> (Db, Db) {
+    let a = Db::owner();
+    let b = Db::new("b");
+    enroll(&a, &b);
+    (a, b)
+}
+
+fn signed_handoff_roster(
+    a: &Db,
+    proof: ProcessingYieldProof,
+    target_revision: u64,
+) -> SignedRoster {
+    let mut roster = a.store.current_signed_roster().unwrap().unwrap().roster;
+    roster.revision = target_revision;
+    roster.processor_device_id = proof.to_device_id.clone();
+    roster.handoff = Some(proof);
+    SignedRoster::sign(roster, &a.signer).unwrap()
+}
+
+fn processor_of(store: &Store) -> String {
+    store.sync_identity().unwrap().unwrap().processor_device_id
+}
+
+#[test]
+fn yield_requires_quiescence_and_disables_background_claims() {
+    let a = Db::owner();
+
+    // Only the active processor can yield.
+    let other = Db::new("x");
+    assert_eq!(
+        other
+            .store
+            .yield_processor_role(2, "a", &other.signer)
+            .unwrap_err()
+            .to_string(),
+        "sync_membership_not_processor"
+    );
+
+    // A running background job blocks the yield (fail-closed quiescence).
+    a.store
+        .submit_input_as_event("quiescence fact", "capture", None)
+        .unwrap();
+    let job = a.store.claim_analysis_job().unwrap().unwrap();
+    assert_eq!(
+        a.store
+            .yield_processor_role(2, "b", &a.signer)
+            .unwrap_err()
+            .to_string(),
+        "sync_background_processing_must_finish_before_enable"
+    );
+    assert_eq!(
+        a.store.get_processor_handoff_state().unwrap().state,
+        "idle",
+        "failed yield must not leave a state row behind"
+    );
+
+    // Once in-flight work is finished, the yield succeeds and records the boundary.
+    a.store
+        .complete_analysis(&job, "event-analysis", r#"{"recordable":true}"#)
+        .unwrap();
+    let proof = a.store.yield_processor_role(2, "b", &a.signer).unwrap();
+    proof.verify(&a.signer.public_key()).unwrap();
+    assert_eq!(proof.from_device_id, "a");
+    assert_eq!(proof.to_device_id, "b");
+    assert_eq!(proof.roster_revision, 2);
+    let next: i64 = a
+        .store
+        .connection
+        .query_row("SELECT next_sequence FROM sync_replica", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(proof.final_sequence as i64, next - 1);
+
+    let state = a.store.get_processor_handoff_state().unwrap();
+    assert_eq!(state.state, "relinquished");
+    assert_eq!(state.from_device_id.as_deref(), Some("a"));
+    assert_eq!(state.to_device_id.as_deref(), Some("b"));
+    assert_eq!(state.final_sequence, Some(next - 1));
+
+    // The permission view hard-blocks new background claims after the yield.
+    assert!(!a.store.background_processing_allowed().unwrap());
+    assert!(a.store.claim_analysis_job().unwrap().is_none());
+}
+
+#[test]
+fn handoff_roster_moves_old_processor_and_holds_target_at_pending_takeover() {
+    let (a, b) = handoff_fixture();
+    let proof = a.store.yield_processor_role(3, "b", &a.signer).unwrap();
+
+    // A processor change without the signed handoff proof is rejected.
+    let mut no_handoff = a.store.current_signed_roster().unwrap().unwrap().roster;
+    no_handoff.revision = 3;
+    no_handoff.processor_device_id = "b".into();
+    no_handoff.handoff = None;
+    let forged = SignedRoster::sign(no_handoff, &a.signer).unwrap();
+    assert!(
+        a.store
+            .apply_signed_roster(&forged.encode().unwrap())
+            .is_err()
+    );
+    assert!(
+        b.store
+            .apply_signed_roster(&forged.encode().unwrap())
+            .is_err()
+    );
+
+    let signed = signed_handoff_roster(&a, proof, 3);
+
+    // The old processor adopts the successor immediately.
+    a.store
+        .apply_signed_roster(&signed.encode().unwrap())
+        .unwrap();
+    assert_eq!(processor_of(&a.store), "b");
+    assert!(!a.store.background_processing_allowed().unwrap());
+    let handoffs: i64 = a
+        .store
+        .connection
+        .query_row("SELECT COUNT(*) FROM sync_processor_handoffs", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(handoffs, 1);
+
+    // The takeover target holds at pending_takeover with no processing rights,
+    // and the state survives a restart.
+    b.store
+        .apply_signed_roster(&signed.encode().unwrap())
+        .unwrap();
+    assert_eq!(processor_of(&b.store), "a");
+    let state = b.store.get_processor_handoff_state().unwrap();
+    assert_eq!(state.state, "pending_takeover");
+    assert_eq!(state.from_device_id.as_deref(), Some("a"));
+    assert_eq!(state.to_device_id.as_deref(), Some("b"));
+    assert!(state.can_confirm);
+    assert!(!b.store.background_processing_allowed().unwrap());
+    let reopened = Store::open(&b.store.path).unwrap();
+    assert_eq!(
+        reopened.get_processor_handoff_state().unwrap().state,
+        "pending_takeover"
+    );
+}
+
+#[test]
+fn takeover_requires_frontier_alignment_and_restores_processing() {
+    let (a, b) = handoff_fixture();
+    // Author one local op so the handoff boundary is non-trivial (final = 1).
+    a.store
+        .submit_input_as_event("frontier fact", "capture", None)
+        .unwrap();
+    let proof = a.store.yield_processor_role(3, "b", &a.signer).unwrap();
+    assert_eq!(proof.final_sequence, 1);
+    let signed = signed_handoff_roster(&a, proof, 3);
+    a.store
+        .apply_signed_roster(&signed.encode().unwrap())
+        .unwrap();
+    b.store
+        .apply_signed_roster(&signed.encode().unwrap())
+        .unwrap();
+
+    // The old processor's stream frontier is still 0: takeover is blocked.
+    assert_eq!(
+        b.store
+            .confirm_processor_takeover()
+            .unwrap_err()
+            .to_string(),
+        "sync_frontier_lagging"
+    );
+    assert_eq!(processor_of(&b.store), "a");
+    assert!(!b.store.background_processing_allowed().unwrap());
+
+    // Catch the frontier up to the handoff boundary.
+    let capture = a.store.pending_sync_operations("b", 10).unwrap().remove(0);
+    b.store
+        .receive_sync_operation("a", &serde_json::to_vec(&capture).unwrap())
+        .unwrap();
+
+    b.store.confirm_processor_takeover().unwrap();
+    assert_eq!(processor_of(&b.store), "b");
+    let state = b.store.get_processor_handoff_state().unwrap();
+    assert_eq!(state.state, "active");
+    assert!(!state.can_confirm);
+    assert!(b.store.background_processing_allowed().unwrap());
+
+    // Confirm is single-shot: the state machine never goes backwards implicitly.
+    assert_eq!(
+        b.store
+            .confirm_processor_takeover()
+            .unwrap_err()
+            .to_string(),
+        "sync_processor_not_in_pending_takeover"
+    );
+}
+
+#[test]
+fn delayed_analysis_from_former_processor_is_bounded_by_handoff() {
+    let (a, b) = handoff_fixture();
+    // The current processor completes two analyses (origin sequences 1 and 2).
+    let mut results = Vec::new();
+    for text in ["event one", "event two"] {
+        b.store
+            .submit_input_as_event(text, "capture", None)
+            .unwrap();
+        // Deliver every pending capture; re-delivery of an already-applied op
+        // is deduplicated on the receiving side.
+        for capture in b.store.pending_sync_operations("a", 10).unwrap() {
+            a.store
+                .receive_sync_operation("b", &serde_json::to_vec(&capture).unwrap())
+                .unwrap();
+        }
+        let job = a.store.claim_analysis_job().unwrap().unwrap();
+        a.store
+            .complete_analysis(&job, "event-analysis", r#"{"recordable":true}"#)
+            .unwrap();
+    }
+    results = a.store.pending_sync_operations("b", 10).unwrap();
+    assert_eq!(results.len(), 2);
+    assert!(results.iter().all(|op| op.origin_device_id == "a"));
+    assert_eq!(results[0].origin_sequence, 1);
+    assert_eq!(results[1].origin_sequence, 2);
+
+    // Handoff with final_sequence = 2.
+    let proof = a.store.yield_processor_role(3, "b", &a.signer).unwrap();
+    assert_eq!(proof.final_sequence, 2);
+    let signed = signed_handoff_roster(&a, proof, 3);
+    a.store
+        .apply_signed_roster(&signed.encode().unwrap())
+        .unwrap();
+    b.store
+        .apply_signed_roster(&signed.encode().unwrap())
+        .unwrap();
+
+    // While still in pending_takeover the effective processor is unchanged, so
+    // the delayed results apply normally.
+    for result in &results {
+        let report = b
+            .store
+            .receive_sync_operation("a", &serde_json::to_vec(result).unwrap())
+            .unwrap();
+        assert_eq!(report.rejected, 0);
+        assert_eq!(report.applied, 1);
+    }
+    let count: i64 = b
+        .store
+        .connection
+        .query_row("SELECT COUNT(*) FROM event_analyses", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(count, 2);
+
+    // Catch up and confirm: the former processor is no longer the current one.
+    b.store.confirm_processor_takeover().unwrap();
+    assert_eq!(processor_of(&b.store), "b");
+
+    // Beyond the boundary: a follow-up analysis op from the former processor
+    // past final_sequence is strictly rejected.
+    let mut late = results[1].clone();
+    late.origin_sequence = 3;
+    late.op_id = "stream-a:3".into();
+    let report = b
+        .store
+        .receive_sync_operation("a", &serde_json::to_vec(&late).unwrap())
+        .unwrap();
+    assert_eq!(report.rejected, 1);
+    let count: i64 = b
+        .store
+        .connection
+        .query_row("SELECT COUNT(*) FROM event_analyses", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(count, 2, "no late analysis may be applied");
+
+    // At or below the boundary a delayed analysis from the former processor is
+    // still accepted after the takeover (idempotent replay is a legal path).
+    let report = b
+        .store
+        .receive_sync_operation("a", &serde_json::to_vec(&results[0]).unwrap())
+        .unwrap();
+    assert_eq!(report.rejected, 0);
+}
