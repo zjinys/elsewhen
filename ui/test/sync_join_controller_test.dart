@@ -269,7 +269,6 @@ testWidgets(
           body: SingleChildScrollView(
             child: JoinerSyncPairingSettings(
               controller: f.controller,
-              scanSupported: true,
               scannerBuilder: (context, onCode) => TextButton(
                 onPressed: () => onCode('SYNTHETIC_INVITATION'),
                 child: const Text('模拟检测到二维码'),

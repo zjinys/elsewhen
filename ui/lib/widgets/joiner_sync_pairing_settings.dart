@@ -9,21 +9,13 @@ class JoinerSyncPairingSettings extends StatefulWidget {
   const JoinerSyncPairingSettings({
     super.key,
     required this.controller,
-    this.scanSupported,
     this.scannerBuilder,
   });
   final SyncJoinController controller;
 
-  /// 扫码可用性（默认按平台判定；测试注入 true 打开扫码入口）。
-  final bool? scanSupported;
-
   /// 扫码页取景器注入缝（测试替换相机）；见 JoinerQrScanPage。
   final Widget Function(BuildContext context, void Function(String code))?
   scannerBuilder;
-
-  bool get scanAvailable =>
-      scanSupported ??
-      (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
 
   @override
   State<JoinerSyncPairingSettings> createState() =>
@@ -101,12 +93,11 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                         },
                   child: const Text('预览邀请（不联网）'),
                 ),
-                if (widget.scanAvailable)
-                  OutlinedButton.icon(
-                    onPressed: controller.busy ? null : () => _scanCode(),
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('扫码'),
-                  ),
+                OutlinedButton.icon(
+                  onPressed: controller.busy ? null : () => _scanCode(),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('扫码'),
+                ),
               ],
             ),
           ],

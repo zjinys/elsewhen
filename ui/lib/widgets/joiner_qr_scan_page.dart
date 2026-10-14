@@ -40,6 +40,25 @@ class JoinerQrScanPage extends StatelessWidget {
                 }
               }
             },
+            // 不预判平台：相机打不开（无设备/无权限/无实现）在此可见失败。
+            errorBuilder: (context, error) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.no_photography_outlined),
+                    const SizedBox(height: 12),
+                    const Text('无法访问相机，可用复制/粘贴邀请码代替。'),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$error',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
     );
   }
