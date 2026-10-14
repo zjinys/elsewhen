@@ -146,6 +146,11 @@ pub enum SyncMutation {
         page: WikiPageRecord,
         base_revision: Option<String>,
     },
+    /// 修订历史行追加（起源端权威：收端不为远端 op 另立修订）。id 为起源
+    /// 端 uuid，两端一致；行只追加，不参与 head/CAS。
+    WikiPageRevisionAppended {
+        revision: WikiRevisionRecord,
+    },
 }
 
 impl SyncMutation {
@@ -209,6 +214,22 @@ impl SyncMutation {
                     "sync_delete_requires_archive"
                 );
             }
+            Self::WikiPageRevisionAppended { revision } => {
+                validate_id(&revision.id)?;
+                validate_id(&revision.page_id)?;
+                ensure!(!revision.content_md.is_empty(), "sync_wiki_revision_empty");
+                ensure!(
+                    !revision.created_at.trim().is_empty() && revision.created_at.len() <= 64,
+                    "sync_wiki_revision_field_invalid"
+                );
+                ensure!(
+                    revision.reason.len() <= 512,
+                    "sync_wiki_revision_field_invalid"
+                );
+                if let Some(event_id) = &revision.source_event_id {
+                    validate_id(event_id)?;
+                }
+            }
             Self::WikiPageRenamed { old_slug, page, .. } => {
                 // old_slug 复用 slug 有效性规则；重命名必须真的换 slug，
                 // 未换 slug 的标题修改走 WikiPageChanged。
@@ -271,6 +292,17 @@ impl SyncMutation {
         }
         Ok(())
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WikiRevisionRecord {
+    pub id: String,
+    pub page_id: String,
+    pub content_md: String,
+    pub reason: String,
+    pub source_event_id: Option<String>,
+    pub created_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -121,6 +121,22 @@ impl Store {
         Ok(())
     }
 
+    /// 修订行追加的捕获点：与本地修订写放同一领域事务提交（record_wiki_
+    /// revision 及其改名/upsert 调用方均已包tx）。修订不设 head——不参与
+    /// CAS，只随流到达；收端应用见 apply_sync_wiki_revision。
+    pub(crate) fn sync_record_wiki_revision(
+        &self,
+        revision: &crate::sync::protocol::WikiRevisionRecord,
+    ) -> Result<()> {
+        if self.sync_identity()?.is_none() {
+            return Ok(());
+        }
+        self.append_sync_mutation(SyncMutation::WikiPageRevisionAppended {
+            revision: revision.clone(),
+        })?;
+        Ok(())
+    }
+
     /// 重命名前读取当前 head（作为 base_revision 的 CAS 锚点）。
     pub(crate) fn sync_wiki_base_revision(&self, id: &str) -> Result<Option<String>> {
         Ok(self.sync_object_head("wiki_page", id)?.map(|h| h.0))
@@ -262,6 +278,58 @@ impl Store {
             params![page.slug, old_slug],
         )?;
         self.sync_set_head("wiki_page", &page.id, &op.op_id, false)?;
+        Ok(Apply::Applied)
+    }
+
+    /// 修订行应用（起源端权威历史）：页在站、证据在站才落；已删页头上到
+    /// 达的修订与内容 op 同罪，落 wiki_page_deleted 候选。行只追加，重复
+    /// 投递按主键幂等（receive 层已保证单 op 单应用，此处 OR IGNORE 兜底）。
+    pub(super) fn apply_sync_wiki_revision(
+        &self,
+        op: &SyncOperation,
+        revision: &crate::sync::protocol::WikiRevisionRecord,
+    ) -> Result<Apply> {
+        let head = self.sync_object_head("wiki_page", &revision.page_id)?;
+        if head.as_ref().is_some_and(|h| h.1) {
+            // 已删页头下的迟到修订：不立案（同批页 op 已报 wiki_page_deleted
+            // 候选，重复立案只是噪音），也不落行（页待人工处置，历史不复活）。
+            return Ok(Apply::Applied);
+        }
+        let page_exists: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM wiki_pages WHERE id=?1)",
+            params![revision.page_id],
+            |r| r.get(0),
+        )?;
+        if !page_exists {
+            // 页本体 op 在途（写路径保证页 op 的流内序先于修订 op）。
+            return Ok(Apply::Waiting);
+        }
+        if let Some(event_id) = &revision.source_event_id {
+            let evidence: bool = self.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM events WHERE id=?1)",
+                params![event_id],
+                |r| r.get(0),
+            )?;
+            if !evidence {
+                return Ok(Apply::Waiting);
+            }
+        }
+        self.connection.execute(
+            "INSERT OR IGNORE INTO wiki_revisions
+             (id, page_id, content_md, reason, source_event_id, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                revision.id,
+                revision.page_id,
+                revision.content_md,
+                revision.reason,
+                revision.source_event_id,
+                revision.created_at,
+            ],
+        )?;
+        // 修订不推进 head：不是 CAS 对象；落行即可（否则删除头会被误清、
+        // 后续页 op 的 base 判定会被打乱）。
+        let _ = op;
         Ok(Apply::Applied)
     }
 

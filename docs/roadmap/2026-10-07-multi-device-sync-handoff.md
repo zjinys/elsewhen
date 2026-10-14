@@ -1041,3 +1041,45 @@ rename 目前只有 AI/审批工具链调用）。**
 
 **P5b 仍未完成：** 修订/来源快照闭包；Wiki 专属会话引用（S05）；冲突候选
 人工审阅 UI（S05 大项，含 rename_diverged / slug_owned_by_other_id 的展示）。
+
+## 25. P5b 收官：Wiki 修订历史随流复制 + 创建/覆盖页捕获补全（2026-10-14）
+
+**缺口：** `wiki_revisions` 只存在于起源端；且 P5a 的捕获点沿 save/tags/
+opinion/rename/delete 打，`upsert_wiki_page` 的创建与整页覆盖分支（AI
+digest 主写路径）完全未捕获——新建页若无后续人工触碰，将永不上同步。
+
+**协议：** `SyncMutation::WikiPageRevisionAppended { revision: WikiRevision
+Record }`（id/page_id/content_md/reason/source_event_id/created_at，serde
+deny_unknown_fields）。修订是**起源端权威**：收端不为远端 op 另立修订行，
+两端历史逐行一致（同 uuid）。
+
+**捕获：** `record_wiki_revision_on` 签名从 `&Connection` 改收 `&Store`，
+落行后在同事务内 `sync_record_wiki_revision`（单点覆盖全部写路径：upsert
+创建/覆盖、人工保存、标签、项目路径、改名、派生产物）。由此：
+
+- **流内序纪律（关键）**：同一领域事务里先捕获页 op 再捕获修订 op——收端
+  严格按序 drain（frontier 只随 applied 前进），修订对页行存在有依赖，页
+  op 必须先行；否则修订 op 卡 Waiting 会把整流压住（P5a 测试当场踩到：
+  save 的修订先于页 op 投出 → b 端页 op 永远等不到）。
+- `update_project_path` 补 `begin_write_transaction`（在此之前是裸写，捕
+  获会 fail-closed 报 `sync_requires_domain_transaction`）。
+
+**应用端（`apply_sync_wiki_revision`）判序：**
+- 已删页头 → **不立案、不落行**（同批页 op 已报一次 `wiki_page_deleted`
+  候选，修订再立案只是噪音；页面待人工处置时不复活历史行）；
+- 页行缺失 → Waiting（页 op 在途，写路径已保证序）；
+- `source_event_id` 引用的事件缺失 → Waiting（证据闭包，与页 op 同款）；
+- 落行 `INSERT OR IGNORE`（幂等兜底；receive 层本就单 op 单应用）；
+- **修订不推进 head**：不是 CAS 对象——落 head 会误清删除标记、打乱后续
+  页 op 的 base 判定。
+
+**测试（sync/tests.rs +2）：** 修订历史随流复制（双端逐行一致、含
+`[human]` reason、重复投递幂等）；删除头下迟到修订保持安静（候选恰一
+条、历史不复活）。并在 P5a 既有案例中防回归。
+
+**门禁：Rust 692 passed / 0 failed；fmt --check、release、regen hash 一致；
+Flutter 365 passed、analyze 0 error/warning。无 FRB/Dart 改动。**
+
+**P5b 至此收官。** S05 余项：wiki 冲突候选人工审阅 UI（`wiki_page_deleted`
+/`rename_diverged`/`slug_owned_by_other_id` 三种语义的展示与 token 确认）、
+待办/目标/规则对象、Wiki 专属会话引用；S06 真人门禁未动。

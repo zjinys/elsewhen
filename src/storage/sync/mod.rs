@@ -800,6 +800,9 @@ impl Store {
                 page,
                 base_revision,
             } => self.apply_sync_wiki_rename(op, old_slug, page, base_revision),
+            SyncMutation::WikiPageRevisionAppended { revision } => {
+                self.apply_sync_wiki_revision(op, revision)
+            }
         }
     }
 

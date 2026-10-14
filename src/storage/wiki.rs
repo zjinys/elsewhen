@@ -388,13 +388,8 @@ impl Store {
                     draft.source_url,
                 ],
             )?;
-            Self::record_wiki_revision_on(
-                &self.connection,
-                &page.id,
-                &draft.content_md,
-                &draft.reason,
-                None,
-            )?;
+            self.sync_record_wiki_page(&page.id, false)?;
+            Self::record_wiki_revision_on(self, &page.id, &draft.content_md, &draft.reason, None)?;
             let updated = self.get_wiki_page(&draft.slug)?.unwrap();
             super::knowledge::capture_source_on(&self.connection, &updated)?;
             Ok(WikiUpsertOutcome {
@@ -431,13 +426,8 @@ impl Store {
                     area,
                 ],
             )?;
-            Self::record_wiki_revision_on(
-                &self.connection,
-                &id,
-                &draft.content_md,
-                &draft.reason,
-                None,
-            )?;
+            self.sync_record_wiki_page(&id, false)?;
+            Self::record_wiki_revision_on(self, &id, &draft.content_md, &draft.reason, None)?;
             let page = self.get_wiki_page(&draft.slug)?.unwrap();
             super::knowledge::capture_source_on(&self.connection, &page)?;
             Ok(WikiUpsertOutcome {
@@ -526,6 +516,8 @@ impl Store {
         }
         let old_url = page.source_url.clone().unwrap_or_default();
         let now = chrono::Utc::now().to_rfc3339();
+        // 修订捕获要求领域事务（P5b：修订历史随流复制）。
+        let tx = self.begin_write_transaction()?;
         self.connection.execute(
             "UPDATE wiki_pages SET source_url = ?1, content_md = ?2, updated_at = ?3 WHERE id = ?4",
             params![new_url, content, now, page.id],
@@ -536,7 +528,11 @@ impl Store {
             format!("项目路径修改：{old_url} → {new_url}")
         };
         self.record_wiki_revision(&page.id, &content, &reason, None)?;
+        self.sync_record_wiki_page(&page.id, false)?;
         self.append_wiki_log(&format!("项目路径修改：{slug} → {display}"))?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         self.get_wiki_page(slug)?.context("项目路径修改后读取失败")
     }
 
@@ -647,6 +643,9 @@ impl Store {
             params![content_md, now, page.id],
         )?;
         let reason = reason.trim();
+        // 页 op 先于修订 op 捕获：收端按流内序 drain，修订的页存在依赖
+        // 必须先被页 op 满足。
+        self.sync_record_wiki_page(&page.id, false)?;
         self.record_wiki_revision(
             &page.id,
             &content_md,
@@ -668,7 +667,6 @@ impl Store {
                 reason
             }
         ))?;
-        self.sync_record_wiki_page(&page.id, false)?;
         if let Some(transaction) = transaction {
             transaction.commit()?;
         }
@@ -860,38 +858,45 @@ impl Store {
         reason: &str,
         source_event_id: Option<&str>,
     ) -> Result<()> {
-        Self::record_wiki_revision_on(
-            &self.connection,
-            page_id,
-            content_md,
-            reason,
-            source_event_id,
-        )
+        Self::record_wiki_revision_on(self, page_id, content_md, reason, source_event_id)
     }
 
     /// 在指定连接上追加一条 wiki revision；事务通过 Deref 传入 `&Transaction` 亦可。
     /// upsert_wiki_page 把「页面写入 + revision」放进同一事务原子提交，
     /// 避免页面改了但 revision 没记（或反之）导致审计断链。
+    /// 写一条修订并捕获同步 op（修订历史随流复制，起源端权威）。事务约束
+    /// 由调用方满足：所有写路径（upsert/改名/正文保存/标签/项目路径）都
+    /// 已在 begin_write_transaction 包裹内或自动提交单写。
     fn record_wiki_revision_on(
-        conn: &rusqlite::Connection,
+        store: &Store,
         page_id: &str,
         content_md: &str,
         reason: &str,
         source_event_id: Option<&str>,
     ) -> Result<()> {
+        let conn = &store.connection;
+        let revision = crate::sync::protocol::WikiRevisionRecord {
+            id: Uuid::new_v4().to_string(),
+            page_id: page_id.to_string(),
+            content_md: content_md.to_string(),
+            reason: reason.to_string(),
+            source_event_id: source_event_id.map(|s| s.to_string()),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
         conn.execute(
             "INSERT INTO wiki_revisions
          (id, page_id, content_md, reason, source_event_id, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
-                Uuid::new_v4().to_string(),
-                page_id,
-                content_md,
-                reason,
-                source_event_id,
-                chrono::Utc::now().to_rfc3339(),
+                revision.id,
+                revision.page_id,
+                revision.content_md,
+                revision.reason,
+                revision.source_event_id,
+                revision.created_at,
             ],
         )?;
+        store.sync_record_wiki_revision(&revision)?;
         Ok(())
     }
 

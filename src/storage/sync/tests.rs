@@ -1295,3 +1295,82 @@ fn rename_arriving_after_delete_stays_conflict_candidate() {
         .unwrap();
     assert!(pending > 0, "删除后的迟到重命名应保留为候选");
 }
+
+#[test]
+fn wiki_page_revisions_replicate_history() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(&a, "page-1", "topic/项目", "项目", "初版正文", &[&event_id]);
+    capture_wiki(&a, "page-1");
+    // 一次人工编辑：save 同时产生页 op（先）与修订 op（后）。
+    a.store
+        .save_wiki_page_content("topic/项目", "二版正文", "人工修订", None)
+        .unwrap();
+    deliver(&a, &b);
+    // b 端收到同一份修订历史（起源端权威：同 id 同内容）。
+    let (a_rev, b_rev): (Vec<(String, String, String)>, Vec<(String, String, String)>) = {
+        let q = "SELECT id, content_md, reason FROM wiki_revisions WHERE page_id='page-1' ORDER BY created_at";
+        (
+            a.store
+                .connection
+                .prepare(q)
+                .unwrap()
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap(),
+            b.store
+                .connection
+                .prepare(q)
+                .unwrap()
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap(),
+        )
+    };
+    assert_eq!(a_rev.len(), 1, "seed 无捕获，仅 save 一条修订");
+    assert_eq!(a_rev, b_rev, "两端修订历史必须逐行一致");
+    assert_eq!(b_rev[0].2, "[human] 人工修订");
+    assert_eq!(b_rev[0].1, "二版正文");
+    // 幂等：重复投递不产生重复行。
+    deliver(&a, &b);
+    assert_eq!(b.count("wiki_revisions"), 1);
+}
+
+#[test]
+fn revision_arriving_on_deleted_head_stays_quiet() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(&a, "page-1", "topic/项目", "项目", "正文", &[&event_id]);
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    // b 端业务删除（物理删），a 端离线编辑（页 op + 修订 op）后投递。
+    assert!(b.store.delete_wiki_page("topic/项目").unwrap());
+    a.store
+        .save_wiki_page_content("topic/项目", "离线改", "离线编辑", None)
+        .unwrap();
+    deliver(&a, &b);
+    // 页 op 报 wiki_page_deleted 候选一次；修订 op 不重复立案、不落行。
+    let candidates: i64 = b
+        .store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM sync_conflicts WHERE reason='wiki_page_deleted'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(candidates, 1, "同一次编辑只在一个 op 上立案");
+    assert_eq!(b.count("wiki_revisions"), 0, "已删页不复活历史行");
+}
