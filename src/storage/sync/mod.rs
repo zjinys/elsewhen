@@ -11,6 +11,7 @@ pub(crate) use membership::ProcessorHandoffState;
 mod mutable;
 mod pairing;
 pub(crate) use pairing::{PairingCommit, PairingDispatch};
+pub(crate) mod object_conflicts;
 pub(crate) mod page_conflicts;
 mod processing;
 pub(crate) mod provider_conflicts;

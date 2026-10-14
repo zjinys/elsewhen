@@ -3,12 +3,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/sync/sync_key_store.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
+import 'package:elsewhen_ui/sync/sync_object_conflicts_controller.dart';
 import 'package:elsewhen_ui/sync/sync_wiki_conflicts_controller.dart';
 import 'package:elsewhen_ui/widgets/local_sync_settings.dart';
 
 import 'support/sync_setup.dart';
 
 /// 空冲突列表替身：视口测试不渲染 wiki 冲突卡片。
+class _EmptyObjectConflictApi implements SyncObjectConflictApi {
+  const _EmptyObjectConflictApi();
+
+  @override
+  Future<List<api.ObjectConflictDto>> listConflicts() async => const [];
+
+  @override
+  Future<void> resolve({
+    required String opId,
+    required String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
+  }) async {}
+}
+
 class _EmptyWikiConflictApi implements SyncWikiConflictApi {
   const _EmptyWikiConflictApi();
 
@@ -27,6 +42,10 @@ void main() {
   testWidgets(
     'owner preparation requires disclosure and does not claim network sync',
     (tester) async {
+      // 新增待办/目标冲突卡片后默认视口放不下全部按钮：抬高视口。
+      tester.view.physicalSize = const Size(800, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final storage = TestSyncSecureStorage();
       final bridge = TestSyncSetupApi(storage);
       final controller = SyncSetupController(
@@ -45,6 +64,9 @@ void main() {
                   controller: controller,
                   wikiConflictsController: SyncWikiConflictsController(
                     bridge: const _EmptyWikiConflictApi(),
+                  ),
+                  objectConflictsController: SyncObjectConflictsController(
+                    bridge: const _EmptyObjectConflictApi(),
                   ),
                 ),
               ),

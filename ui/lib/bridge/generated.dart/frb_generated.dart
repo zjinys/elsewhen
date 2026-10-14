@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1237984454;
+  int get rustContentHash => -459438322;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -576,6 +576,8 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
   });
 
+  Future<List<ObjectConflictDto>> crateApiSyncListObjectConflicts();
+
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
   });
@@ -720,6 +722,12 @@ abstract class RustLibApi extends BaseApi {
   Future<WikiPageDto?> crateApiKnowledgeResolveKnowledgeProposal({
     required String id,
     required bool accept,
+  });
+
+  Future<void> crateApiSyncResolveObjectConflict({
+    required String opId,
+    String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
   });
 
   Future<void> crateApiSyncResolveSyncProviderConflict({
@@ -4444,6 +4452,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<ObjectConflictDto>> crateApiSyncListObjectConflicts() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__list_object_conflicts(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_object_conflict_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncListObjectConflictsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncListObjectConflictsConstMeta =>
+      const TaskConstMeta(debugName: "list_object_conflicts", argNames: []);
+
+  @override
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
   }) {
@@ -5563,6 +5592,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "resolve_knowledge_proposal",
         argNames: ["id", "accept"],
+      );
+
+  @override
+  Future<void> crateApiSyncResolveObjectConflict({
+    required String opId,
+    String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(opId);
+          var arg1 = cst_encode_opt_String(expectedLocalUpdatedAt);
+          var arg2 = cst_encode_bool(acceptRemote);
+          return wire.wire__crate__api__sync__resolve_object_conflict(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncResolveObjectConflictConstMeta,
+        argValues: [opId, expectedLocalUpdatedAt, acceptRemote],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncResolveObjectConflictConstMeta =>
+      const TaskConstMeta(
+        debugName: "resolve_object_conflict",
+        argNames: ["opId", "expectedLocalUpdatedAt", "acceptRemote"],
       );
 
   @override
@@ -8523,6 +8588,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ObjectConflictDto> dco_decode_list_object_conflict_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_object_conflict_dto).toList();
+  }
+
+  @protected
   List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_organized_topic).toList();
@@ -8742,6 +8813,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       dohUri: dco_decode_String(arr[0]),
       dohScope: dco_decode_String(arr[1]),
       dohMode: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  ObjectConflictDto dco_decode_object_conflict_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return ObjectConflictDto(
+      opId: dco_decode_String(arr[0]),
+      objectKind: dco_decode_String(arr[1]),
+      objectId: dco_decode_String(arr[2]),
+      reason: dco_decode_String(arr[3]),
+      senderDeviceId: dco_decode_String(arr[4]),
+      senderDeviceName: dco_decode_opt_String(arr[5]),
+      incomingSummary: dco_decode_String(arr[6]),
+      incomingStatus: dco_decode_String(arr[7]),
+      incomingDeleted: dco_decode_bool(arr[8]),
+      incomingUpdatedAt: dco_decode_String(arr[9]),
+      localSummary: dco_decode_opt_String(arr[10]),
+      localStatus: dco_decode_opt_String(arr[11]),
+      localUpdatedAt: dco_decode_opt_String(arr[12]),
+      localHeadDeleted: dco_decode_bool(arr[13]),
     );
   }
 
@@ -11180,6 +11275,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ObjectConflictDto> sse_decode_list_object_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ObjectConflictDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_object_conflict_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<OrganizedTopic> sse_decode_list_organized_topic(
     SseDeserializer deserializer,
   ) {
@@ -11542,6 +11651,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       dohUri: var_dohUri,
       dohScope: var_dohScope,
       dohMode: var_dohMode,
+    );
+  }
+
+  @protected
+  ObjectConflictDto sse_decode_object_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_opId = sse_decode_String(deserializer);
+    var var_objectKind = sse_decode_String(deserializer);
+    var var_objectId = sse_decode_String(deserializer);
+    var var_reason = sse_decode_String(deserializer);
+    var var_senderDeviceId = sse_decode_String(deserializer);
+    var var_senderDeviceName = sse_decode_opt_String(deserializer);
+    var var_incomingSummary = sse_decode_String(deserializer);
+    var var_incomingStatus = sse_decode_String(deserializer);
+    var var_incomingDeleted = sse_decode_bool(deserializer);
+    var var_incomingUpdatedAt = sse_decode_String(deserializer);
+    var var_localSummary = sse_decode_opt_String(deserializer);
+    var var_localStatus = sse_decode_opt_String(deserializer);
+    var var_localUpdatedAt = sse_decode_opt_String(deserializer);
+    var var_localHeadDeleted = sse_decode_bool(deserializer);
+    return ObjectConflictDto(
+      opId: var_opId,
+      objectKind: var_objectKind,
+      objectId: var_objectId,
+      reason: var_reason,
+      senderDeviceId: var_senderDeviceId,
+      senderDeviceName: var_senderDeviceName,
+      incomingSummary: var_incomingSummary,
+      incomingStatus: var_incomingStatus,
+      incomingDeleted: var_incomingDeleted,
+      incomingUpdatedAt: var_incomingUpdatedAt,
+      localSummary: var_localSummary,
+      localStatus: var_localStatus,
+      localUpdatedAt: var_localUpdatedAt,
+      localHeadDeleted: var_localHeadDeleted,
     );
   }
 
@@ -13876,6 +14022,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_object_conflict_dto(
+    List<ObjectConflictDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_object_conflict_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_organized_topic(
     List<OrganizedTopic> self,
     SseSerializer serializer,
@@ -14182,6 +14340,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.dohUri, serializer);
     sse_encode_String(self.dohScope, serializer);
     sse_encode_String(self.dohMode, serializer);
+  }
+
+  @protected
+  void sse_encode_object_conflict_dto(
+    ObjectConflictDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.opId, serializer);
+    sse_encode_String(self.objectKind, serializer);
+    sse_encode_String(self.objectId, serializer);
+    sse_encode_String(self.reason, serializer);
+    sse_encode_String(self.senderDeviceId, serializer);
+    sse_encode_opt_String(self.senderDeviceName, serializer);
+    sse_encode_String(self.incomingSummary, serializer);
+    sse_encode_String(self.incomingStatus, serializer);
+    sse_encode_bool(self.incomingDeleted, serializer);
+    sse_encode_String(self.incomingUpdatedAt, serializer);
+    sse_encode_opt_String(self.localSummary, serializer);
+    sse_encode_opt_String(self.localStatus, serializer);
+    sse_encode_opt_String(self.localUpdatedAt, serializer);
+    sse_encode_bool(self.localHeadDeleted, serializer);
   }
 
   @protected

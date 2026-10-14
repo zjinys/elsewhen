@@ -389,6 +389,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
 
   @protected
+  List<ObjectConflictDto> dco_decode_list_object_conflict_dto(dynamic raw);
+
+  @protected
   List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw);
 
   @protected
@@ -474,6 +477,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw);
+
+  @protected
+  ObjectConflictDto dco_decode_object_conflict_dto(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -1093,6 +1099,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
 
   @protected
+  List<ObjectConflictDto> sse_decode_list_object_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<OrganizedTopic> sse_decode_list_organized_topic(
     SseDeserializer deserializer,
   );
@@ -1202,6 +1213,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NetworkSettingsDto sse_decode_network_settings_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ObjectConflictDto sse_decode_object_conflict_dto(
     SseDeserializer deserializer,
   );
 
@@ -1970,6 +1986,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_message_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_message_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_object_conflict_dto>
+  cst_encode_list_object_conflict_dto(List<ObjectConflictDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_object_conflict_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_object_conflict_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3280,6 +3307,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_object_conflict_dto(
+    ObjectConflictDto apiObj,
+    wire_cst_object_conflict_dto wireObj,
+  ) {
+    wireObj.op_id = cst_encode_String(apiObj.opId);
+    wireObj.object_kind = cst_encode_String(apiObj.objectKind);
+    wireObj.object_id = cst_encode_String(apiObj.objectId);
+    wireObj.reason = cst_encode_String(apiObj.reason);
+    wireObj.sender_device_id = cst_encode_String(apiObj.senderDeviceId);
+    wireObj.sender_device_name = cst_encode_opt_String(apiObj.senderDeviceName);
+    wireObj.incoming_summary = cst_encode_String(apiObj.incomingSummary);
+    wireObj.incoming_status = cst_encode_String(apiObj.incomingStatus);
+    wireObj.incoming_deleted = cst_encode_bool(apiObj.incomingDeleted);
+    wireObj.incoming_updated_at = cst_encode_String(apiObj.incomingUpdatedAt);
+    wireObj.local_summary = cst_encode_opt_String(apiObj.localSummary);
+    wireObj.local_status = cst_encode_opt_String(apiObj.localStatus);
+    wireObj.local_updated_at = cst_encode_opt_String(apiObj.localUpdatedAt);
+    wireObj.local_head_deleted = cst_encode_bool(apiObj.localHeadDeleted);
+  }
+
+  @protected
   void cst_api_fill_to_wire_organized_topic(
     OrganizedTopic apiObj,
     wire_cst_organized_topic wireObj,
@@ -4379,6 +4427,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_object_conflict_dto(
+    List<ObjectConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_organized_topic(
     List<OrganizedTopic> self,
     SseSerializer serializer,
@@ -4519,6 +4573,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_network_settings_dto(
     NetworkSettingsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_object_conflict_dto(
+    ObjectConflictDto self,
     SseSerializer serializer,
   );
 
@@ -5597,6 +5657,23 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_message_dto');
   late final _cst_new_list_message_dto = _cst_new_list_message_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_message_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_object_conflict_dto>
+  cst_new_list_object_conflict_dto(int len) {
+    return _cst_new_list_object_conflict_dto(len);
+  }
+
+  late final _cst_new_list_object_conflict_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_object_conflict_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_object_conflict_dto');
+  late final _cst_new_list_object_conflict_dto =
+      _cst_new_list_object_conflict_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_object_conflict_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_organized_topic> cst_new_list_organized_topic(
     int len,
@@ -10013,6 +10090,18 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__sync__list_object_conflicts(int port_) {
+    return _wire__crate__api__sync__list_object_conflicts(port_);
+  }
+
+  late final _wire__crate__api__sync__list_object_conflictsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__list_object_conflicts',
+      );
+  late final _wire__crate__api__sync__list_object_conflicts =
+      _wire__crate__api__sync__list_object_conflictsPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__sync__list_pending_sync_joins(int port_) {
     return _wire__crate__api__sync__list_pending_sync_joins(port_);
   }
@@ -10247,6 +10336,42 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__release_sync_key_requestPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__resolve_object_conflict(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> op_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_local_updated_at,
+    bool accept_remote,
+  ) {
+    return _wire__crate__api__sync__resolve_object_conflict(
+      port_,
+      op_id,
+      expected_local_updated_at,
+      accept_remote,
+    );
+  }
+
+  late final _wire__crate__api__sync__resolve_object_conflictPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__resolve_object_conflict');
+  late final _wire__crate__api__sync__resolve_object_conflict =
+      _wire__crate__api__sync__resolve_object_conflictPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__sync__resolve_sync_provider_conflict(
@@ -13746,6 +13871,21 @@ final class wire_cst_list_message_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_object_conflict_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_object_conflict_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_object_conflict_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_object_conflict_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_object_conflict_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_organized_topic extends ffi.Struct {
   external ffi.Pointer<wire_cst_organized_topic> ptr;
 
@@ -14208,6 +14348,70 @@ final class wire_cst_network_settings_dto extends ffi.Struct {
     ..ref.doh_uri = doh_uri
     ..ref.doh_scope = doh_scope
     ..ref.doh_mode = doh_mode;
+}
+
+final class wire_cst_object_conflict_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> op_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> object_kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> object_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_summary;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_status;
+
+  @ffi.Bool()
+  external bool incoming_deleted;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_updated_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_summary;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_updated_at;
+
+  @ffi.Bool()
+  external bool local_head_deleted;
+
+  static ffi.Pointer<wire_cst_object_conflict_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> op_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> object_kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> object_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_summary,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_status,
+    required bool incoming_deleted,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_updated_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_summary,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_updated_at,
+    required bool local_head_deleted,
+  }) => $allocator<wire_cst_object_conflict_dto>()
+    ..ref.op_id = op_id
+    ..ref.object_kind = object_kind
+    ..ref.object_id = object_id
+    ..ref.reason = reason
+    ..ref.sender_device_id = sender_device_id
+    ..ref.sender_device_name = sender_device_name
+    ..ref.incoming_summary = incoming_summary
+    ..ref.incoming_status = incoming_status
+    ..ref.incoming_deleted = incoming_deleted
+    ..ref.incoming_updated_at = incoming_updated_at
+    ..ref.local_summary = local_summary
+    ..ref.local_status = local_status
+    ..ref.local_updated_at = local_updated_at
+    ..ref.local_head_deleted = local_head_deleted;
 }
 
 final class wire_cst_organized_topic extends ffi.Struct {

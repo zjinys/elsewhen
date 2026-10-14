@@ -1,4 +1,3 @@
-import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/models/settings.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
 import 'package:flutter_test/flutter_test.dart';

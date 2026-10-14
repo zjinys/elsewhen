@@ -391,6 +391,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
 
   @protected
+  List<ObjectConflictDto> dco_decode_list_object_conflict_dto(dynamic raw);
+
+  @protected
   List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw);
 
   @protected
@@ -476,6 +479,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw);
+
+  @protected
+  ObjectConflictDto dco_decode_object_conflict_dto(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -1095,6 +1101,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
 
   @protected
+  List<ObjectConflictDto> sse_decode_list_object_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<OrganizedTopic> sse_decode_list_organized_topic(
     SseDeserializer deserializer,
   );
@@ -1204,6 +1215,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NetworkSettingsDto sse_decode_network_settings_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ObjectConflictDto sse_decode_object_conflict_dto(
     SseDeserializer deserializer,
   );
 
@@ -2471,6 +2487,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_object_conflict_dto(List<ObjectConflictDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_object_conflict_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_organized_topic(List<OrganizedTopic> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_organized_topic).toList().jsify()!;
@@ -2663,6 +2685,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.dohUri),
       cst_encode_String(raw.dohScope),
       cst_encode_String(raw.dohMode),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_object_conflict_dto(ObjectConflictDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.opId),
+      cst_encode_String(raw.objectKind),
+      cst_encode_String(raw.objectId),
+      cst_encode_String(raw.reason),
+      cst_encode_String(raw.senderDeviceId),
+      cst_encode_opt_String(raw.senderDeviceName),
+      cst_encode_String(raw.incomingSummary),
+      cst_encode_String(raw.incomingStatus),
+      cst_encode_bool(raw.incomingDeleted),
+      cst_encode_String(raw.incomingUpdatedAt),
+      cst_encode_opt_String(raw.localSummary),
+      cst_encode_opt_String(raw.localStatus),
+      cst_encode_opt_String(raw.localUpdatedAt),
+      cst_encode_bool(raw.localHeadDeleted),
     ].jsify()!;
   }
 
@@ -3866,6 +3909,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_object_conflict_dto(
+    List<ObjectConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_organized_topic(
     List<OrganizedTopic> self,
     SseSerializer serializer,
@@ -4006,6 +4055,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_network_settings_dto(
     NetworkSettingsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_object_conflict_dto(
+    ObjectConflictDto self,
     SseSerializer serializer,
   );
 
@@ -5250,6 +5305,9 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
+  void wire__crate__api__sync__list_object_conflicts(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_object_conflicts(port_);
+
   void wire__crate__api__conversations__list_pending_actions(
     NativePortType port_,
     String conversation_id,
@@ -5534,6 +5592,18 @@ class RustLibWire implements BaseWire {
     port_,
     id,
     accept,
+  );
+
+  void wire__crate__api__sync__resolve_object_conflict(
+    NativePortType port_,
+    String op_id,
+    String? expected_local_updated_at,
+    bool accept_remote,
+  ) => wasmModule.wire__crate__api__sync__resolve_object_conflict(
+    port_,
+    op_id,
+    expected_local_updated_at,
+    accept_remote,
   );
 
   void wire__crate__api__sync__resolve_sync_provider_conflict(
@@ -6708,6 +6778,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
+  external void wire__crate__api__sync__list_object_conflicts(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__conversations__list_pending_actions(
     NativePortType port_,
     String conversation_id,
@@ -6911,6 +6985,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String id,
     bool accept,
+  );
+
+  external void wire__crate__api__sync__resolve_object_conflict(
+    NativePortType port_,
+    String op_id,
+    String? expected_local_updated_at,
+    bool accept_remote,
   );
 
   external void wire__crate__api__sync__resolve_sync_provider_conflict(

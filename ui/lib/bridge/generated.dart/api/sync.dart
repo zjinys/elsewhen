@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'provider_reachability.dart';
 
 // These functions are ignored because they are not marked as `pub`: `conflict_profile_dto`, `enrollment_dto`, `join_dto`, `wiki_page_conflict_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<SyncInvitationOfferDto> createOwnerSyncInvitation({
   required String relayUrl,
@@ -283,6 +283,24 @@ Future<void> resolveWikiPageConflict({
   acceptRemote: acceptRemote,
 );
 
+/// 列出待审阅的待办/目标/规则同步冲突（按流内序）。UI 必须保存
+/// `local_updated_at`（行已物理删除为 null）并在裁决时原样回传。
+Future<List<ObjectConflictDto>> listObjectConflicts() =>
+    RustLib.instance.api.crateApiSyncListObjectConflicts();
+
+/// 显式裁决一条待办/目标/规则冲突。`expected_local_updated_at` 原样回传审阅
+/// 时展示的本端行 updated_at；不匹配失败关闭。`accept_remote=false` = 保留
+/// 本端现状（head 活跃则重新捕获广播，对端看到反向候选对称收敛）。
+Future<void> resolveObjectConflict({
+  required String opId,
+  String? expectedLocalUpdatedAt,
+  required bool acceptRemote,
+}) => RustLib.instance.api.crateApiSyncResolveObjectConflict(
+  opId: opId,
+  expectedLocalUpdatedAt: expectedLocalUpdatedAt,
+  acceptRemote: acceptRemote,
+);
+
 class LocalSyncStateDto {
   final String state;
   final String? installationId;
@@ -336,6 +354,77 @@ class LocalSyncStateDto {
           isProcessor == other.isProcessor &&
           activePeers == other.activePeers &&
           pendingOperations == other.pendingOperations;
+}
+
+class ObjectConflictDto {
+  final String opId;
+  final String objectKind;
+  final String objectId;
+  final String reason;
+  final String senderDeviceId;
+  final String? senderDeviceName;
+  final String incomingSummary;
+  final String incomingStatus;
+  final bool incomingDeleted;
+  final String incomingUpdatedAt;
+  final String? localSummary;
+  final String? localStatus;
+  final String? localUpdatedAt;
+  final bool localHeadDeleted;
+
+  const ObjectConflictDto({
+    required this.opId,
+    required this.objectKind,
+    required this.objectId,
+    required this.reason,
+    required this.senderDeviceId,
+    this.senderDeviceName,
+    required this.incomingSummary,
+    required this.incomingStatus,
+    required this.incomingDeleted,
+    required this.incomingUpdatedAt,
+    this.localSummary,
+    this.localStatus,
+    this.localUpdatedAt,
+    required this.localHeadDeleted,
+  });
+
+  @override
+  int get hashCode =>
+      opId.hashCode ^
+      objectKind.hashCode ^
+      objectId.hashCode ^
+      reason.hashCode ^
+      senderDeviceId.hashCode ^
+      senderDeviceName.hashCode ^
+      incomingSummary.hashCode ^
+      incomingStatus.hashCode ^
+      incomingDeleted.hashCode ^
+      incomingUpdatedAt.hashCode ^
+      localSummary.hashCode ^
+      localStatus.hashCode ^
+      localUpdatedAt.hashCode ^
+      localHeadDeleted.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ObjectConflictDto &&
+          runtimeType == other.runtimeType &&
+          opId == other.opId &&
+          objectKind == other.objectKind &&
+          objectId == other.objectId &&
+          reason == other.reason &&
+          senderDeviceId == other.senderDeviceId &&
+          senderDeviceName == other.senderDeviceName &&
+          incomingSummary == other.incomingSummary &&
+          incomingStatus == other.incomingStatus &&
+          incomingDeleted == other.incomingDeleted &&
+          incomingUpdatedAt == other.incomingUpdatedAt &&
+          localSummary == other.localSummary &&
+          localStatus == other.localStatus &&
+          localUpdatedAt == other.localUpdatedAt &&
+          localHeadDeleted == other.localHeadDeleted;
 }
 
 /// 加工移交证明（旧端签名，供 owner 签发新名册）。

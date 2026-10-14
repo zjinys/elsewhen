@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1237984454;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -459438322;
 
 // Section: executor
 
@@ -2976,6 +2976,27 @@ fn wire__crate__api__conversations__list_messages_impl(
         },
     )
 }
+fn wire__crate__api__sync__list_object_conflicts_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_object_conflicts",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::list_object_conflicts()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__conversations__list_pending_actions_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     conversation_id: impl CstDecode<String>,
@@ -3937,6 +3958,37 @@ fn wire__crate__api__knowledge__resolve_knowledge_proposal_impl(
                     (move || {
                         let output_ok =
                             crate::api::knowledge::resolve_knowledge_proposal(api_id, api_accept)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__resolve_object_conflict_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    op_id: impl CstDecode<String>,
+    expected_local_updated_at: impl CstDecode<Option<String>>,
+    accept_remote: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "resolve_object_conflict",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_op_id = op_id.cst_decode();
+            let api_expected_local_updated_at = expected_local_updated_at.cst_decode();
+            let api_accept_remote = accept_remote.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::resolve_object_conflict(
+                            api_op_id,
+                            api_expected_local_updated_at,
+                            api_accept_remote,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -7001,6 +7053,20 @@ impl SseDecode for Vec<crate::api::conversations::MessageDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::sync::ObjectConflictDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sync::ObjectConflictDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::knowledge::organization::OrganizedTopic> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7363,6 +7429,42 @@ impl SseDecode for crate::api::web_search::NetworkSettingsDto {
             doh_uri: var_dohUri,
             doh_scope: var_dohScope,
             doh_mode: var_dohMode,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::ObjectConflictDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_opId = <String>::sse_decode(deserializer);
+        let mut var_objectKind = <String>::sse_decode(deserializer);
+        let mut var_objectId = <String>::sse_decode(deserializer);
+        let mut var_reason = <String>::sse_decode(deserializer);
+        let mut var_senderDeviceId = <String>::sse_decode(deserializer);
+        let mut var_senderDeviceName = <Option<String>>::sse_decode(deserializer);
+        let mut var_incomingSummary = <String>::sse_decode(deserializer);
+        let mut var_incomingStatus = <String>::sse_decode(deserializer);
+        let mut var_incomingDeleted = <bool>::sse_decode(deserializer);
+        let mut var_incomingUpdatedAt = <String>::sse_decode(deserializer);
+        let mut var_localSummary = <Option<String>>::sse_decode(deserializer);
+        let mut var_localStatus = <Option<String>>::sse_decode(deserializer);
+        let mut var_localUpdatedAt = <Option<String>>::sse_decode(deserializer);
+        let mut var_localHeadDeleted = <bool>::sse_decode(deserializer);
+        return crate::api::sync::ObjectConflictDto {
+            op_id: var_opId,
+            object_kind: var_objectKind,
+            object_id: var_objectId,
+            reason: var_reason,
+            sender_device_id: var_senderDeviceId,
+            sender_device_name: var_senderDeviceName,
+            incoming_summary: var_incomingSummary,
+            incoming_status: var_incomingStatus,
+            incoming_deleted: var_incomingDeleted,
+            incoming_updated_at: var_incomingUpdatedAt,
+            local_summary: var_localSummary,
+            local_status: var_localStatus,
+            local_updated_at: var_localUpdatedAt,
+            local_head_deleted: var_localHeadDeleted,
         };
     }
 }
@@ -9722,6 +9824,39 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::web_search::NetworkSettingsDt
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::ObjectConflictDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.op_id.into_into_dart().into_dart(),
+            self.object_kind.into_into_dart().into_dart(),
+            self.object_id.into_into_dart().into_dart(),
+            self.reason.into_into_dart().into_dart(),
+            self.sender_device_id.into_into_dart().into_dart(),
+            self.sender_device_name.into_into_dart().into_dart(),
+            self.incoming_summary.into_into_dart().into_dart(),
+            self.incoming_status.into_into_dart().into_dart(),
+            self.incoming_deleted.into_into_dart().into_dart(),
+            self.incoming_updated_at.into_into_dart().into_dart(),
+            self.local_summary.into_into_dart().into_dart(),
+            self.local_status.into_into_dart().into_dart(),
+            self.local_updated_at.into_into_dart().into_dart(),
+            self.local_head_deleted.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::ObjectConflictDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::ObjectConflictDto>
+    for crate::api::sync::ObjectConflictDto
+{
+    fn into_into_dart(self) -> crate::api::sync::ObjectConflictDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::knowledge::organization::OrganizedTopic {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -11635,6 +11770,16 @@ impl SseEncode for Vec<crate::api::conversations::MessageDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::sync::ObjectConflictDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sync::ObjectConflictDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::knowledge::organization::OrganizedTopic> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11894,6 +12039,26 @@ impl SseEncode for crate::api::web_search::NetworkSettingsDto {
         <String>::sse_encode(self.doh_uri, serializer);
         <String>::sse_encode(self.doh_scope, serializer);
         <String>::sse_encode(self.doh_mode, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::ObjectConflictDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.op_id, serializer);
+        <String>::sse_encode(self.object_kind, serializer);
+        <String>::sse_encode(self.object_id, serializer);
+        <String>::sse_encode(self.reason, serializer);
+        <String>::sse_encode(self.sender_device_id, serializer);
+        <Option<String>>::sse_encode(self.sender_device_name, serializer);
+        <String>::sse_encode(self.incoming_summary, serializer);
+        <String>::sse_encode(self.incoming_status, serializer);
+        <bool>::sse_encode(self.incoming_deleted, serializer);
+        <String>::sse_encode(self.incoming_updated_at, serializer);
+        <Option<String>>::sse_encode(self.local_summary, serializer);
+        <Option<String>>::sse_encode(self.local_status, serializer);
+        <Option<String>>::sse_encode(self.local_updated_at, serializer);
+        <bool>::sse_encode(self.local_head_deleted, serializer);
     }
 }
 
@@ -13786,6 +13951,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::ObjectConflictDto>>
+        for *mut wire_cst_list_object_conflict_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::ObjectConflictDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::knowledge::organization::OrganizedTopic>>
         for *mut wire_cst_list_organized_topic
     {
@@ -14078,6 +14255,27 @@ mod io {
                 doh_uri: self.doh_uri.cst_decode(),
                 doh_scope: self.doh_scope.cst_decode(),
                 doh_mode: self.doh_mode.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::ObjectConflictDto> for wire_cst_object_conflict_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::ObjectConflictDto {
+            crate::api::sync::ObjectConflictDto {
+                op_id: self.op_id.cst_decode(),
+                object_kind: self.object_kind.cst_decode(),
+                object_id: self.object_id.cst_decode(),
+                reason: self.reason.cst_decode(),
+                sender_device_id: self.sender_device_id.cst_decode(),
+                sender_device_name: self.sender_device_name.cst_decode(),
+                incoming_summary: self.incoming_summary.cst_decode(),
+                incoming_status: self.incoming_status.cst_decode(),
+                incoming_deleted: self.incoming_deleted.cst_decode(),
+                incoming_updated_at: self.incoming_updated_at.cst_decode(),
+                local_summary: self.local_summary.cst_decode(),
+                local_status: self.local_status.cst_decode(),
+                local_updated_at: self.local_updated_at.cst_decode(),
+                local_head_deleted: self.local_head_deleted.cst_decode(),
             }
         }
     }
@@ -15502,6 +15700,31 @@ mod io {
         }
     }
     impl Default for wire_cst_network_settings_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_object_conflict_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                op_id: core::ptr::null_mut(),
+                object_kind: core::ptr::null_mut(),
+                object_id: core::ptr::null_mut(),
+                reason: core::ptr::null_mut(),
+                sender_device_id: core::ptr::null_mut(),
+                sender_device_name: core::ptr::null_mut(),
+                incoming_summary: core::ptr::null_mut(),
+                incoming_status: core::ptr::null_mut(),
+                incoming_deleted: Default::default(),
+                incoming_updated_at: core::ptr::null_mut(),
+                local_summary: core::ptr::null_mut(),
+                local_status: core::ptr::null_mut(),
+                local_updated_at: core::ptr::null_mut(),
+                local_head_deleted: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_object_conflict_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -17220,6 +17443,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_object_conflicts(port_: i64) {
+        wire__crate__api__sync__list_object_conflicts_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__list_pending_actions(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -17552,6 +17780,21 @@ mod io {
         accept: bool,
     ) {
         wire__crate__api__knowledge__resolve_knowledge_proposal_impl(port_, id, accept)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__resolve_object_conflict(
+        port_: i64,
+        op_id: *mut wire_cst_list_prim_u_8_strict,
+        expected_local_updated_at: *mut wire_cst_list_prim_u_8_strict,
+        accept_remote: bool,
+    ) {
+        wire__crate__api__sync__resolve_object_conflict_impl(
+            port_,
+            op_id,
+            expected_local_updated_at,
+            accept_remote,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -18707,6 +18950,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_object_conflict_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_object_conflict_dto {
+        let wrap = wire_cst_list_object_conflict_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_object_conflict_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_organized_topic(
         len: i32,
     ) -> *mut wire_cst_list_organized_topic {
@@ -19756,6 +20013,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_object_conflict_dto {
+        ptr: *mut wire_cst_object_conflict_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_organized_topic {
         ptr: *mut wire_cst_organized_topic,
         len: i32,
@@ -19927,6 +20190,24 @@ mod io {
         doh_uri: *mut wire_cst_list_prim_u_8_strict,
         doh_scope: *mut wire_cst_list_prim_u_8_strict,
         doh_mode: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_object_conflict_dto {
+        op_id: *mut wire_cst_list_prim_u_8_strict,
+        object_kind: *mut wire_cst_list_prim_u_8_strict,
+        object_id: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+        sender_device_id: *mut wire_cst_list_prim_u_8_strict,
+        sender_device_name: *mut wire_cst_list_prim_u_8_strict,
+        incoming_summary: *mut wire_cst_list_prim_u_8_strict,
+        incoming_status: *mut wire_cst_list_prim_u_8_strict,
+        incoming_deleted: bool,
+        incoming_updated_at: *mut wire_cst_list_prim_u_8_strict,
+        local_summary: *mut wire_cst_list_prim_u_8_strict,
+        local_status: *mut wire_cst_list_prim_u_8_strict,
+        local_updated_at: *mut wire_cst_list_prim_u_8_strict,
+        local_head_deleted: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -21896,6 +22177,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::ObjectConflictDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::ObjectConflictDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::knowledge::organization::OrganizedTopic>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -22231,6 +22524,38 @@ mod web {
                 doh_uri: self_.get(0).cst_decode(),
                 doh_scope: self_.get(1).cst_decode(),
                 doh_mode: self_.get(2).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::ObjectConflictDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::ObjectConflictDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                14,
+                "Expected 14 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::ObjectConflictDto {
+                op_id: self_.get(0).cst_decode(),
+                object_kind: self_.get(1).cst_decode(),
+                object_id: self_.get(2).cst_decode(),
+                reason: self_.get(3).cst_decode(),
+                sender_device_id: self_.get(4).cst_decode(),
+                sender_device_name: self_.get(5).cst_decode(),
+                incoming_summary: self_.get(6).cst_decode(),
+                incoming_status: self_.get(7).cst_decode(),
+                incoming_deleted: self_.get(8).cst_decode(),
+                incoming_updated_at: self_.get(9).cst_decode(),
+                local_summary: self_.get(10).cst_decode(),
+                local_status: self_.get(11).cst_decode(),
+                local_updated_at: self_.get(12).cst_decode(),
+                local_head_deleted: self_.get(13).cst_decode(),
             }
         }
     }
@@ -24282,6 +24607,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__sync__list_object_conflicts(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__list_object_conflicts_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__list_pending_actions(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
@@ -24626,6 +24958,21 @@ mod web {
         accept: bool,
     ) {
         wire__crate__api__knowledge__resolve_knowledge_proposal_impl(port_, id, accept)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__resolve_object_conflict(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        op_id: String,
+        expected_local_updated_at: Option<String>,
+        accept_remote: bool,
+    ) {
+        wire__crate__api__sync__resolve_object_conflict_impl(
+            port_,
+            op_id,
+            expected_local_updated_at,
+            accept_remote,
+        )
     }
 
     #[wasm_bindgen]

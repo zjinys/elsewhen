@@ -1847,3 +1847,159 @@ fn wiki_chat_waits_for_page_evidence_and_converges_without_inference() {
     assert_eq!(slug.as_deref(), Some("topic/late"));
     assert_eq!(mode, "knowledge_mentor");
 }
+
+fn resolve_kindbinding(db: &Database, op_id: &str, updated_at: Option<&str>, accept: bool) {
+    db.store
+        .resolve_object_conflict(op_id, updated_at, accept)
+        .unwrap();
+}
+
+#[test]
+fn object_conflict_review_keep_local_recaptures_and_accept_remote_adopts() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    let todo = a
+        .store
+        .create_todo("买牛奶", "high", None, None, None, None)
+        .unwrap();
+    deliver(&a, &b);
+    // 双端离线编辑 → 各自立案 base_revision_changed。
+    a.store
+        .update_todo(&todo.id, "a 改的标题", None, Some("high"), None)
+        .unwrap();
+    b.store
+        .update_todo(&todo.id, "b 改的标题", None, Some("high"), None)
+        .unwrap();
+    deliver(&a, &b);
+    deliver(&b, &a);
+    assert_eq!(a.store.list_object_conflicts().unwrap().len(), 1);
+    let reviews = b.store.list_object_conflicts().unwrap();
+    assert_eq!(reviews.len(), 1);
+    let review = &reviews[0];
+    assert_eq!(review.object_kind, "todo");
+    assert_eq!(review.reason, "base_revision_changed");
+    assert_eq!(review.incoming.summary, "a 改的标题");
+    assert_eq!(review.local_summary.as_deref(), Some("b 改的标题"));
+
+    // 绑定失败关闭：expected 与审阅时不一致必须报错。
+    let op_id = review.op_id.clone();
+    let err = b
+        .store
+        .resolve_object_conflict(&op_id, Some("2020-01-01T00:00:00+00:00"), true)
+        .unwrap_err();
+    assert!(
+        format!("{err:#}").contains("object_conflict_local_changed"),
+        "绑定不一致必须失败关闭: {err:#}"
+    );
+
+    // b 保留本端：重捕广播、清案；对端收到反向候选（对称收敛）。
+    resolve_kindbinding(&b, &op_id, review.local_updated_at.as_deref(), false);
+    assert_eq!(b.store.list_object_conflicts().unwrap().len(), 0);
+    let title_b: String = b
+        .store
+        .connection
+        .query_row("SELECT title FROM todos WHERE id=?1", [&todo.id], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(title_b, "b 改的标题", "保留本端不得覆盖本端现状");
+    deliver(&b, &a);
+    // a 端原候选未决，b 的保留本端重捕又到达：两条并列，都待人审。
+    let reviews_a = a.store.list_object_conflicts().unwrap();
+    assert_eq!(reviews_a.len(), 2, "原候选与反向候选并列");
+    assert!(reviews_a.iter().all(|r| r.incoming.summary == "b 改的标题"));
+
+    // a 端逐条采纳对端（b 的现状 = 保留本端后的版本）：整行采纳。首条
+    // 采纳会改写本端行，次条的审阅绑定随之失效——必须重拉列表取新绑定
+    // （失败关闭语义的必然闭环）。
+    for _ in 0..2 {
+        let Some(review) = a.store.list_object_conflicts().unwrap().last().cloned() else {
+            break;
+        };
+        resolve_kindbinding(&a, &review.op_id, review.local_updated_at.as_deref(), true);
+    }
+    assert_eq!(a.store.list_object_conflicts().unwrap().len(), 0);
+    let title_a: String = a
+        .store
+        .connection
+        .query_row("SELECT title FROM todos WHERE id=?1", [&todo.id], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(title_a, "b 改的标题", "采纳远端整行落地");
+}
+
+#[test]
+fn todo_deleted_candidate_keep_local_clears_and_accept_remote_revives() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    let todo = a
+        .store
+        .create_todo("待办", "normal", None, None, None, None)
+        .unwrap();
+    deliver(&a, &b);
+    // b 删除（head 停在删除态）；a 离线编辑后送到 → b 立案 todo_deleted
+    //（编辑 op 对着已删 head 到达，先于 base CAS 报告删除分歧）。
+    b.store.delete_todo(&todo.id).unwrap();
+    a.store
+        .update_todo(&todo.id, "a 的离线编辑", None, Some("normal"), None)
+        .unwrap();
+    deliver(&a, &b);
+    let reviews = b.store.list_object_conflicts().unwrap();
+    assert_eq!(reviews.len(), 1);
+    assert_eq!(reviews[0].reason, "todo_deleted");
+    assert_eq!(reviews[0].incoming.summary, "a 的离线编辑");
+    assert!(reviews[0].local_head_deleted, "本端 head 处于删除态");
+
+    // b 保留本端 = 删除态即裁决：仅清案，不复活、不重捕。
+    let op_keepsake = reviews[0].op_id.clone();
+    resolve_kindbinding(&b, &op_keepsake, None, false);
+    assert_eq!(b.store.list_object_conflicts().unwrap().len(), 0);
+    assert_eq!(b.count("todos"), 0, "删除态是本端裁决，不得复活");
+}
+
+#[test]
+fn goal_active_limit_accept_is_rejected_and_keep_local_clears() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    // b 本地已有 3 个活跃目标（本端触发器允许的满额）。
+    b.store
+        .create_goal("本端目标一", crate::storage::GoalPhase::Near)
+        .unwrap();
+    b.store
+        .create_goal("本端目标二", crate::storage::GoalPhase::Near)
+        .unwrap();
+    b.store
+        .create_goal("本端目标三", crate::storage::GoalPhase::Near)
+        .unwrap();
+    // a 建第 4 个活跃目标并送达：b 显式立案 goal_active_limit（远端写入
+    // 不得静默顶掉本端目标）。
+    a.store
+        .create_goal("对端的第 4 个目标", crate::storage::GoalPhase::Near)
+        .unwrap();
+    deliver(&a, &b);
+    let reviews = b.store.list_object_conflicts().unwrap();
+    assert_eq!(reviews.len(), 1, "第 4 个活跃目标显式立案");
+    assert_eq!(reviews[0].reason, "goal_active_limit");
+    assert_eq!(reviews[0].incoming.summary, "对端的第 4 个目标");
+    let op = reviews[0].op_id.clone();
+
+    // 采纳被显式拒绝（业务不变式不旁路），候选保持待决。
+    let err = b
+        .store
+        .resolve_object_conflict(&op, reviews[0].local_updated_at.as_deref(), true)
+        .unwrap_err();
+    assert!(
+        format!("{err:#}").contains("goal_active_limit"),
+        "采纳必须被拒绝: {err:#}"
+    );
+    assert_eq!(b.store.list_object_conflicts().unwrap().len(), 1);
+
+    // 保留本端：清案，本端 3 个活跃目标不动，第 4 个不落行。
+    resolve_kindbinding(&b, &op, reviews[0].local_updated_at.as_deref(), false);
+    assert_eq!(b.store.list_object_conflicts().unwrap().len(), 0);
+    assert_eq!(b.count("goals"), 3, "越限目标不得静默落行");
+}
