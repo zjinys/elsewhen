@@ -1498,3 +1498,240 @@ fn wiki_conflict_accept_remote_delete_or_keep_local() {
     assert!(!head.1, "采纳远端编辑后 head 必须回到未删");
     assert!(b.store.list_wiki_page_conflicts().unwrap().is_empty());
 }
+
+// ── S05：待办/目标/规则的可变对象复制 ─────────────────────────────────────
+
+#[test]
+fn todos_replicate_edit_state_and_double_delete_converges() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    let todo = a
+        .store
+        .create_todo("买牛奶", "high", None, None, None, None)
+        .unwrap();
+    deliver(&a, &b);
+    assert_eq!(b.count("todos"), 1, "收端整行到达");
+    // b 标完成 → 双端一致
+    b.store
+        .update_todo_status(&todo.id, crate::storage::TodoStatus::Done)
+        .unwrap();
+    deliver(&b, &a);
+    let status_a: String = a
+        .store
+        .connection
+        .query_row("SELECT status FROM todos WHERE id=?1", [&todo.id], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(status_a, "done");
+    assert!(a.store.list_wiki_page_conflicts().unwrap().is_empty());
+    // 双端离线各自删除：先到者删行，后到者幂等收敛，不立案。
+    a.store.delete_todo(&todo.id).unwrap();
+    b.store.delete_todo(&todo.id).unwrap();
+    deliver(&a, &b);
+    deliver(&b, &a);
+    assert_eq!(a.count("todos"), 0);
+    assert_eq!(b.count("todos"), 0);
+    let candidate = a
+        .store
+        .connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_conflicts WHERE object_kind='todo' AND object_id=?1)",
+            [&todo.id],
+            |r| r.get::<_, bool>(0),
+        )
+        .unwrap();
+    assert!(!candidate, "双端同删必须幂等收敛，不应立案");
+}
+
+#[test]
+fn todo_delete_versus_edit_lands_as_candidate_and_todo_slug_ref_migrates() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    // 顺手覆盖 wiki rename 迁移：待办的页面引用跟页走
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(&a, "page-1", "topic/项目", "项目", "正文", &[&event_id]);
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    let todo = a
+        .store
+        .create_todo("改稿", "normal", None, None, Some("topic/项目"), None)
+        .unwrap();
+    deliver(&a, &b);
+    a.store
+        .rename_wiki_page("topic/项目", "topic/新项目", "a")
+        .unwrap();
+    deliver(&a, &b);
+    let slug_b: Option<String> = b
+        .store
+        .connection
+        .query_row(
+            "SELECT related_wiki_slug FROM todos WHERE id=?1",
+            [&todo.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    // rename 以新标题派生 slug（topic/ 前缀 + 标题 slugify），b 端引用应一致同迁
+    assert_eq!(
+        slug_b.as_deref(),
+        Some("topic/topic-新项目"),
+        "rename 后待办引用同迁"
+    );
+    // 删除 vs 编辑：a 改标题、b 删除 → 交付后 b 收候选（b head 已删）。
+    a.store
+        .update_todo(&todo.id, "改稿 v2", None, None, None)
+        .unwrap();
+    b.store.delete_todo(&todo.id).unwrap();
+    let a_ops = deliver(&a, &b);
+    let _ = a_ops;
+    let candidate = b
+        .store
+        .connection
+        .query_row(
+            "SELECT reason FROM sync_conflicts WHERE object_kind='todo' AND object_id=?1",
+            [&todo.id],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .unwrap();
+    assert_eq!(candidate.as_deref(), Some("todo_deleted"));
+    // b→a：b 的删除 op（base 为共享 v1）到 a 与 a 的编辑冲突。
+    deliver(&b, &a);
+    let candidate_a = a
+        .store
+        .connection
+        .query_row(
+            "SELECT reason FROM sync_conflicts WHERE object_kind='todo' AND object_id=?1",
+            [&todo.id],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .unwrap();
+    assert!(
+        matches!(candidate_a.as_deref(), Some("base_revision_changed")),
+        "实际: {candidate_a:?}"
+    );
+}
+
+#[test]
+fn goals_replicate_archive_reactivate_and_cap_conflicts() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    use crate::storage::GoalPhase;
+    // 双端各自离线建 2 条，交错交付：b 在收到 a 的第 2 条时触发上限候选，
+    // 不静默顶掉本端目标。
+    let a1 = a.store.create_goal("a-1", GoalPhase::Near).unwrap().id;
+    let a2 = a.store.create_goal("a-2", GoalPhase::Near).unwrap().id;
+    let b1 = b.store.create_goal("b-1", GoalPhase::Long).unwrap().id;
+    let b2 = b.store.create_goal("b-2", GoalPhase::Long).unwrap().id;
+    deliver(&a, &b);
+    deliver(&b, &a);
+    // a/b 各自状态：a 有 a-1,a-2 + b 的 1 条到达（第 2 条成候选）。
+    assert_eq!(a.store.count_active_goals().unwrap(), 3);
+    let candidate = a
+        .store
+        .connection
+        .query_row(
+            "SELECT reason FROM sync_conflicts WHERE object_kind='goal' AND object_id=?1",
+            [&b2],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .unwrap();
+    // b-1 已占第 3 席，b-2 越限 → goal_active_limit 候选
+    // 注意 b-1 与 b-2 到达顺序由 fr1ontier 保证，先 b-1 后 b-2。
+    assert_eq!(candidate.as_deref(), Some("goal_active_limit"));
+    assert!(a.store.list_archived_goals().unwrap().is_empty());
+    // b 端对称：b 有 a-1,a-2,b-1,b-2 —— b 本地 2 + 收 2 也会越限。
+    // a-2 到达时 b 已有 3 条（b-1,b-2,a-1）→ a-2 成候选。
+    let candidate_b = b
+        .store
+        .connection
+        .query_row(
+            "SELECT reason FROM sync_conflicts WHERE object_kind='goal' AND object_id=?1",
+            [&a2],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .unwrap();
+    assert_eq!(candidate_b.as_deref(), Some("goal_active_limit"));
+    assert_eq!(b.store.count_active_goals().unwrap(), 3);
+    // 归档释放名额 + 复活复制两态均达；归档后一致。
+    a.store.archive_goal(&a1).unwrap();
+    deliver(&a, &b);
+    let archived_b: String = b
+        .store
+        .connection
+        .query_row("SELECT status FROM goals WHERE id=?1", [&a1], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        archived_b, "superseded",
+        "归档随流复制（a2 候选不影响 a1 的归档）"
+    );
+    let _ = a1;
+}
+
+#[test]
+fn rules_replicate_promote_discard_and_edit_conflict() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    let rule = a
+        .store
+        .add_rule("先确认再推进", crate::storage::RuleStatus::Active, None)
+        .unwrap();
+    deliver(&a, &b);
+    assert_eq!(b.count("rules"), 1);
+    // 删除复制（物理删除一致）。
+    a.store.delete_rule(&rule).unwrap();
+    deliver(&a, &b);
+    assert_eq!(b.count("rules"), 0);
+    // pending 规则 + promote 状态迁移复制。
+    let conv = a
+        .store
+        .create_conversation(Some("测试会话"), Some("discussion"))
+        .unwrap();
+    let rule2 = a
+        .store
+        .add_rule(
+            "待确认规则",
+            crate::storage::RuleStatus::Pending,
+            Some(&conv),
+        )
+        .unwrap();
+    deliver(&a, &b);
+    let status_b: String = b
+        .store
+        .connection
+        .query_row("SELECT status FROM rules WHERE id=?1", [&rule2], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(status_b, "pending");
+    a.store.promote_pending_rules(&conv).unwrap();
+    deliver(&a, &b);
+    let status_b2: String = b
+        .store
+        .connection
+        .query_row("SELECT status FROM rules WHERE id=?1", [&rule2], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(status_b2, "active", "promote 状态迁移随流复制");
+    // 删除再复制：状态迁移后再次删除随流收敛（物理删除一致）。
+    a.store.delete_rule(&rule2).unwrap();
+    deliver(&a, &b);
+    assert_eq!(b.count("rules"), 1 - 1, "删除随流收敛");
+    assert!(
+        !a.store
+            .connection
+            .query_row::<bool,_,_>("SELECT EXISTS(SELECT 1 FROM sync_conflicts WHERE object_kind='rule' AND object_id=?1)",[&rule2],|r| r.get(0))
+            .unwrap()
+    );
+}

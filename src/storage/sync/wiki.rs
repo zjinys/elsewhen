@@ -516,6 +516,11 @@ impl Store {
             "UPDATE conversations SET wiki_page_slug=?1 WHERE wiki_page_slug=?2",
             params![new_slug, old_slug],
         )?;
+        // S05：待办的页面引用与页面同迁——旧页引用不得默默指向同名新页。
+        self.connection.execute(
+            "UPDATE todos SET related_wiki_slug=?1 WHERE related_wiki_slug=?2",
+            params![new_slug, old_slug],
+        )?;
         Ok(())
     }
 }

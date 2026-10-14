@@ -151,6 +151,24 @@ pub enum SyncMutation {
     WikiPageRevisionAppended {
         revision: WikiRevisionRecord,
     },
+    /// 可变小对象整行复制（待办/目标/规则）。与维基页同 CAS 框架：base 为
+    /// head 锚点，收端冲突显式立案，不做时间覆盖。已删语义与业务删除一致
+    /// （全端物理删除）。
+    TodoChanged {
+        todo: TodoRecord,
+        base_revision: Option<String>,
+        deleted: bool,
+    },
+    GoalChanged {
+        goal: GoalRecord,
+        base_revision: Option<String>,
+        deleted: bool,
+    },
+    RuleChanged {
+        rule: RuleRecord,
+        base_revision: Option<String>,
+        deleted: bool,
+    },
 }
 
 impl SyncMutation {
@@ -289,6 +307,60 @@ impl SyncMutation {
                     "sync_wiki_delete_status_invalid"
                 );
             }
+            Self::TodoChanged {
+                todo,
+                base_revision,
+                deleted,
+            } => {
+                validate_id(&todo.id)?;
+                ensure!(!todo.title.trim().is_empty(), "sync_todo_field_invalid");
+                ensure!(
+                    todo.title.len() <= 512 && todo.status.len() <= 32 && todo.priority.len() <= 16,
+                    "sync_todo_field_invalid"
+                );
+                ensure!(
+                    matches!(todo.status.as_str(), "open" | "done" | "archived"),
+                    "sync_todo_status_invalid"
+                );
+                ensure!(
+                    matches!(todo.priority.as_str(), "high" | "normal" | "low"),
+                    "sync_todo_priority_invalid"
+                );
+                if let Some(event_id) = &todo.related_event_id {
+                    validate_id(event_id)?;
+                }
+                let _ = (base_revision, deleted);
+            }
+            Self::GoalChanged { goal, deleted, .. } => {
+                validate_id(&goal.id)?;
+                ensure!(
+                    !goal.content.trim().is_empty() && goal.content.len() <= 2048,
+                    "sync_goal_field_invalid"
+                );
+                ensure!(
+                    matches!(goal.phase.as_str(), "near" | "mid" | "long"),
+                    "sync_goal_phase_invalid"
+                );
+                ensure!(
+                    matches!(goal.status.as_str(), "active" | "superseded"),
+                    "sync_goal_status_invalid"
+                );
+                ensure!(!deleted, "sync_goal_delete_invalid");
+            }
+            Self::RuleChanged { rule, deleted, .. } => {
+                validate_id(&rule.id)?;
+                ensure!(
+                    !rule.content.trim().is_empty() && rule.content.len() <= 2048,
+                    "sync_rule_field_invalid"
+                );
+                ensure!(
+                    matches!(rule.status.as_str(), "active" | "pending"),
+                    "sync_rule_status_invalid"
+                );
+                if let Some(conversation_id) = &rule.conversation_id {
+                    validate_id(conversation_id)?;
+                }
+            }
         }
         Ok(())
     }
@@ -303,6 +375,50 @@ pub struct WikiRevisionRecord {
     pub reason: String,
     pub source_event_id: Option<String>,
     pub created_at: String,
+}
+
+/// 待办整行。`related_event_id` / `related_wiki_slug` 是松引用（无 FK），
+/// 收端不等待证据抵达——引用随流自然补齐，缺失只在展示层空置。
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TodoRecord {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub priority: String,
+    pub due_at: Option<String>,
+    pub related_event_id: Option<String>,
+    pub related_wiki_slug: Option<String>,
+    pub note: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// 目标整行。活跃上限 3 由收端触发器强制；远端写入越限按显式冲突立案
+/// （`goal_active_limit`），不静默顶掉本端目标。
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GoalRecord {
+    pub id: String,
+    pub content: String,
+    pub phase: String,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub superseded_at: Option<String>,
+}
+
+/// 规则整行。status 含 pending（草拟归属某会话）；规则行复制不等于执行
+/// 授权——同步内容不触发任何模型调用。
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RuleRecord {
+    pub id: String,
+    pub content: String,
+    pub status: String,
+    pub conversation_id: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

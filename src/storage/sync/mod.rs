@@ -8,6 +8,7 @@ mod fragments;
 mod gc;
 mod membership;
 pub(crate) use membership::ProcessorHandoffState;
+mod mutable;
 mod pairing;
 pub(crate) use pairing::{PairingCommit, PairingDispatch};
 pub(crate) mod page_conflicts;
@@ -804,6 +805,21 @@ impl Store {
             SyncMutation::WikiPageRevisionAppended { revision } => {
                 self.apply_sync_wiki_revision(op, revision)
             }
+            SyncMutation::TodoChanged {
+                todo,
+                base_revision,
+                deleted,
+            } => self.apply_sync_todo(op, todo, base_revision, *deleted),
+            SyncMutation::GoalChanged {
+                goal,
+                base_revision,
+                deleted,
+            } => self.apply_sync_goal(op, goal, base_revision, *deleted),
+            SyncMutation::RuleChanged {
+                rule,
+                base_revision,
+                deleted,
+            } => self.apply_sync_rule(op, rule, base_revision, *deleted),
         }
     }
 
