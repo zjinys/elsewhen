@@ -231,6 +231,29 @@ impl SyncMutation {
                     !deleted || conversation.archived,
                     "sync_delete_requires_archive"
                 );
+                ensure!(
+                    matches!(
+                        conversation.assistant_mode.as_str(),
+                        "personal_secretary" | "knowledge_mentor"
+                    ),
+                    "sync_assistant_mode_invalid"
+                );
+                if let Some(slug) = &conversation.wiki_page_slug {
+                    ensure!(
+                        matches!(conversation.assistant_mode.as_str(), "knowledge_mentor"),
+                        "sync_conversation_mode_slug_mismatch"
+                    );
+                    // slug 规则与 wiki 页一致：身份锚不得携带控制字符，防止
+                    // 跨端引用漂移。
+                    ensure!(
+                        !slug.is_empty()
+                            && slug.len() <= 255
+                            && !slug
+                                .bytes()
+                                .any(|b| b.is_ascii_control() || matches!(b, b' ' | b'\t')),
+                        "sync_wiki_slug_invalid"
+                    );
+                }
             }
             Self::WikiPageRevisionAppended { revision } => {
                 validate_id(&revision.id)?;
@@ -347,7 +370,9 @@ impl SyncMutation {
                 );
                 ensure!(!deleted, "sync_goal_delete_invalid");
             }
-            Self::RuleChanged { rule, deleted, .. } => {
+            Self::RuleChanged {
+                rule, deleted: _, ..
+            } => {
                 validate_id(&rule.id)?;
                 ensure!(
                     !rule.content.trim().is_empty() && rule.content.len() <= 2048,
@@ -518,6 +543,11 @@ pub struct ConversationRecord {
     pub title: Option<String>,
     pub tag: Option<String>,
     pub archived: bool,
+    /// Wiki 专属会话绑定：页面 slug 是引用不推断的锚（S05）。普通会话为
+    /// None；wiki 聊天（assistant_mode='knowledge_mentor'）必填。
+    pub wiki_page_slug: Option<String>,
+    /// 'personal_secretary' 普通会话 / 'knowledge_mentor' Wiki 专属。
+    pub assistant_mode: String,
     pub created_at: String,
     pub updated_at: String,
 }

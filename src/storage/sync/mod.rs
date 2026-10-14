@@ -101,7 +101,7 @@ impl Store {
                 "INSERT INTO sync_frontiers(origin_stream_id) VALUES(?1)",
                 [&identity.stream_id],
             )?;
-            self.connection.execute("INSERT INTO sync_object_heads(object_kind,object_id,revision_id,deleted) SELECT 'conversation',id,'baseline:'||?1||':'||id,0 FROM conversations WHERE wiki_page_slug IS NULL",[&identity.dataset_id])?;
+            self.connection.execute("INSERT INTO sync_object_heads(object_kind,object_id,revision_id,deleted) SELECT 'conversation',id,'baseline:'||?1||':'||id,0 FROM conversations",[&identity.dataset_id])?;
             self.connection.execute("INSERT INTO sync_known_revisions SELECT object_kind,object_id,revision_id FROM sync_object_heads",[])?;
         }
         if let Some(tx) = tx {
@@ -239,7 +239,7 @@ impl Store {
             .transpose()?
             .flatten();
         if let Some(message) = &message {
-            if !self.sync_is_ordinary_conversation(&message.conversation_id)? {
+            if !self.sync_is_syncable_conversation(&message.conversation_id)? {
                 return Ok(());
             }
         }
@@ -261,7 +261,7 @@ impl Store {
         let message = self
             .sync_message_record(message_id)?
             .context("sync_message_missing")?;
-        if !self.sync_is_ordinary_conversation(&message.conversation_id)? {
+        if !self.sync_is_syncable_conversation(&message.conversation_id)? {
             return Ok(());
         }
         if let Some(op_id) = self.append_sync_mutation(SyncMutation::MessageAppended { message })? {
@@ -271,12 +271,36 @@ impl Store {
     }
 
     pub(crate) fn sync_record_conversation(&self, id: &str, deleted: bool) -> Result<()> {
-        if self.sync_identity()?.is_none() || !self.sync_is_ordinary_conversation(id)? {
+        if self.sync_identity()?.is_none() || !self.sync_is_syncable_conversation(id)? {
             return Ok(());
         }
         let conversation = self
             .sync_conversation_record(id)?
             .context("sync_conversation_missing")?;
+        if let Some(slug) = &conversation.wiki_page_slug {
+            // Wiki 专属会话开放（S05）：引用锚指向的页面必须保证比会话 op
+            // 先到达对端，否则对端按「等待补齐」会把同流后续 op 永久阻塞。
+            // 页面 head 缺失（P5a 之前创建且从未再编辑过的页）时立即补发
+            // 页面捕获，使页面 op 与会话 op 严格同流有序。
+            let page_head_known: Option<bool> = self
+                .connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sync_object_heads WHERE object_kind='wiki_page' \
+                     AND object_id=(SELECT id FROM wiki_pages WHERE slug=?1))",
+                    [slug],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            if page_head_known == Some(false) {
+                let page_id: String = self
+                    .connection
+                    .query_row("SELECT id FROM wiki_pages WHERE slug=?1", [slug], |r| {
+                        r.get(0)
+                    })
+                    .context("sync_conversation_slug_orphaned")?;
+                self.sync_record_wiki_page(&page_id, false)?;
+            }
+        }
         let base_revision = self.sync_object_head("conversation", id)?.map(|h| h.0);
         let observed_message_ids = if deleted {
             let mut query = self
@@ -776,7 +800,14 @@ impl Store {
                         });
                     }
                     // Existing business rules and raw-event preservation still apply.
-                    let archived:Option<bool>=self.connection.query_row("SELECT archived FROM conversations WHERE id=?1 AND wiki_page_slug IS NULL",[&conversation.id],|r|r.get(0)).optional()?;
+                    let archived: Option<bool> = self
+                        .connection
+                        .query_row(
+                            "SELECT archived FROM conversations WHERE id=?1",
+                            [&conversation.id],
+                            |r| r.get(0),
+                        )
+                        .optional()?;
                     ensure!(archived == Some(true), "sync_delete_requires_archive");
                     // input_records retain the immutable event even after chat removal.
                     self.connection.execute("UPDATE input_records SET message_id=NULL WHERE message_id IN (SELECT id FROM messages WHERE conversation_id=?1)",[&conversation.id])?;
@@ -784,10 +815,23 @@ impl Store {
                         .execute("DELETE FROM conversations WHERE id=?1", [&conversation.id])?;
                 } else if self.sync_conversation_record(&conversation.id)?.is_some() {
                     ensure!(head.is_some(), "sync_existing_conversation_has_no_base");
-                    self.connection.execute("UPDATE conversations SET title=?2,tag=?3,archived=?4,updated_at=?5 WHERE id=?1 AND wiki_page_slug IS NULL",params![conversation.id,conversation.title,conversation.tag,conversation.archived,conversation.updated_at])?;
+                    self.connection.execute("UPDATE conversations SET title=?2,tag=?3,archived=?4,updated_at=?5 WHERE id=?1",params![conversation.id,conversation.title,conversation.tag,conversation.archived,conversation.updated_at])?;
                 } else {
                     ensure!(base_revision.is_none(), "sync_conversation_base_missing");
-                    self.connection.execute("INSERT INTO conversations(id,title,tag,archived,assistant_mode,created_at,updated_at) VALUES(?1,?2,?3,?4,'personal_secretary',?5,?6)",params![conversation.id,conversation.title,conversation.tag,conversation.archived,conversation.created_at,conversation.updated_at])?;
+                    if let Some(slug) = &conversation.wiki_page_slug {
+                        // Wiki 专属会话的引用锚：页面未在本端真实出现过 →
+                        // 等待补齐，不推断；同名新页不得自动收养旧引用
+                        // （S05）。足迹含已物理删除的页面（head 仍留档）。
+                        let page_known: bool = self.connection.query_row(
+                            "SELECT EXISTS(SELECT 1 FROM sync_wiki_slug_seen WHERE slug=?1)",
+                            [slug],
+                            |r| r.get(0),
+                        )?;
+                        if !page_known {
+                            return Ok(Apply::Waiting);
+                        }
+                    }
+                    self.connection.execute("INSERT INTO conversations(id,title,tag,archived,wiki_page_slug,assistant_mode,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![conversation.id,conversation.title,conversation.tag,conversation.archived,conversation.wiki_page_slug,conversation.assistant_mode,conversation.created_at,conversation.updated_at])?;
                 }
                 self.sync_set_head("conversation", &conversation.id, &op.op_id, *deleted)?;
                 Ok(Apply::Applied)
@@ -834,7 +878,7 @@ impl Store {
                 reason: "message_after_delete",
             });
         }
-        if !self.sync_is_ordinary_conversation(&message.conversation_id)? {
+        if !self.sync_is_syncable_conversation(&message.conversation_id)? {
             return Ok(Apply::Waiting);
         }
         if let Some(parent) = &message.parent_message_id {
@@ -893,8 +937,14 @@ impl Store {
         Ok(())
     }
 
-    fn sync_is_ordinary_conversation(&self, id: &str) -> Result<bool> {
-        Ok(self.connection.query_row("SELECT EXISTS(SELECT 1 FROM conversations WHERE id=?1 AND wiki_page_slug IS NULL AND assistant_mode='personal_secretary')",[id],|r|r.get(0))?)
+    /// 任何会话行都可同步（S05 起包含 Wiki 专属会话）；行不存在 → Waiting
+    /// （会话 op 可能还在途）。
+    fn sync_is_syncable_conversation(&self, id: &str) -> Result<bool> {
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM conversations WHERE id=?1)",
+            [id],
+            |r| r.get(0),
+        )?)
     }
 
     fn sync_event_record(&self, id: &str) -> Result<Option<EventRecord>> {
@@ -910,7 +960,7 @@ impl Store {
     }
 
     fn sync_conversation_record(&self, id: &str) -> Result<Option<ConversationRecord>> {
-        Ok(self.connection.query_row("SELECT id,title,tag,archived,created_at,updated_at FROM conversations WHERE id=?1 AND wiki_page_slug IS NULL",[id],|r|Ok(ConversationRecord{id:r.get(0)?,title:r.get(1)?,tag:r.get(2)?,archived:r.get(3)?,created_at:r.get(4)?,updated_at:r.get(5)?})).optional()?)
+        Ok(self.connection.query_row("SELECT id,title,tag,archived,wiki_page_slug,assistant_mode,created_at,updated_at FROM conversations WHERE id=?1",[id],|r|Ok(ConversationRecord{id:r.get(0)?,title:r.get(1)?,tag:r.get(2)?,archived:r.get(3)?,wiki_page_slug:r.get(4)?,assistant_mode:r.get(5)?,created_at:r.get(6)?,updated_at:r.get(7)?})).optional()?)
     }
 }
 

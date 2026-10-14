@@ -44,6 +44,19 @@ fn pair(a: &Database, b: &Database) {
         .authorize_sync_member(&ai.device_id, &ai.stream_id)
         .unwrap();
 }
+/// 跳过队首（最低 origin_sequence）只送其余 op：接收端留缺口（gap-wait），
+/// 用于驱动「依赖证据未到 → 等待补齐」的接收路径。
+fn deliver_except_first(a: &Database, b: &Database) -> Vec<SyncOperation> {
+    let ai = a.store.sync_identity().unwrap().unwrap();
+    let bi = b.store.sync_identity().unwrap().unwrap();
+    let ops = a.store.pending_sync_operations(&bi.device_id, 100).unwrap();
+    for op in ops.iter().skip(1) {
+        b.store
+            .receive_sync_operation(&ai.device_id, &serde_json::to_vec(op).unwrap())
+            .unwrap();
+    }
+    ops
+}
 fn deliver(a: &Database, b: &Database) -> Vec<SyncOperation> {
     let ai = a.store.sync_identity().unwrap().unwrap();
     let bi = b.store.sync_identity().unwrap().unwrap();
@@ -1734,4 +1747,103 @@ fn rules_replicate_promote_discard_and_edit_conflict() {
             .query_row::<bool,_,_>("SELECT EXISTS(SELECT 1 FROM sync_conflicts WHERE object_kind='rule' AND object_id=?1)",[&rule2],|r| r.get(0))
             .unwrap()
     );
+}
+
+#[test]
+fn wiki_chat_conversation_and_messages_replicate() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    // 页面先于会话存在：页面 op（seq 顺序在前）先落地 → 会话应用时引用锚已见过。
+    seed_wiki_page(&a, "page-1", "topic/p1", "页面一", "v1", &[]);
+    capture_wiki(&a, "page-1");
+    let conv_id = a
+        .store
+        .create_wiki_chat_conversation("topic/p1", "[知识页] 页面一")
+        .unwrap();
+    a.store
+        .send_message(&conv_id, "user", "这个页面讲了什么？", None)
+        .unwrap();
+    let ops = deliver(&a, &b);
+    assert!(ops.len() >= 3, "页面 op + 会话 op + 消息 op 都要出站");
+    let conv = b
+        .store
+        .connection
+        .query_row(
+            "SELECT wiki_page_slug, assistant_mode FROM conversations WHERE id=?1",
+            [&conv_id],
+            |r| Ok((r.get::<_, Option<String>>(0)?, r.get::<_, String>(1)?)),
+        )
+        .optional()
+        .unwrap();
+    let (slug, mode) = conv.expect("会话应已复制");
+    assert_eq!(slug.as_deref(), Some("topic/p1"));
+    assert_eq!(mode, "knowledge_mentor");
+    assert_eq!(b.count("messages"), 1, "wiki 专属会话的消息一并复制");
+    assert_eq!(b.count("sync_wiki_slug_seen"), 1, "页面足迹由应用端写入");
+    // 普通会话列表不得混入 wiki 专属会话。
+    assert!(
+        b.store
+            .list_conversations()
+            .unwrap()
+            .iter()
+            .all(|c| c.id != conv_id)
+    );
+}
+
+#[test]
+fn wiki_chat_waits_for_page_evidence_and_converges_without_inference() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    // P5a 之前的旧页：行在库但从未捕获（无 head）。会话捕获时自动补发页面
+    // op（seq1），会话 op 随后（seq2）——同流有序。
+    seed_wiki_page(&a, "page-late", "topic/late", "迟到页", "v1", &[]);
+    let conv_id = a
+        .store
+        .create_wiki_chat_conversation("topic/late", "[知识页] 迟到页")
+        .unwrap();
+    let ops = deliver_except_first(&a, &b);
+    assert_eq!(ops.len(), 2, "自动补发的页面 op + 会话 op");
+    // 先到会话 op（跨流乱序的真实可能）：引用证据缺失 → Waiting。
+    assert_eq!(b.count("conversations"), 0, "证据缺失不得落会话行");
+    let state: String = b
+        .store
+        .connection
+        .query_row(
+            "SELECT state FROM sync_operations WHERE op_id=?1",
+            [&ops[1].op_id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(state, "waiting", "op 必须等待补齐而不是推断");
+    assert_eq!(
+        b.count("sync_wiki_slug_seen"),
+        0,
+        "页面 op 未到：足迹不得预先存在"
+    );
+    // 同名新页不得收养：本端已有同名 slug 的本地页也不改变等待——足迹表
+    // 只认真实到达过的页面 op。
+    seed_wiki_page(&b, "page-impersonator", "topic/late", "冒名页", "x", &[]);
+    b.store.sync_drain_waiting().unwrap();
+    assert_eq!(b.count("conversations"), 0, "足迹表没有记录，等待继续");
+    // 移除冒名行（它只用于证明等待判定不被本地同名行满足；留着会让页面
+    // op 按 slug_owned_by_other_id 立案冲突，阻断收敛路径）。
+    b.store
+        .connection
+        .execute("DELETE FROM wiki_pages WHERE id='page-impersonator'", [])
+        .unwrap();
+    // 页面 op 到达 → 足迹写入 → 会话收敛。
+    deliver(&a, &b);
+    let (slug, mode): (Option<String>, String) = b
+        .store
+        .connection
+        .query_row(
+            "SELECT wiki_page_slug, assistant_mode FROM conversations WHERE id=?1",
+            [&conv_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(slug.as_deref(), Some("topic/late"));
+    assert_eq!(mode, "knowledge_mentor");
 }

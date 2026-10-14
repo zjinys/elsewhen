@@ -86,11 +86,16 @@ impl Store {
     ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
         self.connection.execute(
         "INSERT INTO conversations (id, title, tag, wiki_page_slug, assistant_mode, created_at, updated_at)
          VALUES (?1, ?2, 'idea', ?3, 'knowledge_mentor', ?4, ?4)",
         params![id, title, wiki_page_slug, now],
     )?;
+        self.sync_record_conversation(&id, false)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(id)
     }
 

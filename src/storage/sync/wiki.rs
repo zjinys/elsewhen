@@ -101,6 +101,16 @@ impl Store {
             .optional()?)
     }
 
+    /// slug 足迹：只有真实出现过的 slug 才记录（不推断）；页面物理删除后
+    /// 仍保留，供 wiki 专属会话的引用锚等待判定。
+    pub(crate) fn sync_mark_wiki_slug_seen(&self, slug: &str) -> Result<()> {
+        self.connection.execute(
+            "INSERT OR IGNORE INTO sync_wiki_slug_seen(slug) VALUES(?1)",
+            [slug],
+        )?;
+        Ok(())
+    }
+
     /// 本地 wiki 编辑入站的捕获点。与会话捕获同模式：非同步库是 no-op，
     /// 操作与业务写入同事务提交，head 以本操作为修订。
     pub(crate) fn sync_record_wiki_page(&self, id: &str, deleted: bool) -> Result<()> {
@@ -110,6 +120,7 @@ impl Store {
         let page = self
             .sync_wiki_page_record(id)?
             .context("sync_wiki_page_missing")?;
+        self.sync_mark_wiki_slug_seen(&page.slug)?;
         let base_revision = self.sync_object_head("wiki_page", id)?.map(|h| h.0);
         if let Some(op_id) = self.append_sync_mutation(SyncMutation::WikiPageChanged {
             page,
@@ -157,6 +168,7 @@ impl Store {
         let page = self
             .sync_wiki_page_record(id)?
             .context("sync_wiki_page_missing")?;
+        self.sync_mark_wiki_slug_seen(&page.slug)?;
         if let Some(op_id) = self.append_sync_mutation(SyncMutation::WikiPageRenamed {
             old_slug: old_slug.to_string(),
             page,
@@ -375,6 +387,7 @@ impl Store {
         }
         if deleted {
             ensure!(existing_slug.is_some(), "sync_wiki_delete_missing");
+            self.sync_mark_wiki_slug_seen(&page.slug)?;
             self.connection
                 .execute("DELETE FROM wiki_pages WHERE id=?1", params![page.id])?;
             self.sync_set_head("wiki_page", &page.id, &op.op_id, true)?;
@@ -409,6 +422,7 @@ impl Store {
                 return Ok(Apply::Waiting);
             }
         }
+        self.sync_mark_wiki_slug_seen(&page.slug)?;
         self.replace_sync_wiki_row(page)?;
         self.sync_set_head("wiki_page", &page.id, &op.op_id, false)?;
         Ok(Apply::Applied)
