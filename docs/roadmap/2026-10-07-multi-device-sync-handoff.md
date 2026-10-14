@@ -1126,3 +1126,39 @@ Flutter 365 passed、analyze 0 error/warning。无 FRB/Dart 改动。**
 **关键教训**：候选 reason 与 op 类型不必同构（reason=wiki_page_deleted 的
 候选 op 可能是编辑）——裁决语义按「本端现状 vs 强制应用 op」定义，不按
 reason 分支。op_id 含 `:`，过不了 `validate_id` 字符集，用非空检查。
+
+## §27 S05：待办/目标/规则复制（commit `0dcb183`）
+
+**语义**：可变小对象走 wiki 同款框架——整行 payload、`base_revision` head CAS、
+删除 = 全端物理删除、分歧显式冲突不选边。规则行复制**不是执行授权**
+（不变式 4）；「并发规则不自动执行」由应用侧只动 `rules` 表保证。
+
+- `src/sync/protocol.rs`：`TodoRecord`/`GoalRecord`/`RuleRecord` +
+  `TodoChanged`/`GoalChanged`/`RuleChanged`。校验枚举（todo status/priority、
+  goal phase/status、rule status）、内容非空与长度、引用 id 合法；目标无删除
+  语义（`deleted` 恒 false，归档是状态迁移）。
+- `src/storage/sync/mutable.rs`：
+  - 捕获点 `sync_record_todo/goal/rule`：业务写后**同事务**调用；删除路径
+    「先捕获（行在）后删行」。
+  - 应用端公共判序 `mutable_cas_guard(kind, table, id, base, op, deleted)`：
+    ① head 已删 + 来 op 是删除 → **幂等收敛**（双端同删是常见离线场景，不是
+    分歧，直接 Applied）；② head 已删 + 编辑 → `{kind}_deleted` 候选（先于
+    base CAS，避免原因被 base_revision_changed 掩盖）；③ base 未知 → Waiting；
+    ④ 不匹配 → `base_revision_changed`。
+  - 目标活跃上限：收端在写入前显式判 `goal_active_limit` 冲突（远端目标不
+    静默顶掉本端目标）；DB 触发器兜底。
+- 捕获接线（全部包 `begin_write_transaction`，已在事务内则复用）：
+  - todos：create/update/状态/关联 slug（`changed=0` 幂等 no-op 不捕获）、
+    delete（先捕获后删）。
+  - rules：add、delete（先捕获后删）；promote/discard 先取将变更的 id 集，
+    逐行捕获后变更（同事务）。
+  - goals：create/update/archive/reactivate。
+  - `migrate_wiki_slug_refs` 补 `todos.related_wiki_slug` 同迁。
+- 测试 +4（Rust 698 passed）：todo 状态复制/双端同删收敛不立案；删改分歧双端
+  各自候选（todo_deleted / base_revision_changed）+ rename 引用同迁；3+2 交错
+  交付的 `goal_active_limit` 显式冲突 + 归档随流复制；规则 pending→active 迁移
+  与删除收敛。
+- 门禁：fmt --check、release、regen hash、Flutter 368 passed、analyze 0 error。
+
+**剩余 S05**：三对象冲突候选的人工审阅 UI（复用 S05 审阅框架的通用化）、
+Wiki 专属会话引用开放；S06 真人门禁未动。
