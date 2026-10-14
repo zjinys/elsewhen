@@ -32,9 +32,7 @@ void main() {
       );
       final prepare = find.widgetWithText(FilledButton, '准备本机');
       expect(tester.widget<FilledButton>(prepare).onPressed, isNull);
-      expect(find.textContaining('不会启动联网同步'), findsOneWidget);
-      expect(find.textContaining('模型调用需先解锁'), findsOneWidget);
-      expect(find.textContaining('旧明文不会因此清除'), findsOneWidget);
+      // 说明性长文案已裁剪：页面只保留状态、操作与必要提示。
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pump();
       await tester.tap(prepare);

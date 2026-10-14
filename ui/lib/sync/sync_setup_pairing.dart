@@ -112,7 +112,7 @@ extension OwnerSyncPairing on SyncSetupController {
     if (!previewEnabled ||
         state?.state != 'local_ready' ||
         state?.isOwner != true) {
-      error = '邀请仅在同步开发预览中对已解锁的数据集所有者开放。';
+      error = '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。';
       _changed();
       return;
     }

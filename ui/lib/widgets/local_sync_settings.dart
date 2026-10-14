@@ -98,15 +98,6 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               _ => controller.error == null ? '正在读取同步状态' : '同步状态暂不可用',
             }, style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
-            Text(
-              '配对与跨设备传输由 owner 邀请发起。本机准备不会启动联网同步，原有记录和 Provider 配置会保留。',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '完成本机准备后，Provider API Key 将加密保存。锁定后仍可查看配置和保存记录，模型调用需先解锁；已有备份中的旧明文不会因此清除。',
-              style: theme.textTheme.bodySmall,
-            ),
             if (controller.error != null) ...[
               const SizedBox(height: 12),
               Semantics(
@@ -194,7 +185,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               if (!state.isProcessor && state.isOwner) ...[
                 const SizedBox(height: 4),
                 Text(
-                  '本设备不是指定处理设备：后台分析/消化任务由指定设备认领。',
+                  '本机不是指定加工设备，不认领后台任务。',
                   style: theme.textTheme.bodySmall,
                 ),
               ],

@@ -77,10 +77,10 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Divider(height: 32),
-        Text('邀请设备（开发预览）', style: Theme.of(context).textTheme.titleSmall),
+        Text('邀请设备', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         const Text(
-          '这里提供旧设备的邀请与审批。新设备可通过“加入现有数据集”发起加入；安装证明后的名册和初始同步仍在接入，不能据此认为配对已完成。',
+          '新设备可通过“加入现有数据集”发起加入；批准后自动完成交接。',
         ),
         if (offer == null) ...[
           const SizedBox(height: 12),
@@ -111,7 +111,7 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
           ),
         ] else ...[
           const SizedBox(height: 12),
-          const Text('邀请码仅交给可信设备，不要贴到公开频道或日志。'),
+          const Text('邀请码仅交给可信设备。'),
           Text(
             '到期时间：${DateTime.fromMillisecondsSinceEpoch(offer.expiresAtMs).toLocal()}',
           ),

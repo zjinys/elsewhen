@@ -180,7 +180,7 @@ void main() {
 
     expect(bridge.yieldCalls, 1);
     expect(bridge.approveCalls, 0, reason: '非 owner 本机绝不能自动审批');
-    expect(find.text('移交证明需要由 owner 设备审批签发新名册后才会生效。'), findsOneWidget);
+    expect(find.text('等待 owner 审批移交证明。'), findsOneWidget);
   });
 
   testWidgets('接管：仅 frontier 追平（canConfirm）展示确认按钮且成功后刷新', (tester) async {

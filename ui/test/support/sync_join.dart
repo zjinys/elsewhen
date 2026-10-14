@@ -16,7 +16,7 @@ api.SyncJoinStateDto testJoinState(
   entryId: entry,
   installationId: entry == null ? null : 'join-install',
   datasetId: 'shared-dataset',
-  ownerName: '可信旧设备',
+  ownerName: '可信已有设备',
   ownerFingerprint: 'ab' * 32,
   localFingerprint: phase == 'preview' ? null : 'cd' * 32,
   relayUrl: 'http://localhost:9876',

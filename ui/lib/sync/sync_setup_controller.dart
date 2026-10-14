@@ -180,7 +180,7 @@ class SyncSetupController extends ChangeNotifier {
   }) async {
     if (!previewEnabled || !consent || name.trim().isEmpty) {
       error = !previewEnabled
-          ? '本机准备仅在同步开发预览中开放。'
+          ? '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。'
           : '填写设备名称，并确认配对将共享 Provider API Key。';
       _changed();
       return;

@@ -36,7 +36,7 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Divider(height: 32),
-          Text('加入现有数据集（开发预览）', style: Theme.of(context).textTheme.titleSmall),
+          Text('加入现有数据集', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           const Text(
             '使用独立暂存库，原记录和 Provider 不会覆盖。明确批准并安装后，自动协调正式通道、成员名册及初始快照；当前数据集不会切换。',
@@ -82,7 +82,7 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
             ],
             if (state.localFingerprint != null) ...[
               const SizedBox(height: 8),
-              const Text('本机公钥指纹（请在旧设备核对）'),
+              const Text('本机公钥指纹（请在已有设备核对）'),
               SelectableText(state.localFingerprint!),
             ],
             if (state.expiresAtMs > 0)
@@ -94,14 +94,14 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               'preview' => '请核对邀请后明确选择加入。',
               'key_required' || 'key_confirmation' => '正在准备并确认本机受保护密钥。',
               'ready_to_request' => '本机密钥已准备，尚未确认请求投递。',
-              'awaiting_approval' => '等待旧设备核对指纹并明确批准。',
-              'installation_confirmation' => '审批已保存在暂存库，等待系统修订确认；不会提前发送证明。',
+              'awaiting_approval' => '等待已有设备核对指纹并明确批准。',
+              'installation_confirmation' => '等待系统确认，确认前不发送证明。',
               'awaiting_membership' => '安装已保存，尚未确认安装证明投递。',
-              'proof_sent' => '安装证明已投递；仍等待成员授权和初始同步，不表示加入或同步完成。',
+              'proof_sent' => '安装证明已投递，等待授权与初始同步。',
               'enrollment' => '正在自动协调已批准的初始交接，请查看交接进度。',
-              'enrollment_confirmation' => '正在确认交接的系统修订，确认前不会继续发送。',
-              'expired' => '邀请已过期，不能继续投递。原库及暂存数据保留。',
-              _ => '本次加入需要重新邀请或恢复，当前数据集没有切换。',
+              'enrollment_confirmation' => '正在确认交接修订，确认前不继续发送。',
+              'expired' => '邀请已过期，需重新邀请。',
+              _ => '加入需要重新邀请或恢复。',
             }),
             if (phase == 'preview') ...[
               const SizedBox(height: 12),
@@ -149,7 +149,7 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                     onPressed: controller.busy
                         ? null
                         : controller.inspectApproval,
-                    child: const Text('检查旧设备审批'),
+                    child: const Text('检查已有设备审批'),
                   ),
                 if (phase == 'awaiting_membership' || phase == 'proof_sent')
                   OutlinedButton(

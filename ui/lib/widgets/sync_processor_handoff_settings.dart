@@ -67,12 +67,6 @@ class _SyncProcessorHandoffSettingsState
           children: [
             const SizedBox(height: 16),
             Text('加工移交', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(
-              '加工设备负责后台分析/消化。出让后本机不再认领后台任务，目标设备'
-              '同步到移交边界并显式确认后才开始工作。',
-              style: theme.textTheme.bodySmall,
-            ),
             const SizedBox(height: 8),
             Text(switch (phase) {
               'idle' => '本机状态：未参与移交。',
@@ -101,7 +95,7 @@ class _SyncProcessorHandoffSettingsState
               const SizedBox(height: 8),
               if (widget.candidates.isEmpty)
                 Text(
-                  '暂无可接收加工权的其他设备，请先授权设备加入同步。',
+                  '暂无可接收设备，请先授权设备加入。',
                   style: theme.textTheme.bodySmall,
                 )
               else ...[
@@ -136,7 +130,7 @@ class _SyncProcessorHandoffSettingsState
             if (phase == 'relinquished' && !widget.isOwner) ...[
               const SizedBox(height: 8),
               Text(
-                '移交证明需要由 owner 设备审批签发新名册后才会生效。',
+                '等待 owner 审批移交证明。',
                 style: theme.textTheme.bodySmall,
               ),
             ],

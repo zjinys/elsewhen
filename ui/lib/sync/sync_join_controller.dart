@@ -135,7 +135,7 @@ class SyncJoinController extends ChangeNotifier {
       _requireOpen();
       if (state?.phase == 'ready_to_request') {
         _accept(await _bridge.sendRequest(_operation!));
-        notice = '加入请求已投递。请在旧设备核对本机指纹并明确批准。';
+        notice = '加入请求已投递。请在已有设备核对本机指纹并明确批准。';
       }
     });
   }
@@ -238,7 +238,7 @@ class SyncJoinController extends ChangeNotifier {
     final operation = _operation;
     if (operation == null) throw StateError('sync_join_session_missing');
     _accept(await _bridge.sendRequest(operation));
-    notice = '已按原请求重发，等待旧设备明确批准。';
+    notice = '已按原请求重发，等待已有设备明确批准。';
   });
 
   Future<void> inspectApproval() => _action(() async {
@@ -253,7 +253,7 @@ class SyncJoinController extends ChangeNotifier {
       _accept(await _bridge.sendProof(operation));
       notice = '安装证明已投递；仍等待成员授权和初始同步，当前数据集没有切换。';
     } else {
-      notice = '尚未收到可用审批，请在旧设备核对并批准。';
+      notice = '尚未收到可用审批，请在已有设备核对并批准。';
     }
   });
 
@@ -318,7 +318,7 @@ class SyncJoinController extends ChangeNotifier {
   Future<void> _action(Future<void> Function() action) async {
     if (busy || _closed || _disposed || isSessionBusy?.call() == true) return;
     if (!previewEnabled) {
-      error = '加入功能仅在同步开发预览中开放。';
+      error = '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。';
       _changed();
       return;
     }

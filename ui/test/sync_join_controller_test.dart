@@ -244,14 +244,14 @@ void main() {
       await tester.tap(join);
       await tester.pumpAndSettle();
       expect(f.bridge.requests, 1);
-      expect(find.text('本机公钥指纹（请在旧设备核对）'), findsOneWidget);
-      final inspect = find.text('检查旧设备审批');
+      expect(find.text('本机公钥指纹（请在已有设备核对）'), findsOneWidget);
+      final inspect = find.text('检查已有设备审批');
       await tester.ensureVisible(inspect);
       await tester.tap(inspect);
       await tester.pumpAndSettle();
       expect(f.bridge.proofs, 1);
       expect(f.controller.state?.phase, 'proof_sent');
-      expect(find.textContaining('不表示加入或同步完成'), findsOneWidget);
+      expect(find.textContaining('安装证明已投递，等待授权与初始同步'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await f.close();

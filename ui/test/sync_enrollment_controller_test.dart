@@ -359,9 +359,10 @@ void main() {
           ),
         ),
       );
-      expect(find.textContaining('尚不能声称旧设备已收到'), findsOneWidget);
-      expect(find.textContaining('当前数据集不会切换'), findsOneWidget);
-      expect(find.textContaining('旧设备已确认应用回执'), findsNothing);
+      expect(find.textContaining('本机快照已应用，等待对方回执'), findsOneWidget);
+      expect(find.textContaining('自动持续同步'), findsOneWidget);
+      expect(find.textContaining('旧设备已确认应用回执'), findsNothing); // 旧措辞不再出现
+      expect(find.textContaining('已有设备已确认应用回执'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await f.close();
