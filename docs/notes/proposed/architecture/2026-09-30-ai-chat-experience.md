@@ -13,7 +13,7 @@ Elsewhen 已有事件存储、知识选材、引用校验、工具调用、写�
 - 本 Note 保存优化方向、取舍和产品边界。
 - [AI 对话体验优化 Roadmap](../../../roadmap/2026-09-30-ai-chat-experience-roadmap.md) 是这项工作的任务、依赖、验收和进度入口。
 - [个人认知主循环总路线图](../../../roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md) 仍是项目总路线；本优化是支持 Phase 4C / Phase 5 的子路线，不重置已完成工作。
-- [RikkaHub 架构分析](../../../analysis/rikkahub-desktop-chat-architecture-analysis.md) 与[早期上下文比较](2026-09-30-rikkahub-chat-context-comparison.md)保留为调研材料；其中旧优先级和未成立的缺陷推断不直接转成开发任务。
+- [RikkaHub 架构分析](../../../analysis/rikkahub-desktop-chat-architecture-analysis.md) 与[早期上下文比较](../../archived/2026-09-30-rikkahub-chat-context-comparison.md)保留为调研材料；其中旧优先级和未成立的缺陷推断不直接转成开发任务。
 
 ## Proposal
 

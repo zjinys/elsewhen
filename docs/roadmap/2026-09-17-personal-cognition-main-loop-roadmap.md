@@ -226,7 +226,7 @@
 
 ### Step 1：Phase 2.5 — 事件账本质量治理
 
-对应：`docs/notes/proposed/architecture/2026-09-19-event-recordability-filter.md`
+对应：`docs/notes/implemented/architecture/2026-09-19-event-recordability-filter.md`
 
 - 对话层先判断是否值得记录；评价 AI、闲聊、元对话默认不写 `events`。
 - **已完成第一步：** system prompt 与 `record_event` 工具描述已明确上述边界，用户显式要求记录时仍按意图执行。
@@ -259,7 +259,7 @@
 
 ### Step 3：基础设施并行项 — 归档对话清理（已完成）
 
-对应：`docs/notes/proposed/architecture/2026-09-19-archived-conversation-deletion.md`
+对应：`docs/notes/implemented/architecture/2026-09-19-archived-conversation-deletion.md`
 
 - 只允许删除已归档、非知识页会话。
 - UI 二次确认；AI 指令走 `WriteConfirm`。
@@ -293,7 +293,7 @@
 
 当前进度：上下文注入与建议反馈切片已完成；自动提醒和完整行动度量仍需独立验收。
 
-2026-09-30 对话入口回归修复：完整请求预算去除重复工具说明；跨会话背景排除当前流与知识页讨论，预算不足时整体省略；本地预算错误不触发协议重试，必要材料不截断。用户展示名“人物”改为“联系人”，内部数据标识不迁移。验证：Rust 326 passed / 2 ignored、Flutter 联系人文案与隔离关系测试 4 passed；详细边界见[输入预算调查的修复记录](../notes/proposed/refactor/2026-09-29-input-budget-token-accounting.md)。此修复不代表自动提醒或真实模型质量验收已完成。
+2026-09-30 对话入口回归修复：完整请求预算去除重复工具说明；跨会话背景排除当前流与知识页讨论，预算不足时整体省略；本地预算错误不触发协议重试，必要材料不截断。用户展示名“人物”改为“联系人”，内部数据标识不迁移。验证：Rust 326 passed / 2 ignored、Flutter 联系人文案与隔离关系测试 4 passed；详细边界见[输入预算调查的修复记录](../notes/implemented/simplification/2026-09-29-input-budget-token-accounting.md)。此修复不代表自动提醒或真实模型质量验收已完成。
 
 ### Step 6：Phase 3 UI — Today 工作台（后置）
 

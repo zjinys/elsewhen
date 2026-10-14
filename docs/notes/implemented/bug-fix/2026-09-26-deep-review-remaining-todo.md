@@ -537,7 +537,7 @@ BUSY 归零 → 值得做；不归零 → 省下 33 处高风险改造。已注�
 
 ## 新开：外网搜索抽象层（不在本轮 deep review 范围）
 
-需求与设计已落文档：**`docs/notes/proposed/2026-09-27-web-search-tool.md`**。
+需求与设计已落文档：**`docs/notes/implemented/feature/2026-09-27-web-search-tool.md`**。
 
 要点（细节看那份文档）：
 
