@@ -56,6 +56,27 @@ pub struct SyncInvitationPreviewDto {
     pub expires_at_ms: i64,
 }
 
+/// 加工移交状态查询（独立 DTO，不影响 LocalSyncStateDto）。
+#[derive(Clone, Debug)]
+pub struct ProcessorHandoffStateDto {
+    pub state: String, // idle | relinquished | pending_takeover | active
+    pub from_device_id: Option<String>,
+    pub to_device_id: Option<String>,
+    pub final_sequence: Option<i64>,
+    pub can_confirm: bool,
+}
+
+/// 加工移交证明（旧端签名，供 owner 签发新名册）。
+#[derive(Clone, Debug)]
+pub struct ProcessingYieldProofDto {
+    pub dataset_id: String,
+    pub from_device_id: String,
+    pub to_device_id: String,
+    pub roster_revision: i64,
+    pub final_sequence: i64,
+    pub signature: Vec<u8>,
+}
+
 pub fn create_owner_sync_invitation(
     relay_url: String,
     acknowledge_provider_key_sharing: bool,
@@ -694,4 +715,44 @@ pub fn resolve_sync_provider_conflict(
             ProviderConflictResolution::KeepLocal
         },
     )
+}
+
+/// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。
+pub fn get_processor_handoff_state() -> Result<ProcessorHandoffStateDto> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let state = store.get_processor_handoff_state()?;
+    Ok(ProcessorHandoffStateDto {
+        state: state.state,
+        from_device_id: state.from_device_id,
+        to_device_id: state.to_device_id,
+        final_sequence: state.final_sequence,
+        can_confirm: state.can_confirm,
+    })
+}
+
+/// 旧加工端让出加工权，生成移交证明供 owner 签发新名册。
+pub fn yield_sync_processor(
+    target_revision: i64,
+    to_device_id: String,
+    signer: crate::sync::crypto::DeviceIdentity,
+) -> Result<ProcessingYieldProofDto> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let proof = store.yield_processor_role(target_revision as u64, &to_device_id, &signer)?;
+    Ok(ProcessingYieldProofDto {
+        dataset_id: proof.dataset_id,
+        from_device_id: proof.from_device_id,
+        to_device_id: proof.to_device_id,
+        roster_revision: proof.roster_revision as i64,
+        final_sequence: proof.final_sequence as i64,
+        signature: proof.signature,
+    })
+}
+
+/// 新加工端确认接管（frontier 追平后调用）。
+pub fn confirm_processor_takeover() -> Result<()> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.confirm_processor_takeover()
 }

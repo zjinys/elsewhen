@@ -4,13 +4,14 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import '../sync/crypto.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'provider_reachability.dart';
 
 // These functions are ignored because they are not marked as `pub`: `conflict_profile_dto`, `enrollment_dto`, `join_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<SyncInvitationOfferDto> createOwnerSyncInvitation({
   required String relayUrl,
@@ -231,6 +232,25 @@ Future<void> resolveSyncProviderConflict({
   acceptRemote: acceptRemote,
 );
 
+/// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。
+Future<ProcessorHandoffStateDto> getProcessorHandoffState() =>
+    RustLib.instance.api.crateApiSyncGetProcessorHandoffState();
+
+/// 旧加工端让出加工权，生成移交证明供 owner 签发新名册。
+Future<ProcessingYieldProofDto> yieldSyncProcessor({
+  required PlatformInt64 targetRevision,
+  required String toDeviceId,
+  required DeviceIdentity signer,
+}) => RustLib.instance.api.crateApiSyncYieldSyncProcessor(
+  targetRevision: targetRevision,
+  toDeviceId: toDeviceId,
+  signer: signer,
+);
+
+/// 新加工端确认接管（frontier 追平后调用）。
+Future<void> confirmProcessorTakeover() =>
+    RustLib.instance.api.crateApiSyncConfirmProcessorTakeover();
+
 class LocalSyncStateDto {
   final String state;
   final String? installationId;
@@ -284,6 +304,82 @@ class LocalSyncStateDto {
           isProcessor == other.isProcessor &&
           activePeers == other.activePeers &&
           pendingOperations == other.pendingOperations;
+}
+
+/// 加工移交证明（旧端签名，供 owner 签发新名册）。
+class ProcessingYieldProofDto {
+  final String datasetId;
+  final String fromDeviceId;
+  final String toDeviceId;
+  final PlatformInt64 rosterRevision;
+  final PlatformInt64 finalSequence;
+  final Uint8List signature;
+
+  const ProcessingYieldProofDto({
+    required this.datasetId,
+    required this.fromDeviceId,
+    required this.toDeviceId,
+    required this.rosterRevision,
+    required this.finalSequence,
+    required this.signature,
+  });
+
+  @override
+  int get hashCode =>
+      datasetId.hashCode ^
+      fromDeviceId.hashCode ^
+      toDeviceId.hashCode ^
+      rosterRevision.hashCode ^
+      finalSequence.hashCode ^
+      signature.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProcessingYieldProofDto &&
+          runtimeType == other.runtimeType &&
+          datasetId == other.datasetId &&
+          fromDeviceId == other.fromDeviceId &&
+          toDeviceId == other.toDeviceId &&
+          rosterRevision == other.rosterRevision &&
+          finalSequence == other.finalSequence &&
+          signature == other.signature;
+}
+
+/// 加工移交状态查询（独立 DTO，不影响 LocalSyncStateDto）。
+class ProcessorHandoffStateDto {
+  final String state;
+  final String? fromDeviceId;
+  final String? toDeviceId;
+  final PlatformInt64? finalSequence;
+  final bool canConfirm;
+
+  const ProcessorHandoffStateDto({
+    required this.state,
+    this.fromDeviceId,
+    this.toDeviceId,
+    this.finalSequence,
+    required this.canConfirm,
+  });
+
+  @override
+  int get hashCode =>
+      state.hashCode ^
+      fromDeviceId.hashCode ^
+      toDeviceId.hashCode ^
+      finalSequence.hashCode ^
+      canConfirm.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProcessorHandoffStateDto &&
+          runtimeType == other.runtimeType &&
+          state == other.state &&
+          fromDeviceId == other.fromDeviceId &&
+          toDeviceId == other.toDeviceId &&
+          finalSequence == other.finalSequence &&
+          canConfirm == other.canConfirm;
 }
 
 class ProviderConflictProfileDto {

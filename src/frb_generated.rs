@@ -27,6 +27,7 @@
 
 // Section: imports
 
+use crate::sync::crypto::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
@@ -39,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1080035639;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1733093857;
 
 // Section: executor
 
@@ -513,6 +514,27 @@ fn wire__crate__api__knowledge__confirm_knowledge_source_impl(
                             api_tags,
                             api_expected_snapshot_id,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__confirm_processor_takeover_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "confirm_processor_takeover",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::confirm_processor_takeover()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1858,6 +1880,27 @@ fn wire__crate__api__web_search__get_network_settings_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::web_search::get_network_settings()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__get_processor_handoff_state_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_processor_handoff_state",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::get_processor_handoff_state()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -5194,6 +5237,37 @@ fn wire__crate__api__chat_runs__withdraw_chat_input_impl(
         },
     )
 }
+fn wire__crate__api__sync__yield_sync_processor_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    target_revision: impl CstDecode<i64>,
+    to_device_id: impl CstDecode<String>,
+    signer: impl CstDecode<DeviceIdentity>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "yield_sync_processor",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_target_revision = target_revision.cst_decode();
+            let api_to_device_id = to_device_id.cst_decode();
+            let api_signer = signer.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::yield_sync_processor(
+                            api_target_revision,
+                            api_to_device_id,
+                            api_signer,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -5233,11 +5307,37 @@ impl CstDecode<u8> for u8 {
         self
     }
 }
+impl CstDecode<usize> for usize {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> usize {
+        self
+    }
+}
 impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <String>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::anyhow::anyhow!("{}", inner);
+    }
+}
+
+impl SseDecode for DeviceIdentity {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <RustOpaqueNom<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>,
+        >>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
+    }
+}
+
+impl SseDecode
+    for RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return unsafe { decode_rust_opaque_nom(inner) };
     }
 }
 
@@ -7361,6 +7461,44 @@ impl SseDecode for crate::api::conversations::PendingActionDto {
     }
 }
 
+impl SseDecode for crate::api::sync::ProcessingYieldProofDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_datasetId = <String>::sse_decode(deserializer);
+        let mut var_fromDeviceId = <String>::sse_decode(deserializer);
+        let mut var_toDeviceId = <String>::sse_decode(deserializer);
+        let mut var_rosterRevision = <i64>::sse_decode(deserializer);
+        let mut var_finalSequence = <i64>::sse_decode(deserializer);
+        let mut var_signature = <Vec<u8>>::sse_decode(deserializer);
+        return crate::api::sync::ProcessingYieldProofDto {
+            dataset_id: var_datasetId,
+            from_device_id: var_fromDeviceId,
+            to_device_id: var_toDeviceId,
+            roster_revision: var_rosterRevision,
+            final_sequence: var_finalSequence,
+            signature: var_signature,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sync::ProcessorHandoffStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_state = <String>::sse_decode(deserializer);
+        let mut var_fromDeviceId = <Option<String>>::sse_decode(deserializer);
+        let mut var_toDeviceId = <Option<String>>::sse_decode(deserializer);
+        let mut var_finalSequence = <Option<i64>>::sse_decode(deserializer);
+        let mut var_canConfirm = <bool>::sse_decode(deserializer);
+        return crate::api::sync::ProcessorHandoffStateDto {
+            state: var_state,
+            from_device_id: var_fromDeviceId,
+            to_device_id: var_toDeviceId,
+            final_sequence: var_finalSequence,
+            can_confirm: var_canConfirm,
+        };
+    }
+}
+
 impl SseDecode for crate::api::sync::ProviderConflictProfileDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7899,6 +8037,13 @@ impl SseDecode for crate::api::chat_runs::UnscheduledChatInputDto {
     }
 }
 
+impl SseDecode for usize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u64::<NativeEndian>().unwrap() as _
+    }
+}
+
 impl SseDecode for crate::api::web_search::WebSearchConfigDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8009,6 +8154,21 @@ fn pde_ffi_dispatcher_sync_impl(
 }
 
 // Section: rust2dart
+
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<DeviceIdentity> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, StdArc<_>>(self.0)
+            .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<DeviceIdentity> {}
+
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<DeviceIdentity>> for DeviceIdentity {
+    fn into_into_dart(self) -> FrbWrapper<DeviceIdentity> {
+        self.into()
+    }
+}
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::provider_config::AiProviderConfigDto {
@@ -9381,6 +9541,55 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversations::PendingActionD
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::ProcessingYieldProofDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.dataset_id.into_into_dart().into_dart(),
+            self.from_device_id.into_into_dart().into_dart(),
+            self.to_device_id.into_into_dart().into_dart(),
+            self.roster_revision.into_into_dart().into_dart(),
+            self.final_sequence.into_into_dart().into_dart(),
+            self.signature.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::ProcessingYieldProofDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::ProcessingYieldProofDto>
+    for crate::api::sync::ProcessingYieldProofDto
+{
+    fn into_into_dart(self) -> crate::api::sync::ProcessingYieldProofDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::ProcessorHandoffStateDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.state.into_into_dart().into_dart(),
+            self.from_device_id.into_into_dart().into_dart(),
+            self.to_device_id.into_into_dart().into_dart(),
+            self.final_sequence.into_into_dart().into_dart(),
+            self.can_confirm.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::ProcessorHandoffStateDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::ProcessorHandoffStateDto>
+    for crate::api::sync::ProcessorHandoffStateDto
+{
+    fn into_into_dart(self) -> crate::api::sync::ProcessorHandoffStateDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sync::ProviderConflictProfileDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -10072,6 +10281,24 @@ impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(format!("{:?}", self), serializer);
+    }
+}
+
+impl SseEncode for DeviceIdentity {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, StdArc<_>>(self), serializer);
+    }
+}
+
+impl SseEncode
+    for RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
     }
 }
 
@@ -11512,6 +11739,29 @@ impl SseEncode for crate::api::conversations::PendingActionDto {
     }
 }
 
+impl SseEncode for crate::api::sync::ProcessingYieldProofDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.dataset_id, serializer);
+        <String>::sse_encode(self.from_device_id, serializer);
+        <String>::sse_encode(self.to_device_id, serializer);
+        <i64>::sse_encode(self.roster_revision, serializer);
+        <i64>::sse_encode(self.final_sequence, serializer);
+        <Vec<u8>>::sse_encode(self.signature, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::ProcessorHandoffStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.state, serializer);
+        <Option<String>>::sse_encode(self.from_device_id, serializer);
+        <Option<String>>::sse_encode(self.to_device_id, serializer);
+        <Option<i64>>::sse_encode(self.final_sequence, serializer);
+        <bool>::sse_encode(self.can_confirm, serializer);
+    }
+}
+
 impl SseEncode for crate::api::sync::ProviderConflictProfileDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11849,6 +12099,16 @@ impl SseEncode for crate::api::chat_runs::UnscheduledChatInputDto {
     }
 }
 
+impl SseEncode for usize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer
+            .cursor
+            .write_u64::<NativeEndian>(self as _)
+            .unwrap();
+    }
+}
+
 impl SseEncode for crate::api::web_search::WebSearchConfigDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11905,6 +12165,7 @@ mod io {
     // Section: imports
 
     use super::*;
+    use crate::sync::crypto::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -11923,6 +12184,31 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> flutter_rust_bridge::for_generated::anyhow::Error {
             unimplemented!()
+        }
+    }
+    impl CstDecode<DeviceIdentity> for usize {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> DeviceIdentity {
+            flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(CstDecode::<
+                RustOpaqueNom<
+                    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>,
+                >,
+            >::cst_decode(
+                self
+            ))
+        }
+    }
+    impl
+        CstDecode<
+            RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>,
+        > for usize
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(
+            self,
+        ) -> RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>
+        {
+            unsafe { decode_rust_opaque_nom(self as _) }
         }
     }
     impl CstDecode<String> for *mut wire_cst_list_prim_u_8_strict {
@@ -13406,6 +13692,33 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::sync::ProcessingYieldProofDto> for wire_cst_processing_yield_proof_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::ProcessingYieldProofDto {
+            crate::api::sync::ProcessingYieldProofDto {
+                dataset_id: self.dataset_id.cst_decode(),
+                from_device_id: self.from_device_id.cst_decode(),
+                to_device_id: self.to_device_id.cst_decode(),
+                roster_revision: self.roster_revision.cst_decode(),
+                final_sequence: self.final_sequence.cst_decode(),
+                signature: self.signature.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::ProcessorHandoffStateDto>
+        for wire_cst_processor_handoff_state_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::ProcessorHandoffStateDto {
+            crate::api::sync::ProcessorHandoffStateDto {
+                state: self.state.cst_decode(),
+                from_device_id: self.from_device_id.cst_decode(),
+                to_device_id: self.to_device_id.cst_decode(),
+                final_sequence: self.final_sequence.cst_decode(),
+                can_confirm: self.can_confirm.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::sync::ProviderConflictProfileDto>
         for wire_cst_provider_conflict_profile_dto
     {
@@ -14751,6 +15064,39 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_processing_yield_proof_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                dataset_id: core::ptr::null_mut(),
+                from_device_id: core::ptr::null_mut(),
+                to_device_id: core::ptr::null_mut(),
+                roster_revision: Default::default(),
+                final_sequence: Default::default(),
+                signature: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_processing_yield_proof_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_processor_handoff_state_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                state: core::ptr::null_mut(),
+                from_device_id: core::ptr::null_mut(),
+                to_device_id: core::ptr::null_mut(),
+                final_sequence: core::ptr::null_mut(),
+                can_confirm: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_processor_handoff_state_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_provider_conflict_profile_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -15444,6 +15790,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__confirm_processor_takeover(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__confirm_processor_takeover_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__confirm_sync_enrollment(
         port_: i64,
         role: *mut wire_cst_list_prim_u_8_strict,
@@ -15943,6 +16296,13 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__web_search__get_network_settings_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__get_processor_handoff_state(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__get_processor_handoff_state_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -17165,6 +17525,39 @@ mod io {
         queue_id: i64,
     ) {
         wire__crate__api__chat_runs__withdraw_chat_input_impl(port_, conversation_id, queue_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__yield_sync_processor(
+        port_: i64,
+        target_revision: i64,
+        to_device_id: *mut wire_cst_list_prim_u_8_strict,
+        signer: usize,
+    ) {
+        wire__crate__api__sync__yield_sync_processor_impl(
+            port_,
+            target_revision,
+            to_device_id,
+            signer,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>::increment_strong_count(ptr as _);
+        }
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>::decrement_strong_count(ptr as _);
+        }
     }
 
     #[unsafe(no_mangle)]
@@ -18921,6 +19314,25 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_processing_yield_proof_dto {
+        dataset_id: *mut wire_cst_list_prim_u_8_strict,
+        from_device_id: *mut wire_cst_list_prim_u_8_strict,
+        to_device_id: *mut wire_cst_list_prim_u_8_strict,
+        roster_revision: i64,
+        final_sequence: i64,
+        signature: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_processor_handoff_state_dto {
+        state: *mut wire_cst_list_prim_u_8_strict,
+        from_device_id: *mut wire_cst_list_prim_u_8_strict,
+        to_device_id: *mut wire_cst_list_prim_u_8_strict,
+        final_sequence: *mut i64,
+        can_confirm: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_provider_conflict_profile_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         name: *mut wire_cst_list_prim_u_8_strict,
@@ -19233,6 +19645,7 @@ mod web {
     // Section: imports
 
     use super::*;
+    use crate::sync::crypto::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -21167,6 +21580,53 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::sync::ProcessingYieldProofDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::ProcessingYieldProofDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                6,
+                "Expected 6 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::ProcessingYieldProofDto {
+                dataset_id: self_.get(0).cst_decode(),
+                from_device_id: self_.get(1).cst_decode(),
+                to_device_id: self_.get(2).cst_decode(),
+                roster_revision: self_.get(3).cst_decode(),
+                final_sequence: self_.get(4).cst_decode(),
+                signature: self_.get(5).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::ProcessorHandoffStateDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::ProcessorHandoffStateDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::ProcessorHandoffStateDto {
+                state: self_.get(0).cst_decode(),
+                from_device_id: self_.get(1).cst_decode(),
+                to_device_id: self_.get(2).cst_decode(),
+                final_sequence: self_.get(3).cst_decode(),
+                can_confirm: self_.get(4).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::sync::ProviderConflictProfileDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -21865,6 +22325,35 @@ mod web {
             unimplemented!()
         }
     }
+    impl CstDecode<DeviceIdentity> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> DeviceIdentity {
+            flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(CstDecode::<
+                RustOpaqueNom<
+                    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>,
+                >,
+            >::cst_decode(
+                self
+            ))
+        }
+    }
+    impl
+        CstDecode<
+            RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>,
+        > for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(
+            self,
+        ) -> RustOpaqueNom<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>
+        {
+            #[cfg(target_pointer_width = "64")]
+            {
+                compile_error!("64-bit pointers are not supported.");
+            }
+            unsafe { decode_rust_opaque_nom((self.as_f64().unwrap() as usize) as _) }
+        }
+    }
     impl CstDecode<String> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> String {
@@ -21922,6 +22411,12 @@ mod web {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> u8 {
             self.unchecked_into_f64() as _
+        }
+    }
+    impl CstDecode<usize> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> usize {
+            ::std::convert::TryInto::<u64>::try_into(self).unwrap() as _
         }
     }
 
@@ -22117,6 +22612,13 @@ mod web {
             tags,
             expected_snapshot_id,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__confirm_processor_takeover(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__confirm_processor_takeover_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -22623,6 +23125,13 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__web_search__get_network_settings_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__get_processor_handoff_state(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__get_processor_handoff_state_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -23867,6 +24376,39 @@ mod web {
         queue_id: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
         wire__crate__api__chat_runs__withdraw_chat_input_impl(port_, conversation_id, queue_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__yield_sync_processor(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        target_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+        to_device_id: String,
+        signer: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__sync__yield_sync_processor_impl(
+            port_,
+            target_revision,
+            to_device_id,
+            signer,
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>::increment_strong_count(ptr as _);
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+        ptr: *const std::ffi::c_void,
+    ) {
+        unsafe {
+            StdArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DeviceIdentity>>::decrement_strong_count(ptr as _);
+        }
     }
 }
 #[cfg(target_family = "wasm")]

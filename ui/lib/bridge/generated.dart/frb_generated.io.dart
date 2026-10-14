@@ -41,6 +41,7 @@ import 'knowledge/workflows.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
 import 'storage/knowledge.dart';
+import 'sync/crypto.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustLibApiImplPlatform({
@@ -50,8 +51,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_DeviceIdentityPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  DeviceIdentity
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    dynamic raw,
+  );
+
+  @protected
+  DeviceIdentity
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    dynamic raw,
+  );
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -525,6 +542,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
 
   @protected
+  ProcessingYieldProofDto dco_decode_processing_yield_proof_dto(dynamic raw);
+
+  @protected
+  ProcessorHandoffStateDto dco_decode_processor_handoff_state_dto(dynamic raw);
+
+  @protected
   ProviderConflictProfileDto dco_decode_provider_conflict_profile_dto(
     dynamic raw,
   );
@@ -612,6 +635,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
 
   @protected
+  BigInt dco_decode_usize(dynamic raw);
+
+  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
@@ -622,6 +648,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  DeviceIdentity
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DeviceIdentity
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -1225,6 +1263,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
 
   @protected
+  ProcessingYieldProofDto sse_decode_processing_yield_proof_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProcessorHandoffStateDto sse_decode_processor_handoff_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ProviderConflictProfileDto sse_decode_provider_conflict_profile_dto(
     SseDeserializer deserializer,
   );
@@ -1334,6 +1382,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
@@ -2233,6 +2284,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return raw == null
         ? ffi.nullptr
         : cst_encode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  int cst_encode_usize(BigInt raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.toSigned(64).toInt();
   }
 
   @protected
@@ -3143,6 +3200,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_processing_yield_proof_dto(
+    ProcessingYieldProofDto apiObj,
+    wire_cst_processing_yield_proof_dto wireObj,
+  ) {
+    wireObj.dataset_id = cst_encode_String(apiObj.datasetId);
+    wireObj.from_device_id = cst_encode_String(apiObj.fromDeviceId);
+    wireObj.to_device_id = cst_encode_String(apiObj.toDeviceId);
+    wireObj.roster_revision = cst_encode_i_64(apiObj.rosterRevision);
+    wireObj.final_sequence = cst_encode_i_64(apiObj.finalSequence);
+    wireObj.signature = cst_encode_list_prim_u_8_strict(apiObj.signature);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_processor_handoff_state_dto(
+    ProcessorHandoffStateDto apiObj,
+    wire_cst_processor_handoff_state_dto wireObj,
+  ) {
+    wireObj.state = cst_encode_String(apiObj.state);
+    wireObj.from_device_id = cst_encode_opt_String(apiObj.fromDeviceId);
+    wireObj.to_device_id = cst_encode_opt_String(apiObj.toDeviceId);
+    wireObj.final_sequence = cst_encode_opt_box_autoadd_i_64(
+      apiObj.finalSequence,
+    );
+    wireObj.can_confirm = cst_encode_bool(apiObj.canConfirm);
+  }
+
+  @protected
   void cst_api_fill_to_wire_provider_conflict_profile_dto(
     ProviderConflictProfileDto apiObj,
     wire_cst_provider_conflict_profile_dto wireObj,
@@ -3550,6 +3634,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  int
+  cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    DeviceIdentity raw,
+  );
+
+  @protected
+  int
+  cst_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    DeviceIdentity raw,
+  );
+
+  @protected
   bool cst_encode_bool(bool raw);
 
   @protected
@@ -3570,6 +3666,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    DeviceIdentity self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    DeviceIdentity self,
     SseSerializer serializer,
   );
 
@@ -4336,6 +4446,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_processing_yield_proof_dto(
+    ProcessingYieldProofDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_processor_handoff_state_dto(
+    ProcessorHandoffStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_provider_conflict_profile_dto(
     ProviderConflictProfileDto self,
     SseSerializer serializer,
@@ -4478,6 +4600,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     UnscheduledChatInputDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_web_search_config_dto(
@@ -5576,6 +5701,40 @@ class RustLibWire implements BaseWire {
       );
   late final _dummy_method_to_enforce_bundling =
       _dummy_method_to_enforce_bundlingPtr.asFunction<int Function()>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_elsewhen_ui_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_elsewhen_ui_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void store_dart_post_cobject(DartPostCObjectFnType ptr) {
     return _store_dart_post_cobject(ptr);
@@ -9275,6 +9434,18 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__sync__confirm_processor_takeover(int port_) {
+    return _wire__crate__api__sync__confirm_processor_takeover(port_);
+  }
+
+  late final _wire__crate__api__sync__confirm_processor_takeoverPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__confirm_processor_takeover',
+      );
+  late final _wire__crate__api__sync__confirm_processor_takeover =
+      _wire__crate__api__sync__confirm_processor_takeoverPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__sync__confirm_sync_enrollment(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> role,
@@ -9415,6 +9586,18 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__sync__get_local_sync_state =
       _wire__crate__api__sync__get_local_sync_statePtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__sync__get_processor_handoff_state(int port_) {
+    return _wire__crate__api__sync__get_processor_handoff_state(port_);
+  }
+
+  late final _wire__crate__api__sync__get_processor_handoff_statePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__get_processor_handoff_state',
+      );
+  late final _wire__crate__api__sync__get_processor_handoff_state =
+      _wire__crate__api__sync__get_processor_handoff_statePtr
           .asFunction<void Function(int)>();
 
   void wire__crate__api__sync__get_sync_join_state(
@@ -9951,6 +10134,42 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__sync__trigger_network_sync =
       _wire__crate__api__sync__trigger_network_syncPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__sync__yield_sync_processor(
+    int port_,
+    int target_revision,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> to_device_id,
+    int signer,
+  ) {
+    return _wire__crate__api__sync__yield_sync_processor(
+      port_,
+      target_revision,
+      to_device_id,
+      signer,
+    );
+  }
+
+  late final _wire__crate__api__sync__yield_sync_processorPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.UintPtr,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__yield_sync_processor');
+  late final _wire__crate__api__sync__yield_sync_processor =
+      _wire__crate__api__sync__yield_sync_processorPtr
+          .asFunction<
+            void Function(
+              int,
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+            )
+          >();
 
   void wire__crate__api__theme__get_theme_prefs(int port_) {
     return _wire__crate__api__theme__get_theme_prefs(port_);
@@ -13669,6 +13888,65 @@ final class wire_cst_pending_action_dto extends ffi.Struct {
     ..ref.version = version
     ..ref.approval_token = approval_token
     ..ref.target_basis_json = target_basis_json;
+}
+
+final class wire_cst_processing_yield_proof_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> from_device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> to_device_id;
+
+  @ffi.Int64()
+  external int roster_revision;
+
+  @ffi.Int64()
+  external int final_sequence;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> signature;
+
+  static ffi.Pointer<wire_cst_processing_yield_proof_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> from_device_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> to_device_id,
+    required int roster_revision,
+    required int final_sequence,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> signature,
+  }) => $allocator<wire_cst_processing_yield_proof_dto>()
+    ..ref.dataset_id = dataset_id
+    ..ref.from_device_id = from_device_id
+    ..ref.to_device_id = to_device_id
+    ..ref.roster_revision = roster_revision
+    ..ref.final_sequence = final_sequence
+    ..ref.signature = signature;
+}
+
+final class wire_cst_processor_handoff_state_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> state;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> from_device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> to_device_id;
+
+  external ffi.Pointer<ffi.Int64> final_sequence;
+
+  @ffi.Bool()
+  external bool can_confirm;
+
+  static ffi.Pointer<wire_cst_processor_handoff_state_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> state,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> from_device_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> to_device_id,
+    required ffi.Pointer<ffi.Int64> final_sequence,
+    required bool can_confirm,
+  }) => $allocator<wire_cst_processor_handoff_state_dto>()
+    ..ref.state = state
+    ..ref.from_device_id = from_device_id
+    ..ref.to_device_id = to_device_id
+    ..ref.final_sequence = final_sequence
+    ..ref.can_confirm = can_confirm;
 }
 
 final class wire_cst_provider_conflict_profile_dto extends ffi.Struct {

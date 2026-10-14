@@ -43,6 +43,7 @@ import 'knowledge/workflows.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 
 import 'storage/knowledge.dart';
+import 'sync/crypto.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustLibApiImplPlatform({
@@ -52,8 +53,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_DeviceIdentityPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  DeviceIdentity
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    dynamic raw,
+  );
+
+  @protected
+  DeviceIdentity
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    dynamic raw,
+  );
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -527,6 +544,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
 
   @protected
+  ProcessingYieldProofDto dco_decode_processing_yield_proof_dto(dynamic raw);
+
+  @protected
+  ProcessorHandoffStateDto dco_decode_processor_handoff_state_dto(dynamic raw);
+
+  @protected
   ProviderConflictProfileDto dco_decode_provider_conflict_profile_dto(
     dynamic raw,
   );
@@ -614,6 +637,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
 
   @protected
+  BigInt dco_decode_usize(dynamic raw);
+
+  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
@@ -624,6 +650,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  DeviceIdentity
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DeviceIdentity
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -1227,6 +1265,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
 
   @protected
+  ProcessingYieldProofDto sse_decode_processing_yield_proof_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProcessorHandoffStateDto sse_decode_processor_handoff_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ProviderConflictProfileDto sse_decode_provider_conflict_profile_dto(
     SseDeserializer deserializer,
   );
@@ -1336,6 +1384,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
@@ -2691,6 +2742,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_processing_yield_proof_dto(ProcessingYieldProofDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.fromDeviceId),
+      cst_encode_String(raw.toDeviceId),
+      cst_encode_i_64(raw.rosterRevision),
+      cst_encode_i_64(raw.finalSequence),
+      cst_encode_list_prim_u_8_strict(raw.signature),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_processor_handoff_state_dto(ProcessorHandoffStateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.state),
+      cst_encode_opt_String(raw.fromDeviceId),
+      cst_encode_opt_String(raw.toDeviceId),
+      cst_encode_opt_box_autoadd_i_64(raw.finalSequence),
+      cst_encode_bool(raw.canConfirm),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_provider_conflict_profile_dto(
     ProviderConflictProfileDto raw,
   ) {
@@ -3029,6 +3105,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_usize(BigInt raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return castNativeBigInt(raw);
+  }
+
+  @protected
   JSAny cst_encode_web_search_config_dto(WebSearchConfigDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -3080,6 +3162,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  int
+  cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    DeviceIdentity raw,
+  );
+
+  @protected
+  int
+  cst_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    DeviceIdentity raw,
+  );
+
+  @protected
   bool cst_encode_bool(bool raw);
 
   @protected
@@ -3100,6 +3194,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    DeviceIdentity self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    DeviceIdentity self,
     SseSerializer serializer,
   );
 
@@ -3866,6 +3974,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_processing_yield_proof_dto(
+    ProcessingYieldProofDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_processor_handoff_state_dto(
+    ProcessorHandoffStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_provider_conflict_profile_dto(
     ProviderConflictProfileDto self,
     SseSerializer serializer,
@@ -4008,6 +4128,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     UnscheduledChatInputDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_web_search_config_dto(
@@ -4207,6 +4330,10 @@ class RustLibWire implements BaseWire {
     tags,
     expected_snapshot_id,
   );
+
+  void wire__crate__api__sync__confirm_processor_takeover(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__confirm_processor_takeover(port_);
 
   void wire__crate__api__sync__confirm_sync_enrollment(
     NativePortType port_,
@@ -4639,6 +4766,10 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__web_search__get_network_settings(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__web_search__get_network_settings(port_);
+
+  void wire__crate__api__sync__get_processor_handoff_state(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__get_processor_handoff_state(port_);
 
   void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
     NativePortType port_,
@@ -5738,6 +5869,34 @@ class RustLibWire implements BaseWire {
     conversation_id,
     queue_id,
   );
+
+  void wire__crate__api__sync__yield_sync_processor(
+    NativePortType port_,
+    JSAny target_revision,
+    String to_device_id,
+    int signer,
+  ) => wasmModule.wire__crate__api__sync__yield_sync_processor(
+    port_,
+    target_revision,
+    to_device_id,
+    signer,
+  );
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+        ptr,
+      );
 }
 
 @JS('wasm_bindgen')
@@ -5853,6 +6012,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String source_kind,
     JSAny tags,
     String? expected_snapshot_id,
+  );
+
+  external void wire__crate__api__sync__confirm_processor_takeover(
+    NativePortType port_,
   );
 
   external void wire__crate__api__sync__confirm_sync_enrollment(
@@ -6144,6 +6307,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__web_search__get_network_settings(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__sync__get_processor_handoff_state(
     NativePortType port_,
   );
 
@@ -6865,5 +7032,22 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String conversation_id,
     JSAny queue_id,
+  );
+
+  external void wire__crate__api__sync__yield_sync_processor(
+    NativePortType port_,
+    JSAny target_revision,
+    String to_device_id,
+    int signer,
+  );
+
+  external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
+    int ptr,
   );
 }

@@ -10,6 +10,16 @@ use crate::sync::{
 use anyhow::{Context, Result, ensure};
 use rusqlite::{OptionalExtension, params};
 
+/// 加工移交状态查询结果（存储层内部表示，API 层会映射为 DTO）。
+#[derive(Clone, Debug)]
+pub(crate) struct ProcessorHandoffState {
+    pub state: String,
+    pub from_device_id: Option<String>,
+    pub to_device_id: Option<String>,
+    pub final_sequence: Option<i64>,
+    pub can_confirm: bool,
+}
+
 impl Store {
     pub(crate) fn has_sync_authority(&self) -> Result<bool> {
         Ok(self
@@ -156,6 +166,130 @@ impl Store {
         Ok(())
     }
 
+    /// Old active processor yields its role (quiescent + proof generation).
+    /// The owner uses the returned proof to build a successor roster.
+    /// `signer` must be the current device's identity (loaded from vault by caller).
+    pub(crate) fn yield_processor_role(
+        &self,
+        target_revision: u64,
+        to_device_id: &str,
+        signer: &crate::sync::crypto::DeviceIdentity,
+    ) -> Result<crate::sync::membership::ProcessingYieldProof> {
+        let tx = self.begin_write_transaction()?;
+        let identity = self.sync_identity()?.context("sync_not_initialized")?;
+        ensure!(
+            identity.processor_device_id == identity.device_id,
+            "sync_membership_not_processor"
+        );
+
+        self.require_background_quiescent_for_sync()?;
+
+        let next_sequence: i64 = self.connection.query_row(
+            "SELECT next_sequence FROM sync_replica WHERE singleton=1",
+            [],
+            |r| r.get(0),
+        )?;
+        let final_sequence = next_sequence - 1;
+
+        let proof = crate::sync::membership::ProcessingYieldProof::sign(
+            &identity.dataset_id,
+            &identity.device_id,
+            to_device_id,
+            target_revision,
+            final_sequence as u64,
+            signer,
+        )?;
+
+        self.connection.execute(
+            "INSERT OR REPLACE INTO sync_processor_state (singleton, state, from_sequence, to_device_id)\n             VALUES (1, 'relinquished', ?1, ?2)",
+            params![final_sequence, to_device_id],
+        )?;
+
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(proof)
+    }
+
+    /// New processor confirms takeover after frontier catches up.
+    pub(crate) fn confirm_processor_takeover(&self) -> Result<()> {
+        let tx = self.begin_write_transaction()?;
+        let identity = self.sync_identity()?.context("sync_not_initialized")?;
+
+        let row: Option<(String, String, i64)> = self.connection
+            .query_row(
+                "SELECT state, to_device_id, from_sequence FROM sync_processor_state WHERE singleton=1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()?;
+
+        let (st, target, final_seq) = row.context("sync_processor_not_in_pending_takeover")?;
+        ensure!(
+            st == "pending_takeover",
+            "sync_processor_not_in_pending_takeover"
+        );
+        ensure!(
+            identity.device_id == target,
+            "sync_processor_takeover_target_mismatch"
+        );
+
+        let applied: i64 = self.connection.query_row(
+            "SELECT applied_sequence FROM sync_frontiers WHERE origin_stream_id=?1",
+            [&identity.device_id],
+            |r| r.get(0),
+        )?;
+
+        ensure!(applied >= final_seq, "sync_frontier_lagging");
+
+        self.connection.execute(
+            "UPDATE sync_replica SET processor_device_id=?1 WHERE singleton=1",
+            params![identity.device_id],
+        )?;
+
+        self.connection.execute(
+            "UPDATE sync_processor_state SET state='active' WHERE singleton=1",
+            [],
+        )?;
+
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
+    /// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。
+    pub(crate) fn get_processor_handoff_state(&self) -> Result<ProcessorHandoffState> {
+        let identity = self.sync_identity()?;
+        let row: Option<(String, String, i64)> = self.connection
+            .query_row(
+                "SELECT state, to_device_id, from_sequence FROM sync_processor_state WHERE singleton=1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()?;
+
+        let mut dto = ProcessorHandoffState {
+            state: row
+                .as_ref()
+                .map(|(s, _, _)| s.clone())
+                .unwrap_or_else(|| "idle".to_string()),
+            from_device_id: row.as_ref().map(|(_, f, _)| f.clone()),
+            to_device_id: row.as_ref().map(|(_, t, _)| t.clone()),
+            final_sequence: row.as_ref().map(|(_, _, f)| *f),
+            can_confirm: false,
+        };
+
+        if let Some((st, _, _)) = row {
+            if st == "pending_takeover" {
+                if let Some(id) = identity {
+                    dto.can_confirm = id.device_id == dto.to_device_id.as_deref().unwrap_or("");
+                }
+            }
+        }
+        Ok(dto)
+    }
+
     /// A roster is complete state. Skipped revisions are safe only because every
     /// previously known identity and irreversible revocation must be retained.
     pub(crate) fn apply_signed_roster(&self, bytes: &[u8]) -> Result<bool> {
@@ -193,10 +327,50 @@ impl Store {
         }
         let identity = self.sync_identity()?.context("sync_not_initialized")?;
         ensure!(
-            roster.dataset_id == identity.dataset_id
-                && roster.processor_device_id == identity.processor_device_id,
+            roster.dataset_id == identity.dataset_id,
             "sync_processing_handoff_required"
         );
+
+        if roster.processor_device_id != identity.processor_device_id {
+            // Handoff roster: validate proof and transition state.
+            let handoff = roster
+                .handoff
+                .as_ref()
+                .context("sync_handoff_proof_required")?;
+            ensure!(
+                handoff.from_device_id == identity.device_id,
+                "sync_handoff_proof_source_mismatch"
+            );
+            ensure!(
+                handoff.to_device_id == roster.processor_device_id,
+                "sync_handoff_proof_target_mismatch"
+            );
+
+            self.connection.execute(
+                "INSERT OR REPLACE INTO sync_processor_handoffs (roster_revision, from_device_id, to_device_id, final_sequence, proof)\n                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    roster.revision as i64,
+                    handoff.from_device_id,
+                    handoff.to_device_id,
+                    handoff.final_sequence as i64,
+                    serde_json::to_vec(handoff)?,
+                ],
+            )?;
+
+            if identity.device_id == handoff.to_device_id {
+                // This device is the new processor target.
+                self.connection.execute(
+                    "UPDATE sync_processor_state SET state='pending_takeover', from_sequence=?1, to_device_id=?2 WHERE singleton=1",
+                    params![handoff.final_sequence as i64, handoff.to_device_id],
+                )?;
+            } else {
+                // Observer or old processor: update processor_device_id directly.
+                self.connection.execute(
+                    "UPDATE sync_replica SET processor_device_id=?1 WHERE singleton=1",
+                    params![roster.processor_device_id],
+                )?;
+            }
+        }
         let local_json: String = self.connection.query_row(
             "SELECT local_device FROM sync_authority WHERE singleton=1",
             [],
