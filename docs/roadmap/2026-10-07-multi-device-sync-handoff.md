@@ -822,3 +822,75 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 - 移交目标设备选择仍为手动输入设备 ID（设置页未提供活跃设备列表下拉）。
 - P4e 撤销 UX/诊断/升级、原生密钥库签收、真人设备门禁继续未完成。
 - 全程只用临时目录隔离库与合成身份；无个人数据/真实密钥/外部模型/线上中继。
+
+## 20. 2026-10-14 P4e 切片 1（撤销 UX + 设备列表下拉）
+
+### 目标与范围
+
+上一节遗留两项 UI/UX 债务，本切片合并解决：
+
+1. **撤销 UX**：存储层 `revoke_signed_sync_member`（含 `sync_membership_handoff_required` /
+   `sync_membership_revision_changed` 等防线）此前无任何运行时/UI 通道。新增
+   `revoke_member(runtime)` → `revoke_sync_member(device_id, expected_revision)` API。
+2. **设备列表下拉**：移交目标设备从手动输入 ID 改为从名册 API 拉取的下拉。
+   两项共享成员列表，合并实施。
+
+### 实现
+
+- `src/sync/runtime/handoff.rs`：`revoke_member(config, device_id, expected_revision)`，
+  走 `with_unlocked_vault` + `require_sync_signer`（签名者不离开闭包作用域）。
+- `src/api/sync.rs`：
+  - `SyncRosterMemberDto`（`device_id/name/platform/active/is_owner/is_processor/is_local`）
+    与 `SyncRosterDto`（含 `local_device_id`，供前端判断本机身份，不在前端重复守门逻辑）；
+  - `get_sync_roster()` 只读（含已撤销成员，供 UI 审计展示，但撤销按 `active` 隐藏）；
+  - `revoke_sync_member(device_id, expected_revision)`：校验 revision > 0 后转发 runtime。
+- UI：
+  - `SyncRosterController`（可注入 `SyncRosterApi`）：refresh / beginRevoke /
+    confirmRevoke；**撤销绑定审阅时所见修订号**，并发更新由 Rust 侧
+    `sync_membership_revision_changed` 失败关闭；`rosterErrorText()` 错误码映射。
+  - `SyncMembersSettings`：owner 签名名册只读列表；撤销按钮仅 owner 本机可见，且仅对
+    "活跃、非 owner、非加工、非本机"成员展示；加工设备行内提示「需先移交加工权」；
+    确认对话框披露**丢失设备边界**（同步撤销不回收该设备已持有的 Provider API Key，
+    提示到 Provider 控制台吊销/轮换）；失败保留旧视图 + 可读文案。
+  - `SyncProcessorHandoffSettings`：目标设备下拉（活跃、非本机成员；owner 也可接收，
+    用于移交回 owner），空候选禁用让出；yield/confirm 成功后回调刷新名册，
+    两个区块视图保持一致。
+- 设置页接线：`LocalSyncSettings` 可注入 `rosterController`（自建 + 随销毁）；
+  成员区块位于锁定动作区之后。
+
+### 验证结果
+
+| 检查 | 结果 |
+| --- | --- |
+| `cargo test` | **680 passed / 0 failed / 17 ignored** |
+| `cargo fmt --all -- --check` | 通过 |
+| `cargo build --release` | 通过 |
+| `./scripts/regen.sh` | 桥接一致 |
+| Flutter analyze（触碰文件） | No issues found |
+| Flutter `fvm flutter test` | **358 passed**（sync_members_test 4 例新增） |
+
+UI 测试：owner 撤销普通成员成功（绑定 revision）；非 owner 本机无撤销入口；
+`sync_membership_handoff_required` / `sync_membership_revision_changed` 映射为可读文案
+且失败不清空视图；确认对话框披露 Provider Key 边界。
+
+### 边界与未完成
+
+- 撤销 UX 测试替身与移交一致：**消耗型状态队列从首次 getRoster 即消费**
+  （widget postFrameCallback 即触发首刷，预留的"下一状态"会被首刷吃掉——
+  需在 pump 之后再入队）。
+- 原生 OS 密钥链签名、真人设备门禁（S06 发版门禁）仍未动工，见 §21。
+- 长离线成员回连时的名册收敛/升级容差为 P4e 后续切片。
+
+## 21. S06 发版门禁（待办清单，含人工项）
+
+工程项（AI 可做，后续切片）：**原生 OS 密钥链签名**——同步签名/身份私钥目前存于
+应用侧加密 vault（口令/会话解锁后驻内存）。发版前应接入各平台原生安全存储：
+
+- Android：`Keystore`（StrongBox 优先）硬件背书密钥包裹 vault 主密钥；
+- iOS/macOS：`Keychain`（`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`）托管主密钥；
+- Linux/Windows：`libsecret` / `Credential Manager`（DPAPI）；
+- 关键不变量：私钥永不出安全边界（签名在安全硬件内或密钥不出 keychain）；
+  vend 后设备门禁 = 自动注册降级为"需真人确认"，禁止无监督 `join`。
+
+人工项（真人双设备门禁，发布前必须逐条执行，AI 不可代做）：
+清单见 `docs/roadmap/2026-10-14-s06-human-gate-checklist.md`。
