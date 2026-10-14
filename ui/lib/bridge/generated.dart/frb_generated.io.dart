@@ -10924,6 +10924,28 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__wiki__delete_wiki_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__wiki__delete_wiki_page(port_, slug);
+  }
+
+  late final _wire__crate__api__wiki__delete_wiki_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__delete_wiki_page');
+  late final _wire__crate__api__wiki__delete_wiki_page =
+      _wire__crate__api__wiki__delete_wiki_pagePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__wiki__get_wiki_page(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,

@@ -80,6 +80,12 @@ Future<WikiPageDto> setWikiOpinion({required String slug, String? opinion}) =>
       opinion: opinion,
     );
 
+/// 删除 Wiki 页面（人工主题页；同步库内先捕获 deleted 变更再物理删除，
+/// 对端迟到编辑会形成 `wiki_page_deleted` 冲突候选）。页面不存在时返回
+/// false（幂等）。
+Future<bool> deleteWikiPage({required String slug}) =>
+    RustLib.instance.api.crateApiWikiDeleteWikiPage(slug: slug);
+
 /// Wiki page data transfer object for Flutter（知识库浏览）
 class WikiPageDto {
   final String id;

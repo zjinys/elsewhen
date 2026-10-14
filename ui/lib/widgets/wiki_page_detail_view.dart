@@ -1197,8 +1197,54 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
           tooltip: '编辑正文',
           onPressed: _enterEditing,
         ),
+        // 删除：仅人工主题/档案页可删（素材页由导入维护管辖）。
+        if (_canEdit)
+          _barAction(
+            compact: compact,
+            icon: Icons.delete_outline,
+            label: '删除页面',
+            tooltip: '删除页面',
+            onPressed: _confirmDeletePage,
+          ),
       ],
     );
+  }
+
+  /// P5b：业务删除。同步库内先捕获 deleted 变更再物理删除；删除后关闭本页
+  /// tab（对端离线迟到编辑会成为 wiki_page_deleted 冲突候选，不静默覆盖）。
+  Future<void> _confirmDeletePage() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface1,
+        title: Text(
+          '删除页面？',
+          style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
+        ),
+        content: Text(
+          '「${widget.page.title}」将被删除，修订历史随之清除，且不可恢复。'
+          '其他设备同步后同样删除；它们与此页冲突的离线编辑会保留为冲突候选。',
+          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('删除', style: TextStyle(color: AppTheme.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    await repo.deleteWikiPage(slug: widget.page.slug);
+    ref.invalidate(wikiPageProvider(widget.page.slug));
+    ref.invalidate(wikiPagesProvider);
+    if (!mounted) return;
+    closeWikiTab(ref, 'page-${widget.page.slug}');
   }
 
   /// section bar 右侧操作的统一样式，供「编辑正文 / 沉浸阅读 / 阅读设置」共用：

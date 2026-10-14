@@ -158,3 +158,12 @@ pub fn set_wiki_opinion(slug: String, opinion: Option<String>) -> Result<WikiPag
     let page = store.set_wiki_opinion(&slug, opinion.as_deref())?;
     Ok(WikiPageDto::from(page))
 }
+
+/// 删除 Wiki 页面（人工主题页；同步库内先捕获 deleted 变更再物理删除，
+/// 对端迟到编辑会形成 `wiki_page_deleted` 冲突候选）。页面不存在时返回
+/// false（幂等）。
+pub fn delete_wiki_page(slug: String) -> Result<bool> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.delete_wiki_page(&slug)
+}

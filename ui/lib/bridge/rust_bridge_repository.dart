@@ -862,6 +862,10 @@ class RustBridgeRepository implements StorageRepository {
     return WikiPage.fromDto(dto);
   }
 
+  /// 删除知识页（同步库先捕获 deleted 变更再物理删除；不存在返回 false）。
+  Future<bool> deleteWikiPage({required String slug}) =>
+      api.deleteWikiPage(slug: slug);
+
   /// 按项目页记录的本地目录重新扫描，并更新原知识页。
   Future<WikiPage> refreshProjectPage(String slug) async {
     final dto = await api.refreshProjectPage(slug: slug);

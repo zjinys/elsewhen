@@ -1095,8 +1095,8 @@ fn wiki_page_edit_after_delete_keeps_candidate() {
         })
         .unwrap();
     assert_eq!(conflict, "wiki_page_deleted");
-    // 冲突版本不落库：b 的本地行保持原内容，物理删除由未来业务删除 API 负责
-    // （P5a 只交付复制底座；capture(deleted=true) 不再改写本地行）。
+    // 冲突版本不落库：b 的本地行保持原内容。物理删除只来自本端的业务删除
+    // API（delete_wiki_page）；capture(deleted=true) 本身不改写本地行。
     let row = b.store.get_wiki_page("topic/gone").unwrap().unwrap();
     assert_eq!(row.content_md, "旧正文");
     let deleted: bool = b
@@ -1105,4 +1105,53 @@ fn wiki_page_edit_after_delete_keeps_candidate() {
         .query_row("SELECT deleted FROM sync_object_heads WHERE object_kind='wiki_page' AND object_id='page-1'", [], |r| r.get(0))
         .unwrap();
     assert!(deleted, "删除捕获必须推进 head");
+}
+
+#[test]
+fn wiki_page_business_delete_removes_row_and_replicates() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(&a, "page-1", "topic/gone", "要走页", "正文", &[&event_id]);
+    // 一条修订记录，验证级联清理。
+    a.store
+        .save_wiki_page_content("topic/gone", "正文 v2", "二次编辑", None)
+        .unwrap();
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    assert!(b.store.get_wiki_page("topic/gone").unwrap().is_some());
+    // 业务删除：本端行与修订级联消失，head 推进为已删。
+    assert!(a.store.delete_wiki_page("topic/gone").unwrap());
+    assert!(a.store.get_wiki_page("topic/gone").unwrap().is_none());
+    let revisions: i64 = a
+        .store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM wiki_revisions WHERE page_id='page-1'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(revisions, 0, "修订必须随页面级联删除");
+    assert!(
+        a.store
+            .sync_object_head("wiki_page", "page-1")
+            .unwrap()
+            .is_some()
+    );
+    // 幂等：不存在再删返回 false。
+    assert!(!a.store.delete_wiki_page("topic/gone").unwrap());
+    // 复制：B 端同样物理删除（删除状态是全端一致的，不是仅本端标记）。
+    deliver(&a, &b);
+    assert!(b.store.get_wiki_page("topic/gone").unwrap().is_none());
+    assert!(
+        b.store
+            .sync_object_head("wiki_page", "page-1")
+            .unwrap()
+            .is_some()
+    );
 }

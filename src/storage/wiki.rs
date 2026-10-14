@@ -917,3 +917,24 @@ impl Store {
             .map_err(Into::into)
     }
 }
+
+impl Store {
+    /// P5b：Wiki 页面业务删除。与本页所有写路径同一事务纪律：
+    /// 先在行仍存在时捕获 `deleted=true` 同步变更（含 head 推进），再物理
+    /// 删除本行（wiki_revisions / knowledge_source_pages 等随外键级联）。
+    /// 删除后离线对端的迟到编辑会在应用端得到 `wiki_page_deleted` 冲突候选，
+    /// 不会被静默覆盖。返回 false 表示页面不存在（幂等）。
+    pub fn delete_wiki_page(&self, slug: &str) -> Result<bool> {
+        let Some(page_id) = self.get_wiki_page(slug)?.map(|page| page.id) else {
+            return Ok(false);
+        };
+        let tx = self.begin_write_transaction()?;
+        self.sync_record_wiki_page(&page_id, true)?;
+        self.connection
+            .execute("DELETE FROM wiki_pages WHERE id=?1", params![page_id])?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(true)
+    }
+}

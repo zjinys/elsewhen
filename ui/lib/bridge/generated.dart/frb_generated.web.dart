@@ -4536,6 +4536,11 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__todos__delete_todo(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__todos__delete_todo(port_, id);
 
+  void wire__crate__api__wiki__delete_wiki_page(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__wiki__delete_wiki_page(port_, slug);
+
   void wire__crate__api__knowledge__dismiss_knowledge_issue(
     NativePortType port_,
     String fingerprint,
@@ -6158,6 +6163,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__todos__delete_todo(
     NativePortType port_,
     String id,
+  );
+
+  external void wire__crate__api__wiki__delete_wiki_page(
+    NativePortType port_,
+    String slug,
   );
 
   external void wire__crate__api__knowledge__dismiss_knowledge_issue(

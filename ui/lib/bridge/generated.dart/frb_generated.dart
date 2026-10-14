@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -474669710;
+  int get rustContentHash => -1674748187;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -284,6 +284,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiRulesDeleteRule({required String ruleId});
 
   Future<bool> crateApiTodosDeleteTodo({required String id});
+
+  Future<bool> crateApiWikiDeleteWikiPage({required String slug});
 
   Future<void> crateApiKnowledgeDismissKnowledgeIssue({
     required String fingerprint,
@@ -2175,6 +2177,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTodosDeleteTodoConstMeta =>
       const TaskConstMeta(debugName: "delete_todo", argNames: ["id"]);
+
+  @override
+  Future<bool> crateApiWikiDeleteWikiPage({required String slug}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          return wire.wire__crate__api__wiki__delete_wiki_page(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiDeleteWikiPageConstMeta,
+        argValues: [slug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiDeleteWikiPageConstMeta =>
+      const TaskConstMeta(debugName: "delete_wiki_page", argNames: ["slug"]);
 
   @override
   Future<void> crateApiKnowledgeDismissKnowledgeIssue({
