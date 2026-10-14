@@ -12,11 +12,11 @@
 
 - **建立日期：** 2026-10-14，基于用户确认「转成 roadmap，从增量维护闭环 + 分层确认起步」。
 - **代码基线：** `f7f6e74`（迁移 34；Rust 711 / Flutter 372 / analyze 0 error/warning）。
-- **当前阶段：** 等待 D0 启动；切片全部未开工。
+- **当前阶段：** D0 设计冻结已完成（同日）；下一步 D1（规则触发引擎，migration 35 + 预筛 + v3 确认段）或 D2（增量维护）可并行铺开，均未开工
 
 | 切片 | 内容 | 依赖 | 状态 |
 |---|---|---|---|
-| D0 | 契约与 schema 设计冻结 | 无 | 未开始 |
+| D0 | 契约与 schema 设计冻结 | 无 | **完成（2026-10-14，本文件 D0 节即设计冻结）** |
 | D1 | 规则触发引擎（分级提醒） | D0 | 未开始 |
 | D2 | 用户模型增量维护 + 分层确认 | D0 | 未开始 |
 | D3 | 实体消歧与别名归一 | D2 | 未开始 |
@@ -35,22 +35,39 @@
 7. **平行独立**：各维度互相独立、与事件账本/规则库/知识积累并列；不做大一统数字分身、不做知识图谱。
 8. 写类操作延续草拟确认制；Provider/本地预算边界不因检索上下文而突破。
 
-## 现状底座（2026-10-14 代码核实）
+## 现状底座（2026-10-14 D0 核实；修订 note 过期判断）
+
+note（2026-09-19）的三个缺口判断有两条已随管线演进过期，以本节为准：
 
 - `relations` 表（migrations/01：from/to_slug+kind、relation、confidence、source_conversation_id、last_seen_at、source_event_id、UNIQUE 三元组）——结构化模型的事实存储已就位。
-- `rules` 表**只有自由文本**（id/content/status/时间戳/conversation_id）——D1 需补结构化触发字段（迁移）。
-- 事件分析契约当前版本名为 `event-analysis`（v1/v2 为 legacy 标识），队列在 `src/storage/events.rs`/`adapter.rs`；**「prompt 是否只传 raw_text、未检索知识库」需在 D0 动工时对照现行 `src/ai/` 实现复议**（note 判断作于 2026-09-19， 此后对话上下文管线有多次迭代）。
-- 罗盘 insight 引擎（`src/ai/insight.rs`）已具备「最近事件 + wiki」挖掘回写；D4 只挂指导链路，不重做。
-- 人物关系批量提议 `propose_people_relations_from_events`（全量扫描 + 样本上限）——D2 改造为增量、D3 消歧后考虑退役或降级为全量重建工具。
+- **分析管线已挂知识库与规则库**（修正 note「完全不碰」判断）：`decision_support_material`（src/api/mod.rs）在分析 prompt 注入规则前 8 条 + `knowledge::select_knowledge`（analysis 场景、2500 预算）+ 引用校验（`validate_answer_citations`/`bound_model_context` 24000）。**已检索 ≠ 已触发**：规则只是参考文本，无结构化条件、无命中判定、无提醒形态——D1 的缺口仍在。
+- 可记录性过滤**已落地**（`recordable` + `kind`∈event/discussion/chitchat/meta，note 的姊妹提案不再是待办）。
+- 输出契约 `EventAnalysisV1`（`deny_unknown_fields`）**无 guidance/emotion 字段**；`prompt_version` 入库但恒为 `event-analysis`（v1/v2 为 legacy 标识）。
+- **同步链路对契约升级安全**：`result_json` 以不透明字符串过 wire（`sync/analysis.rs` apply 端 INSERT 不 parse），`analysis_task_id` 任务类型名与结果契约解耦；读取端（`event_analysis_detail`）为本机单点。
+- 罗盘 insight（`src/ai/insight.rs`）具备「最近事件 + wiki」挖掘回写；D4 只挂接不重做。
+- 人物关系批量提议 `propose_people_relations_from_events`（全量扫描 + 样本上限）——D2 改增量、D3 消歧后退役或降级为手动全量重建工具。
 
-## D0 — 契约与 schema 设计冻结
+## D0 — 契约与 schema 设计冻结（2026-10-14 完成）
 
 **收益：** 四个实施切片共享同一份契约，避免各做各的再返工。
 
-- [ ] 事件分析契约升级设计（沿用 `event-analysis` 版本管理）：输出在结构化提取外新增 `guidance`（关联积累/可复用经验/细化 follow-ups）与 `emotion`（对谁/对什么事/情绪标注）字段；与「事件可记录性过滤」的契约升级**合并演进，只升一次版本**。
-- [ ] 用户模型维度全集 → 存储映射设计：哪些进 `relations`（person/project/…kind 扩展）、哪些要新表（情绪标注、别名、承诺/目标状态镜像——目标已有 `goals` 表，做引用不重复建模）、哪些只是 wiki network 区页型约定；每个维度一张「查看/改/删」的 UI 面。
-- [ ] 规则触发 schema：`rules` 增结构化触发字段（触发场景枚举/关键词/条件 JSON），存量规则兼容（NULL = 不参与预筛，仅对话路径）。
-- [ ] 完成记录附修订后的本文档。
+- [x] 事件分析契约升级设计：`event-analysis-v3`（经核实现行 `deny_unknown_fields` + 同步不透明搬运 + `prompt_version` 入库，升级安全，详见上「现状底座」）。新契约 = 现 V1 全部字段 + 三组新字段，**均 `serde(default)`**（旧结果可读；读取端 accept v1/v2/v3，旧读端不存在跨端 parse）：
+  - `guidance: Option<Guidance>`：`{related: [{slug, note}], lessons: [string], follow_ups_refined: [string]}`——related 与 lessons 同受引用校验约束；洞察高价值项由 insight 引擎吸收（D4 挂接）。
+  - `emotion: Option<Vec<EmotionTag>>`：`{target: Option<string>, feeling: string}`——**只有文本标注，无数值评分**（红线：不是情绪分析报告）；target 空则视为对事件本身的感受。
+  - `rule_confirmations: Vec<RuleConfirmation>`：`{rule_id, applicable, confidence}`——**规则确认并入同一次分析调用**（prompt 段「以下规则预筛命中，判定适用性」），一条事件一次 provider 调用完成提取+指导+情绪+规则确认，不新增调用面。
+  - `prompt_version` 写 `event-analysis-v3`；`analysis_task_id` 任务名保持 `event-analysis` 不变。
+- [x] 规则触发 schema（migration 35，D1 执行）：`rules` 增 `trigger_scene TEXT`（capture/conversation/daily_review，NULL=全场景）与 `trigger_keywords TEXT`（JSON 字符串数组，NULL=不参与预筛，存量规则零改动）；新表 `rule_hits(id, rule_id→rules ON DELETE CASCADE, event_id→events ON DELETE CASCADE, status∈{pending,notified,aggregated,declined}, created_at, updated_at, UNIQUE(rule_id,event_id))`。预筛在事件入库时刻同步跑（手写扫描大小写折叠，无 regex 依赖）；命中建 pending hit，由分析调用判定后转 notified/aggregated。
+- [x] 用户模型维度全集 → 存储映射：
+  | 维度 | 存储 | 备注 |
+  |---|---|---|
+  | 人物/项目/关系 | `relations`（已存在） | D2 增量管道专写 |
+  | 别名 | `entity_aliases`（D3 新表） | alias↔canonical slug |
+  | 目标 | `goals` 表引用 | 不重复建模 |
+  | 情绪 | `event_emotions`（D5 新表：event_id, target_slug?, feeling, created_at） | 独立表（附着事件而非关系图），从 v3 `emotion` 字段落库 |
+  | 承诺/复盘/节奏/偏好红线/健康/财务/地点/身份/创作线 | **wiki network 页型约定**（新 kind 页） | 零新表；透明可改可删天然满足，检索走 `select_knowledge`；发现语义冲突回本表修订而非硬塞 |
+  每维度「查看/改/删」UI 面在 D2（只读面板起步）与 D5（全维度）交付。
+- [x] API 面（按切片）：D1 `list_rule_hits`/`set_rule_reminder_prefs`（事件旁标记走既有事件详情）；D2 `list_user_model_entries`/`delete_relation_edge`/增量确认入口；D3 `merge_entities`/`split_entity`/`list_alias_suggestions`；D4 guidance 进既有 `event_analysis_detail`；D6 `list_reminder_feedback`/回访偏好。
+- [x] 完成记录：即本次修订（2026-10-14，基线 `f7f6e74`）。核实证据：`src/api/mod.rs`（`EventAnalysisV1`、`process_analysis_queue`、`decision_support_material`）、`src/storage/events.rs`（`complete_analysis`/`fail_analysis`）、`src/storage/sync/analysis.rs`（不透明搬运 + 任务 ID 解耦）、`src/storage/records.rs`（rules 表读取面）。
 
 ## D1 — 规则触发引擎（决策辅助的最直接形态）
 
@@ -82,9 +99,9 @@
 
 ## D4 — 分析升级「提取 + 指导」
 
-**收益：** 每条新记录得到「这和你的哪些积累有关、可复用什么经验」的回答；单条处理从孤立变有上下文。
+**收益：** 每条新记录得到「这和你的哪些积累有关、可复用什么经验」的回答。
 
-- [ ] 分析 prompt 挂检索上下文：相关 wiki 页（关键词/slug 检索）、人物关系（D2 模型）、近期相关事件；遵守输入预算口径（预算不足整体省略，必要材料不截断——既有预算纪律）。
+- [ ] v3 契约 `guidance` 字段落地（检索上下文已就位——2026-10-14 核实见「现状底座」）；追加检索面：人物关系（D2 模型）与近期相关事件条目；遵守输入预算口径（预算不足整体省略，必要材料不截断——既有预算纪律）。
 - [ ] `guidance` 输出落地为事件旁的派生层内容（事件详情可见 + 知识库聚合视图），不写事件真源。
 - [ ] insight 引擎衔接：guidance 高价值项可被罗盘吸收（只挂接，不重写 insight）。
 - [ ] 成本护栏：单事件检索条数上限、超限省略并计数；对照 token 口径回归在门禁内。
