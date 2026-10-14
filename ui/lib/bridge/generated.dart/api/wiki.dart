@@ -8,6 +8,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `serve`
 
 /// List wiki pages（主列表）。kind/area 均为 None 时列出全部（不含派生产物）。
 /// area：imported（素材库）/ network（人物项目）/ insight（知识沉淀）。

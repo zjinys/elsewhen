@@ -18,6 +18,7 @@ mod records;
 pub(crate) mod sync;
 mod web_search;
 mod wiki;
+pub(crate) mod wiki_images;
 
 use crate::event::{EventSummary, NewEvent};
 use anyhow::{Context, Result};

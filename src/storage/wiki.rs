@@ -428,6 +428,8 @@ impl Store {
             )?;
             self.sync_record_wiki_page(&id, false)?;
             Self::record_wiki_revision_on(self, &id, &draft.content_md, &draft.reason, None)?;
+            // 占位符引用的图片字节随页入库（文件在导入下载阶段已落盘）。
+            let _ = self.ingest_wiki_page_assets();
             let page = self.get_wiki_page(&draft.slug)?.unwrap();
             super::knowledge::capture_source_on(&self.connection, &page)?;
             Ok(WikiUpsertOutcome {
@@ -436,6 +438,73 @@ impl Store {
                 protected: false,
             })
         }
+    }
+
+    /// 把本机文件系统里被正文占位符引用的图片字节收进 `wiki_assets`
+    /// （唯一目的：让快照把字节带给接收端）。幂等：已有行按 rel 跳过。
+    /// 扫描全部页面（个人量级为个位数），文件缺失的引用静默跳过——
+    /// 字节本就无法凭空恢复，显示层自愈时自然退化。
+    pub(crate) fn ingest_wiki_page_assets(&self) -> Result<usize> {
+        let data_dir = self
+            .path
+            .parent()
+            .map(std::path::Path::to_path_buf)
+            .context("数据目录不可定位，无法收集图片资产")?;
+        let mut relations: i64 = 0;
+        let pages: Vec<String> = {
+            let mut q = self
+                .connection
+                .prepare("SELECT content_md FROM wiki_pages")?;
+            let rows = q.query_map([], |r| r.get::<_, String>(0))?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        for content_md in pages {
+            for rel in super::wiki_images::collect_tweet_image_rels(&content_md) {
+                let existing: bool = self.connection.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM wiki_assets WHERE rel=?1)",
+                    [&rel],
+                    |r| r.get(0),
+                )?;
+                if existing {
+                    continue;
+                }
+                let Some(ext) = rel.rsplit('.').next() else {
+                    continue;
+                };
+                let Some(mime) = super::wiki_images::mime_for_ext(ext) else {
+                    continue;
+                };
+                let Ok(bytes) = std::fs::read(data_dir.join(&rel)) else {
+                    continue;
+                };
+                let sha = {
+                    use ring::digest::{Digest, SHA256};
+                    let d: Digest = ring::digest::digest(&SHA256, &bytes);
+                    d.as_ref()
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect::<String>()
+                };
+                self.connection.execute(
+                    "INSERT OR REPLACE INTO wiki_assets(rel,sha256,mime,bytes,size) VALUES(?1,?2,?3,?4,?5)",
+                    rusqlite::params![rel, sha, mime, bytes, bytes.len() as i64],
+                )?;
+                relations += 1;
+            }
+        }
+        Ok(relations as usize)
+    }
+
+    /// 自愈用：按 rel 取资产字节。
+    pub(crate) fn get_wiki_asset(&self, rel: &str) -> Result<Option<(String, Vec<u8>)>> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT mime,bytes FROM wiki_assets WHERE rel=?1",
+                [rel],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?)
     }
 
     /// 用户手动重写一页的标签（元数据组织用）。

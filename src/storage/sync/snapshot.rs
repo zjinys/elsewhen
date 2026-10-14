@@ -22,7 +22,10 @@ use crate::sync::{
 
 /// 快照载荷 schema 代际。v1 缺 wiki/待办/目标/规则与 head 种类（§29 的缺口），
 /// 与 v2 记录格式互不兼容：接收端只认当前代（跨代 = 显式隔离，不猜测）。
-pub(crate) const SNAPSHOT_VERSION: u32 = 2;
+/// v3：新增 Record::WikiAsset（图片字节随快照携带）。新增 serde 变体后旧端
+/// 标签分发失败会整份拒收，所以跨 v2/v3 隔离是真实的、必须显式 bump——
+/// 与「wire 枚举加变体不 bump」不同（那边是 append-only 可被旧端忽略）。
+pub(crate) const SNAPSHOT_VERSION: u32 = 3;
 
 /// 随快照携带的表。QUERIES 必须真实覆盖这里的每一张（覆盖性由门禁测试
 /// `snapshot_carries_every_table_or_explicitly_excludes_it` 兜住：新增表不登记
@@ -51,6 +54,7 @@ pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
     "sync_provider_versions",
     "sync_wire_outbox",
     "ai_provider_configs",
+    "wiki_assets",
 ];
 
 pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
@@ -326,6 +330,15 @@ enum Record {
         conversation_id: Option<String>,
         review_version: i64,
     },
+    WikiAsset {
+        /// 相对数据目录的确定性路径（tweet_images/<tweet_id>/img_N.ext）。
+        rel: String,
+        sha256: String,
+        mime: String,
+        size: i64,
+        /// 字节的 hex 编码（2×size）；apply 端解码并复核长度。
+        bytes_hex: String,
+    },
 }
 
 // rowid is only a cursor inside this one pinned source view, never a replicated
@@ -335,6 +348,7 @@ const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','event','value',json_object('id',id,'occurred_at',occurred_at,'recorded_at',recorded_at,'raw_text',raw_text,'source',source,'created_at',created_at),'status',status,'processed_at',processed_at,'updated_at',updated_at) FROM events WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','wiki_page','id',id,'slug',slug,'page_kind',kind,'title',title,'summary',summary,'content_md',content_md,'tags',tags,'source_event_ids',source_event_ids,'evidence_count',evidence_count,'first_seen_at',first_seen_at,'last_seen_at',last_seen_at,'status',status,'created_at',created_at,'updated_at',updated_at,'source_url',source_url,'area',area,'based_on',based_on,'content_type',content_type,'human_edited_at',human_edited_at,'opinion',opinion,'knowledge_epoch',knowledge_epoch) FROM wiki_pages WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','wiki_revision','id',id,'page_id',page_id,'content_md',content_md,'reason',reason,'source_event_id',source_event_id,'created_at',created_at) FROM wiki_revisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','wiki_asset','rel',rel,'sha256',sha256,'mime',mime,'size',size,'bytes_hex',hex(bytes)) FROM wiki_assets WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','conversation','value',json_object('id',id,'title',title,'tag',tag,'archived',json(CASE WHEN archived=1 THEN 'true' ELSE 'false' END),'wiki_page_slug',wiki_page_slug,'assistant_mode',assistant_mode,'created_at',created_at,'updated_at',updated_at)) FROM conversations WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT m.rowid,json_object('kind','message','value',json_object('id',m.id,'conversation_id',m.conversation_id,'parent_message_id',m.parent_message_id,'role',m.role,'content',m.content,'created_at',m.created_at,'input_message_id',(SELECT input_message_id FROM message_response_links WHERE message_id=m.id)),'order',CASE WHEN s.message_id IS NULL THEN NULL ELSE json_object('origin_stream_id',s.origin_stream_id,'origin_sequence',s.origin_sequence,'logical_clock',s.logical_clock,'input_message_id',s.input_message_id) END) FROM messages m JOIN conversations c ON c.id=m.conversation_id LEFT JOIN sync_message_order s ON s.message_id=m.id WHERE m.rowid>?1 ORDER BY m.rowid LIMIT 1",
     "SELECT i.rowid,json_object('kind','input','value',json_object('id',i.id,'raw_text',i.raw_text,'source',i.source,'event_id',i.event_id,'message_id',i.message_id,'created_at',i.created_at)) FROM input_records i WHERE i.rowid>?1 AND i.event_id IS NOT NULL AND (i.message_id IS NULL OR EXISTS(SELECT 1 FROM messages m WHERE m.id=i.message_id)) ORDER BY i.rowid LIMIT 1",
@@ -1150,6 +1164,43 @@ impl Store {
                 );
                 self.connection.execute("INSERT INTO rules(id,content,status,conversation_id,created_at,updated_at,review_version) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,content,status,conversation_id,created_at,updated_at,review_version])?;
             }
+            Record::WikiAsset {
+                rel,
+                sha256,
+                mime,
+                size,
+                bytes_hex,
+            } => {
+                // rel 是确定性路径；字节以 hex 传输，长度与 sha256 双重复核。
+                ensure!(
+                    crate::storage::wiki_images::rel_is_valid(rel)
+                        && *size >= 0
+                        && bytes_hex.len() == (*size as usize) * 2
+                        && bytes_hex
+                            .bytes()
+                            .all(|b| b.is_ascii_digit() || b.is_ascii_hexdigit())
+                        && matches!(
+                            mime.as_str(),
+                            "image/jpeg" | "image/png" | "image/webp" | "image/gif"
+                        ),
+                    "sync_snapshot_wiki_asset_invalid"
+                );
+                let bytes = {
+                    let raw = hex_to_vec(bytes_hex)?;
+                    ensure!(
+                        raw.len() == *size as usize,
+                        "sync_snapshot_wiki_asset_invalid"
+                    );
+                    // 应用层完整性闸门：快照里声称的 sha256 必须与字节一致。
+                    let digest = hex(ring::digest::digest(&SHA256, &raw).as_ref());
+                    ensure!(&digest == sha256, "sync_snapshot_wiki_asset_hash_mismatch");
+                    raw
+                };
+                self.connection.execute(
+                    "INSERT OR REPLACE INTO wiki_assets(rel,sha256,mime,bytes,size) VALUES(?1,?2,?3,?4,?5)",
+                    params![rel, sha256, mime, bytes, size],
+                )?;
+            }
             Record::Member {
                 device_id,
                 stream_id,
@@ -1312,6 +1363,13 @@ impl Store {
         }
         Ok(())
     }
+}
+
+fn hex_to_vec(hex: &str) -> Result<Vec<u8>> {
+    Ok((0..hex.len() / 2)
+        .map(|i| u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16))
+        .collect::<std::result::Result<Vec<u8>, _>>()
+        .map_err(|_| anyhow::anyhow!("sync_snapshot_wiki_asset_invalid"))?)
 }
 
 /// head/known_revision 记录的种类必须落在随快照携带的领域表上。

@@ -590,7 +590,8 @@ pub fn fetch_tweet_text(url: &str) -> Result<TweetText> {
 }
 
 /// 把文章配图下载到 `{data_dir}/tweet_images/{tweet_id}/img_N.{ext}`，
-/// 并把正文里的占位标记 `{{tweet-image-N}}` 替换为本地绝对路径（markdown 图片）。
+/// 并把正文里的临时占位标记 `{{tweet-image-N}}` 替换为存储态占位符
+/// `![]({{tweet-image:tweet_images/…}})`（相对路径为主体，显示时才解析为本机路径）。
 /// 单张失败仅留说明文字、不影响其它图与正文。
 ///
 /// 网络策略：先直连；被墙的图床（如 pbs.twimg.com）直连失败的图，
@@ -614,12 +615,17 @@ fn download_tweet_images(tweet_id: &str, data_dir: &std::path::Path, content: &m
         Ok(c) => c,
         Err(_) => return,
     };
-    // 第一遍：直连下载；记录失败的图待 DoH 兜底。
+    // 第一遍：直连下载；记录失败的图待 DoH 兜底。成功图不写本机绝对路径——
+    // 正文里落占位符（相对 data_dir 的确定性路径），显示时动态解析；
+    // 字节由保存路径收进 wiki_assets 随快照同步。
     let mut direct_failed: Vec<usize> = Vec::new();
     let mut replacements: Vec<Option<String>> = Vec::with_capacity(content.image_urls.len());
     for (idx, url) in content.image_urls.iter().enumerate() {
         match download_one_image(&client, url, &dir, idx) {
-            Ok(path) => replacements.push(Some(format!("![]({})", path.display()))),
+            Ok(path) => match crate::storage::wiki_images::tweet_image_rel(&path, data_dir) {
+                Some(rel) => replacements.push(Some(format!("![]({{{{tweet-image:{rel}}}}})"))),
+                None => replacements.push(Some(format!("![]({})", path.display()))),
+            },
             Err(_) => {
                 direct_failed.push(idx);
                 replacements.push(None);
@@ -634,7 +640,13 @@ fn download_tweet_images(tweet_id: &str, data_dir: &std::path::Path, content: &m
                     let url = &content.image_urls[idx];
                     match download_one_image_via_doh(url, &net.doh_uri, &dir, idx) {
                         Ok(path) => {
-                            replacements[idx] = Some(format!("![]({})", path.display()));
+                            replacements[idx] = Some(
+                                match crate::storage::wiki_images::tweet_image_rel(&path, data_dir)
+                                {
+                                    Some(rel) => format!("![]({{{{tweet-image:{rel}}}}})"),
+                                    None => format!("![]({})", path.display()),
+                                },
+                            );
                         }
                         Err(_) => {
                             // DoH 也失败：保持 None，下面统一写失败说明。

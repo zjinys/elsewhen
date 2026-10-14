@@ -63,7 +63,7 @@ pub fn save_tweet_page(
         Some(&format!("https://x.com/i/status/{}", t.tweet_id)),
         &store,
     )?;
-    Ok(WikiPageDto::from(page))
+    Ok(WikiPageDto::serve(&store, page))
 }
 
 /// 把用户粘贴的纯文本保存为知识库页面（kind=topic），返回该页。
@@ -77,7 +77,7 @@ pub fn save_text_page(
     let store = Store::open(&config.database_path)?;
 
     let page = crate::wiki::save_text_page(&text, title.as_deref(), &tags, &store)?;
-    Ok(WikiPageDto::from(page))
+    Ok(WikiPageDto::serve(&store, page))
 }
 
 /// 把一段文本保存为「主题」（kind=topic）页。
@@ -94,7 +94,7 @@ pub fn save_topic_page(
 
     let page =
         crate::wiki::save_text_page_with_kind(&text, title.as_deref(), &tags, "topic", &store)?;
-    Ok(WikiPageDto::from(page))
+    Ok(WikiPageDto::serve(&store, page))
 }
 
 /// 判断一个网址是否需要走专用抓取 API（当前：x.com/twitter.com 推文 → fxtwitter）。
@@ -163,5 +163,5 @@ pub fn find_tweet_source_page(url: String) -> Result<Option<WikiPageDto>> {
     };
     let slug = format!("tweet-{id}");
     let page = store.get_wiki_page(&slug)?;
-    Ok(page.map(WikiPageDto::from))
+    Ok(page.map(|p| WikiPageDto::serve(&store, p)))
 }

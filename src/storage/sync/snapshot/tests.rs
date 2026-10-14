@@ -687,3 +687,184 @@ fn snapshot_carries_wiki_todos_goals_rules_and_continues_incremental() {
     assert_eq!(incremental, "快照后增量修改");
     assert_eq!(reopened_store.list_object_conflicts().unwrap().len(), 0);
 }
+
+#[test]
+fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    // ---- 源端：导入完成形态——正文占位符 + 本机文件 ----
+    let rel = "tweet_images/2099471972589576451/img_1.jpg";
+    let bytes: Vec<u8> = (0..64u32).map(|i| (i % 251) as u8).collect();
+    let data_dir = a.store.path.parent().unwrap().to_path_buf();
+    std::fs::create_dir_all(data_dir.join("tweet_images/2099471972589576451")).unwrap();
+    std::fs::write(data_dir.join(rel), &bytes).unwrap();
+    let draft = crate::storage::WikiPageDraft {
+        slug: "tweet-2099471972589576451".into(),
+        kind: "source".into(),
+        title: "带图推文".into(),
+        summary: "…".into(),
+        content_md: format!("正文。\n\n![]({{{{tweet-image:{rel}}}}})\n"),
+        tags: vec!["tweet".into()],
+        source_event_ids: vec![],
+        status: "active".into(),
+        reason: "URL 导入".into(),
+        source_url: Some("https://x.com/u/status/2099471972589576451".into()),
+    };
+    a.store
+        .upsert_wiki_page(&draft, crate::storage::ContentPolicy::Always)
+        .unwrap();
+    // 保存即收资产（字节入 DB，占位符原样入库）。
+    assert_eq!(a.count("wiki_assets"), 1, "保存路径收集图片字节");
+    let stored: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT content_md FROM wiki_pages WHERE slug='tweet-2099471972589576451'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        stored.contains("{{tweet-image:"),
+        "入库是占位符而非本机路径"
+    );
+    assert!(
+        !stored.contains(&data_dir.display().to_string()),
+        "本机绝对路径不得入库"
+    );
+
+    // ---- 快照导出 → 新 staging 导入 ----
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let id = Uuid::new_v4().to_string();
+    let (chunks, manifest) = export(&a.store, "b", &id, &key, &signer);
+    b.store.begin_snapshot_import(&id, "a", 1).unwrap();
+    stage(&b.store, &id, "a", &chunks, &key, &signer.public_key());
+    assert!(
+        b.store
+            .publish_snapshot(&id, "a", 1, &manifest, &key, &signer.public_key())
+            .unwrap()
+    );
+
+    assert_eq!(b.count("wiki_assets"), 1, "图片字节随快照 v3 落地");
+    let b_bytes: Vec<u8> = b
+        .store
+        .connection
+        .query_row("SELECT bytes FROM wiki_assets WHERE rel=?1", [rel], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(b_bytes, bytes);
+
+    // ---- 接收端渲染解析：占位符 → 本机路径 + 自愈落盘 ----
+    let resolved = crate::storage::wiki_images::resolve_wiki_image_refs(&b.store, &stored);
+    let b_dir = b.store.path.parent().unwrap();
+    let expected_path = b_dir.join(rel);
+    assert!(
+        resolved.contains(&expected_path.display().to_string()),
+        "解析指向接收端自己的数据目录：{resolved}"
+    );
+    assert!(expected_path.exists(), "自愈把字节落盘");
+    assert_eq!(
+        std::fs::read(&expected_path).unwrap(),
+        bytes,
+        "自愈落盘字节与源一致"
+    );
+
+    // ---- apply 层负向：rel / mime / hash 三道闸门各拒一次 ----
+    let empty_manifest = || super::SnapshotManifest {
+        version: super::SNAPSHOT_VERSION,
+        id: id.clone(),
+        dataset_id: "dataset".into(),
+        source_device_id: "a".into(),
+        recipient_device_id: "b".into(),
+        processor_device_id: "a".into(),
+        key_version: 1,
+        chunks: 0,
+        bytes: 0,
+        records: 0,
+        digest: String::new(),
+        frontiers: Default::default(),
+        logical_clock: 0,
+    };
+    let real_sha = {
+        use ring::digest::{Digest, SHA256};
+        let d: Digest = ring::digest::digest(&SHA256, &bytes);
+        d.as_ref()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>()
+    };
+    let bytes_hex = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let asset = |rel: &str, mime: &str, sha: &str, hex: &str| super::Record::WikiAsset {
+        rel: rel.into(),
+        sha256: sha.into(),
+        mime: mime.into(),
+        size: bytes.len() as i64,
+        bytes_hex: hex.into(),
+    };
+    let mut seen = false;
+    // 正向：合法记录可 apply（直接对 b 再来一次，幂等 OR REPLACE）。
+    b.store
+        .apply_snapshot_record(
+            &id,
+            &empty_manifest(),
+            &asset(rel, "image/jpeg", &real_sha, &bytes_hex),
+            &mut seen,
+        )
+        .unwrap();
+    // rel 形态不合法。
+    let err = b
+        .store
+        .apply_snapshot_record(
+            &id,
+            &empty_manifest(),
+            &asset(
+                "tweet_images/../etc/img_1.jpg",
+                "image/jpeg",
+                &real_sha,
+                &bytes_hex,
+            ),
+            &mut seen,
+        )
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("sync_snapshot_wiki_asset_invalid"),
+        "{err}"
+    );
+    // mime 不在白名单。
+    let err = b
+        .store
+        .apply_snapshot_record(
+            &id,
+            &empty_manifest(),
+            &asset(rel, "image/svg+xml", &real_sha, &bytes_hex),
+            &mut seen,
+        )
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("sync_snapshot_wiki_asset_invalid"),
+        "{err}"
+    );
+    // 字节与 sha256 不一致（传输位翻转逃过加密也会在此被拦）。
+    let mut tampered = bytes_hex.clone();
+    let last = tampered.len() - 2;
+    tampered.replace_range(last.., &format!("{:02x}", bytes[bytes.len() - 1] ^ 0xff));
+    let err = b
+        .store
+        .apply_snapshot_record(
+            &id,
+            &empty_manifest(),
+            &asset(rel, "image/jpeg", &real_sha, &tampered),
+            &mut seen,
+        )
+        .unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("sync_snapshot_wiki_asset_hash_mismatch"),
+        "{err}"
+    );
+}

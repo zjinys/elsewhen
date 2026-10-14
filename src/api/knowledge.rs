@@ -34,10 +34,11 @@ pub fn prepare_knowledge_source_repair(slug: String, snapshot_ids: Vec<String>) 
 }
 
 pub fn list_knowledge_resolution_targets(fingerprint: String) -> Result<Vec<WikiPageDto>> {
+    let store = store()?;
     Ok(
-        crate::knowledge::maintenance::resolution_targets(&store()?, &fingerprint)?
+        crate::knowledge::maintenance::resolution_targets(&store, &fingerprint)?
             .into_iter()
-            .map(WikiPageDto::from)
+            .map(|p| WikiPageDto::serve(&store, p))
             .collect(),
     )
 }
@@ -175,12 +176,12 @@ pub fn get_knowledge_page_details(slug: String) -> Result<KnowledgePageDetails> 
         source_pages: store
             .knowledge_origin_pages(&slug)?
             .into_iter()
-            .map(WikiPageDto::from)
+            .map(|p| WikiPageDto::serve(&store, p))
             .collect(),
         output_pages: store
             .knowledge_output_pages(&slug)?
             .into_iter()
-            .map(WikiPageDto::from)
+            .map(|p| WikiPageDto::serve(&store, p))
             .collect(),
         sources: store.page_source_snapshots(&slug)?,
         history: store.source_history(&slug)?,
@@ -213,9 +214,10 @@ pub fn propose_knowledge_page(slug: String, kind: String) -> Result<String> {
 }
 
 pub fn resolve_knowledge_proposal(id: String, accept: bool) -> Result<Option<WikiPageDto>> {
-    Ok(store()?
+    let store = store()?;
+    Ok(store
         .resolve_knowledge_proposal(&id, accept)?
-        .map(WikiPageDto::from))
+        .map(|p| WikiPageDto::serve(&store, p)))
 }
 
 pub fn update_knowledge_metadata(
@@ -357,7 +359,10 @@ pub fn confirm_knowledge_source(
     if current.as_ref().map(|s| s.id.as_str()) != expected_snapshot_id.as_deref() {
         if let Some(current) = &current {
             if current.content_md == content_md.trim() {
-                return Ok(WikiPageDto::from(existing.context("来源页不存在")?));
+                return Ok(WikiPageDto::serve(
+                    &store,
+                    existing.context("来源页不存在")?,
+                ));
             }
         }
         anyhow::bail!("来源已被更新，请重新预览后保存");
@@ -405,5 +410,5 @@ pub fn confirm_knowledge_source(
         .upsert_wiki_page_in_tx(&draft, crate::storage::ContentPolicy::Always)?
         .page;
     tx.commit()?;
-    Ok(WikiPageDto::from(page))
+    Ok(WikiPageDto::serve(&store, page))
 }

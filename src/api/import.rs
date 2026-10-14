@@ -101,5 +101,5 @@ pub fn save_imported_page(
         source_url: Some(source_url),
     };
     let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
-    Ok(WikiPageDto::from(outcome.page))
+    Ok(WikiPageDto::serve(&store, outcome.page))
 }

@@ -101,6 +101,10 @@ fn stage_snapshot_inner(
         store.connection.is_autocommit(),
         "sync_snapshot_export_requires_autocommit"
     );
+    // 导出前补收：正文中占位符/遗留绝对路径引用的图片字节若未入库
+    // （存量页导入早于资产表），先收齐再钉住导出视图，否则接收端拿空。
+    // 收不齐不阻断导出：接收端缺图时显示占位符原文，重拍快照可再补。
+    let _ = store.ingest_wiki_page_assets();
     if !store.begin_snapshot_export(id, recipient, key_version)? {
         return Ok(());
     }
