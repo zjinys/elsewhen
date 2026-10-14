@@ -150,6 +150,14 @@ impl DeviceIdentity {
             .to_vec())
     }
 
+    pub(crate) fn sign_handoff(&self, payload: &[u8]) -> Result<Vec<u8>> {
+        Ok(self
+            .key_pair
+            .sign(&handoff_signature_bytes(payload)?)
+            .as_ref()
+            .to_vec())
+    }
+
     pub(crate) fn sign_pairing(&self, role: &str, payload: &[u8]) -> Result<Vec<u8>> {
         Ok(self
             .key_pair
@@ -177,6 +185,23 @@ pub(crate) fn verify_membership_signature(
     signature::UnparsedPublicKey::new(&signature::ED25519, public_key)
         .verify(&membership_signature_bytes(payload)?, proof)
         .map_err(|_| anyhow::anyhow!("sync_membership_signature_invalid"))
+}
+
+fn handoff_signature_bytes(payload: &[u8]) -> Result<Vec<u8>> {
+    ensure!(payload.len() <= 64 * 1024, "sync_handoff_payload_too_large");
+    let mut bytes = b"elsewhen.sync.handoff.v1\0".to_vec();
+    append_frame(&mut bytes, payload);
+    Ok(bytes)
+}
+
+pub(crate) fn verify_handoff_signature(
+    public_key: &[u8; 32],
+    payload: &[u8],
+    proof: &[u8],
+) -> Result<()> {
+    signature::UnparsedPublicKey::new(&signature::ED25519, public_key)
+        .verify(&handoff_signature_bytes(payload)?, proof)
+        .map_err(|_| anyhow::anyhow!("sync_handoff_signature_invalid"))
 }
 
 fn pairing_signature_bytes(role: &str, payload: &[u8]) -> Result<Vec<u8>> {
@@ -615,6 +640,17 @@ mod tests {
         let mut duplicate = String::from_utf8(bytes).unwrap();
         duplicate.insert_str(1, "\"nonce\":\"000000000000000000000000\",");
         assert!(EncryptedEnvelope::from_bytes(duplicate.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn handoff_signature_domain_separates_and_verifies() {
+        let identity = DeviceIdentity::generate().unwrap();
+        let payload = b"{\"dataset_id\":\"ds\",\"from\":\"dev-a\",\"to\":\"dev-b\"}";
+        let signature = identity.sign_handoff(payload).unwrap();
+        assert!(verify_handoff_signature(&identity.public_key(), payload, &signature).is_ok());
+        let stranger = DeviceIdentity::generate().unwrap();
+        assert!(verify_handoff_signature(&stranger.public_key(), payload, &signature).is_err());
+        assert!(verify_membership_signature(&identity.public_key(), payload, &signature).is_err());
     }
 
     #[test]

@@ -2,6 +2,7 @@ use super::*;
 use crate::sync::{
     crypto::{self, ContentKey, EncryptedEnvelope, EnvelopeHeader},
     engine,
+    membership::ProcessingYieldProof,
     pairing::{PairingInvitation, PendingJoin},
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -93,6 +94,94 @@ fn enroll(a: &Db, b: &Db) -> (ApprovedPair, ApprovedPair, SignedRoster) {
         .apply_signed_roster(&roster.encode().unwrap())
         .unwrap();
     (approved, joining, roster)
+}
+
+#[test]
+fn handoff_proof_validation_and_successor_verification() {
+    let owner_signer = DeviceIdentity::generate().unwrap();
+    let old_processor_signer = DeviceIdentity::generate().unwrap();
+    let new_processor_signer = DeviceIdentity::generate().unwrap();
+
+    fn make_test_device(id: &str, stream_id: &str, signer: &DeviceIdentity) -> PairingDevice {
+        PairingDevice {
+            device_id: id.into(),
+            stream_id: stream_id.into(),
+            name: id.into(),
+            platform: "test".into(),
+            signing_key: signer.public_key(),
+        }
+    }
+
+    let owner = make_test_device("dev-owner", "stream-owner", &owner_signer);
+    let old_p = make_test_device("dev-old", "stream-old", &old_processor_signer);
+    let new_p = make_test_device("dev-new", "stream-new", &new_processor_signer);
+
+    let mut roster_v1 = MembershipRoster {
+        version: 1,
+        dataset_id: "ds".into(),
+        owner: owner.clone(),
+        revision: 1,
+        processor_device_id: old_p.device_id.clone(),
+        members: vec![
+            RosterMember { device: new_p.clone(), active: true },
+            RosterMember { device: old_p.clone(), active: true },
+            RosterMember { device: owner.clone(), active: true },
+        ],
+        handoff: None,
+    };
+    roster_v1.members.sort_by(|a, b| a.device.device_id.cmp(&b.device.device_id));
+    roster_v1.validate().unwrap();
+
+    // 1. Trying to change processor without handoff fails
+    let mut roster_v2_no_handoff = roster_v1.clone();
+    roster_v2_no_handoff.revision = 2;
+    roster_v2_no_handoff.processor_device_id = new_p.device_id.clone();
+    assert_eq!(
+        roster_v2_no_handoff.validate_successor(&roster_v1).unwrap_err().to_string(),
+        "sync_processing_handoff_required"
+    );
+
+    // 2. Handoff signed by wrong signer (e.g. new processor instead of old)
+    let bad_proof = ProcessingYieldProof::sign(
+        "ds",
+        &old_p.device_id,
+        &new_p.device_id,
+        2,
+        42,
+        &new_processor_signer, // signed with wrong key
+    ).unwrap();
+    let mut roster_v2_bad_proof = roster_v2_no_handoff.clone();
+    roster_v2_bad_proof.handoff = Some(bad_proof);
+    assert!(roster_v2_bad_proof.validate_successor(&roster_v1).is_err());
+
+    // 3. Valid proof signed by old processor succeeds
+    let valid_proof = ProcessingYieldProof::sign(
+        "ds",
+        &old_p.device_id,
+        &new_p.device_id,
+        2,
+        42,
+        &old_processor_signer,
+    ).unwrap();
+    let mut roster_v2_valid = roster_v2_no_handoff.clone();
+    roster_v2_valid.handoff = Some(valid_proof);
+    assert!(roster_v2_valid.validate_successor(&roster_v1).is_ok());
+
+    // 4. Handoff attached when processor didn't change is rejected
+    let mut roster_v2_unneeded = roster_v1.clone();
+    roster_v2_unneeded.revision = 2;
+    roster_v2_unneeded.handoff = Some(ProcessingYieldProof::sign(
+        "ds",
+        &new_p.device_id,
+        &old_p.device_id,
+        2,
+        42,
+        &new_processor_signer,
+    ).unwrap());
+    assert_eq!(
+        roster_v2_unneeded.validate_successor(&roster_v1).unwrap_err().to_string(),
+        "sync_handoff_unexpected_without_processor_change"
+    );
 }
 
 #[test]

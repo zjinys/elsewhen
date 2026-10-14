@@ -94,6 +94,7 @@ impl Store {
                     device: owner.clone(),
                     active: true,
                 }],
+                handoff: None,
             },
             signer,
         )?;

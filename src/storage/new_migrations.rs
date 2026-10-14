@@ -146,6 +146,7 @@ mod tests {
                 "28-sync-provider-conflicts",
                 "29-sync-gc",
                 "30-sync-resnapshot",
+                "31-sync-processor-handoff",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -177,7 +178,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 30, "三十条迁移跑完，user_version 应为 30");
+        assert_eq!(version, 31, "三十一条迁移跑完，user_version 应为 31");
         assert_eq!(
             latest_version().unwrap(),
             version,

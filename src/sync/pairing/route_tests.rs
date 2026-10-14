@@ -40,6 +40,7 @@ fn approve(pending: PendingApproval, a: &LocalVault) -> (PendingCompletion, Vec<
             device: a.device().clone(),
             active: true,
         }],
+        handoff: None,
     }
     .anchor()
     .unwrap();

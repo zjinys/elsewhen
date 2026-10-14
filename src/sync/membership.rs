@@ -49,6 +49,105 @@ pub(crate) struct RosterMember {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct ProcessingYieldProof {
+    pub dataset_id: String,
+    pub from_device_id: String,
+    pub to_device_id: String,
+    pub roster_revision: u64,
+    pub final_sequence: u64,
+    pub signature: Vec<u8>,
+}
+
+impl ProcessingYieldProof {
+    pub(crate) fn validate(&self) -> Result<()> {
+        validate_id(&self.dataset_id)?;
+        validate_id(&self.from_device_id)?;
+        validate_id(&self.to_device_id)?;
+        ensure!(
+            self.from_device_id != self.to_device_id,
+            "sync_handoff_self_transfer_invalid"
+        );
+        ensure!(
+            (1..=i64::MAX as u64).contains(&self.roster_revision),
+            "sync_handoff_revision_invalid"
+        );
+        ensure!(
+            self.signature.len() == 64,
+            "sync_handoff_signature_invalid"
+        );
+        Ok(())
+    }
+
+    pub(crate) fn sign(
+        dataset_id: impl Into<String>,
+        from_device_id: impl Into<String>,
+        to_device_id: impl Into<String>,
+        roster_revision: u64,
+        final_sequence: u64,
+        signer: &DeviceIdentity,
+    ) -> Result<Self> {
+        let dataset_id = dataset_id.into();
+        let from_device_id = from_device_id.into();
+        let to_device_id = to_device_id.into();
+        let payload = Self::signed_payload(
+            &dataset_id,
+            &from_device_id,
+            &to_device_id,
+            roster_revision,
+            final_sequence,
+        )?;
+        let signature = signer.sign_handoff(&payload)?;
+        let proof = Self {
+            dataset_id,
+            from_device_id,
+            to_device_id,
+            roster_revision,
+            final_sequence,
+            signature,
+        };
+        proof.validate()?;
+        Ok(proof)
+    }
+
+    pub(crate) fn verify(&self, public_key: &[u8; 32]) -> Result<()> {
+        self.validate()?;
+        let payload = Self::signed_payload(
+            &self.dataset_id,
+            &self.from_device_id,
+            &self.to_device_id,
+            self.roster_revision,
+            self.final_sequence,
+        )?;
+        crate::sync::crypto::verify_handoff_signature(public_key, &payload, &self.signature)
+    }
+
+    fn signed_payload(
+        dataset_id: &str,
+        from_device_id: &str,
+        to_device_id: &str,
+        roster_revision: u64,
+        final_sequence: u64,
+    ) -> Result<Vec<u8>> {
+        #[derive(Serialize)]
+        struct Raw<'a> {
+            dataset_id: &'a str,
+            from_device_id: &'a str,
+            to_device_id: &'a str,
+            roster_revision: u64,
+            final_sequence: u64,
+        }
+        Ok(serde_json::to_vec(&Raw {
+            dataset_id,
+            from_device_id,
+            to_device_id,
+            roster_revision,
+            final_sequence,
+        })?)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct MembershipRoster {
     pub version: u32,
     pub dataset_id: String,
@@ -56,6 +155,8 @@ pub(crate) struct MembershipRoster {
     pub revision: u64,
     pub processor_device_id: String,
     pub members: Vec<RosterMember>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff: Option<ProcessingYieldProof>,
 }
 impl MembershipRoster {
     pub(crate) fn validate(&self) -> Result<()> {
@@ -96,6 +197,33 @@ impl MembershipRoster {
                 .any(|m| m.active && m.device.device_id == self.processor_device_id),
             "sync_membership_processor_missing"
         );
+        if let Some(handoff) = &self.handoff {
+            handoff.validate()?;
+            ensure!(
+                handoff.dataset_id == self.dataset_id,
+                "sync_handoff_dataset_mismatch"
+            );
+            ensure!(
+                handoff.to_device_id == self.processor_device_id,
+                "sync_handoff_target_mismatch"
+            );
+            ensure!(
+                handoff.roster_revision == self.revision,
+                "sync_handoff_revision_mismatch"
+            );
+            ensure!(
+                self.members
+                    .iter()
+                    .any(|m| m.active && m.device.device_id == handoff.from_device_id),
+                "sync_handoff_source_missing"
+            );
+            ensure!(
+                self.members
+                    .iter()
+                    .any(|m| m.active && m.device.device_id == handoff.to_device_id),
+                "sync_handoff_target_missing"
+            );
+        }
         Ok(())
     }
 
@@ -123,10 +251,27 @@ impl MembershipRoster {
             self.revision > previous.revision,
             "sync_membership_revision_stale"
         );
-        ensure!(
-            self.processor_device_id == previous.processor_device_id,
-            "sync_processing_handoff_required"
-        );
+        if self.processor_device_id == previous.processor_device_id {
+            ensure!(
+                self.handoff.is_none(),
+                "sync_handoff_unexpected_without_processor_change"
+            );
+        } else {
+            let handoff = self
+                .handoff
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("sync_processing_handoff_required"))?;
+            ensure!(
+                handoff.from_device_id == previous.processor_device_id,
+                "sync_processing_handoff_required"
+            );
+            let old_processor = previous
+                .members
+                .iter()
+                .find(|m| m.device.device_id == previous.processor_device_id && m.active)
+                .ok_or_else(|| anyhow::anyhow!("sync_handoff_old_processor_inactive"))?;
+            handoff.verify(&old_processor.device.signing_key)?;
+        }
         for old in &previous.members {
             let new = self
                 .members
