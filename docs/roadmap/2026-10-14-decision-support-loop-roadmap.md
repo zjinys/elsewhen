@@ -12,12 +12,12 @@
 
 - **建立日期：** 2026-10-14，基于用户确认「转成 roadmap，从增量维护闭环 + 分层确认起步」。
 - **代码基线：** `f7f6e74`（迁移 34；Rust 711 / Flutter 372 / analyze 0 error/warning）。
-- **当前阶段：** D0 设计冻结已完成（同日）；下一步 D1（规则触发引擎，migration 35 + 预筛 + v3 确认段）或 D2（增量维护）可并行铺开，均未开工
+- **当前阶段：** D0（设计冻结）与 D1（规则触发引擎）已完成（同日）；下一步 D2（用户模型增量维护）
 
 | 切片 | 内容 | 依赖 | 状态 |
 |---|---|---|---|
 | D0 | 契约与 schema 设计冻结 | 无 | **完成（2026-10-14，本文件 D0 节即设计冻结）** |
-| D1 | 规则触发引擎（分级提醒） | D0 | 未开始 |
+| D1 | 规则触发引擎 + 分级提醒 | D0 | **完成（2026-10-14，`2aaa174`）** |
 | D2 | 用户模型增量维护 + 分层确认 | D0 | 未开始 |
 | D3 | 实体消歧与别名归一 | D2 | 未开始 |
 | D4 | 分析升级「提取 + 指导」（挂知识库与用户模型） | D2 | 未开始 |
@@ -69,15 +69,16 @@ note（2026-09-19）的三个缺口判断有两条已随管线演进过期，以
 - [x] API 面（按切片）：D1 `list_rule_hits`/`set_rule_reminder_prefs`（事件旁标记走既有事件详情）；D2 `list_user_model_entries`/`delete_relation_edge`/增量确认入口；D3 `merge_entities`/`split_entity`/`list_alias_suggestions`；D4 guidance 进既有 `event_analysis_detail`；D6 `list_reminder_feedback`/回访偏好。
 - [x] 完成记录：即本次修订（2026-10-14，基线 `f7f6e74`）。核实证据：`src/api/mod.rs`（`EventAnalysisV1`、`process_analysis_queue`、`decision_support_material`）、`src/storage/events.rs`（`complete_analysis`/`fail_analysis`）、`src/storage/sync/analysis.rs`（不透明搬运 + 任务 ID 解耦）、`src/storage/records.rs`（rules 表读取面）。
 
-## D1 — 规则触发引擎（决策辅助的最直接形态）
+## D1 — 规则触发引擎（决策辅助的最直接形态）——2026-10-14 完成（`2aaa174`）
 
 **收益：** 用户踩过的坑在新事件发生时真正出声，不再只在对话里被动提及。
 
-- [ ] migration：`rules` 结构化触发字段（D0 设计）；存量规则批量不动（NULL 语义）。
-- [ ] 事件入库路径挂确定性预筛（新规则匹配模块，无 regex 依赖、手写扫描惯例）；命中交 LLM 确认（复用分析队列同一后台 worker，**不新增网络调用面**）。
-- [ ] 分级提醒：高置信 → 事件旁标记 + 桌面提醒（各平台可用性如实报告，不承诺全平台）；其余 → 每日回顾聚合。提醒偏好用户可配、可全关。
-- [ ] 测试：预筛确定性（同事件同结果）、LLM 拒绝时静默降级为回顾聚合、提醒不打断捕获、锁定期跳过不报错。
-- [ ] 真人验收项：设置页规则触发偏好 + 事件标记可见性。
+- [x] migration 35：`rules.trigger_scene`/`trigger_keywords`（NULL = 不参与预筛，存量零改动）；`rule_hits`（UNIQUE(rule_id,event_id) 幂等）+ `rule_trigger_settings` 偏好单行（instant/review_only/off）。
+- [x] 事件入库事务内挂预筛（`src/storage/rule_triggers.rs`：大小写折叠 + 包含匹配，失败静默放行）；命中随**同一次分析调用**判定（v3 契约 `rule_confirmations`，零新增调用面）。
+- [x] 分级提醒：confidence ≥0.8 → notified（设置页「最近提醒」+ 事件读面 `list_event_rule_hits`）；其余 applicable → aggregated（回顾聚合）。off 时预筛零成本。
+- [x] 测试：预筛确定性/幂等（4 个模块测试 + 桥接往返）；判定按阈值与模式分级、只处理 pending 行。
+- [x] 真人验收项：设置页规则库新增「事件提醒」偏好三态、每条规则触发条件编辑、「最近提醒」列表。
+- **遗留意项（如实）**：①「事件旁标记」暂由设置页最近提醒列表承载——app 尚无事件列表/EventCard 挂载视图，待事件视图出现时接 `list_event_rule_hits`；②系统级桌面通知未做（需 flutter_local_notifications 依赖与各平台配置，当前只有应用内可见面），不承诺全平台；③ 锁定期跳过逻辑属 D2 分析队列部分，D1 未涉及。
 
 ## D2 — 用户模型增量维护 + 分层确认（分水岭切片）
 
