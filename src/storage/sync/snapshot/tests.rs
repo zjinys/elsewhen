@@ -551,6 +551,17 @@ fn snapshot_carries_every_table_or_explicitly_excludes_it() {
             "表 {table} 在携带清单里但没有对应的导出查询"
         );
     }
+    // 目录段同哲学：文件枚举只允许触达登记过的目录（§31b）。
+    assert!(
+        !SNAPSHOT_CARRIED_DIRS.is_empty(),
+        "目录携带清单不得为空：新目录必须显式登记，否则快照文件段永不外发"
+    );
+    for dir in SNAPSHOT_CARRIED_DIRS {
+        assert!(
+            !dir.contains("..") && !dir.starts_with('/'),
+            "目录携带清单必须是数据目录内的相对路径：{dir}"
+        );
+    }
 }
 
 #[test]
@@ -749,29 +760,35 @@ fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
             .unwrap()
     );
 
-    assert_eq!(b.count("wiki_assets"), 1, "图片字节随快照 v3 落地");
-    let b_bytes: Vec<u8> = b
+    assert_eq!(b.count("wiki_assets"), 1, "台账随快照 v3 落地");
+    let (sha_db, size_db): (String, i64) = b
         .store
         .connection
-        .query_row("SELECT bytes FROM wiki_assets WHERE rel=?1", [rel], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT sha256,size FROM wiki_assets WHERE rel=?1",
+            [rel],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
         .unwrap();
-    assert_eq!(b_bytes, bytes);
+    assert_eq!(size_db, bytes.len() as i64);
+    assert_eq!(sha_db.len(), 64);
 
-    // ---- 接收端渲染解析：占位符 → 本机路径 + 自愈落盘 ----
-    let resolved = crate::storage::wiki_images::resolve_wiki_image_refs(&b.store, &stored);
+    // ---- 接收端：文件段直达磁盘（不再经 DB 自愈）----
     let b_dir = b.store.path.parent().unwrap();
     let expected_path = b_dir.join(rel);
     assert!(
-        resolved.contains(&expected_path.display().to_string()),
-        "解析指向接收端自己的数据目录：{resolved}"
+        expected_path.exists(),
+        "快照 apply 直接把文件写到接收端数据目录"
     );
-    assert!(expected_path.exists(), "自愈把字节落盘");
     assert_eq!(
         std::fs::read(&expected_path).unwrap(),
         bytes,
-        "自愈落盘字节与源一致"
+        "落盘字节与源一致"
+    );
+    let resolved = crate::storage::wiki_images::resolve_wiki_image_refs(&b.store, &stored);
+    assert!(
+        resolved.contains(&expected_path.display().to_string()),
+        "解析指向接收端自己的数据目录：{resolved}"
     );
 
     // ---- apply 层负向：rel / mime / hash 三道闸门各拒一次 ----
@@ -799,12 +816,18 @@ fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
             .collect::<String>()
     };
     let bytes_hex = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
-    let asset = |rel: &str, mime: &str, sha: &str, hex: &str| super::Record::WikiAsset {
+    let file_record = |rel: &str, mime: &str, sha: &str, hex: &str| super::Record::WikiFile {
         rel: rel.into(),
         sha256: sha.into(),
         mime: mime.into(),
         size: bytes.len() as i64,
         bytes_hex: hex.into(),
+    };
+    let ledger_row = |rel: &str, mime: &str, sha: &str| super::Record::WikiAsset {
+        rel: rel.into(),
+        sha256: sha.into(),
+        mime: mime.into(),
+        size: bytes.len() as i64,
     };
     let mut seen = false;
     // 正向：合法记录可 apply（直接对 b 再来一次，幂等 OR REPLACE）。
@@ -812,7 +835,7 @@ fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
         .apply_snapshot_record(
             &id,
             &empty_manifest(),
-            &asset(rel, "image/jpeg", &real_sha, &bytes_hex),
+            &file_record(rel, "image/jpeg", &real_sha, &bytes_hex),
             &mut seen,
         )
         .unwrap();
@@ -822,7 +845,7 @@ fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
         .apply_snapshot_record(
             &id,
             &empty_manifest(),
-            &asset(
+            &file_record(
                 "tweet_images/../etc/img_1.jpg",
                 "image/jpeg",
                 &real_sha,
@@ -832,7 +855,7 @@ fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
         )
         .unwrap_err();
     assert!(
-        err.to_string().contains("sync_snapshot_wiki_asset_invalid"),
+        err.to_string().contains("sync_snapshot_wiki_file_invalid"),
         "{err}"
     );
     // mime 不在白名单。
@@ -841,12 +864,12 @@ fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
         .apply_snapshot_record(
             &id,
             &empty_manifest(),
-            &asset(rel, "image/svg+xml", &real_sha, &bytes_hex),
+            &file_record(rel, "image/svg+xml", &real_sha, &bytes_hex),
             &mut seen,
         )
         .unwrap_err();
     assert!(
-        err.to_string().contains("sync_snapshot_wiki_asset_invalid"),
+        err.to_string().contains("sync_snapshot_wiki_file_invalid"),
         "{err}"
     );
     // 字节与 sha256 不一致（传输位翻转逃过加密也会在此被拦）。
@@ -858,13 +881,27 @@ fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
         .apply_snapshot_record(
             &id,
             &empty_manifest(),
-            &asset(rel, "image/jpeg", &real_sha, &tampered),
+            &file_record(rel, "image/jpeg", &real_sha, &tampered),
             &mut seen,
         )
         .unwrap_err();
     assert!(
         err.to_string()
-            .contains("sync_snapshot_wiki_asset_hash_mismatch"),
+            .contains("sync_snapshot_wiki_file_hash_mismatch"),
+        "{err}"
+    );
+    // 台账行：mime 白名单同样生效（hash 一致性由 WikiFile 闸门验）。
+    let err = b
+        .store
+        .apply_snapshot_record(
+            &id,
+            &empty_manifest(),
+            &ledger_row(rel, "image/svg+xml", &real_sha),
+            &mut seen,
+        )
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("sync_snapshot_wiki_asset_invalid"),
         "{err}"
     );
 }

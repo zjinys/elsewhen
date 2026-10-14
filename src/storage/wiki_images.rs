@@ -9,10 +9,10 @@
 //!   正文都先折叠——把（导入时替换占位符产生的）本机绝对路径或既有占位符
 //!   归一化为占位符。幂等。
 //! - 读侧（`resolve_wiki_image_refs`）：渲染/出站前解析——占位符 → 本机
-//!   绝对路径；文件缺失时从 `wiki_assets` 自愈落盘（快照恢复的设备靠这个
-//!   拿到图）；连资产都没有则原样保留（退化为可见的死文本，不伪装）。
-//! - 同步：占位符就是 op/快照里的形态；`wiki_assets` 的字字节经快照 v3
-//!   携带（增量见 handoff §31 的暂缓决定）。
+//!   绝对路径；文件缺失则原样保留（退化为可见的死文本，不伪装）。
+//!   文件由快照 apply 直接落盘（§31b 起字节不落库，无 DB 自愈）。
+//! - 同步：占位符就是 op/快照里的形态；字节经快照 v3 的文件段从发送端
+//!   磁盘直达接收端磁盘，DB 里的 `wiki_assets` 只留文件名片做台账。
 //!
 //! hand-rolled 扫描（无 regex 依赖）：只认 `![…](…)` 图片括号组形态，
 //! 不碰其它 markdown 语法。
@@ -138,16 +138,13 @@ pub(crate) fn resolve_wiki_image_refs(store: &super::Store, markdown: &str) -> S
                     let inner = &markdown[inner_start..inner_start + close];
                     if let Some(rel) = rel_from_inner(inner) {
                         let target = data_dir.join(&rel);
-                        if !target.exists() {
-                            self_heal(store, &rel, &target);
-                        }
                         if target.exists() {
                             out.push_str(&format!("![]({})", target.display()));
-                            i = inner_start + close + 1;
-                            continue;
+                        } else {
+                            // 文件缺失（本机未导入/快照没带到）：占位符原样保留，
+                            // 退化为可见死文本（§31b 起字节不落库，无本机自愈）。
+                            out.push_str(&format!("![]({{{{tweet-image:{rel}}}}})"));
                         }
-                        // 自愈失败：占位符向上换行也会原样出现（后端不捏造内容）
-                        out.push_str(&format!("![]({{{{tweet-image:{rel}}}}})"));
                         i = inner_start + close + 1;
                         continue;
                     }
@@ -164,19 +161,6 @@ pub(crate) fn resolve_wiki_image_refs(store: &super::Store, markdown: &str) -> S
         i += ch_len;
     }
     out
-}
-
-/// 从 `wiki_assets` 读字节落到本机（目录按需创建）；失败静默（下次再试）。
-fn self_heal(store: &super::Store, rel: &str, target: &Path) {
-    let Ok(Some((_, bytes))) = store.get_wiki_asset(rel) else {
-        return;
-    };
-    if let Some(dir) = target.parent() {
-        if std::fs::create_dir_all(dir).is_err() {
-            return;
-        }
-    }
-    let _ = std::fs::write(target, &bytes);
 }
 
 /// 从正文中提取全部 tweet 图片 rel（占位符/绝对路径两种形态）。

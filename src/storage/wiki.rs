@@ -440,8 +440,8 @@ impl Store {
         }
     }
 
-    /// 把本机文件系统里被正文占位符引用的图片字节收进 `wiki_assets`
-    /// （唯一目的：让快照把字节带给接收端）。幂等：已有行按 rel 跳过。
+    /// 把本机文件系统里被正文占位符引用的图片记入 `wiki_assets` 台账
+    /// （字节不入库，§31b；快照文件段按台账导出时读盘搬运）。幂等：已有行按 rel 跳过。
     /// 扫描全部页面（个人量级为个位数），文件缺失的引用静默跳过——
     /// 字节本就无法凭空恢复，显示层自愈时自然退化。
     pub(crate) fn ingest_wiki_page_assets(&self) -> Result<usize> {
@@ -486,25 +486,13 @@ impl Store {
                         .collect::<String>()
                 };
                 self.connection.execute(
-                    "INSERT OR REPLACE INTO wiki_assets(rel,sha256,mime,bytes,size) VALUES(?1,?2,?3,?4,?5)",
-                    rusqlite::params![rel, sha, mime, bytes, bytes.len() as i64],
+                    "INSERT OR REPLACE INTO wiki_assets(rel,sha256,mime,size) VALUES(?1,?2,?3,?4)",
+                    rusqlite::params![rel, sha, mime, bytes.len() as i64],
                 )?;
                 relations += 1;
             }
         }
         Ok(relations as usize)
-    }
-
-    /// 自愈用：按 rel 取资产字节。
-    pub(crate) fn get_wiki_asset(&self, rel: &str) -> Result<Option<(String, Vec<u8>)>> {
-        Ok(self
-            .connection
-            .query_row(
-                "SELECT mime,bytes FROM wiki_assets WHERE rel=?1",
-                [rel],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .optional()?)
     }
 
     /// 用户手动重写一页的标签（元数据组织用）。
