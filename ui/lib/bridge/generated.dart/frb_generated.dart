@@ -42,7 +42,6 @@ import 'knowledge/workflows.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'storage/knowledge.dart';
-import 'sync/crypto.dart';
 
 /// Main entrypoint of the Rust API
 class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
@@ -97,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1733093857;
+  int get rustContentHash => -854603378;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -147,6 +146,10 @@ abstract class RustLibApi extends BaseApi {
     required String invitationId,
     required String previewToken,
     required bool acknowledgeProviderKeySharing,
+  });
+
+  Future<void> crateApiSyncApproveProcessorHandoff({
+    required ProcessingYieldProofDto proof,
   });
 
   Future<void> crateApiGoalsArchiveGoal({required String id});
@@ -967,19 +970,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<ProcessingYieldProofDto> crateApiSyncYieldSyncProcessor({
-    required PlatformInt64 targetRevision,
     required String toDeviceId,
-    required DeviceIdentity signer,
   });
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_DeviceIdentity;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_DeviceIdentity;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_DeviceIdentityPtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -1243,6 +1235,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "previewToken",
           "acknowledgeProviderKeySharing",
         ],
+      );
+
+  @override
+  Future<void> crateApiSyncApproveProcessorHandoff({
+    required ProcessingYieldProofDto proof,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_processing_yield_proof_dto(proof);
+          return wire.wire__crate__api__sync__approve_processor_handoff(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncApproveProcessorHandoffConstMeta,
+        argValues: [proof],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncApproveProcessorHandoffConstMeta =>
+      const TaskConstMeta(
+        debugName: "approve_processor_handoff",
+        argNames: ["proof"],
       );
 
   @override
@@ -7137,32 +7159,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<ProcessingYieldProofDto> crateApiSyncYieldSyncProcessor({
-    required PlatformInt64 targetRevision,
     required String toDeviceId,
-    required DeviceIdentity signer,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          var arg0 = cst_encode_i_64(targetRevision);
-          var arg1 = cst_encode_String(toDeviceId);
-          var arg2 =
-              cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-                signer,
-              );
-          return wire.wire__crate__api__sync__yield_sync_processor(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-          );
+          var arg0 = cst_encode_String(toDeviceId);
+          return wire.wire__crate__api__sync__yield_sync_processor(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_processing_yield_proof_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiSyncYieldSyncProcessorConstMeta,
-        argValues: [targetRevision, toDeviceId, signer],
+        argValues: [toDeviceId],
         apiImpl: this,
       ),
     );
@@ -7171,39 +7181,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSyncYieldSyncProcessorConstMeta =>
       const TaskConstMeta(
         debugName: "yield_sync_processor",
-        argNames: ["targetRevision", "toDeviceId", "signer"],
+        argNames: ["toDeviceId"],
       );
-
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_DeviceIdentity => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity;
-
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_DeviceIdentity => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AnyhowException(dcoDecodeString(raw));
-  }
-
-  @protected
-  DeviceIdentity
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return DeviceIdentityImpl.frbInternalDcoDecode(dcoDecodeList(raw));
-  }
-
-  @protected
-  DeviceIdentity
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return DeviceIdentityImpl.frbInternalDcoDecode(dcoDecodeList(raw));
   }
 
   @protected
@@ -7388,6 +7372,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_message_recordability_dto(raw);
+  }
+
+  @protected
+  ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_processing_yield_proof_dto(raw);
   }
 
   @protected
@@ -9191,12 +9183,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt dco_decode_usize(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeU64(raw);
-  }
-
-  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -9261,30 +9247,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
     return AnyhowException(inner);
-  }
-
-  @protected
-  DeviceIdentity
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return DeviceIdentityImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  DeviceIdentity
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return DeviceIdentityImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
   }
 
   @protected
@@ -9505,6 +9467,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_message_recordability_dto(deserializer));
+  }
+
+  @protected
+  ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_processing_yield_proof_dto(deserializer));
   }
 
   @protected
@@ -12098,12 +12068,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  BigInt sse_decode_usize(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
     SseDeserializer deserializer,
   ) {
@@ -12189,26 +12153,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int
-  cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    DeviceIdentity raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    // ignore: invalid_use_of_internal_member
-    return (raw as DeviceIdentityImpl).frbInternalCstEncode(move: true);
-  }
-
-  @protected
-  int
-  cst_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    DeviceIdentity raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    // ignore: invalid_use_of_internal_member
-    return (raw as DeviceIdentityImpl).frbInternalCstEncode();
-  }
-
-  @protected
   bool cst_encode_bool(bool raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw;
@@ -12251,32 +12195,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.message, serializer);
-  }
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    DeviceIdentity self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as DeviceIdentityImpl).frbInternalSseEncode(move: true),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    DeviceIdentity self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as DeviceIdentityImpl).frbInternalSseEncode(move: null),
-      serializer,
-    );
   }
 
   @protected
@@ -12468,6 +12386,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_message_recordability_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_processing_yield_proof_dto(
+    ProcessingYieldProofDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_processing_yield_proof_dto(self, serializer);
   }
 
   @protected
@@ -14441,12 +14368,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_usize(BigInt self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putBigUint64(self);
-  }
-
-  @protected
   void sse_encode_web_search_config_dto(
     WebSearchConfigDto self,
     SseSerializer serializer,
@@ -14496,24 +14417,4 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.humanEditedAt, serializer);
     sse_encode_opt_String(self.opinion, serializer);
   }
-}
-
-@sealed
-class DeviceIdentityImpl extends RustOpaque implements DeviceIdentity {
-  // Not to be used by end users
-  DeviceIdentityImpl.frbInternalDcoDecode(List<dynamic> wire)
-    : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  DeviceIdentityImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_DeviceIdentity,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_DeviceIdentity,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_DeviceIdentityPtr,
-  );
 }

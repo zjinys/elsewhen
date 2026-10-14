@@ -974,3 +974,107 @@ fn delayed_analysis_from_former_processor_is_bounded_by_handoff() {
         .unwrap();
     assert_eq!(report.rejected, 0);
 }
+
+#[test]
+fn owner_approves_handoff_and_enforces_proof_boundaries() {
+    // --- Full owner loop: owner == old processor.
+    let (a, b) = handoff_fixture();
+    let proof = a.store.yield_processor_role(3, "b", &a.signer).unwrap();
+    let signed = a
+        .store
+        .approve_processor_handoff(&proof, &a.signer)
+        .unwrap();
+    assert_eq!(signed.roster.revision, 3);
+    assert_eq!(signed.roster.processor_device_id, "b");
+    assert_eq!(processor_of(&a.store), "b");
+    b.store
+        .apply_signed_roster(&signed.encode().unwrap())
+        .unwrap();
+    assert_eq!(
+        b.store.get_processor_handoff_state().unwrap().state,
+        "pending_takeover"
+    );
+
+    // --- Owner != old processor: after the takeover, b yields back and only
+    // the owner (a) can approve a successor roster. No ops were authored, so
+    // b's frontier is already at the boundary (final_sequence = 0).
+    b.store.confirm_processor_takeover().unwrap();
+    let back = b.store.yield_processor_role(4, "a", &b.signer).unwrap();
+    assert_eq!(back.from_device_id, "b");
+    assert_eq!(back.to_device_id, "a");
+
+    // A non-owner signer can never issue the successor roster.
+    assert_eq!(
+        b.store
+            .approve_processor_handoff(&back, &b.signer)
+            .unwrap_err()
+            .to_string(),
+        "sync_membership_owner_required"
+    );
+    // Proof revision must be exactly live + 1.
+    let mut stale = back.clone();
+    stale.roster_revision = 3;
+    assert_eq!(
+        a.store
+            .approve_processor_handoff(&stale, &a.signer)
+            .unwrap_err()
+            .to_string(),
+        "sync_handoff_revision_mismatch"
+    );
+    // Proof source must be the live processor.
+    let mut wrong_source = back.clone();
+    wrong_source.from_device_id = "a".into();
+    wrong_source.to_device_id = "b".into();
+    assert_eq!(
+        a.store
+            .approve_processor_handoff(&wrong_source, &a.signer)
+            .unwrap_err()
+            .to_string(),
+        "sync_handoff_source_mismatch"
+    );
+    // Proof target must be an active roster member (correctly signed, so the
+    // membership check is what rejects it).
+    let stranger_target = ProcessingYieldProof::sign(
+        "dataset",
+        "b".to_string(),
+        "zz".to_string(),
+        4,
+        back.final_sequence,
+        &b.signer,
+    )
+    .unwrap();
+    assert_eq!(
+        a.store
+            .approve_processor_handoff(&stranger_target, &a.signer)
+            .unwrap_err()
+            .to_string(),
+        "sync_handoff_target_missing"
+    );
+    // A proof re-signed by anyone other than the old processor is rejected.
+    let forged_proof = ProcessingYieldProof::sign(
+        "dataset".to_string(),
+        "b".to_string(),
+        "a".to_string(),
+        4,
+        back.final_sequence,
+        &a.signer,
+    )
+    .unwrap();
+    assert_eq!(
+        a.store
+            .approve_processor_handoff(&forged_proof, &a.signer)
+            .unwrap_err()
+            .to_string(),
+        "sync_handoff_signature_invalid"
+    );
+
+    // The legitimate proof issues the successor roster and returns the role.
+    let signed = a.store.approve_processor_handoff(&back, &a.signer).unwrap();
+    assert_eq!(signed.roster.revision, 4);
+    assert_eq!(signed.roster.processor_device_id, "a");
+    // a is now the takeover TARGET: the local processor pointer stays on the
+    // old device until the explicit confirm, and the state holds there.
+    assert_eq!(processor_of(&a.store), "b");
+    let state = a.store.get_processor_handoff_state().unwrap();
+    assert_eq!(state.state, "pending_takeover");
+}

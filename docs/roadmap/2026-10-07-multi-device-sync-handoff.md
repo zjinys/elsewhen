@@ -766,18 +766,31 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
   - `apply_sync_analysis`：若来源非当前 processor，查询 `sync_processor_handoffs` 中该设备的 `MAX(final_sequence)`；`op.origin_sequence <= final_sequence` 时允许应用，否则拒绝（`sync_analysis_wrong_processor`）。
 
 - **API 层**（`src/api/sync.rs`）：
-  - `yield_sync_processor`：旧端让出加工权，返回 `ProcessingYieldProofDto`。
+  - `yield_sync_processor(to_device_id)`：旧端让出加工权（从已解锁会话 vault 加载签名者），返回 `ProcessingYieldProofDto`；修订号由运行时取当前名册 +1。
+  - `approve_processor_handoff(proof)`：owner 审批 old 端证明并签发后继名册。
   - `confirm_processor_takeover`：新端确认接管。
   - `get_processor_handoff_state`：查询移交状态，返回 `ProcessorHandoffStateDto`。
+
+### 运行时闭环（同批补齐）
+
+初版 `yield_sync_processor` 要求从 Dart 传入 `DeviceIdentity`（含私钥，前端无法构造），已改为 `src/sync/runtime/handoff.rs` 从已确认会话 vault 加载签名者（含锁定/未确认/加入中全拒）。新增 owner 审批链路：`approve_processor_handoff(proof)` → 存储层 `approve_processor_handoff`，防线全部 fail-closed：
+
+- owner 签名密钥 ≠ 名册 owner 拒绝（`sync_membership_owner_required`）；
+- proof 修订 ≠ 当前名册 + 1 拒绝（`sync_handoff_revision_mismatch`）；
+- proof 来源 ≠ 当前加工端或旧端不活跃拒绝（`sync_handoff_source_mismatch` / `sync_handoff_old_processor_inactive`）；
+- proof 必须用旧加工端注册密钥验签（`sync_handoff_signature_invalid`）；
+- 目标非活跃成员拒绝（`sync_handoff_target_missing`）。
+
+测试 `owner_approves_handoff_and_enforces_proof_boundaries` 覆盖 owner == 旧加工端与 owner != 旧加工端（移交回 owner）两个完整环路、全部审批防线，及目标端在新名册下保持 `pending_takeover`（processor 指针不提前切换）。
 
 ### 验证结果
 
 | 检查 | 结果 |
 | --- | --- |
-| `cargo test` | **679 passed / 0 failed / 17 ignored**（含 4 个 P4d 防线集成测试） |
+| `cargo test` | **680 passed / 0 failed / 17 ignored**（含 5 个 P4d 防线/审批集成测试） |
 | `cargo fmt --all -- --check` | 通过 |
 | `cargo build --release` | 通过 |
-| `./scripts/regen.sh` | 桥接重生成，hash 一致（API 面未变，无 Dart 差异） |
+| `./scripts/regen.sh` | 桥接重生成，hash 一致（API 签名修正，Dart 桥接同步更新） |
 | Flutter `fvm flutter test` | **349 passed** |
 
 ### 防线集成测试（`storage::sync::membership::tests`）

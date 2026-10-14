@@ -731,15 +731,11 @@ pub fn get_processor_handoff_state() -> Result<ProcessorHandoffStateDto> {
     })
 }
 
-/// 旧加工端让出加工权，生成移交证明供 owner 签发新名册。
-pub fn yield_sync_processor(
-    target_revision: i64,
-    to_device_id: String,
-    signer: crate::sync::crypto::DeviceIdentity,
-) -> Result<ProcessingYieldProofDto> {
+/// 旧加工端让出加工权：生成移交证明（需本机已解锁会话）。
+/// 后继修订号始终取当前名册的下一修订，调用方不可指定。
+pub fn yield_sync_processor(to_device_id: String) -> Result<ProcessingYieldProofDto> {
     let config = AppConfig::load()?;
-    let store = Store::open(&config.database_path)?;
-    let proof = store.yield_processor_role(target_revision as u64, &to_device_id, &signer)?;
+    let proof = runtime::handoff::yield_processor(&config, &to_device_id)?;
     Ok(ProcessingYieldProofDto {
         dataset_id: proof.dataset_id,
         from_device_id: proof.from_device_id,
@@ -750,9 +746,22 @@ pub fn yield_sync_processor(
     })
 }
 
+/// 名册 owner 审批旧加工端的移交证明并签发后继名册（需 owner 本机已解锁）。
+pub fn approve_processor_handoff(proof: ProcessingYieldProofDto) -> Result<()> {
+    let config = AppConfig::load()?;
+    let proof = runtime::handoff::proof_from_parts(
+        proof.dataset_id,
+        proof.from_device_id,
+        proof.to_device_id,
+        proof.roster_revision,
+        proof.final_sequence,
+        proof.signature,
+    )?;
+    runtime::handoff::approve_handoff(&config, &proof)
+}
+
 /// 新加工端确认接管（frontier 追平后调用）。
 pub fn confirm_processor_takeover() -> Result<()> {
     let config = AppConfig::load()?;
-    let store = Store::open(&config.database_path)?;
-    store.confirm_processor_takeover()
+    runtime::handoff::confirm_takeover(&config)
 }

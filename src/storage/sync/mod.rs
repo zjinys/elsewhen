@@ -7,6 +7,7 @@ mod enrollment;
 mod fragments;
 mod gc;
 mod membership;
+pub(crate) use membership::ProcessorHandoffState;
 mod pairing;
 pub(crate) use pairing::{PairingCommit, PairingDispatch};
 mod processing;

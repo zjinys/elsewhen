@@ -568,6 +568,68 @@ impl Store {
         Ok(signed)
     }
 
+    /// Owner-side handoff approval: verify the old processor's signed yield
+    /// proof against the live roster and issue the successor roster. The proof
+    /// never grants anything by itself; only the owner signature broadcasts it.
+    pub(crate) fn approve_processor_handoff(
+        &self,
+        proof: &crate::sync::membership::ProcessingYieldProof,
+        owner: &DeviceIdentity,
+    ) -> Result<SignedRoster> {
+        let tx = self.begin_write_transaction()?;
+        proof.validate()?;
+        let current = self
+            .current_signed_roster()?
+            .context("sync_authority_not_ready")?;
+        ensure!(
+            current.roster.owner.signing_key == owner.public_key(),
+            "sync_membership_owner_required"
+        );
+        ensure!(
+            proof.dataset_id == current.roster.dataset_id,
+            "sync_handoff_dataset_mismatch"
+        );
+        ensure!(
+            proof.roster_revision
+                == current
+                    .roster
+                    .revision
+                    .checked_add(1)
+                    .context("sync_membership_revision_exhausted")?,
+            "sync_handoff_revision_mismatch"
+        );
+        ensure!(
+            proof.from_device_id == current.roster.processor_device_id,
+            "sync_handoff_source_mismatch"
+        );
+        // The proof must verify under the old processor's registered member key.
+        let old_processor = current
+            .roster
+            .members
+            .iter()
+            .find(|m| m.active && m.device.device_id == current.roster.processor_device_id)
+            .context("sync_handoff_old_processor_inactive")?;
+        proof.verify(&old_processor.device.signing_key)?;
+        ensure!(
+            current
+                .roster
+                .members
+                .iter()
+                .any(|m| m.active && m.device.device_id == proof.to_device_id),
+            "sync_handoff_target_missing"
+        );
+        let mut roster = current.roster;
+        roster.revision = proof.roster_revision;
+        roster.processor_device_id = proof.to_device_id.clone();
+        roster.handoff = Some(proof.clone());
+        let signed = SignedRoster::sign(roster, owner)?;
+        self.apply_signed_roster(&signed.encode()?)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(signed)
+    }
+
     pub(crate) fn require_sync_transport_key(
         &self,
         sender: &str,

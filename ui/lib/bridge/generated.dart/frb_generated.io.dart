@@ -41,7 +41,6 @@ import 'knowledge/workflows.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
 import 'storage/knowledge.dart';
-import 'sync/crypto.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustLibApiImplPlatform({
@@ -51,24 +50,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_DeviceIdentityPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr;
-
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
-
-  @protected
-  DeviceIdentity
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    dynamic raw,
-  );
-
-  @protected
-  DeviceIdentity
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    dynamic raw,
-  );
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -132,6 +115,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessageRecordabilityDto dco_decode_box_autoadd_message_recordability_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
     dynamic raw,
   );
 
@@ -635,9 +623,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
 
   @protected
-  BigInt dco_decode_usize(dynamic raw);
-
-  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
@@ -648,18 +633,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
-
-  @protected
-  DeviceIdentity
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  DeviceIdentity
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    SseDeserializer deserializer,
-  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -737,6 +710,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MessageRecordabilityDto sse_decode_box_autoadd_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
     SseDeserializer deserializer,
   );
 
@@ -1384,9 +1362,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
     SseDeserializer deserializer,
   );
@@ -1503,6 +1478,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_message_recordability_dto();
     cst_api_fill_to_wire_message_recordability_dto(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_processing_yield_proof_dto>
+  cst_encode_box_autoadd_processing_yield_proof_dto(
+    ProcessingYieldProofDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_processing_yield_proof_dto();
+    cst_api_fill_to_wire_processing_yield_proof_dto(raw, ptr.ref);
     return ptr;
   }
 
@@ -2287,12 +2273,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  int cst_encode_usize(BigInt raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return raw.toSigned(64).toInt();
-  }
-
-  @protected
   void cst_api_fill_to_wire_ai_provider_config_dto(
     AiProviderConfigDto apiObj,
     wire_cst_ai_provider_config_dto wireObj,
@@ -2442,6 +2422,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_message_recordability_dto> wireObj,
   ) {
     cst_api_fill_to_wire_message_recordability_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_processing_yield_proof_dto(
+    ProcessingYieldProofDto apiObj,
+    ffi.Pointer<wire_cst_processing_yield_proof_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_processing_yield_proof_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -3634,18 +3622,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  int
-  cst_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    DeviceIdentity raw,
-  );
-
-  @protected
-  int
-  cst_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    DeviceIdentity raw,
-  );
-
-  @protected
   bool cst_encode_bool(bool raw);
 
   @protected
@@ -3666,20 +3642,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    DeviceIdentity self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    DeviceIdentity self,
     SseSerializer serializer,
   );
 
@@ -3779,6 +3741,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_message_recordability_dto(
     MessageRecordabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_processing_yield_proof_dto(
+    ProcessingYieldProofDto self,
     SseSerializer serializer,
   );
 
@@ -4602,9 +4570,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
   void sse_encode_web_search_config_dto(
     WebSearchConfigDto self,
     SseSerializer serializer,
@@ -4796,6 +4761,23 @@ class RustLibWire implements BaseWire {
       _cst_new_box_autoadd_message_recordability_dtoPtr
           .asFunction<
             ffi.Pointer<wire_cst_message_recordability_dto> Function()
+          >();
+
+  ffi.Pointer<wire_cst_processing_yield_proof_dto>
+  cst_new_box_autoadd_processing_yield_proof_dto() {
+    return _cst_new_box_autoadd_processing_yield_proof_dto();
+  }
+
+  late final _cst_new_box_autoadd_processing_yield_proof_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_processing_yield_proof_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_processing_yield_proof_dto');
+  late final _cst_new_box_autoadd_processing_yield_proof_dto =
+      _cst_new_box_autoadd_processing_yield_proof_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_processing_yield_proof_dto> Function()
           >();
 
   ffi.Pointer<wire_cst_source_snapshot> cst_new_box_autoadd_source_snapshot() {
@@ -5701,40 +5683,6 @@ class RustLibWire implements BaseWire {
       );
   late final _dummy_method_to_enforce_bundling =
       _dummy_method_to_enforce_bundlingPtr.asFunction<int Function()>();
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_elsewhen_ui_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity',
-      );
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity =
-      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_elsewhen_ui_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity',
-      );
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentity =
-      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDeviceIdentityPtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void store_dart_post_cobject(DartPostCObjectFnType ptr) {
     return _store_dart_post_cobject(ptr);
@@ -9407,6 +9355,28 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__sync__approve_processor_handoff(
+    int port_,
+    ffi.Pointer<wire_cst_processing_yield_proof_dto> proof,
+  ) {
+    return _wire__crate__api__sync__approve_processor_handoff(port_, proof);
+  }
+
+  late final _wire__crate__api__sync__approve_processor_handoffPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_processing_yield_proof_dto>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__approve_processor_handoff');
+  late final _wire__crate__api__sync__approve_processor_handoff =
+      _wire__crate__api__sync__approve_processor_handoffPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_processing_yield_proof_dto>)
+          >();
+
   void wire__crate__api__sync__cancel_owner_sync_invitation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
@@ -10137,16 +10107,9 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__sync__yield_sync_processor(
     int port_,
-    int target_revision,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> to_device_id,
-    int signer,
   ) {
-    return _wire__crate__api__sync__yield_sync_processor(
-      port_,
-      target_revision,
-      to_device_id,
-      signer,
-    );
+    return _wire__crate__api__sync__yield_sync_processor(port_, to_device_id);
   }
 
   late final _wire__crate__api__sync__yield_sync_processorPtr =
@@ -10154,21 +10117,14 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
-            ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.UintPtr,
           )
         >
       >('frbgen_elsewhen_ui_wire__crate__api__sync__yield_sync_processor');
   late final _wire__crate__api__sync__yield_sync_processor =
       _wire__crate__api__sync__yield_sync_processorPtr
           .asFunction<
-            void Function(
-              int,
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
   void wire__crate__api__theme__get_theme_prefs(int port_) {

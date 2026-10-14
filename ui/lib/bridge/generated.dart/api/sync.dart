@@ -4,7 +4,6 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import '../sync/crypto.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -236,16 +235,17 @@ Future<void> resolveSyncProviderConflict({
 Future<ProcessorHandoffStateDto> getProcessorHandoffState() =>
     RustLib.instance.api.crateApiSyncGetProcessorHandoffState();
 
-/// 旧加工端让出加工权，生成移交证明供 owner 签发新名册。
+/// 旧加工端让出加工权：生成移交证明（需本机已解锁会话）。
+/// 后继修订号始终取当前名册的下一修订，调用方不可指定。
 Future<ProcessingYieldProofDto> yieldSyncProcessor({
-  required PlatformInt64 targetRevision,
   required String toDeviceId,
-  required DeviceIdentity signer,
-}) => RustLib.instance.api.crateApiSyncYieldSyncProcessor(
-  targetRevision: targetRevision,
-  toDeviceId: toDeviceId,
-  signer: signer,
-);
+}) =>
+    RustLib.instance.api.crateApiSyncYieldSyncProcessor(toDeviceId: toDeviceId);
+
+/// 名册 owner 审批旧加工端的移交证明并签发后继名册（需 owner 本机已解锁）。
+Future<void> approveProcessorHandoff({
+  required ProcessingYieldProofDto proof,
+}) => RustLib.instance.api.crateApiSyncApproveProcessorHandoff(proof: proof);
 
 /// 新加工端确认接管（frontier 追平后调用）。
 Future<void> confirmProcessorTakeover() =>

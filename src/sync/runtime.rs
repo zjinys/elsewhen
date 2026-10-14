@@ -3,6 +3,7 @@
 //! callers retain the file lease, even if the UI locks the runtime meanwhile.
 
 pub(crate) mod enrollment;
+pub(crate) mod handoff;
 pub(crate) mod invitations;
 pub(crate) mod joining;
 pub(crate) mod network;
