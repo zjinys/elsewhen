@@ -10,25 +10,31 @@
 
 ## 执行状态
 
+- **⚠️ 本路线已于 2026-10-14 关闭（开发完成）。** S00–S05 全部交付（工程与自动化验收记录见完成记录与
+  [Handoff §1–§31b](2026-10-07-multi-device-sync-handoff.md)）；S06 真人发布门禁移交
+  [人工测试路线 M0–M7](2026-10-14-sync-manual-test-roadmap.md) 与
+  [S06 门禁清单](2026-10-14-s06-human-gate-checklist.md) 执行——那是唯一的发版阻塞项。
+  **下文各切片的细项勾选是开发过程中的工作态快照，不再逐一回填**；以各切片最新的 Handoff 章节为准
+  （如 S01 的「接入事件统一提交核心」等未勾项实际已由 P3/P4 落地）。代码基线 `f7f6e74`，
+  迁移 34，快照版本 3；最终门禁：Rust 711 passed、Flutter 372 passed、analyze 0 error/warning。
 - **建立日期：** 2026-10-03。
 - **已交付：** 方案修订，以及 S01 复制底座、S02 加密/中继加固、S04 Provider 加密应用和 owner 邀请开发预览；owner P0 补验已完成，全仓质量例外单列，整个同步功能尚未完成。
 - **P0 已验证基线：** schema v16–v24；签名成员授权、隔离数据集目录册、App 本机准备/解锁、受保护修订、工作区租约、Provider 静态加密及编辑基底已接通。2026-10-07 基于 `6743a09` 的补验：Rust **588 passed / 11 ignored**（另配置环境 **5 passed**）、release 通过；Flutter owner 定向 **6 passed**／同步相关定向 **25 passed**／全量 **312 passed**；实际 Worker **14 passed**。owner 格式和定向 analyze 通过；全仓 Rust 格式仍有 3 个既有文件差异，Flutter 全量 analyze 有 78 项问题，不记为通过。证据见完成记录及[开发交接](2026-10-07-multi-device-sync-handoff.md)。
 - **当前 P1 基线：** 2026-10-08 工程与自动化验收完成；Rust 600 passed / 11 ignored（另配置环境 5 passed）、Flutter 新增定向 11／同步相关定向 36／全量 323 passed、实际 Worker 14 passed，P1 格式/定向 analyze、release 通过。全仓格式 3 个文件差异和 Flutter analyze 78 项仍未通过；详见完成记录与 Handoff §9。
 - **P2 已验收（2026-10-11）：** 安装证明/正式通道/名册/快照自动交接的工程与自动化验收完成。P2 Rust 定向 16 passed、全量 Rust 640 passed / 16 ignored（另配置环境 5 passed）、实际 Worker 15 passed（含完整生产入组故障恢复）、桥接重生成/release 通过（hash 233902080）；Flutter 控制器 11 passed、同步相关定向 **48 passed**、全量 **345 passed**、P2 定向 analyze 无问题；P2 Rust 23 文件与 Dart 10 文件格式通过。同日经用户明确要求，`cargo fmt --all` 修复全部 16 个文件（历史 3 个 + 并行改动）后全仓 `--check` 通过并复验全量/release；唯一保留例外为 Flutter analyze 71 项全 info，单列。详见完成记录与 [Handoff §12](2026-10-07-multi-device-sync-handoff.md)。
 - **P3 已验收（2026-10-12）：** 数据集选择/修复 API（`list_sync_datasets`/`select_sync_dataset`/`select_default_sync_dataset`，仅下次启动生效、以用户所见预览+原生确认 vault 提交）与 App 自动同步调度（网络稳态 tick 复用持久 outbox/回执台账，接入同一后台 worker，状态页显示范围/待同步/最近成功/异常）的工程与自动化验收完成。全量 Rust **640 passed / 17 ignored**、实际 Worker **16 passed**（含新 P3 稳态增量用例）、Flutter 全量 **345 passed**、桥接重生成/release 通过；全仓 Rust 格式 `--check` 通过；Flutter analyze 72 项（71 info + 并行任务新增 1 warning，P3 文件 0 项）继续单列。详见 [Handoff §13](2026-10-07-multi-device-sync-handoff.md)。
-- **下一步骤：** P4 首版剩余语义与发布恢复门禁（[Handoff §4](2026-10-07-multi-device-sync-handoff.md)）。Flutter analyze 例外继续单列；P2/P3 已完成不代表 S02/S03/S04 总项或 S06 真人门禁完成，不进入 P4 之外的 S05/GC 之外的扩展。
 - **首个可用范围：** S01–S04 与 S06 对应发布门禁通过后，开放记录、普通对话、分析结果、Provider 完整配置同步。Wiki/待办/规则的完整同步依赖 S05。
 - **更新规则：** 每个切片完成立即更新本文件及总路线，列出代码、测试、失败与剩余边界。内部原型通过不等于真实设备发布验收通过。
 
-| 切片 | 内容 | 依赖 | 状态 |
+| 切片 | 内容 | 依赖 | 终态（2026-10-14 关闭） |
 |---|---|---|---|
-| S00 | 方案、范围与验收清单 | 无 | 完成；类型/回归及独立 Node/OpenSSL 固定信封向量已接入（不代表 S01–S06 功能验收） |
-| S01 | 双库领域复制核心 | S00 | 进行中；16 项隔离复制/回执/冲突测试通过 |
-| S02 | 配对、真实加密与中继权限 | S00 | 进行中；P0/P1 已验收，P2 正式通道/名册自动交接已验收（Rust/Worker/Flutter 全量回归）；原生平台签收与完整 S02 出口未完成 |
-| S03 | 快照、投递、回执与恢复 | S01、S02 | P2 一致快照自动交接与丢响应/重开恢复已通过 Worker 完整流程；通用 App 同步调度、保留窗口与 GC/重快照未完成 |
-| S04 | App 接入、Provider 开箱即用、加工归属 | S01–S03 | owner/joiner P2 自动协调与 Provider 恢复已验收（全量 Flutter 345 项）；数据集选择/通用生命周期调度、加工移交与原生签收未完成 |
-| S05 | Wiki 等可变对象与证据闭包 | S04 | 未开始 |
-| S06 | 设备生命周期与分范围发布验收 | S01–S04；全库验收另依赖 S05 | 未开始 |
+| S00 | 方案、范围与验收清单 | 无 | 完成 |
+| S01 | 双库领域复制核心 | S00 | 完成（P0–P3 交付，证据见完成记录） |
+| S02 | 配对、真实加密与中继权限 | S00 | 完成（P0–P4e 交付；含 §30 扫码加入） |
+| S03 | 快照、投递、回执与恢复 | S01、S02 | 完成（P3/P4 交付；含快照 v2 §29、v3 §31） |
+| S04 | App 接入、Provider 开箱即用、加工归属 | S01–S03 | 完成（P4/P5a/P5b 交付） |
+| S05 | Wiki 等可变对象与证据闭包 | S04 | 完成（Handoff §24–§28） |
+| S06 | 设备生命周期与分范围发布验收 | S01–S05 | **移交人工测试路线**（M0–M7 + S06 门禁清单）；开发侧条目已随 P4d/P4e 完成 |
 
 ## 不变式
 
@@ -196,7 +202,9 @@ npm test
 
 ## 暂不进入首版
 
-- P2P、局域网发现、NAT 打洞、同步文件路径；
+- P2P、局域网发现、NAT 打洞、通用文件路径同步（注：推文配图目录经快照 v3
+  目录段定向同步已实现，§31b——此处「同步文件路径」仍保持关闭，指任意本地路径）；
+
 - 任意两份已有独立数据库自动合并；
 - 所有文本自动合并、通用 CRDT、依赖时钟的 LWW；
 - 跨设备复制可执行审批令牌、执行租约和未核验流式草稿；
