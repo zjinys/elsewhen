@@ -515,6 +515,7 @@ P2 与 P3 的工程与自动化验收已完成（P3 见 §13），下一步为 P
 - [x] P3 工程与自动化验收完成（2026-10-12，见 §13）：数据集选择/修复 API + 网络稳态 tick + App 调度/状态页，环回真实 Worker 16/16、Rust 640/640、Flutter 345/345。
 - [x] P4a 源隔离/idempotency 保真/未知版本容错/长离线追平完成（2026-10-12，见 §14）：迁移 v27 + 7 个同步测试 + v27 迁移测试，Rust 648 全量通过。
 - [x] P4b Provider 冲突掩码审阅/显式裁决/可达性提示完成（2026-10-13，见 §15）：迁移 v28 + 冲突审阅/裁决存储与 FRB API + 6 个端到端测试 + v28 迁移测试，Rust 660 全量通过；审阅对话框 UI 接线完成（§16），Flutter 349 全量通过。
+- [x] P4c S03 生命周期 GC/水印/补快照完成（2026-10-13，见 §17）：迁移 v29 + 每成员应用水印 + catch-up 窗口 + needs_resnapshot + GC 游标，7 个新测试，Rust 667 全量通过；加工移交与撤销 UX 属后续切片。
 - [ ] P4c–P4e（S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5（S05）、原生 OS 密钥库发布门禁（未开展）。
 
 ## 13. 2026-10-12 P3 实施（数据集选择/修复与 App 自动同步调度）
@@ -645,3 +646,48 @@ P4a 开工前先逐项核对 S01 已有底座，确认以下机制**已带测试
 - 本切片只接通**审阅对话框 UI**；Rust 存储/API 语义未改动。
 - P4c–P4e（S03 GC/TTL/重快照/加工移交、撤销 UX、真人设备签收）、P5、原生 OS 密钥库发布门禁继续未完成。
 - 真实双设备冲突的端到端演示仍需真人设备门禁（P4e），widget 测试不替代之。
+
+## 17. 2026-10-13 P4c（S03 生命周期：GC/水印/补快照）
+
+### 本轮实际交付
+
+1. **迁移 v29**（`migrations/29-sync-gc/up.sql`）：
+   - `sync_member_state(device_id, confirmed_sequence, needs_resnapshot)` — 每成员对本流的应用层水印与补快照标志。
+   - `sync_gc_state(origin_stream_id, gc_floor)` — 每流单调 GC 游标。
+   - `ALTER TABLE sync_snapshot_exports ADD COLUMN local_watermark` — 快照构建时钉住的本地流 frontier。
+2. **`src/storage/sync/gc.rs`**：`advance_sync_member_watermark`（水印只升不降）、`run_sync_gc`（失败关闭的 GC）、`mark_member_snapshotted`、`sync_resnapshot_pending`、`sync_local_gc_floor`。常量 `SYNC_GC_CATCH_UP_WINDOW=256`、`SYNC_GC_MIN_RETAINED_OPERATIONS=64`。
+3. **接线**：`acknowledge_sync_operation` 现在同时推进该成员水印（`gc.rs`）；`begin_snapshot_export` 记录构建时本地 frontier；`acknowledge_snapshot_export` 用该 frontier 经 `mark_member_snapshotted` 播种成员水印。
+
+### 语义不变量（全部 SQL 强制，失败关闭）
+
+- **三个确认分开**：relay 收下 ≠ 对端已应用 ≠ 允许 GC。GC **只**用应用层水印（`acknowledge_sync_operation` → `advance_sync_member_watermark`），绝不用 relay ack（`sync_wire_outbox.state`）。
+- **所有 active 成员纳入水印计算**：`sync_members` 左连 `sync_member_state`，缺失行 `COALESCE(...,0)` 按 0 计——落后设备永远拉住 GC，NULL/缺失不被过滤。
+- **落后成员失败关闭**：`confirmed < floor - catch_up_window` 翻 `needs_resnapshot=1`；任何成员被标记时 GC 完全停摆（`operations_pruned=0`、floor 不动），绝不静默清历史。
+- **保留窗口保底**：除水印外，GC 永不修剪最新 `SYNC_GC_MIN_RETAINED_OPERATIONS` 条本地已应用 op，最近的本地捕获始终可重放。
+- **只修剪本流已确认历史**：GC 只删本设备 `local=1 AND state='applied'` 且每个 active 成员都已 ack 的 op；先删 `sync_outbox` 行再删 `sync_operations`（外键顺序）。绝不动域数据（events/conversations/messages）或他设备历史（receiver 不是他设备历史的权威）。
+- **快照 ack 用建快照时 frontier 播种**：新成员从快照进入正常增量集合，水印从构建时 frontier 起算——不是 0（会拉住 GC）也不是实时 frontier（会过度声明快照之后的 op）。
+- **中继 TTL = 仅丢传输副本**：TTL 到期只丢 relay 侧信封，源操作未确认就重发或安排快照；7 天邮箱不是备份（代码注释固化，语义由「GC 只认应用水印」保证）。
+
+### 验证结果（本轮实际执行）
+
+| 检查 | 结果 |
+| --- | --- |
+| `cargo test --all-targets`（`NO_PROXY=localhost,127.0.0.1,::1`） | **667 passed / 0 failed / 17 ignored**（7 个新 GC 测试 + v29 迁移版本断言） |
+| `cargo fmt --all -- --check` | 通过 |
+| `cargo build --release` | 通过 |
+| `./scripts/test_bridge.sh` | 桥接校验通过 |
+| `npm --prefix relay test` | **16 passed / 0 failed** |
+| Flutter `fvm flutter test` | **349 passed**（无 Flutter 变更） |
+
+7 个新测试覆盖：水印只升不降、全确认后修剪且不动域数据、未确认成员完全拉住 GC、缺失水位行按 0 计不被过滤、落后成员翻 needs_resnapshot 且 GC 停摆、快照 ack 用构建时 frontier 播种、GC 不用 relay ack 且不修剪他设备历史。
+
+### 边界与未完成
+
+- 本切片实现 **GC/水印/补快照状态**；`needs_resnapshot` 只置标志，**自动重发快照的调度**（检测标志后自动为新成员重建快照）属后续切片。
+- **tombstone 生命周期**：对话删除的 tombstone 防复活已在 `sync_object_heads.deleted` + `sync_known_revisions`；其**回收**需考虑离线设备与快照世代（§5），本切片未实现 tombstone 回收（保守保留，永不自动清）。
+- P4d 加工移交、P4e 撤销 UX/诊断/升级、原生密钥库签收、真人设备门禁继续未完成。
+- 全程只用临时目录隔离库与合成身份；无个人数据/真实密钥/外部模型/线上中继。
+
+### 事故记录：外来 stash 污染
+
+本轮 `cargo fmt --all` 后 `git stash`/`stash pop` 操作意外把 stash@{0} 中**另一工作流的 storage-adapter 重构**混入工作区（`src/storage/adapter.rs`、`src/storage/mod.rs`、多个 UI settings 文件、2 个新架构 note、`proposal-backlog.md` 的两条非本切片提案）。已逐一甄别并 `git checkout HEAD --` 还原全部外来文件，仅保留 P4c 自有改动；stash@{0} 保留未动（属另一工作流）。**教训**：多工作流共用仓库时，`git stash` 不带 message 极易张冠李戴；本仓库禁止无 message 的 stash。

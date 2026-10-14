@@ -52,9 +52,22 @@ impl Store {
             }
             return Ok(false);
         }
+        // Pin the recipient's starting application watermark to the LOCAL
+        // stream frontier at snapshot-build time. The exported snapshot contains
+        // exactly the ops up to this frontier, so this is the correct starting
+        // watermark — never 0 (holds back GC) and never the live frontier
+        // (over-claims ops captured after the snapshot).
+        let local_watermark: i64 = self
+            .connection
+            .query_row(
+                "SELECT applied_sequence FROM sync_frontiers WHERE origin_stream_id=?1",
+                [&identity.stream_id],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
         self.connection.execute(
-            "INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state) VALUES(?1,?2,?3,'building')",
-            params![id,recipient,key_version as i64],
+            "INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state,local_watermark) VALUES(?1,?2,?3,'building',?4)",
+            params![id,recipient,key_version as i64,local_watermark],
         )?;
         if let Some(tx) = tx {
             tx.commit()?;
@@ -172,6 +185,18 @@ impl Store {
             "UPDATE sync_snapshot_exports SET state='acknowledged' WHERE id=?1",
             [id],
         )?;
+        // The recipient has confirmed the snapshot: seed its application
+        // watermark at the pinned build-time frontier so it neither holds back
+        // GC (as 0 would) nor over-claims (as the live frontier would).
+        let watermark: i64 = self.connection.query_row(
+            "SELECT local_watermark FROM sync_snapshot_exports WHERE id=?1",
+            [id],
+            |r| r.get(0),
+        )?;
+        let identity = self.sync_identity()?.context("sync_not_initialized")?;
+        let mut frontiers = std::collections::BTreeMap::new();
+        frontiers.insert(identity.stream_id.clone(), watermark);
+        self.mark_member_snapshotted(peer, &frontiers)?;
         if let Some(tx) = tx {
             tx.commit()?;
         }

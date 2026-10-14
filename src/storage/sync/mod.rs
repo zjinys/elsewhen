@@ -5,6 +5,7 @@ mod analysis;
 mod delivery;
 mod enrollment;
 mod fragments;
+mod gc;
 mod membership;
 mod pairing;
 pub(crate) use pairing::{PairingCommit, PairingDispatch};
@@ -349,6 +350,13 @@ impl Store {
             "UPDATE sync_outbox SET acknowledged=1 WHERE recipient_device_id=?1 AND op_id=?2",
             params![recipient, op_id],
         )?;
+        // S03 lifecycle: an application ack advances this member's watermark for
+        // the local stream. op ids are `stream:seq`; the sequence is the
+        // watermark position. Local captures insert `applied` ops directly and
+        // never flow through ack, so the local device does not gate itself.
+        if let Some(seq) = op_id.rsplit(':').next().and_then(|s| s.parse::<i64>().ok()) {
+            self.advance_sync_member_watermark(recipient, seq)?;
+        }
         Ok(())
     }
 
@@ -875,3 +883,7 @@ pub(crate) fn hash(bytes: &[u8]) -> String {
 mod chat_tests;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "gc/tests.rs"]
+mod gc_tests;
