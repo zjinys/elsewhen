@@ -20,6 +20,135 @@ use crate::sync::{
     },
 };
 
+/// 快照载荷 schema 代际。v1 缺 wiki/待办/目标/规则与 head 种类（§29 的缺口），
+/// 与 v2 记录格式互不兼容：接收端只认当前代（跨代 = 显式隔离，不猜测）。
+pub(crate) const SNAPSHOT_VERSION: u32 = 2;
+
+/// 随快照携带的表。QUERIES 必须真实覆盖这里的每一张（覆盖性由门禁测试
+/// `snapshot_carries_every_table_or_explicitly_excludes_it` 兜住：新增表不登记
+/// 会直接红，再也不会静默断档）。
+pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
+    "events",
+    "wiki_pages",
+    "wiki_revisions",
+    "conversations",
+    "messages",
+    "message_response_links",
+    "input_records",
+    "event_analyses",
+    "event_recordability_decisions",
+    "todos",
+    "goals",
+    "rules",
+    "sync_object_heads",
+    "sync_known_revisions",
+    "sync_members",
+    "sync_message_order",
+    "sync_operations",
+    "sync_checkpoint_operations",
+    "sync_conflicts",
+    "sync_checkpoint_providers",
+    "sync_provider_versions",
+    "sync_wire_outbox",
+    "ai_provider_configs",
+];
+
+pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
+    // 设备身份与签名私钥：快照是给新设备的，身份由接收端自己初始化。
+    ("sync_local_vault", "local-identity-and-keys"),
+    ("sync_replica", "local-identity-and-keys"),
+    // Provider key 材料不离本机（key 不回收披露）；配置经 provider bundle 走。
+    ("provider_edit_tokens", "local-provider-secrets-and-state"),
+    ("provider_key_policy", "local-provider-secrets-and-state"),
+    ("provider_key_secrets", "local-provider-secrets-and-state"),
+    // 成员授权与密钥材料：经 enrollment/signed roster 渠道走，不夹带。
+    ("sync_authority", "enrollment-channel"),
+    ("sync_authority_versions", "enrollment-channel"),
+    ("sync_member_keys", "enrollment-channel"),
+    ("sync_member_state", "enrollment-channel"),
+    // 发布时由 manifest.frontiers 覆盖校验重建。
+    ("sync_frontiers", "rebuilt-from-manifest-at-publish"),
+    // GC 只认本设备的应用层水位，不跨设备继承。
+    ("sync_gc_state", "per-device-gc-watermark"),
+    // 本机同步收发/传输/迁移残留状态：不属于数据集内容。
+    ("ai_provider_sync_order", "rebuilt-by-provider-bundle-apply"),
+    ("analysis_jobs", "per-device-sync-state"),
+    ("sync_operation_fragment_outbox", "per-device-sync-state"),
+    ("sync_operation_fragment_parts", "per-device-sync-state"),
+    ("sync_operation_fragments", "per-device-sync-state"),
+    ("sync_operations_new", "per-device-sync-state"),
+    ("sync_outbox", "per-device-sync-state"),
+    ("sync_processor_handoffs", "per-device-sync-state"),
+    ("sync_processor_state", "per-device-sync-state"),
+    ("sync_provider_dirty", "per-device-sync-state"),
+    ("sync_provider_state", "per-device-sync-state"),
+    ("sync_provider_versions_new", "per-device-sync-state"),
+    ("sync_receipts", "per-device-sync-state"),
+    ("sync_relay_cursors", "per-device-sync-state"),
+    ("sync_resnapshot_requests", "per-device-sync-state"),
+    ("sync_snapshot_chunks", "per-device-sync-state"),
+    ("sync_snapshot_export_wires", "per-device-sync-state"),
+    ("sync_snapshot_exports", "per-device-sync-state"),
+    ("sync_snapshot_target", "per-device-sync-state"),
+    ("sync_snapshots", "per-device-sync-state"),
+    ("sync_wire_receipts", "per-device-sync-state"),
+    // 应用记录时用 sync_mark_wiki_slug_seen 重建。
+    ("sync_wiki_slug_seen", "derived-on-apply"),
+    // 本机应用配置（含 web_search 凭据），不是数据集内容。
+    ("app_meta", "local-app-config"),
+    ("network_settings", "local-app-config"),
+    ("schema_migrations", "local-app-config"),
+    ("web_search_configs", "local-app-config"),
+    // 聊天执行/排程本地状态。
+    ("chat_input_effects", "local-chat-execution-state"),
+    ("chat_input_queue", "local-chat-execution-state"),
+    ("chat_page_tasks", "local-chat-execution-state"),
+    ("chat_proposal_decisions", "local-chat-execution-state"),
+    ("chat_queue_dispatch", "local-chat-execution-state"),
+    ("chat_run_events", "local-chat-execution-state"),
+    ("chat_run_requests", "local-chat-execution-state"),
+    ("chat_runs", "local-chat-execution-state"),
+    ("chat_summary_nodes", "local-chat-execution-state"),
+    ("pending_actions", "local-chat-execution-state"),
+    ("suggestion_feedback", "local-chat-execution-state"),
+    // knowledge 管线本地产物，尚不在同步数据集（不产生 op）。
+    ("knowledge_artifact_adoptions", "local-knowledge-pipeline"),
+    ("knowledge_artifact_versions", "local-knowledge-pipeline"),
+    ("knowledge_background_runs", "local-knowledge-pipeline"),
+    ("knowledge_dependencies", "local-knowledge-pipeline"),
+    ("knowledge_digest_jobs", "local-knowledge-pipeline"),
+    ("knowledge_digest_runs", "local-knowledge-pipeline"),
+    ("knowledge_generations", "local-knowledge-pipeline"),
+    ("knowledge_maintenance_reviews", "local-knowledge-pipeline"),
+    ("knowledge_metadata", "local-knowledge-pipeline"),
+    ("knowledge_page_sources", "local-knowledge-pipeline"),
+    ("knowledge_proposals", "local-knowledge-pipeline"),
+    ("knowledge_reading_states", "local-knowledge-pipeline"),
+    ("knowledge_refresh_jobs", "local-knowledge-pipeline"),
+    ("knowledge_review_decisions", "local-knowledge-pipeline"),
+    ("knowledge_semantic_issues", "local-knowledge-pipeline"),
+    ("knowledge_snapshot_metrics", "local-knowledge-pipeline"),
+    ("knowledge_snapshots", "local-knowledge-pipeline"),
+    ("knowledge_source_pages", "local-knowledge-pipeline"),
+    ("knowledge_source_readings", "local-knowledge-pipeline"),
+    ("knowledge_sources", "local-knowledge-pipeline"),
+    ("knowledge_topic_plan_pages", "local-knowledge-pipeline"),
+    ("knowledge_topic_plans", "local-knowledge-pipeline"),
+    ("knowledge_topic_replacements", "local-knowledge-pipeline"),
+    ("knowledge_usage", "local-knowledge-pipeline"),
+    // 实体/洞察等本地 AI 产物，可由事件重算。
+    ("daily_review_sources", "local-ai-artifacts"),
+    ("daily_reviews", "local-ai-artifacts"),
+    ("entity_aliases", "local-ai-artifacts"),
+    ("entity_facts", "local-ai-artifacts"),
+    ("entity_merge_snapshots", "local-ai-artifacts"),
+    ("entity_merges", "local-ai-artifacts"),
+    ("insights", "local-ai-artifacts"),
+    ("relations", "local-ai-artifacts"),
+    ("token_usage", "local-ai-artifacts"),
+    ("wiki_log", "local-ai-artifacts"),
+];
+
 const CHUNK_BYTES: usize = 256 * 1024;
 const MAX_RECORD_BYTES: usize = 20 * 1024 * 1024;
 const MAX_SNAPSHOT_BYTES: usize = 256 * 1024 * 1024;
@@ -95,11 +224,13 @@ enum Record {
         created_at: String,
     },
     Head {
+        object_kind: String,
         object_id: String,
         revision_id: String,
         deleted: bool,
     },
     KnownRevision {
+        object_kind: String,
         object_id: String,
         revision_id: String,
     },
@@ -134,6 +265,67 @@ enum Record {
     Provider {
         value: ProviderBundle,
     },
+    WikiPage {
+        id: String,
+        slug: String,
+        page_kind: String,
+        title: String,
+        summary: String,
+        content_md: String,
+        tags: String,
+        source_event_ids: String,
+        evidence_count: i64,
+        first_seen_at: String,
+        last_seen_at: String,
+        status: String,
+        created_at: String,
+        updated_at: String,
+        source_url: Option<String>,
+        area: Option<String>,
+        based_on: Option<String>,
+        content_type: Option<String>,
+        human_edited_at: Option<String>,
+        opinion: Option<String>,
+        knowledge_epoch: i64,
+    },
+    WikiRevision {
+        id: String,
+        page_id: String,
+        content_md: String,
+        reason: String,
+        source_event_id: Option<String>,
+        created_at: String,
+    },
+    Todo {
+        id: String,
+        title: String,
+        status: String,
+        priority: String,
+        due_at: Option<String>,
+        related_event_id: Option<String>,
+        related_wiki_slug: Option<String>,
+        note: Option<String>,
+        created_at: String,
+        updated_at: String,
+    },
+    Goal {
+        id: String,
+        content: String,
+        phase: String,
+        status: String,
+        created_at: String,
+        updated_at: String,
+        superseded_at: Option<String>,
+    },
+    Rule {
+        id: String,
+        content: String,
+        status: String,
+        created_at: String,
+        updated_at: String,
+        conversation_id: Option<String>,
+        review_version: i64,
+    },
 }
 
 // rowid is only a cursor inside this one pinned source view, never a replicated
@@ -141,13 +333,18 @@ enum Record {
 // supported write paths; the importer refuses forward/cyclic parent references.
 const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','event','value',json_object('id',id,'occurred_at',occurred_at,'recorded_at',recorded_at,'raw_text',raw_text,'source',source,'created_at',created_at),'status',status,'processed_at',processed_at,'updated_at',updated_at) FROM events WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','wiki_page','id',id,'slug',slug,'page_kind',kind,'title',title,'summary',summary,'content_md',content_md,'tags',tags,'source_event_ids',source_event_ids,'evidence_count',evidence_count,'first_seen_at',first_seen_at,'last_seen_at',last_seen_at,'status',status,'created_at',created_at,'updated_at',updated_at,'source_url',source_url,'area',area,'based_on',based_on,'content_type',content_type,'human_edited_at',human_edited_at,'opinion',opinion,'knowledge_epoch',knowledge_epoch) FROM wiki_pages WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','wiki_revision','id',id,'page_id',page_id,'content_md',content_md,'reason',reason,'source_event_id',source_event_id,'created_at',created_at) FROM wiki_revisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','conversation','value',json_object('id',id,'title',title,'tag',tag,'archived',json(CASE WHEN archived=1 THEN 'true' ELSE 'false' END),'wiki_page_slug',wiki_page_slug,'assistant_mode',assistant_mode,'created_at',created_at,'updated_at',updated_at)) FROM conversations WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT m.rowid,json_object('kind','message','value',json_object('id',m.id,'conversation_id',m.conversation_id,'parent_message_id',m.parent_message_id,'role',m.role,'content',m.content,'created_at',m.created_at,'input_message_id',(SELECT input_message_id FROM message_response_links WHERE message_id=m.id)),'order',CASE WHEN s.message_id IS NULL THEN NULL ELSE json_object('origin_stream_id',s.origin_stream_id,'origin_sequence',s.origin_sequence,'logical_clock',s.logical_clock,'input_message_id',s.input_message_id) END) FROM messages m JOIN conversations c ON c.id=m.conversation_id LEFT JOIN sync_message_order s ON s.message_id=m.id WHERE m.rowid>?1 ORDER BY m.rowid LIMIT 1",
     "SELECT i.rowid,json_object('kind','input','value',json_object('id',i.id,'raw_text',i.raw_text,'source',i.source,'event_id',i.event_id,'message_id',i.message_id,'created_at',i.created_at)) FROM input_records i WHERE i.rowid>?1 AND i.event_id IS NOT NULL AND (i.message_id IS NULL OR EXISTS(SELECT 1 FROM messages m WHERE m.id=i.message_id)) ORDER BY i.rowid LIMIT 1",
     "SELECT rowid,json_object('kind','analysis','id',id,'event_id',event_id,'prompt_version',prompt_version,'result_json',result_json,'created_at',created_at) FROM event_analyses WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','classification','id',id,'event_id',event_id,'recordable',json(CASE WHEN recordable=1 THEN 'true' ELSE 'false' END),'event_kind',kind,'reason',reason,'created_at',created_at) FROM event_recordability_decisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
-    "SELECT h.rowid,json_object('kind','head','object_id',object_id,'revision_id',revision_id,'deleted',json(CASE WHEN deleted=1 THEN 'true' ELSE 'false' END)) FROM sync_object_heads h WHERE h.rowid>?1 AND object_kind='conversation' ORDER BY h.rowid LIMIT 1",
-    "SELECT r.rowid,json_object('kind','known_revision','object_id',r.object_id,'revision_id',r.revision_id) FROM sync_known_revisions r JOIN sync_object_heads h ON h.object_kind=r.object_kind AND h.object_id=r.object_id WHERE r.rowid>?1 AND r.object_kind='conversation' ORDER BY r.rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','todo','id',id,'title',title,'status',status,'priority',priority,'due_at',due_at,'related_event_id',related_event_id,'related_wiki_slug',related_wiki_slug,'note',note,'created_at',created_at,'updated_at',updated_at) FROM todos WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','goal','id',id,'content',content,'phase',phase,'status',status,'created_at',created_at,'updated_at',updated_at,'superseded_at',superseded_at) FROM goals WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','rule','id',id,'content',content,'status',status,'created_at',created_at,'updated_at',updated_at,'conversation_id',conversation_id,'review_version',review_version) FROM rules WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT h.rowid,json_object('kind','head','object_kind',h.object_kind,'object_id',h.object_id,'revision_id',h.revision_id,'deleted',json(CASE WHEN h.deleted=1 THEN 'true' ELSE 'false' END)) FROM sync_object_heads h WHERE h.rowid>?1 ORDER BY h.rowid LIMIT 1",
+    "SELECT r.rowid,json_object('kind','known_revision','object_kind',r.object_kind,'object_id',r.object_id,'revision_id',r.revision_id) FROM sync_known_revisions r JOIN sync_object_heads h ON h.object_kind=r.object_kind AND h.object_id=r.object_id WHERE r.rowid>?1 ORDER BY r.rowid LIMIT 1",
     "SELECT rowid,json_object('kind','member','device_id',device_id,'stream_id',stream_id,'active',json(CASE WHEN active=1 THEN 'true' ELSE 'false' END)) FROM sync_members WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','checkpoint','op_id',op_id,'origin_device_id',origin_device_id,'origin_stream_id',origin_stream_id,'origin_sequence',origin_sequence,'payload_hash',payload_hash) FROM sync_operations WHERE rowid>?1 AND state='applied' ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','checkpoint','op_id',op_id,'origin_device_id',origin_device_id,'origin_stream_id',origin_stream_id,'origin_sequence',origin_sequence,'payload_hash',payload_hash) FROM sync_checkpoint_operations WHERE rowid>?1 ORDER BY rowid LIMIT 1",
@@ -242,7 +439,7 @@ impl SnapshotExporter {
             |r| r.get(0),
         )?;
         let manifest = SnapshotManifest {
-            version: 1,
+            version: SNAPSHOT_VERSION,
             id: id.into(),
             dataset_id: identity.dataset_id,
             source_device_id: identity.device_id,
@@ -551,8 +748,11 @@ impl Store {
         )?)
         .map_err(|_| anyhow::anyhow!("sync_snapshot_manifest_invalid"))?;
         ensure!(
-            manifest.version == 1
-                && manifest.id == id
+            manifest.version == SNAPSHOT_VERSION,
+            "sync_snapshot_version_unsupported"
+        );
+        ensure!(
+            manifest.id == id
                 && manifest.dataset_id == identity.dataset_id
                 && manifest.source_device_id == source
                 && manifest.recipient_device_id == identity.device_id
@@ -805,23 +1005,150 @@ impl Store {
                 self.connection.execute("INSERT INTO event_recordability_decisions(id,event_id,recordable,kind,reason,created_at) VALUES(?1,?2,?3,?4,?5,?6)",params![id,event_id,recordable,event_kind,reason,created_at])?;
             }
             Record::Head {
+                object_kind,
                 object_id,
                 revision_id,
                 deleted,
             } => {
+                // revision_id 即 op_id（形如 stream:N，含冒号），不能过
+                // validate_id；真正的闸门是领域表存在性复核。
+                let table = domain_table(object_kind)?;
                 let exists: bool = self.connection.query_row(
-                    "SELECT EXISTS(SELECT 1 FROM conversations WHERE id=?1)",
+                    &format!("SELECT EXISTS(SELECT 1 FROM {table} WHERE id=?1)"),
                     [object_id],
                     |r| r.get(0),
                 )?;
                 ensure!(exists != *deleted, "sync_snapshot_head_mismatch");
-                self.sync_set_head("conversation", object_id, revision_id, *deleted)?;
+                self.sync_set_head(object_kind, object_id, revision_id, *deleted)?;
             }
             Record::KnownRevision {
+                object_kind,
                 object_id,
                 revision_id,
             } => {
-                self.connection.execute("INSERT OR IGNORE INTO sync_known_revisions(object_kind,object_id,revision_id) VALUES('conversation',?1,?2)",params![object_id,revision_id])?;
+                let table = domain_table(object_kind)?;
+                self.connection.execute("INSERT OR IGNORE INTO sync_known_revisions(object_kind,object_id,revision_id) VALUES(?1,?2,?3)",params![object_kind,object_id,revision_id])?;
+            }
+            Record::WikiPage {
+                id,
+                slug,
+                page_kind,
+                title,
+                summary,
+                content_md,
+                tags,
+                source_event_ids,
+                evidence_count,
+                first_seen_at,
+                last_seen_at,
+                status,
+                created_at,
+                updated_at,
+                source_url,
+                area,
+                based_on,
+                content_type,
+                human_edited_at,
+                opinion,
+                knowledge_epoch,
+            } => {
+                validate_id(id)?;
+                ensure!(!slug.trim().is_empty(), "sync_snapshot_wiki_slug_invalid");
+                ensure!(
+                    matches!(status.as_str(), "active" | "archived"),
+                    "sync_snapshot_wiki_status_invalid"
+                );
+                // 结构化文本列不接受任意字节混入数据集：必须是合法 JSON。
+                ensure!(
+                    serde_json::from_str::<serde_json::Value>(tags).is_ok(),
+                    "sync_snapshot_wiki_json_invalid"
+                );
+                ensure!(
+                    serde_json::from_str::<serde_json::Value>(source_event_ids).is_ok(),
+                    "sync_snapshot_wiki_json_invalid"
+                );
+                // 足迹与页面行同事务重建：会话引用锚等待在快照恢复后不悬空。
+                self.sync_mark_wiki_slug_seen(slug)?;
+                self.connection.execute("INSERT INTO wiki_pages(id,slug,kind,title,summary,content_md,tags,source_event_ids,evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,source_url,area,based_on,content_type,human_edited_at,opinion,knowledge_epoch) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)",params![id,slug,page_kind,title,summary,content_md,tags,source_event_ids,evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,source_url,area,based_on,content_type,human_edited_at,opinion,knowledge_epoch])?;
+            }
+            Record::WikiRevision {
+                id,
+                page_id,
+                content_md,
+                reason,
+                source_event_id,
+                created_at,
+            } => {
+                validate_id(id)?;
+                if let Some(event) = source_event_id {
+                    validate_id(event)?;
+                }
+                let page: Option<String> = self
+                    .connection
+                    .query_row("SELECT id FROM wiki_pages WHERE id=?1", [page_id], |r| {
+                        r.get(0)
+                    })
+                    .optional()?;
+                ensure!(
+                    page.as_deref() == Some(page_id.as_str()),
+                    "sync_snapshot_wiki_revision_orphaned"
+                );
+                self.connection.execute("INSERT INTO wiki_revisions(id,page_id,content_md,reason,source_event_id,created_at) VALUES(?1,?2,?3,?4,?5,?6)",params![id,page_id,content_md,reason,source_event_id,created_at])?;
+            }
+            Record::Todo {
+                id,
+                title,
+                status,
+                priority,
+                due_at,
+                related_event_id,
+                related_wiki_slug,
+                note,
+                created_at,
+                updated_at,
+            } => {
+                validate_id(id)?;
+                ensure!(
+                    matches!(status.as_str(), "open" | "done" | "archived")
+                        && matches!(priority.as_str(), "high" | "normal" | "low"),
+                    "sync_snapshot_todo_status_invalid"
+                );
+                self.connection.execute("INSERT INTO todos(id,title,status,priority,due_at,related_event_id,related_wiki_slug,note,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",params![id,title,status,priority,due_at,related_event_id,related_wiki_slug,note,created_at,updated_at])?;
+            }
+            Record::Goal {
+                id,
+                content,
+                phase,
+                status,
+                created_at,
+                updated_at,
+                superseded_at,
+            } => {
+                validate_id(id)?;
+                ensure!(
+                    matches!(phase.as_str(), "near" | "mid" | "long")
+                        && matches!(status.as_str(), "active" | "superseded"),
+                    "sync_snapshot_goal_status_invalid"
+                );
+                // 源端受同样的活跃上限不变式约束，快照里不可能出现违限行；
+                // 违限行到此必炸（触发器 fail-closed），不旁路。
+                self.connection.execute("INSERT INTO goals(id,content,phase,status,created_at,updated_at,superseded_at) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,content,phase,status,created_at,updated_at,superseded_at])?;
+            }
+            Record::Rule {
+                id,
+                content,
+                status,
+                created_at,
+                updated_at,
+                conversation_id,
+                review_version,
+            } => {
+                validate_id(id)?;
+                ensure!(
+                    matches!(status.as_str(), "active" | "pending"),
+                    "sync_snapshot_rule_status_invalid"
+                );
+                self.connection.execute("INSERT INTO rules(id,content,status,conversation_id,created_at,updated_at,review_version) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,content,status,conversation_id,created_at,updated_at,review_version])?;
             }
             Record::Member {
                 device_id,
@@ -985,6 +1312,18 @@ impl Store {
         }
         Ok(())
     }
+}
+
+/// head/known_revision 记录的种类必须落在随快照携带的领域表上。
+fn domain_table(kind: &str) -> Result<&'static str> {
+    Ok(match kind {
+        "conversation" => "conversations",
+        "wiki_page" => "wiki_pages",
+        "todo" => "todos",
+        "goal" => "goals",
+        "rule" => "rules",
+        _ => return Err(anyhow::anyhow!("sync_snapshot_object_kind_invalid")),
+    })
 }
 
 #[derive(Default)]

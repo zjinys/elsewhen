@@ -520,3 +520,170 @@ fn frame_decoder_rejects_unknown_record_kinds_and_oversized_lengths() {
     frame.extend_from_slice(bytes);
     assert!(FrameDecoder::default().push(&frame, |_| Ok(())).is_err());
 }
+
+#[test]
+fn snapshot_carries_every_table_or_explicitly_excludes_it() {
+    let db = Database::new();
+    let mut stmt = db
+        .store
+        .connection
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        .unwrap();
+    let tables: Vec<String> = stmt
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    drop(stmt);
+    assert!(tables.len() > 20, "schema 必须真实加载");
+    for table in &tables {
+        let carried = SNAPSHOT_CARRIED_TABLES.contains(&table.as_str());
+        let excluded = SNAPSHOT_EXCLUDED_TABLES.iter().any(|(n, _)| n == table);
+        assert!(
+            carried ^ excluded,
+            "表 {table} 未在快照携带/排除清单登记：新增表必须显式归类，否则快照恢复断档"
+        );
+    }
+    // 携带清单必须在 QUERIES 里被真实引用（provider bundle 承载的表除外）。
+    for table in SNAPSHOT_CARRIED_TABLES {
+        assert!(
+            QUERIES.iter().any(|q| q.contains(table)) || *table == "ai_provider_configs",
+            "表 {table} 在携带清单里但没有对应的导出查询"
+        );
+    }
+}
+
+#[test]
+fn snapshot_carries_wiki_todos_goals_rules_and_continues_incremental() {
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    // ---- 源端：五类对象 + 全部同步轨迹 ----
+    let conversation = a.store.create_conversation(Some("工作"), None).unwrap();
+    a.store
+        .submit_conversation_input(&conversation, "上下文消息", None)
+        .unwrap();
+    // wiki 页：直接落行 + 事务内捕获（真实事件 id 证据）。
+    a.store
+        .connection
+        .execute(
+            "INSERT INTO wiki_pages(id,slug,kind,title,summary,content_md,tags,source_event_ids,evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,area) VALUES('wpage-1','topic/snap','topic','快照页','','v1 正文','[]','[]',1,'t1','t1','active','t1','t1','insight')",
+            [],
+        )
+        .unwrap();
+    {
+        let tx = a.store.begin_write_transaction().unwrap();
+        a.store.sync_record_wiki_page("wpage-1", false).unwrap();
+        if let Some(tx) = tx {
+            tx.commit().unwrap();
+        }
+    }
+    a.store
+        .save_wiki_page_content("topic/snap", "v2 正文", "[human] 修订", None)
+        .unwrap();
+    let todo = a
+        .store
+        .create_todo("快照待办", "high", None, None, None, None)
+        .unwrap()
+        .id;
+    a.store
+        .update_todo(&todo, "快照待办·改", None, Some("high"), None)
+        .unwrap();
+    a.store
+        .create_goal("快照目标一", crate::storage::GoalPhase::Near)
+        .unwrap();
+    a.store
+        .create_goal("快照目标二", crate::storage::GoalPhase::Mid)
+        .unwrap();
+    a.store
+        .add_rule("快照规则", crate::storage::RuleStatus::Active, None)
+        .unwrap();
+
+    // ---- 快照导出 → 新 staging 导入 ----
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let id = Uuid::new_v4().to_string();
+    let (chunks, manifest) = export(&a.store, "b", &id, &key, &signer);
+    b.store.begin_snapshot_import(&id, "a", 1).unwrap();
+    stage(&b.store, &id, "a", &chunks, &key, &signer.public_key());
+    assert!(
+        b.store
+            .publish_snapshot(&id, "a", 1, &manifest, &key, &signer.public_key())
+            .unwrap()
+    );
+    // 五类对象全部落地。
+    assert_eq!(b.count("wiki_pages"), 1);
+    assert_eq!(b.count("todos"), 1);
+    assert_eq!(b.count("goals"), 2);
+    assert_eq!(b.count("rules"), 1);
+    let title: String = b
+        .store
+        .connection
+        .query_row("SELECT title FROM todos WHERE id=?1", [&todo], |r| r.get(0))
+        .unwrap();
+    assert_eq!(title, "快照待办·改", "按 head 采纳的最新行落地");
+    let content: String = b
+        .store
+        .connection
+        .query_row(
+            "SELECT content_md FROM wiki_pages WHERE id='wpage-1'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(content, "v2 正文");
+    // head/足迹种类的完备性。
+    let kinds: Vec<(String, i64)> = {
+        let mut stmt = b
+            .store
+            .connection
+            .prepare("SELECT object_kind,count(*) FROM sync_object_heads GROUP BY object_kind ORDER BY object_kind")
+            .unwrap();
+        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    };
+    assert_eq!(
+        kinds,
+        vec![
+            ("conversation".into(), 1),
+            ("goal".into(), 2),
+            ("rule".into(), 1),
+            ("todo".into(), 1),
+            ("wiki_page".into(), 1),
+        ],
+        "五类对象的 head 全量重建"
+    );
+    let slug_seen: i64 = b
+        .store
+        .connection
+        .query_row(
+            "SELECT count(*) FROM sync_wiki_slug_seen WHERE slug='topic/snap'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(slug_seen, 1, "足迹随页面行重建，会话引用锚不悬空");
+    assert!(b.count("wiki_revisions") >= 1, "页面修订随行携带");
+    assert!(b.count("sync_known_revisions") >= 6);
+
+    // ---- 恢复后增量继续：A 再改待办，B 正常收到且无冲突 ----
+    let reopened_store = Store::open(&b.store.path).unwrap();
+    a.store
+        .update_todo(&todo, "快照后增量修改", None, Some("high"), None)
+        .unwrap();
+    for operation in a.store.pending_sync_operations("b", 100).unwrap() {
+        reopened_store
+            .receive_sync_operation("a", &serde_json::to_vec(&operation).unwrap())
+            .unwrap();
+    }
+    let incremental: String = reopened_store
+        .connection
+        .query_row("SELECT title FROM todos WHERE id=?1", [&todo], |r| r.get(0))
+        .unwrap();
+    assert_eq!(incremental, "快照后增量修改");
+    assert_eq!(reopened_store.list_object_conflicts().unwrap().len(), 0);
+}
