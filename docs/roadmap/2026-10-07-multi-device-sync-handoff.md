@@ -1265,3 +1265,37 @@ Rust 705 passed（+2）；fmt/release/regen 过；UI 无改动。
 
 Flutter 372 passed（+1）、analyze 0 error/warning、release、Android debug
 APK 构建过；Rust 复核 705 passed。
+
+## §31 URL 导入配图同步：正文占位符 + 快照 v3（commit `5ec39f3`）
+
+问题：导入推文配图时正文存的是**本机绝对路径**（`path.display()`，sqlite
+实证 12 页全中招）——跨设备必然失效。方案推翻两版（L1 绝对路径入库 /
+L3 渲染层启发式判断均被驳回）后定型为**存储态占位符**：
+
+- **不变式**：`content_md` 里的推文配图一律是
+  `![]({{tweet-image:tweet_images/<tweet_id>/img_N.ext}})`——相对数据
+  目录的确定性路径，本机绝对路径永不入库（op/快照继承此形态）。
+- **写侧唯一收口** `upsert_wiki_page_in_tx`：入库前折叠（绝对路径尾部
+  归一化 + 占位符幂等），保存时把引用的字节收进新表 `wiki_assets`
+  （rel 主键 + sha256 + bytes BLOB）；导入端 `download_tweet_images`
+  改产占位符。存量 12 页在下一次保存时自动迁移。
+- **读侧唯一出口** `WikiPageDto::serve(&store, page)`：23 个出站调用
+  点全部改道；占位符 → 本机绝对路径，缺文件时从 `wiki_assets` 自愈
+  落盘后解析，无资产则原样保留（可见死文本）。AI 上下文的 storage
+  直读调用方有意不解析。无 regex 依赖，手写 `![…](…)` 扫描。
+- **快照 v3**（2→3，交叉带外：v2 刚在 §29 落地，真实设备会经历一次
+  显式拒绝升级）：新 `Record::WikiAsset{rel,sha256,mime,size,bytes_hex}`，
+  `wiki_assets` 登记 SNAPSHOT_CARRIED_TABLES（23→24 张，覆盖门禁吃
+  到）；apply 端四道闸门（rel 形态 / mime 白名单 jpeg/png/webp/gif /
+  hex 长度 / sha256 一致）fail-closed。**版本语义与 wire 变体不同**：
+  新 serde 标签让旧端整份拒收，隔离是真实的，必须 bump——与「枚举
+  加变体不 bump」不冲突（那边 append-only 可忽略）。
+- **增量间隙**：两次快照之间新导入的图对端暂收不到（低频，等下一次
+  resnapshot）；按 hash 拉取通道留后续。
+- **FRB 坑**：`serve(&Store, …)` 是固有 pub 方法会被桥接扫描，而
+  Store 不满足 Sync → frb_generated.rs 编译红；`#[frb(ignore)]` 解决。
+- 导出前 engine 入口补收存量资产，接收端断档恢复的全新设备同样自愈。
+
+Rust 709 passed（+4：e2e 字节跨机/自愈落盘/rel·mime·hash 负向 + 折叠
+单测）；Flutter 372 passed、analyze 0 error/warning、regen、Android
+debug APK 构建过。迁移 33。
