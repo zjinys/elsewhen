@@ -1306,3 +1306,20 @@ debug APK 构建过。迁移 33。
 wiki_log 惯例，不记 revision 不发 op）。同时补上应用端不变式缺口：
 op 应用（replace_sync_wiki_row）与快照 apply 的 WikiPage arm 落地前
 折叠，旧端传来的绝对路径在接收端归一化，不再二次感染。
+
+**§31b 目录进协议、字节退出数据库（commit `47cbffc`，用户定案）**：
+用户明确「tweet_images 目录不打算放数据库」，方案 A（BLOB 落库）就地
+重构——v3 未发布，wire 就地重塑不改版本号：
+
+- `Record::WikiAsset` 降为台账行（无字节，随 QUERIES 常规携带）；
+  新增 `Record::WikiFile{rel,sha256,mime,size,bytes_hex}` 承载字节。
+- 导出器 `next_record` 在 Provider 段后追加**目录段**：台账 rel 排序
+  定序、逐条读发送端磁盘；`SNAPSHOT_CARRIED_DIRS=["tweet_images"]`
+  登记制（目录版覆盖门禁）。缺失/超大跳过不卡快照（占位符退化为
+  可见死文本）。
+- apply 的 WikiFile arm 四道闸门（rel/mime/hex 长度/sha256 一致）后
+  **直接写接收端数据目录**并落台账；无 DB 自愈（删缓存需重拍快照找回）。
+- migration 34：wiki_assets 重建为无 BLOB 台账，行无损迁移。
+- 取舍：文件写不在快照事务内（apply 回滚可能残留孤儿文件；确定性
+  路径 + 幂等覆盖，后续 apply 自净）；再导入覆盖同名文件时台账 sha
+  以 ingest 重扫为准。
