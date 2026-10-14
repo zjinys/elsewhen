@@ -588,6 +588,7 @@ impl Store {
         if first_open {
             // 启动期一次性完成存量回填和 WAL 收敛；普通 API 打开连接不再写库。
             store.backfill_project_source_urls()?;
+            store.backfill_wiki_image_placeholders()?;
             crate::knowledge::dependencies::backfill_epochs(&store)?;
             let _ = store
                 .connection

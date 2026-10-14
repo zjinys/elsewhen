@@ -608,6 +608,47 @@ impl Store {
     /// 存量回填（幂等）：目录导入时代久远的项目页只有正文快照、没有 `source_url`，
     /// 从「项目目录：`...`」解析出路径并记进 `source_url`（file://）。
     /// 只命中 `source_url IS NULL` 的 project 页，填过后不再重复执行，无副作用。
+    /// 启动期一次性回填：存量页正文里的本机绝对路径/杂形态引用折叠为
+    /// 占位符（§31 之前导入的推文配图全是绝对路径），并收集其字节入
+    /// `wiki_assets`。裸 UPDATE + wiki_log（同 backfill_project_source_urls
+    /// 惯例：不记 revision、不发 op），对端靠下一份快照收敛。幂等。
+    pub fn backfill_wiki_image_placeholders(&self) -> Result<usize> {
+        let rows: Vec<(String, String, String)> = {
+            let mut statement = self
+                .connection
+                .prepare("SELECT id, slug, content_md FROM wiki_pages")?;
+            let mapped = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?;
+            mapped.collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        let mut changed = 0;
+        for (id, slug, content_md) in rows {
+            let folded = super::wiki_images::fold_tweet_image_refs(&content_md);
+            if folded == content_md {
+                continue;
+            }
+            self.connection.execute(
+                "UPDATE wiki_pages SET content_md = ?1 WHERE id = ?2",
+                params![folded, id],
+            )?;
+            self.append_wiki_log(&format!("图片引用回填：{slug} 占位符归一化"))?;
+            changed += 1;
+        }
+        // 顺手把存量引用的字节收进资产表（文件还在本机就能收齐）。
+        let collected = self.ingest_wiki_page_assets()?;
+        if changed > 0 || collected > 0 {
+            self.append_wiki_log(&format!(
+                "图片资产回填：{changed} 页引用归一化，{collected} 字节入库"
+            ))?;
+        }
+        Ok(changed)
+    }
+
     pub fn backfill_project_source_urls(&self) -> Result<usize> {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, content_md FROM wiki_pages

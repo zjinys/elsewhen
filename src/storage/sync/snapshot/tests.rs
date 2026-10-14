@@ -868,3 +868,53 @@ fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
         "{err}"
     );
 }
+
+#[test]
+fn snapshot_applies_legacy_absolute_path_wiki_rows_as_placeholders() {
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    // 旧 v2 代的行形态：正文里是发送端本机绝对路径（未折叠存量）。
+    a.store
+        .connection
+        .execute(
+            "INSERT INTO wiki_pages(id,slug,kind,title,summary,content_md,tags,source_event_ids,evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,area) \
+             VALUES('wp-old','tweet-42','source','旧端页','',?1,'[]','[]',1,'t1','t1','active','t1','t1','imported')",
+            ["看这张 ![](/home/old-user/.local/share/elsewhen/tweet_images/42/img_1.jpg)"],
+        )
+        .unwrap();
+    {
+        let tx = a.store.begin_write_transaction().unwrap();
+        a.store.sync_record_wiki_page("wp-old", false).unwrap();
+        if let Some(tx) = tx {
+            tx.commit().unwrap();
+        }
+    }
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let id = Uuid::new_v4().to_string();
+    let (chunks, manifest) = export(&a.store, "b", &id, &key, &signer);
+    b.store.begin_snapshot_import(&id, "a", 1).unwrap();
+    stage(&b.store, &id, "a", &chunks, &key, &signer.public_key());
+    assert!(
+        b.store
+            .publish_snapshot(&id, "a", 1, &manifest, &key, &signer.public_key())
+            .unwrap()
+    );
+    let content: String = b
+        .store
+        .connection
+        .query_row(
+            "SELECT content_md FROM wiki_pages WHERE id='wp-old'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        content.contains("![]({{tweet-image:tweet_images/42/img_1.jpg}})")
+            && !content.contains("/home/old-user"),
+        "接收端落地必须已是占位符：{content}"
+    );
+}

@@ -1083,6 +1083,8 @@ impl Store {
                 );
                 // 足迹与页面行同事务重建：会话引用锚等待在快照恢复后不悬空。
                 self.sync_mark_wiki_slug_seen(slug)?;
+                // 同一条不变式：旧 v2 代的快照行可能带本机绝对路径，落地前折叠。
+                let content_md = crate::storage::wiki_images::fold_tweet_image_refs(content_md);
                 self.connection.execute("INSERT INTO wiki_pages(id,slug,kind,title,summary,content_md,tags,source_event_ids,evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,source_url,area,based_on,content_type,human_edited_at,opinion,knowledge_epoch) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)",params![id,slug,page_kind,title,summary,content_md,tags,source_event_ids,evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,source_url,area,based_on,content_type,human_edited_at,opinion,knowledge_epoch])?;
             }
             Record::WikiRevision {

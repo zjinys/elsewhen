@@ -1944,3 +1944,67 @@ fn busy_retry_retries_busy_and_stops_on_other_errors() {
     assert!(result.is_err());
     assert_eq!(attempts.load(Ordering::SeqCst), 1);
 }
+#[test]
+fn backfill_folds_legacy_tweet_image_paths_and_collects_assets() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    let rel = "tweet_images/2099471972589576451/img_1.jpg";
+    // 复刻存量形态：导入时正文被写成本机绝对路径（§31 前），字节已落盘。
+    let data_dir = path.parent().unwrap().to_path_buf();
+    std::fs::create_dir_all(data_dir.join("tweet_images/2099471972589576451")).unwrap();
+    let bytes = vec![7u8; 33];
+    std::fs::write(data_dir.join(rel), &bytes).unwrap();
+    let legacy = format!("正文开头\n\n![]({})\n\n结尾", data_dir.join(rel).display());
+    store
+        .connection
+        .execute(
+            "INSERT INTO wiki_pages(id,slug,kind,title,summary,content_md,tags,source_event_ids,evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,area) \
+             VALUES('wp-legacy','tweet-2099471972589576451','source','旧页','',?1,'[]','[]',1,'t1','t1','active','t1','t1','imported')",
+            [&legacy],
+        )
+        .unwrap();
+    drop(store);
+
+    // 重新 open 触发启动回填：绝对路径折叠为占位符，字节收进资产表。
+    let store = Store::open(&path).unwrap();
+    let folded: String = store
+        .connection
+        .query_row(
+            "SELECT content_md FROM wiki_pages WHERE id='wp-legacy'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        folded.contains(&format!("![]({{{{tweet-image:{rel}}}}})")),
+        "应折叠为占位符：{folded}"
+    );
+    assert!(
+        !folded.contains(&data_dir.display().to_string()),
+        "不得残留本机路径"
+    );
+    let (sha, size): (String, i64) = store
+        .connection
+        .query_row(
+            "SELECT sha256,size FROM wiki_assets WHERE rel=?1",
+            [rel],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(size, 33);
+    assert_eq!(sha.len(), 64);
+
+    // 幂等：再 open 一次内容不变。
+    drop(store);
+    let store = Store::open(&path).unwrap();
+    let again: String = store
+        .connection
+        .query_row(
+            "SELECT content_md FROM wiki_pages WHERE id='wp-legacy'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(again, folded);
+    let _ = std::fs::remove_file(path);
+}

@@ -432,6 +432,11 @@ impl Store {
     /// last_seen_at 是系统合并列：只并集、不回退；行不存在时插入）。
     /// 冲突审阅的「采纳远端」复用同一语义（P5b·S05）。
     pub(super) fn replace_sync_wiki_row(&self, page: &WikiPageRecord) -> Result<()> {
+        // 与写侧收口同一条不变式：落库正文里的推文配图统一为占位符形态。
+        // 远端内容（旧端、或回填前的存量行）可能带着本机绝对路径，落地前折叠。
+        let mut owned = page.clone();
+        owned.content_md = crate::storage::wiki_images::fold_tweet_image_refs(&owned.content_md);
+        let page = &owned;
         let existing: Option<(String, String, String)> = self
             .connection
             .query_row(
