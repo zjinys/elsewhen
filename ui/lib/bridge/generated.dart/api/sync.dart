@@ -945,6 +945,14 @@ class SyncTickResultDto {
   final PlatformInt64 pulledAccepted;
   final PlatformInt64 pulledWaiting;
   final PlatformInt64 pulledRejected;
+
+  /// Rejected because the sender runs a protocol version we cannot decode.
+  /// Deployment mismatch, not content corruption; upgrades heal it.
+  final PlatformInt64 pulledVersionMismatch;
+
+  /// True when this tick re-sent the current signed roster to a stale
+  /// member (P4e convergence signal; diagnostic only).
+  final bool rosterConverged;
   final bool acknowledgementFailed;
 
   /// Devices waiting for a re-snapshot (fell too far behind); GC stays
@@ -958,6 +966,8 @@ class SyncTickResultDto {
     required this.pulledAccepted,
     required this.pulledWaiting,
     required this.pulledRejected,
+    required this.pulledVersionMismatch,
+    required this.rosterConverged,
     required this.acknowledgementFailed,
     required this.resnapshotPending,
   });
@@ -970,6 +980,8 @@ class SyncTickResultDto {
       pulledAccepted.hashCode ^
       pulledWaiting.hashCode ^
       pulledRejected.hashCode ^
+      pulledVersionMismatch.hashCode ^
+      rosterConverged.hashCode ^
       acknowledgementFailed.hashCode ^
       resnapshotPending.hashCode;
 
@@ -984,6 +996,8 @@ class SyncTickResultDto {
           pulledAccepted == other.pulledAccepted &&
           pulledWaiting == other.pulledWaiting &&
           pulledRejected == other.pulledRejected &&
+          pulledVersionMismatch == other.pulledVersionMismatch &&
+          rosterConverged == other.rosterConverged &&
           acknowledgementFailed == other.acknowledgementFailed &&
           resnapshotPending == other.resnapshotPending;
 }

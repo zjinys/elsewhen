@@ -3542,6 +3542,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.pulled_accepted = cst_encode_i_64(apiObj.pulledAccepted);
     wireObj.pulled_waiting = cst_encode_i_64(apiObj.pulledWaiting);
     wireObj.pulled_rejected = cst_encode_i_64(apiObj.pulledRejected);
+    wireObj.pulled_version_mismatch = cst_encode_i_64(
+      apiObj.pulledVersionMismatch,
+    );
+    wireObj.roster_converged = cst_encode_bool(apiObj.rosterConverged);
     wireObj.acknowledgement_failed = cst_encode_bool(
       apiObj.acknowledgementFailed,
     );
@@ -14748,6 +14752,12 @@ final class wire_cst_sync_tick_result_dto extends ffi.Struct {
   @ffi.Int64()
   external int pulled_rejected;
 
+  @ffi.Int64()
+  external int pulled_version_mismatch;
+
+  @ffi.Bool()
+  external bool roster_converged;
+
   @ffi.Bool()
   external bool acknowledgement_failed;
 
@@ -14761,6 +14771,8 @@ final class wire_cst_sync_tick_result_dto extends ffi.Struct {
     required int pulled_accepted,
     required int pulled_waiting,
     required int pulled_rejected,
+    required int pulled_version_mismatch,
+    required bool roster_converged,
     required bool acknowledgement_failed,
     required ffi.Pointer<wire_cst_list_String> resnapshot_pending,
   }) => $allocator<wire_cst_sync_tick_result_dto>()
@@ -14770,6 +14782,8 @@ final class wire_cst_sync_tick_result_dto extends ffi.Struct {
     ..ref.pulled_accepted = pulled_accepted
     ..ref.pulled_waiting = pulled_waiting
     ..ref.pulled_rejected = pulled_rejected
+    ..ref.pulled_version_mismatch = pulled_version_mismatch
+    ..ref.roster_converged = roster_converged
     ..ref.acknowledgement_failed = acknowledgement_failed
     ..ref.resnapshot_pending = resnapshot_pending;
 }

@@ -9158,8 +9158,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SyncTickResultDto dco_decode_sync_tick_result_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return SyncTickResultDto(
       ran: dco_decode_bool(arr[0]),
       stagedOperations: dco_decode_i_64(arr[1]),
@@ -9167,8 +9167,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pulledAccepted: dco_decode_i_64(arr[3]),
       pulledWaiting: dco_decode_i_64(arr[4]),
       pulledRejected: dco_decode_i_64(arr[5]),
-      acknowledgementFailed: dco_decode_bool(arr[6]),
-      resnapshotPending: dco_decode_list_String(arr[7]),
+      pulledVersionMismatch: dco_decode_i_64(arr[6]),
+      rosterConverged: dco_decode_bool(arr[7]),
+      acknowledgementFailed: dco_decode_bool(arr[8]),
+      resnapshotPending: dco_decode_list_String(arr[9]),
     );
   }
 
@@ -12084,6 +12086,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_pulledAccepted = sse_decode_i_64(deserializer);
     var var_pulledWaiting = sse_decode_i_64(deserializer);
     var var_pulledRejected = sse_decode_i_64(deserializer);
+    var var_pulledVersionMismatch = sse_decode_i_64(deserializer);
+    var var_rosterConverged = sse_decode_bool(deserializer);
     var var_acknowledgementFailed = sse_decode_bool(deserializer);
     var var_resnapshotPending = sse_decode_list_String(deserializer);
     return SyncTickResultDto(
@@ -12093,6 +12097,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pulledAccepted: var_pulledAccepted,
       pulledWaiting: var_pulledWaiting,
       pulledRejected: var_pulledRejected,
+      pulledVersionMismatch: var_pulledVersionMismatch,
+      rosterConverged: var_rosterConverged,
       acknowledgementFailed: var_acknowledgementFailed,
       resnapshotPending: var_resnapshotPending,
     );
@@ -14466,6 +14472,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.pulledAccepted, serializer);
     sse_encode_i_64(self.pulledWaiting, serializer);
     sse_encode_i_64(self.pulledRejected, serializer);
+    sse_encode_i_64(self.pulledVersionMismatch, serializer);
+    sse_encode_bool(self.rosterConverged, serializer);
     sse_encode_bool(self.acknowledgementFailed, serializer);
     sse_encode_list_String(self.resnapshotPending, serializer);
   }

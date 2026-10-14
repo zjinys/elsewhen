@@ -501,6 +501,12 @@ pub struct SyncTickResultDto {
     pub pulled_accepted: i64,
     pub pulled_waiting: i64,
     pub pulled_rejected: i64,
+    /// Rejected because the sender runs a protocol version we cannot decode.
+    /// Deployment mismatch, not content corruption; upgrades heal it.
+    pub pulled_version_mismatch: i64,
+    /// True when this tick re-sent the current signed roster to a stale
+    /// member (P4e convergence signal; diagnostic only).
+    pub roster_converged: bool,
     pub acknowledgement_failed: bool,
     /// Devices waiting for a re-snapshot (fell too far behind); GC stays
     /// frozen for them until the transfer completes.
@@ -520,6 +526,8 @@ pub fn trigger_network_sync() -> Result<SyncTickResultDto> {
             pulled_accepted: report.pulled_accepted as i64,
             pulled_waiting: report.pulled_waiting as i64,
             pulled_rejected: report.pulled_rejected as i64,
+            pulled_version_mismatch: report.pulled_version_mismatch as i64,
+            roster_converged: report.roster_converged,
             acknowledgement_failed: report.acknowledgement_failed,
             resnapshot_pending: report.resnapshot_pending.clone(),
         }),
@@ -530,6 +538,8 @@ pub fn trigger_network_sync() -> Result<SyncTickResultDto> {
             pulled_accepted: 0,
             pulled_waiting: 0,
             pulled_rejected: 0,
+            pulled_version_mismatch: 0,
+            roster_converged: false,
             acknowledgement_failed: false,
             resnapshot_pending: Vec::new(),
         }),
