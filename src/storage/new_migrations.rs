@@ -150,6 +150,7 @@ mod tests {
                 "32-sync-wiki-slug-seen",
                 "33-wiki-assets",
                 "34-wiki-assets-ledger",
+                "35-rule-triggers",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -181,7 +182,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 34, "三十四条迁移跑完，user_version 应为 34");
+        assert_eq!(version, 35, "三十五条迁移跑完，user_version 应为 35");
         assert_eq!(
             latest_version().unwrap(),
             version,

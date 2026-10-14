@@ -42,7 +42,11 @@ pub use web_search::*;
 pub use wiki::*;
 pub use wiki_chat::*;
 
-const EVENT_ANALYSIS_VERSION: &str = "event-analysis";
+/// 现行分析结果契约标识（D1 起升 v3：新增 rule_confirmations；
+/// guidance/emotion 结构就位但 prompt 分片启用——D4/D5 再写入）。
+/// v1/v2 为历史读兼容标识；「event-analysis」（无后缀）为 v3 之前的现行写法。
+const EVENT_ANALYSIS_VERSION: &str = "event-analysis-v3";
+const PRE_V3_EVENT_ANALYSIS: &str = "event-analysis";
 const LEGACY_EVENT_ANALYSIS_V1: &str = "event-analysis-v1";
 const LEGACY_EVENT_ANALYSIS_V2: &str = "event-analysis-v2";
 const DAILY_REVIEW_VERSION: &str = "daily-review-v1";
@@ -67,6 +71,53 @@ struct EventAnalysisV1 {
     recordable: bool,
     #[serde(default = "default_event_kind")]
     kind: String,
+    /// D1：规则预筛判定的回填（命中规则进 prompt，模型判定适用性/置信）。
+    #[serde(default)]
+    rule_confirmations: Vec<EventRuleConfirmation>,
+    /// D4 启用：指导维度（结构就位，prompt 未要求时为 None）。
+    #[serde(default)]
+    guidance: Option<EventGuidance>,
+    /// D5 启用：情绪标注（结构就位，prompt 未要求时为 None）。
+    #[serde(default)]
+    emotion: Option<Vec<EventEmotionTag>>,
+}
+
+/// 规则适用性判定（D1）。rule_id 必须是 prompt 附带的 pending 命中之 id。
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct EventRuleConfirmation {
+    rule_id: String,
+    applicable: bool,
+    confidence: f64,
+}
+
+/// 指导维度（D4 落地用）。related 指向知识页 slug，受引用校验约束。
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct EventGuidance {
+    #[serde(default)]
+    related: Vec<EventGuidanceRef>,
+    #[serde(default)]
+    lessons: Vec<String>,
+    #[serde(default)]
+    follow_ups_refined: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct EventGuidanceRef {
+    slug: String,
+    note: String,
+}
+
+/// 情绪标注（D5 落地用）。target 为人物/项目 slug 或原文提及；无 target =
+/// 对事件本身的感受。只有文本，无数值评分（红线：不是情绪分析报告）。
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct EventEmotionTag {
+    #[serde(default)]
+    target: Option<String>,
+    feeling: String,
 }
 
 fn default_recordable() -> bool {
@@ -80,12 +131,40 @@ impl EventAnalysisV1 {
     fn parse(raw: &str) -> Result<Self> {
         let mut result: Self = serde_json::from_str(raw)?;
         if result.schema_version != EVENT_ANALYSIS_VERSION
+            && result.schema_version != PRE_V3_EVENT_ANALYSIS
             && result.schema_version != LEGACY_EVENT_ANALYSIS_V1
             && result.schema_version != LEGACY_EVENT_ANALYSIS_V2
         {
-            anyhow::bail!("schema_version 必须是 event-analysis");
+            anyhow::bail!("schema_version 必须是 event-analysis（v1/v2/v3）");
         }
-        result.schema_version = EVENT_ANALYSIS_VERSION.to_string();
+        if result.schema_version == EVENT_ANALYSIS_VERSION {
+            for confirmation in &result.rule_confirmations {
+                anyhow::ensure!(
+                    confirmation.confidence.is_finite()
+                        && (0.0..=1.0).contains(&confirmation.confidence),
+                    "rule_confirmations.confidence 必须在 0..1"
+                );
+                anyhow::ensure!(
+                    !confirmation.rule_id.trim().is_empty(),
+                    "rule_confirmations.rule_id 不能为空"
+                );
+            }
+            if let Some(guidance) = &result.guidance {
+                anyhow::ensure!(
+                    guidance.related.iter().all(|r| !r.slug.trim().is_empty()),
+                    "guidance.related.slug 不能为空"
+                );
+            }
+            if let Some(emotions) = &result.emotion {
+                anyhow::ensure!(
+                    emotions.iter().all(|tag| !tag.feeling.trim().is_empty()),
+                    "emotion.feeling 不能为空"
+                );
+            }
+        } else {
+            // v3 之前的写法无新字段；归一到无后缀历史标识保持 prompt_version 列保真。
+            result.schema_version = PRE_V3_EVENT_ANALYSIS.to_string();
+        }
         result.event_type = result.event_type.trim().to_string();
         result.summary = result.summary.trim().to_string();
         if result.event_type.is_empty() || result.summary.is_empty() {
@@ -965,9 +1044,23 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
                 continue;
             }
         };
+        // 规则命中判定段（D1）：pending 命中随本次分析一并判定，不新增调用面。
+        let pending_hits = store.pending_rule_hits_for_event(&job.event_id)?;
+        let rules_section = if pending_hits.is_empty() {
+            String::new()
+        } else {
+            let listed = pending_hits
+                .iter()
+                .map(|hit| format!("- rule_id={}：{}", hit.rule_id, hit.rule_content))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!(
+                "\n\n以下规则在入库预筛时命中本记录，请逐条判定其是否真正适用本记录，并在输出的 rule_confirmations 数组中逐条回填（rule_id 原样返回；confidence 0..1 表示适用置信度）：\n{listed}\n"
+            )
+        };
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}",
-            context, job.raw_text
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v3。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)；仅当下方附有规则命中时才包含 rule_confirmations(array of {{rule_id: string, applicable: boolean, confidence: number 0..1}})。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}{}",
+            context, job.raw_text, rules_section
         );
         let mut analysis_context = vec![
             ContextMessage::new("system", crate::knowledge::CITATION_INSTRUCTIONS),
@@ -1002,6 +1095,21 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
                         &value.schema_version,
                         &serde_json::to_string(&value)?,
                     )?;
+                    // 规则判定回填（D1）：失败不影响已入库分析；pending 命中留待
+                    // 下次 reanalyze 补判（幂等——只处理 pending 行）。
+                    if !value.rule_confirmations.is_empty() {
+                        let confirmations: Vec<crate::storage::rule_triggers::RuleConfirmation> =
+                            value
+                                .rule_confirmations
+                                .iter()
+                                .map(|c| crate::storage::rule_triggers::RuleConfirmation {
+                                    rule_id: c.rule_id.clone(),
+                                    applicable: c.applicable,
+                                    confidence: c.confidence,
+                                })
+                                .collect();
+                        let _ = store.apply_rule_confirmations(&job.event_id, &confirmations);
+                    }
                     crate::knowledge::record_usage(
                         store,
                         "analysis",
@@ -1172,7 +1280,8 @@ mod analysis_tests {
         assert_eq!(parsed.summary, "summary");
         assert_eq!(parsed.clarifications, ["ask"]);
         assert_eq!(parsed.people, ["Ada"]);
-        assert_eq!(parsed.schema_version, EVENT_ANALYSIS_VERSION);
+        // v1 输入归一到无后缀历史标识（prompt_version 列保真），不是现行 v3。
+        assert_eq!(parsed.schema_version, PRE_V3_EVENT_ANALYSIS);
     }
 }
 
@@ -1304,7 +1413,7 @@ mod daily_review_tests {
         let parsed = EventAnalysisV1::parse(raw).unwrap();
         assert!(!parsed.recordable);
         assert_eq!(parsed.kind, "meta");
-        assert_eq!(parsed.schema_version, EVENT_ANALYSIS_VERSION);
+        assert_eq!(parsed.schema_version, PRE_V3_EVENT_ANALYSIS);
     }
 
     #[test]
@@ -1313,7 +1422,7 @@ mod daily_review_tests {
         let parsed = EventAnalysisV1::parse(raw).unwrap();
         assert!(parsed.recordable);
         assert_eq!(parsed.kind, "event");
-        assert_eq!(parsed.schema_version, EVENT_ANALYSIS_VERSION);
+        assert_eq!(parsed.schema_version, PRE_V3_EVENT_ANALYSIS);
     }
 
     #[test]

@@ -89,7 +89,8 @@ class RustBridgeRepository implements StorageRepository {
     this.runChatQueueWorker = true,
     SyncSetupController? syncSetupController,
   }) {
-    localSync = syncSetupController ??
+    localSync =
+        syncSetupController ??
         SyncSetupController(autoEnrollment: runBackgroundWorker);
     localSync.onReady = _wakeAnalysisWorker;
   }
@@ -470,6 +471,8 @@ class RustBridgeRepository implements StorageRepository {
             content: dto.content,
             status: dto.status,
             createdAt: DateTime.parse(dto.createdAt).toLocal(),
+            triggerScene: dto.triggerScene,
+            triggerKeywords: dto.triggerKeywords,
           ),
         )
         .toList();
@@ -478,6 +481,40 @@ class RustBridgeRepository implements StorageRepository {
   Future<String> addRule(String content) => api.addRule(content: content);
 
   Future<void> deleteRule(String ruleId) => api.deleteRule(ruleId: ruleId);
+
+  /// 配置规则触发（决策辅助 D1）：keywords 空 = 不参与事件预筛。
+  Future<void> setRuleTrigger(
+    String ruleId, {
+    required String triggerScene,
+    required List<String> triggerKeywords,
+  }) => api.setRuleTrigger(
+    ruleId: ruleId,
+    triggerScene: triggerScene,
+    triggerKeywords: triggerKeywords,
+  );
+
+  /// 提醒偏好：instant / review_only / off。
+  Future<void> setRuleTriggerMode(String mode) =>
+      api.setRuleTriggerMode(mode: mode);
+
+  Future<String> getRuleTriggerMode() => api.getRuleTriggerMode();
+
+  /// 最近的即时提醒与聚合（规则库设置的「最近提醒」读面）。
+  Future<List<RuleHit>> listRecentRuleHits({int limit = 8}) => api
+      .listRecentRuleHits(limit: limit)
+      .then(
+        (dtos) => dtos
+            .map(
+              (dto) => RuleHit(
+                id: dto.id,
+                ruleId: dto.ruleId,
+                ruleContent: dto.ruleContent,
+                status: dto.status,
+                createdAt: DateTime.parse(dto.createdAt).toLocal(),
+              ),
+            )
+            .toList(),
+      );
 
   Future<Conversation> createConversation({String? title, String? tag}) async {
     final dto = await api.createConversation(title: title, tag: tag);

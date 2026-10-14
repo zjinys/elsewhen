@@ -425,6 +425,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> dco_decode_list_rule_dto(dynamic raw);
 
   @protected
+  List<RuleHitDto> dco_decode_list_rule_hit_dto(dynamic raw);
+
+  @protected
   List<SourceReference> dco_decode_list_source_reference(dynamic raw);
 
   @protected
@@ -576,6 +579,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleDto dco_decode_rule_dto(dynamic raw);
+
+  @protected
+  RuleHitDto dco_decode_rule_hit_dto(dynamic raw);
 
   @protected
   SourceReference dco_decode_source_reference(dynamic raw);
@@ -1143,6 +1149,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> sse_decode_list_rule_dto(SseDeserializer deserializer);
 
   @protected
+  List<RuleHitDto> sse_decode_list_rule_hit_dto(SseDeserializer deserializer);
+
+  @protected
   List<SourceReference> sse_decode_list_source_reference(
     SseDeserializer deserializer,
   );
@@ -1338,6 +1347,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleDto sse_decode_rule_dto(SseDeserializer deserializer);
+
+  @protected
+  RuleHitDto sse_decode_rule_hit_dto(SseDeserializer deserializer);
 
   @protected
   SourceReference sse_decode_source_reference(SseDeserializer deserializer);
@@ -2114,6 +2126,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_rule_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_rule_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_rule_hit_dto> cst_encode_list_rule_hit_dto(
+    List<RuleHitDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_rule_hit_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_rule_hit_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3471,6 +3495,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.content = cst_encode_String(apiObj.content);
     wireObj.status = cst_encode_String(apiObj.status);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.trigger_scene = cst_encode_String(apiObj.triggerScene);
+    wireObj.trigger_keywords = cst_encode_list_String(apiObj.triggerKeywords);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_rule_hit_dto(
+    RuleHitDto apiObj,
+    wire_cst_rule_hit_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.rule_id = cst_encode_String(apiObj.ruleId);
+    wireObj.rule_content = cst_encode_String(apiObj.ruleContent);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
   }
 
   @protected
@@ -4487,6 +4525,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_rule_dto(List<RuleDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_rule_hit_dto(
+    List<RuleHitDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_source_reference(
     List<SourceReference> self,
     SseSerializer serializer,
@@ -4725,6 +4769,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_rule_dto(RuleDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_rule_hit_dto(RuleHitDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_source_reference(
@@ -5836,6 +5883,19 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_rule_dto');
   late final _cst_new_list_rule_dto = _cst_new_list_rule_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_rule_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_rule_hit_dto> cst_new_list_rule_hit_dto(int len) {
+    return _cst_new_list_rule_hit_dto(len);
+  }
+
+  late final _cst_new_list_rule_hit_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_rule_hit_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_rule_hit_dto');
+  late final _cst_new_list_rule_hit_dto = _cst_new_list_rule_hit_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_rule_hit_dto> Function(int)>();
 
   ffi.Pointer<wire_cst_list_source_reference> cst_new_list_source_reference(
     int len,
@@ -9490,6 +9550,52 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__rules__get_rule_trigger_mode(int port_) {
+    return _wire__crate__api__rules__get_rule_trigger_mode(port_);
+  }
+
+  late final _wire__crate__api__rules__get_rule_trigger_modePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__rules__get_rule_trigger_mode',
+      );
+  late final _wire__crate__api__rules__get_rule_trigger_mode =
+      _wire__crate__api__rules__get_rule_trigger_modePtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__rules__list_event_rule_hits(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+  ) {
+    return _wire__crate__api__rules__list_event_rule_hits(port_, event_id);
+  }
+
+  late final _wire__crate__api__rules__list_event_rule_hitsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__rules__list_event_rule_hits');
+  late final _wire__crate__api__rules__list_event_rule_hits =
+      _wire__crate__api__rules__list_event_rule_hitsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__rules__list_recent_rule_hits(int port_, int limit) {
+    return _wire__crate__api__rules__list_recent_rule_hits(port_, limit);
+  }
+
+  late final _wire__crate__api__rules__list_recent_rule_hitsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__rules__list_recent_rule_hits',
+      );
+  late final _wire__crate__api__rules__list_recent_rule_hits =
+      _wire__crate__api__rules__list_recent_rule_hitsPtr
+          .asFunction<void Function(int, int)>();
+
   void wire__crate__api__rules__list_rules(int port_) {
     return _wire__crate__api__rules__list_rules(port_);
   }
@@ -9500,6 +9606,64 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__rules__list_rules =
       _wire__crate__api__rules__list_rulesPtr.asFunction<void Function(int)>();
+
+  void wire__crate__api__rules__set_rule_trigger(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger_scene,
+    ffi.Pointer<wire_cst_list_String> trigger_keywords,
+  ) {
+    return _wire__crate__api__rules__set_rule_trigger(
+      port_,
+      rule_id,
+      trigger_scene,
+      trigger_keywords,
+    );
+  }
+
+  late final _wire__crate__api__rules__set_rule_triggerPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_String>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__rules__set_rule_trigger');
+  late final _wire__crate__api__rules__set_rule_trigger =
+      _wire__crate__api__rules__set_rule_triggerPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_String>,
+            )
+          >();
+
+  void wire__crate__api__rules__set_rule_trigger_mode(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
+  ) {
+    return _wire__crate__api__rules__set_rule_trigger_mode(port_, mode);
+  }
+
+  late final _wire__crate__api__rules__set_rule_trigger_modePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__rules__set_rule_trigger_mode');
+  late final _wire__crate__api__rules__set_rule_trigger_mode =
+      _wire__crate__api__rules__set_rule_trigger_modePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void wire__crate__api__save_daily_review(
     int port_,
@@ -14036,6 +14200,21 @@ final class wire_cst_list_rule_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_rule_hit_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_rule_hit_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_rule_hit_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_rule_hit_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_rule_hit_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_source_reference extends ffi.Struct {
   external ffi.Pointer<wire_cst_source_reference> ptr;
 
@@ -14733,15 +14912,49 @@ final class wire_cst_rule_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger_scene;
+
+  external ffi.Pointer<wire_cst_list_String> trigger_keywords;
+
   static ffi.Pointer<wire_cst_rule_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger_scene,
+    required ffi.Pointer<wire_cst_list_String> trigger_keywords,
   }) => $allocator<wire_cst_rule_dto>()
     ..ref.id = id
     ..ref.content = content
+    ..ref.status = status
+    ..ref.created_at = created_at
+    ..ref.trigger_scene = trigger_scene
+    ..ref.trigger_keywords = trigger_keywords;
+}
+
+final class wire_cst_rule_hit_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_content;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  static ffi.Pointer<wire_cst_rule_hit_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_content,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+  }) => $allocator<wire_cst_rule_hit_dto>()
+    ..ref.id = id
+    ..ref.rule_id = rule_id
+    ..ref.rule_content = rule_content
     ..ref.status = status
     ..ref.created_at = created_at;
 }

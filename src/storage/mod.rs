@@ -15,6 +15,7 @@ mod new_migrations;
 mod provider;
 mod provider_keys;
 mod records;
+pub(crate) mod rule_triggers;
 pub(crate) mod sync;
 mod web_search;
 mod wiki;
@@ -160,6 +161,10 @@ pub struct RuleSummary {
     pub content: String,
     pub status: RuleStatus,
     pub created_at: String,
+    /// 触发场景（capture/conversation/daily_review；None = 全场景，不预筛时无意义）
+    pub trigger_scene: Option<String>,
+    /// 触发关键词 JSON 数组字符串（None = 不参与事件预筛）
+    pub trigger_keywords: Option<String>,
 }
 
 /// 待办状态

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -459438322;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 766872020;
 
 // Section: executor
 
@@ -1953,6 +1953,27 @@ fn wire__crate__api__sync__get_processor_handoff_state_impl(
         },
     )
 }
+fn wire__crate__api__rules__get_rule_trigger_mode_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_rule_trigger_mode",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::rules::get_rule_trigger_mode()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge_workflows__get_suggestion_feedback_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     message_id: impl CstDecode<String>,
@@ -2693,6 +2714,29 @@ fn wire__crate__api__entities__list_entity_facts_impl(
         },
     )
 }
+fn wire__crate__api__rules__list_event_rule_hits_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    event_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_event_rule_hits",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_event_id = event_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::rules::list_event_rule_hits(api_event_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__list_events_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -3035,6 +3079,29 @@ fn wire__crate__api__sync__list_pending_sync_joins_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::sync::list_pending_sync_joins()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__rules__list_recent_rule_hits_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    limit: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_recent_rule_hits",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_limit = limit.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::rules::list_recent_rule_hits(api_limit)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4741,6 +4808,60 @@ fn wire__crate__api__knowledge_workflows__set_knowledge_reading_state_impl(
                             crate::api::knowledge_workflows::set_knowledge_reading_state(
                                 api_slug, api_state,
                             )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__rules__set_rule_trigger_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    rule_id: impl CstDecode<String>,
+    trigger_scene: impl CstDecode<String>,
+    trigger_keywords: impl CstDecode<Vec<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_rule_trigger",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_rule_id = rule_id.cst_decode();
+            let api_trigger_scene = trigger_scene.cst_decode();
+            let api_trigger_keywords = trigger_keywords.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::rules::set_rule_trigger(
+                            api_rule_id,
+                            api_trigger_scene,
+                            api_trigger_keywords,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__rules__set_rule_trigger_mode_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    mode: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_rule_trigger_mode",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_mode = mode.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::rules::set_rule_trigger_mode(api_mode)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -7185,6 +7306,18 @@ impl SseDecode for Vec<crate::api::rules::RuleDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::rules::RuleHitDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::rules::RuleHitDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::knowledge::SourceReference> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7875,9 +8008,31 @@ impl SseDecode for crate::api::rules::RuleDto {
         let mut var_content = <String>::sse_decode(deserializer);
         let mut var_status = <String>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_triggerScene = <String>::sse_decode(deserializer);
+        let mut var_triggerKeywords = <Vec<String>>::sse_decode(deserializer);
         return crate::api::rules::RuleDto {
             id: var_id,
             content: var_content,
+            status: var_status,
+            created_at: var_createdAt,
+            trigger_scene: var_triggerScene,
+            trigger_keywords: var_triggerKeywords,
+        };
+    }
+}
+
+impl SseDecode for crate::api::rules::RuleHitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_ruleId = <String>::sse_decode(deserializer);
+        let mut var_ruleContent = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        return crate::api::rules::RuleHitDto {
+            id: var_id,
+            rule_id: var_ruleId,
+            rule_content: var_ruleContent,
             status: var_status,
             created_at: var_createdAt,
         };
@@ -10074,6 +10229,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::rules::RuleDto {
             self.content.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
+            self.trigger_scene.into_into_dart().into_dart(),
+            self.trigger_keywords.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -10081,6 +10238,27 @@ impl flutter_rust_bridge::IntoDart for crate::api::rules::RuleDto {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::rules::RuleDto {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::rules::RuleDto> for crate::api::rules::RuleDto {
     fn into_into_dart(self) -> crate::api::rules::RuleDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::rules::RuleHitDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.rule_id.into_into_dart().into_dart(),
+            self.rule_content.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::rules::RuleHitDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::rules::RuleHitDto>
+    for crate::api::rules::RuleHitDto
+{
+    fn into_into_dart(self) -> crate::api::rules::RuleHitDto {
         self
     }
 }
@@ -11870,6 +12048,16 @@ impl SseEncode for Vec<crate::api::rules::RuleDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::rules::RuleHitDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::rules::RuleHitDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::knowledge::SourceReference> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12360,6 +12548,19 @@ impl SseEncode for crate::api::rules::RuleDto {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.content, serializer);
+        <String>::sse_encode(self.status, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+        <String>::sse_encode(self.trigger_scene, serializer);
+        <Vec<String>>::sse_encode(self.trigger_keywords, serializer);
+    }
+}
+
+impl SseEncode for crate::api::rules::RuleHitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.rule_id, serializer);
+        <String>::sse_encode(self.rule_content, serializer);
         <String>::sse_encode(self.status, serializer);
         <String>::sse_encode(self.created_at, serializer);
     }
@@ -14070,6 +14271,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::rules::RuleHitDto>> for *mut wire_cst_list_rule_hit_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::rules::RuleHitDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::knowledge::SourceReference>> for *mut wire_cst_list_source_reference {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::knowledge::SourceReference> {
@@ -14411,6 +14622,20 @@ mod io {
             crate::api::rules::RuleDto {
                 id: self.id.cst_decode(),
                 content: self.content.cst_decode(),
+                status: self.status.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+                trigger_scene: self.trigger_scene.cst_decode(),
+                trigger_keywords: self.trigger_keywords.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::rules::RuleHitDto> for wire_cst_rule_hit_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::rules::RuleHitDto {
+            crate::api::rules::RuleHitDto {
+                id: self.id.cst_decode(),
+                rule_id: self.rule_id.cst_decode(),
+                rule_content: self.rule_content.cst_decode(),
                 status: self.status.cst_decode(),
                 created_at: self.created_at.cst_decode(),
             }
@@ -15895,10 +16120,28 @@ mod io {
                 content: core::ptr::null_mut(),
                 status: core::ptr::null_mut(),
                 created_at: core::ptr::null_mut(),
+                trigger_scene: core::ptr::null_mut(),
+                trigger_keywords: core::ptr::null_mut(),
             }
         }
     }
     impl Default for wire_cst_rule_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_rule_hit_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                rule_id: core::ptr::null_mut(),
+                rule_content: core::ptr::null_mut(),
+                status: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_rule_hit_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -17098,6 +17341,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__get_rule_trigger_mode(
+        port_: i64,
+    ) {
+        wire__crate__api__rules__get_rule_trigger_mode_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__get_suggestion_feedback(
         port_: i64,
         message_id: *mut wire_cst_list_prim_u_8_strict,
@@ -17350,6 +17600,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__list_event_rule_hits(
+        port_: i64,
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__rules__list_event_rule_hits_impl(port_, event_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_events(port_: i64) {
         wire__crate__api__list_events_impl(port_)
     }
@@ -17460,6 +17718,14 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__sync__list_pending_sync_joins_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__list_recent_rule_hits(
+        port_: i64,
+        limit: i64,
+    ) {
+        wire__crate__api__rules__list_recent_rule_hits_impl(port_, limit)
     }
 
     #[unsafe(no_mangle)]
@@ -18108,6 +18374,29 @@ mod io {
         state: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__knowledge_workflows__set_knowledge_reading_state_impl(port_, slug, state)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__set_rule_trigger(
+        port_: i64,
+        rule_id: *mut wire_cst_list_prim_u_8_strict,
+        trigger_scene: *mut wire_cst_list_prim_u_8_strict,
+        trigger_keywords: *mut wire_cst_list_String,
+    ) {
+        wire__crate__api__rules__set_rule_trigger_impl(
+            port_,
+            rule_id,
+            trigger_scene,
+            trigger_keywords,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__set_rule_trigger_mode(
+        port_: i64,
+        mode: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__rules__set_rule_trigger_mode_impl(port_, mode)
     }
 
     #[unsafe(no_mangle)]
@@ -19087,6 +19376,20 @@ mod io {
         let wrap = wire_cst_list_rule_dto {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_rule_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_rule_hit_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_rule_hit_dto {
+        let wrap = wire_cst_list_rule_hit_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_rule_hit_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -20079,6 +20382,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_rule_hit_dto {
+        ptr: *mut wire_cst_rule_hit_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_source_reference {
         ptr: *mut wire_cst_source_reference,
         len: i32,
@@ -20310,6 +20619,17 @@ mod io {
     pub struct wire_cst_rule_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         content: *mut wire_cst_list_prim_u_8_strict,
+        status: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+        trigger_scene: *mut wire_cst_list_prim_u_8_strict,
+        trigger_keywords: *mut wire_cst_list_String,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_rule_hit_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        rule_id: *mut wire_cst_list_prim_u_8_strict,
+        rule_content: *mut wire_cst_list_prim_u_8_strict,
         status: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
     }
@@ -22285,6 +22605,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::rules::RuleHitDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::rules::RuleHitDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::knowledge::SourceReference>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -22794,8 +23126,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                4,
-                "Expected 4 elements, got {}",
+                6,
+                "Expected 6 elements, got {}",
                 self_.length()
             );
             crate::api::rules::RuleDto {
@@ -22803,6 +23135,31 @@ mod web {
                 content: self_.get(1).cst_decode(),
                 status: self_.get(2).cst_decode(),
                 created_at: self_.get(3).cst_decode(),
+                trigger_scene: self_.get(4).cst_decode(),
+                trigger_keywords: self_.get(5).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::rules::RuleHitDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::rules::RuleHitDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::rules::RuleHitDto {
+                id: self_.get(0).cst_decode(),
+                rule_id: self_.get(1).cst_decode(),
+                rule_content: self_.get(2).cst_decode(),
+                status: self_.get(3).cst_decode(),
+                created_at: self_.get(4).cst_decode(),
             }
         }
     }
@@ -24254,6 +24611,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__rules__get_rule_trigger_mode(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__rules__get_rule_trigger_mode_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge_workflows__get_suggestion_feedback(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         message_id: String,
@@ -24514,6 +24878,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__rules__list_event_rule_hits(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        event_id: String,
+    ) {
+        wire__crate__api__rules__list_event_rule_hits_impl(port_, event_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__list_events(port_: flutter_rust_bridge::for_generated::MessagePort) {
         wire__crate__api__list_events_impl(port_)
     }
@@ -24626,6 +24998,14 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__sync__list_pending_sync_joins_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__rules__list_recent_rule_hits(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        limit: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__rules__list_recent_rule_hits_impl(port_, limit)
     }
 
     #[wasm_bindgen]
@@ -25286,6 +25666,29 @@ mod web {
         state: String,
     ) {
         wire__crate__api__knowledge_workflows__set_knowledge_reading_state_impl(port_, slug, state)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__rules__set_rule_trigger(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        rule_id: String,
+        trigger_scene: String,
+        trigger_keywords: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__rules__set_rule_trigger_impl(
+            port_,
+            rule_id,
+            trigger_scene,
+            trigger_keywords,
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__rules__set_rule_trigger_mode(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        mode: String,
+    ) {
+        wire__crate__api__rules__set_rule_trigger_mode_impl(port_, mode)
     }
 
     #[wasm_bindgen]

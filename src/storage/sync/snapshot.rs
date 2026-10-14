@@ -103,6 +103,10 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("sync_wire_receipts", "per-device-sync-state"),
     // 应用记录时用 sync_mark_wiki_slug_seen 重建。
     ("sync_wiki_slug_seen", "derived-on-apply"),
+    // 规则触发命中挂本地事件（events 不同步，提醒在哪台设备响是设备侧行为）；
+    // 偏好开关同理。规则触发词字段随 rules 行携带。
+    ("rule_hits", "local-event-reminders"),
+    ("rule_trigger_settings", "local-event-reminders"),
     // 本机应用配置（含 web_search 凭据），不是数据集内容。
     ("app_meta", "local-app-config"),
     ("network_settings", "local-app-config"),

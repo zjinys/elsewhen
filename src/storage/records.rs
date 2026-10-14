@@ -71,7 +71,9 @@ impl Store {
         status: Option<RuleStatus>,
         conversation_id: Option<&str>,
     ) -> Result<Vec<RuleSummary>> {
-        let mut sql = "SELECT id, content, status, created_at FROM rules".to_string();
+        let mut sql =
+            "SELECT id, content, status, created_at, trigger_scene, trigger_keywords FROM rules"
+                .to_string();
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
         if let Some(s) = status {
@@ -100,6 +102,8 @@ impl Store {
                     RuleStatus::Active
                 },
                 created_at: row.get(3)?,
+                trigger_scene: row.get(4)?,
+                trigger_keywords: row.get(5)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -109,6 +113,43 @@ impl Store {
     /// 已生效的规则（注入 AI 回复上下文用）
     pub fn list_active_rules(&self) -> Result<Vec<RuleSummary>> {
         self.list_rules(Some(RuleStatus::Active), None)
+    }
+
+    /// 设置/清除规则的触发配置（决策辅助 D1）。
+    /// trigger_keywords 为 JSON 字符串数组或 None（None = 不参与预筛）。
+    /// trigger_scene 枚举（capture/conversation/daily_review）或 None（全场景）。
+    pub fn set_rule_trigger(
+        &self,
+        rule_id: &str,
+        trigger_scene: Option<&str>,
+        trigger_keywords: Option<&[String]>,
+    ) -> Result<()> {
+        if let Some(scene) = trigger_scene {
+            if !matches!(scene, "capture" | "conversation" | "daily_review") {
+                anyhow::bail!("trigger_scene 必须是 capture/conversation/daily_review");
+            }
+        }
+        if let Some(keywords) = trigger_keywords {
+            if keywords.iter().any(|kw| kw.trim().is_empty()) {
+                anyhow::bail!("触发关键词不能为空串");
+            }
+        }
+        let keywords_json = trigger_keywords
+            .map(|kw| serde_json::to_string(kw))
+            .transpose()?;
+        let updated = self.connection.execute(
+            "UPDATE rules SET trigger_scene=?2, trigger_keywords=?3, updated_at=?4 WHERE id=?1",
+            params![
+                rule_id,
+                trigger_scene,
+                keywords_json,
+                chrono::Utc::now().to_rfc3339()
+            ],
+        )?;
+        if updated == 0 {
+            anyhow::bail!("规则不存在：{rule_id}");
+        }
+        Ok(())
     }
 
     /// 新增一条规则。

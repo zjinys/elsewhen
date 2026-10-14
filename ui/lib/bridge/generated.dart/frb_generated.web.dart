@@ -427,6 +427,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> dco_decode_list_rule_dto(dynamic raw);
 
   @protected
+  List<RuleHitDto> dco_decode_list_rule_hit_dto(dynamic raw);
+
+  @protected
   List<SourceReference> dco_decode_list_source_reference(dynamic raw);
 
   @protected
@@ -578,6 +581,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleDto dco_decode_rule_dto(dynamic raw);
+
+  @protected
+  RuleHitDto dco_decode_rule_hit_dto(dynamic raw);
 
   @protected
   SourceReference dco_decode_source_reference(dynamic raw);
@@ -1145,6 +1151,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> sse_decode_list_rule_dto(SseDeserializer deserializer);
 
   @protected
+  List<RuleHitDto> sse_decode_list_rule_hit_dto(SseDeserializer deserializer);
+
+  @protected
   List<SourceReference> sse_decode_list_source_reference(
     SseDeserializer deserializer,
   );
@@ -1340,6 +1349,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleDto sse_decode_rule_dto(SseDeserializer deserializer);
+
+  @protected
+  RuleHitDto sse_decode_rule_hit_dto(SseDeserializer deserializer);
 
   @protected
   SourceReference sse_decode_source_reference(SseDeserializer deserializer);
@@ -2557,6 +2569,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_rule_hit_dto(List<RuleHitDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_rule_hit_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_source_reference(List<SourceReference> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_source_reference).toList().jsify()!;
@@ -2970,6 +2988,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return [
       cst_encode_String(raw.id),
       cst_encode_String(raw.content),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.triggerScene),
+      cst_encode_list_String(raw.triggerKeywords),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_rule_hit_dto(RuleHitDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.ruleId),
+      cst_encode_String(raw.ruleContent),
       cst_encode_String(raw.status),
       cst_encode_String(raw.createdAt),
     ].jsify()!;
@@ -3969,6 +4001,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_rule_dto(List<RuleDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_rule_hit_dto(
+    List<RuleHitDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_source_reference(
     List<SourceReference> self,
     SseSerializer serializer,
@@ -4207,6 +4245,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_rule_dto(RuleDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_rule_hit_dto(RuleHitDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_source_reference(
@@ -4995,6 +5036,9 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__sync__get_processor_handoff_state(port_);
 
+  void wire__crate__api__rules__get_rule_trigger_mode(NativePortType port_) =>
+      wasmModule.wire__crate__api__rules__get_rule_trigger_mode(port_);
+
   void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -5215,6 +5259,12 @@ class RustLibWire implements BaseWire {
     entity_slug,
   );
 
+  void wire__crate__api__rules__list_event_rule_hits(
+    NativePortType port_,
+    String event_id,
+  ) =>
+      wasmModule.wire__crate__api__rules__list_event_rule_hits(port_, event_id);
+
   void wire__crate__api__list_events(NativePortType port_) =>
       wasmModule.wire__crate__api__list_events(port_);
 
@@ -5318,6 +5368,11 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__sync__list_pending_sync_joins(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__list_pending_sync_joins(port_);
+
+  void wire__crate__api__rules__list_recent_rule_hits(
+    NativePortType port_,
+    JSAny limit,
+  ) => wasmModule.wire__crate__api__rules__list_recent_rule_hits(port_, limit);
 
   void wire__crate__api__relations__list_relations(NativePortType port_) =>
       wasmModule.wire__crate__api__relations__list_relations(port_);
@@ -5895,6 +5950,23 @@ class RustLibWire implements BaseWire {
         slug,
         state,
       );
+
+  void wire__crate__api__rules__set_rule_trigger(
+    NativePortType port_,
+    String rule_id,
+    String trigger_scene,
+    JSAny trigger_keywords,
+  ) => wasmModule.wire__crate__api__rules__set_rule_trigger(
+    port_,
+    rule_id,
+    trigger_scene,
+    trigger_keywords,
+  );
+
+  void wire__crate__api__rules__set_rule_trigger_mode(
+    NativePortType port_,
+    String mode,
+  ) => wasmModule.wire__crate__api__rules__set_rule_trigger_mode(port_, mode);
 
   void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
@@ -6571,6 +6643,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__rules__get_rule_trigger_mode(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -6721,6 +6797,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String entity_slug,
   );
 
+  external void wire__crate__api__rules__list_event_rule_hits(
+    NativePortType port_,
+    String event_id,
+  );
+
   external void wire__crate__api__list_events(NativePortType port_);
 
   external void wire__crate__api__knowledge__list_knowledge_background_runs(
@@ -6789,6 +6870,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__sync__list_pending_sync_joins(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__rules__list_recent_rule_hits(
+    NativePortType port_,
+    JSAny limit,
   );
 
   external void wire__crate__api__relations__list_relations(
@@ -7165,6 +7251,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     String state,
+  );
+
+  external void wire__crate__api__rules__set_rule_trigger(
+    NativePortType port_,
+    String rule_id,
+    String trigger_scene,
+    JSAny trigger_keywords,
+  );
+
+  external void wire__crate__api__rules__set_rule_trigger_mode(
+    NativePortType port_,
+    String mode,
   );
 
   external void wire__crate__api__wiki__set_wiki_opinion(

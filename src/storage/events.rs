@@ -90,6 +90,8 @@ impl Store {
         params![Uuid::new_v4().to_string(), id, now],
     )?;
         enqueue_digest_job_on(&self.connection, &id, now_at)?;
+        // 规则触发预筛（D1）：确定性关键词匹配，失败静默放行（预警绝不阻塞捕获）。
+        crate::storage::rule_triggers::screen_event_on(&self.connection, &id, event.raw_text);
         if let Some(input_id) = input_id {
             self.connection.execute("INSERT INTO chat_input_effects(input_message_id,event_id,created_at) VALUES(?1,?2,?3)", params![input_id,id,now])?;
         }

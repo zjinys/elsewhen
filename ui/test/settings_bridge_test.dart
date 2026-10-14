@@ -61,6 +61,41 @@ void main() {
     }
   });
 
+  test('规则触发往返（决策辅助 D1）：触发词/场景/提醒偏好', () async {
+    final ruleId = await repo.addRule('__D1 触发测试__ X 项目相关要提醒');
+    try {
+      // 默认：不参与预筛、全场景、偏好 instant
+      var rules = await repo.listRules();
+      final created = rules.firstWhere((r) => r.id == ruleId);
+      expect(created.triggerKeywords, isEmpty);
+      // 配置触发：关键词 + 场景
+      await repo.setRuleTrigger(
+        ruleId,
+        triggerScene: 'capture',
+        triggerKeywords: ['X项目', 'deadline'],
+      );
+      rules = await repo.listRules();
+      final configured = rules.firstWhere((r) => r.id == ruleId);
+      expect(configured.triggerKeywords, ['X项目', 'deadline']);
+      expect(configured.triggerScene, 'capture');
+      expect(configured.hasTrigger, isTrue);
+
+      // 提醒偏好往返：review_only → off → instant(默认)
+      await repo.setRuleTriggerMode('review_only');
+      expect(await repo.getRuleTriggerMode(), 'review_only');
+      await repo.setRuleTriggerMode('off');
+      expect(await repo.getRuleTriggerMode(), 'off');
+      await repo.setRuleTriggerMode('instant');
+      expect(await repo.getRuleTriggerMode(), 'instant');
+
+      // 最近提醒读面可用（隔离库可能无命中，只验证接口与结构）
+      final hits = await repo.listRecentRuleHits(limit: 5);
+      expect(hits, isA<List<dynamic>>());
+    } finally {
+      await repo.deleteRule(ruleId);
+    }
+  });
+
   test('daily token usage returns aggregated list', () async {
     final daily = await repo.getDailyTokenUsage(7);
 

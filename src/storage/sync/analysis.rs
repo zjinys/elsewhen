@@ -29,6 +29,8 @@ impl Store {
             params![task,event_id,now_text],
         )?;
         super::super::digest::enqueue_digest_job_on(&self.connection, event_id, now)?;
+        // 远端事件落库同样预筛（D1）；失败静默（screen 内部已吞错）。
+        crate::storage::rule_triggers::screen_event_on(&self.connection, event_id, &event.raw_text);
         Ok(())
     }
 

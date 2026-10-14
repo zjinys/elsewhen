@@ -1,5 +1,7 @@
 import 'dart:io' show Platform;
 
+import 'package:intl/intl.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,6 +53,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   // 个人经验规则库
   List<Rule> _rules = [];
   bool _rulesLoading = true;
+  // 规则触发提醒（决策辅助 D1)：偏好模式 + 最近提醒列表
+  String _ruleTriggerMode = 'instant';
+  List<RuleHit> _recentRuleHits = [];
 
   // AI provider 多配置（仅一个激活）
   List<api.AiProviderConfigDto> _providers = [];
@@ -221,7 +226,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
-  Future<void> _loadRules() async {
+  Future<void> _loadRules() => _loadRulesInternal();
+
+  Future<void> _loadRulesInternal() async {
+    // 提醒偏好与最近提醒独立于规则列表：读失败不拖垮规则库展示。
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final mode = await repo.getRuleTriggerMode();
+      final hits = await repo.listRecentRuleHits(limit: 8);
+      if (!mounted) return;
+      setState(() {
+        _ruleTriggerMode = mode;
+        _recentRuleHits = hits;
+      });
+    } catch (e) {
+      debugPrint('loadRuleTrigger failed: $e');
+    }
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final all = await repo.listRules();
@@ -237,6 +257,167 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         _loadErrors[_secRules] = '$e';
       });
       debugPrint('loadRules failed: $e');
+    }
+  }
+
+  /// 提醒偏好三态。默认 instant：预筛命中的规则经 LLM 判定后，高置信即时
+  /// 提醒（事件旁可见）、其余进每日回顾聚合。review_only 全部聚合；off 彻底
+  /// 关闭——预筛根本不跑。设计红线：分级防打扰，任何「默认全开」以失败论，
+  /// 因此即时提醒只给高置信命中，且用户随时可整体关闭。
+  Widget _buildRuleTriggerPrefs() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '事件提醒',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
+        const SizedBox(height: AppTheme.space2),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(value: 'instant', label: Text('即时+回顾')),
+            ButtonSegment(value: 'review_only', label: Text('仅回顾')),
+            ButtonSegment(value: 'off', label: Text('关闭')),
+          ],
+          selected: {_ruleTriggerMode},
+          onSelectionChanged: (selection) async {
+            final mode = selection.first;
+            try {
+              final repo =
+                  ref.read(storageRepositoryProvider) as RustBridgeRepository;
+              await repo.setRuleTriggerMode(mode);
+              if (!mounted) return;
+              setState(() => _ruleTriggerMode = mode);
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(reportUiError('保存提醒偏好', e))),
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentRuleHits() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '最近提醒',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
+        const SizedBox(height: AppTheme.space2),
+        for (final hit in _recentRuleHits)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  hit.isNotified
+                      ? Icons.notifications_active_outlined
+                      : Icons.inbox_outlined,
+                  size: 14,
+                  color: hit.isNotified
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textTertiary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${hit.ruleContent} · ${DateFormat('MM-dd HH:mm').format(hit.createdAt.toLocal())}',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _editRuleTrigger(Rule rule) async {
+    final keywordsController = TextEditingController(
+      text: rule.triggerKeywords.join(', '),
+    );
+    var scene = rule.triggerScene;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('触发条件'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                rule.content,
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: AppTheme.space4),
+              TextField(
+                controller: keywordsController,
+                decoration: const InputDecoration(
+                  labelText: '触发关键词（逗号分隔，留空 = 不预筛）',
+                  hintText: '如：X项目, deadline',
+                ),
+              ),
+              const SizedBox(height: AppTheme.space4),
+              DropdownButtonFormField<String>(
+                initialValue: scene.isEmpty ? '' : scene,
+                decoration: const InputDecoration(labelText: '触发场景'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('全场景')),
+                  DropdownMenuItem(value: 'capture', child: Text('快速捕获')),
+                  DropdownMenuItem(value: 'conversation', child: Text('对话')),
+                  DropdownMenuItem(value: 'daily_review', child: Text('每日回顾')),
+                ],
+                onChanged: (value) => setDialogState(() => scene = value ?? ''),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true) return;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final keywords = keywordsController.text
+          .split(RegExp(r'[,，\n]'))
+          .map((kw) => kw.trim())
+          .where((kw) => kw.isNotEmpty)
+          .toList();
+      await repo.setRuleTrigger(
+        rule.id,
+        triggerScene: scene,
+        triggerKeywords: keywords,
+      );
+      if (!mounted) return;
+      await _loadRules();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('保存触发条件', e))));
     }
   }
 
@@ -778,7 +959,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildRuleTriggerPrefs(),
+                const SizedBox(height: AppTheme.space4),
                 _buildRulesContent(),
+                if (_recentRuleHits.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space4),
+                  _buildRecentRuleHits(),
+                ],
                 ChatProposalReviewButton(
                   conversationId: null,
                   label: '审阅历史未归属规则',
@@ -843,6 +1030,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     ),
                   ),
                 ),
+              ),
+              IconButton(
+                icon: Icon(
+                  _rules[i].hasTrigger
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_none,
+                  size: 18,
+                ),
+                color: _rules[i].hasTrigger
+                    ? AppTheme.accentPrimary
+                    : AppTheme.textTertiary,
+                tooltip: _rules[i].hasTrigger ? '触发条件（已配置）' : '配置触发条件',
+                onPressed: () => _editRuleTrigger(_rules[i]),
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 18),
