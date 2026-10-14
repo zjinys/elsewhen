@@ -7,6 +7,7 @@ import '../bridge/api.dart' as api;
 import '../sync/sync_processor_handoff_controller.dart';
 import '../sync/sync_roster_controller.dart';
 import '../sync/sync_provider_conflicts_controller.dart';
+import '../sync/sync_wiki_conflicts_controller.dart';
 import '../sync/sync_setup_controller.dart';
 import 'sync_tick_status.dart';
 import 'owner_sync_pairing_settings.dart';
@@ -16,6 +17,7 @@ import 'sync_key_health_settings.dart';
 import 'sync_members_settings.dart';
 import 'sync_processor_handoff_settings.dart';
 import 'sync_provider_conflicts_settings.dart';
+import 'sync_wiki_conflicts_settings.dart';
 
 class LocalSyncSettings extends StatefulWidget {
   const LocalSyncSettings({
@@ -23,6 +25,7 @@ class LocalSyncSettings extends StatefulWidget {
     required this.controller,
     this.repository,
     this.conflictsController,
+    this.wikiConflictsController,
     this.handoffController,
     this.rosterController,
   });
@@ -31,6 +34,7 @@ class LocalSyncSettings extends StatefulWidget {
 
   /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
   final SyncProviderConflictsController? conflictsController;
+  final SyncWikiConflictsController? wikiConflictsController;
 
   /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
   final SyncProcessorHandoffController? handoffController;
@@ -47,6 +51,8 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   bool _consent = false;
   late final SyncProviderConflictsController _conflicts;
   late final bool _ownsConflicts;
+  late final SyncWikiConflictsController _wikiConflicts;
+  late final bool _ownsWikiConflicts;
   late final SyncProcessorHandoffController _handoff;
   late final bool _ownsHandoff;
   late final SyncRosterController _roster;
@@ -58,6 +64,9 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     _ownsConflicts = widget.conflictsController == null;
     _conflicts =
         widget.conflictsController ?? SyncProviderConflictsController();
+    _ownsWikiConflicts = widget.wikiConflictsController == null;
+    _wikiConflicts =
+        widget.wikiConflictsController ?? SyncWikiConflictsController();
     _ownsHandoff = widget.handoffController == null;
     _handoff = widget.handoffController ?? SyncProcessorHandoffController();
     _ownsRoster = widget.rosterController == null;
@@ -68,6 +77,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   void dispose() {
     _name.dispose();
     if (_ownsConflicts) _conflicts.dispose();
+    if (_ownsWikiConflicts) _wikiConflicts.dispose();
     if (_ownsHandoff) _handoff.dispose();
     if (_ownsRoster) _roster.dispose();
     super.dispose();
@@ -204,6 +214,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                   onChanged: _roster.refresh,
                 ),
               if (ready) SyncProviderConflictsSettings(controller: _conflicts),
+              if (ready) SyncWikiConflictsSettings(controller: _wikiConflicts),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,

@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1674748187;
+  int get rustContentHash => 1237984454;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -611,6 +611,8 @@ abstract class RustLibApi extends BaseApi {
     required int limit,
   });
 
+  Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts();
+
   Future<List<WikiPageDto>> crateApiWikiListWikiPageDerivatives({
     required String slug,
   });
@@ -730,6 +732,12 @@ abstract class RustLibApi extends BaseApi {
   Future<List<String>> crateApiKnowledgeResolveTopicOrganization({
     required String id,
     required bool accept,
+  });
+
+  Future<void> crateApiSyncResolveWikiPageConflict({
+    required String opId,
+    String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
   });
 
   Future<void> crateApiChatRunsResumeChatInputQueue({
@@ -4738,6 +4746,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__list_wiki_page_conflicts(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_wiki_page_conflict_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncListWikiPageConflictsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncListWikiPageConflictsConstMeta =>
+      const TaskConstMeta(debugName: "list_wiki_page_conflicts", argNames: []);
+
+  @override
   Future<List<WikiPageDto>> crateApiWikiListWikiPageDerivatives({
     required String slug,
   }) {
@@ -5616,6 +5645,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "resolve_topic_organization",
         argNames: ["id", "accept"],
+      );
+
+  @override
+  Future<void> crateApiSyncResolveWikiPageConflict({
+    required String opId,
+    String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(opId);
+          var arg1 = cst_encode_opt_String(expectedLocalUpdatedAt);
+          var arg2 = cst_encode_bool(acceptRemote);
+          return wire.wire__crate__api__sync__resolve_wiki_page_conflict(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncResolveWikiPageConflictConstMeta,
+        argValues: [opId, expectedLocalUpdatedAt, acceptRemote],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncResolveWikiPageConflictConstMeta =>
+      const TaskConstMeta(
+        debugName: "resolve_wiki_page_conflict",
+        argNames: ["opId", "expectedLocalUpdatedAt", "acceptRemote"],
       );
 
   @override
@@ -7494,6 +7559,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WikiPageConflictSideDto dco_decode_box_autoadd_wiki_page_conflict_side_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_wiki_page_conflict_side_dto(raw);
+  }
+
+  @protected
   WikiPageDto dco_decode_box_autoadd_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_wiki_page_dto(raw);
@@ -8593,6 +8666,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_wiki_page_conflict_dto).toList();
+  }
+
+  @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_wiki_page_dto).toList();
@@ -8773,6 +8854,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
+  }
+
+  @protected
+  WikiPageConflictSideDto?
+  dco_decode_opt_box_autoadd_wiki_page_conflict_side_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_wiki_page_conflict_side_dto(raw);
   }
 
   @protected
@@ -9341,6 +9431,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WikiPageConflictDto dco_decode_wiki_page_conflict_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return WikiPageConflictDto(
+      opId: dco_decode_String(arr[0]),
+      objectId: dco_decode_String(arr[1]),
+      reason: dco_decode_String(arr[2]),
+      senderDeviceId: dco_decode_String(arr[3]),
+      senderDeviceName: dco_decode_opt_String(arr[4]),
+      incomingSlug: dco_decode_String(arr[5]),
+      incomingTitle: dco_decode_String(arr[6]),
+      incomingDeleted: dco_decode_bool(arr[7]),
+      incomingRenamedFrom: dco_decode_opt_String(arr[8]),
+      incomingSummary: dco_decode_String(arr[9]),
+      incomingContentMdLen: dco_decode_i_64(arr[10]),
+      incomingUpdatedAt: dco_decode_String(arr[11]),
+      local: dco_decode_opt_box_autoadd_wiki_page_conflict_side_dto(arr[12]),
+      localHeadDeleted: dco_decode_bool(arr[13]),
+    );
+  }
+
+  @protected
+  WikiPageConflictSideDto dco_decode_wiki_page_conflict_side_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return WikiPageConflictSideDto(
+      slug: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      contentMdLen: dco_decode_i_64(arr[2]),
+      updatedAt: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -9633,6 +9761,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_32(deserializer));
+  }
+
+  @protected
+  WikiPageConflictSideDto sse_decode_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_wiki_page_conflict_side_dto(deserializer));
   }
 
   @protected
@@ -11296,6 +11432,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WikiPageConflictDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_wiki_page_conflict_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(
     SseDeserializer deserializer,
   ) {
@@ -11576,6 +11726,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  WikiPageConflictSideDto?
+  sse_decode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_wiki_page_conflict_side_dto(deserializer));
     } else {
       return null;
     }
@@ -12294,6 +12458,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WikiPageConflictDto sse_decode_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_opId = sse_decode_String(deserializer);
+    var var_objectId = sse_decode_String(deserializer);
+    var var_reason = sse_decode_String(deserializer);
+    var var_senderDeviceId = sse_decode_String(deserializer);
+    var var_senderDeviceName = sse_decode_opt_String(deserializer);
+    var var_incomingSlug = sse_decode_String(deserializer);
+    var var_incomingTitle = sse_decode_String(deserializer);
+    var var_incomingDeleted = sse_decode_bool(deserializer);
+    var var_incomingRenamedFrom = sse_decode_opt_String(deserializer);
+    var var_incomingSummary = sse_decode_String(deserializer);
+    var var_incomingContentMdLen = sse_decode_i_64(deserializer);
+    var var_incomingUpdatedAt = sse_decode_String(deserializer);
+    var var_local = sse_decode_opt_box_autoadd_wiki_page_conflict_side_dto(
+      deserializer,
+    );
+    var var_localHeadDeleted = sse_decode_bool(deserializer);
+    return WikiPageConflictDto(
+      opId: var_opId,
+      objectId: var_objectId,
+      reason: var_reason,
+      senderDeviceId: var_senderDeviceId,
+      senderDeviceName: var_senderDeviceName,
+      incomingSlug: var_incomingSlug,
+      incomingTitle: var_incomingTitle,
+      incomingDeleted: var_incomingDeleted,
+      incomingRenamedFrom: var_incomingRenamedFrom,
+      incomingSummary: var_incomingSummary,
+      incomingContentMdLen: var_incomingContentMdLen,
+      incomingUpdatedAt: var_incomingUpdatedAt,
+      local: var_local,
+      localHeadDeleted: var_localHeadDeleted,
+    );
+  }
+
+  @protected
+  WikiPageConflictSideDto sse_decode_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_slug = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_contentMdLen = sse_decode_i_64(deserializer);
+    var var_updatedAt = sse_decode_String(deserializer);
+    return WikiPageConflictSideDto(
+      slug: var_slug,
+      title: var_title,
+      contentMdLen: var_contentMdLen,
+      updatedAt: var_updatedAt,
+    );
+  }
+
+  @protected
   WikiPageDto sse_decode_wiki_page_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -12616,6 +12836,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_wiki_page_conflict_side_dto(self, serializer);
   }
 
   @protected
@@ -13877,6 +14106,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_wiki_page_conflict_dto(
+    List<WikiPageConflictDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_wiki_page_conflict_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_wiki_page_dto(
     List<WikiPageDto> self,
     SseSerializer serializer,
@@ -14123,6 +14364,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_wiki_page_conflict_side_dto(self, serializer);
     }
   }
 
@@ -14622,6 +14876,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.title, serializer);
     sse_encode_String(self.contentMd, serializer);
     sse_encode_String(self.basisJson, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_page_conflict_dto(
+    WikiPageConflictDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.opId, serializer);
+    sse_encode_String(self.objectId, serializer);
+    sse_encode_String(self.reason, serializer);
+    sse_encode_String(self.senderDeviceId, serializer);
+    sse_encode_opt_String(self.senderDeviceName, serializer);
+    sse_encode_String(self.incomingSlug, serializer);
+    sse_encode_String(self.incomingTitle, serializer);
+    sse_encode_bool(self.incomingDeleted, serializer);
+    sse_encode_opt_String(self.incomingRenamedFrom, serializer);
+    sse_encode_String(self.incomingSummary, serializer);
+    sse_encode_i_64(self.incomingContentMdLen, serializer);
+    sse_encode_String(self.incomingUpdatedAt, serializer);
+    sse_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+      self.local,
+      serializer,
+    );
+    sse_encode_bool(self.localHeadDeleted, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.slug, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_i_64(self.contentMdLen, serializer);
+    sse_encode_String(self.updatedAt, serializer);
   }
 
   @protected

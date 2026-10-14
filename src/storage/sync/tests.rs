@@ -1374,3 +1374,127 @@ fn revision_arriving_on_deleted_head_stays_quiet() {
     assert_eq!(candidates, 1, "同一次编辑只在一个 op 上立案");
     assert_eq!(b.count("wiki_revisions"), 0, "已删页不复活历史行");
 }
+
+#[test]
+fn wiki_conflict_review_accept_remote_rename_migrates_from_current_slug() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(&a, "page-1", "topic/项目", "项目", "正文", &[&event_id]);
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    // 双端离线各自改名；b 端建一条引用（本端 slug）。
+    a.store.rename_wiki_page("topic/项目", "甲名", "a").unwrap();
+    b.store.rename_wiki_page("topic/项目", "乙名", "b").unwrap();
+    b.store
+        .connection
+        .execute(
+            "INSERT INTO relations(id,from_slug,from_kind,to_slug,to_kind,relation,confidence,created_at,last_seen_at) \
+             VALUES('rel-1','p','person','topic/乙名','topic','跟进',3,'2026-01-01T00:00:00+00:00','2026-01-01T00:00:00+00:00')",
+            [],
+        )
+        .unwrap();
+    deliver(&a, &b);
+    deliver(&b, &a);
+    // b 端审阅列表：rename_diverged，双端状态并列。
+    let reviews = b.store.list_wiki_page_conflicts().unwrap();
+    assert_eq!(reviews.len(), 1);
+    let review = &reviews[0];
+    assert_eq!(review.reason, "wiki_page_rename_diverged");
+    assert_eq!(review.incoming.slug, "topic/甲名");
+    assert_eq!(review.incoming.renamed_from.as_deref(), Some("topic/项目"));
+    let local = review.local.as_ref().unwrap();
+    assert_eq!(local.slug, "topic/乙名");
+    // 绑定失败关闭：updated_at 编造回传必须被拒。
+    let err = b
+        .store
+        .resolve_wiki_page_conflict(&review.op_id, Some("1999-01-01T00:00:00+00:00"), true)
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("wiki_conflict_local_changed"), "实际: {err}");
+    // 采纳远端：b 从**当前** slug 迁到 a 的 slug，引用跟着走。
+    b.store
+        .resolve_wiki_page_conflict(&review.op_id, Some(&local.updated_at), true)
+        .unwrap();
+    assert!(b.store.get_wiki_page("topic/乙名").unwrap().is_none());
+    let moved = b.store.get_wiki_page("topic/甲名").unwrap().unwrap();
+    assert_eq!(moved.title, "甲名");
+    let rel_to: String = b
+        .store
+        .connection
+        .query_row("SELECT to_slug FROM relations WHERE id='rel-1'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(rel_to, "topic/甲名");
+    assert!(b.store.list_wiki_page_conflicts().unwrap().is_empty());
+}
+
+#[test]
+fn wiki_conflict_accept_remote_delete_or_keep_local() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    a.store
+        .submit_input_as_event("证据事件文本", "capture", None)
+        .unwrap();
+    let event_id = a.store.list_events().unwrap()[0].id.clone();
+    seed_wiki_page(&a, "page-1", "topic/项目", "项目", "正文", &[&event_id]);
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    // b 捕获删除（head 已删、行仍在），a 离线编辑 → b 出删除候选。
+    {
+        let tx = b.store.begin_write_transaction().unwrap();
+        b.store.sync_record_wiki_page("page-1", true).unwrap();
+        if let Some(tx) = tx {
+            tx.commit().unwrap();
+        }
+    }
+    a.store
+        .save_wiki_page_content("topic/项目", "离线改", "离线编辑", None)
+        .unwrap();
+    deliver(&a, &b);
+    let reviews = b.store.list_wiki_page_conflicts().unwrap();
+    assert_eq!(reviews.len(), 1);
+    let review = &reviews[0];
+    assert_eq!(review.reason, "wiki_page_deleted");
+    assert!(review.local_head_deleted);
+    // 保留本地 = 维持本端删除态：head 已删 → 行物理删除（与业务删除一致）。
+    let updated = review.local.as_ref().unwrap().updated_at.clone();
+    b.store
+        .resolve_wiki_page_conflict(&review.op_id, Some(&updated), false)
+        .unwrap();
+    assert!(b.store.list_wiki_page_conflicts().unwrap().is_empty());
+    assert!(b.store.get_wiki_page("topic/项目").unwrap().is_none());
+    let head = b
+        .store
+        .sync_object_head("wiki_page", "page-1")
+        .unwrap()
+        .unwrap();
+    assert!(head.1, "保留本地删除态后 head 必须仍是已删");
+    // a 再编辑后投递：b 端再次出候选（本端行已物理删，local 为空）。
+    a.store
+        .save_wiki_page_content("topic/项目", "离线改 v2", "离线编辑", None)
+        .unwrap();
+    deliver(&a, &b);
+    let reviews = b.store.list_wiki_page_conflicts().unwrap();
+    assert_eq!(reviews.len(), 1);
+    assert!(reviews[0].local.is_none());
+    // 这次采纳远端：复活本端行并采纳离线编辑（整行替换语义）。
+    b.store
+        .resolve_wiki_page_conflict(&reviews[0].op_id, None, true)
+        .unwrap();
+    let revived = b.store.get_wiki_page("topic/项目").unwrap().unwrap();
+    assert_eq!(revived.content_md, "离线改 v2");
+    let head = b
+        .store
+        .sync_object_head("wiki_page", "page-1")
+        .unwrap()
+        .unwrap();
+    assert!(!head.1, "采纳远端编辑后 head 必须回到未删");
+    assert!(b.store.list_wiki_page_conflicts().unwrap().is_empty());
+}

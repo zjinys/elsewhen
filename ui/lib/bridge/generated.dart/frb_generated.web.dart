@@ -140,6 +140,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  WikiPageConflictSideDto dco_decode_box_autoadd_wiki_page_conflict_side_dto(
+    dynamic raw,
+  );
+
+  @protected
   WikiPageDto dco_decode_box_autoadd_wiki_page_dto(dynamic raw);
 
   @protected
@@ -455,6 +460,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(dynamic raw);
+
+  @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
 
   @protected
@@ -524,6 +532,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  WikiPageConflictSideDto?
+  dco_decode_opt_box_autoadd_wiki_page_conflict_side_dto(dynamic raw);
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
@@ -640,6 +652,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
 
   @protected
+  WikiPageConflictDto dco_decode_wiki_page_conflict_dto(dynamic raw);
+
+  @protected
+  WikiPageConflictSideDto dco_decode_wiki_page_conflict_side_dto(dynamic raw);
+
+  @protected
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw);
 
   @protected
@@ -746,6 +764,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  WikiPageConflictSideDto sse_decode_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WikiPageDto sse_decode_box_autoadd_wiki_page_dto(
@@ -1159,6 +1182,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
 
   @protected
@@ -1244,6 +1272,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  WikiPageConflictSideDto?
+  sse_decode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WikiPageDto? sse_decode_opt_box_autoadd_wiki_page_dto(
@@ -1392,6 +1426,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiChatMaterialDto sse_decode_wiki_chat_material_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiPageConflictDto sse_decode_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiPageConflictSideDto sse_decode_wiki_page_conflict_side_dto(
     SseDeserializer deserializer,
   );
 
@@ -1596,6 +1640,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int cst_encode_box_autoadd_u_32(int raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_u_32(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_wiki_page_conflict_side_dto(raw);
   }
 
   @protected
@@ -2549,6 +2601,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_wiki_page_conflict_dto(List<WikiPageConflictDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_wiki_page_conflict_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_wiki_page_dto(List<WikiPageDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_wiki_page_dto).toList().jsify()!;
@@ -2718,6 +2776,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? cst_encode_opt_box_autoadd_u_32(int? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_u_32(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_wiki_page_conflict_side_dto(raw);
   }
 
   @protected
@@ -3169,6 +3237,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_wiki_page_conflict_dto(WikiPageConflictDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.opId),
+      cst_encode_String(raw.objectId),
+      cst_encode_String(raw.reason),
+      cst_encode_String(raw.senderDeviceId),
+      cst_encode_opt_String(raw.senderDeviceName),
+      cst_encode_String(raw.incomingSlug),
+      cst_encode_String(raw.incomingTitle),
+      cst_encode_bool(raw.incomingDeleted),
+      cst_encode_opt_String(raw.incomingRenamedFrom),
+      cst_encode_String(raw.incomingSummary),
+      cst_encode_i_64(raw.incomingContentMdLen),
+      cst_encode_String(raw.incomingUpdatedAt),
+      cst_encode_opt_box_autoadd_wiki_page_conflict_side_dto(raw.local),
+      cst_encode_bool(raw.localHeadDeleted),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_wiki_page_conflict_side_dto(WikiPageConflictSideDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.title),
+      cst_encode_i_64(raw.contentMdLen),
+      cst_encode_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_wiki_page_dto(WikiPageDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -3344,6 +3444,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_wiki_page_dto(
@@ -3871,6 +3977,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_wiki_page_conflict_dto(
+    List<WikiPageConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_wiki_page_dto(
     List<WikiPageDto> self,
     SseSerializer serializer,
@@ -3974,6 +4086,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_wiki_page_dto(
@@ -4167,6 +4285,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_wiki_chat_material_dto(
     WikiChatMaterialDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_page_conflict_dto(
+    WikiPageConflictDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
     SseSerializer serializer,
   );
 
@@ -5183,6 +5313,9 @@ class RustLibWire implements BaseWire {
     limit,
   );
 
+  void wire__crate__api__sync__list_wiki_page_conflicts(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_wiki_page_conflicts(port_);
+
   void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
@@ -5425,6 +5558,18 @@ class RustLibWire implements BaseWire {
     port_,
     id,
     accept,
+  );
+
+  void wire__crate__api__sync__resolve_wiki_page_conflict(
+    NativePortType port_,
+    String op_id,
+    String? expected_local_updated_at,
+    bool accept_remote,
+  ) => wasmModule.wire__crate__api__sync__resolve_wiki_page_conflict(
+    port_,
+    op_id,
+    expected_local_updated_at,
+    accept_remote,
   );
 
   void wire__crate__api__chat_runs__resume_chat_input_queue(
@@ -6616,6 +6761,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     int limit,
   );
 
+  external void wire__crate__api__sync__list_wiki_page_conflicts(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
@@ -6776,6 +6925,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String id,
     bool accept,
+  );
+
+  external void wire__crate__api__sync__resolve_wiki_page_conflict(
+    NativePortType port_,
+    String op_id,
+    String? expected_local_updated_at,
+    bool accept_remote,
   );
 
   external void wire__crate__api__chat_runs__resume_chat_input_queue(

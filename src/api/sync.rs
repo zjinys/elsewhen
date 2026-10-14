@@ -5,7 +5,12 @@
 use crate::{
     api::provider_reachability::{ReachabilityHint, assess_base_url},
     config::AppConfig,
-    storage::{Store, sync::provider_conflicts::ProviderConflictResolution},
+    storage::{
+        Store,
+        sync::{
+            page_conflicts::WikiPageConflictReview, provider_conflicts::ProviderConflictResolution,
+        },
+    },
     sync::runtime,
 };
 use anyhow::{Context, Result, ensure};
@@ -840,4 +845,98 @@ pub fn approve_processor_handoff(proof: ProcessingYieldProofDto) -> Result<()> {
 pub fn confirm_processor_takeover() -> Result<()> {
     let config = AppConfig::load()?;
     runtime::handoff::confirm_takeover(&config)
+}
+
+// ---------------------------------------------------------------------------
+// S05: Wiki 页同步冲突审阅。三种候选语义（删除后离线编辑 / 两端各自改名 /
+// 新 slug 撞名）并列展示双端状态，裁决显式二选一；绑定失败关闭与 Provider
+// 冲突审阅同款。
+
+#[derive(Clone, Debug)]
+pub struct WikiPageConflictSideDto {
+    pub slug: String,
+    pub title: String,
+    pub content_md_len: i64,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct WikiPageConflictDto {
+    pub op_id: String,
+    pub object_id: String,
+    pub reason: String,
+    pub sender_device_id: String,
+    pub sender_device_name: Option<String>,
+    pub incoming_slug: String,
+    pub incoming_title: String,
+    pub incoming_deleted: bool,
+    pub incoming_renamed_from: Option<String>,
+    pub incoming_summary: String,
+    pub incoming_content_md_len: i64,
+    pub incoming_updated_at: String,
+    pub local: Option<WikiPageConflictSideDto>,
+    pub local_head_deleted: bool,
+}
+
+fn wiki_page_conflict_dto(
+    review: WikiPageConflictReview,
+    sender_device_name: Option<String>,
+) -> WikiPageConflictDto {
+    WikiPageConflictDto {
+        local: review.local.map(|l| WikiPageConflictSideDto {
+            slug: l.slug,
+            title: l.title,
+            content_md_len: l.content_md_len,
+            updated_at: l.updated_at,
+        }),
+        op_id: review.op_id,
+        object_id: review.object_id,
+        reason: review.reason,
+        sender_device_id: review.sender_device_id,
+        sender_device_name,
+        incoming_slug: review.incoming.slug,
+        incoming_title: review.incoming.title,
+        incoming_deleted: review.incoming.deleted,
+        incoming_renamed_from: review.incoming.renamed_from,
+        incoming_summary: review.incoming.summary,
+        incoming_content_md_len: review.incoming.content_md_len,
+        incoming_updated_at: review.incoming.updated_at,
+        local_head_deleted: review.local_head_deleted,
+    }
+}
+
+/// 列出待审阅的 wiki 页同步冲突（按流内序）。UI 必须保存 `local.updated_at`
+///（行已物理删除为 null）并在裁决时原样回传；`localHeadDeleted` 提示删除态。
+pub fn list_wiki_page_conflicts() -> Result<Vec<WikiPageConflictDto>> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let reviews = store.list_wiki_page_conflicts()?;
+    let roster = store.current_signed_roster()?;
+    Ok(reviews
+        .into_iter()
+        .map(|r| {
+            let sender_device_name = roster.as_ref().and_then(|roster| {
+                roster
+                    .roster
+                    .members
+                    .iter()
+                    .find(|m| m.device.device_id == r.sender_device_id)
+                    .map(|m| m.device.name.clone())
+            });
+            wiki_page_conflict_dto(r, sender_device_name)
+        })
+        .collect())
+}
+
+/// 显式裁决一条 wiki 页冲突。`expected_local_updated_at` 原样回传审阅时展示
+/// 的本端行 updated_at；不匹配失败关闭。`accept_remote=false` = 保留本端现状
+/// （删除态则物理删除，编辑态则重新捕获广播）。
+pub fn resolve_wiki_page_conflict(
+    op_id: String,
+    expected_local_updated_at: Option<String>,
+    accept_remote: bool,
+) -> Result<()> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.resolve_wiki_page_conflict(&op_id, expected_local_updated_at.as_deref(), accept_remote)
 }

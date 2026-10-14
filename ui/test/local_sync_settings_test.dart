@@ -1,10 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/sync/sync_key_store.dart';
+import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
+import 'package:elsewhen_ui/sync/sync_wiki_conflicts_controller.dart';
 import 'package:elsewhen_ui/widgets/local_sync_settings.dart';
 
 import 'support/sync_setup.dart';
+
+/// 空冲突列表替身：视口测试不渲染 wiki 冲突卡片。
+class _EmptyWikiConflictApi implements SyncWikiConflictApi {
+  const _EmptyWikiConflictApi();
+
+  @override
+  Future<List<api.WikiPageConflictDto>> listConflicts() async => const [];
+
+  @override
+  Future<void> resolve({
+    required String opId,
+    required String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
+  }) async {}
+}
 
 void main() {
   testWidgets(
@@ -24,7 +41,12 @@ void main() {
             body: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: LocalSyncSettings(controller: controller),
+                child: LocalSyncSettings(
+                  controller: controller,
+                  wikiConflictsController: SyncWikiConflictsController(
+                    bridge: const _EmptyWikiConflictApi(),
+                  ),
+                ),
               ),
             ),
           ),

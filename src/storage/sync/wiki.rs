@@ -265,18 +265,7 @@ impl Store {
                 page.id
             ],
         )?;
-        self.connection.execute(
-            "UPDATE relations SET from_slug=?1 WHERE from_slug=?2",
-            params![page.slug, old_slug],
-        )?;
-        self.connection.execute(
-            "UPDATE relations SET to_slug=?1 WHERE to_slug=?2",
-            params![page.slug, old_slug],
-        )?;
-        self.connection.execute(
-            "UPDATE conversations SET wiki_page_slug=?1 WHERE wiki_page_slug=?2",
-            params![page.slug, old_slug],
-        )?;
+        self.migrate_wiki_slug_refs(old_slug, &page.slug)?;
         self.sync_set_head("wiki_page", &page.id, &op.op_id, false)?;
         Ok(Apply::Applied)
     }
@@ -420,15 +409,24 @@ impl Store {
                 return Ok(Apply::Waiting);
             }
         }
-        if existing_slug.is_some() {
-            // 内容列随记录整行替换：对端这版编辑就是新 head；证据
-            // tags/source_event_ids 与 last_seen_at 是系统合并列：只并集、不回退。
-            let (local_tags, local_seen, local_evidence): (String, String, String) =
-                self.connection.query_row(
-                    "SELECT tags,last_seen_at,source_event_ids FROM wiki_pages WHERE id=?1",
-                    params![page.id],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-                )?;
+        self.replace_sync_wiki_row(page)?;
+        self.sync_set_head("wiki_page", &page.id, &op.op_id, false)?;
+        Ok(Apply::Applied)
+    }
+
+    /// 页行的整行落库（内容列随记录替换；tags/source_event_ids 与
+    /// last_seen_at 是系统合并列：只并集、不回退；行不存在时插入）。
+    /// 冲突审阅的「采纳远端」复用同一语义（P5b·S05）。
+    pub(super) fn replace_sync_wiki_row(&self, page: &WikiPageRecord) -> Result<()> {
+        let existing: Option<(String, String, String)> = self
+            .connection
+            .query_row(
+                "SELECT tags,last_seen_at,source_event_ids FROM wiki_pages WHERE id=?1",
+                params![page.id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()?;
+        if let Some((local_tags, local_seen, local_evidence)) = existing {
             let mut tags_union = parse_tags(&local_tags)?;
             for tag in &page.tags {
                 if !tags_union.contains(tag) {
@@ -500,7 +498,24 @@ impl Store {
                 ],
             )?;
         }
-        self.sync_set_head("wiki_page", &page.id, &op.op_id, false)?;
-        Ok(Apply::Applied)
+        Ok(())
+    }
+
+    /// slug 引用迁移（relations + 页内会话），本地 rename_wiki_page 与冲突
+    /// 审阅的「采纳远端重命名」共用同一语义。
+    pub(super) fn migrate_wiki_slug_refs(&self, old_slug: &str, new_slug: &str) -> Result<()> {
+        self.connection.execute(
+            "UPDATE relations SET from_slug=?1 WHERE from_slug=?2",
+            params![new_slug, old_slug],
+        )?;
+        self.connection.execute(
+            "UPDATE relations SET to_slug=?1 WHERE to_slug=?2",
+            params![new_slug, old_slug],
+        )?;
+        self.connection.execute(
+            "UPDATE conversations SET wiki_page_slug=?1 WHERE wiki_page_slug=?2",
+            params![new_slug, old_slug],
+        )?;
+        Ok(())
     }
 }

@@ -9,8 +9,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'provider_reachability.dart';
 
-// These functions are ignored because they are not marked as `pub`: `conflict_profile_dto`, `enrollment_dto`, `join_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `conflict_profile_dto`, `enrollment_dto`, `join_dto`, `wiki_page_conflict_dto`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<SyncInvitationOfferDto> createOwnerSyncInvitation({
   required String relayUrl,
@@ -264,6 +264,24 @@ Future<void> approveProcessorHandoff({
 /// 新加工端确认接管（frontier 追平后调用）。
 Future<void> confirmProcessorTakeover() =>
     RustLib.instance.api.crateApiSyncConfirmProcessorTakeover();
+
+/// 列出待审阅的 wiki 页同步冲突（按流内序）。UI 必须保存 `local.updated_at`
+///（行已物理删除为 null）并在裁决时原样回传；`localHeadDeleted` 提示删除态。
+Future<List<WikiPageConflictDto>> listWikiPageConflicts() =>
+    RustLib.instance.api.crateApiSyncListWikiPageConflicts();
+
+/// 显式裁决一条 wiki 页冲突。`expected_local_updated_at` 原样回传审阅时展示
+/// 的本端行 updated_at；不匹配失败关闭。`accept_remote=false` = 保留本端现状
+/// （删除态则物理删除，编辑态则重新捕获广播）。
+Future<void> resolveWikiPageConflict({
+  required String opId,
+  String? expectedLocalUpdatedAt,
+  required bool acceptRemote,
+}) => RustLib.instance.api.crateApiSyncResolveWikiPageConflict(
+  opId: opId,
+  expectedLocalUpdatedAt: expectedLocalUpdatedAt,
+  acceptRemote: acceptRemote,
+);
 
 class LocalSyncStateDto {
   final String state;
@@ -1000,4 +1018,106 @@ class SyncTickResultDto {
           rosterConverged == other.rosterConverged &&
           acknowledgementFailed == other.acknowledgementFailed &&
           resnapshotPending == other.resnapshotPending;
+}
+
+class WikiPageConflictDto {
+  final String opId;
+  final String objectId;
+  final String reason;
+  final String senderDeviceId;
+  final String? senderDeviceName;
+  final String incomingSlug;
+  final String incomingTitle;
+  final bool incomingDeleted;
+  final String? incomingRenamedFrom;
+  final String incomingSummary;
+  final PlatformInt64 incomingContentMdLen;
+  final String incomingUpdatedAt;
+  final WikiPageConflictSideDto? local;
+  final bool localHeadDeleted;
+
+  const WikiPageConflictDto({
+    required this.opId,
+    required this.objectId,
+    required this.reason,
+    required this.senderDeviceId,
+    this.senderDeviceName,
+    required this.incomingSlug,
+    required this.incomingTitle,
+    required this.incomingDeleted,
+    this.incomingRenamedFrom,
+    required this.incomingSummary,
+    required this.incomingContentMdLen,
+    required this.incomingUpdatedAt,
+    this.local,
+    required this.localHeadDeleted,
+  });
+
+  @override
+  int get hashCode =>
+      opId.hashCode ^
+      objectId.hashCode ^
+      reason.hashCode ^
+      senderDeviceId.hashCode ^
+      senderDeviceName.hashCode ^
+      incomingSlug.hashCode ^
+      incomingTitle.hashCode ^
+      incomingDeleted.hashCode ^
+      incomingRenamedFrom.hashCode ^
+      incomingSummary.hashCode ^
+      incomingContentMdLen.hashCode ^
+      incomingUpdatedAt.hashCode ^
+      local.hashCode ^
+      localHeadDeleted.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WikiPageConflictDto &&
+          runtimeType == other.runtimeType &&
+          opId == other.opId &&
+          objectId == other.objectId &&
+          reason == other.reason &&
+          senderDeviceId == other.senderDeviceId &&
+          senderDeviceName == other.senderDeviceName &&
+          incomingSlug == other.incomingSlug &&
+          incomingTitle == other.incomingTitle &&
+          incomingDeleted == other.incomingDeleted &&
+          incomingRenamedFrom == other.incomingRenamedFrom &&
+          incomingSummary == other.incomingSummary &&
+          incomingContentMdLen == other.incomingContentMdLen &&
+          incomingUpdatedAt == other.incomingUpdatedAt &&
+          local == other.local &&
+          localHeadDeleted == other.localHeadDeleted;
+}
+
+class WikiPageConflictSideDto {
+  final String slug;
+  final String title;
+  final PlatformInt64 contentMdLen;
+  final String updatedAt;
+
+  const WikiPageConflictSideDto({
+    required this.slug,
+    required this.title,
+    required this.contentMdLen,
+    required this.updatedAt,
+  });
+
+  @override
+  int get hashCode =>
+      slug.hashCode ^
+      title.hashCode ^
+      contentMdLen.hashCode ^
+      updatedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WikiPageConflictSideDto &&
+          runtimeType == other.runtimeType &&
+          slug == other.slug &&
+          title == other.title &&
+          contentMdLen == other.contentMdLen &&
+          updatedAt == other.updatedAt;
 }

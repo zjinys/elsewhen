@@ -138,6 +138,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  WikiPageConflictSideDto dco_decode_box_autoadd_wiki_page_conflict_side_dto(
+    dynamic raw,
+  );
+
+  @protected
   WikiPageDto dco_decode_box_autoadd_wiki_page_dto(dynamic raw);
 
   @protected
@@ -453,6 +458,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(dynamic raw);
+
+  @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
 
   @protected
@@ -522,6 +530,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  WikiPageConflictSideDto?
+  dco_decode_opt_box_autoadd_wiki_page_conflict_side_dto(dynamic raw);
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
@@ -638,6 +650,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
 
   @protected
+  WikiPageConflictDto dco_decode_wiki_page_conflict_dto(dynamic raw);
+
+  @protected
+  WikiPageConflictSideDto dco_decode_wiki_page_conflict_side_dto(dynamic raw);
+
+  @protected
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw);
 
   @protected
@@ -744,6 +762,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  WikiPageConflictSideDto sse_decode_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WikiPageDto sse_decode_box_autoadd_wiki_page_dto(
@@ -1157,6 +1180,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
 
   @protected
@@ -1242,6 +1270,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  WikiPageConflictSideDto?
+  sse_decode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WikiPageDto? sse_decode_opt_box_autoadd_wiki_page_dto(
@@ -1390,6 +1424,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiChatMaterialDto sse_decode_wiki_chat_material_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiPageConflictDto sse_decode_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiPageConflictSideDto sse_decode_wiki_page_conflict_side_dto(
     SseDeserializer deserializer,
   );
 
@@ -1548,6 +1592,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Uint32> cst_encode_box_autoadd_u_32(int raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return wire.cst_new_box_autoadd_u_32(cst_encode_u_32(raw));
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_wiki_page_conflict_side_dto>
+  cst_encode_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_wiki_page_conflict_side_dto();
+    cst_api_fill_to_wire_wiki_page_conflict_side_dto(raw, ptr.ref);
+    return ptr;
   }
 
   @protected
@@ -2155,6 +2210,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_wiki_page_conflict_dto>
+  cst_encode_list_wiki_page_conflict_dto(List<WikiPageConflictDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_wiki_page_conflict_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_wiki_page_conflict_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_wiki_page_dto> cst_encode_list_wiki_page_dto(
     List<WikiPageDto> raw,
   ) {
@@ -2293,6 +2359,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Uint32> cst_encode_opt_box_autoadd_u_32(int? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_u_32(raw);
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_wiki_page_conflict_side_dto>
+  cst_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_wiki_page_conflict_side_dto(raw);
   }
 
   @protected
@@ -2487,6 +2564,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_sync_invitation_preview_dto> wireObj,
   ) {
     cst_api_fill_to_wire_sync_invitation_preview_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto apiObj,
+    ffi.Pointer<wire_cst_wiki_page_conflict_side_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_wiki_page_conflict_side_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -3659,6 +3744,44 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_wiki_page_conflict_dto(
+    WikiPageConflictDto apiObj,
+    wire_cst_wiki_page_conflict_dto wireObj,
+  ) {
+    wireObj.op_id = cst_encode_String(apiObj.opId);
+    wireObj.object_id = cst_encode_String(apiObj.objectId);
+    wireObj.reason = cst_encode_String(apiObj.reason);
+    wireObj.sender_device_id = cst_encode_String(apiObj.senderDeviceId);
+    wireObj.sender_device_name = cst_encode_opt_String(apiObj.senderDeviceName);
+    wireObj.incoming_slug = cst_encode_String(apiObj.incomingSlug);
+    wireObj.incoming_title = cst_encode_String(apiObj.incomingTitle);
+    wireObj.incoming_deleted = cst_encode_bool(apiObj.incomingDeleted);
+    wireObj.incoming_renamed_from = cst_encode_opt_String(
+      apiObj.incomingRenamedFrom,
+    );
+    wireObj.incoming_summary = cst_encode_String(apiObj.incomingSummary);
+    wireObj.incoming_content_md_len = cst_encode_i_64(
+      apiObj.incomingContentMdLen,
+    );
+    wireObj.incoming_updated_at = cst_encode_String(apiObj.incomingUpdatedAt);
+    wireObj.local = cst_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+      apiObj.local,
+    );
+    wireObj.local_head_deleted = cst_encode_bool(apiObj.localHeadDeleted);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto apiObj,
+    wire_cst_wiki_page_conflict_side_dto wireObj,
+  ) {
+    wireObj.slug = cst_encode_String(apiObj.slug);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.content_md_len = cst_encode_i_64(apiObj.contentMdLen);
+    wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_wiki_page_dto(
     WikiPageDto apiObj,
     wire_cst_wiki_page_dto wireObj,
@@ -3834,6 +3957,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_wiki_page_dto(
@@ -4361,6 +4490,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_wiki_page_conflict_dto(
+    List<WikiPageConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_wiki_page_dto(
     List<WikiPageDto> self,
     SseSerializer serializer,
@@ -4464,6 +4599,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_wiki_page_dto(
@@ -4657,6 +4798,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_wiki_chat_material_dto(
     WikiChatMaterialDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_page_conflict_dto(
+    WikiPageConflictDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
     SseSerializer serializer,
   );
 
@@ -4911,6 +5064,23 @@ class RustLibWire implements BaseWire {
       );
   late final _cst_new_box_autoadd_u_32 = _cst_new_box_autoadd_u_32Ptr
       .asFunction<ffi.Pointer<ffi.Uint32> Function(int)>();
+
+  ffi.Pointer<wire_cst_wiki_page_conflict_side_dto>
+  cst_new_box_autoadd_wiki_page_conflict_side_dto() {
+    return _cst_new_box_autoadd_wiki_page_conflict_side_dto();
+  }
+
+  late final _cst_new_box_autoadd_wiki_page_conflict_side_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_wiki_page_conflict_side_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_wiki_page_conflict_side_dto');
+  late final _cst_new_box_autoadd_wiki_page_conflict_side_dto =
+      _cst_new_box_autoadd_wiki_page_conflict_side_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_wiki_page_conflict_side_dto> Function()
+          >();
 
   ffi.Pointer<wire_cst_wiki_page_dto> cst_new_box_autoadd_wiki_page_dto() {
     return _cst_new_box_autoadd_wiki_page_dto();
@@ -5754,6 +5924,23 @@ class RustLibWire implements BaseWire {
       _cst_new_list_unscheduled_chat_input_dtoPtr
           .asFunction<
             ffi.Pointer<wire_cst_list_unscheduled_chat_input_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_wiki_page_conflict_dto>
+  cst_new_list_wiki_page_conflict_dto(int len) {
+    return _cst_new_list_wiki_page_conflict_dto(len);
+  }
+
+  late final _cst_new_list_wiki_page_conflict_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_wiki_page_conflict_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_wiki_page_conflict_dto');
+  late final _cst_new_list_wiki_page_conflict_dto =
+      _cst_new_list_wiki_page_conflict_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_wiki_page_conflict_dto> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_wiki_page_dto> cst_new_list_wiki_page_dto(int len) {
@@ -9874,6 +10061,18 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__list_sync_provider_conflictsPtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__sync__list_wiki_page_conflicts(int port_) {
+    return _wire__crate__api__sync__list_wiki_page_conflicts(port_);
+  }
+
+  late final _wire__crate__api__sync__list_wiki_page_conflictsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__list_wiki_page_conflicts',
+      );
+  late final _wire__crate__api__sync__list_wiki_page_conflicts =
+      _wire__crate__api__sync__list_wiki_page_conflictsPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__sync__lock_local_sync(int port_) {
     return _wire__crate__api__sync__lock_local_sync(port_);
   }
@@ -10086,6 +10285,44 @@ class RustLibWire implements BaseWire {
             void Function(
               int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
+          >();
+
+  void wire__crate__api__sync__resolve_wiki_page_conflict(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> op_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_local_updated_at,
+    bool accept_remote,
+  ) {
+    return _wire__crate__api__sync__resolve_wiki_page_conflict(
+      port_,
+      op_id,
+      expected_local_updated_at,
+      accept_remote,
+    );
+  }
+
+  late final _wire__crate__api__sync__resolve_wiki_page_conflictPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__resolve_wiki_page_conflict',
+      );
+  late final _wire__crate__api__sync__resolve_wiki_page_conflict =
+      _wire__crate__api__sync__resolve_wiki_page_conflictPtr
+          .asFunction<
+            void Function(
+              int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               bool,
@@ -13809,6 +14046,21 @@ final class wire_cst_list_unscheduled_chat_input_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_wiki_page_conflict_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_wiki_page_conflict_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_wiki_page_conflict_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_wiki_page_conflict_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_wiki_page_conflict_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_wiki_page_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_wiki_page_dto> ptr;
 
@@ -15036,6 +15288,94 @@ final class wire_cst_wiki_chat_material_dto extends ffi.Struct {
     ..ref.title = title
     ..ref.content_md = content_md
     ..ref.basis_json = basis_json;
+}
+
+final class wire_cst_wiki_page_conflict_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> op_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> object_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_title;
+
+  @ffi.Bool()
+  external bool incoming_deleted;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_renamed_from;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_summary;
+
+  @ffi.Int64()
+  external int incoming_content_md_len;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_updated_at;
+
+  external ffi.Pointer<wire_cst_wiki_page_conflict_side_dto> local;
+
+  @ffi.Bool()
+  external bool local_head_deleted;
+
+  static ffi.Pointer<wire_cst_wiki_page_conflict_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> op_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> object_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> sender_device_name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_title,
+    required bool incoming_deleted,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_renamed_from,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_summary,
+    required int incoming_content_md_len,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> incoming_updated_at,
+    required ffi.Pointer<wire_cst_wiki_page_conflict_side_dto> local,
+    required bool local_head_deleted,
+  }) => $allocator<wire_cst_wiki_page_conflict_dto>()
+    ..ref.op_id = op_id
+    ..ref.object_id = object_id
+    ..ref.reason = reason
+    ..ref.sender_device_id = sender_device_id
+    ..ref.sender_device_name = sender_device_name
+    ..ref.incoming_slug = incoming_slug
+    ..ref.incoming_title = incoming_title
+    ..ref.incoming_deleted = incoming_deleted
+    ..ref.incoming_renamed_from = incoming_renamed_from
+    ..ref.incoming_summary = incoming_summary
+    ..ref.incoming_content_md_len = incoming_content_md_len
+    ..ref.incoming_updated_at = incoming_updated_at
+    ..ref.local = local
+    ..ref.local_head_deleted = local_head_deleted;
+}
+
+final class wire_cst_wiki_page_conflict_side_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  @ffi.Int64()
+  external int content_md_len;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
+
+  static ffi.Pointer<wire_cst_wiki_page_conflict_side_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required int content_md_len,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
+  }) => $allocator<wire_cst_wiki_page_conflict_side_dto>()
+    ..ref.slug = slug
+    ..ref.title = title
+    ..ref.content_md_len = content_md_len
+    ..ref.updated_at = updated_at;
 }
 
 final class wire_cst_wiki_page_dto extends ffi.Struct {

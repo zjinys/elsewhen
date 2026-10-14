@@ -10,6 +10,7 @@ mod membership;
 pub(crate) use membership::ProcessorHandoffState;
 mod pairing;
 pub(crate) use pairing::{PairingCommit, PairingDispatch};
+pub(crate) mod page_conflicts;
 mod processing;
 pub(crate) mod provider_conflicts;
 mod providers;
