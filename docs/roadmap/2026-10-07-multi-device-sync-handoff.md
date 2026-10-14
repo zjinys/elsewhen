@@ -1083,3 +1083,46 @@ Flutter 365 passed、analyze 0 error/warning。无 FRB/Dart 改动。**
 **P5b 至此收官。** S05 余项：wiki 冲突候选人工审阅 UI（`wiki_page_deleted`
 /`rename_diverged`/`slug_owned_by_other_id` 三种语义的展示与 token 确认）、
 待办/目标/规则对象、Wiki 专属会话引用；S06 真人门禁未动。
+
+## §26 S05：Wiki 页冲突人工审阅（commit `e7f0012`）
+
+**语义**：`sync_conflicts`（object_kind='wiki_page'）三类候选——
+`wiki_page_deleted`（对端删后本端仍有改动送达、或本端删除态收到对端编辑）、
+`wiki_page_rename_diverged`（两端各自改名）、`slug_owned_by_other_id`——人工
+显式二选一：**保留本端 / 采纳对端**，不做字段拼接、不比时间。
+
+- `src/storage/sync/page_conflicts.rs`：
+  - `list_wiki_page_conflicts`：JOIN sync_operations 解码 payload，产出双端
+    并列快照（incoming: slug/title/deleted/renamed_from/summary/字数/
+    updated_at；local 行可能缺失 → None；外加 `local_head_deleted`）。
+  - `resolve_wiki_page_conflict(op_id, expected_local_updated_at, accept_remote)`：
+    **双绑定失败关闭**——本端行 updated_at 必须等于审阅时展示值（行缺失为
+    None）+ op 必须 state='conflict' 且候选行仍在；不匹配
+    `wiki_conflict_local_changed`。
+  - **保留本端 = 本端现状为准**：head 已删 → 本端行物理删除（删除态就是本端
+    裁决）；行在且活 → `sync_record_wiki_page` 重捕广播（对端将收到反向候选
+    由其自行裁决，对称收敛）。行已删且 head 活 → 仅清候选。
+  - **采纳对端 = 强制应用候选 op**：WikiPageChanged(deleted) → 物理删+head(P5b
+    删除语义)；WikiPageChanged(编辑) → `replace_sync_wiki_row` 整行采纳
+    （复活未删态）+ 撞路径时从**本端当前 slug** 迁 relations/conversations；
+    WikiPageRenamed → 从本端当前 slug 迁引用（不是 op 的 old_slug——双端改名
+    时 old_slug 对不上本端）+ head 推进。
+  - 裁决后 `DELETE FROM sync_conflicts`；op 状态保持 'conflict' 终态（dedup
+    已视为已知，不会重复收发）。
+- `wiki.rs` 抽出 `replace_sync_wiki_row` / `migrate_wiki_slug_refs`
+  （`pub(super)`）：apply 与裁决共用同一落库语义（系统列并集、内容列整行）。
+- API：`list_wiki_page_conflicts` / `resolve_wiki_page_conflict`（sender 设备
+  名从名册取）；UI 持有 `local.updated_at` 并在裁决时原样回传。
+- UI：`sync_wiki_conflicts_controller.dart`（失败保留旧视图、成功后重拉确认
+  消失）+ `sync_wiki_conflicts_settings.dart` 卡片并列展示，挂
+  `local_sync_settings.dart`（ready 后）；`local_sync_settings_test.dart`
+  注入空替身避免挤出视口。
+- 测试：`wiki_conflict_review_accept_remote_rename_migrates_from_current_slug`
+  （绑定失败关闭 + 从当前 slug 迁引用）、
+  `wiki_conflict_accept_remote_delete_or_keep_local`（保留本地删除态=物理删；
+  采纳远端编辑=复活并采纳离线编辑，head 回未删）。**Rust 694 / Flutter 368
+  passed，fmt/release/regen/analyze 全过。**
+
+**关键教训**：候选 reason 与 op 类型不必同构（reason=wiki_page_deleted 的
+候选 op 可能是编辑）——裁决语义按「本端现状 vs 强制应用 op」定义，不按
+reason 分支。op_id 含 `:`，过不了 `validate_id` 字符集，用非空检查。
