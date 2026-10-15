@@ -189,11 +189,9 @@ impl DatasetCatalog {
         let tx =
             rusqlite::Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
         let state: Option<String> = tx
-            .query_row(
-                "SELECT state FROM datasets WHERE id=?1",
-                [entry_id],
-                |r| r.get(0),
-            )
+            .query_row("SELECT state FROM datasets WHERE id=?1", [entry_id], |r| {
+                r.get(0)
+            })
             .optional()?;
         let state = state.context("sync_dataset_unknown")?;
         ensure!(state == "staging", "sync_dataset_not_staging");
@@ -203,7 +201,8 @@ impl DatasetCatalog {
                 [],
                 |r| r.get(0),
             )
-            .optional()?.flatten();
+            .optional()?
+            .flatten();
         if selected.as_deref() == Some(entry_id) {
             anyhow::bail!("sync_dataset_not_staging");
         }
@@ -217,7 +216,10 @@ impl DatasetCatalog {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => return Err(error.into()),
         }
-        tx.execute("DELETE FROM datasets WHERE id=?1 AND state='staging'", [entry_id])?;
+        tx.execute(
+            "DELETE FROM datasets WHERE id=?1 AND state='staging'",
+            [entry_id],
+        )?;
         tx.execute(
             "UPDATE workspace SET revision=revision+1 WHERE singleton=1",
             [],

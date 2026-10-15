@@ -242,8 +242,7 @@ impl MembershipRoster {
         self.validate()?;
         // 名字/平台不参与根身份（与 decode 一致）：改名产生的新版本允许通过。
         ensure!(
-            self.dataset_id == previous.dataset_id
-                && same_identity(&self.owner, &previous.owner),
+            self.dataset_id == previous.dataset_id && same_identity(&self.owner, &previous.owner),
             "sync_membership_root_changed"
         );
         ensure!(

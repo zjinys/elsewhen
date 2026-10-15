@@ -848,15 +848,16 @@ pub fn rename_sync_device(
         vault.1 == expected_vault_revision,
         "sync_vault_revision_changed"
     );
-    let master = runtime::session_master(&config, vault.1)
-        .context("sync_rename_requires_unlock")?;
+    let master =
+        runtime::session_master(&config, vault.1).context("sync_rename_requires_unlock")?;
     ensure!(
         !new_name.trim().is_empty()
             && new_name.len() <= 256
             && !new_name.chars().any(char::is_control),
         "pairing_device_name_invalid"
     );
-    let revision = store.rename_sync_vault_device(&vault.0, &master, vault.1, &device_id, &new_name)?;
+    let revision =
+        store.rename_sync_vault_device(&vault.0, &master, vault.1, &device_id, &new_name)?;
     i64::try_from(revision).map_err(|_| anyhow::anyhow!("sync_membership_revision_invalid"))
 }
 

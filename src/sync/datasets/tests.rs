@@ -386,11 +386,7 @@ fn discard_staging_removes_row_and_folder() {
 
     catalog.discard_staging(&entry.id).unwrap();
     assert!(!folder.exists());
-    assert!(catalog
-        .list()
-        .unwrap()
-        .iter()
-        .all(|e| e.id != entry.id));
+    assert!(catalog.list().unwrap().iter().all(|e| e.id != entry.id));
     // 幂等重试：目录行已删，再删报 unknown。
     assert!(catalog.discard_staging(&entry.id).is_err());
 }
@@ -413,9 +409,11 @@ fn discard_refuses_ready_datasets_and_unknown_ids() {
     assert!(catalog.discard_staging(&entry.id).is_err());
     assert!(catalog.list().unwrap().iter().any(|e| e.id == entry.id));
     assert!(catalog.discard_staging("not-a-uuid").is_err());
-    assert!(catalog
-        .discard_staging(&uuid::Uuid::new_v4().to_string())
-        .is_err());
+    assert!(
+        catalog
+            .discard_staging(&uuid::Uuid::new_v4().to_string())
+            .is_err()
+    );
 }
 
 #[test]

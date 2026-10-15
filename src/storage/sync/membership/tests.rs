@@ -1297,16 +1297,21 @@ fn rename_local_device_updates_vault_roster_and_anchor() {
         .rename_sync_vault_device("owner-install", key, 1, &local_id, "主机甲")
         .unwrap();
     assert_eq!(revision, 2);
-    let vault = owner.store.load_sync_vault("owner-install", key, 2).unwrap();
+    let vault = owner
+        .store
+        .load_sync_vault("owner-install", key, 2)
+        .unwrap();
     assert_eq!(vault.device().name, "主机甲");
     let roster = owner.store.current_signed_roster().unwrap().unwrap();
     assert_eq!(roster.roster.revision, 2);
     assert_eq!(roster.roster.owner.name, "主机甲");
-    assert!(roster
-        .roster
-        .members
-        .iter()
-        .any(|m| m.device.device_id == local_id && m.device.name == "主机甲"));
+    assert!(
+        roster
+            .roster
+            .members
+            .iter()
+            .any(|m| m.device.device_id == local_id && m.device.name == "主机甲")
+    );
     // 锚同步更新，本机后续 decode/apply 不因名字失配而炸。
     let anchor = owner.store.sync_roster_anchor().unwrap();
     assert_eq!(anchor.owner.name, "主机甲");
@@ -1327,14 +1332,19 @@ fn rename_member_only_touches_roster_name() {
         .unwrap();
     assert_eq!(revision, 3);
     // 本机 vault 名不变（member 改名不触发 vault 重存，revision 仍为 1）。
-    let vault = owner.store.load_sync_vault("owner-install", key, 1).unwrap();
+    let vault = owner
+        .store
+        .load_sync_vault("owner-install", key, 1)
+        .unwrap();
     assert_eq!(vault.device().name, "owner");
     let current = owner.store.current_signed_roster().unwrap().unwrap();
-    assert!(current
-        .roster
-        .members
-        .iter()
-        .any(|m| m.device.device_id == b_id && m.device.name == "手机改名"));
+    assert!(
+        current
+            .roster
+            .members
+            .iter()
+            .any(|m| m.device.device_id == b_id && m.device.name == "手机改名")
+    );
     assert_eq!(current.roster.owner.name, "owner");
 }
 
@@ -1347,22 +1357,28 @@ fn rename_rejects_non_owner_invalid_name_and_unknown_device() {
     let key = owner.vault_key.as_ref().unwrap();
     let local_id = owner.device.device_id.clone();
     // 空白名。
-    assert!(owner
-        .store
-        .rename_sync_vault_device("owner-install", key, 1, &local_id, "   ")
-        .is_err());
+    assert!(
+        owner
+            .store
+            .rename_sync_vault_device("owner-install", key, 1, &local_id, "   ")
+            .is_err()
+    );
     // 未知设备。
-    assert!(owner
-        .store
-        .rename_sync_vault_device("owner-install", key, 1, "zz", "新名")
-        .is_err());
+    assert!(
+        owner
+            .store
+            .rename_sync_vault_device("owner-install", key, 1, "zz", "新名")
+            .is_err()
+    );
     // 修订被并发推进后拒绝盲写。
     owner
         .store
         .rename_sync_vault_device("owner-install", key, 1, &local_id, "第一版")
         .unwrap();
-    assert!(owner
-        .store
-        .rename_sync_vault_device("owner-install", key, 1, &local_id, "第二版")
-        .is_err());
+    assert!(
+        owner
+            .store
+            .rename_sync_vault_device("owner-install", key, 1, &local_id, "第二版")
+            .is_err()
+    );
 }
