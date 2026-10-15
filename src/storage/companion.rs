@@ -150,7 +150,7 @@ impl Store {
         let cutoff = self.utc_now()? - chrono::Duration::days(settings.revisit_interval_days);
         let cutoff_text = cutoff.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
 
-        let mut statement = self.connection.prepare(
+        let statement = self.connection.prepare(
             "SELECT e.id, e.recorded_at, e.raw_text,
                     (SELECT je.value FROM json_each(a.result_json, '$.emotion') je LIMIT 1)
              FROM events e

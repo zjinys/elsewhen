@@ -1144,7 +1144,9 @@ impl Store {
                 object_id,
                 revision_id,
             } => {
-                let table = domain_table(object_kind)?;
+                // domain_table 兼作 object_kind 的 fail-closed 校验（非域对象报错），
+                // 返回的表名此处用不到（known_revisions 自带 object_kind 列）。
+                let _table = domain_table(object_kind)?;
                 self.connection.execute("INSERT OR IGNORE INTO sync_known_revisions(object_kind,object_id,revision_id) VALUES(?1,?2,?3)",params![object_kind,object_id,revision_id])?;
             }
             Record::WikiPage {

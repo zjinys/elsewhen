@@ -8,11 +8,10 @@ use crate::{
     storage::{
         Store,
         sync::{
-            object_conflicts::ObjectConflictReview, page_conflicts::WikiPageConflictReview,
-            provider_conflicts::ProviderConflictResolution,
+            page_conflicts::WikiPageConflictReview, provider_conflicts::ProviderConflictResolution,
         },
     },
-    sync::{runtime, vault::LocalVault},
+    sync::runtime,
 };
 use anyhow::{Context, Result, ensure};
 use rusqlite::OptionalExtension;

@@ -210,17 +210,9 @@ class LeftSidebar extends ConsumerWidget {
               ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
             },
           ),
-          const SizedBox(height: 2),
-          // 事件域（遗留收口切片 C）：事件是知识库的源材料，入口与
-          // 知识库并列但不新增一级 tab 内容域之外的语义负担。
-          _FooterAction(
-            icon: Icons.history_edu_outlined,
-            label: '事件',
-            isActive: activeTab == SidebarTab.events,
-            onTap: () {
-              ref.read(sidebarTabProvider.notifier).set(SidebarTab.events);
-            },
-          ),
+          // 事件域入口已隐藏（2026-10-15 需求复盘判定方向不对）：
+          // SidebarTab.events 与 EventsView 实现保留，待需求重新定
+          // 义后再挂回入口。见 roadmap 遗留收口段 C 行标注。
           const SizedBox(height: 2),
           // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与
           // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。

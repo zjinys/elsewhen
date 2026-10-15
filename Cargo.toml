@@ -47,3 +47,8 @@ tiktoken-rs = "0.7.0"
 [profile.release]
 lto = "thin"
 strip = true
+
+[lints.rust]
+# flutter_rust_bridge 的属性宏内部展开出 cfg(frb_expand)（regen 中间态），
+# rustc 不认识该 cfg 会告警；在此显式登记为已知条件编译名。
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

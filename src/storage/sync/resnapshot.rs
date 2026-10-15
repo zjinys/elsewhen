@@ -29,7 +29,7 @@
 //!   transport copies). Consuming a re-snapshot for repair is the restore
 //!   flow's job, not this module's.
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result};
 use rusqlite::{OptionalExtension, params};
 
 use crate::storage::Store;
