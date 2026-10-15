@@ -151,11 +151,6 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
             ),
           ),
           const SizedBox(height: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 120),
-            child: SingleChildScrollView(child: SelectableText(offer.code)),
-          ),
-          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
