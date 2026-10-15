@@ -3668,6 +3668,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.is_processor = cst_encode_bool(apiObj.isProcessor);
     wireObj.active_peers = cst_encode_i_64(apiObj.activePeers);
     wireObj.pending_operations = cst_encode_i_64(apiObj.pendingOperations);
+    wireObj.relay_url = cst_encode_opt_String(apiObj.relayUrl);
   }
 
   @protected
@@ -15574,6 +15575,8 @@ final class wire_cst_local_sync_state_dto extends ffi.Struct {
   @ffi.Int64()
   external int pending_operations;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> relay_url;
+
   static ffi.Pointer<wire_cst_local_sync_state_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> state,
@@ -15586,6 +15589,7 @@ final class wire_cst_local_sync_state_dto extends ffi.Struct {
     required bool is_processor,
     required int active_peers,
     required int pending_operations,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> relay_url,
   }) => $allocator<wire_cst_local_sync_state_dto>()
     ..ref.state = state
     ..ref.installation_id = installation_id
@@ -15596,7 +15600,8 @@ final class wire_cst_local_sync_state_dto extends ffi.Struct {
     ..ref.is_owner = is_owner
     ..ref.is_processor = is_processor
     ..ref.active_peers = active_peers
-    ..ref.pending_operations = pending_operations;
+    ..ref.pending_operations = pending_operations
+    ..ref.relay_url = relay_url;
 }
 
 final class wire_cst_memory_echo_dto extends ffi.Struct {

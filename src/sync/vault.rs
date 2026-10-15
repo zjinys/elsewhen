@@ -202,6 +202,17 @@ impl LocalVault {
         peer.route.as_ref().context("sync_vault_peer_route_missing")
     }
 
+    /// 当前数据集生效的 relay 地址（首个未撤销且带 route 的 peer；全部缺失
+    /// 则 None）。同一 dataset 的邀请与加入共用同一 relay（pairing 校验锁死），
+    /// 读任一活跃 peer 即是事实。只读面，不触发任何网络。
+    pub(crate) fn relay_url(&self, dataset: &str) -> Option<String> {
+        self.material
+            .peers
+            .iter()
+            .filter(|p| p.dataset_id == dataset && !p.revoked)
+            .find_map(|p| p.route.as_ref().map(|r| r.relay_url.clone()))
+    }
+
     /// Persisting approved key material does not authorize a dataset member or
     /// create a relay grant. The coordinator must still complete those steps.
     pub(crate) fn install_pair(&mut self, pair: &ApprovedPair) -> Result<bool> {

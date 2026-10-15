@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../bridge/api.dart' as api;
@@ -107,18 +108,85 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         final configured = state != null && state.state != 'not_configured';
         final installation = state?.installationId;
         final ready = state?.state == 'local_ready';
+
+        // —— 状态头卡：用户最关心的三件事（是否开启 / 本机是谁 / 用哪个
+        // relay）放最上面，一眼可见；诊断细节收进高级区。——
+        final statusLine = switch (state?.state) {
+          'local_ready' => '同步已开启',
+          'locked' => '同步已暂停（本机密钥已锁定）',
+          'membership_inactive' => '同步已关闭（本机未被授权）',
+          'requires_repair' => '同步需要修复',
+          'not_configured' => '同步未开启',
+          _ => controller.error == null ? '正在读取同步状态' : '同步状态暂不可用',
+        };
+        final roleLabel = switch ((
+          state?.isOwner ?? false,
+          state?.isProcessor ?? false,
+        )) {
+          (true, true) => '发起设备（当前加工）',
+          (true, false) => '发起设备',
+          (false, true) => '加工设备',
+          (false, false) => '成员设备',
+        };
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(switch (state?.state) {
-              'local_ready' => '本机密钥已解锁',
-              'locked' => '本机同步密钥已锁定',
-              'membership_inactive' => '本机尚未获授权，或授权已撤销',
-              'requires_repair' => '本机同步身份需要恢复',
-              'not_configured' => '尚未准备本机同步身份',
-              _ => controller.error == null ? '正在读取同步状态' : '同步状态暂不可用',
-            }, style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        ready
+                            ? Icons.sync
+                            : (configured
+                                  ? Icons.sync_disabled
+                                  : Icons.sync_problem),
+                        size: 20,
+                        color: ready
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          statusLine,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (controller.busy)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                    ],
+                  ),
+                  if (configured) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '本机：${state.deviceName ?? '未命名设备'} · $roleLabel',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    _RelayLine(relayUrl: state.relayUrl, locked: !ready),
+                  ],
+                ],
+              ),
+            ),
             if (controller.error != null) ...[
               const SizedBox(height: 12),
               Semantics(
@@ -129,20 +197,14 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 ),
               ),
             ],
-            if (controller.busy) ...[
-              const SizedBox(height: 16),
-              const Row(
-                children: [
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(child: Text('正在处理同步步骤，请等待…')),
-                ],
+            if (widget.repository != null && configured)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SyncTickStatusLine(
+                  ticks: widget.repository!.lastSyncTick,
+                  errors: widget.repository!.lastSyncTickError,
+                ),
               ),
-            ],
             if (!configured && state != null && controller.previewEnabled) ...[
               const SizedBox(height: 16),
               TextField(
@@ -188,30 +250,13 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 onPressed: controller.refresh,
                 child: const Text('刷新状态'),
               ),
-            if (state != null && state.state != 'not_configured') ...[
+            if (configured) ...[
               const SizedBox(height: 16),
-              if (state.deviceName != null) Text('设备：${state.deviceName}'),
-              if (state.datasetId != null) ...[
-                const SizedBox(height: 8),
-                const Text('数据集标识'),
-                SelectableText(
-                  state.datasetId!,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-              const SizedBox(height: 8),
-              Text('授权的其他设备：${state.activePeers}'),
-              const SizedBox(height: 4),
-              Text('待确认同步操作：${state.pendingOperations}'),
-              if (!state.isProcessor && state.isOwner) ...[
-                const SizedBox(height: 4),
-                Text('本机不是指定加工设备，不认领后台任务。', style: theme.textTheme.bodySmall),
-              ],
-              if (widget.repository != null)
-                SyncTickStatusLine(
-                  ticks: widget.repository!.lastSyncTick,
-                  errors: widget.repository!.lastSyncTickError,
-                ),
+              if (ready)
+                SyncMembersSettings(controller: _roster)
+              else
+                Text('授权其他设备后，这里会显示设备列表。', style: theme.textTheme.bodySmall),
+              const SizedBox(height: 16),
               if (ready)
                 SyncProcessorHandoffSettings(
                   controller: _handoff,
@@ -219,6 +264,11 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                   isOwner: state.isOwner,
                   candidates: _handoffCandidates(),
                   onChanged: _roster.refresh,
+                ),
+              if (ready && installation != null)
+                SyncKeyHealthSettings(
+                  api: FrbSyncKeyHealthApi(controller.keys),
+                  installationId: installation,
                 ),
               if (ready) SyncProviderConflictsSettings(controller: _conflicts),
               if (ready) SyncWikiConflictsSettings(controller: _wikiConflicts),
@@ -248,12 +298,34 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 ],
               ),
               const SizedBox(height: 16),
-              if (ready && installation != null)
-                SyncKeyHealthSettings(
-                  api: FrbSyncKeyHealthApi(controller.keys),
-                  installationId: installation,
-                ),
-              if (ready) SyncMembersSettings(controller: _roster),
+              // 诊断细节折叠：对排障有用，但不是日常要看的。
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: const EdgeInsets.only(bottom: 8),
+                title: Text('诊断信息', style: theme.textTheme.titleSmall),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '待确认同步操作：${state.pendingOperations}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        if (state.datasetId != null) ...[
+                          const SizedBox(height: 4),
+                          Text('数据集标识', style: theme.textTheme.bodySmall),
+                          SelectableText(
+                            state.datasetId!,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
             if (ready && state?.isOwner == true && controller.previewEnabled)
               OwnerSyncPairingSettings(controller: controller),
@@ -275,5 +347,50 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     return roster.members
         .where((member) => member.active && member.deviceId != local)
         .toList();
+  }
+}
+
+/// relay 行：有值时显示并可复制；锁定/未解锁时不猜值，只说「不可见」。
+class _RelayLine extends StatelessWidget {
+  const _RelayLine({required this.relayUrl, required this.locked});
+
+  final String? relayUrl;
+  final bool locked;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final relay = relayUrl;
+    if (relay == null || relay.isEmpty) {
+      return Text(
+        locked ? '中继服务：解锁本机密钥后可见' : '中继服务：未连接',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.outline,
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Text('中继服务：', style: theme.textTheme.bodySmall),
+        Expanded(
+          child: SelectableText(
+            relay,
+            style: theme.textTheme.bodySmall,
+            maxLines: 1,
+          ),
+        ),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          iconSize: 16,
+          tooltip: '复制中继地址',
+          icon: const Icon(Icons.copy_outlined),
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: relay));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('中继地址已复制')));
+          },
+        ),
+      ],
+    );
   }
 }

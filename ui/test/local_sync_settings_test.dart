@@ -82,7 +82,7 @@ void main() {
       await tester.tap(prepare);
       await tester.pumpAndSettle();
       expect(controller.state?.state, 'local_ready');
-      expect(find.text('本机密钥已解锁'), findsOneWidget);
+      expect(find.text('同步已开启'), findsOneWidget);
       expect(find.text('锁定本机密钥'), findsOneWidget);
       expect(find.textContaining('同步完成'), findsNothing);
       await tester.tap(find.text('锁定本机密钥'));

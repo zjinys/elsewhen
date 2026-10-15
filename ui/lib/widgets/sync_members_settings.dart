@@ -43,12 +43,6 @@ class _SyncMembersSettingsState extends State<SyncMembersSettings> {
           children: [
             const SizedBox(height: 16),
             Text('已授权设备', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(
-              '列表来自 owner 签名的名册；撤销后设备立即失去再同步资格。'
-              '撤销不会回收该设备已持有的 Provider API Key。',
-              style: theme.textTheme.bodySmall,
-            ),
             if (controller.error != null) ...[
               const SizedBox(height: 8),
               Semantics(

@@ -313,6 +313,9 @@ class LocalSyncStateDto {
   final PlatformInt64 activePeers;
   final PlatformInt64 pendingOperations;
 
+  /// 当前生效的 relay 地址（本机已解锁并持有 peer route 时才有；锁定/未配置为 None）。
+  final String? relayUrl;
+
   const LocalSyncStateDto({
     required this.state,
     this.installationId,
@@ -324,6 +327,7 @@ class LocalSyncStateDto {
     required this.isProcessor,
     required this.activePeers,
     required this.pendingOperations,
+    this.relayUrl,
   });
 
   @override
@@ -337,7 +341,8 @@ class LocalSyncStateDto {
       isOwner.hashCode ^
       isProcessor.hashCode ^
       activePeers.hashCode ^
-      pendingOperations.hashCode;
+      pendingOperations.hashCode ^
+      relayUrl.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -353,7 +358,8 @@ class LocalSyncStateDto {
           isOwner == other.isOwner &&
           isProcessor == other.isProcessor &&
           activePeers == other.activePeers &&
-          pendingOperations == other.pendingOperations;
+          pendingOperations == other.pendingOperations &&
+          relayUrl == other.relayUrl;
 }
 
 class ObjectConflictDto {

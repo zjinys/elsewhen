@@ -12,7 +12,7 @@ use crate::{
             provider_conflicts::ProviderConflictResolution,
         },
     },
-    sync::runtime,
+    sync::{runtime, vault::LocalVault},
 };
 use anyhow::{Context, Result, ensure};
 use rusqlite::OptionalExtension;
@@ -29,6 +29,8 @@ pub struct LocalSyncStateDto {
     pub is_processor: bool,
     pub active_peers: i64,
     pub pending_operations: i64,
+    /// 当前生效的 relay 地址（本机已解锁并持有 peer route 时才有；锁定/未配置为 None）。
+    pub relay_url: Option<String>,
 }
 #[derive(Clone, Debug)]
 pub struct SyncKeyRequestDto {
@@ -208,6 +210,19 @@ pub fn get_local_sync_state() -> Result<LocalSyncStateDto> {
         [],
         |r| r.get(0),
     )?;
+    // relay 读面（设置页展示用）：本机已解锁才有 master 可解密 vault。
+    // 锁定/加入中/未配置都是 None，UI 显示「不可见」而不是猜一个值。
+    let relay_url = match (vault.as_ref(), identity.as_ref()) {
+        (Some((installation, revision)), Some(identity)) => {
+            runtime::session_master(&config, *revision).and_then(|master| {
+                store
+                    .load_sync_vault(installation, &master, *revision)
+                    .ok()
+                    .and_then(|vault| vault.relay_url(&identity.dataset_id))
+            })
+        }
+        _ => None,
+    };
     Ok(LocalSyncStateDto {
         state: state.into(),
         installation_id: vault.as_ref().map(|v| v.0.clone()),
@@ -219,6 +234,7 @@ pub fn get_local_sync_state() -> Result<LocalSyncStateDto> {
         is_processor,
         active_peers,
         pending_operations,
+        relay_url,
     })
 }
 

@@ -2953,6 +2953,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_bool(raw.isProcessor),
       cst_encode_i_64(raw.activePeers),
       cst_encode_i_64(raw.pendingOperations),
+      cst_encode_opt_String(raw.relayUrl),
     ].jsify()!;
   }
 
