@@ -233,7 +233,9 @@ List<_Block> _parseBlocks(String markdown) {
     // 单独一行竖线文本按普通段落降级。
     if (_isTableStart(lines, i)) {
       final header = _splitTableRow(lines[i]);
-      final aligns = [for (final cell in _splitTableRow(lines[i + 1])) _tableAlignOf(cell)];
+      final aligns = [
+        for (final cell in _splitTableRow(lines[i + 1])) _tableAlignOf(cell),
+      ];
       i += 2;
       final rows = <List<String>>[];
       while (i < lines.length && lines[i].trimLeft().startsWith('|')) {

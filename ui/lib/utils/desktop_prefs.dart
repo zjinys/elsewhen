@@ -62,9 +62,8 @@ class DesktopPrefsStore {
       final f = _file();
       f.parent.createSync(recursive: true);
       f.writeAsStringSync(
-        const JsonEncoder.withIndent('  ').convert({
-          'closeAction': action.stored,
-        }),
+        const JsonEncoder.withIndent('  ')
+            .convert({'closeAction': action.stored}),
       );
     } catch (_) {
       // 写失败静默：偏好丢了只是下次回到默认，不值得打断用户。

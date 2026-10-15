@@ -119,9 +119,7 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
               TextField(
                 controller: _titleController,
                 enabled: !_busy,
-                decoration: _deco(
-                  '标题（可选，留空自动取正文首行前 60 字）',
-                ),
+                decoration: _deco('标题（可选，留空自动取正文首行前 60 字）'),
               ),
               const SizedBox(height: AppTheme.space3),
               TextField(
@@ -240,10 +238,7 @@ _Extracted _extractTopicContent(String content) {
   if (bodyMatch != null) {
     var body = content.substring(bodyMatch.end).trim();
     // 去掉结尾常见的「（提交中……）」「（提交中...）」等占位。
-    body = body.replaceAll(
-      RegExp(r'[（(]\s*提交中[…\.。]*\s*[)）]\s*$'),
-      '',
-    ).trim();
+    body = body.replaceAll(RegExp(r'[（(]\s*提交中[…\.。]*\s*[)）]\s*$'), '').trim();
     // 去掉每行行首的引用前缀「> 」（AI 常用 blockquote 包正文）。
     body = body
         .split('\n')
@@ -262,8 +257,7 @@ _Extracted _extractTopicContent(String content) {
     final title = titleMatch.group(1)?.trim();
     final body = content
         .split('\n')
-        .where((l) =>
-            !RegExp(r'^\s*\*{0,2}(标题|类型)\*{0,2}\s*[:：]').hasMatch(l))
+        .where((l) => !RegExp(r'^\s*\*{0,2}(标题|类型)\*{0,2}\s*[:：]').hasMatch(l))
         .join('\n')
         .trim();
     return _Extracted(

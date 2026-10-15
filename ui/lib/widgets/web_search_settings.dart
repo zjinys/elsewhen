@@ -108,8 +108,9 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
 
   String _firstLine(Object e) {
     final s = '$e';
-    return s.split('\n').firstWhere((l) => l.trim().isNotEmpty,
-        orElse: () => s.trim());
+    return s
+        .split('\n')
+        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => s.trim());
   }
 
   void _toast(String message, {required bool ok}) {
@@ -149,10 +150,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
         const SizedBox(height: 20),
         _buildBaseUrlField(),
         const SizedBox(height: 20),
-        if (_needsKey) ...[
-          _buildApiKeyField(),
-          const SizedBox(height: 20),
-        ],
+        if (_needsKey) ...[_buildApiKeyField(), const SizedBox(height: 20)],
         const SizedBox(height: 24),
         _buildSaveButton(),
       ],
@@ -194,7 +192,8 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
         setState(() {
           _engine = value;
           // 切引擎时，若 base_url 为空或还是某个引擎的默认值，自动换成新引擎默认。
-          final isDefault = _baseUrl.trim().isEmpty ||
+          final isDefault =
+              _baseUrl.trim().isEmpty ||
               _engineDefaults.values.contains(_baseUrl.trim());
           if (isDefault) {
             _baseUrl = _engineDefaults[value] ?? '';
@@ -219,9 +218,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
         child: Row(
           children: [
             Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_off,
+              selected ? Icons.radio_button_checked : Icons.radio_button_off,
               size: 20,
               color: selected
                   ? AppTheme.accentPrimary
@@ -236,8 +233,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
                     label,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight:
-                          selected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                       color: selected
                           ? AppTheme.accentPrimary
                           : AppTheme.textPrimary,

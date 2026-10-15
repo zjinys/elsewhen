@@ -84,9 +84,7 @@ class ChatProposalReviewButton extends StatelessWidget {
       : TextButton.icon(
           icon: const Icon(Icons.fact_check_outlined, size: 16),
           label: Text(label),
-          style: TextButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-          ),
+          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
           onPressed: () => _open(context),
         );
 }

@@ -17,7 +17,12 @@ const int _kRecentVisiblePages = 20;
 
 /// AI 从素材**自动消化**出的知识页类型：不进左侧「最近」列表。
 /// 这些是后台提炼产物（方法/案例/规律/洞察），不是用户主动要看的东西。
-const Set<String> _kAiDigestedKinds = {'method', 'case', 'principle', 'insight'};
+const Set<String> _kAiDigestedKinds = {
+  'method',
+  'case',
+  'principle',
+  'insight',
+};
 
 /// AI 知识整合**自动生成**的主题的 slug 前缀（哈希 slug，如
 /// `knowledge-topic/1cac3d8b...`）。这类主题是后台跨素材整合产出的，不是用户
@@ -212,9 +217,9 @@ class LeftSidebar extends ConsumerWidget {
               if (scaffold?.isDrawerOpen ?? false) {
                 Navigator.of(context).pop();
               }
-              await Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+              await Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
               // 从设置页返回后刷新首次运行探测（横幅是否该消失）
               ref.invalidate(aiProviderConfiguredProvider);
             },
@@ -275,7 +280,9 @@ class _FooterAction extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: isActive ? AppTheme.accentPrimary : AppTheme.textSecondary,
+                color: isActive
+                    ? AppTheme.accentPrimary
+                    : AppTheme.textSecondary,
                 fontSize: 13,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
               ),

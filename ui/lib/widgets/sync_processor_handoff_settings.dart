@@ -94,10 +94,7 @@ class _SyncProcessorHandoffSettingsState
             if (phase == 'idle' && widget.isProcessor) ...[
               const SizedBox(height: 8),
               if (widget.candidates.isEmpty)
-                Text(
-                  '暂无可接收设备，请先授权设备加入。',
-                  style: theme.textTheme.bodySmall,
-                )
+                Text('暂无可接收设备，请先授权设备加入。', style: theme.textTheme.bodySmall)
               else ...[
                 DropdownButtonFormField<String>(
                   initialValue: _targetDevice,
@@ -129,10 +126,7 @@ class _SyncProcessorHandoffSettingsState
             ],
             if (phase == 'relinquished' && !widget.isOwner) ...[
               const SizedBox(height: 8),
-              Text(
-                '等待 owner 审批移交证明。',
-                style: theme.textTheme.bodySmall,
-              ),
+              Text('等待 owner 审批移交证明。', style: theme.textTheme.bodySmall),
             ],
             if (controller.error != null) ...[
               const SizedBox(height: 8),

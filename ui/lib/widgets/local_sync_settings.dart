@@ -205,10 +205,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               Text('待确认同步操作：${state.pendingOperations}'),
               if (!state.isProcessor && state.isOwner) ...[
                 const SizedBox(height: 4),
-                Text(
-                  '本机不是指定加工设备，不认领后台任务。',
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text('本机不是指定加工设备，不认领后台任务。', style: theme.textTheme.bodySmall),
               ],
               if (widget.repository != null)
                 SyncTickStatusLine(

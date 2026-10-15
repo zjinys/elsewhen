@@ -134,9 +134,7 @@ class _WikiConflictCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             _SideView(
-              title: conflict.localHeadDeleted
-                  ? '本端（已删除 State）'
-                  : '本端当前',
+              title: conflict.localHeadDeleted ? '本端（已删除 State）' : '本端当前',
               slug: conflict.local?.slug,
               title_: conflict.local?.title,
               summary: null,
@@ -227,10 +225,7 @@ class _SideView extends StatelessWidget {
         if (!deleted && slug != null)
           SelectableText(slug!, style: theme.textTheme.bodySmall),
         if (renamedFrom != null)
-          Text(
-            '由「$renamedFrom」改名而来',
-            style: theme.textTheme.bodySmall,
-          ),
+          Text('由「$renamedFrom」改名而来', style: theme.textTheme.bodySmall),
         if (summary != null && summary!.isNotEmpty)
           Text(
             summary!,

@@ -434,6 +434,7 @@ final chatRunControllerProvider = Provider.autoDispose
           unawaited(controller.restore());
         }
       }
+
       repository.chatQueueRunStarted.addListener(queuedRunStarted);
       ref.onDispose(() {
         repository.chatQueueRunStarted.removeListener(queuedRunStarted);

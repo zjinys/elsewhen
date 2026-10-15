@@ -80,9 +80,7 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
         const Divider(height: 32),
         Text('邀请设备', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
-        const Text(
-          '新设备可通过“加入现有数据集”发起加入；批准后自动完成交接。',
-        ),
+        const Text('新设备可通过“加入现有数据集”发起加入；批准后自动完成交接。'),
         if (offer == null) ...[
           const SizedBox(height: 12),
           TextField(

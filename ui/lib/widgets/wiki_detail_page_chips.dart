@@ -270,4 +270,3 @@ class _RelationChip extends ConsumerWidget {
     );
   }
 }
-

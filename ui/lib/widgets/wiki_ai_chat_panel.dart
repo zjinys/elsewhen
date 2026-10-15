@@ -125,7 +125,9 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
         try {
           final saved = await repo.getWikiChatTask(conv.id);
           task = saved == null
-              ? ChatPageTask('local_question', [await repo.getWikiChatMaterial(slug)])
+              ? ChatPageTask('local_question', [
+                  await repo.getWikiChatMaterial(slug),
+                ])
               : await ChatPageTask.restore(saved, repo.getWikiChatMaterial);
         } catch (e) {
           taskError = '原任务暂不能恢复：$e';
@@ -284,7 +286,8 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   }
 
   Future<void> _handleTask(String action) async {
-    if (_pageTask != null && _pageTask!.materials.isNotEmpty &&
+    if (_pageTask != null &&
+        _pageTask!.materials.isNotEmpty &&
         {'summary', 'extract', 'decisions', 'next', 'copy'}.contains(action)) {
       setState(
         () => _pageTask = ChatPageTask(
@@ -304,12 +307,14 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
         _fillPrompt('请整理这一页的下一步行动和仍未解决的问题。');
       case 'translate':
         if (_pageTask != null && _pageTask!.materials.isNotEmpty) {
-          setState(() => _pageTask = ChatPageTask(
-            'local_question',
-            _pageTask!.materials.take(1).toList(),
-            startChar: _pageTask!.startChar,
-            endChar: _pageTask!.endChar,
-          ));
+          setState(
+            () => _pageTask = ChatPageTask(
+              'local_question',
+              _pageTask!.materials.take(1).toList(),
+              startChar: _pageTask!.startChar,
+              endChar: _pageTask!.endChar,
+            ),
+          );
         }
         _fillPrompt('请把选定的原文片段翻译成 XX 语言，保留结构和专业含义；只处理已提供的片段，先说明范围，不声称翻译整页。');
       case 'copy':

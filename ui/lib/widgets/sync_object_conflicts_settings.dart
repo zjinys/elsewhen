@@ -143,9 +143,7 @@ class _ObjectConflictCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             _SideView(
-              title: conflict.localHeadDeleted
-                  ? '本端（已删除状态）'
-                  : '本端当前',
+              title: conflict.localHeadDeleted ? '本端（已删除状态）' : '本端当前',
               summary: conflict.localSummary,
               status: conflict.localStatus,
               updatedAt: conflict.localUpdatedAt,
@@ -211,8 +209,10 @@ class _SideView extends StatelessWidget {
           style: theme.textTheme.bodyMedium,
         ),
         if (!deleted && status != null)
-          Text('状态 $status · 更新 ${updatedAt ?? '-'}',
-              style: theme.textTheme.bodySmall),
+          Text(
+            '状态 $status · 更新 ${updatedAt ?? '-'}',
+            style: theme.textTheme.bodySmall,
+          ),
       ],
     );
   }

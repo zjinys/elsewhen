@@ -172,15 +172,20 @@ class ConversationRepository {
 
   bool get supportsChatRuns => _bridge.supportsChatRuns;
   bool get supportsChatQueue => _bridge.supportsChatQueue;
-  ValueListenable<ChatRunDto?> get chatQueueRunStarted => _bridge.chatQueueRunStarted;
-  Future<ChatRunDto?> scheduleChatInput(String conversationId, String inputMessageId) =>
-      _bridge.scheduleChatInput(conversationId, inputMessageId);
+  ValueListenable<ChatRunDto?> get chatQueueRunStarted =>
+      _bridge.chatQueueRunStarted;
+  Future<ChatRunDto?> scheduleChatInput(
+    String conversationId,
+    String inputMessageId,
+  ) => _bridge.scheduleChatInput(conversationId, inputMessageId);
   Future<List<UnscheduledChatInputDto>> listUnscheduledChatInputs(
     String conversationId, {
     int offset = 0,
   }) => _bridge.listUnscheduledChatInputs(conversationId, offset: offset);
-  Future<List<ChatRunDto>> listChatRuns(String conversationId, {int offset = 0}) =>
-      _bridge.listChatRuns(conversationId, offset: offset);
+  Future<List<ChatRunDto>> listChatRuns(
+    String conversationId, {
+    int offset = 0,
+  }) => _bridge.listChatRuns(conversationId, offset: offset);
   Future<int> enqueueChatInput(String conversationId, String inputMessageId) =>
       _bridge.enqueueChatInput(conversationId, inputMessageId);
   Future<int> enqueueChatSupplement(
@@ -189,7 +194,10 @@ class ConversationRepository {
     String runId, {
     String contextJson = '{}',
   }) => _bridge.enqueueChatSupplement(
-    conversationId, inputMessageId, runId, contextJson: contextJson,
+    conversationId,
+    inputMessageId,
+    runId,
+    contextJson: contextJson,
   );
   Future<ChatInputQueueDto> getChatInputQueue(
     String conversationId, {

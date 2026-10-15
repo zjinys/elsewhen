@@ -16,7 +16,8 @@ class JoinerQrScanPage extends StatelessWidget {
   final void Function(String code) onDetected;
 
   /// 或：注入假的取景器；签名给出本页应调用的 code 回调。
-  final Widget Function(BuildContext context, void Function(String code))? scannerBuilder;
+  final Widget Function(BuildContext context, void Function(String code))?
+  scannerBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +30,8 @@ class JoinerQrScanPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('扫描邀请二维码')),
-      body: scannerBuilder?.call(context, deliver) ??
+      body:
+          scannerBuilder?.call(context, deliver) ??
           MobileScanner(
             onDetect: (capture) {
               for (final barcode in capture.barcodes) {

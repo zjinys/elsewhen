@@ -183,12 +183,20 @@ class _RunHistoryDialogState extends State<_RunHistoryDialog> {
               if (_savedInputs.isNotEmpty) ...[
                 const Divider(),
                 const Text('已保存但无生成关联的输入'),
-                const Text('可能是仅保存、登记失败或旧版输入；不代表从未回复。只有点击才为所选原输入排队，不重新保存、不补充旧任务、不批准业务动作。已有队列按顺序处理；暂停后仍需明确继续。'),
+                const Text(
+                  '可能是仅保存、登记失败或旧版输入；不代表从未回复。只有点击才为所选原输入排队，不重新保存、不补充旧任务、不批准业务动作。已有队列按顺序处理；暂停后仍需明确继续。',
+                ),
                 for (final input in _savedInputs)
                   ListTile(
                     dense: true,
-                    title: Text(input.preview, maxLines: 3, overflow: TextOverflow.ellipsis),
-                    subtitle: Text('${input.createdAt}\n输入 ${input.inputMessageId}'),
+                    title: Text(
+                      input.preview,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      '${input.createdAt}\n输入 ${input.inputMessageId}',
+                    ),
                     trailing: TextButton(
                       key: ValueKey('recover-saved-${input.inputMessageId}'),
                       onPressed: _loading ? null : () => _scheduleSaved(input),

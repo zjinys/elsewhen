@@ -144,8 +144,7 @@ String aiFailureNotice(Object e) {
   return 'AI 回复失败：$detail';
 }
 
-bool get _isMobilePlatform =>
-    !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+bool get _isMobilePlatform => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
 /// 移动端用 bottom sheet 呈现面板（Material 惯例：大屏对话框在小屏上
 /// 上下留白多、圆角悬浮感重）；桌面端保持居中对话框。
@@ -178,9 +177,8 @@ void openKnowledgeDraftsDialog(BuildContext context) {
       minChildSize: 0.4,
       maxChildSize: 0.95,
       expand: false,
-      builder: (context, scrollController) => _KnowledgeDraftsSheet(
-        scrollController: scrollController,
-      ),
+      builder: (context, scrollController) =>
+          _KnowledgeDraftsSheet(scrollController: scrollController),
     ),
   );
 }
@@ -194,10 +192,8 @@ void openTodoDialog(BuildContext context) {
         child: const SizedBox(width: 620, height: 560, child: TodoListView()),
       ),
     ),
-    sheetBuilder: (sheetContext) => _PanelSheet(
-      title: '待办',
-      builder: (context) => const TodoListView(),
-    ),
+    sheetBuilder: (sheetContext) =>
+        _PanelSheet(title: '待办', builder: (context) => const TodoListView()),
   );
 }
 
@@ -267,7 +263,8 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
     // 会话临时提示（AI 回复失败等，仅内存，不写库）
     final notices =
         ref.watch(conversationNoticeProvider)[selectedId] ?? const <String>[];
-    final showSearch = selectedId != null &&
+    final showSearch =
+        selectedId != null &&
         ref.watch(messageSearchVisibleProvider(selectedId));
     // 正在生成 AI 回复的会话（发送后反馈「AI 生成中」占位气泡）
     final generatingIds = ref.watch(aiGeneratingProvider);
@@ -964,8 +961,7 @@ class _KnowledgeDraftsSheet extends ConsumerWidget {
                                             payload['kind']?.toString() ??
                                             'topic',
                                         content:
-                                            payload['content_md']
-                                                ?.toString() ??
+                                            payload['content_md']?.toString() ??
                                             '',
                                         applicableWhen:
                                             payload['applicable_when']
@@ -1467,8 +1463,7 @@ class _NowStatus extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 移动端：入口已上移到标题栏「今天」行，整栏不再显示。
-    final isMobilePlatform =
-        !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    final isMobilePlatform = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
     if (isMobilePlatform) return const SizedBox.shrink();
 
     final openTodos = ref
@@ -1572,9 +1567,7 @@ class _NowStatus extends ConsumerWidget {
                     ),
                     if (conversationId != null) ...[
                       const SizedBox(width: 6),
-                      ChatProposalReviewButton(
-                        conversationId: conversationId,
-                      ),
+                      ChatProposalReviewButton(conversationId: conversationId),
                     ],
                     const Spacer(),
                     Row(
@@ -1983,7 +1976,8 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onLongPress: _isMobilePlatform
-                        ? () => _showMessageActionsSheet(context, message, isUser)
+                        ? () =>
+                              _showMessageActionsSheet(context, message, isUser)
                         : null,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -2007,46 +2001,46 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                       child: _isMobilePlatform
                           // 移动端：不可选字，纯展示，长按交给外层菜单。
                           ? (isUser
-                              ? ContentFontScope(
-                                  child: Text(
-                                    displayContent,
-                                    style: TextStyle(
-                                      color: AppTheme.textPrimary,
-                                      fontSize: 14,
-                                      height: 1.55,
+                                ? ContentFontScope(
+                                    child: Text(
+                                      displayContent,
+                                      style: TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontSize: 14,
+                                        height: 1.55,
+                                      ),
                                     ),
-                                  ),
-                                )
-                              : MarkdownView(
-                                  markdown: displayContent,
-                                  baseStyle: TextStyle(
-                                    color: AppTheme.textPrimary,
-                                    fontSize: 15,
-                                    height: 1.65,
-                                  ),
-                                ))
-                          // 桌面端：保持可选中。
-                          : (isUser
-                              ? ContentFontScope(
-                                  child: SelectableText(
-                                    displayContent,
-                                    style: TextStyle(
-                                      color: AppTheme.textPrimary,
-                                      fontSize: 14,
-                                      height: 1.55,
-                                    ),
-                                  ),
-                                )
-                              : SelectionArea(
-                                  child: MarkdownView(
+                                  )
+                                : MarkdownView(
                                     markdown: displayContent,
                                     baseStyle: TextStyle(
                                       color: AppTheme.textPrimary,
                                       fontSize: 15,
                                       height: 1.65,
                                     ),
-                                  ),
-                                )),
+                                  ))
+                          // 桌面端：保持可选中。
+                          : (isUser
+                                ? ContentFontScope(
+                                    child: SelectableText(
+                                      displayContent,
+                                      style: TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontSize: 14,
+                                        height: 1.55,
+                                      ),
+                                    ),
+                                  )
+                                : SelectionArea(
+                                    child: MarkdownView(
+                                      markdown: displayContent,
+                                      baseStyle: TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontSize: 15,
+                                        height: 1.65,
+                                      ),
+                                    ),
+                                  )),
                     ),
                   ),
 
@@ -2346,10 +2340,7 @@ class _AiTypingBubbleState extends State<_AiTypingBubble>
           const SizedBox(width: AppTheme.space3),
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: AppTheme.surface2,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -2527,7 +2518,9 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     _focusNode.requestFocus();
   }
 
-  Future<void> _handleSubmit({ChatInputMode mode = ChatInputMode.generate}) async {
+  Future<void> _handleSubmit({
+    ChatInputMode mode = ChatInputMode.generate,
+  }) async {
     final recordOnly = mode == ChatInputMode.recordOnly;
     final text = _controller.text.trim();
     if (text.isEmpty || _isSubmitting) return;
@@ -2620,10 +2613,15 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     if (repository.supportsChatQueue) {
       try {
         if (mode == ChatInputMode.supplement) {
-          await repository.enqueueChatSupplement(conversationId, inputMessageId, targetRun!.id);
+          await repository.enqueueChatSupplement(
+            conversationId,
+            inputMessageId,
+            targetRun!.id,
+          );
         } else {
           await repository.scheduleChatInput(conversationId, inputMessageId);
-          if (mounted) await ref.read(chatRunControllerProvider(conversationId)).restore();
+          if (mounted)
+            await ref.read(chatRunControllerProvider(conversationId)).restore();
         }
       } catch (_) {
         if (mounted) _showError('输入已保存，但生成资格未确认。请从该消息继续生成，不要重新发送。');
@@ -2899,9 +2897,15 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                   enabled: !_isSubmitting,
                   onSelected: (mode) => _handleSubmit(mode: mode),
                   itemBuilder: (_) => [
-                    const PopupMenuItem(value: ChatInputMode.recordOnly, child: Text('仅保存，不生成回复')),
+                    const PopupMenuItem(
+                      value: ChatInputMode.recordOnly,
+                      child: Text('仅保存，不生成回复'),
+                    ),
                     if (isGenerating)
-                      const PopupMenuItem(value: ChatInputMode.supplement, child: Text('补充当前任务')),
+                      const PopupMenuItem(
+                        value: ChatInputMode.supplement,
+                        child: Text('补充当前任务'),
+                      ),
                   ],
                 ),
             ],

@@ -114,8 +114,9 @@ class _DohSettingsState extends State<DohSettings> {
 
   String _firstLine(Object e) {
     final s = '$e';
-    return s.split('\n').firstWhere((l) => l.trim().isNotEmpty,
-        orElse: () => s.trim());
+    return s
+        .split('\n')
+        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => s.trim());
   }
 
   void _toast(String message, {required bool ok}) {
@@ -131,7 +132,6 @@ class _DohSettingsState extends State<DohSettings> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {

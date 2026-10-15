@@ -65,26 +65,23 @@ class SingleInstance {
 
     final instance = SingleInstance._(server, path);
     _active = instance;
-    server.listen(
-      (socket) {
-        final buf = StringBuffer();
-        socket.listen(
-          (chunk) {
-            buf.write(utf8.decode(chunk, allowMalformed: true));
-            final text = buf.toString();
-            final nl = text.indexOf('\n');
-            if (nl >= 0) {
-              final cmd = text.substring(0, nl).trim();
-              if (cmd.isNotEmpty) onCommand(cmd);
-              unawaited(socket.close());
-            }
-          },
-          onError: (_) {},
-          cancelOnError: true,
-        );
-      },
-      onError: (_) {},
-    );
+    server.listen((socket) {
+      final buf = StringBuffer();
+      socket.listen(
+        (chunk) {
+          buf.write(utf8.decode(chunk, allowMalformed: true));
+          final text = buf.toString();
+          final nl = text.indexOf('\n');
+          if (nl >= 0) {
+            final cmd = text.substring(0, nl).trim();
+            if (cmd.isNotEmpty) onCommand(cmd);
+            unawaited(socket.close());
+          }
+        },
+        onError: (_) {},
+        cancelOnError: true,
+      );
+    }, onError: (_) {});
     return true;
   }
 

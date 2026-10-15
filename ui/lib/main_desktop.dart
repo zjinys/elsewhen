@@ -28,8 +28,7 @@ void main(List<String> args) async {
   WindowService.register(DesktopWindowService());
 
   final config = AppConfig.fromArgs(args);
-  final isDesktop =
-      Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+  final isDesktop = Platform.isLinux || Platform.isMacOS || Platform.isWindows;
 
   // 单实例守卫：已有实例在跑时，把命令转发给它（capture → 进入捕获模式，
   // 否则 → 唤回主窗）后本进程退出。必须早于窗口 chrome / Rust bridge 初始化，

@@ -55,13 +55,8 @@ class SyncEnrollmentProgress extends StatelessWidget {
                 !state.remoteApplied)
               const Text('本机快照已应用，等待对方回执。'),
             if (state.notificationPending)
-              Text(
-                state.role == 'owner'
-                    ? '完成通知等待新设备确认。'
-                    : '完成通知等待投递。',
-              ),
-            if (state.phase == 'complete')
-              const Text('数据保留在暂存库，未切换数据集。'),
+              Text(state.role == 'owner' ? '完成通知等待新设备确认。' : '完成通知等待投递。'),
+            if (state.phase == 'complete') const Text('数据保留在暂存库，未切换数据集。'),
           ],
           if (controller.error != null) ...[
             const SizedBox(height: 8),
