@@ -1463,34 +1463,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           color: AppTheme.accentPrimary.withValues(alpha: 0.1),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+      // 透明 Material 垫底：带背景色的 DecoratedBox 不能挡在 ListTile 与其
+      // Material 祖先之间，否则 CheckboxListTile（如主人端配对同意勾选）的
+      // 背景/水波纹不可见，debug 模式直接断言崩。
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: AppTheme.accentPrimary, size: 20),
                 ),
-                child: Icon(icon, color: AppTheme.accentPrimary, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[const Spacer(), trailing],
-            ],
-          ),
-          const SizedBox(height: 20),
-          child,
-        ],
+                if (trailing != null) ...[const Spacer(), trailing],
+              ],
+            ),
+            const SizedBox(height: 20),
+            child,
+          ],
+        ),
       ),
     );
   }
