@@ -16,6 +16,7 @@ import '../widgets/message_area.dart';
 import '../widgets/wiki_page_detail_view.dart';
 import '../widgets/custom_title_bar.dart';
 import '../widgets/ai_provider_setup_hint.dart';
+import '../widgets/companion_revisit_hint.dart';
 
 class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
@@ -78,6 +79,8 @@ class MainScreen extends ConsumerWidget {
           ),
           // 首次运行引导：未配置 AI Provider 时提示去设置页
           const AiProviderSetupHint(),
+          // 情感回访（D6）：打开应用时最多一条温和的记忆回引，可关（设置→规则库）
+          const CompanionRevisitHint(),
           Expanded(
             child: Row(
               children: [

@@ -107,6 +107,8 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // 偏好开关同理。规则触发词字段随 rules 行携带。
     ("rule_hits", "local-event-reminders"),
     ("rule_trigger_settings", "local-event-reminders"),
+    // 情感回访偏好与记账：本机提醒体验状态，不属于跨设备数据集。
+    ("companion_settings", "local-event-reminders"),
     // 本机应用配置（含 web_search 凭据），不是数据集内容。
     ("app_meta", "local-app-config"),
     ("network_settings", "local-app-config"),

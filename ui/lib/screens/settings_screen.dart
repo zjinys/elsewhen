@@ -57,6 +57,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   // 规则触发提醒（决策辅助 D1)：偏好模式 + 最近提醒列表
   String _ruleTriggerMode = 'instant';
   List<RuleHit> _recentRuleHits = [];
+
+  /// 情感回访偏好（D6）：开关 + 频率上限（天）。加载失败保持默认且不阻塞。
+  bool _companionRevisitEnabled = true;
+  int _companionIntervalDays = 7;
+  bool _companionPrefsLoading = true;
   // 用户模型面板（决策辅助 D2 + D5 全维度收口）：关系边 + 情绪标注。
   // 其余维度（承诺/复盘/节奏/健康/财务/地点/身份/创作线）按 D0 映射
   // 以知识库页型承载，在知识库中查看/编辑（面板只给入口提示）。
@@ -478,6 +483,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     } catch (e) {
       debugPrint('loadRuleTrigger failed: $e');
     }
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final prefs = await repo.getCompanionPrefs();
+      if (!mounted) return;
+      setState(() {
+        _companionRevisitEnabled = prefs.revisitEnabled;
+        _companionIntervalDays = prefs.revisitIntervalDays;
+        _companionPrefsLoading = false;
+      });
+    } catch (e) {
+      debugPrint('loadCompanionPrefs failed: $e');
+      if (!mounted) return;
+      setState(() => _companionPrefsLoading = false);
+    }
     await _loadUserModel();
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
@@ -537,13 +556,103 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
+  /// 情感回访（D6）：低打扰回引「被记住的事」，只在打开应用时可能出现，
+  /// 绝不做系统级推送。频率上限可配；关闭后检查路径零查询（零侵入）。
+  Widget _buildCompanionRevisitPrefs() {
+    return Row(
+      children: [
+        Text(
+          '情感回访',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
+        const Spacer(),
+        if (!_companionPrefsLoading)
+          DropdownButton<int>(
+            value: _companionIntervalDays,
+            underline: const SizedBox.shrink(),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            items: const [
+              DropdownMenuItem(value: 3, child: Text('3天')),
+              DropdownMenuItem(value: 7, child: Text('7天')),
+              DropdownMenuItem(value: 14, child: Text('14天')),
+              DropdownMenuItem(value: 30, child: Text('30天')),
+            ],
+            onChanged: (days) async {
+              if (days == null) return;
+              await _saveCompanionPrefs(_companionRevisitEnabled, days);
+            },
+          ),
+        Switch(
+          value: _companionRevisitEnabled,
+          onChanged: _companionPrefsLoading
+              ? null
+              : (enabled) =>
+                    _saveCompanionPrefs(enabled, _companionIntervalDays),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _saveCompanionPrefs(bool enabled, int intervalDays) async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.setCompanionPrefs(
+        enabled: enabled,
+        intervalDays: intervalDays,
+      );
+      if (!mounted) return;
+      setState(() {
+        _companionRevisitEnabled = enabled;
+        _companionIntervalDays = intervalDays;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('保存回访偏好', e))));
+    }
+  }
+
+  Future<void> _setHitFeedback(RuleHit hit, String feedback) async {
+    final next = hit.feedback == feedback ? null : feedback;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.setRuleHitFeedback(hit.id, next);
+      // 回读真实状态（不让乐观更新说谎）
+      final hits = await repo.listRecentRuleHits(limit: 8);
+      if (!mounted) return;
+      setState(() => _recentRuleHits = hits);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('记录提醒反馈', e))));
+    }
+  }
+
+  /// 最近提醒（D6）：每条可标「有用 / 不相关」，再点一次即清除。
+  /// 反馈只记录在本地命中行上，没有任何自动行为消费它。
   Widget _buildRecentRuleHits() {
+    final helpfulCount = _recentRuleHits
+        .where((h) => h.feedback == 'helpful')
+        .length;
+    final notRelevantCount = _recentRuleHits
+        .where((h) => h.feedback == 'not_relevant')
+        .length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '最近提醒',
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        Row(
+          children: [
+            Text(
+              '最近提醒',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            ),
+            const Spacer(),
+            if (helpfulCount > 0 || notRelevantCount > 0)
+              Text(
+                '有用 $helpfulCount · 不相关 $notRelevantCount',
+                style: TextStyle(color: AppTheme.textTertiary, fontSize: 11),
+              ),
+          ],
         ),
         const SizedBox(height: AppTheme.space2),
         for (final hit in _recentRuleHits)
@@ -570,6 +679,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       fontSize: 12,
                       height: 1.4,
                     ),
+                  ),
+                ),
+                SizedBox(
+                  width: 30,
+                  height: 26,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 14,
+                    tooltip: '有用（再点一次清除）',
+                    icon: Icon(
+                      hit.feedback == 'helpful'
+                          ? Icons.thumb_up
+                          : Icons.thumb_up_outlined,
+                    ),
+                    color: hit.feedback == 'helpful'
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textTertiary,
+                    onPressed: () => _setHitFeedback(hit, 'helpful'),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                SizedBox(
+                  width: 30,
+                  height: 26,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 14,
+                    tooltip: '不相关（再点一次清除）',
+                    icon: Icon(
+                      hit.feedback == 'not_relevant'
+                          ? Icons.thumb_down
+                          : Icons.thumb_down_outlined,
+                    ),
+                    color: hit.feedback == 'not_relevant'
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textTertiary,
+                    onPressed: () => _setHitFeedback(hit, 'not_relevant'),
                   ),
                 ),
               ],
@@ -1197,6 +1343,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildRuleTriggerPrefs(),
+                const SizedBox(height: AppTheme.space4),
+                _buildCompanionRevisitPrefs(),
                 const SizedBox(height: AppTheme.space4),
                 _buildRulesContent(),
                 if (_recentRuleHits.isNotEmpty) ...[

@@ -46,6 +46,14 @@ Future<String> getRuleTriggerMode() =>
 Future<List<RuleHitDto>> listEventRuleHits({required String eventId}) =>
     RustLib.instance.api.crateApiRulesListEventRuleHits(eventId: eventId);
 
+/// 用户对单条提醒的采纳反馈（D6 只记录不推断）：Some("helpful"|"not_relevant")
+/// 记录；None 清除反馈。命中行不存在或非已处置状态时 fail-closed。
+Future<void> setRuleHitFeedback({required String id, String? feedback}) =>
+    RustLib.instance.api.crateApiRulesSetRuleHitFeedback(
+      id: id,
+      feedback: feedback,
+    );
+
 /// 最近的即时提醒与聚合（今日提醒列表 / 每日回顾读面）。
 Future<List<RuleHitDto>> listRecentRuleHits({required PlatformInt64 limit}) =>
     RustLib.instance.api.crateApiRulesListRecentRuleHits(limit: limit);
@@ -102,12 +110,16 @@ class RuleHitDto {
   final String status;
   final String createdAt;
 
+  /// 采纳反馈（D6 闭环度量）：helpful / not_relevant / 未反馈 NULL。
+  final String? feedback;
+
   const RuleHitDto({
     required this.id,
     required this.ruleId,
     required this.ruleContent,
     required this.status,
     required this.createdAt,
+    this.feedback,
   });
 
   @override
@@ -116,7 +128,8 @@ class RuleHitDto {
       ruleId.hashCode ^
       ruleContent.hashCode ^
       status.hashCode ^
-      createdAt.hashCode;
+      createdAt.hashCode ^
+      feedback.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -127,5 +140,6 @@ class RuleHitDto {
           ruleId == other.ruleId &&
           ruleContent == other.ruleContent &&
           status == other.status &&
-          createdAt == other.createdAt;
+          createdAt == other.createdAt &&
+          feedback == other.feedback;
 }

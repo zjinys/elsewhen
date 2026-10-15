@@ -3,6 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import 'api/rules.dart';
 import 'api/todos.dart';
 import 'frb_generated.dart';
 
@@ -12,7 +13,7 @@ part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `decision_support_material`, `default_event_kind`, `default_recordable`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`, `try_auto_upsert_annotated_relation`, `wash_emotion`, `wash_guidance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`, `EventEmotionTag`, `EventGuidanceRef`, `EventGuidance`, `EventRuleConfirmation`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -105,6 +106,24 @@ Future<void> deleteEventEmotion({
   target: target,
   feeling: feeling,
 );
+
+/// 读取回访偏好。
+Future<CompanionPrefsDto> getCompanionPrefs() =>
+    RustLib.instance.api.crateApiGetCompanionPrefs();
+
+/// 更新回访偏好（间隔即频率下限；关 = 之后 check 零查询零成本）。
+Future<void> setCompanionPrefs({
+  required bool enabled,
+  required PlatformInt64 intervalDays,
+}) => RustLib.instance.api.crateApiSetCompanionPrefs(
+  enabled: enabled,
+  intervalDays: intervalDays,
+);
+
+/// 打开应用时的一次回访检查：返回可展示的温和回引（有则记账本次展示）；
+/// 关闭/未到期/无素材都返回 NULL。
+Future<CompanionRevisitDto?> checkCompanionRevisit() =>
+    RustLib.instance.api.crateApiCheckCompanionRevisit();
 
 Future<EventAnalysisDetailDto?> getEventAnalysisDetail({
   required String eventId,
@@ -224,6 +243,60 @@ sealed class AnalysisTriggerResult with _$AnalysisTriggerResult {
   }) = AnalysisTriggerResult_Processed;
 }
 
+/// 情感回访偏好（D6：开关键 + 频率上限；面板可见可改）。
+class CompanionPrefsDto {
+  final bool revisitEnabled;
+  final PlatformInt64 revisitIntervalDays;
+
+  const CompanionPrefsDto({
+    required this.revisitEnabled,
+    required this.revisitIntervalDays,
+  });
+
+  @override
+  int get hashCode => revisitEnabled.hashCode ^ revisitIntervalDays.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CompanionPrefsDto &&
+          runtimeType == other.runtimeType &&
+          revisitEnabled == other.revisitEnabled &&
+          revisitIntervalDays == other.revisitIntervalDays;
+}
+
+/// 一次回访素材（D6）：被记住的事件 +（若有）当时情绪。
+class CompanionRevisitDto {
+  final String eventId;
+  final String recordedAt;
+  final String excerpt;
+  final String? feeling;
+
+  const CompanionRevisitDto({
+    required this.eventId,
+    required this.recordedAt,
+    required this.excerpt,
+    this.feeling,
+  });
+
+  @override
+  int get hashCode =>
+      eventId.hashCode ^
+      recordedAt.hashCode ^
+      excerpt.hashCode ^
+      feeling.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CompanionRevisitDto &&
+          runtimeType == other.runtimeType &&
+          eventId == other.eventId &&
+          recordedAt == other.recordedAt &&
+          excerpt == other.excerpt &&
+          feeling == other.feeling;
+}
+
 class DailyEntryDto {
   final String eventId;
   final String? inputId;
@@ -273,16 +346,30 @@ class DailyOverviewDto {
   final DailyReviewDto? review;
   final List<TodoDto> todos;
 
+  /// 当日触发的规则提醒与聚合（D6 回顾勾连：只呈现，不推断）。
+  final List<RuleHitDto> reminderHits;
+
+  /// 共同记忆回引（D6）：约一周前的条目原文，呈现「你上周说过……」。
+  /// 原文快照，不评价；没有合素材时为空。
+  final List<MemoryEchoDto> memoryEcho;
+
   const DailyOverviewDto({
     required this.date,
     required this.entries,
     this.review,
     required this.todos,
+    required this.reminderHits,
+    required this.memoryEcho,
   });
 
   @override
   int get hashCode =>
-      date.hashCode ^ entries.hashCode ^ review.hashCode ^ todos.hashCode;
+      date.hashCode ^
+      entries.hashCode ^
+      review.hashCode ^
+      todos.hashCode ^
+      reminderHits.hashCode ^
+      memoryEcho.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -292,7 +379,9 @@ class DailyOverviewDto {
           date == other.date &&
           entries == other.entries &&
           review == other.review &&
-          todos == other.todos;
+          todos == other.todos &&
+          reminderHits == other.reminderHits &&
+          memoryEcho == other.memoryEcho;
 }
 
 class DailyReviewDto {
@@ -743,6 +832,31 @@ class InputRecordDto {
           todoId == other.todoId &&
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt;
+}
+
+/// 回顾里的共同记忆回引条目。
+class MemoryEchoDto {
+  final String eventId;
+  final String recordedAt;
+  final String rawText;
+
+  const MemoryEchoDto({
+    required this.eventId,
+    required this.recordedAt,
+    required this.rawText,
+  });
+
+  @override
+  int get hashCode => eventId.hashCode ^ recordedAt.hashCode ^ rawText.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MemoryEchoDto &&
+          runtimeType == other.runtimeType &&
+          eventId == other.eventId &&
+          recordedAt == other.recordedAt &&
+          rawText == other.rawText;
 }
 
 class MessageRecordabilityDto {

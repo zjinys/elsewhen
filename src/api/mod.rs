@@ -18,6 +18,7 @@ pub mod todos;
 pub mod tweet;
 pub mod web_search;
 pub mod wiki;
+pub mod sync_config;
 pub mod wiki_chat;
 use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
@@ -407,6 +408,19 @@ pub struct DailyOverviewDto {
     pub entries: Vec<DailyEntryDto>,
     pub review: Option<DailyReviewDto>,
     pub todos: Vec<TodoDto>,
+    /// 当日触发的规则提醒与聚合（D6 回顾勾连：只呈现，不推断）。
+    pub reminder_hits: Vec<crate::api::rules::RuleHitDto>,
+    /// 共同记忆回引（D6）：约一周前的条目原文，呈现「你上周说过……」。
+    /// 原文快照，不评价；没有合素材时为空。
+    pub memory_echo: Vec<MemoryEchoDto>,
+}
+
+/// 回顾里的共同记忆回引条目。
+#[derive(Clone, Debug)]
+pub struct MemoryEchoDto {
+    pub event_id: String,
+    pub recorded_at: String,
+    pub raw_text: String,
 }
 
 #[derive(Clone, Debug)]
@@ -712,11 +726,36 @@ pub fn get_daily_overview(date: String) -> Result<DailyOverviewDto> {
         })
         .map(TodoDto::from)
         .collect();
+    // D6 回顾勾连 1：当日命中的提醒与聚合（同款本地日界，只读）。
+    let reminder_hits = store
+        .rule_hits_on(date)?
+        .into_iter()
+        .map(|hv| crate::api::rules::RuleHitDto {
+            id: hv.id,
+            rule_id: hv.rule_id,
+            rule_content: hv.rule_content,
+            status: hv.status,
+            created_at: hv.created_at,
+            feedback: hv.feedback,
+        })
+        .collect::<Vec<_>>();
+    // D6 回顾勾连 2：共同记忆回引（逻辑在 storage 层，可测）。
+    let memory_echo = store
+        .memory_echo_for(date, 3)?
+        .into_iter()
+        .map(|(event_id, recorded_at, raw_text)| MemoryEchoDto {
+            event_id,
+            recorded_at,
+            raw_text,
+        })
+        .collect();
     Ok(DailyOverviewDto {
         date: date_text,
         entries,
         review,
         todos,
+        reminder_hits,
+        memory_echo,
     })
 }
 
@@ -901,6 +940,56 @@ pub fn delete_event_emotion(id: String, target: Option<String>, feeling: String)
     let removed = store.delete_event_emotion(id.trim(), target.as_deref(), feeling.trim())?;
     anyhow::ensure!(removed, "情绪标注不存在或已被删除");
     Ok(())
+}
+
+/// 情感回访偏好（D6：开关键 + 频率上限；面板可见可改）。
+#[derive(Clone, Debug)]
+pub struct CompanionPrefsDto {
+    pub revisit_enabled: bool,
+    pub revisit_interval_days: i64,
+}
+
+/// 一次回访素材（D6）：被记住的事件 +（若有）当时情绪。
+#[derive(Clone, Debug)]
+pub struct CompanionRevisitDto {
+    pub event_id: String,
+    pub recorded_at: String,
+    pub excerpt: String,
+    pub feeling: Option<String>,
+}
+
+/// 读取回访偏好。
+pub fn get_companion_prefs() -> Result<CompanionPrefsDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let settings = store.companion_settings()?;
+    Ok(CompanionPrefsDto {
+        revisit_enabled: settings.revisit_enabled,
+        revisit_interval_days: settings.revisit_interval_days,
+    })
+}
+
+/// 更新回访偏好（间隔即频率下限；关 = 之后 check 零查询零成本）。
+pub fn set_companion_prefs(enabled: bool, interval_days: i64) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.set_companion_settings(enabled, interval_days)?;
+    Ok(())
+}
+
+/// 打开应用时的一次回访检查：返回可展示的温和回引（有则记账本次展示）；
+/// 关闭/未到期/无素材都返回 NULL。
+pub fn check_companion_revisit() -> Result<Option<CompanionRevisitDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store
+        .check_companion_revisit()?
+        .map(|item| CompanionRevisitDto {
+            event_id: item.event_id,
+            recorded_at: item.recorded_at,
+            excerpt: item.excerpt,
+            feeling: item.feeling,
+        }))
 }
 
 pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysisDetailDto>> {
@@ -2121,6 +2210,183 @@ mod guidance_tests {
             .connection
             .query_row("SELECT id FROM analysis_jobs LIMIT 1", [], |r| r.get(0))
             .unwrap()
+    }
+
+    fn rule_for_test(store: &Store) -> String {
+        let id = format!("rule-{}", uuid::Uuid::new_v4());
+        store
+            .connection
+            .execute(
+                "INSERT INTO rules (id, content, status, created_at, updated_at)
+                 VALUES (?1, '发布前先跑测试', 'active', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                rusqlite::params![id],
+            )
+            .unwrap();
+        id
+    }
+
+    fn hit_for_test(
+        store: &Store,
+        rule_id: &str,
+        event_id: &str,
+        status: &str,
+        days_ago: i64,
+    ) -> String {
+        let id = format!("hit-{}", uuid::Uuid::new_v4());
+        store
+            .connection
+            .execute(
+                "INSERT INTO rule_hits (id, rule_id, event_id, status, confidence, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, 0.9, ?5, ?5)",
+                rusqlite::params![
+                    id,
+                    rule_id,
+                    event_id,
+                    status,
+                    (chrono::Utc::now() - chrono::Duration::days(days_ago)).to_rfc3339()
+                ],
+            )
+            .unwrap();
+        id
+    }
+
+    /// D6 采纳反馈：记录 / 清除（toggle）/ fail-closed。
+    /// 走 store 层（api ::set_rule_hit_feedback 会经 AppConfig::load 打开
+    /// 真实用户库，测试里一律不碰；api 层只做 trim/转发）。
+    #[test]
+    fn rule_hit_feedback_records_clears_and_fails_closed() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let event_id = store
+            .insert_event(NewEvent::now("踩了发布流程的坑"))
+            .unwrap();
+        let rule_id = rule_for_test(&store);
+        let hit_id = hit_for_test(&store, &rule_id, &event_id, "notified", 0);
+
+        // 记录采纳
+        store
+            .set_rule_hit_feedback(&hit_id, Some("helpful"))
+            .unwrap();
+        let hits = store.recent_rule_hits(10).unwrap();
+        assert_eq!(
+            hits.iter()
+                .find(|h| h.id == hit_id)
+                .unwrap()
+                .feedback
+                .as_deref(),
+            Some("helpful")
+        );
+
+        // 换一条（同事件同规则 UNIQUE，换事件）：反馈 not_relevant
+        let event2_id = store.insert_event(NewEvent::now("又一次提醒")).unwrap();
+        let hit2 = hit_for_test(&store, &rule_id, &event2_id, "aggregated", 0);
+        store
+            .set_rule_hit_feedback(&hit2, Some("not_relevant"))
+            .unwrap();
+        let hits = store.recent_rule_hits(10).unwrap();
+        assert_eq!(
+            hits.iter()
+                .find(|h| h.id == hit2)
+                .unwrap()
+                .feedback
+                .as_deref(),
+            Some("not_relevant")
+        );
+
+        // 清除 = feedback NULL
+        store.set_rule_hit_feedback(&hit_id, None).unwrap();
+        let hits = store.recent_rule_hits(10).unwrap();
+        assert!(
+            hits.iter()
+                .find(|h| h.id == hit_id)
+                .unwrap()
+                .feedback
+                .is_none()
+        );
+
+        // fail-closed：未知值报错；不存在的 id 返回 false（api 层转 bail）
+        assert!(
+            store
+                .set_rule_hit_feedback(&hit_id, Some("自动推断"))
+                .is_err()
+        );
+        assert!(
+            !store
+                .set_rule_hit_feedback("no-such-hit", Some("helpful"))
+                .unwrap()
+        );
+        // pending（未处置）命中不可反馈——度量只面向已送达用户的提醒
+        let event3_id = store.insert_event(NewEvent::now("还没提醒的")).unwrap();
+        let hit3 = hit_for_test(&store, &rule_id, &event3_id, "pending", 0);
+        assert!(!store.set_rule_hit_feedback(&hit3, Some("helpful")).unwrap());
+        let _ = event_id;
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// D6 回顾勾连拼装等价验证（store 层；api ::get_daily_overview 直接
+    /// 调 store.rule_hits_on + memory_echo_for，经 AppConfig 会开真实库，
+    /// 测试不碰）。
+    #[test]
+    fn daily_overview_parts_available_from_store() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let today = chrono::Local::now().date_naive();
+        let today_id = store.insert_event(NewEvent::now("今天的进展")).unwrap();
+        let rule_id = rule_for_test(&store);
+        hit_for_test(&store, &rule_id, &today_id, "aggregated", 0);
+        let hits = store.rule_hits_on(today).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].rule_content, "发布前先跑测试");
+        assert_eq!(hits[0].status, "aggregated");
+        // 昨天的命中不该混进今天
+        let yesterday = store
+            .insert_event(NewEvent {
+                raw_text: "昨天的事",
+                occurred_at: chrono::Utc::now() - chrono::Duration::days(1),
+                recorded_at: chrono::Utc::now() - chrono::Duration::days(1),
+                source: "capture",
+            })
+            .unwrap();
+        let _ = hit_for_test(&store, &rule_id, &yesterday, "notified", 1);
+        // 同规则+同事件会 UNIQUE 冲突，这里只是构造不同事件——用新规则
+        let rule2 = rule_for_test(&store);
+        let _ = hit_for_test(&store, &rule2, &yesterday, "notified", 1);
+        assert_eq!(store.rule_hits_on(today).unwrap().len(), 1);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// D6 回顾勾连 storage 联测：当日命中 + 一周回引同库成立。
+    #[test]
+    fn memory_echo_and_day_hits_are_store_level_queries() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let today = chrono::Local::now().date_naive();
+        assert!(store.memory_echo_for(today, 3).unwrap().is_empty());
+        let days_ago = chrono::Utc::now() - chrono::Duration::days(8);
+        store
+            .insert_event(NewEvent {
+                raw_text: "去年秋天 mountain trip",
+                occurred_at: days_ago,
+                recorded_at: days_ago,
+                source: "capture",
+            })
+            .unwrap();
+        let echo = store.memory_echo_for(today, 3).unwrap();
+        assert_eq!(echo.len(), 1);
+        assert!(echo[0].2.contains("mountain trip"));
+        // 超过 max 截断
+        let days_ago2 = chrono::Utc::now() - chrono::Duration::days(7);
+        store
+            .insert_event(NewEvent {
+                raw_text: "第二条回引素材",
+                occurred_at: days_ago2,
+                recorded_at: days_ago2,
+                source: "capture",
+            })
+            .unwrap();
+        assert_eq!(store.memory_echo_for(today, 1).unwrap().len(), 1);
     }
 }
 

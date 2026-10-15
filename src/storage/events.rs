@@ -774,18 +774,8 @@ impl Store {
     /// 统一日流：events 是权威全集；input_records 仅补充新流程的关联信息。
     /// 因此历史事件与新 Capture/对话输入都会出现，且每个 event 只返回一次。
     pub fn daily_entries(&self, date: chrono::NaiveDate) -> Result<Vec<DailyEntry>> {
-        use chrono::{Local, TimeZone};
-        let edge = |day: chrono::NaiveDate| {
-            let local_midnight = day.and_hms_opt(0, 0, 0).expect("midnight is valid");
-            Local
-                .from_local_datetime(&local_midnight)
-                .single()
-                .or_else(|| Local.from_local_datetime(&local_midnight).earliest())
-                .map(|value| value.with_timezone(&chrono::Utc).to_rfc3339())
-                .unwrap_or_else(|| local_midnight.and_utc().to_rfc3339())
-        };
-        let start = edge(date);
-        let end = edge(date + chrono::Duration::days(1));
+        let (start, end) = local_day_bounds(date);
+
         let mut statement = self.connection.prepare(
             "SELECT e.id,i.id,i.message_id,e.raw_text,e.source,e.status,e.recorded_at
          FROM events e LEFT JOIN input_records i ON i.event_id=e.id
@@ -805,6 +795,35 @@ impl Store {
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
+    }
+
+    /// 共同记忆回引（D6 每日回顾勾连）：回看一周（7 天前那天），空则看
+    /// 8/9 天前；原文快照不评价。最多 max（3）条。
+    pub fn memory_echo_for(
+        &self,
+        date: chrono::NaiveDate,
+        max: usize,
+    ) -> Result<Vec<(String, String, String)>> {
+        for lookback in 7..=9 {
+            let entries = self.daily_entries(date - chrono::Duration::days(lookback))?;
+            if !entries.is_empty() {
+                return Ok(entries
+                    .into_iter()
+                    .take(max)
+                    .map(|entry| (entry.event_id, entry.recorded_at, entry.raw_text))
+                    .collect());
+            }
+        }
+        Ok(Vec::new())
+    }
+
+    /// 当日规则命中复用同款本地日界（D6 每日回顾勾连）。
+    pub fn rule_hits_on(
+        &self,
+        date: chrono::NaiveDate,
+    ) -> Result<Vec<crate::storage::rule_triggers::RuleHitView>> {
+        let (start, end) = local_day_bounds(date);
+        self.rule_hits_on_day(&start, &end)
     }
 
     /// 最近 N 天内的最多 limit 条事件（按记录时间倒序）
@@ -1076,4 +1095,20 @@ impl Store {
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
     }
+}
+
+/// 本地日历日 → [当日 00:00, 次日 00:00) 的 UTC rfc3339 边界。
+/// 与 daily_entries 原内联 edge 逻辑一致（DST 歧义回退最早时刻）。
+pub(crate) fn local_day_bounds(date: chrono::NaiveDate) -> (String, String) {
+    use chrono::{Local, TimeZone};
+    let edge = |day: chrono::NaiveDate| {
+        let local_midnight = day.and_hms_opt(0, 0, 0).expect("midnight is valid");
+        Local
+            .from_local_datetime(&local_midnight)
+            .single()
+            .or_else(|| Local.from_local_datetime(&local_midnight).earliest())
+            .map(|value| value.with_timezone(&chrono::Utc).to_rfc3339())
+            .unwrap_or_else(|| local_midnight.and_utc().to_rfc3339())
+    };
+    (edge(date), edge(date + chrono::Duration::days(1)))
 }

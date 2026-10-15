@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1951429955;
+  int get rustContentHash => -1273475220;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -182,6 +182,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiSyncCancelOwnerSyncInvitation({
     required String invitationId,
   });
+
+  Future<CompanionRevisitDto?> crateApiCheckCompanionRevisit();
 
   Future<String> crateApiConversationsConfirmKnowledgeDraft({
     required String conversationId,
@@ -368,6 +370,8 @@ abstract class RustLibApi extends BaseApi {
   Future<List<MessageDto>> crateApiConversationsGetChildMessages({
     required String parentId,
   });
+
+  Future<CompanionPrefsDto> crateApiGetCompanionPrefs();
 
   Future<ConversationDto?> crateApiConversationsGetConversation({
     required String conversationId,
@@ -880,6 +884,11 @@ abstract class RustLibApi extends BaseApi {
     String? revisionToken,
   });
 
+  Future<void> crateApiSetCompanionPrefs({
+    required bool enabled,
+    required PlatformInt64 intervalDays,
+  });
+
   Future<void> crateApiConversationsSetConversationArchived({
     required String conversationId,
     required bool archived,
@@ -893,6 +902,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiKnowledgeWorkflowsSetKnowledgeReadingState({
     required String slug,
     required String state,
+  });
+
+  Future<void> crateApiRulesSetRuleHitFeedback({
+    required String id,
+    String? feedback,
   });
 
   Future<void> crateApiRulesSetRuleTrigger({
@@ -1534,6 +1548,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "cancel_owner_sync_invitation",
         argNames: ["invitationId"],
       );
+
+  @override
+  Future<CompanionRevisitDto?> crateApiCheckCompanionRevisit() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__check_companion_revisit(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_companion_revisit_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCheckCompanionRevisitConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCheckCompanionRevisitConstMeta =>
+      const TaskConstMeta(debugName: "check_companion_revisit", argNames: []);
 
   @override
   Future<String> crateApiConversationsConfirmKnowledgeDraft({
@@ -2849,6 +2884,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "get_child_messages",
         argNames: ["parentId"],
       );
+
+  @override
+  Future<CompanionPrefsDto> crateApiGetCompanionPrefs() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__get_companion_prefs(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_companion_prefs_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGetCompanionPrefsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetCompanionPrefsConstMeta =>
+      const TaskConstMeta(debugName: "get_companion_prefs", argNames: []);
 
   @override
   Future<ConversationDto?> crateApiConversationsGetConversation({
@@ -6628,6 +6684,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiSetCompanionPrefs({
+    required bool enabled,
+    required PlatformInt64 intervalDays,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_bool(enabled);
+          var arg1 = cst_encode_i_64(intervalDays);
+          return wire.wire__crate__api__set_companion_prefs(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetCompanionPrefsConstMeta,
+        argValues: [enabled, intervalDays],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetCompanionPrefsConstMeta => const TaskConstMeta(
+    debugName: "set_companion_prefs",
+    argNames: ["enabled", "intervalDays"],
+  );
+
+  @override
   Future<void> crateApiConversationsSetConversationArchived({
     required String conversationId,
     required bool archived,
@@ -6727,6 +6811,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "set_knowledge_reading_state",
         argNames: ["slug", "state"],
+      );
+
+  @override
+  Future<void> crateApiRulesSetRuleHitFeedback({
+    required String id,
+    String? feedback,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_opt_String(feedback);
+          return wire.wire__crate__api__rules__set_rule_hit_feedback(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesSetRuleHitFeedbackConstMeta,
+        argValues: [id, feedback],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesSetRuleHitFeedbackConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_rule_hit_feedback",
+        argNames: ["id", "feedback"],
       );
 
   @override
@@ -7797,6 +7914,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CompanionRevisitDto dco_decode_box_autoadd_companion_revisit_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_companion_revisit_dto(raw);
+  }
+
+  @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_conversation_dto(raw);
@@ -8034,6 +8159,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CompanionPrefsDto dco_decode_companion_prefs_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CompanionPrefsDto(
+      revisitEnabled: dco_decode_bool(arr[0]),
+      revisitIntervalDays: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
+  CompanionRevisitDto dco_decode_companion_revisit_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return CompanionRevisitDto(
+      eventId: dco_decode_String(arr[0]),
+      recordedAt: dco_decode_String(arr[1]),
+      excerpt: dco_decode_String(arr[2]),
+      feeling: dco_decode_opt_String(arr[3]),
+    );
+  }
+
+  @protected
   ContentChatMessageDto dco_decode_content_chat_message_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -8085,13 +8236,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DailyOverviewDto dco_decode_daily_overview_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return DailyOverviewDto(
       date: dco_decode_String(arr[0]),
       entries: dco_decode_list_daily_entry_dto(arr[1]),
       review: dco_decode_opt_box_autoadd_daily_review_dto(arr[2]),
       todos: dco_decode_list_todo_dto(arr[3]),
+      reminderHits: dco_decode_list_rule_hit_dto(arr[4]),
+      memoryEcho: dco_decode_list_memory_echo_dto(arr[5]),
     );
   }
 
@@ -8915,6 +9068,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<MemoryEchoDto> dco_decode_list_memory_echo_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_memory_echo_dto).toList();
+  }
+
+  @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_message_dto).toList();
@@ -9116,6 +9275,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MemoryEchoDto dco_decode_memory_echo_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return MemoryEchoDto(
+      eventId: dco_decode_String(arr[0]),
+      recordedAt: dco_decode_String(arr[1]),
+      rawText: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
   MessageDto dco_decode_message_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -9211,6 +9383,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ChatRunDto? dco_decode_opt_box_autoadd_chat_run_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_chat_run_dto(raw);
+  }
+
+  @protected
+  CompanionRevisitDto? dco_decode_opt_box_autoadd_companion_revisit_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_companion_revisit_dto(raw);
   }
 
   @protected
@@ -9512,14 +9694,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RuleHitDto dco_decode_rule_hit_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return RuleHitDto(
       id: dco_decode_String(arr[0]),
       ruleId: dco_decode_String(arr[1]),
       ruleContent: dco_decode_String(arr[2]),
       status: dco_decode_String(arr[3]),
       createdAt: dco_decode_String(arr[4]),
+      feedback: dco_decode_opt_String(arr[5]),
     );
   }
 
@@ -10158,6 +10341,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CompanionRevisitDto sse_decode_box_autoadd_companion_revisit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_companion_revisit_dto(deserializer));
+  }
+
+  @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
     SseDeserializer deserializer,
   ) {
@@ -10448,6 +10639,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CompanionPrefsDto sse_decode_companion_prefs_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_revisitEnabled = sse_decode_bool(deserializer);
+    var var_revisitIntervalDays = sse_decode_i_64(deserializer);
+    return CompanionPrefsDto(
+      revisitEnabled: var_revisitEnabled,
+      revisitIntervalDays: var_revisitIntervalDays,
+    );
+  }
+
+  @protected
+  CompanionRevisitDto sse_decode_companion_revisit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventId = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_excerpt = sse_decode_String(deserializer);
+    var var_feeling = sse_decode_opt_String(deserializer);
+    return CompanionRevisitDto(
+      eventId: var_eventId,
+      recordedAt: var_recordedAt,
+      excerpt: var_excerpt,
+      feeling: var_feeling,
+    );
+  }
+
+  @protected
   ContentChatMessageDto sse_decode_content_chat_message_dto(
     SseDeserializer deserializer,
   ) {
@@ -10510,11 +10731,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_entries = sse_decode_list_daily_entry_dto(deserializer);
     var var_review = sse_decode_opt_box_autoadd_daily_review_dto(deserializer);
     var var_todos = sse_decode_list_todo_dto(deserializer);
+    var var_reminderHits = sse_decode_list_rule_hit_dto(deserializer);
+    var var_memoryEcho = sse_decode_list_memory_echo_dto(deserializer);
     return DailyOverviewDto(
       date: var_date,
       entries: var_entries,
       review: var_review,
       todos: var_todos,
+      reminderHits: var_reminderHits,
+      memoryEcho: var_memoryEcho,
     );
   }
 
@@ -11752,6 +11977,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<MemoryEchoDto> sse_decode_list_memory_echo_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <MemoryEchoDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_memory_echo_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -12113,6 +12352,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MemoryEchoDto sse_decode_memory_echo_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventId = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_rawText = sse_decode_String(deserializer);
+    return MemoryEchoDto(
+      eventId: var_eventId,
+      recordedAt: var_recordedAt,
+      rawText: var_rawText,
+    );
+  }
+
+  @protected
   MessageDto sse_decode_message_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -12249,6 +12501,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_chat_run_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  CompanionRevisitDto? sse_decode_opt_box_autoadd_companion_revisit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_companion_revisit_dto(deserializer));
     } else {
       return null;
     }
@@ -12681,12 +12946,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_ruleContent = sse_decode_String(deserializer);
     var var_status = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_String(deserializer);
+    var var_feedback = sse_decode_opt_String(deserializer);
     return RuleHitDto(
       id: var_id,
       ruleId: var_ruleId,
       ruleContent: var_ruleContent,
       status: var_status,
       createdAt: var_createdAt,
+      feedback: var_feedback,
     );
   }
 
@@ -13462,6 +13729,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_companion_revisit_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_conversation_dto(
     ConversationDto self,
     SseSerializer serializer,
@@ -13707,6 +13983,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_companion_prefs_dto(
+    CompanionPrefsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.revisitEnabled, serializer);
+    sse_encode_i_64(self.revisitIntervalDays, serializer);
+  }
+
+  @protected
+  void sse_encode_companion_revisit_dto(
+    CompanionRevisitDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_String(self.excerpt, serializer);
+    sse_encode_opt_String(self.feeling, serializer);
+  }
+
+  @protected
   void sse_encode_content_chat_message_dto(
     ContentChatMessageDto self,
     SseSerializer serializer,
@@ -13758,6 +14056,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_daily_entry_dto(self.entries, serializer);
     sse_encode_opt_box_autoadd_daily_review_dto(self.review, serializer);
     sse_encode_list_todo_dto(self.todos, serializer);
+    sse_encode_list_rule_hit_dto(self.reminderHits, serializer);
+    sse_encode_list_memory_echo_dto(self.memoryEcho, serializer);
   }
 
   @protected
@@ -14677,6 +14977,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_memory_echo_dto(
+    List<MemoryEchoDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_memory_echo_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_message_dto(
     List<MessageDto> self,
     SseSerializer serializer,
@@ -14997,6 +15309,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_memory_echo_dto(
+    MemoryEchoDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_String(self.rawText, serializer);
+  }
+
+  @protected
   void sse_encode_message_dto(MessageDto self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -15098,6 +15421,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_chat_run_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_companion_revisit_dto(self, serializer);
     }
   }
 
@@ -15457,6 +15793,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.ruleContent, serializer);
     sse_encode_String(self.status, serializer);
     sse_encode_String(self.createdAt, serializer);
+    sse_encode_opt_String(self.feedback, serializer);
   }
 
   @protected

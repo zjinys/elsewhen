@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1951429955;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1273475220;
 
 // Section: executor
 
@@ -462,6 +462,27 @@ fn wire__crate__api__sync__cancel_owner_sync_invitation_impl(
                     (move || {
                         let output_ok =
                             crate::api::sync::cancel_owner_sync_invitation(api_invitation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__check_companion_revisit_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "check_companion_revisit",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::check_companion_revisit()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1581,6 +1602,27 @@ fn wire__crate__api__conversations__get_child_messages_impl(
                     (move || {
                         let output_ok =
                             crate::api::conversations::get_child_messages(api_parent_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__get_companion_prefs_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_companion_prefs",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::get_companion_prefs()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4805,6 +4847,32 @@ fn wire__crate__api__provider_config__set_active_ai_provider_config_impl(
         },
     )
 }
+fn wire__crate__api__set_companion_prefs_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    enabled: impl CstDecode<bool>,
+    interval_days: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_companion_prefs",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_enabled = enabled.cst_decode();
+            let api_interval_days = interval_days.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::set_companion_prefs(api_enabled, api_interval_days)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__conversations__set_conversation_archived_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     conversation_id: impl CstDecode<String>,
@@ -4880,6 +4948,32 @@ fn wire__crate__api__knowledge_workflows__set_knowledge_reading_state_impl(
                             crate::api::knowledge_workflows::set_knowledge_reading_state(
                                 api_slug, api_state,
                             )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__rules__set_rule_hit_feedback_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    feedback: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_rule_hit_feedback",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_feedback = feedback.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::rules::set_rule_hit_feedback(api_id, api_feedback)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6017,6 +6111,34 @@ impl SseDecode for crate::api::chat_runs::ChatRunEventPageDto {
     }
 }
 
+impl SseDecode for crate::api::CompanionPrefsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_revisitEnabled = <bool>::sse_decode(deserializer);
+        let mut var_revisitIntervalDays = <i64>::sse_decode(deserializer);
+        return crate::api::CompanionPrefsDto {
+            revisit_enabled: var_revisitEnabled,
+            revisit_interval_days: var_revisitIntervalDays,
+        };
+    }
+}
+
+impl SseDecode for crate::api::CompanionRevisitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_eventId = <String>::sse_decode(deserializer);
+        let mut var_recordedAt = <String>::sse_decode(deserializer);
+        let mut var_excerpt = <String>::sse_decode(deserializer);
+        let mut var_feeling = <Option<String>>::sse_decode(deserializer);
+        return crate::api::CompanionRevisitDto {
+            event_id: var_eventId,
+            recorded_at: var_recordedAt,
+            excerpt: var_excerpt,
+            feeling: var_feeling,
+        };
+    }
+}
+
 impl SseDecode for crate::api::tweet::ContentChatMessageDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6084,11 +6206,15 @@ impl SseDecode for crate::api::DailyOverviewDto {
         let mut var_entries = <Vec<crate::api::DailyEntryDto>>::sse_decode(deserializer);
         let mut var_review = <Option<crate::api::DailyReviewDto>>::sse_decode(deserializer);
         let mut var_todos = <Vec<crate::api::todos::TodoDto>>::sse_decode(deserializer);
+        let mut var_reminderHits = <Vec<crate::api::rules::RuleHitDto>>::sse_decode(deserializer);
+        let mut var_memoryEcho = <Vec<crate::api::MemoryEchoDto>>::sse_decode(deserializer);
         return crate::api::DailyOverviewDto {
             date: var_date,
             entries: var_entries,
             review: var_review,
             todos: var_todos,
+            reminder_hits: var_reminderHits,
+            memory_echo: var_memoryEcho,
         };
     }
 }
@@ -7328,6 +7454,18 @@ impl SseDecode for Vec<crate::knowledge::workflows::LibraryEntry> {
     }
 }
 
+impl SseDecode for Vec<crate::api::MemoryEchoDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::MemoryEchoDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::conversations::MessageDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7690,6 +7828,20 @@ impl SseDecode for crate::api::sync::LocalSyncStateDto {
     }
 }
 
+impl SseDecode for crate::api::MemoryEchoDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_eventId = <String>::sse_decode(deserializer);
+        let mut var_recordedAt = <String>::sse_decode(deserializer);
+        let mut var_rawText = <String>::sse_decode(deserializer);
+        return crate::api::MemoryEchoDto {
+            event_id: var_eventId,
+            recorded_at: var_recordedAt,
+            raw_text: var_rawText,
+        };
+    }
+}
+
 impl SseDecode for crate::api::conversations::MessageDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7824,6 +7976,17 @@ impl SseDecode for Option<crate::api::chat_runs::ChatRunDto> {
             return Some(<crate::api::chat_runs::ChatRunDto>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::CompanionRevisitDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::CompanionRevisitDto>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -8249,12 +8412,14 @@ impl SseDecode for crate::api::rules::RuleHitDto {
         let mut var_ruleContent = <String>::sse_decode(deserializer);
         let mut var_status = <String>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_feedback = <Option<String>>::sse_decode(deserializer);
         return crate::api::rules::RuleHitDto {
             id: var_id,
             rule_id: var_ruleId,
             rule_content: var_ruleContent,
             status: var_status,
             created_at: var_createdAt,
+            feedback: var_feedback,
         };
     }
 }
@@ -9235,6 +9400,47 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::chat_runs::ChatRunEventPageDt
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::CompanionPrefsDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.revisit_enabled.into_into_dart().into_dart(),
+            self.revisit_interval_days.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::CompanionPrefsDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::CompanionPrefsDto>
+    for crate::api::CompanionPrefsDto
+{
+    fn into_into_dart(self) -> crate::api::CompanionPrefsDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::CompanionRevisitDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.event_id.into_into_dart().into_dart(),
+            self.recorded_at.into_into_dart().into_dart(),
+            self.excerpt.into_into_dart().into_dart(),
+            self.feeling.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::CompanionRevisitDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::CompanionRevisitDto>
+    for crate::api::CompanionRevisitDto
+{
+    fn into_into_dart(self) -> crate::api::CompanionRevisitDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::tweet::ContentChatMessageDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -9312,6 +9518,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::DailyOverviewDto {
             self.entries.into_into_dart().into_dart(),
             self.review.into_into_dart().into_dart(),
             self.todos.into_into_dart().into_dart(),
+            self.reminder_hits.into_into_dart().into_dart(),
+            self.memory_echo.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -10198,6 +10406,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::LocalSyncStateDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::MemoryEchoDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.event_id.into_into_dart().into_dart(),
+            self.recorded_at.into_into_dart().into_dart(),
+            self.raw_text.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::MemoryEchoDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::MemoryEchoDto> for crate::api::MemoryEchoDto {
+    fn into_into_dart(self) -> crate::api::MemoryEchoDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::conversations::MessageDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -10563,6 +10788,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::rules::RuleHitDto {
             self.rule_content.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
+            self.feedback.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -11452,6 +11678,24 @@ impl SseEncode for crate::api::chat_runs::ChatRunEventPageDto {
     }
 }
 
+impl SseEncode for crate::api::CompanionPrefsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.revisit_enabled, serializer);
+        <i64>::sse_encode(self.revisit_interval_days, serializer);
+    }
+}
+
+impl SseEncode for crate::api::CompanionRevisitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.event_id, serializer);
+        <String>::sse_encode(self.recorded_at, serializer);
+        <String>::sse_encode(self.excerpt, serializer);
+        <Option<String>>::sse_encode(self.feeling, serializer);
+    }
+}
+
 impl SseEncode for crate::api::tweet::ContentChatMessageDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11495,6 +11739,8 @@ impl SseEncode for crate::api::DailyOverviewDto {
         <Vec<crate::api::DailyEntryDto>>::sse_encode(self.entries, serializer);
         <Option<crate::api::DailyReviewDto>>::sse_encode(self.review, serializer);
         <Vec<crate::api::todos::TodoDto>>::sse_encode(self.todos, serializer);
+        <Vec<crate::api::rules::RuleHitDto>>::sse_encode(self.reminder_hits, serializer);
+        <Vec<crate::api::MemoryEchoDto>>::sse_encode(self.memory_echo, serializer);
     }
 }
 
@@ -12319,6 +12565,16 @@ impl SseEncode for Vec<crate::knowledge::workflows::LibraryEntry> {
     }
 }
 
+impl SseEncode for Vec<crate::api::MemoryEchoDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::MemoryEchoDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::conversations::MessageDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12587,6 +12843,15 @@ impl SseEncode for crate::api::sync::LocalSyncStateDto {
     }
 }
 
+impl SseEncode for crate::api::MemoryEchoDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.event_id, serializer);
+        <String>::sse_encode(self.recorded_at, serializer);
+        <String>::sse_encode(self.raw_text, serializer);
+    }
+}
+
 impl SseEncode for crate::api::conversations::MessageDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12677,6 +12942,16 @@ impl SseEncode for Option<crate::api::chat_runs::ChatRunDto> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::chat_runs::ChatRunDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::CompanionRevisitDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::CompanionRevisitDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -12985,6 +13260,7 @@ impl SseEncode for crate::api::rules::RuleHitDto {
         <String>::sse_encode(self.rule_content, serializer);
         <String>::sse_encode(self.status, serializer);
         <String>::sse_encode(self.created_at, serializer);
+        <Option<String>>::sse_encode(self.feedback, serializer);
     }
 }
 
@@ -13498,6 +13774,13 @@ mod io {
             CstDecode::<crate::api::chat_runs::ChatRunDto>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<crate::api::CompanionRevisitDto> for *mut wire_cst_companion_revisit_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::CompanionRevisitDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::CompanionRevisitDto>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<crate::api::conversations::ConversationDto> for *mut wire_cst_conversation_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::conversations::ConversationDto {
@@ -13721,6 +14004,26 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::CompanionPrefsDto> for wire_cst_companion_prefs_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::CompanionPrefsDto {
+            crate::api::CompanionPrefsDto {
+                revisit_enabled: self.revisit_enabled.cst_decode(),
+                revisit_interval_days: self.revisit_interval_days.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::CompanionRevisitDto> for wire_cst_companion_revisit_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::CompanionRevisitDto {
+            crate::api::CompanionRevisitDto {
+                event_id: self.event_id.cst_decode(),
+                recorded_at: self.recorded_at.cst_decode(),
+                excerpt: self.excerpt.cst_decode(),
+                feeling: self.feeling.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::tweet::ContentChatMessageDto> for wire_cst_content_chat_message_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::tweet::ContentChatMessageDto {
@@ -13768,6 +14071,8 @@ mod io {
                 entries: self.entries.cst_decode(),
                 review: self.review.cst_decode(),
                 todos: self.todos.cst_decode(),
+                reminder_hits: self.reminder_hits.cst_decode(),
+                memory_echo: self.memory_echo.cst_decode(),
             }
         }
     }
@@ -14643,6 +14948,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::MemoryEchoDto>> for *mut wire_cst_list_memory_echo_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::MemoryEchoDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::conversations::MessageDto>> for *mut wire_cst_list_message_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::conversations::MessageDto> {
@@ -14943,6 +15258,16 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::MemoryEchoDto> for wire_cst_memory_echo_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::MemoryEchoDto {
+            crate::api::MemoryEchoDto {
+                event_id: self.event_id.cst_decode(),
+                recorded_at: self.recorded_at.cst_decode(),
+                raw_text: self.raw_text.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::conversations::MessageDto> for wire_cst_message_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::conversations::MessageDto {
@@ -15161,6 +15486,7 @@ mod io {
                 rule_content: self.rule_content.cst_decode(),
                 status: self.status.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+                feedback: self.feedback.cst_decode(),
             }
         }
     }
@@ -15778,6 +16104,34 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_companion_prefs_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                revisit_enabled: Default::default(),
+                revisit_interval_days: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_companion_prefs_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_companion_revisit_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                event_id: core::ptr::null_mut(),
+                recorded_at: core::ptr::null_mut(),
+                excerpt: core::ptr::null_mut(),
+                feeling: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_companion_revisit_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_content_chat_message_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -15836,6 +16190,8 @@ mod io {
                 entries: core::ptr::null_mut(),
                 review: core::ptr::null_mut(),
                 todos: core::ptr::null_mut(),
+                reminder_hits: core::ptr::null_mut(),
+                memory_echo: core::ptr::null_mut(),
             }
         }
     }
@@ -16461,6 +16817,20 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_memory_echo_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                event_id: core::ptr::null_mut(),
+                recorded_at: core::ptr::null_mut(),
+                raw_text: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_memory_echo_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_message_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -16735,6 +17105,7 @@ mod io {
                 rule_content: core::ptr::null_mut(),
                 status: core::ptr::null_mut(),
                 created_at: core::ptr::null_mut(),
+                feedback: core::ptr::null_mut(),
             }
         }
     }
@@ -17376,6 +17747,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__check_companion_revisit(port_: i64) {
+        wire__crate__api__check_companion_revisit_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__confirm_knowledge_draft(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -17814,6 +18190,11 @@ mod io {
         parent_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__conversations__get_child_messages_impl(port_, parent_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_companion_prefs(port_: i64) {
+        wire__crate__api__get_companion_prefs_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -18966,6 +19347,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__set_companion_prefs(
+        port_: i64,
+        enabled: bool,
+        interval_days: i64,
+    ) {
+        wire__crate__api__set_companion_prefs_impl(port_, enabled, interval_days)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__set_conversation_archived(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -18994,6 +19384,15 @@ mod io {
         state: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__knowledge_workflows__set_knowledge_reading_state_impl(port_, slug, state)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__set_rule_hit_feedback(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        feedback: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__rules__set_rule_hit_feedback_impl(port_, id, feedback)
     }
 
     #[unsafe(no_mangle)]
@@ -19318,6 +19717,14 @@ mod io {
     -> *mut wire_cst_chat_run_dto {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_chat_run_dto::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_companion_revisit_dto()
+    -> *mut wire_cst_companion_revisit_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_companion_revisit_dto::new_with_null_ptr(),
         )
     }
 
@@ -19895,6 +20302,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_memory_echo_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_memory_echo_dto {
+        let wrap = wire_cst_list_memory_echo_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_memory_echo_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_message_dto(
         len: i32,
     ) -> *mut wire_cst_list_message_dto {
@@ -20409,6 +20830,20 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_companion_prefs_dto {
+        revisit_enabled: bool,
+        revisit_interval_days: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_companion_revisit_dto {
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+        recorded_at: *mut wire_cst_list_prim_u_8_strict,
+        excerpt: *mut wire_cst_list_prim_u_8_strict,
+        feeling: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_content_chat_message_dto {
         role: *mut wire_cst_list_prim_u_8_strict,
         content: *mut wire_cst_list_prim_u_8_strict,
@@ -20444,6 +20879,8 @@ mod io {
         entries: *mut wire_cst_list_daily_entry_dto,
         review: *mut wire_cst_daily_review_dto,
         todos: *mut wire_cst_list_todo_dto,
+        reminder_hits: *mut wire_cst_list_rule_hit_dto,
+        memory_echo: *mut wire_cst_list_memory_echo_dto,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -21042,6 +21479,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_memory_echo_dto {
+        ptr: *mut wire_cst_memory_echo_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_message_dto {
         ptr: *mut wire_cst_message_dto,
         len: i32,
@@ -21212,6 +21655,13 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_memory_echo_dto {
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+        recorded_at: *mut wire_cst_list_prim_u_8_strict,
+        raw_text: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_message_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -21379,6 +21829,7 @@ mod io {
         rule_content: *mut wire_cst_list_prim_u_8_strict,
         status: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+        feedback: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -22042,6 +22493,48 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::CompanionPrefsDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::CompanionPrefsDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::CompanionPrefsDto {
+                revisit_enabled: self_.get(0).cst_decode(),
+                revisit_interval_days: self_.get(1).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::CompanionRevisitDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::CompanionRevisitDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                4,
+                "Expected 4 elements, got {}",
+                self_.length()
+            );
+            crate::api::CompanionRevisitDto {
+                event_id: self_.get(0).cst_decode(),
+                recorded_at: self_.get(1).cst_decode(),
+                excerpt: self_.get(2).cst_decode(),
+                feeling: self_.get(3).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::tweet::ContentChatMessageDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -22124,8 +22617,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                4,
-                "Expected 4 elements, got {}",
+                6,
+                "Expected 6 elements, got {}",
                 self_.length()
             );
             crate::api::DailyOverviewDto {
@@ -22133,6 +22626,8 @@ mod web {
                 entries: self_.get(1).cst_decode(),
                 review: self_.get(2).cst_decode(),
                 todos: self_.get(3).cst_decode(),
+                reminder_hits: self_.get(4).cst_decode(),
+                memory_echo: self_.get(5).cst_decode(),
             }
         }
     }
@@ -23354,6 +23849,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::MemoryEchoDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::MemoryEchoDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::conversations::MessageDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -23667,6 +24174,27 @@ mod web {
                 is_processor: self_.get(7).cst_decode(),
                 active_peers: self_.get(8).cst_decode(),
                 pending_operations: self_.get(9).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::MemoryEchoDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::MemoryEchoDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                3,
+                "Expected 3 elements, got {}",
+                self_.length()
+            );
+            crate::api::MemoryEchoDto {
+                event_id: self_.get(0).cst_decode(),
+                recorded_at: self_.get(1).cst_decode(),
+                raw_text: self_.get(2).cst_decode(),
             }
         }
     }
@@ -24054,8 +24582,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                5,
-                "Expected 5 elements, got {}",
+                6,
+                "Expected 6 elements, got {}",
                 self_.length()
             );
             crate::api::rules::RuleHitDto {
@@ -24064,6 +24592,7 @@ mod web {
                 rule_content: self_.get(2).cst_decode(),
                 status: self_.get(3).cst_decode(),
                 created_at: self_.get(4).cst_decode(),
+                feedback: self_.get(5).cst_decode(),
             }
         }
     }
@@ -24949,6 +25478,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__check_companion_revisit(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__check_companion_revisit_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__confirm_knowledge_draft(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
@@ -25389,6 +25925,13 @@ mod web {
         parent_id: String,
     ) {
         wire__crate__api__conversations__get_child_messages_impl(port_, parent_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__get_companion_prefs(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__get_companion_prefs_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -26567,6 +27110,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__set_companion_prefs(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        enabled: bool,
+        interval_days: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__set_companion_prefs_impl(port_, enabled, interval_days)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__set_conversation_archived(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
@@ -26595,6 +27147,15 @@ mod web {
         state: String,
     ) {
         wire__crate__api__knowledge_workflows__set_knowledge_reading_state_impl(port_, slug, state)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__rules__set_rule_hit_feedback(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        feedback: Option<String>,
+    ) {
+        wire__crate__api__rules__set_rule_hit_feedback_impl(port_, id, feedback)
     }
 
     #[wasm_bindgen]

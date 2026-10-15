@@ -101,6 +101,8 @@ pub struct RuleHitDto {
     pub rule_content: String,
     pub status: String,
     pub created_at: String,
+    /// 采纳反馈（D6 闭环度量）：helpful / not_relevant / 未反馈 NULL。
+    pub feedback: Option<String>,
 }
 
 fn hit_dto(hv: crate::storage::rule_triggers::RuleHitView) -> RuleHitDto {
@@ -110,6 +112,7 @@ fn hit_dto(hv: crate::storage::rule_triggers::RuleHitView) -> RuleHitDto {
         rule_content: hv.rule_content,
         status: hv.status,
         created_at: hv.created_at,
+        feedback: hv.feedback,
     }
 }
 
@@ -122,6 +125,23 @@ pub fn list_event_rule_hits(event_id: String) -> Result<Vec<RuleHitDto>> {
         .into_iter()
         .map(hit_dto)
         .collect())
+}
+
+/// 用户对单条提醒的采纳反馈（D6 只记录不推断）：Some("helpful"|"not_relevant")
+/// 记录；None 清除反馈。命中行不存在或非已处置状态时 fail-closed。
+pub fn set_rule_hit_feedback(id: String, feedback: Option<String>) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let id = id.trim();
+    anyhow::ensure!(!id.is_empty(), "命中 id 不能为空");
+    let fb = feedback.as_deref().map(str::trim).filter(|f| !f.is_empty());
+    if feedback.is_some() && fb.is_none() {
+        anyhow::bail!("feedback 不能为空字符串");
+    }
+    if !store.set_rule_hit_feedback(id, fb)? {
+        anyhow::bail!("命中不存在或不可反馈");
+    }
+    Ok(())
 }
 
 /// 最近的即时提醒与聚合（今日提醒列表 / 每日回顾读面）。

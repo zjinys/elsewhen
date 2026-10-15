@@ -43,7 +43,11 @@ class RuleHit {
     required this.ruleContent,
     required this.status,
     required this.createdAt,
+    this.feedback,
   });
+
+  /// （D6 闭环度量）：helpful / not_relevant / 未反馈 null。
+  final String? feedback;
 
   bool get isNotified => status == 'notified';
 }

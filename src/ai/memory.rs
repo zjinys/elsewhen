@@ -295,6 +295,53 @@ fn recent_background(store: &Store, conversation_id: &str) -> Result<Option<Cont
     Ok(Some(message))
 }
 
+/// 今日记忆真检索（决策辅助 D6，合并今日记忆提案）：把今天记录下来的
+/// 事件原文作为可选背景注入,让 AI 回答「今天记了什么」时是在真检索,
+/// 不是靠模型推断编造。红线：只呈现原文快照,不评价不汇总;没有记录时
+/// 不注入（AI 无素材,由基础角色的零编造约束兜底,不为此每次多花一段）。
+/// knowledge_mentor / 知识库页对话模式跳过（与 recent_background 同口径）。
+fn today_memory_background(store: &Store, conversation_id: &str) -> Result<Option<ContextMessage>> {
+    let is_knowledge_mentor = store
+        .get_conversation(conversation_id)?
+        .is_some_and(|c| c.assistant_mode == "knowledge_mentor" || c.wiki_page_slug.is_some());
+    if is_knowledge_mentor {
+        return Ok(None);
+    }
+    let today = chrono::Local::now().date_naive();
+    let mut entries: Vec<(String, String)> = store
+        .daily_entries(today)?
+        .into_iter()
+        .map(|entry| (entry.recorded_at, entry.raw_text))
+        .collect();
+    if entries.is_empty() {
+        return Ok(None);
+    }
+    // 记录时间正序呈现（今天一整天的时间线）。
+    entries.reverse();
+    let mut prompt = String::from(
+        "今天（本地日期）记录下来的原始条目（真检索快照，按记录顺序；被问到今天记了什么时据实转述，只呈现不评价）：\n",
+    );
+    let mut count = 0;
+    for (recorded_at, raw_text) in entries {
+        let time = chrono::DateTime::parse_from_rfc3339(&recorded_at)
+            .map(|dt| dt.with_timezone(&chrono::Local).format("%H:%M").to_string())
+            .unwrap_or_else(|_| String::new());
+        let text: String = raw_text.chars().take(160).collect();
+        prompt.push_str(&format!("- {time} {text}\n"));
+        count += 1;
+        if count >= 12 {
+            break;
+        }
+    }
+    let message = ContextMessage::new("system", prompt).with_segment(
+        SegmentPurpose::CrossConversation,
+        SegmentOrigin::StoredMessage,
+        Some("today-recorded-events"),
+        OmissionPolicy::OptionalBackground,
+    );
+    Ok(Some(message))
+}
+
 /// 组装 system 消息：基础角色设定 + 一段抓取内容（内容对话用，
 /// 让 AI 围绕抓取到的原文回答问题，不评价来源平台）
 pub fn build_content_system_prompt(content: &str) -> ContextMessage {
@@ -348,8 +395,13 @@ impl MemoryProvider for SimpleMemory {
 
         // 角色设定置于最前，防止 AI 泛化成通用聊天助手
         context.splice(0..0, build_system_context(store, conversation_id)?);
+        let mut next_index = 1usize;
         if let Some(background) = recent_background(store, conversation_id)? {
-            context.insert(1, background);
+            context.insert(next_index, background);
+            next_index += 1;
+        }
+        if let Some(today) = today_memory_background(store, conversation_id)? {
+            context.insert(next_index, today);
         }
 
         Ok(context)
@@ -552,8 +604,13 @@ pub(crate) fn prepare_uncompressed_context(
         .map(ContextMessage::from_record)
         .collect();
     context.splice(0..0, build_system_context(store, conversation_id)?);
+    let mut next_index = 1usize;
     if let Some(background) = recent_background(store, conversation_id)? {
-        context.insert(1, background);
+        context.insert(next_index, background);
+        next_index += 1;
+    }
+    if let Some(today) = today_memory_background(store, conversation_id)? {
+        context.insert(next_index, today);
     }
     Ok(context)
 }
@@ -567,8 +624,13 @@ impl MemoryProvider for SlidingWindowMemory {
             .map(ContextMessage::from_record)
             .collect();
         context.splice(0..0, build_system_context(store, conversation_id)?);
+        let mut next_index = 1usize;
         if let Some(background) = recent_background(store, conversation_id)? {
-            context.insert(1, background);
+            context.insert(next_index, background);
+            next_index += 1;
+        }
+        if let Some(today) = today_memory_background(store, conversation_id)? {
+            context.insert(next_index, today);
         }
         compress_context_for_model(&mut context, self.max_tokens, &self.model);
 
@@ -606,6 +668,38 @@ mod tests {
             )
             .unwrap();
         (store, conversation_id, path)
+    }
+
+    /// D6 今日记忆真检索：当日事件注入为可选背景段；没有记录时不注入。
+    #[test]
+    fn today_memory_background_is_real_retrieval() {
+        let (store, conversation, path) = setup_store();
+        // 会话里那段消息不算事件；事件库今天还没有记录 → 不注入
+        assert!(
+            today_memory_background(&store, &conversation)
+                .unwrap()
+                .is_none()
+        );
+        let event = store
+            .insert_event(crate::event::NewEvent::now("今天跑了五公里"))
+            .unwrap();
+        let _ = event;
+        let today = today_memory_background(&store, &conversation)
+            .unwrap()
+            .expect("今天有记录时应注入");
+        assert!(today.content.contains("今天跑了五公里"));
+        assert!(today.content.contains("真检索"));
+        // 注入段是可选背景：预算紧张时允许被整体省略
+        let context = SimpleMemory::new(1)
+            .prepare_context(&conversation, &store)
+            .unwrap();
+        let idx = context
+            .iter()
+            .position(|m| m.optional_background && m.content.contains("今天跑了五公里"));
+        assert!(idx.is_some(), "正常预算下今天记忆段应在上下文里");
+        assert!(idx.unwrap() >= 1, "今天的记忆应排在 system 角色设定之后");
+        drop(store);
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]

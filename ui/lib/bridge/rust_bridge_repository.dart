@@ -499,6 +499,19 @@ class RustBridgeRepository implements StorageRepository {
 
   Future<String> getRuleTriggerMode() => api.getRuleTriggerMode();
 
+  /// D6 采纳反馈：记录 / 清除（feedback 传 null）。
+  Future<void> setRuleHitFeedback(String id, String? feedback) =>
+      api.setRuleHitFeedback(id: id, feedback: feedback);
+
+  /// D6 情感回访：读 / 写偏好；打开应用时的一次检查。
+  Future<api.CompanionPrefsDto> getCompanionPrefs() => api.getCompanionPrefs();
+  Future<void> setCompanionPrefs({
+    required bool enabled,
+    required int intervalDays,
+  }) => api.setCompanionPrefs(enabled: enabled, intervalDays: intervalDays);
+  Future<api.CompanionRevisitDto?> checkCompanionRevisit() =>
+      api.checkCompanionRevisit();
+
   /// 最近的即时提醒与聚合（规则库设置的「最近提醒」读面）。
   Future<List<RuleHit>> listRecentRuleHits({int limit = 8}) => api
       .listRecentRuleHits(limit: limit)
@@ -511,6 +524,7 @@ class RustBridgeRepository implements StorageRepository {
                 ruleContent: dto.ruleContent,
                 status: dto.status,
                 createdAt: DateTime.parse(dto.createdAt).toLocal(),
+                feedback: dto.feedback,
               ),
             )
             .toList(),

@@ -96,6 +96,41 @@ void main() {
     }
   });
 
+  test('D6 采纳反馈：不存在的命中 fail-closed，反馈面可调用', () async {
+    // fail-closed：不存在的 hit id 必须 bail 而不是静默成功
+    await expectLater(
+      repo.setRuleHitFeedback('no-such-hit-id', 'helpful'),
+      throwsA(isA<Object>()),
+    );
+    // 接口可用性：对空/失败读面返回结构正确列表
+    final hits = await repo.listRecentRuleHits(limit: 5);
+    expect(hits, isA<List<dynamic>>());
+  });
+
+  test('D6 情感回访：偏好读写往返 + 检查面可用', () async {
+    try {
+      await repo.setCompanionPrefs(enabled: false, intervalDays: 9);
+      final prefs = await repo.getCompanionPrefs();
+      expect(prefs.revisitEnabled, isFalse);
+      expect(prefs.revisitIntervalDays, 9);
+
+      await repo.setCompanionPrefs(enabled: true, intervalDays: 14);
+      final prefs2 = await repo.getCompanionPrefs();
+      expect(prefs2.revisitEnabled, isTrue);
+      expect(prefs2.revisitIntervalDays, 14);
+
+      // 检查面：隔离库多半无素材 → null 也算成功；有素材则字段齐全
+      final item = await repo.checkCompanionRevisit();
+      if (item != null) {
+        expect(item.eventId, isNotEmpty);
+        expect(item.excerpt, isNotEmpty);
+      }
+    } finally {
+      // 恢复默认，避免污染共享库
+      await repo.setCompanionPrefs(enabled: true, intervalDays: 7);
+    }
+  });
+
   test('daily token usage returns aggregated list', () async {
     final daily = await repo.getDailyTokenUsage(7);
 

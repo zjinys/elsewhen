@@ -94,6 +94,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatRunDto dco_decode_box_autoadd_chat_run_dto(dynamic raw);
 
   @protected
+  CompanionRevisitDto dco_decode_box_autoadd_companion_revisit_dto(dynamic raw);
+
+  @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
@@ -173,6 +176,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatRunEventPageDto dco_decode_chat_run_event_page_dto(dynamic raw);
+
+  @protected
+  CompanionPrefsDto dco_decode_companion_prefs_dto(dynamic raw);
+
+  @protected
+  CompanionRevisitDto dco_decode_companion_revisit_dto(dynamic raw);
 
   @protected
   ContentChatMessageDto dco_decode_content_chat_message_dto(dynamic raw);
@@ -412,6 +421,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<LibraryEntry> dco_decode_list_library_entry(dynamic raw);
 
   @protected
+  List<MemoryEchoDto> dco_decode_list_memory_echo_dto(dynamic raw);
+
+  @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
 
   @protected
@@ -502,6 +514,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw);
 
   @protected
+  MemoryEchoDto dco_decode_memory_echo_dto(dynamic raw);
+
+  @protected
   MessageDto dco_decode_message_dto(dynamic raw);
 
   @protected
@@ -526,6 +541,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatRunDto? dco_decode_opt_box_autoadd_chat_run_dto(dynamic raw);
+
+  @protected
+  CompanionRevisitDto? dco_decode_opt_box_autoadd_companion_revisit_dto(
+    dynamic raw,
+  );
 
   @protected
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
@@ -760,6 +780,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatRunDto sse_decode_box_autoadd_chat_run_dto(SseDeserializer deserializer);
 
   @protected
+  CompanionRevisitDto sse_decode_box_autoadd_companion_revisit_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
     SseDeserializer deserializer,
   );
@@ -855,6 +880,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatRunEventPageDto sse_decode_chat_run_event_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CompanionPrefsDto sse_decode_companion_prefs_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CompanionRevisitDto sse_decode_companion_revisit_dto(
     SseDeserializer deserializer,
   );
 
@@ -1170,6 +1205,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<MemoryEchoDto> sse_decode_list_memory_echo_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
 
   @protected
@@ -1286,6 +1326,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  MemoryEchoDto sse_decode_memory_echo_dto(SseDeserializer deserializer);
+
+  @protected
   MessageDto sse_decode_message_dto(SseDeserializer deserializer);
 
   @protected
@@ -1316,6 +1359,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatRunDto? sse_decode_opt_box_autoadd_chat_run_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CompanionRevisitDto? sse_decode_opt_box_autoadd_companion_revisit_dto(
     SseDeserializer deserializer,
   );
 
@@ -1673,6 +1721,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_box_autoadd_companion_revisit_dto(CompanionRevisitDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_companion_revisit_dto(raw);
+  }
+
+  @protected
   JSAny cst_encode_box_autoadd_conversation_dto(ConversationDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_conversation_dto(raw);
@@ -1886,6 +1940,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_companion_prefs_dto(CompanionPrefsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.revisitEnabled),
+      cst_encode_i_64(raw.revisitIntervalDays),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_companion_revisit_dto(CompanionRevisitDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_String(raw.excerpt),
+      cst_encode_opt_String(raw.feeling),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_content_chat_message_dto(ContentChatMessageDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -1932,6 +2006,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_daily_entry_dto(raw.entries),
       cst_encode_opt_box_autoadd_daily_review_dto(raw.review),
       cst_encode_list_todo_dto(raw.todos),
+      cst_encode_list_rule_hit_dto(raw.reminderHits),
+      cst_encode_list_memory_echo_dto(raw.memoryEcho),
     ].jsify()!;
   }
 
@@ -2640,6 +2716,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_memory_echo_dto(List<MemoryEchoDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_memory_echo_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_message_dto(List<MessageDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_message_dto).toList().jsify()!;
@@ -2823,6 +2905,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_memory_echo_dto(MemoryEchoDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_String(raw.rawText),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_message_dto(MessageDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2906,6 +2998,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_chat_run_dto(ChatRunDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_chat_run_dto(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_companion_revisit_dto(raw);
   }
 
   @protected
@@ -3181,6 +3283,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.ruleContent),
       cst_encode_String(raw.status),
       cst_encode_String(raw.createdAt),
+      cst_encode_opt_String(raw.feedback),
     ].jsify()!;
   }
 
@@ -3632,6 +3735,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_conversation_dto(
     ConversationDto self,
     SseSerializer serializer,
@@ -3757,6 +3866,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_chat_run_event_page_dto(
     ChatRunEventPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_companion_prefs_dto(
+    CompanionPrefsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_companion_revisit_dto(
+    CompanionRevisitDto self,
     SseSerializer serializer,
   );
 
@@ -4154,6 +4275,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_memory_echo_dto(
+    List<MemoryEchoDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_message_dto(
     List<MessageDto> self,
     SseSerializer serializer,
@@ -4307,6 +4434,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_memory_echo_dto(MemoryEchoDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_message_dto(MessageDto self, SseSerializer serializer);
 
   @protected
@@ -4342,6 +4472,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_chat_run_dto(
     ChatRunDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto? self,
     SseSerializer serializer,
   );
 
@@ -4802,6 +4938,9 @@ class RustLibWire implements BaseWire {
     invitation_id,
   );
 
+  void wire__crate__api__check_companion_revisit(NativePortType port_) =>
+      wasmModule.wire__crate__api__check_companion_revisit(port_);
+
   void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
@@ -5176,6 +5315,9 @@ class RustLibWire implements BaseWire {
     port_,
     parent_id,
   );
+
+  void wire__crate__api__get_companion_prefs(NativePortType port_) =>
+      wasmModule.wire__crate__api__get_companion_prefs(port_);
 
   void wire__crate__api__conversations__get_conversation(
     NativePortType port_,
@@ -6183,6 +6325,16 @@ class RustLibWire implements BaseWire {
         revision_token,
       );
 
+  void wire__crate__api__set_companion_prefs(
+    NativePortType port_,
+    bool enabled,
+    JSAny interval_days,
+  ) => wasmModule.wire__crate__api__set_companion_prefs(
+    port_,
+    enabled,
+    interval_days,
+  );
+
   void wire__crate__api__conversations__set_conversation_archived(
     NativePortType port_,
     String conversation_id,
@@ -6213,6 +6365,16 @@ class RustLibWire implements BaseWire {
         slug,
         state,
       );
+
+  void wire__crate__api__rules__set_rule_hit_feedback(
+    NativePortType port_,
+    String id,
+    String? feedback,
+  ) => wasmModule.wire__crate__api__rules__set_rule_hit_feedback(
+    port_,
+    id,
+    feedback,
+  );
 
   void wire__crate__api__rules__set_rule_trigger(
     NativePortType port_,
@@ -6583,6 +6745,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String invitation_id,
   );
 
+  external void wire__crate__api__check_companion_revisit(NativePortType port_);
+
   external void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
@@ -6830,6 +6994,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String parent_id,
   );
+
+  external void wire__crate__api__get_companion_prefs(NativePortType port_);
 
   external void wire__crate__api__conversations__get_conversation(
     NativePortType port_,
@@ -7511,6 +7677,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? revision_token,
   );
 
+  external void wire__crate__api__set_companion_prefs(
+    NativePortType port_,
+    bool enabled,
+    JSAny interval_days,
+  );
+
   external void wire__crate__api__conversations__set_conversation_archived(
     NativePortType port_,
     String conversation_id,
@@ -7528,6 +7700,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     String state,
+  );
+
+  external void wire__crate__api__rules__set_rule_hit_feedback(
+    NativePortType port_,
+    String id,
+    String? feedback,
   );
 
   external void wire__crate__api__rules__set_rule_trigger(

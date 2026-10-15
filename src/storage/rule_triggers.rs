@@ -232,7 +232,7 @@ impl Store {
     /// 指定事件的命中（事件旁标记读面）。
     pub fn rule_hits_for_event(&self, event_id: &str) -> Result<Vec<RuleHitView>> {
         let mut statement = self.connection.prepare(
-            "SELECT h.id, h.rule_id, r.content, h.status, h.confidence, h.created_at
+            "SELECT h.id, h.rule_id, r.content, h.status, h.confidence, h.created_at, h.feedback
              FROM rule_hits h JOIN rules r ON r.id = h.rule_id
              WHERE h.event_id = ?1 AND h.status != 'declined'
              ORDER BY h.created_at ASC",
@@ -245,6 +245,7 @@ impl Store {
                 status: row.get(3)?,
                 confidence: row.get(4)?,
                 created_at: row.get(5)?,
+                feedback: row.get(6)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -254,7 +255,7 @@ impl Store {
     /// 最近的已处置命中（今日提醒列表 / 每日回顾聚合读面）。
     pub fn recent_rule_hits(&self, limit: i64) -> Result<Vec<RuleHitView>> {
         let mut statement = self.connection.prepare(
-            "SELECT h.id, h.rule_id, r.content, h.status, h.confidence, h.created_at
+            "SELECT h.id, h.rule_id, r.content, h.status, h.confidence, h.created_at, h.feedback
              FROM rule_hits h JOIN rules r ON r.id = h.rule_id
              WHERE h.status IN ('notified','aggregated')
              ORDER BY h.created_at DESC LIMIT ?1",
@@ -267,6 +268,54 @@ impl Store {
                 status: row.get(3)?,
                 confidence: row.get(4)?,
                 created_at: row.get(5)?,
+                feedback: row.get(6)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// 设置单条命中的采纳反馈（D6 只记录不推断）；None = 清除反馈。
+    /// 返回是否命中行（不存在/已删除 → false）。
+    pub fn set_rule_hit_feedback(&self, id: &str, feedback: Option<&str>) -> Result<bool> {
+        if let Some(feedback) = feedback {
+            anyhow::ensure!(
+                matches!(feedback, "helpful" | "not_relevant"),
+                "feedback 只能是 helpful 或 not_relevant"
+            );
+        }
+        let changed = if feedback.is_some() {
+            self.connection.execute(
+                "UPDATE rule_hits SET feedback=?1, feedback_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?2 AND status IN ('notified','aggregated')",
+                params![feedback, id],
+            )?
+        } else {
+            self.connection.execute(
+                "UPDATE rule_hits SET feedback=NULL, feedback_at=NULL WHERE id=?1",
+                params![id],
+            )?
+        };
+        Ok(changed > 0)
+    }
+
+    /// 当日已通知/已聚合命中（每日回顾勾连读面：按本地日历日过滤）。
+    pub fn rule_hits_on_day(&self, day_start: &str, day_end: &str) -> Result<Vec<RuleHitView>> {
+        let mut statement = self.connection.prepare(
+            "SELECT h.id, h.rule_id, r.content, h.status, h.confidence, h.created_at, h.feedback
+             FROM rule_hits h JOIN rules r ON r.id = h.rule_id
+             WHERE h.status IN ('notified','aggregated')
+               AND h.created_at >= ?1 AND h.created_at < ?2
+             ORDER BY h.created_at DESC LIMIT 50",
+        )?;
+        let rows = statement.query_map(params![day_start, day_end], |row| {
+            Ok(RuleHitView {
+                id: row.get(0)?,
+                rule_id: row.get(1)?,
+                rule_content: row.get(2)?,
+                status: row.get(3)?,
+                confidence: row.get(4)?,
+                created_at: row.get(5)?,
+                feedback: row.get(6)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -283,6 +332,8 @@ pub struct RuleHitView {
     pub status: String,
     pub confidence: Option<f64>,
     pub created_at: String,
+    /// 采纳反馈（D6）：helpful / not_relevant / 未反馈 NULL。
+    pub feedback: Option<String>,
 }
 
 #[cfg(test)]

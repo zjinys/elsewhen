@@ -92,6 +92,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatRunDto dco_decode_box_autoadd_chat_run_dto(dynamic raw);
 
   @protected
+  CompanionRevisitDto dco_decode_box_autoadd_companion_revisit_dto(dynamic raw);
+
+  @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
 
   @protected
@@ -171,6 +174,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatRunEventPageDto dco_decode_chat_run_event_page_dto(dynamic raw);
+
+  @protected
+  CompanionPrefsDto dco_decode_companion_prefs_dto(dynamic raw);
+
+  @protected
+  CompanionRevisitDto dco_decode_companion_revisit_dto(dynamic raw);
 
   @protected
   ContentChatMessageDto dco_decode_content_chat_message_dto(dynamic raw);
@@ -410,6 +419,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<LibraryEntry> dco_decode_list_library_entry(dynamic raw);
 
   @protected
+  List<MemoryEchoDto> dco_decode_list_memory_echo_dto(dynamic raw);
+
+  @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
 
   @protected
@@ -500,6 +512,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw);
 
   @protected
+  MemoryEchoDto dco_decode_memory_echo_dto(dynamic raw);
+
+  @protected
   MessageDto dco_decode_message_dto(dynamic raw);
 
   @protected
@@ -524,6 +539,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatRunDto? dco_decode_opt_box_autoadd_chat_run_dto(dynamic raw);
+
+  @protected
+  CompanionRevisitDto? dco_decode_opt_box_autoadd_companion_revisit_dto(
+    dynamic raw,
+  );
 
   @protected
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
@@ -758,6 +778,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatRunDto sse_decode_box_autoadd_chat_run_dto(SseDeserializer deserializer);
 
   @protected
+  CompanionRevisitDto sse_decode_box_autoadd_companion_revisit_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
     SseDeserializer deserializer,
   );
@@ -853,6 +878,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatRunEventPageDto sse_decode_chat_run_event_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CompanionPrefsDto sse_decode_companion_prefs_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CompanionRevisitDto sse_decode_companion_revisit_dto(
     SseDeserializer deserializer,
   );
 
@@ -1168,6 +1203,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<MemoryEchoDto> sse_decode_list_memory_echo_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
 
   @protected
@@ -1284,6 +1324,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  MemoryEchoDto sse_decode_memory_echo_dto(SseDeserializer deserializer);
+
+  @protected
   MessageDto sse_decode_message_dto(SseDeserializer deserializer);
 
   @protected
@@ -1314,6 +1357,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatRunDto? sse_decode_opt_box_autoadd_chat_run_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CompanionRevisitDto? sse_decode_opt_box_autoadd_companion_revisit_dto(
     SseDeserializer deserializer,
   );
 
@@ -1597,6 +1645,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_chat_run_dto();
     cst_api_fill_to_wire_chat_run_dto(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_companion_revisit_dto>
+  cst_encode_box_autoadd_companion_revisit_dto(CompanionRevisitDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_companion_revisit_dto();
+    cst_api_fill_to_wire_companion_revisit_dto(raw, ptr.ref);
     return ptr;
   }
 
@@ -2120,6 +2177,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_memory_echo_dto> cst_encode_list_memory_echo_dto(
+    List<MemoryEchoDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_memory_echo_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_memory_echo_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_message_dto> cst_encode_list_message_dto(
     List<MessageDto> raw,
   ) {
@@ -2455,6 +2524,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_companion_revisit_dto>
+  cst_encode_opt_box_autoadd_companion_revisit_dto(CompanionRevisitDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_companion_revisit_dto(raw);
+  }
+
+  @protected
   ffi.Pointer<wire_cst_conversation_dto>
   cst_encode_opt_box_autoadd_conversation_dto(ConversationDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -2701,6 +2779,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto apiObj,
+    ffi.Pointer<wire_cst_companion_revisit_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_companion_revisit_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
   void cst_api_fill_to_wire_box_autoadd_conversation_dto(
     ConversationDto apiObj,
     ffi.Pointer<wire_cst_conversation_dto> wireObj,
@@ -2910,6 +2996,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_companion_prefs_dto(
+    CompanionPrefsDto apiObj,
+    wire_cst_companion_prefs_dto wireObj,
+  ) {
+    wireObj.revisit_enabled = cst_encode_bool(apiObj.revisitEnabled);
+    wireObj.revisit_interval_days = cst_encode_i_64(apiObj.revisitIntervalDays);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_companion_revisit_dto(
+    CompanionRevisitDto apiObj,
+    wire_cst_companion_revisit_dto wireObj,
+  ) {
+    wireObj.event_id = cst_encode_String(apiObj.eventId);
+    wireObj.recorded_at = cst_encode_String(apiObj.recordedAt);
+    wireObj.excerpt = cst_encode_String(apiObj.excerpt);
+    wireObj.feeling = cst_encode_opt_String(apiObj.feeling);
+  }
+
+  @protected
   void cst_api_fill_to_wire_content_chat_message_dto(
     ContentChatMessageDto apiObj,
     wire_cst_content_chat_message_dto wireObj,
@@ -2959,6 +3065,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.entries = cst_encode_list_daily_entry_dto(apiObj.entries);
     wireObj.review = cst_encode_opt_box_autoadd_daily_review_dto(apiObj.review);
     wireObj.todos = cst_encode_list_todo_dto(apiObj.todos);
+    wireObj.reminder_hits = cst_encode_list_rule_hit_dto(apiObj.reminderHits);
+    wireObj.memory_echo = cst_encode_list_memory_echo_dto(apiObj.memoryEcho);
   }
 
   @protected
@@ -3501,6 +3609,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_memory_echo_dto(
+    MemoryEchoDto apiObj,
+    wire_cst_memory_echo_dto wireObj,
+  ) {
+    wireObj.event_id = cst_encode_String(apiObj.eventId);
+    wireObj.recorded_at = cst_encode_String(apiObj.recordedAt);
+    wireObj.raw_text = cst_encode_String(apiObj.rawText);
+  }
+
+  @protected
   void cst_api_fill_to_wire_message_dto(
     MessageDto apiObj,
     wire_cst_message_dto wireObj,
@@ -3730,6 +3848,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.rule_content = cst_encode_String(apiObj.ruleContent);
     wireObj.status = cst_encode_String(apiObj.status);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.feedback = cst_encode_opt_String(apiObj.feedback);
   }
 
   @protected
@@ -4200,6 +4319,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_conversation_dto(
     ConversationDto self,
     SseSerializer serializer,
@@ -4325,6 +4450,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_chat_run_event_page_dto(
     ChatRunEventPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_companion_prefs_dto(
+    CompanionPrefsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_companion_revisit_dto(
+    CompanionRevisitDto self,
     SseSerializer serializer,
   );
 
@@ -4722,6 +4859,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_memory_echo_dto(
+    List<MemoryEchoDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_message_dto(
     List<MessageDto> self,
     SseSerializer serializer,
@@ -4875,6 +5018,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_memory_echo_dto(MemoryEchoDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_message_dto(MessageDto self, SseSerializer serializer);
 
   @protected
@@ -4910,6 +5056,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_chat_run_dto(
     ChatRunDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto? self,
     SseSerializer serializer,
   );
 
@@ -5289,6 +5441,21 @@ class RustLibWire implements BaseWire {
   late final _cst_new_box_autoadd_chat_run_dto =
       _cst_new_box_autoadd_chat_run_dtoPtr
           .asFunction<ffi.Pointer<wire_cst_chat_run_dto> Function()>();
+
+  ffi.Pointer<wire_cst_companion_revisit_dto>
+  cst_new_box_autoadd_companion_revisit_dto() {
+    return _cst_new_box_autoadd_companion_revisit_dto();
+  }
+
+  late final _cst_new_box_autoadd_companion_revisit_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_companion_revisit_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_companion_revisit_dto');
+  late final _cst_new_box_autoadd_companion_revisit_dto =
+      _cst_new_box_autoadd_companion_revisit_dtoPtr
+          .asFunction<ffi.Pointer<wire_cst_companion_revisit_dto> Function()>();
 
   ffi.Pointer<wire_cst_conversation_dto>
   cst_new_box_autoadd_conversation_dto() {
@@ -6038,6 +6205,21 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_library_entry');
   late final _cst_new_list_library_entry = _cst_new_list_library_entryPtr
       .asFunction<ffi.Pointer<wire_cst_list_library_entry> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_memory_echo_dto> cst_new_list_memory_echo_dto(
+    int len,
+  ) {
+    return _cst_new_list_memory_echo_dto(len);
+  }
+
+  late final _cst_new_list_memory_echo_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_memory_echo_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_memory_echo_dto');
+  late final _cst_new_list_memory_echo_dto = _cst_new_list_memory_echo_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_memory_echo_dto> Function(int)>();
 
   ffi.Pointer<wire_cst_list_message_dto> cst_new_list_message_dto(int len) {
     return _cst_new_list_message_dto(len);
@@ -7150,6 +7332,18 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
+  void wire__crate__api__check_companion_revisit(int port_) {
+    return _wire__crate__api__check_companion_revisit(port_);
+  }
+
+  late final _wire__crate__api__check_companion_revisitPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__check_companion_revisit',
+      );
+  late final _wire__crate__api__check_companion_revisit =
+      _wire__crate__api__check_companion_revisitPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__conversations__confirm_knowledge_draft(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
@@ -7973,6 +8167,18 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__get_analysis_job_stats =
       _wire__crate__api__get_analysis_job_statsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__get_companion_prefs(int port_) {
+    return _wire__crate__api__get_companion_prefs(port_);
+  }
+
+  late final _wire__crate__api__get_companion_prefsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__get_companion_prefs',
+      );
+  late final _wire__crate__api__get_companion_prefs =
+      _wire__crate__api__get_companion_prefsPtr
           .asFunction<void Function(int)>();
 
   void wire__crate__api__get_daily_overview(
@@ -10037,6 +10243,34 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__rules__list_rules =
       _wire__crate__api__rules__list_rulesPtr.asFunction<void Function(int)>();
 
+  void wire__crate__api__rules__set_rule_hit_feedback(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> feedback,
+  ) {
+    return _wire__crate__api__rules__set_rule_hit_feedback(port_, id, feedback);
+  }
+
+  late final _wire__crate__api__rules__set_rule_hit_feedbackPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__rules__set_rule_hit_feedback');
+  late final _wire__crate__api__rules__set_rule_hit_feedback =
+      _wire__crate__api__rules__set_rule_hit_feedbackPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__rules__set_rule_trigger(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_id,
@@ -10134,6 +10368,26 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_String>,
             )
           >();
+
+  void wire__crate__api__set_companion_prefs(
+    int port_,
+    bool enabled,
+    int interval_days,
+  ) {
+    return _wire__crate__api__set_companion_prefs(
+      port_,
+      enabled,
+      interval_days,
+    );
+  }
+
+  late final _wire__crate__api__set_companion_prefsPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool, ffi.Int64)>
+      >('frbgen_elsewhen_ui_wire__crate__api__set_companion_prefs');
+  late final _wire__crate__api__set_companion_prefs =
+      _wire__crate__api__set_companion_prefsPtr
+          .asFunction<void Function(int, bool, int)>();
 
   void wire__crate__api__set_event_recordability(
     int port_,
@@ -12838,6 +13092,44 @@ final class wire_cst_chat_run_event_page_dto extends ffi.Struct {
     ..ref.has_more = has_more;
 }
 
+final class wire_cst_companion_prefs_dto extends ffi.Struct {
+  @ffi.Bool()
+  external bool revisit_enabled;
+
+  @ffi.Int64()
+  external int revisit_interval_days;
+
+  static ffi.Pointer<wire_cst_companion_prefs_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required bool revisit_enabled,
+    required int revisit_interval_days,
+  }) => $allocator<wire_cst_companion_prefs_dto>()
+    ..ref.revisit_enabled = revisit_enabled
+    ..ref.revisit_interval_days = revisit_interval_days;
+}
+
+final class wire_cst_companion_revisit_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> excerpt;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> feeling;
+
+  static ffi.Pointer<wire_cst_companion_revisit_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> excerpt,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> feeling,
+  }) => $allocator<wire_cst_companion_revisit_dto>()
+    ..ref.event_id = event_id
+    ..ref.recorded_at = recorded_at
+    ..ref.excerpt = excerpt
+    ..ref.feeling = feeling;
+}
+
 final class wire_cst_content_chat_message_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> role;
 
@@ -12939,17 +13231,25 @@ final class wire_cst_daily_overview_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_todo_dto> todos;
 
+  external ffi.Pointer<wire_cst_list_rule_hit_dto> reminder_hits;
+
+  external ffi.Pointer<wire_cst_list_memory_echo_dto> memory_echo;
+
   static ffi.Pointer<wire_cst_daily_overview_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> date,
     required ffi.Pointer<wire_cst_list_daily_entry_dto> entries,
     required ffi.Pointer<wire_cst_daily_review_dto> review,
     required ffi.Pointer<wire_cst_list_todo_dto> todos,
+    required ffi.Pointer<wire_cst_list_rule_hit_dto> reminder_hits,
+    required ffi.Pointer<wire_cst_list_memory_echo_dto> memory_echo,
   }) => $allocator<wire_cst_daily_overview_dto>()
     ..ref.date = date
     ..ref.entries = entries
     ..ref.review = review
-    ..ref.todos = todos;
+    ..ref.todos = todos
+    ..ref.reminder_hits = reminder_hits
+    ..ref.memory_echo = memory_echo;
 }
 
 final class wire_cst_daily_review_dto extends ffi.Struct {
@@ -14575,6 +14875,21 @@ final class wire_cst_list_library_entry extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_memory_echo_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_memory_echo_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_memory_echo_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_memory_echo_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_memory_echo_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_message_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_message_dto> ptr;
 
@@ -15014,6 +15329,24 @@ final class wire_cst_local_sync_state_dto extends ffi.Struct {
     ..ref.is_processor = is_processor
     ..ref.active_peers = active_peers
     ..ref.pending_operations = pending_operations;
+}
+
+final class wire_cst_memory_echo_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_text;
+
+  static ffi.Pointer<wire_cst_memory_echo_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_text,
+  }) => $allocator<wire_cst_memory_echo_dto>()
+    ..ref.event_id = event_id
+    ..ref.recorded_at = recorded_at
+    ..ref.raw_text = raw_text;
 }
 
 final class wire_cst_message_dto extends ffi.Struct {
@@ -15540,6 +15873,8 @@ final class wire_cst_rule_hit_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> feedback;
+
   static ffi.Pointer<wire_cst_rule_hit_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -15547,12 +15882,14 @@ final class wire_cst_rule_hit_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_content,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> feedback,
   }) => $allocator<wire_cst_rule_hit_dto>()
     ..ref.id = id
     ..ref.rule_id = rule_id
     ..ref.rule_content = rule_content
     ..ref.status = status
-    ..ref.created_at = created_at;
+    ..ref.created_at = created_at
+    ..ref.feedback = feedback;
 }
 
 final class wire_cst_source_reference extends ffi.Struct {
