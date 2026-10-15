@@ -88,14 +88,9 @@ class LeftSidebar extends ConsumerWidget {
   Widget _buildConversationTab(BuildContext context, WidgetRef ref) {
     final main = ref.watch(mainConversationProvider);
     return main.when(
-      // 启动期左栏占位：默认 spinner 直径太大，视觉粗糙；收敛为小圈。
-      loading: () => const Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ),
+      // 启动期占位：静默空白——FFI 库装载 + DB 打开通常亚秒级，
+      // spinner 转一圈反而制造「在等什么」的错觉；数据到位即浮现。
+      loading: () => const SizedBox.expand(),
       error: (error, stack) => Center(child: Text('对话加载失败')),
       data: (conversation) {
         if (ref.read(selectedConversationIdProvider) != conversation.id) {
@@ -406,13 +401,8 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                 ],
               );
             },
-            loading: () => const Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
+            // 加载通常亚秒级：静默占位，spinner 一闪反而显拖沓。
+            loading: () => const SizedBox.expand(),
             error: (error, stack) => Center(
               child: Text(
                 '加载失败',

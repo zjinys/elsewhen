@@ -113,11 +113,12 @@ static void my_application_activate(GApplication* application) {
 
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;
-  // 窗口圆角要求窗口真透明：#00000000 把 FlView 底色设为透明，
-  // 角落区域由 Flutter 根部 ClipRRect 裁成圆角后透出桌面（需 RGBA visual，
-  // Wayland/X11+compositor 下 GTK3 顶层窗口自动启用）。
-  //
-  gdk_rgba_parse(&background_color, "#00000000");
+  // 首帧前窗口底色 = 暗色主题 surface0（0xFF05070C）：设透明曾是圆角
+  // 方案的残留，但 Dart 根部早已改为「窗口不透明直角，圆角交给系统」
+  // （main.dart FlClash 纪律），透明底色只剩一个效果——Flutter 首帧前
+  // 合成器把透明渲成纯黑，每次启动都闪一块黑窗。不透明底色与首帧
+  // 无缝衔接；浅色主题用户最多一瞬深底，比合成黑柔和得多。
+  gdk_rgba_parse(&background_color, "#05070C");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
