@@ -98,7 +98,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 975262033;
+  int get rustContentHash => 844878033;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -304,6 +304,11 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiWikiDeleteWikiPage({required String slug});
 
   Future<void> crateApiSyncDiscardSyncJoinStaging({required String entryId});
+
+  Future<void> crateApiReviewReportDismissDeviation({
+    required String reportId,
+    required int index,
+  });
 
   Future<void> crateApiKnowledgeDismissKnowledgeIssue({
     required String fingerprint,
@@ -559,6 +564,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<DailyEntryDto>> crateApiListDailyEntries({required String date});
 
+  Future<List<DeviationReportDto>> crateApiReviewReportListDeviationReports({
+    required String periodType,
+    required int limit,
+  });
+
   Future<List<String>> crateApiEntitiesListEntityAliases({
     required String entityKind,
     required String entitySlug,
@@ -685,6 +695,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<LocalSyncStateDto> crateApiSyncLockLocalSync();
+
+  Future<void> crateApiReviewReportMarkDeviationReportRead({
+    required String id,
+  });
 
   Future<bool> crateApiEntitiesMergeEntity({
     required String entityKind,
@@ -2457,6 +2471,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "discard_sync_join_staging",
         argNames: ["entryId"],
+      );
+
+  @override
+  Future<void> crateApiReviewReportDismissDeviation({
+    required String reportId,
+    required int index,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(reportId);
+          var arg1 = cst_encode_i_32(index);
+          return wire.wire__crate__api__review_report__dismiss_deviation(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReviewReportDismissDeviationConstMeta,
+        argValues: [reportId, index],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReviewReportDismissDeviationConstMeta =>
+      const TaskConstMeta(
+        debugName: "dismiss_deviation",
+        argNames: ["reportId", "index"],
       );
 
   @override
@@ -4417,6 +4464,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_daily_entries", argNames: ["date"]);
 
   @override
+  Future<List<DeviationReportDto>> crateApiReviewReportListDeviationReports({
+    required String periodType,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(periodType);
+          var arg1 = cst_encode_i_32(limit);
+          return wire.wire__crate__api__review_report__list_deviation_reports(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_deviation_report_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReviewReportListDeviationReportsConstMeta,
+        argValues: [periodType, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReviewReportListDeviationReportsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_deviation_reports",
+        argNames: ["periodType", "limit"],
+      );
+
+  @override
   Future<List<String>> crateApiEntitiesListEntityAliases({
     required String entityKind,
     required String entitySlug,
@@ -5415,6 +5495,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSyncLockLocalSyncConstMeta =>
       const TaskConstMeta(debugName: "lock_local_sync", argNames: []);
+
+  @override
+  Future<void> crateApiReviewReportMarkDeviationReportRead({
+    required String id,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire
+              .wire__crate__api__review_report__mark_deviation_report_read(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReviewReportMarkDeviationReportReadConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReviewReportMarkDeviationReportReadConstMeta =>
+      const TaskConstMeta(
+        debugName: "mark_deviation_report_read",
+        argNames: ["id"],
+      );
 
   @override
   Future<bool> crateApiEntitiesMergeEntity({
@@ -8730,6 +8841,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DeviationItemDto dco_decode_deviation_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return DeviationItemDto(
+      goalContent: dco_decode_String(arr[0]),
+      deviationType: dco_decode_String(arr[1]),
+      evidence: dco_decode_String(arr[2]),
+      severity: dco_decode_String(arr[3]),
+      dismissed: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  DeviationReportDto dco_decode_deviation_report_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    return DeviationReportDto(
+      id: dco_decode_String(arr[0]),
+      period: dco_decode_String(arr[1]),
+      periodType: dco_decode_String(arr[2]),
+      startDate: dco_decode_String(arr[3]),
+      endDate: dco_decode_String(arr[4]),
+      generatedAt: dco_decode_String(arr[5]),
+      detectedAt: dco_decode_opt_String(arr[6]),
+      readAt: dco_decode_opt_String(arr[7]),
+      total: dco_decode_i_64(arr[8]),
+      todoDoneCount: dco_decode_i_64(arr[9]),
+      daily: dco_decode_list_day_count_dto(arr[10]),
+      byEventType: dco_decode_list_named_count_dto(arr[11]),
+      byPerson: dco_decode_list_named_count_dto(arr[12]),
+      byProject: dco_decode_list_named_count_dto(arr[13]),
+      byActivity: dco_decode_list_named_count_dto(arr[14]),
+      deviations: dco_decode_list_deviation_item_dto(arr[15]),
+    );
+  }
+
+  @protected
   EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -9399,6 +9551,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DayCountDto> dco_decode_list_day_count_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_day_count_dto).toList();
+  }
+
+  @protected
+  List<DeviationItemDto> dco_decode_list_deviation_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_deviation_item_dto).toList();
+  }
+
+  @protected
+  List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_deviation_report_dto).toList();
   }
 
   @protected
@@ -11426,6 +11590,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DeviationItemDto sse_decode_deviation_item_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_goalContent = sse_decode_String(deserializer);
+    var var_deviationType = sse_decode_String(deserializer);
+    var var_evidence = sse_decode_String(deserializer);
+    var var_severity = sse_decode_String(deserializer);
+    var var_dismissed = sse_decode_bool(deserializer);
+    return DeviationItemDto(
+      goalContent: var_goalContent,
+      deviationType: var_deviationType,
+      evidence: var_evidence,
+      severity: var_severity,
+      dismissed: var_dismissed,
+    );
+  }
+
+  @protected
+  DeviationReportDto sse_decode_deviation_report_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_period = sse_decode_String(deserializer);
+    var var_periodType = sse_decode_String(deserializer);
+    var var_startDate = sse_decode_String(deserializer);
+    var var_endDate = sse_decode_String(deserializer);
+    var var_generatedAt = sse_decode_String(deserializer);
+    var var_detectedAt = sse_decode_opt_String(deserializer);
+    var var_readAt = sse_decode_opt_String(deserializer);
+    var var_total = sse_decode_i_64(deserializer);
+    var var_todoDoneCount = sse_decode_i_64(deserializer);
+    var var_daily = sse_decode_list_day_count_dto(deserializer);
+    var var_byEventType = sse_decode_list_named_count_dto(deserializer);
+    var var_byPerson = sse_decode_list_named_count_dto(deserializer);
+    var var_byProject = sse_decode_list_named_count_dto(deserializer);
+    var var_byActivity = sse_decode_list_named_count_dto(deserializer);
+    var var_deviations = sse_decode_list_deviation_item_dto(deserializer);
+    return DeviationReportDto(
+      id: var_id,
+      period: var_period,
+      periodType: var_periodType,
+      startDate: var_startDate,
+      endDate: var_endDate,
+      generatedAt: var_generatedAt,
+      detectedAt: var_detectedAt,
+      readAt: var_readAt,
+      total: var_total,
+      todoDoneCount: var_todoDoneCount,
+      daily: var_daily,
+      byEventType: var_byEventType,
+      byPerson: var_byPerson,
+      byProject: var_byProject,
+      byActivity: var_byActivity,
+      deviations: var_deviations,
+    );
+  }
+
+  @protected
   EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_target = sse_decode_opt_String(deserializer);
@@ -12373,6 +12595,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <DayCountDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_day_count_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DeviationItemDto> sse_decode_list_deviation_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DeviationItemDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_deviation_item_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DeviationReportDto> sse_decode_list_deviation_report_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DeviationReportDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_deviation_report_dto(deserializer));
     }
     return ans_;
   }
@@ -14949,6 +15199,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_deviation_item_dto(
+    DeviationItemDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.goalContent, serializer);
+    sse_encode_String(self.deviationType, serializer);
+    sse_encode_String(self.evidence, serializer);
+    sse_encode_String(self.severity, serializer);
+    sse_encode_bool(self.dismissed, serializer);
+  }
+
+  @protected
+  void sse_encode_deviation_report_dto(
+    DeviationReportDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.period, serializer);
+    sse_encode_String(self.periodType, serializer);
+    sse_encode_String(self.startDate, serializer);
+    sse_encode_String(self.endDate, serializer);
+    sse_encode_String(self.generatedAt, serializer);
+    sse_encode_opt_String(self.detectedAt, serializer);
+    sse_encode_opt_String(self.readAt, serializer);
+    sse_encode_i_64(self.total, serializer);
+    sse_encode_i_64(self.todoDoneCount, serializer);
+    sse_encode_list_day_count_dto(self.daily, serializer);
+    sse_encode_list_named_count_dto(self.byEventType, serializer);
+    sse_encode_list_named_count_dto(self.byPerson, serializer);
+    sse_encode_list_named_count_dto(self.byProject, serializer);
+    sse_encode_list_named_count_dto(self.byActivity, serializer);
+    sse_encode_list_deviation_item_dto(self.deviations, serializer);
+  }
+
+  @protected
   void sse_encode_emotion_tag_dto(
     EmotionTagDto self,
     SseSerializer serializer,
@@ -15630,6 +15917,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_day_count_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_deviation_item_dto(
+    List<DeviationItemDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_deviation_item_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_deviation_report_dto(
+    List<DeviationReportDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_deviation_report_dto(item, serializer);
     }
   }
 

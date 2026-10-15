@@ -217,6 +217,20 @@ class RustBridgeRepository implements StorageRepository {
   Future<api.PeriodStatsDto> getPeriodStats(String periodType, String date) =>
       api.getPeriodStats(periodType: periodType, date: date);
 
+  /// 周期盘点报告读面（R4）：最新在前的报告列表（含未读/偏差条目）。
+  Future<List<api.DeviationReportDto>> listDeviationReports({
+    required String periodType,
+    int limit = 12,
+  }) => api.listDeviationReports(periodType: periodType, limit: limit);
+
+  /// 标记报告已读（幂等；首次的 read\_at 保留）。
+  Future<void> markDeviationReportRead(String id) =>
+      api.markDeviationReportRead(id: id);
+
+  /// 忽略单条偏差（置位保留记录；报告兜底置已读）。
+  Future<void> dismissDeviation(String reportId, int index) =>
+      api.dismissDeviation(reportId: reportId, index: index);
+
   Future<api.DailyReviewResult> generateDailyReview(String date) =>
       api.generateDailyReview(date: date);
 

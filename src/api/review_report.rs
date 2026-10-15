@@ -527,6 +527,144 @@ pub fn tick_periodic_reports() -> Result<PeriodReportTickResult> {
     }
 }
 
+
+// ── R4 报告可观察性（FRB 读面）────────────────────────────────────────
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+struct StoredDeviation {
+    goal_content: String,
+    deviation_type: String,
+    evidence: String,
+    severity: String,
+    #[serde(default)]
+    dismissed: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct DeviationItemDto {
+    pub goal_content: String,
+    pub deviation_type: String,
+    pub evidence: String,
+    pub severity: String,
+    pub dismissed: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct DeviationReportDto {
+    pub id: String,
+    pub period: String,
+    pub period_type: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub generated_at: String,
+    pub detected_at: Option<String>,
+    pub read_at: Option<String>,
+    pub total: i64,
+    pub todo_done_count: i64,
+    pub daily: Vec<DayCountDto>,
+    pub by_event_type: Vec<NamedCountDto>,
+    pub by_person: Vec<NamedCountDto>,
+    pub by_project: Vec<NamedCountDto>,
+    pub by_activity: Vec<NamedCountDto>,
+    pub deviations: Vec<DeviationItemDto>,
+}
+
+fn report_dto(row: crate::storage::DeviationReportRow) -> Result<DeviationReportDto> {
+    let report: PeriodReport = serde_json::from_str(&row.report_json)
+        .with_context(|| format!("报告 {} 的 report_json 解析失败", row.id))?;
+    let deviations = row
+        .deviations_json
+        .map(|raw| serde_json::from_str::<Vec<StoredDeviation>>(&raw))
+        .transpose()
+        .context("deviations_json 解析失败")?
+        .unwrap_or_default();
+    Ok(DeviationReportDto {
+        id: row.id,
+        period: row.period,
+        period_type: row.period_type,
+        start_date: report.start_date,
+        end_date: report.end_date,
+        generated_at: row.generated_at,
+        detected_at: row.detected_at,
+        read_at: row.read_at,
+        total: report.stats.total,
+        todo_done_count: report.stats.todo_done_count,
+        daily: report
+            .stats
+            .daily
+            .into_iter()
+            .map(|(date, count)| DayCountDto { date, count })
+            .collect(),
+        by_event_type: into_named(report.stats.by_event_type),
+        by_person: into_named(report.stats.by_person),
+        by_project: into_named(report.stats.by_project),
+        by_activity: into_named(report.stats.by_activity),
+        deviations: deviations
+            .into_iter()
+            .map(|d| DeviationItemDto {
+                goal_content: d.goal_content,
+                deviation_type: d.deviation_type,
+                evidence: d.evidence,
+                severity: d.severity,
+                dismissed: d.dismissed,
+            })
+            .collect(),
+    })
+}
+
+fn into_named(groups: Vec<(String, i64)>) -> Vec<NamedCountDto> {
+    groups
+        .into_iter()
+        .map(|(label, count)| NamedCountDto { label, count })
+        .collect()
+}
+
+/// 报告列表（最新在前，支持历史回看）。`period_type` 空 = 全部；
+/// `limit <= 0` 时按 20 封顶。损坏的 JSON fail-closed 报错（不静默丢）。
+pub fn list_deviation_reports(period_type: String, limit: i32) -> Result<Vec<DeviationReportDto>> {
+    let period_type = period_type.trim().to_string();
+    anyhow::ensure!(
+        period_type.is_empty() || period_type == "week" || period_type == "month",
+        "不支持的时间粒度：仅 week / month（空 = 全部）"
+    );
+    let limit = if limit <= 0 { 20 } else { limit as i64 };
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store
+        .list_deviation_reports(&period_type, limit)?
+        .into_iter()
+        .map(report_dto)
+        .collect()
+}
+
+/// 标记已读（幂等：首次的 read_at 保留，重复标记不覆盖）。
+pub fn mark_deviation_report_read(id: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.set_report_read(id.trim(), Utc::now())
+}
+
+/// 忽略单条偏差：置 dismissed=true（审计轨迹，不删除条目），并把报告
+/// 置为已读（消除未读提示；裁决 Q1：忽略后不再提醒，但记录保留）。
+pub fn dismiss_deviation(report_id: String, index: i32) -> Result<()> {
+    let report_id = report_id.trim();
+    anyhow::ensure!(index >= 0, "偏差序号无效：{index}");
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let Some((_, _, existing)) = store.deviation_report_row(report_id)? else {
+        anyhow::bail!("报告不存在：{report_id}");
+    };
+    let raw = existing.context("报告尚未检测，无可忽略的偏差")?;
+    let mut list: Vec<StoredDeviation> =
+        serde_json::from_str(&raw).context("deviations_json 解析失败")?;
+    anyhow::ensure!(
+        (index as usize) < list.len(),
+        "偏差序号越界：{} / {}",
+        index,
+        list.len()
+    );
+    list[index as usize].dismissed = true;
+    store.replace_deviations_json(report_id, &serde_json::to_string(&list)?, Utc::now())
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -880,6 +1018,125 @@ mod tests {
             crate::storage::sync::snapshot::SNAPSHOT_EXCLUDED_TABLES
                 .iter()
                 .any(|(table, _)| *table == "deviation_reports")
+        );
+    }
+    #[test]
+    fn read_dismiss_and_list_ordering() {
+        let (_guard, store) = open_pinned_store();
+        seed_goal(&store, "每周运动三次");
+        seed_event(
+            &store,
+            "在公园跑步",
+            noon(NaiveDate::from_ymd_opt(2026, 3, 6).unwrap()),
+            &analysis_json(&["跑步"], true),
+        );
+        seed_event(
+            &store,
+            "整理了读书笔记",
+            noon(NaiveDate::from_ymd_opt(2026, 2, 26).unwrap()),
+            &analysis_json(&["阅读"], true),
+        );
+        let make = |id: &str, period: NaiveDate| {
+            let report = build_period_report(&store, "week", period)
+                .unwrap()
+                .unwrap();
+            let json = serde_json::to_string(&report).unwrap();
+            store
+                .insert_deviation_report(id, period, "week", &json, Utc::now())
+                .unwrap();
+        };
+        let older = NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+        let newer = NaiveDate::from_ymd_opt(2026, 3, 8).unwrap();
+        make("r-old", older);
+        make("r-new", newer);
+
+        // 检测两份报告（各落一条偏差）。
+        let detect_ok = ScriptedProvider(vec![Ok(
+            r#"[{"goal_content":"每周运动三次","deviation_type":"no_progress","evidence":"无相关记录","severity":"medium"},
+                {"goal_content":"每周运动三次","deviation_type":"stalled","evidence":"进度未动","severity":"low"}]"#
+                .to_string(),
+        )]);
+        // 检测 r-old：两条合法（历史为空）。r-new 再检测：同 (goal, type)
+        // 跨期去重 → 0 条（「unwoke 但不重复提醒」语义，R3 裁决）。
+        assert_eq!(detect_deviation(&store, "r-old", &detect_ok).unwrap(), 2);
+        assert_eq!(detect_deviation(&store, "r-new", &detect_ok).unwrap(), 0);
+
+        // 列表：最新创建在前（历史回看顺序）；period_type 过滤与空串全量。
+        let all = list_deviation_reports("week".into(), 10).unwrap();
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].period, "2026-03-08");
+        assert_eq!(all[1].period, "2026-03-01");
+        assert!(
+            list_deviation_reports("month".into(), 10)
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(list_deviation_reports("".into(), 10).unwrap().len(), 2);
+        // 报告体投影：统计与偏差完整落 DTO；未检测的 r-new deviations 为空。
+        assert!(all[0].total >= 1);
+        assert_eq!(all[1].deviations.len(), 2);
+        assert!(all[0].deviations.is_empty());
+        assert!(all[1].read_at.is_none());
+
+        // 已读幂等：首次 mark 保留，重复 mark 不覆盖时间戳。
+        let (r_old_id, r_new_id) = ("r-old".to_string(), "r-new".to_string());
+        mark_deviation_report_read(r_old_id.clone()).unwrap();
+        let first_read = list_deviation_reports("week".into(), 10).unwrap()[0 + 1]
+            .read_at
+            .clone()
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        mark_deviation_report_read(r_old_id.clone()).unwrap();
+        assert_eq!(
+            list_deviation_reports("week".into(), 10).unwrap()[1]
+                .read_at
+                .as_deref(),
+            Some(first_read.as_str())
+        );
+
+        // 忽略单条偏差：dismissed 置位、条目保留（审计轨迹，不删除）、
+        // 报告兜底置已读；同报告另一条不受影响。
+        dismiss_deviation(r_old_id.clone(), 0).unwrap();
+        let dto = &list_deviation_reports("week".into(), 10).unwrap()[1];
+        assert!(dto.deviations[0].dismissed);
+        assert!(!dto.deviations[1].dismissed);
+        assert_eq!(dto.deviations.len(), 2, "忽略是置位不是删除");
+        assert!(dto.read_at.is_some());
+
+        // fail-closed：未检测报告无可忽略偏差；越界序号拒绝；报告不存在拒绝。
+        assert!(dismiss_deviation(r_new_id.clone(), 0).is_err());
+        assert!(dismiss_deviation(r_old_id.clone(), 99).is_err());
+        assert!(dismiss_deviation("no-such".into(), 0).is_err());
+        assert!(mark_deviation_report_read("no-such".into()).is_err());
+    }
+
+    #[test]
+    fn report_dto_rejects_corrupt_json() {
+        let (_guard, store) = open_pinned_store();
+        let period = NaiveDate::from_ymd_opt(2026, 3, 8).unwrap();
+        seed_event(
+            &store,
+            "在公园跑步",
+            noon(period - chrono::Duration::days(2)),
+            &analysis_json(&["跑步"], true),
+        );
+        let report = build_period_report(&store, "week", period)
+            .unwrap()
+            .unwrap();
+        let json = serde_json::to_string(&report).unwrap();
+        store
+            .insert_deviation_report("r-1", period, "week", &json, Utc::now())
+            .unwrap();
+        store
+            .connection
+            .execute(
+                "UPDATE deviation_reports SET report_json = 'not-json' WHERE id = 'r-1'",
+                [],
+            )
+            .unwrap();
+        assert!(
+            list_deviation_reports("week".into(), 10).is_err(),
+            "损坏的 report_json 必须 fail-closed 而非静默丢报告"
         );
     }
 }

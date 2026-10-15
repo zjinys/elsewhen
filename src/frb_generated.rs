@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 975262033;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 844878033;
 
 // Section: executor
 
@@ -1193,6 +1193,32 @@ fn wire__crate__api__sync__discard_sync_join_staging_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::sync::discard_sync_join_staging(api_entry_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__review_report__dismiss_deviation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    report_id: impl CstDecode<String>,
+    index: impl CstDecode<i32>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "dismiss_deviation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_report_id = report_id.cst_decode();
+            let api_index = index.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::review_report::dismiss_deviation(api_report_id, api_index)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2890,6 +2916,34 @@ fn wire__crate__api__list_daily_entries_impl(
         },
     )
 }
+fn wire__crate__api__review_report__list_deviation_reports_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    period_type: impl CstDecode<String>,
+    limit: impl CstDecode<i32>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_deviation_reports",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_period_type = period_type.cst_decode();
+            let api_limit = limit.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::review_report::list_deviation_reports(
+                            api_period_type,
+                            api_limit,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__entities__list_entity_aliases_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     entity_kind: impl CstDecode<String>,
@@ -3740,6 +3794,30 @@ fn wire__crate__api__sync__lock_local_sync_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::sync::lock_local_sync()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__review_report__mark_deviation_report_read_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "mark_deviation_report_read",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::review_report::mark_deviation_report_read(api_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6638,6 +6716,65 @@ impl SseDecode for crate::api::DayCountDto {
     }
 }
 
+impl SseDecode for crate::api::review_report::DeviationItemDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_goalContent = <String>::sse_decode(deserializer);
+        let mut var_deviationType = <String>::sse_decode(deserializer);
+        let mut var_evidence = <String>::sse_decode(deserializer);
+        let mut var_severity = <String>::sse_decode(deserializer);
+        let mut var_dismissed = <bool>::sse_decode(deserializer);
+        return crate::api::review_report::DeviationItemDto {
+            goal_content: var_goalContent,
+            deviation_type: var_deviationType,
+            evidence: var_evidence,
+            severity: var_severity,
+            dismissed: var_dismissed,
+        };
+    }
+}
+
+impl SseDecode for crate::api::review_report::DeviationReportDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_period = <String>::sse_decode(deserializer);
+        let mut var_periodType = <String>::sse_decode(deserializer);
+        let mut var_startDate = <String>::sse_decode(deserializer);
+        let mut var_endDate = <String>::sse_decode(deserializer);
+        let mut var_generatedAt = <String>::sse_decode(deserializer);
+        let mut var_detectedAt = <Option<String>>::sse_decode(deserializer);
+        let mut var_readAt = <Option<String>>::sse_decode(deserializer);
+        let mut var_total = <i64>::sse_decode(deserializer);
+        let mut var_todoDoneCount = <i64>::sse_decode(deserializer);
+        let mut var_daily = <Vec<crate::api::DayCountDto>>::sse_decode(deserializer);
+        let mut var_byEventType = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byPerson = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byProject = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byActivity = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_deviations =
+            <Vec<crate::api::review_report::DeviationItemDto>>::sse_decode(deserializer);
+        return crate::api::review_report::DeviationReportDto {
+            id: var_id,
+            period: var_period,
+            period_type: var_periodType,
+            start_date: var_startDate,
+            end_date: var_endDate,
+            generated_at: var_generatedAt,
+            detected_at: var_detectedAt,
+            read_at: var_readAt,
+            total: var_total,
+            todo_done_count: var_todoDoneCount,
+            daily: var_daily,
+            by_event_type: var_byEventType,
+            by_person: var_byPerson,
+            by_project: var_byProject,
+            by_activity: var_byActivity,
+            deviations: var_deviations,
+        };
+    }
+}
+
 impl SseDecode for crate::api::EmotionTagDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7599,6 +7736,34 @@ impl SseDecode for Vec<crate::api::DayCountDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::DayCountDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::review_report::DeviationItemDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::review_report::DeviationItemDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::review_report::DeviationReportDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::review_report::DeviationReportDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -10224,6 +10389,65 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::DayCountDto> for crate::api::
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::review_report::DeviationItemDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.goal_content.into_into_dart().into_dart(),
+            self.deviation_type.into_into_dart().into_dart(),
+            self.evidence.into_into_dart().into_dart(),
+            self.severity.into_into_dart().into_dart(),
+            self.dismissed.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::review_report::DeviationItemDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::review_report::DeviationItemDto>
+    for crate::api::review_report::DeviationItemDto
+{
+    fn into_into_dart(self) -> crate::api::review_report::DeviationItemDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::review_report::DeviationReportDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.period.into_into_dart().into_dart(),
+            self.period_type.into_into_dart().into_dart(),
+            self.start_date.into_into_dart().into_dart(),
+            self.end_date.into_into_dart().into_dart(),
+            self.generated_at.into_into_dart().into_dart(),
+            self.detected_at.into_into_dart().into_dart(),
+            self.read_at.into_into_dart().into_dart(),
+            self.total.into_into_dart().into_dart(),
+            self.todo_done_count.into_into_dart().into_dart(),
+            self.daily.into_into_dart().into_dart(),
+            self.by_event_type.into_into_dart().into_dart(),
+            self.by_person.into_into_dart().into_dart(),
+            self.by_project.into_into_dart().into_dart(),
+            self.by_activity.into_into_dart().into_dart(),
+            self.deviations.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::review_report::DeviationReportDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::review_report::DeviationReportDto>
+    for crate::api::review_report::DeviationReportDto
+{
+    fn into_into_dart(self) -> crate::api::review_report::DeviationReportDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::EmotionTagDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -12595,6 +12819,39 @@ impl SseEncode for crate::api::DayCountDto {
     }
 }
 
+impl SseEncode for crate::api::review_report::DeviationItemDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.goal_content, serializer);
+        <String>::sse_encode(self.deviation_type, serializer);
+        <String>::sse_encode(self.evidence, serializer);
+        <String>::sse_encode(self.severity, serializer);
+        <bool>::sse_encode(self.dismissed, serializer);
+    }
+}
+
+impl SseEncode for crate::api::review_report::DeviationReportDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.period, serializer);
+        <String>::sse_encode(self.period_type, serializer);
+        <String>::sse_encode(self.start_date, serializer);
+        <String>::sse_encode(self.end_date, serializer);
+        <String>::sse_encode(self.generated_at, serializer);
+        <Option<String>>::sse_encode(self.detected_at, serializer);
+        <Option<String>>::sse_encode(self.read_at, serializer);
+        <i64>::sse_encode(self.total, serializer);
+        <i64>::sse_encode(self.todo_done_count, serializer);
+        <Vec<crate::api::DayCountDto>>::sse_encode(self.daily, serializer);
+        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_event_type, serializer);
+        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_person, serializer);
+        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_project, serializer);
+        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_activity, serializer);
+        <Vec<crate::api::review_report::DeviationItemDto>>::sse_encode(self.deviations, serializer);
+    }
+}
+
 impl SseEncode for crate::api::EmotionTagDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -13210,6 +13467,26 @@ impl SseEncode for Vec<crate::api::DayCountDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::DayCountDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::review_report::DeviationItemDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::review_report::DeviationItemDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::review_report::DeviationReportDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::review_report::DeviationReportDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15110,6 +15387,41 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::review_report::DeviationItemDto> for wire_cst_deviation_item_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::review_report::DeviationItemDto {
+            crate::api::review_report::DeviationItemDto {
+                goal_content: self.goal_content.cst_decode(),
+                deviation_type: self.deviation_type.cst_decode(),
+                evidence: self.evidence.cst_decode(),
+                severity: self.severity.cst_decode(),
+                dismissed: self.dismissed.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::review_report::DeviationReportDto> for wire_cst_deviation_report_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::review_report::DeviationReportDto {
+            crate::api::review_report::DeviationReportDto {
+                id: self.id.cst_decode(),
+                period: self.period.cst_decode(),
+                period_type: self.period_type.cst_decode(),
+                start_date: self.start_date.cst_decode(),
+                end_date: self.end_date.cst_decode(),
+                generated_at: self.generated_at.cst_decode(),
+                detected_at: self.detected_at.cst_decode(),
+                read_at: self.read_at.cst_decode(),
+                total: self.total.cst_decode(),
+                todo_done_count: self.todo_done_count.cst_decode(),
+                daily: self.daily.cst_decode(),
+                by_event_type: self.by_event_type.cst_decode(),
+                by_person: self.by_person.cst_decode(),
+                by_project: self.by_project.cst_decode(),
+                by_activity: self.by_activity.cst_decode(),
+                deviations: self.deviations.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::EmotionTagDto> for wire_cst_emotion_tag_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::EmotionTagDto {
@@ -15755,6 +16067,30 @@ mod io {
     impl CstDecode<Vec<crate::api::DayCountDto>> for *mut wire_cst_list_day_count_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::DayCountDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::review_report::DeviationItemDto>>
+        for *mut wire_cst_list_deviation_item_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::review_report::DeviationItemDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::review_report::DeviationReportDto>>
+        for *mut wire_cst_list_deviation_report_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::review_report::DeviationReportDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -17419,6 +17755,49 @@ mod io {
         }
     }
     impl Default for wire_cst_day_count_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_deviation_item_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                goal_content: core::ptr::null_mut(),
+                deviation_type: core::ptr::null_mut(),
+                evidence: core::ptr::null_mut(),
+                severity: core::ptr::null_mut(),
+                dismissed: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_deviation_item_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_deviation_report_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                period: core::ptr::null_mut(),
+                period_type: core::ptr::null_mut(),
+                start_date: core::ptr::null_mut(),
+                end_date: core::ptr::null_mut(),
+                generated_at: core::ptr::null_mut(),
+                detected_at: core::ptr::null_mut(),
+                read_at: core::ptr::null_mut(),
+                total: Default::default(),
+                todo_done_count: Default::default(),
+                daily: core::ptr::null_mut(),
+                by_event_type: core::ptr::null_mut(),
+                by_person: core::ptr::null_mut(),
+                by_project: core::ptr::null_mut(),
+                by_activity: core::ptr::null_mut(),
+                deviations: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_deviation_report_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -19306,6 +19685,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__dismiss_deviation(
+        port_: i64,
+        report_id: *mut wire_cst_list_prim_u_8_strict,
+        index: i32,
+    ) {
+        wire__crate__api__review_report__dismiss_deviation_impl(port_, report_id, index)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__dismiss_knowledge_issue(
         port_: i64,
         fingerprint: *mut wire_cst_list_prim_u_8_strict,
@@ -19895,6 +20283,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__list_deviation_reports(
+        port_: i64,
+        period_type: *mut wire_cst_list_prim_u_8_strict,
+        limit: i32,
+    ) {
+        wire__crate__api__review_report__list_deviation_reports_impl(port_, period_type, limit)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__entities__list_entity_aliases(
         port_: i64,
         entity_kind: *mut wire_cst_list_prim_u_8_strict,
@@ -20169,6 +20566,14 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__lock_local_sync(port_: i64) {
         wire__crate__api__sync__lock_local_sync_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__mark_deviation_report_read(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__review_report__mark_deviation_report_read_impl(port_, id)
     }
 
     #[unsafe(no_mangle)]
@@ -21439,6 +21844,34 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_deviation_item_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_deviation_item_dto {
+        let wrap = wire_cst_list_deviation_item_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_deviation_item_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_deviation_report_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_deviation_report_dto {
+        let wrap = wire_cst_list_deviation_report_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_deviation_report_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_emotion_tag_dto(
         len: i32,
     ) -> *mut wire_cst_list_emotion_tag_dto {
@@ -22378,6 +22811,35 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_deviation_item_dto {
+        goal_content: *mut wire_cst_list_prim_u_8_strict,
+        deviation_type: *mut wire_cst_list_prim_u_8_strict,
+        evidence: *mut wire_cst_list_prim_u_8_strict,
+        severity: *mut wire_cst_list_prim_u_8_strict,
+        dismissed: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_deviation_report_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        period: *mut wire_cst_list_prim_u_8_strict,
+        period_type: *mut wire_cst_list_prim_u_8_strict,
+        start_date: *mut wire_cst_list_prim_u_8_strict,
+        end_date: *mut wire_cst_list_prim_u_8_strict,
+        generated_at: *mut wire_cst_list_prim_u_8_strict,
+        detected_at: *mut wire_cst_list_prim_u_8_strict,
+        read_at: *mut wire_cst_list_prim_u_8_strict,
+        total: i64,
+        todo_done_count: i64,
+        daily: *mut wire_cst_list_day_count_dto,
+        by_event_type: *mut wire_cst_list_named_count_dto,
+        by_person: *mut wire_cst_list_named_count_dto,
+        by_project: *mut wire_cst_list_named_count_dto,
+        by_activity: *mut wire_cst_list_named_count_dto,
+        deviations: *mut wire_cst_list_deviation_item_dto,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_emotion_tag_dto {
         target: *mut wire_cst_list_prim_u_8_strict,
         feeling: *mut wire_cst_list_prim_u_8_strict,
@@ -22841,6 +23303,18 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_day_count_dto {
         ptr: *mut wire_cst_day_count_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_deviation_item_dto {
+        ptr: *mut wire_cst_deviation_item_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_deviation_report_dto {
+        ptr: *mut wire_cst_deviation_report_dto,
         len: i32,
     }
     #[repr(C)]
@@ -24328,6 +24802,63 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::review_report::DeviationItemDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::review_report::DeviationItemDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::review_report::DeviationItemDto {
+                goal_content: self_.get(0).cst_decode(),
+                deviation_type: self_.get(1).cst_decode(),
+                evidence: self_.get(2).cst_decode(),
+                severity: self_.get(3).cst_decode(),
+                dismissed: self_.get(4).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::review_report::DeviationReportDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::review_report::DeviationReportDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                16,
+                "Expected 16 elements, got {}",
+                self_.length()
+            );
+            crate::api::review_report::DeviationReportDto {
+                id: self_.get(0).cst_decode(),
+                period: self_.get(1).cst_decode(),
+                period_type: self_.get(2).cst_decode(),
+                start_date: self_.get(3).cst_decode(),
+                end_date: self_.get(4).cst_decode(),
+                generated_at: self_.get(5).cst_decode(),
+                detected_at: self_.get(6).cst_decode(),
+                read_at: self_.get(7).cst_decode(),
+                total: self_.get(8).cst_decode(),
+                todo_done_count: self_.get(9).cst_decode(),
+                daily: self_.get(10).cst_decode(),
+                by_event_type: self_.get(11).cst_decode(),
+                by_person: self_.get(12).cst_decode(),
+                by_project: self_.get(13).cst_decode(),
+                by_activity: self_.get(14).cst_decode(),
+                deviations: self_.get(15).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::EmotionTagDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -25296,6 +25827,30 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::DayCountDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::review_report::DeviationItemDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::review_report::DeviationItemDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::review_report::DeviationReportDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::review_report::DeviationReportDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -27592,6 +28147,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__review_report__dismiss_deviation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        report_id: String,
+        index: i32,
+    ) {
+        wire__crate__api__review_report__dismiss_deviation_impl(port_, report_id, index)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge__dismiss_knowledge_issue(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         fingerprint: String,
@@ -28195,6 +28759,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__review_report__list_deviation_reports(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        period_type: String,
+        limit: i32,
+    ) {
+        wire__crate__api__review_report__list_deviation_reports_impl(port_, period_type, limit)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__entities__list_entity_aliases(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         entity_kind: String,
@@ -28485,6 +29058,14 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__sync__lock_local_sync_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__review_report__mark_deviation_report_read(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__review_report__mark_deviation_report_read_impl(port_, id)
     }
 
     #[wasm_bindgen]

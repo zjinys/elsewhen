@@ -100,10 +100,11 @@
 
 **收益：** 用户看得到系统 judged 什么、依据什么；可忽略、可追溯。
 
-- [ ] 回顾页周/月视图接 `deviation_reports` 读面：最新报告 + 已读标记（`read_at`）；未读在粒度切换处显示小圆点（唯一提醒形态）。
-- [ ] 报告详情：统计区 + 偏差区（deviation_type 中文化、证据引统计数字）；历史报告按周期回看。
-- [ ] 忽略单条偏差：消除未读但保留记录（审计轨迹，不删除）。
-- [ ] 测试：已读幂等、历史回看顺序、报告详情不拖原文全文。
+- [x] 回顾页周/月视图接 `deviation_reports` 读面（2026-10-16）：最新一份报告完整铺开，更早的收进「更早的盘点」折叠区按周期回看；进入视图即标已读（看到即读，幂等 `mark_deviation_report_read`，首次 read_at 保留）；未读在粒度切换处显示小圆点（Badge，R4 唯一提醒形态——不弹窗不加红点轰炸；报告面未加载/失败时静默降级无点）。
+- [x] 报告详情：统计 pill（事件/待办完成，同 R1 口径语义）+ 偏差区（deviation_type 中文化映射：no_progress=无进展/stalled=停滞/conflict=相悖/scope_drift=目标偏移，未知枚举原样透出便于发现协议漂移；severity 三档色点 high=error/medium=warning/low=accentMuted；≤400 字证据 + 目标逐字）。未检测（`detected_at` NULL）显「偏差检测待进行」，检测过零偏差显「未发现待说出的偏差」。
+- [x] 忽略单条偏差：`dismiss_deviation(report_id, index)` 置 `dismissed=true` 保留条目（审计轨迹，不删除），报告兜底置已读；序号越界/未检测/报告不存在 fail-closed。Dart 侧忽略失败静默（条目保持可再操作）。
+- [x] 存储读面：`list_deviation_reports`（created_at DESC，limit 1..=100，period_type 空=全部）、`set_report_read`（COALESCE 幂等）、`replace_deviations_json`（仅 R4 忽略路径；管道写路径 `record_detected_deviations` 仍只认 NULL 不覆盖）。
+- [x] 测试（Rust 765 +2：已读幂等+列表顺序+忽略置位+越界/未检测 fail-closed+损坏 JSON fail-closed；Flutter 391 +4：盘点卡渲染+进入即标已读+未读点消隐、忽略置位呈现+失败静默、无报告/未检测呈现）。
 
 ## R5 — 第二刀：周/月 AI 总结（R1 验证后裁决）
 

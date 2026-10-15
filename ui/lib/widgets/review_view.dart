@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/api.dart' as api;
+import '../bridge/rust_bridge_repository.dart';
+import '../data/storage_repository.dart';
 import '../providers/review_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -24,6 +26,10 @@ class ReviewView extends ConsumerWidget {
     final granularity = ref.watch(reviewGranularityProvider);
     final wide = MediaQuery.of(context).size.width >= 760;
     final horizontalPadding = wide ? 32.0 : 12.0;
+    // 粒度切换处的未读小圆点（R4 唯一提醒形态）：任一该粒度报告
+    // readAt 为空 = 未读；报告面尚未加载时不显示（静默降级）。
+    final weekUnread = _hasUnread(ref, 'week');
+    final monthUnread = _hasUnread(ref, 'month');
     return Column(
       children: [
         Padding(
@@ -36,15 +42,21 @@ class ReviewView extends ConsumerWidget {
           child: Row(
             children: [
               SegmentedButton<ReviewGranularity>(
-                segments: const [
-                  ButtonSegment(value: ReviewGranularity.day, label: Text('日')),
+                segments: [
+                  ButtonSegment(
+                    value: ReviewGranularity.day,
+                    label: const Text('日'),
+                  ),
                   ButtonSegment(
                     value: ReviewGranularity.week,
-                    label: Text('周'),
+                    label: _UnreadBadge(unread: weekUnread, child: const Text('周')),
                   ),
                   ButtonSegment(
                     value: ReviewGranularity.month,
-                    label: Text('月'),
+                    label: _UnreadBadge(
+                      unread: monthUnread,
+                      child: const Text('月'),
+                    ),
                   ),
                 ],
                 selected: {granularity},
@@ -526,6 +538,292 @@ class _MemoryEchoCard extends StatelessWidget {
 // 周/月视图
 // ---------------------------------------------------------------------------
 
+/// 该粒度是否有未读报告（报告面加载失败或未就绪 = 无提醒，静默降级）。
+bool _hasUnread(WidgetRef ref, String periodType) {
+  final reports = ref.watch(deviationReportsProvider(periodType));
+  return reports.value?.any((r) => r.readAt == null) ?? false;
+}
+
+/// 未读小圆点（R4 唯一提醒形态）：不弹窗、不锁屏，切换处一个点。
+class _UnreadBadge extends StatelessWidget {
+  const _UnreadBadge({required this.unread, required this.child});
+
+  final bool unread;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!unread) return child;
+    return Badge(
+      backgroundColor: AppTheme.accentPrimary,
+      smallSize: 7,
+      child: child,
+    );
+  }
+}
+
+/// 周期盘点报告（R4）：最新一份完整铺开，更早的收进「更早的盘点」
+/// ExpansionTile 按周期回看。加载失败静默（统计页不受报告面影响）。
+/// 首次铺开时自动标记已读（看到即读，幂等）。
+class _PeriodReportSection extends ConsumerStatefulWidget {
+  const _PeriodReportSection({required this.periodType});
+
+  final String periodType;
+
+  @override
+  ConsumerState<_PeriodReportSection> createState() =>
+      _PeriodReportSectionState();
+}
+
+class _PeriodReportSectionState extends ConsumerState<_PeriodReportSection> {
+  bool _marked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => _markUnreadSeen());
+  }
+
+  /// 看到报告即已读：逐份标记未读报告（幂等），标记后刷读面消点。
+  Future<void> _markUnreadSeen() async {
+    if (_marked || !mounted) return;
+    _marked = true; // 每个 mount 只发一轮，防 invalidate 重拉后重复标记。
+    final reports = ref.read(deviationReportsProvider(widget.periodType)).value;
+    final unread = reports?.where((r) => r.readAt == null).toList() ?? const [];
+    if (unread.isEmpty || !mounted) return;
+    try {
+      final bridge =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      for (final report in unread) {
+        await bridge.markDeviationReportRead(report.id);
+      }
+      if (!mounted) return;
+      ref.invalidate(deviationReportsProvider(widget.periodType));
+    } catch (_) {
+      // 已读标记失败不响：下个 tick 重开页时未读仍在，再标一次即可。
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reports = ref.watch(deviationReportsProvider(widget.periodType));
+    return reports.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (list) {
+        if (list.isEmpty) return const SizedBox.shrink();
+        final latest = list.first;
+        final older = list.sublist(1);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _PeriodReportCard(report: latest, latest: true),
+            if (older.isNotEmpty)
+              Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  iconColor: AppTheme.textTertiary,
+                  collapsedIconColor: AppTheme.textTertiary,
+                  title: Text(
+                    '更早的盘点（${older.length}）',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  children: [
+                    for (final report in older)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppTheme.space2),
+                        child: _PeriodReportCard(report: report),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// 单份盘点报告：统计摘要 + 偏差条目（历史报告复用同一张卡）。
+class _PeriodReportCard extends ConsumerWidget {
+  const _PeriodReportCard({required this.report, this.latest = false});
+
+  final api.DeviationReportDto report;
+  final bool latest;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unDismissed = report.deviations
+        .where((d) => !d.dismissed)
+        .length;
+    return _ReviewCard(
+      title:
+          '周期盘点 · ${report.startDate} ~ ${report.endDate}'
+          '${latest ? '（最近一份）' : ''}',
+      children: [
+        Row(
+          children: [
+            _CountPill(label: '事件', count: report.total),
+            const SizedBox(width: AppTheme.space3),
+            _CountPill(label: '待办完成', count: report.todoDoneCount),
+            const Spacer(),
+            if (report.detectedAt == null)
+              Text(
+                '偏差检测待进行',
+                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+              ),
+          ],
+        ),
+        if (report.detectedAt != null && report.deviations.isEmpty) ...[
+          const SizedBox(height: AppTheme.space2),
+          Text(
+            '未发现待说出的偏差',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.textTertiary,
+              height: 1.5,
+            ),
+          ),
+        ],
+        if (report.deviations.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.space2),
+          if (unDismissed > 0)
+            Text(
+              '偏离目标的时刻——只陈述，不评判：',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppTheme.textTertiary,
+                height: 1.5,
+              ),
+            ),
+          for (final (index, deviation) in report.deviations.indexed)
+            _DeviationRow(
+              reportId: report.id,
+              periodType: report.periodType,
+              index: index,
+              deviation: deviation,
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// 偏差条目：类型中文 + 严重度色点 + 证据 + 目标；忽略置位不删除。
+class _DeviationRow extends ConsumerWidget {
+  const _DeviationRow({
+    required this.reportId,
+    required this.periodType,
+    required this.index,
+    required this.deviation,
+  });
+
+  final String reportId;
+  final String periodType;
+  final int index;
+  final api.DeviationItemDto deviation;
+
+  Color _severityColor() => switch (deviation.severity) {
+        'high' => AppTheme.error,
+        'medium' => AppTheme.warning,
+        _ => AppTheme.accentMuted,
+      };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final baseStyle = TextStyle(
+      fontSize: 12,
+      height: 1.55,
+      color: deviation.dismissed
+          ? AppTheme.textTertiary
+          : AppTheme.textSecondary,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.space2),
+      child: Container(
+        padding: const EdgeInsets.all(AppTheme.space2),
+        decoration: BoxDecoration(
+          color: AppTheme.surface2,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: deviation.dismissed
+                      ? AppTheme.surface4
+                      : _severityColor(),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppTheme.space2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    deviation.dismissed
+                        ? '${deviationTypeLabel(deviation.deviationType)} · 已忽略'
+                        : deviationTypeLabel(deviation.deviationType),
+                    style: baseStyle.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: deviation.dismissed
+                          ? AppTheme.textTertiary
+                          : AppTheme.textPrimary,
+                    ),
+                  ),
+                  Text(deviation.evidence, style: baseStyle),
+                  Text(
+                    '目标：${deviation.goalContent}',
+                    style: baseStyle.copyWith(fontSize: 11),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (!deviation.dismissed)
+              TextButton(
+                onPressed: () async {
+                  try {
+                    final bridge = ref.read(storageRepositoryProvider)
+                        as RustBridgeRepository;
+                    await bridge.dismissDeviation(reportId, index);
+                    ref.invalidate(
+                      deviationReportsProvider(periodType),
+                    );
+                  } catch (_) {
+                    // 忽略失败静默，条目保持可再次操作。
+                  }
+                },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: Text(
+                  '忽略',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 周/月拼装统计。Rust 侧已做确定性排序与 top 12 截断；这里只拼版。
 class _ReviewPeriodView extends ConsumerWidget {
   const _ReviewPeriodView({
@@ -565,6 +863,7 @@ class _ReviewPeriodView extends ConsumerWidget {
             24,
           ),
           children: [
+            _PeriodReportSection(periodType: periodType),
             Text(
               '${data.startDate} ~ ${data.endDate}',
               style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),

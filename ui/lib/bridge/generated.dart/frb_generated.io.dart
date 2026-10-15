@@ -214,6 +214,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DayCountDto dco_decode_day_count_dto(dynamic raw);
 
   @protected
+  DeviationItemDto dco_decode_deviation_item_dto(dynamic raw);
+
+  @protected
+  DeviationReportDto dco_decode_deviation_report_dto(dynamic raw);
+
+  @protected
   EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw);
 
   @protected
@@ -368,6 +374,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DayCountDto> dco_decode_list_day_count_dto(dynamic raw);
+
+  @protected
+  List<DeviationItemDto> dco_decode_list_deviation_item_dto(dynamic raw);
+
+  @protected
+  List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw);
 
   @protected
   List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw);
@@ -971,6 +983,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer);
 
   @protected
+  DeviationItemDto sse_decode_deviation_item_dto(SseDeserializer deserializer);
+
+  @protected
+  DeviationReportDto sse_decode_deviation_report_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer);
 
   @protected
@@ -1171,6 +1191,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DayCountDto> sse_decode_list_day_count_dto(SseDeserializer deserializer);
+
+  @protected
+  List<DeviationItemDto> sse_decode_list_deviation_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DeviationReportDto> sse_decode_list_deviation_report_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<EmotionTagDto> sse_decode_list_emotion_tag_dto(
@@ -2065,6 +2095,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_day_count_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_day_count_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_deviation_item_dto>
+  cst_encode_list_deviation_item_dto(List<DeviationItemDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_deviation_item_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_deviation_item_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_deviation_report_dto>
+  cst_encode_list_deviation_report_dto(List<DeviationReportDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_deviation_report_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_deviation_report_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3297,6 +3349,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.date = cst_encode_String(apiObj.date);
     wireObj.count = cst_encode_i_64(apiObj.count);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_deviation_item_dto(
+    DeviationItemDto apiObj,
+    wire_cst_deviation_item_dto wireObj,
+  ) {
+    wireObj.goal_content = cst_encode_String(apiObj.goalContent);
+    wireObj.deviation_type = cst_encode_String(apiObj.deviationType);
+    wireObj.evidence = cst_encode_String(apiObj.evidence);
+    wireObj.severity = cst_encode_String(apiObj.severity);
+    wireObj.dismissed = cst_encode_bool(apiObj.dismissed);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_deviation_report_dto(
+    DeviationReportDto apiObj,
+    wire_cst_deviation_report_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.period = cst_encode_String(apiObj.period);
+    wireObj.period_type = cst_encode_String(apiObj.periodType);
+    wireObj.start_date = cst_encode_String(apiObj.startDate);
+    wireObj.end_date = cst_encode_String(apiObj.endDate);
+    wireObj.generated_at = cst_encode_String(apiObj.generatedAt);
+    wireObj.detected_at = cst_encode_opt_String(apiObj.detectedAt);
+    wireObj.read_at = cst_encode_opt_String(apiObj.readAt);
+    wireObj.total = cst_encode_i_64(apiObj.total);
+    wireObj.todo_done_count = cst_encode_i_64(apiObj.todoDoneCount);
+    wireObj.daily = cst_encode_list_day_count_dto(apiObj.daily);
+    wireObj.by_event_type = cst_encode_list_named_count_dto(apiObj.byEventType);
+    wireObj.by_person = cst_encode_list_named_count_dto(apiObj.byPerson);
+    wireObj.by_project = cst_encode_list_named_count_dto(apiObj.byProject);
+    wireObj.by_activity = cst_encode_list_named_count_dto(apiObj.byActivity);
+    wireObj.deviations = cst_encode_list_deviation_item_dto(apiObj.deviations);
   }
 
   @protected
@@ -4795,6 +4882,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_day_count_dto(DayCountDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_deviation_item_dto(
+    DeviationItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_deviation_report_dto(
+    DeviationReportDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_emotion_tag_dto(EmotionTagDto self, SseSerializer serializer);
 
   @protected
@@ -5055,6 +5154,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_day_count_dto(
     List<DayCountDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_deviation_item_dto(
+    List<DeviationItemDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_deviation_report_dto(
+    List<DeviationReportDto> self,
     SseSerializer serializer,
   );
 
@@ -6265,6 +6376,41 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_day_count_dto');
   late final _cst_new_list_day_count_dto = _cst_new_list_day_count_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_day_count_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_deviation_item_dto> cst_new_list_deviation_item_dto(
+    int len,
+  ) {
+    return _cst_new_list_deviation_item_dto(len);
+  }
+
+  late final _cst_new_list_deviation_item_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_deviation_item_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_deviation_item_dto');
+  late final _cst_new_list_deviation_item_dto =
+      _cst_new_list_deviation_item_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_deviation_item_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_deviation_report_dto>
+  cst_new_list_deviation_report_dto(int len) {
+    return _cst_new_list_deviation_report_dto(len);
+  }
+
+  late final _cst_new_list_deviation_report_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_deviation_report_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_deviation_report_dto');
+  late final _cst_new_list_deviation_report_dto =
+      _cst_new_list_deviation_report_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_deviation_report_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_emotion_tag_dto> cst_new_list_emotion_tag_dto(
     int len,
@@ -10613,6 +10759,93 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__review_report__dismiss_deviation(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> report_id,
+    int index,
+  ) {
+    return _wire__crate__api__review_report__dismiss_deviation(
+      port_,
+      report_id,
+      index,
+    );
+  }
+
+  late final _wire__crate__api__review_report__dismiss_deviationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int32,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__review_report__dismiss_deviation',
+      );
+  late final _wire__crate__api__review_report__dismiss_deviation =
+      _wire__crate__api__review_report__dismiss_deviationPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+          >();
+
+  void wire__crate__api__review_report__list_deviation_reports(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> period_type,
+    int limit,
+  ) {
+    return _wire__crate__api__review_report__list_deviation_reports(
+      port_,
+      period_type,
+      limit,
+    );
+  }
+
+  late final _wire__crate__api__review_report__list_deviation_reportsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int32,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__review_report__list_deviation_reports',
+      );
+  late final _wire__crate__api__review_report__list_deviation_reports =
+      _wire__crate__api__review_report__list_deviation_reportsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+          >();
+
+  void wire__crate__api__review_report__mark_deviation_report_read(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__review_report__mark_deviation_report_read(
+      port_,
+      id,
+    );
+  }
+
+  late final _wire__crate__api__review_report__mark_deviation_report_readPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__review_report__mark_deviation_report_read',
+      );
+  late final _wire__crate__api__review_report__mark_deviation_report_read =
+      _wire__crate__api__review_report__mark_deviation_report_readPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__review_report__tick_periodic_reports(int port_) {
     return _wire__crate__api__review_report__tick_periodic_reports(port_);
   }
@@ -14132,6 +14365,105 @@ final class wire_cst_day_count_dto extends ffi.Struct {
     ..ref.count = count;
 }
 
+final class wire_cst_deviation_item_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_content;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> deviation_type;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> evidence;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> severity;
+
+  @ffi.Bool()
+  external bool dismissed;
+
+  static ffi.Pointer<wire_cst_deviation_item_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_content,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> deviation_type,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> evidence,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> severity,
+    required bool dismissed,
+  }) => $allocator<wire_cst_deviation_item_dto>()
+    ..ref.goal_content = goal_content
+    ..ref.deviation_type = deviation_type
+    ..ref.evidence = evidence
+    ..ref.severity = severity
+    ..ref.dismissed = dismissed;
+}
+
+final class wire_cst_deviation_report_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> period;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> period_type;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> start_date;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> end_date;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> generated_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> detected_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> read_at;
+
+  @ffi.Int64()
+  external int total;
+
+  @ffi.Int64()
+  external int todo_done_count;
+
+  external ffi.Pointer<wire_cst_list_day_count_dto> daily;
+
+  external ffi.Pointer<wire_cst_list_named_count_dto> by_event_type;
+
+  external ffi.Pointer<wire_cst_list_named_count_dto> by_person;
+
+  external ffi.Pointer<wire_cst_list_named_count_dto> by_project;
+
+  external ffi.Pointer<wire_cst_list_named_count_dto> by_activity;
+
+  external ffi.Pointer<wire_cst_list_deviation_item_dto> deviations;
+
+  static ffi.Pointer<wire_cst_deviation_report_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> period,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> period_type,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> start_date,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> end_date,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> generated_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> detected_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> read_at,
+    required int total,
+    required int todo_done_count,
+    required ffi.Pointer<wire_cst_list_day_count_dto> daily,
+    required ffi.Pointer<wire_cst_list_named_count_dto> by_event_type,
+    required ffi.Pointer<wire_cst_list_named_count_dto> by_person,
+    required ffi.Pointer<wire_cst_list_named_count_dto> by_project,
+    required ffi.Pointer<wire_cst_list_named_count_dto> by_activity,
+    required ffi.Pointer<wire_cst_list_deviation_item_dto> deviations,
+  }) => $allocator<wire_cst_deviation_report_dto>()
+    ..ref.id = id
+    ..ref.period = period
+    ..ref.period_type = period_type
+    ..ref.start_date = start_date
+    ..ref.end_date = end_date
+    ..ref.generated_at = generated_at
+    ..ref.detected_at = detected_at
+    ..ref.read_at = read_at
+    ..ref.total = total
+    ..ref.todo_done_count = todo_done_count
+    ..ref.daily = daily
+    ..ref.by_event_type = by_event_type
+    ..ref.by_person = by_person
+    ..ref.by_project = by_project
+    ..ref.by_activity = by_activity
+    ..ref.deviations = deviations;
+}
+
 final class wire_cst_emotion_tag_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> target;
 
@@ -15459,6 +15791,36 @@ final class wire_cst_list_day_count_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_day_count_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_day_count_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_deviation_item_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_deviation_item_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_deviation_item_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_deviation_item_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_deviation_item_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_deviation_report_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_deviation_report_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_deviation_report_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_deviation_report_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_deviation_report_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }

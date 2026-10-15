@@ -282,3 +282,90 @@ mod review_tests {
         assert_eq!(store.todos_done_between(from, to).unwrap(), 1);
     }
 }
+
+// ── R4 报告可观察性读面（呈现层消费；写路径仍归 R3 管道）──────────────
+
+/// 报告行（读侧投影）。report_json/deviations_json 交由 api 层解析成 DTO。
+pub struct DeviationReportRow {
+    pub id: String,
+    pub period: String,
+    pub period_type: String,
+    pub generated_at: String,
+    pub detected_at: Option<String>,
+    pub read_at: Option<String>,
+    pub report_json: String,
+    pub deviations_json: Option<String>,
+}
+
+impl Store {
+    /// 报告列表（最新在前，支持历史回看）。`period_type` 为空串 = 全部。
+    pub fn list_deviation_reports(
+        &self,
+        period_type: &str,
+        limit: i64,
+    ) -> Result<Vec<DeviationReportRow>> {
+        anyhow::ensure!(limit > 0 && limit <= 100, "limit 超出范围（1..=100）");
+        let sql = if period_type.is_empty() {
+            "SELECT id, period, period_type, generated_at, detected_at, read_at,
+                    report_json, deviations_json
+             FROM deviation_reports
+             ORDER BY created_at DESC, id DESC LIMIT ?1"
+                .to_string()
+        } else {
+            "SELECT id, period, period_type, generated_at, detected_at, read_at,
+                    report_json, deviations_json
+             FROM deviation_reports WHERE period_type = ?2
+             ORDER BY created_at DESC, id DESC LIMIT ?1"
+            .to_string()
+        };
+        let mut statement = self.connection.prepare(&sql)?;
+        let bind = |row: &rusqlite::Row| -> rusqlite::Result<DeviationReportRow> {
+            Ok(DeviationReportRow {
+                id: row.get(0)?,
+                period: row.get(1)?,
+                period_type: row.get(2)?,
+                generated_at: row.get(3)?,
+                detected_at: row.get(4)?,
+                read_at: row.get(5)?,
+                report_json: row.get(6)?,
+                deviations_json: row.get(7)?,
+            })
+        };
+        let rows = if period_type.is_empty() {
+            statement.query_map(rusqlite::params![limit], bind)?
+        } else {
+            statement.query_map(rusqlite::params![limit, period_type], bind)?
+        };
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// 标记已读：幂等（首次的 read_at 保留；重复标记不覆盖）。
+    pub fn set_report_read(&self, id: &str, now: chrono::DateTime<chrono::Utc>) -> Result<()> {
+        let changed = self.connection.execute(
+            "UPDATE deviation_reports SET read_at = COALESCE(read_at, ?2) WHERE id = ?1",
+            rusqlite::params![id, now.to_rfc3339()],
+        )?;
+        anyhow::ensure!(changed == 1, "报告不存在：{id}");
+        Ok(())
+    }
+
+    /// 替换检测结论 JSON（R4 忽略单条偏差走这里；管道写路径走
+    /// record_detected_deviations——只认 NULL，不覆盖已有结论）。
+    pub fn replace_deviations_json(
+        &self,
+        id: &str,
+        deviations_json: &str,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> Result<()> {
+        let changed = self.connection.execute(
+            "UPDATE deviation_reports
+             SET deviations_json = ?2, detected_at = COALESCE(detected_at, ?3),
+                 read_at = COALESCE(read_at, ?3)
+             WHERE id = ?1",
+            rusqlite::params![id, deviations_json, now.to_rfc3339()],
+        )?;
+        anyhow::ensure!(changed == 1, "报告不存在：{id}");
+        Ok(())
+    }
+}

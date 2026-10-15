@@ -23,6 +23,9 @@ mod web_search;
 mod wiki;
 pub(crate) mod wiki_images;
 
+// 唯一跨模块复用的 review 行投影（R4 报告读面 DTO 组装用）。
+pub(crate) use review::DeviationReportRow;
+
 use crate::event::{EventSummary, NewEvent};
 use anyhow::{Context, Result};
 use rusqlite::{Connection, params};

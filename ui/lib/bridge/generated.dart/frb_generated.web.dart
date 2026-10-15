@@ -216,6 +216,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DayCountDto dco_decode_day_count_dto(dynamic raw);
 
   @protected
+  DeviationItemDto dco_decode_deviation_item_dto(dynamic raw);
+
+  @protected
+  DeviationReportDto dco_decode_deviation_report_dto(dynamic raw);
+
+  @protected
   EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw);
 
   @protected
@@ -370,6 +376,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DayCountDto> dco_decode_list_day_count_dto(dynamic raw);
+
+  @protected
+  List<DeviationItemDto> dco_decode_list_deviation_item_dto(dynamic raw);
+
+  @protected
+  List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw);
 
   @protected
   List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw);
@@ -973,6 +985,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer);
 
   @protected
+  DeviationItemDto sse_decode_deviation_item_dto(SseDeserializer deserializer);
+
+  @protected
+  DeviationReportDto sse_decode_deviation_report_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer);
 
   @protected
@@ -1173,6 +1193,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DayCountDto> sse_decode_list_day_count_dto(SseDeserializer deserializer);
+
+  @protected
+  List<DeviationItemDto> sse_decode_list_deviation_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DeviationReportDto> sse_decode_list_deviation_report_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<EmotionTagDto> sse_decode_list_emotion_tag_dto(
@@ -2174,6 +2204,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_deviation_item_dto(DeviationItemDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.goalContent),
+      cst_encode_String(raw.deviationType),
+      cst_encode_String(raw.evidence),
+      cst_encode_String(raw.severity),
+      cst_encode_bool(raw.dismissed),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_deviation_report_dto(DeviationReportDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.period),
+      cst_encode_String(raw.periodType),
+      cst_encode_String(raw.startDate),
+      cst_encode_String(raw.endDate),
+      cst_encode_String(raw.generatedAt),
+      cst_encode_opt_String(raw.detectedAt),
+      cst_encode_opt_String(raw.readAt),
+      cst_encode_i_64(raw.total),
+      cst_encode_i_64(raw.todoDoneCount),
+      cst_encode_list_day_count_dto(raw.daily),
+      cst_encode_list_named_count_dto(raw.byEventType),
+      cst_encode_list_named_count_dto(raw.byPerson),
+      cst_encode_list_named_count_dto(raw.byProject),
+      cst_encode_list_named_count_dto(raw.byActivity),
+      cst_encode_list_deviation_item_dto(raw.deviations),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_emotion_tag_dto(EmotionTagDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2735,6 +2800,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_day_count_dto(List<DayCountDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_day_count_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_deviation_item_dto(List<DeviationItemDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_deviation_item_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_deviation_report_dto(List<DeviationReportDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_deviation_report_dto).toList().jsify()!;
   }
 
   @protected
@@ -4178,6 +4255,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_day_count_dto(DayCountDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_deviation_item_dto(
+    DeviationItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_deviation_report_dto(
+    DeviationReportDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_emotion_tag_dto(EmotionTagDto self, SseSerializer serializer);
 
   @protected
@@ -4438,6 +4527,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_day_count_dto(
     List<DayCountDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_deviation_item_dto(
+    List<DeviationItemDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_deviation_report_dto(
+    List<DeviationReportDto> self,
     SseSerializer serializer,
   );
 
@@ -5491,6 +5592,16 @@ class RustLibWire implements BaseWire {
     entry_id,
   );
 
+  void wire__crate__api__review_report__dismiss_deviation(
+    NativePortType port_,
+    String report_id,
+    int index,
+  ) => wasmModule.wire__crate__api__review_report__dismiss_deviation(
+    port_,
+    report_id,
+    index,
+  );
+
   void wire__crate__api__knowledge__dismiss_knowledge_issue(
     NativePortType port_,
     String fingerprint,
@@ -5994,6 +6105,16 @@ class RustLibWire implements BaseWire {
     String date,
   ) => wasmModule.wire__crate__api__list_daily_entries(port_, date);
 
+  void wire__crate__api__review_report__list_deviation_reports(
+    NativePortType port_,
+    String period_type,
+    int limit,
+  ) => wasmModule.wire__crate__api__review_report__list_deviation_reports(
+    port_,
+    period_type,
+    limit,
+  );
+
   void wire__crate__api__entities__list_entity_aliases(
     NativePortType port_,
     String entity_kind,
@@ -6219,6 +6340,14 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__sync__lock_local_sync(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__lock_local_sync(port_);
+
+  void wire__crate__api__review_report__mark_deviation_report_read(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__review_report__mark_deviation_report_read(
+    port_,
+    id,
+  );
 
   void wire__crate__api__entities__merge_entity(
     NativePortType port_,
@@ -7304,6 +7433,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String entry_id,
   );
 
+  external void wire__crate__api__review_report__dismiss_deviation(
+    NativePortType port_,
+    String report_id,
+    int index,
+  );
+
   external void wire__crate__api__knowledge__dismiss_knowledge_issue(
     NativePortType port_,
     String fingerprint,
@@ -7653,6 +7788,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String date,
   );
 
+  external void wire__crate__api__review_report__list_deviation_reports(
+    NativePortType port_,
+    String period_type,
+    int limit,
+  );
+
   external void wire__crate__api__entities__list_entity_aliases(
     NativePortType port_,
     String entity_kind,
@@ -7823,6 +7964,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__sync__lock_local_sync(NativePortType port_);
+
+  external void wire__crate__api__review_report__mark_deviation_report_read(
+    NativePortType port_,
+    String id,
+  );
 
   external void wire__crate__api__entities__merge_entity(
     NativePortType port_,

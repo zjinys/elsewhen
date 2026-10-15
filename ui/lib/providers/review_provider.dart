@@ -40,3 +40,21 @@ final periodStatsProvider = FutureProvider.autoDispose
           ref.read(storageRepositoryProvider) as RustBridgeRepository;
       return bridge.getPeriodStats(periodType, date);
     });
+
+/// 周期盘点报告读面（R4）：family key = 粒度（week/month），最新在前。
+/// 未读 = 任一报告 readAt 为空；忽略单条偏差后刷新本 provider。
+final deviationReportsProvider = FutureProvider.autoDispose
+    .family<List<api.DeviationReportDto>, String>((ref, periodType) {
+      final bridge =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      return bridge.listDeviationReports(periodType: periodType);
+    });
+
+/// 偏差类型中文呈现（枚举封闭，未知的原样透出，便于发现协议漂移）。
+String deviationTypeLabel(String type) => switch (type) {
+      'no_progress' => '无进展',
+      'stalled' => '停滞',
+      'conflict' => '相悖',
+      'scope_drift' => '目标偏移',
+      _ => type,
+    };
