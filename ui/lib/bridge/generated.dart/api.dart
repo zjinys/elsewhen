@@ -13,7 +13,7 @@ part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `decision_support_material`, `default_event_kind`, `default_recordable`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`, `try_auto_upsert_annotated_relation`, `wash_emotion`, `wash_guidance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`, `EventEmotionTag`, `EventGuidanceRef`, `EventGuidance`, `EventRuleConfirmation`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -158,6 +158,12 @@ Future<MessageRecordabilityDto> setEventRecordability({
 
 Future<bool> reanalyzeEvent({required String eventId}) =>
     RustLib.instance.api.crateApiReanalyzeEvent(eventId: eventId);
+
+/// 最近事件读面（事件详情视图列表）：days 天窗口内按记录时间倒序 limit 条。
+Future<List<EventSummaryDto>> listRecentEvents({
+  required PlatformInt64 days,
+  required PlatformInt64 limit,
+}) => RustLib.instance.api.crateApiListRecentEvents(days: days, limit: limit);
 
 /// List all events
 Future<List<EventDto>> listEvents() =>
@@ -742,6 +748,43 @@ class EventEmotionDto {
           recordedAt == other.recordedAt &&
           target == other.target &&
           feeling == other.feeling;
+}
+
+/// 事件摘要 DTO（遗留收口切片 C：事件列表卡；详情走
+/// get_event_analysis_detail，列表不拖分析结果）。
+class EventSummaryDto {
+  final String id;
+  final String rawText;
+  final String recordedAt;
+  final String source;
+  final String status;
+
+  const EventSummaryDto({
+    required this.id,
+    required this.rawText,
+    required this.recordedAt,
+    required this.source,
+    required this.status,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      rawText.hashCode ^
+      recordedAt.hashCode ^
+      source.hashCode ^
+      status.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EventSummaryDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          rawText == other.rawText &&
+          recordedAt == other.recordedAt &&
+          source == other.source &&
+          status == other.status;
 }
 
 /// guidance 派生层展示（D4）：related 指知识库页，lessons/精炼待办是纯文本。

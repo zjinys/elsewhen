@@ -224,6 +224,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventEmotionDto dco_decode_event_emotion_dto(dynamic raw);
 
   @protected
+  EventSummaryDto dco_decode_event_summary_dto(dynamic raw);
+
+  @protected
   double dco_decode_f_64(dynamic raw);
 
   @protected
@@ -363,6 +366,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventEmotionDto> dco_decode_list_event_emotion_dto(dynamic raw);
+
+  @protected
+  List<EventSummaryDto> dco_decode_list_event_summary_dto(dynamic raw);
 
   @protected
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
@@ -952,6 +958,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventEmotionDto sse_decode_event_emotion_dto(SseDeserializer deserializer);
 
   @protected
+  EventSummaryDto sse_decode_event_summary_dto(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
@@ -1137,6 +1146,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventEmotionDto> sse_decode_list_event_emotion_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<EventSummaryDto> sse_decode_list_event_summary_dto(
     SseDeserializer deserializer,
   );
 
@@ -2026,6 +2040,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_event_emotion_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_event_emotion_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_event_summary_dto>
+  cst_encode_list_event_summary_dto(List<EventSummaryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_event_summary_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_event_summary_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3256,6 +3281,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.recorded_at = cst_encode_String(apiObj.recordedAt);
     wireObj.target = cst_encode_opt_String(apiObj.target);
     wireObj.feeling = cst_encode_String(apiObj.feeling);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_event_summary_dto(
+    EventSummaryDto apiObj,
+    wire_cst_event_summary_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.raw_text = cst_encode_String(apiObj.rawText);
+    wireObj.recorded_at = cst_encode_String(apiObj.recordedAt);
+    wireObj.source = cst_encode_String(apiObj.source);
+    wireObj.status = cst_encode_String(apiObj.status);
   }
 
   @protected
@@ -4586,6 +4623,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_event_summary_dto(
+    EventSummaryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
@@ -4822,6 +4865,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_event_emotion_dto(
     List<EventEmotionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_event_summary_dto(
+    List<EventSummaryDto> self,
     SseSerializer serializer,
   );
 
@@ -6028,6 +6077,24 @@ class RustLibWire implements BaseWire {
       _cst_new_list_event_emotion_dtoPtr
           .asFunction<
             ffi.Pointer<wire_cst_list_event_emotion_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_event_summary_dto> cst_new_list_event_summary_dto(
+    int len,
+  ) {
+    return _cst_new_list_event_summary_dto(len);
+  }
+
+  late final _cst_new_list_event_summary_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_event_summary_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_event_summary_dto');
+  late final _cst_new_list_event_summary_dto =
+      _cst_new_list_event_summary_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_event_summary_dto> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_goal_dto> cst_new_list_goal_dto(int len) {
@@ -9882,6 +9949,18 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__list_recent_events(int port_, int days, int limit) {
+    return _wire__crate__api__list_recent_events(port_, days, limit);
+  }
+
+  late final _wire__crate__api__list_recent_eventsPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Int64, ffi.Int64)>
+      >('frbgen_elsewhen_ui_wire__crate__api__list_recent_events');
+  late final _wire__crate__api__list_recent_events =
+      _wire__crate__api__list_recent_eventsPtr
+          .asFunction<void Function(int, int, int)>();
+
   void wire__crate__api__provider_config__delete_ai_provider_config(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -13725,6 +13804,32 @@ final class wire_cst_event_emotion_dto extends ffi.Struct {
     ..ref.feeling = feeling;
 }
 
+final class wire_cst_event_summary_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_text;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  static ffi.Pointer<wire_cst_event_summary_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_text,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+  }) => $allocator<wire_cst_event_summary_dto>()
+    ..ref.id = id
+    ..ref.raw_text = raw_text
+    ..ref.recorded_at = recorded_at
+    ..ref.source = source
+    ..ref.status = status;
+}
+
 final class wire_cst_goal_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
 
@@ -14794,6 +14899,21 @@ final class wire_cst_list_event_emotion_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_event_emotion_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_event_emotion_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_event_summary_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_event_summary_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_event_summary_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_event_summary_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_event_summary_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }

@@ -226,6 +226,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventEmotionDto dco_decode_event_emotion_dto(dynamic raw);
 
   @protected
+  EventSummaryDto dco_decode_event_summary_dto(dynamic raw);
+
+  @protected
   double dco_decode_f_64(dynamic raw);
 
   @protected
@@ -365,6 +368,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventEmotionDto> dco_decode_list_event_emotion_dto(dynamic raw);
+
+  @protected
+  List<EventSummaryDto> dco_decode_list_event_summary_dto(dynamic raw);
 
   @protected
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
@@ -954,6 +960,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventEmotionDto sse_decode_event_emotion_dto(SseDeserializer deserializer);
 
   @protected
+  EventSummaryDto sse_decode_event_summary_dto(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
@@ -1139,6 +1148,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventEmotionDto> sse_decode_list_event_emotion_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<EventSummaryDto> sse_decode_list_event_summary_dto(
     SseDeserializer deserializer,
   );
 
@@ -2173,6 +2187,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_event_summary_dto(EventSummaryDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.rawText),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_String(raw.source),
+      cst_encode_String(raw.status),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_goal_dto(GoalDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2633,6 +2659,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_event_emotion_dto(List<EventEmotionDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_event_emotion_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_event_summary_dto(List<EventSummaryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_event_summary_dto).toList().jsify()!;
   }
 
   @protected
@@ -3997,6 +4029,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_event_summary_dto(
+    EventSummaryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
@@ -4233,6 +4271,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_event_emotion_dto(
     List<EventEmotionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_event_summary_dto(
+    List<EventSummaryDto> self,
     SseSerializer serializer,
   );
 
@@ -5829,6 +5873,12 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__sync__list_pending_sync_joins(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__list_pending_sync_joins(port_);
 
+  void wire__crate__api__list_recent_events(
+    NativePortType port_,
+    JSAny days,
+    JSAny limit,
+  ) => wasmModule.wire__crate__api__list_recent_events(port_, days, limit);
+
   void wire__crate__api__rules__list_recent_rule_hits(
     NativePortType port_,
     JSAny limit,
@@ -7387,6 +7437,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__sync__list_pending_sync_joins(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__list_recent_events(
+    NativePortType port_,
+    JSAny days,
+    JSAny limit,
   );
 
   external void wire__crate__api__rules__list_recent_rule_hits(

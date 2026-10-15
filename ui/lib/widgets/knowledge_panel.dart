@@ -13,6 +13,7 @@ import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../models/wiki_page.dart';
 import '../providers/knowledge_provider.dart';
+import '../providers/events_provider.dart';
 import '../providers/wiki_provider.dart';
 import 'markdown_view.dart';
 import 'wiki_derivatives.dart';
@@ -101,21 +102,10 @@ Future<void> _openPage(BuildContext context, WidgetRef ref, String slug) async {
   }
 }
 
-Future<void> _showEvent(BuildContext context, WidgetRef ref, String id) async {
-  try {
-    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-    final event = await repo.getEventAnalysisDetail(id);
-    if (!context.mounted) return;
-    await showKnowledgeText(context, '来源记录', event?.rawText ?? '来源记录不存在');
-  } catch (error) {
-    if (context.mounted) {
-      await showKnowledgeText(
-        context,
-        '读取失败',
-        _error(error, context: '读取来源记录'),
-      );
-    }
-  }
+/// D2 旧账闭口（遗留收口切片 C）：来源事件从只读纯文本 dialog 升级为
+/// 跳转事件详情视图（分析摘要、跟进、规则命中与反馈都在那里承载）。
+void _showEvent(BuildContext context, WidgetRef ref, String id) {
+  openEventDetail(ref, id);
 }
 
 /// RFC3339 时间戳 → 简短可读格式（`MM-dd HH:mm`，当年省年份）。

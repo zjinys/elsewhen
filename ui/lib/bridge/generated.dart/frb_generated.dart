@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 410758342;
+  int get rustContentHash => 520684572;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -605,6 +605,11 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<SyncJoinEntryDto>> crateApiSyncListPendingSyncJoins();
+
+  Future<List<EventSummaryDto>> crateApiListRecentEvents({
+    required PlatformInt64 days,
+    required PlatformInt64 limit,
+  });
 
   Future<List<RuleHitDto>> crateApiRulesListRecentRuleHits({
     required PlatformInt64 limit,
@@ -4752,6 +4757,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_pending_sync_joins", argNames: []);
 
   @override
+  Future<List<EventSummaryDto>> crateApiListRecentEvents({
+    required PlatformInt64 days,
+    required PlatformInt64 limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_i_64(days);
+          var arg1 = cst_encode_i_64(limit);
+          return wire.wire__crate__api__list_recent_events(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_event_summary_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListRecentEventsConstMeta,
+        argValues: [days, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListRecentEventsConstMeta => const TaskConstMeta(
+    debugName: "list_recent_events",
+    argNames: ["days", "limit"],
+  );
+
+  @override
   Future<List<RuleHitDto>> crateApiRulesListRecentRuleHits({
     required PlatformInt64 limit,
   }) {
@@ -8500,6 +8533,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EventSummaryDto dco_decode_event_summary_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return EventSummaryDto(
+      id: dco_decode_String(arr[0]),
+      rawText: dco_decode_String(arr[1]),
+      recordedAt: dco_decode_String(arr[2]),
+      source: dco_decode_String(arr[3]),
+      status: dco_decode_String(arr[4]),
+    );
+  }
+
+  @protected
   double dco_decode_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
@@ -9044,6 +9092,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<EventEmotionDto> dco_decode_list_event_emotion_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_event_emotion_dto).toList();
+  }
+
+  @protected
+  List<EventSummaryDto> dco_decode_list_event_summary_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_event_summary_dto).toList();
   }
 
   @protected
@@ -11083,6 +11137,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EventSummaryDto sse_decode_event_summary_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_rawText = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_source = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    return EventSummaryDto(
+      id: var_id,
+      rawText: var_rawText,
+      recordedAt: var_recordedAt,
+      source: var_source,
+      status: var_status,
+    );
+  }
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
@@ -11887,6 +11958,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <EventEmotionDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_event_emotion_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<EventSummaryDto> sse_decode_list_event_summary_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EventSummaryDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_event_summary_dto(deserializer));
     }
     return ans_;
   }
@@ -14377,6 +14462,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_event_summary_dto(
+    EventSummaryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.rawText, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_String(self.source, serializer);
+    sse_encode_String(self.status, serializer);
+  }
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
@@ -14970,6 +15068,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_event_emotion_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_event_summary_dto(
+    List<EventSummaryDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_event_summary_dto(item, serializer);
     }
   }
 

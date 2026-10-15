@@ -122,6 +122,17 @@ void main() {
     expect(items, isA<List<dynamic>>());
   });
 
+  test('遗留收口 C：事件读面（最近列表 / 分析详情 / 旁标记）', () async {
+    // 列表形状可用（隔离库可能空）。
+    final events = await repo.listRecentEvents(days: 3650, limit: 50);
+    expect(events, isA<List<dynamic>>());
+    // 详情与旁标记：不存在事件 fail-soft（detail null / hits 空表）。
+    final missing = await repo.getEventAnalysisDetail('__无此事件__');
+    expect(missing, isNull);
+    final hits = await repo.listEventRuleHits('__无此事件__');
+    expect(hits, isEmpty);
+  });
+
   test('D6 情感回访：偏好读写往返 + 检查面可用', () async {
     try {
       await repo.setCompanionPrefs(enabled: false, intervalDays: 9);

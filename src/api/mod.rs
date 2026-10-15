@@ -1146,6 +1146,36 @@ pub fn reanalyze_event(event_id: String) -> Result<bool> {
     Store::open(&config.database_path)?.requeue_event_analysis(event_id.trim())
 }
 
+/// 事件摘要 DTO（遗留收口切片 C：事件列表卡；详情走
+/// get_event_analysis_detail，列表不拖分析结果）。
+#[derive(Clone, Debug)]
+pub struct EventSummaryDto {
+    pub id: String,
+    pub raw_text: String,
+    pub recorded_at: String,
+    pub source: String,
+    pub status: String,
+}
+
+/// 最近事件读面（事件详情视图列表）：days 天窗口内按记录时间倒序 limit 条。
+pub fn list_recent_events(days: i64, limit: i64) -> Result<Vec<EventSummaryDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let days = days.clamp(0, 3650);
+    let limit = limit.clamp(1, 200) as usize;
+    Ok(store
+        .recent_events(days, limit)?
+        .into_iter()
+        .map(|e| EventSummaryDto {
+            id: e.id,
+            raw_text: e.raw_text,
+            recorded_at: e.recorded_at,
+            source: e.source,
+            status: e.status,
+        })
+        .collect())
+}
+
 /// List all events
 pub fn list_events() -> Result<Vec<EventDto>> {
     let config = crate::config::AppConfig::load()?;

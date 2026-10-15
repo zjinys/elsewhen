@@ -17,6 +17,7 @@ import '../widgets/wiki_page_detail_view.dart';
 import '../widgets/custom_title_bar.dart';
 import '../widgets/ai_provider_setup_hint.dart';
 import '../widgets/companion_revisit_hint.dart';
+import '../widgets/events_view.dart';
 
 class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
@@ -105,6 +106,8 @@ class MainScreen extends ConsumerWidget {
                       child: switch (tab) {
                         SidebarTab.conversation => const MessageArea(),
                         SidebarTab.wiki => const WikiPageDetailView(),
+                        // 遗留收口切片 C：事件详情视图（主工作区第三态）
+                        SidebarTab.events => const EventsView(),
                       },
                     ),
                   ),

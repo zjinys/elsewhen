@@ -528,6 +528,30 @@ class RustBridgeRepository implements StorageRepository {
       api.checkCompanionRevisit();
 
   /// 最近的即时提醒与聚合（规则库设置的「最近提醒」读面）。
+  /// 最近事件读面（遗留收口切片 C）：列表卡不拖分析结果。
+  Future<List<api.EventSummaryDto>> listRecentEvents({
+    int days = 3650,
+    int limit = 50,
+  }) =>
+      api.listRecentEvents(days: days, limit: limit);
+
+  /// 事件旁标记（D1 旧账）：某事件的未拒绝命中。
+  Future<List<RuleHit>> listEventRuleHits(String eventId) =>
+      api.listEventRuleHits(eventId: eventId).then(
+        (dtos) => dtos
+            .map(
+              (dto) => RuleHit(
+                id: dto.id,
+                ruleId: dto.ruleId,
+                ruleContent: dto.ruleContent,
+                status: dto.status,
+                createdAt: DateTime.parse(dto.createdAt).toLocal(),
+                feedback: dto.feedback,
+              ),
+            )
+            .toList(),
+      );
+
   Future<List<RuleHit>> listRecentRuleHits({int limit = 8}) => api
       .listRecentRuleHits(limit: limit)
       .then(

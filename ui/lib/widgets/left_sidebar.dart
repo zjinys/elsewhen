@@ -6,6 +6,7 @@ import '../models/wiki_page.dart';
 import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
+import '../widgets/events_view.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -74,6 +75,8 @@ class LeftSidebar extends ConsumerWidget {
             child: switch (tab) {
               SidebarTab.conversation => _buildConversationTab(context, ref),
               SidebarTab.wiki => const _WikiTab(),
+              // 事件域左栏：精简最近事件列表，点击即选中（主工作区显示详情）
+              SidebarTab.events => const EventsNavList(),
             },
           ),
           _buildFooter(context, ref),
@@ -205,6 +208,17 @@ class LeftSidebar extends ConsumerWidget {
             onTap: () {
               ref.read(wikiActiveTabIdProvider.notifier).set('import');
               ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
+            },
+          ),
+          const SizedBox(height: 2),
+          // 事件域（遗留收口切片 C）：事件是知识库的源材料，入口与
+          // 知识库并列但不新增一级 tab 内容域之外的语义负担。
+          _FooterAction(
+            icon: Icons.history_edu_outlined,
+            label: '事件',
+            isActive: activeTab == SidebarTab.events,
+            onTap: () {
+              ref.read(sidebarTabProvider.notifier).set(SidebarTab.events);
             },
           ),
           const SizedBox(height: 2),

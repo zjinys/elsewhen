@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 410758342;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 520684572;
 
 // Section: executor
 
@@ -3193,6 +3193,31 @@ fn wire__crate__api__sync__list_pending_sync_joins_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::sync::list_pending_sync_joins()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__list_recent_events_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    days: impl CstDecode<i64>,
+    limit: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_recent_events",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_days = days.cst_decode();
+            let api_limit = limit.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::list_recent_events(api_days, api_limit)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6509,6 +6534,24 @@ impl SseDecode for crate::api::EventEmotionDto {
     }
 }
 
+impl SseDecode for crate::api::EventSummaryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_rawText = <String>::sse_decode(deserializer);
+        let mut var_recordedAt = <String>::sse_decode(deserializer);
+        let mut var_source = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        return crate::api::EventSummaryDto {
+            id: var_id,
+            raw_text: var_rawText,
+            recorded_at: var_recordedAt,
+            source: var_source,
+            status: var_status,
+        };
+    }
+}
+
 impl SseDecode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7316,6 +7359,18 @@ impl SseDecode for Vec<crate::api::EventEmotionDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::EventEmotionDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::EventSummaryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::EventSummaryDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -9883,6 +9938,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::EventEmotionDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::EventSummaryDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.raw_text.into_into_dart().into_dart(),
+            self.recorded_at.into_into_dart().into_dart(),
+            self.source.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EventSummaryDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::EventSummaryDto>
+    for crate::api::EventSummaryDto
+{
+    fn into_into_dart(self) -> crate::api::EventSummaryDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::goals::GoalDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -12033,6 +12109,17 @@ impl SseEncode for crate::api::EventEmotionDto {
     }
 }
 
+impl SseEncode for crate::api::EventSummaryDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.raw_text, serializer);
+        <String>::sse_encode(self.recorded_at, serializer);
+        <String>::sse_encode(self.source, serializer);
+        <String>::sse_encode(self.status, serializer);
+    }
+}
+
 impl SseEncode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12567,6 +12654,16 @@ impl SseEncode for Vec<crate::api::EventEmotionDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::EventEmotionDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::EventSummaryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::EventSummaryDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -14401,6 +14498,18 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::EventSummaryDto> for wire_cst_event_summary_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EventSummaryDto {
+            crate::api::EventSummaryDto {
+                id: self.id.cst_decode(),
+                raw_text: self.raw_text.cst_decode(),
+                recorded_at: self.recorded_at.cst_decode(),
+                source: self.source.cst_decode(),
+                status: self.status.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::goals::GoalDto> for wire_cst_goal_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::goals::GoalDto {
@@ -14957,6 +15066,16 @@ mod io {
     impl CstDecode<Vec<crate::api::EventEmotionDto>> for *mut wire_cst_list_event_emotion_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::EventEmotionDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::EventSummaryDto>> for *mut wire_cst_list_event_summary_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::EventSummaryDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -16587,6 +16706,22 @@ mod io {
         }
     }
     impl Default for wire_cst_event_emotion_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_event_summary_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                raw_text: core::ptr::null_mut(),
+                recorded_at: core::ptr::null_mut(),
+                source: core::ptr::null_mut(),
+                status: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_event_summary_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -18960,6 +19095,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_recent_events(
+        port_: i64,
+        days: i64,
+        limit: i64,
+    ) {
+        wire__crate__api__list_recent_events_impl(port_, days, limit)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__list_recent_rule_hits(
         port_: i64,
         limit: i64,
@@ -20363,6 +20507,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_event_summary_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_event_summary_dto {
+        let wrap = wire_cst_list_event_summary_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_event_summary_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_goal_dto(
         len: i32,
     ) -> *mut wire_cst_list_goal_dto {
@@ -21276,6 +21434,15 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_event_summary_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        raw_text: *mut wire_cst_list_prim_u_8_strict,
+        recorded_at: *mut wire_cst_list_prim_u_8_strict,
+        source: *mut wire_cst_list_prim_u_8_strict,
+        status: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_goal_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         content: *mut wire_cst_list_prim_u_8_strict,
@@ -21662,6 +21829,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_event_emotion_dto {
         ptr: *mut wire_cst_event_emotion_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_event_summary_dto {
+        ptr: *mut wire_cst_event_summary_dto,
         len: i32,
     }
     #[repr(C)]
@@ -23172,6 +23345,29 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::EventSummaryDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EventSummaryDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::EventSummaryDto {
+                id: self_.get(0).cst_decode(),
+                raw_text: self_.get(1).cst_decode(),
+                recorded_at: self_.get(2).cst_decode(),
+                source: self_.get(3).cst_decode(),
+                status: self_.get(4).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::goals::GoalDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -23971,6 +24167,18 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::EventEmotionDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::EventSummaryDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::EventSummaryDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -26813,6 +27021,15 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__sync__list_pending_sync_joins_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__list_recent_events(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        days: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+        limit: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__list_recent_events_impl(port_, days, limit)
     }
 
     #[wasm_bindgen]
