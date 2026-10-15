@@ -1,0 +1,129 @@
+# 回顾与目标偏差 Roadmap（回顾页三粒度 + 周期统计 + 目标偏差检测）
+
+## 目标与归属
+
+让积累在「回看」时有产出：每天/每周/每月一个总结；行为统计精确可问（「这个月散步几次」）；活跃目标与现实行为之间的偏差被周期性、低打扰地点出来。
+
+- 合并三份既有提案为一张实施路线：
+  - [事件域重定义为「回顾」的第一/第二刀决策](2026-10-14-decision-support-loop-roadmap.md)（遗留收口 C，2026-10-15 拍板）；
+  - [周期统计报告与目标偏差检测](../notes/proposed/architecture/2026-09-30-periodic-deviation-report.md)（FR-PES-005-04/-05）；
+  - [目标表设计与偏差检测](../notes/proposed/architecture/2026-09-28-goal-schema-and-deviation.md)（FR-PES-005-01/-02/-03 已实现，本路线只接其尾巴）。
+- 服务[个人认知主循环](2026-09-17-personal-cognition-main-loop-roadmap.md) Phase 6（主动回顾与产品收敛）起步；与决策辅助闭环的 daily_overview 数据面（D6 已完成）直接衔接。
+- 需求锚点：[FR-PES-005 目标与偏差检测](../requirements/product/FR-PES-005-目标与偏差检测.md)。
+
+## 执行状态
+
+- **建立日期：** 2026-10-15，拼合三份提案、消掉统计底座重叠。
+- **代码基线：** `9b0ac4c`（迁移 38；Rust 745 / Flutter 381 / analyze 73 / clippy 132）。
+- **当前阶段：** R1 第一刀已实现（2026-10-15 代码落库，等真人验收观感签收；即决策辅助 roadmap 遗留收口 C 的「第一刀」，此后统称 R1）。
+
+| 切片 | 内容 | 依赖 | 状态 |
+|---|---|---|---|
+| R1 | 回顾页第一刀：日/周/月三粒度（无 AI） | 无 | **已实现，待真人验收** |
+| R2 | `query_event_stats` 通用统计工具（对话内精确统计） | 无 | 已实现，待真人验收 |
+| R3 | 周期报告管道 + 偏差检测（-04） | R1（呈现面）；R0 契约冻结 | 未开工 |
+| R4 | 评估可观察性（-05）：已读记账、反馈、报告详情 | R3 | 未开工 |
+| R5 | 第二刀：周/月 AI 总结生成管道 | R1 验证后裁决 | 需验证后再议 |
+
+## 不变式（继承 FR-PES-005 与决策辅助红线）
+
+1. **统计本地算，偏差才用 AI**：精确数字来自 SQL 聚合，零 token、可复现；AI 只做语义对照判断。AI 数不准、会编，不进统计路径。
+2. **宁缺毋滥**：没有真正值得说的偏差时输出空结果；「时间久没提及」不得替代「有无推进证据」作为偏差证据。
+3. **不重复**：同一偏差已提过且情况未变时不重复输出；去重用确定性字符串比较（goal_content + deviation_type），不用 AI 判断。
+4. **不评判不指路**：偏差只陈述事实与目标的差距，不给「应该怎么做」的建议。
+5. **可溯源**：每次评估内联当时的活跃目标快照与统计依据；报告人不读表也能回答「当时是对着哪句目标判的」。
+6. **低打扰**：不自动推送、不做系统级通知；呈现挂在回顾页（见 Q1 裁决），未读提醒只到「点开才见」的层面。
+7. **管道产物纪律**：`deviation_reports` 属管道产物，排除于快照同步（本机度量不跨设备复制），与其他 background runs 同口径。
+8. 日界沿用 `daily_entries` 同款本地日界，不引入 UTC 偏移歧义。
+
+## 现状底座（2026-10-15 核实）
+
+- `goals`（migration 02）+ 上限触发器 + CRUD + FRB + 「今天」状态栏入口 + prompt 反向护栏注入：**已实现**（FR-PES-005-01/-02/-03 表结构就绪）。
+- `get_daily_overview` 已扩展 `reminder_hits` + `memory_echo`（D6）：**「日」回顾的数据面完备，缺的只是 UI**。
+- 事件分析已提取 `event_type/people/projects/activities` 存 `event_analyses.result_json`：周/月拼装统计的原料就位，**无需改 schema**。
+- Flutter 5s timer 后台 worker（分析 → 知识消化串行）：周期报告触发复用同机制。
+- 事件域入口已隐藏（用户否决独立事件域），事件明细降级为回顾页日视图内区块——R1 的 UI 边界由此定死。
+- `src/ai/insight.rs` 死代码状态不变；本路线不接线它（R3 的偏差检测独立小 prompt，不吞洞察引擎）。
+
+## 裁决（原 note 待决问题，一次拍板）
+
+| 编号 | 裁决 | 理由 |
+|---|---|---|
+| Q1 呈现 | **回顾页承载周/月报告与未读标记，不在「今天」状态栏另加「📊 周报」图标** | 事件域已重定义为回顾页；状态栏是入口不是阅读面，第二处呈现会让同一批数据长出两个家 |
+| Q2 检测时机 | 报告生成后立即跑偏差检测（AI 一次调用）；用户看到即完整结果 | 用户查看时才算会让打开报告变成等待 |
+| Q3 去重 | 确定性字符串比较 | 可测试、可解释；AI 判断去重引入不确定性 |
+| Q4 生成时机 | 周一 08:00 后 / 每月 1 日 08:00 后首次满足条件的 timer tick 补做；无进程时不追补错过窗口外的空报告 | 与知识消化/分析同一 timer，无新调度器；空报告（0 事件）跳过不生成 |
+| R1 持久化 | 第一刀周/月统计**实时聚合、不建表**；报告持久化（migration 39 `deviation_reports`）推迟到 R3 | 无已读记账与 AI 产出的需求时不背存储；10k 级事件聚合无性能压力 |
+| 分析 prompt 引导 | `activities` 提取常用动词短语（散步/跑步/阅读…），不用描述性短语 | 统计匹配的前提；prompt 微调，随 R2/R3 一起走 |
+| migration 号 | 39 起顺延（38 = `guidance_feedback` 已占） | 既有纪律 |
+
+## R1 — 回顾页第一刀（已实现，等真人验收）
+
+**收益：** 「每天/每周/每月给一个总结」的用户原话落地；事件明细有归宿。
+
+**实现落点（2026-10-15）：** `get_period_stats`（api）+ `storage/review.rs`（窗口查询）；Dart `review_view.dart` 三粒度 + `review_provider.dart`；footer「回顾」入口 + 左栏近 7 天导航（`_ReviewNavSummary`）。`SidebarTab.events` 改名 `review`，EventsView 文件保留但不再挂载主工作区（D2 跳转 openEventDetail 现指回顾页）。
+
+- [x] 回顾页主工作区形态：三粒度切换（日/周/月）。左栏 footer 不新增第四入口——回顾入口复用原「事件」位（footer 按钮文案改「回顾」）。原 EventsView 实现保留文件、不挂载；日视图明细区承接当天事件。
+- [x] 日视图：点亮 `get_daily_overview` 全读面（AI 每日回顾文本 + 当日事件 + 待办 + 规则提醒 `reminder_hits` + 记忆回引 `memory_echo`）；事件浏览卡流降级为日视图内的明细区（当天事件原文展开，内联 ExpansionTile）。
+- [x] 周/月视图：纯拼装统计版（本地 SQL，无 AI）——事件数、待办完成数（以 `updated_at` 为完成日，如实近似）、事类/人物/项目/活动聚合（确定性排序 + top 12 截断）、日分布微条形。**不建表、不持久化、无已读态**。
+- [x] 空态语义：当日无回顾/无事件、统计零条各有空态文案；空聚合组不渲染（零信息区块删除纪律）。
+- [x] 测试：Rust 7 项（窗口日界、倒序边界 fail-closed、待办完成日、聚合确定性排序、周/月窗界、非可记录排除——manual 决策覆盖口径）；Dart widget 6 项（五块呈现、翻页、明细展开、周/月拼版、粒度切换、窄屏）；全量 752/387/analyze 73/clippy 132 基线绿。
+- [ ] 真人验收：三粒度切换与日视图五个数据块的观感签收。
+
+## R2 — `query_event_stats` 通用统计工具
+
+**收益：** 「这个月散步几次」得到精确数字与日期分布，AI 不再估算。
+
+- [x] Rust 工具 `QueryEventStatsTool`（`api/event_stats.rs` 聚合层 + `ai/tool/stats.rs` 工具壳）：参数 `date_range/event_type/person/project/activity/text_contains/group_by`（可组合）；窗口 + V1 解析在内存过滤聚合（与 R1 周期拼装同源口径），**不改 schema**。聚合层独立成模块，R3 报告管道复用同一消费面。
+- [x] 参数校验 fail-closed：未知 `date_range`/`group_by` 值报错不猜；`person/project/activity` 大小写折叠「包含」匹配、`event_type` 折叠精确（手写扫描，无 regex）；窗口 ≤366 天。
+- [x] 返回 `total（过滤前）/matched/grouped（确定性排序+top50）/samples（最新 12 条，原文截 240）`；空结果合法返回并明说「没命中」（AI 不许估算）。
+- [x] 工具清单注册：`ToolPolicy::Read` 走既有 registry（知识页对话顺势获得只读工具，不做第二套过滤面）。**工具描述极限压缩**：预算引擎按字节估 token（unknown 模型 1B=1t），工具清单每字节都是全体对话固定开销。
+- [x] 分析 prompt 加 activities 词汇引导（api/mod.rs 分析 prompt：「简短常见的动词短语……统计按词匹配，词汇不一致就数不到」）。
+- [x] 测试 7 项：分组计数 + chitchat/manual 决策排除、组合过滤 + 大小写折叠、text_contains、空结果、fail-closed（未知 group_by / 反转窗 / 超长窗 / 未知 date_range）、date_range 边界（ISO 周界、跨年）、samples 截断。
+- ⚠ **已知限制（工具清单预算）**：对话请求注入全量 24 工具 JSON ≈14KB，unknown 32k 默认窗下预算 = 32768−4096−5% margin ≈ 27.0k 字节估 token。短对话场景已极限压缩后刚好合规（护栏测试 green）；
+  「规则命中 + 待确认动作」重上下文 + 32k 长尾模型会保护性拒绝（报「减小窗口/上下文」）。deepseek/qwen/kimi/glm/claude/gemini 等 64k+ 主流均不受影响。解法方向（后续刀）：对话场景分层工具清单或清单参数瘦身，单独立项，本刀不扩 budget margin。
+
+## R3 — 周期报告管道 + 偏差检测（FR-PES-005-04）
+
+**收益：** 每周/每月一份对照活跃目标的行为盘点；该说的偏差被说出来，且只说一次。
+
+- [x] migration 39 `deviation_reports`（2026-10-16）：结构同裁决；`period`=周期末日（周=周日/月=月末），UNIQUE 幂等；表排除于快照（`local-knowledge-pipeline` 域，管道产物纪律）。
+- [x] 生成：`build_period_report` 复用 R2 聚合层（同一实现两个消费面）；内联生成时刻活跃目标快照（phase+content）；空窗（0 可记录事件）跳过不建表行；generate/detect 独立状态（`deviations_json` NULL=尚未检测）。
+- [x] 检测：一次 AI 调用（digest_provider 复用），prompt 五条红线（宁缺毋滥/不评判不指路/证据引数字/goal 逐字/枚举封闭）；输出 JSON 逐字校验（goal 必须命中快照、type/severity 枚举、evidence ≤400 字）；**校验失败整批不入**；确定性去重（goal_content+deviation_type 对历史集合，同偏差连续周期不重报，不用 AI 判断重复）。
+- [x] 触发：5s timer worker 在知识消化后调 `tick_periodic_reports()`（同一 worker 串行）。触达语义 = Q4 与验收场景「进程一周未开 → 补做最近完整周期，历史空窗不补」的调和：每 tick 保证**最近一个完整周期**有报告（若非空且缺失），生成时刻下限 = 周期结束次日 08:00（本地）；检测失败指数退避 5min→60min（进程内状态）。
+- [x] AI 失败不影响统计：检测失败返回 `DetectFailed` 枚举（不抛错），报告照常可读。
+- [x] Provider 缺失：`NoProvider` 静默等待（报告已生成的照常等检测），与知识消化同模式。
+- [x] 运行账本：`knowledge_background_runs` task=`period-report-detect`（生成幂等重试不重复记账）。
+- [x] 测试 4 项（Rust 763）：窗口/due gate（周一 08:00 界、月 gate、周五补做、锚日推导）、生成幂等+空窗跳过+目标快照内联、校验整批拒绝+确定性去重+code fence、AI 失败隔离+已检测幂等+跨期去重+快照排除。FRB 面：`tickPeriodicReports` 单函数（枚举全 String/usize，零 chrono 泄漏）；聚合层 `#[frb(ignore)]`（&Store/NaiveDate 非 FRB 面，R2 起即如此）。
+
+## R4 — 评估可观察性（FR-PES-005-05）
+
+**收益：** 用户看得到系统 judged 什么、依据什么；可忽略、可追溯。
+
+- [x] 回顾页周/月视图接 `deviation_reports` 读面（2026-10-16）：最新一份报告完整铺开，更早的收进「更早的盘点」折叠区按周期回看；进入视图即标已读（看到即读，幂等 `mark_deviation_report_read`，首次 read_at 保留）；未读在粒度切换处显示小圆点（Badge，R4 唯一提醒形态——不弹窗不加红点轰炸；报告面未加载/失败时静默降级无点）。
+- [x] 报告详情：统计 pill（事件/待办完成，同 R1 口径语义）+ 偏差区（deviation_type 中文化映射：no_progress=无进展/stalled=停滞/conflict=相悖/scope_drift=目标偏移，未知枚举原样透出便于发现协议漂移；severity 三档色点 high=error/medium=warning/low=accentMuted；≤400 字证据 + 目标逐字）。未检测（`detected_at` NULL）显「偏差检测待进行」，检测过零偏差显「未发现待说出的偏差」。
+- [x] 忽略单条偏差：`dismiss_deviation(report_id, index)` 置 `dismissed=true` 保留条目（审计轨迹，不删除），报告兜底置已读；序号越界/未检测/报告不存在 fail-closed。Dart 侧忽略失败静默（条目保持可再操作）。
+- [x] 存储读面：`list_deviation_reports`（created_at DESC，limit 1..=100，period_type 空=全部）、`set_report_read`（COALESCE 幂等）、`replace_deviations_json`（仅 R4 忽略路径；管道写路径 `record_detected_deviations` 仍只认 NULL 不覆盖）。
+- [x] 测试（Rust 765 +2：已读幂等+列表顺序+忽略置位+越界/未检测 fail-closed+损坏 JSON fail-closed；Flutter 391 +4：盘点卡渲染+进入即标已读+未读点消隐、忽略置位呈现+失败静默、无报告/未检测呈现）。
+
+## R5 — 第二刀：周/月 AI 总结（R1 验证后裁决）
+
+**收益前置条件：** 拼装统计版被真实使用后，若确认「信息密度不够」，再做生成管道（新表：周期/状态/正文，管道产物不同步；job 架构复用；周一上午生成上周、1 号生成上月）。
+
+- [ ] 裁决门：R1 真人使用 ≥2 周 + R3 偏差报告运行 ≥1 周期后重新评估是否开工。**在此之前不建任何表。**
+
+## 首个可用范围
+
+R1 + R2：回顾页三粒度可用，统计问答可用，零新表（R1）+ 零 AI 调用面（R1）/一个工具调用面（R2）。R3 起才引入持久化与 AI 周期任务，避免「管道先行、UI 缺席」。
+
+## 验收场景（对照 FR-PES-005 §6）
+
+| 场景 | 预期 |
+|---|---|
+| 打开回顾页切「日」 | 当日 AI 回顾 + 事件 + 待办 + 提醒 + 记忆回引五块齐全 |
+| 切「周」 | 本周事件数/待办完成/项目/人物分布一次可见，无加载等待 |
+| 问「这个月散步了几次」 | 精确次数 + 日期分布，非估算 |
+| 目标「每周运动 3 次」实际 0 次 | 周报告生成后偏差区出现「频率不足」，证据指向统计 |
+| 同一偏差连续两周 | 第二周不重复输出 |
+| 进程一周未开 | 启动后补做本周报告，历史空窗不补 |
+| 记录成功但 AI 失败 | 统计与报告不受影响，偏差区显示「尚未检测」 |

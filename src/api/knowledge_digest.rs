@@ -70,12 +70,25 @@ pub struct KnowledgeDigestRunDto {
 /// 后台 worker 调用：处理一批到期的知识消化任务（最多一批，调用方循环排空）。
 pub fn trigger_knowledge_digest() -> Result<KnowledgeDigestTickResult> {
     let config = crate::config::AppConfig::load()?;
-    let store = Store::open(&config.database_path)?;
+    // 同分析 worker：后台路径不做启动写入，库待升级时本轮跳过。
+    let Some(store) = Store::open_background(&config.database_path)? else {
+        return Ok(KnowledgeDigestTickResult::Idle);
+    };
+    let Some(_sync_guard) = crate::sync::runtime::background_guard(&config, &store)? else {
+        return Ok(KnowledgeDigestTickResult::Idle);
+    };
+    if !store.background_processing_allowed()? {
+        return Ok(KnowledgeDigestTickResult::Idle);
+    }
     let Some((provider, model)) = crate::wiki::digest_provider(&store)? else {
         return Ok(KnowledgeDigestTickResult::NoProvider);
     };
     // 同分析队列：每次 tick 先回收上次中断遗留的 running（同一时刻只有一个 worker）。
-    store.recover_interrupted_digest_jobs()?;
+    crate::storage::with_busy_retry(|| {
+        store
+            .recover_interrupted_digest_jobs()
+            .context("digest worker: recover interrupted jobs")
+    })?;
     Ok(
         match crate::wiki::process_digest_queue(&store, &provider, Some(model.as_str()))? {
             crate::wiki::DigestTick::Idle => KnowledgeDigestTickResult::Idle,

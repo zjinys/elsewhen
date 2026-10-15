@@ -1,7 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 仅用于「扫码加入同步」读取邀请二维码；不存储、不上传画面。 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 应用内升级：拉起系统安装器覆盖安装自身（用户逐次确认，非静默）。 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- 自建局域网中继需要明文 HTTP；公网防线仍在 Rust 层
+         （transport_relay.rs 仅放行私网/环回地址的 http）。 -->
     <application
-        android:label="elsewhen_ui"
+        android:label="Elsewhen"
         android:name="${applicationName}"
+        android:usesCleartextTraffic="true"
+        android:fullBackupContent="@xml/sync_backup_rules"
+        android:dataExtractionRules="@xml/sync_data_extraction_rules"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
@@ -25,6 +34,16 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- 应用内升级：把下载目录里的 APK 以 content:// 交给系统安装器。 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.update.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_file_paths" />
+        </provider>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

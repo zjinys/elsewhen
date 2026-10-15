@@ -1,5 +1,4 @@
-import 'package:elsewhen_ui/bridge/api.dart'
-    show PendingActionDto;
+import 'package:elsewhen_ui/bridge/api.dart' show PendingActionDto;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
@@ -172,6 +171,9 @@ class _DraftRepo extends ConversationRepository {
   Future<List<dynamic>> listPendingActions(String conversationId) async => [
     if (!savedDraft && !declined.contains('$conversationId:draft-1'))
       const PendingActionDto(
+        version: 1,
+        approvalToken: 'fixture-token',
+        targetBasisJson: '[]',
         id: 'draft-1',
         action: 'save_knowledge_draft',
         argsJson: '{"title":"闲鱼卖 CM4","kind":"topic","content_md":"完整草稿正文"}',
@@ -179,6 +181,9 @@ class _DraftRepo extends ConversationRepository {
       ),
     if (includeSecond && !declined.contains('$conversationId:draft-2'))
       const PendingActionDto(
+        version: 1,
+        approvalToken: 'fixture-token',
+        targetBasisJson: '[]',
         id: 'draft-2',
         action: 'save_knowledge_draft',
         argsJson: '{"title":"另一篇草稿","kind":"topic","content_md":"另一篇完整正文"}',
@@ -186,6 +191,9 @@ class _DraftRepo extends ConversationRepository {
       ),
     if (includeSecond)
       const PendingActionDto(
+        version: 1,
+        approvalToken: 'fixture-token',
+        targetBasisJson: '[]',
         id: 'todo-1',
         action: 'create_todo',
         argsJson: '{"title":"普通待办"}',
@@ -196,17 +204,17 @@ class _DraftRepo extends ConversationRepository {
   @override
   Future<void> declineKnowledgeDraft(
     String conversationId,
-    String actionId,
+    PendingActionDto action,
   ) async {
-    declined.add('$conversationId:$actionId');
+    declined.add('$conversationId:${action.id}');
   }
 
   @override
   Future<String> confirmKnowledgeDraft(
     String conversationId,
-    String actionId,
+    PendingActionDto action,
   ) async {
-    saved.add('$conversationId:$actionId');
+    saved.add('$conversationId:${action.id}');
     if (fail) throw StateError('写入失败');
     savedDraft = true;
     return '已保存知识页「闲鱼卖 CM4」（新创建，slug=kb-cm4）';

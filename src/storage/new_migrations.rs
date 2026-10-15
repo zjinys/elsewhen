@@ -25,9 +25,9 @@
 //! 库里没有第二张表在记版本。
 
 use anyhow::Result;
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use rusqlite::Connection;
-use rusqlite_migration::Migrations;
+use rusqlite_migration::{Migrations, SchemaVersion};
 
 /// `migrations/` 整个目录，编译期嵌入二进制。
 ///
@@ -49,6 +49,26 @@ fn migrations() -> Result<Migrations<'static>> {
 
 pub(crate) fn initialize(connection: &mut Connection) -> Result<()> {
     migrations()?.to_latest(connection)?;
+    Ok(())
+}
+
+/// 代码期望的最新 schema 版本（迁移目录的最大序号）。
+/// 后台路径用它判断库是否待升级：版本落后就跳过本轮工作，
+/// 绝不在后台补跑迁移——启动写入只属于前台初始化路径。
+pub(crate) fn latest_version() -> Result<i64> {
+    let mut connection = Connection::open_in_memory()?;
+    debug_assert!(matches!(
+        migrations()?.current_version(&connection)?,
+        SchemaVersion::NoneSet
+    ));
+    initialize(&mut connection)?;
+    let version: i64 = connection.query_row("PRAGMA main.user_version", [], |row| row.get(0))?;
+    Ok(version)
+}
+
+#[cfg(test)]
+pub(crate) fn initialize_test_version(connection: &mut Connection, version: usize) -> Result<()> {
+    migrations()?.to_version(connection, version)?;
     Ok(())
 }
 
@@ -105,6 +125,36 @@ mod tests {
                 "07-knowledge-maintenance",
                 "08-knowledge-repair",
                 "09-wiki-workflows",
+                "10-chat-approvals",
+                "11-chat-generation",
+                "12-chat-input-queue",
+                "13-chat-summary",
+                "14-chat-page-tasks",
+                "15-chat-supplements",
+                "16-sync-core",
+                "17-sync-snapshot-delivery",
+                "18-sync-operation-fragments",
+                "19-sync-local-vault",
+                "20-sync-processor-guard",
+                "21-chat-response-input",
+                "22-sync-membership-authority",
+                "23-provider-key-sealing",
+                "24-provider-edit-basis",
+                "25-web-search",
+                "26-doh-mode",
+                "27-sync-source-isolation",
+                "28-sync-provider-conflicts",
+                "29-sync-gc",
+                "30-sync-resnapshot",
+                "31-sync-processor-handoff",
+                "32-sync-wiki-slug-seen",
+                "33-wiki-assets",
+                "34-wiki-assets-ledger",
+                "35-rule-triggers",
+                "36-rule-hit-feedback",
+                "37-companion-revisit",
+                "38-guidance-feedback",
+                "39-deviation-reports",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -136,7 +186,184 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 9, "九条迁移跑完，user_version 应为 9");
+        assert_eq!(version, 39, "三十九条迁移跑完，user_version 应为 39");
+        assert_eq!(
+            latest_version().unwrap(),
+            version,
+            "latest_version 必须与迁移目录推导出的 user_version 一致"
+        );
+    }
+
+    #[test]
+    fn v10_history_survives_generation_schema_without_synthetic_runs() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 10)
+            .unwrap();
+        connection.execute_batch("INSERT INTO conversations(id,title,created_at,updated_at) VALUES('legacy','legacy','t','t');
+            WITH RECURSIVE seq(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM seq WHERE n<1000)
+            INSERT INTO messages(id,conversation_id,role,content,created_at)
+            SELECT 'message-'||n,'legacy','user','original-'||n,'t' FROM seq;").unwrap();
+        let before: String = connection.query_row("SELECT group_concat(id||':'||content,'|') FROM (SELECT id,content FROM messages ORDER BY id)", [], |r| r.get(0)).unwrap();
+        initialize(&mut connection).unwrap();
+        let after: String = connection.query_row("SELECT group_concat(id||':'||content,'|') FROM (SELECT id,content FROM messages ORDER BY id)", [], |r| r.get(0)).unwrap();
+        assert_eq!(before, after);
+        let runs: i64 = connection
+            .query_row("SELECT COUNT(*) FROM chat_runs", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(runs, 0, "old messages never authorize automatic generation");
+    }
+
+    #[test]
+    fn v27_rebuilds_sync_operations_preserving_rows_and_accepting_isolated() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 26)
+            .unwrap();
+        // Pre-v27 data: one applied op in the old table (which must survive the
+        // v27 DROP/RENAME rebuild). Populate the columns the old schema had.
+        connection.execute_batch("INSERT INTO sync_replica(singleton,dataset_id,device_id,stream_id,next_sequence,logical_clock,processor_device_id) VALUES(1,'ds','dev-a','stream-a',1,5,'dev-a');
+            INSERT INTO sync_members(device_id,stream_id,active) VALUES('dev-a','stream-a',1);
+            INSERT INTO sync_frontiers(origin_stream_id,applied_sequence) VALUES('stream-a',1);
+            INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state) VALUES('stream-a:1','dev-a','stream-a',1,'{}','hash',0,'applied');").unwrap();
+        initialize(&mut connection).unwrap();
+        // Row survived the rebuild.
+        let kept: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_operations WHERE op_id='stream-a:1' AND state='applied'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            kept, 1,
+            "v27 rebuild must preserve existing sync_operations rows"
+        );
+        // The new CHECK accepts 'isolated' (and rejects anything outside the set).
+        connection.execute("INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state,error_code) VALUES('stream-a:2','dev-a','stream-a',2,'{}','h2',0,'isolated','sync_operation_content_conflict')", []).unwrap();
+        let iso: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_operations WHERE state='isolated'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(iso, 1);
+        let bad = connection.execute("INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state) VALUES('stream-a:3','dev-a','stream-a',3,'{}','h3',0,'bogus')", []);
+        assert!(
+            bad.is_err(),
+            "state outside the CHECK set must still be rejected"
+        );
+        // The rebuilt unique identity constraint is intact.
+        let dup = connection.execute("INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state) VALUES('other:1','dev-a','stream-a',1,'{}','h4',0,'applied')", []);
+        assert!(
+            dup.is_err(),
+            "UNIQUE(origin_stream_id,origin_sequence) must survive the rebuild"
+        );
+    }
+
+    #[test]
+    fn v28_rebuilds_sync_provider_versions_preserving_rows_and_accepting_dismissed() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 27)
+            .unwrap();
+        // Pre-v28 data: one applied and one conflicted revision, both of which
+        // must survive the DROP/RENAME rebuild with their ciphertext intact.
+        connection.execute_batch("INSERT INTO sync_provider_versions(revision_id,base_revision,sender_device_id,content_hash,encrypted_envelope,state) VALUES('rev-applied',NULL,'dev-a','hash-a',x'01','applied'),('rev-conflict','rev-applied','dev-b','hash-b',x'0203','conflict');").unwrap();
+        initialize(&mut connection).unwrap();
+        let kept: i64 = connection.query_row("SELECT COUNT(*) FROM sync_provider_versions WHERE (revision_id='rev-applied' AND state='applied' AND encrypted_envelope=x'01') OR (revision_id='rev-conflict' AND state='conflict' AND encrypted_envelope=x'0203')",[],|r|r.get(0)).unwrap();
+        assert_eq!(
+            kept, 2,
+            "v28 rebuild must preserve existing sync_provider_versions rows"
+        );
+        // 'dismissed' is now accepted; states outside the set are still rejected.
+        connection.execute("UPDATE sync_provider_versions SET state='dismissed' WHERE revision_id='rev-conflict'", []).unwrap();
+        let dismissed: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_provider_versions WHERE state='dismissed'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(dismissed, 1);
+        let bad = connection.execute("INSERT INTO sync_provider_versions(revision_id,base_revision,sender_device_id,content_hash,encrypted_envelope,state) VALUES('rev-bogus',NULL,'dev-a','h',x'01','bogus')", []);
+        assert!(
+            bad.is_err(),
+            "state outside the CHECK set must still be rejected"
+        );
+    }
+
+    #[test]
+    fn v14_queue_entries_keep_their_eligibility_when_supplement_fields_are_added() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 14)
+            .unwrap();
+        connection.execute_batch("INSERT INTO conversations(id,title,created_at,updated_at) VALUES('queue-legacy','queue','t','t');
+            INSERT INTO messages(id,conversation_id,role,content,created_at) VALUES
+              ('pending-input','queue-legacy','user','pending original','t'),
+              ('withdrawn-input','queue-legacy','user','withdrawn original','t'),
+              ('started-input','queue-legacy','user','started original','t');
+            INSERT INTO chat_runs(id,request_key,conversation_id,input_message_id,input_hash,status,executor_id,lease_until,created_at,updated_at)
+              VALUES('old-run','old-request','queue-legacy','started-input','basis','completed','old-owner','t','t','t');
+            INSERT INTO chat_input_queue(conversation_id,input_message_id,status,run_id,created_at,updated_at) VALUES
+              ('queue-legacy','pending-input','pending',NULL,'t','t'),
+              ('queue-legacy','withdrawn-input','withdrawn',NULL,'t','t'),
+              ('queue-legacy','started-input','started','old-run','t','t');
+            INSERT INTO chat_queue_dispatch(conversation_id,paused,updated_at) VALUES('queue-legacy',1,'t');").unwrap();
+        let before: String = connection.query_row("SELECT group_concat(id||':'||content,'|') FROM (SELECT id,content FROM messages ORDER BY id)", [], |r| r.get(0)).unwrap();
+        initialize(&mut connection).unwrap();
+        let after: String = connection.query_row("SELECT group_concat(id||':'||content,'|') FROM (SELECT id,content FROM messages ORDER BY id)", [], |r| r.get(0)).unwrap();
+        assert_eq!(before, after);
+        let states: String = connection.query_row("SELECT group_concat(status||':'||mode,'|') FROM (SELECT status,mode FROM chat_input_queue ORDER BY id)", [], |r| r.get(0)).unwrap();
+        assert_eq!(states, "pending:next|withdrawn:next|started:next");
+        let plain: i64 = connection.query_row("SELECT count(*) FROM chat_input_queue WHERE input_basis IS NULL AND context_json='{}' AND defer_reason IS NULL AND target_run_id IS NULL", [], |r| r.get(0)).unwrap();
+        assert_eq!(plain, 3, "migration must not infer supplement intent");
+        let preserved: bool = connection.query_row("SELECT EXISTS(SELECT 1 FROM chat_input_queue WHERE input_message_id='started-input' AND run_id='old-run') AND EXISTS(SELECT 1 FROM chat_queue_dispatch WHERE conversation_id='queue-legacy' AND paused=1)", [], |r| r.get(0)).unwrap();
+        assert!(preserved);
+    }
+
+    #[test]
+    fn v9_chat_history_and_pending_proposals_remain_unapproved() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 9)
+            .unwrap();
+        connection.execute_batch("INSERT INTO conversations(id,title,created_at,updated_at) VALUES('old-conv','旧会话','t','t');
+            INSERT INTO messages(id,conversation_id,role,content,created_at) VALUES('old-message','old-conv','user','原始消息不变','t');
+            INSERT INTO rules(id,content,status,created_at,updated_at,conversation_id) VALUES('old-rule','旧规则草稿','pending','t','t','old-conv');
+            INSERT INTO pending_actions(id,conversation_id,action,args_json,created_at) VALUES('old-action','old-conv','create_todo','{\"title\":\"旧草稿\"}','t');").unwrap();
+        initialize(&mut connection).unwrap();
+        let content: String = connection
+            .query_row(
+                "SELECT content FROM messages WHERE id='old-message'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(content, "原始消息不变");
+        for table in ["rules", "pending_actions"] {
+            let (status, version): (String, i64) = connection
+                .query_row(
+                    &format!("SELECT status,review_version FROM {table}"),
+                    [],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!((status, version), ("pending".into(), 1));
+        }
+        let decisions: i64 = connection
+            .query_row("SELECT COUNT(*) FROM chat_proposal_decisions", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(decisions, 0);
     }
 
     #[test]
@@ -185,12 +412,14 @@ mod tests {
             )
             .unwrap();
         assert_eq!(text, "旧正文");
-        assert!(connection
-            .execute(
-                "UPDATE knowledge_dependencies SET upstream_id='child' WHERE page_id='child'",
-                []
-            )
-            .is_err());
+        assert!(
+            connection
+                .execute(
+                    "UPDATE knowledge_dependencies SET upstream_id='child' WHERE page_id='child'",
+                    []
+                )
+                .is_err()
+        );
     }
 
     /// 旧迁移链留下的 `schema_migrations` 表必须已被 v3 删掉。

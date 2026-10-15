@@ -537,7 +537,7 @@ BUSY 归零 → 值得做；不归零 → 省下 33 处高风险改造。已注�
 
 ## 新开：外网搜索抽象层（不在本轮 deep review 范围）
 
-需求与设计已落文档：**`docs/notes/proposed/2026-09-27-web-search-tool.md`**。
+需求与设计已落文档：**`docs/notes/implemented/feature/2026-09-27-web-search-tool.md`**。
 
 要点（细节看那份文档）：
 
@@ -1165,18 +1165,18 @@ SQL + 绝对路径 + `Caused by` 链的假异常，断言 5 个敏感片段一�
 | provider | 实测结果 |
 | --- | --- |
 | `default`（hub.oaifree.com，gpt-4o） | 活跃；模型决定调工具时 100% 返回坏响应（丢弃 `tool_calls`） |
-| `glm-5.3-flash@虾蹬王` | 可用 |
-| `deepseek-flash@fengwind` | 503 网关暂时不可用（可能只是当时抖动） |
-| `deepseek-flash@deepseek` | **402 Insufficient Balance**，确定欠费 |
-| `deepseek@zerocat` | **403 Forbidden**，确定不可用 |
+| `glm-5.3-flash@账号A` | 可用 |
+| `deepseek-flash@账号B` | 503 网关暂时不可用（可能只是当时抖动） |
+| `deepseek-flash@账号C` | **402 Insufficient Balance**，确定欠费 |
+| `deepseek@账号D` | **403 Forbidden**，确定不可用 |
 
 用户决定「先不动，自己处理」，故未改 `ai_provider_configs`。
 
 ### 待办
 
-- **充费或删除 `deepseek-flash@deepseek`**：402 是账户余额问题，改代码无用。
-- **确认 `deepseek@zerocat` 是否仍需要**：403 稳定复现，不是抖动。
-- **`deepseek-flash@fengwind` 需复测**：当时 503 属「网关暂时不可用」，应择日重测；
+- **充费或删除 `deepseek-flash@账号C`**：402 是账户余额问题，改代码无用。
+- **确认 `deepseek@账号D` 是否仍需要**：403 稳定复现，不是抖动。
+- **`deepseek-flash@账号B` 需复测**：当时 503 属「网关暂时不可用」，应择日重测；
   若持续 503 它也等于死配置。
 - **`default` 那个中转不适合做需要调工具的场景**。它的坏响应签名可被
   `dropped_tool_call_response()` 识别并打进诊断日志，但**不做任何行为补救**——

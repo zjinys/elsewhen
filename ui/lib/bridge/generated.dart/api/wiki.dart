@@ -7,12 +7,19 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `serve`
 
 /// List wiki pages（主列表）。kind/area 均为 None 时列出全部（不含派生产物）。
 /// area：imported（素材库）/ network（人物项目）/ insight（知识沉淀）。
 Future<List<WikiPageDto>> listWikiPages({String? kind, String? area}) =>
     RustLib.instance.api.crateApiWikiListWikiPages(kind: kind, area: area);
+
+/// 页面列表元数据（sidebar/列表专用）：无 content_md、无图片解析、SQL 级有界。
+/// 语义装饰（AI 提炼 kind 排除、slug 前缀、archived）在 Dart 侧
+/// `_isSidebarVisiblePage`——单一真源不过双写。明细按 slug 单页读。
+Future<List<WikiPageMetaDto>> listWikiPageMetas({PlatformInt64? limit}) =>
+    RustLib.instance.api.crateApiWikiListWikiPageMetas(limit: limit);
 
 /// 某页的派生产物列表（AI 加工成果，挂在该页详情下，不进主列表）。
 Future<List<WikiPageDto>> listWikiPageDerivatives({required String slug}) =>
@@ -79,6 +86,12 @@ Future<WikiPageDto> setWikiOpinion({required String slug, String? opinion}) =>
       slug: slug,
       opinion: opinion,
     );
+
+/// 删除 Wiki 页面（人工主题页；同步库内先捕获 deleted 变更再物理删除，
+/// 对端迟到编辑会形成 `wiki_page_deleted` 冲突候选）。页面不存在时返回
+/// false（幂等）。
+Future<bool> deleteWikiPage({required String slug}) =>
+    RustLib.instance.api.crateApiWikiDeleteWikiPage(slug: slug);
 
 /// Wiki page data transfer object for Flutter（知识库浏览）
 class WikiPageDto {
@@ -184,4 +197,77 @@ class WikiPageDto {
           contentType == other.contentType &&
           humanEditedAt == other.humanEditedAt &&
           opinion == other.opinion;
+}
+
+/// 页面列表元数据 DTO（列表/sidebar 专用，无正文）。
+/// 字段面与 WikiPageMeta 一致；明细页走 get_wiki_page。
+class WikiPageMetaDto {
+  final String id;
+  final String slug;
+  final String kind;
+  final String title;
+  final String summary;
+  final List<String> tags;
+  final PlatformInt64 evidenceCount;
+  final String firstSeenAt;
+  final String lastSeenAt;
+  final String status;
+  final String createdAt;
+  final String updatedAt;
+  final String? sourceUrl;
+  final String area;
+
+  const WikiPageMetaDto({
+    required this.id,
+    required this.slug,
+    required this.kind,
+    required this.title,
+    required this.summary,
+    required this.tags,
+    required this.evidenceCount,
+    required this.firstSeenAt,
+    required this.lastSeenAt,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    this.sourceUrl,
+    required this.area,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      slug.hashCode ^
+      kind.hashCode ^
+      title.hashCode ^
+      summary.hashCode ^
+      tags.hashCode ^
+      evidenceCount.hashCode ^
+      firstSeenAt.hashCode ^
+      lastSeenAt.hashCode ^
+      status.hashCode ^
+      createdAt.hashCode ^
+      updatedAt.hashCode ^
+      sourceUrl.hashCode ^
+      area.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WikiPageMetaDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          slug == other.slug &&
+          kind == other.kind &&
+          title == other.title &&
+          summary == other.summary &&
+          tags == other.tags &&
+          evidenceCount == other.evidenceCount &&
+          firstSeenAt == other.firstSeenAt &&
+          lastSeenAt == other.lastSeenAt &&
+          status == other.status &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt &&
+          sourceUrl == other.sourceUrl &&
+          area == other.area;
 }

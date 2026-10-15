@@ -32,6 +32,7 @@ class WikiContentEditor extends StatefulWidget {
     this.onDirtyChanged,
     this.shrinkWrap = false,
     this.fontSize = AppFonts.defaultFontSize,
+    this.textColor,
     this.fontFamily,
     this.lineHeight,
   });
@@ -63,6 +64,9 @@ class WikiContentEditor extends StatefulWidget {
 
   /// 正文字号（px）：跟随「外观 → 正文字号」，仅作用于正文
   final double fontSize;
+
+  /// 正文颜色覆盖（null = 跟随主题正文色）。沉浸阅读传 softened 色降低对比度疲劳。
+  final Color? textColor;
 
   /// 正文字体存值（知识页详情页传 [AppSettings.contentFontName]，即
   /// 编辑器覆盖 ?? 全局内容字体）：null = 回退 [ContentFont] 作用域；
@@ -213,6 +217,7 @@ class WikiContentEditorState extends State<WikiContentEditor> {
           // 正文颜色显式取主题正文色：编辑器文本不再依赖 Document rooting 之外
           // 的 DefaultTextStyle 继承链，深浅色切换下内容文字必定跟随主题。
           color:
+              widget.textColor ??
               Theme.of(context).textTheme.bodyLarge?.color ??
               Theme.of(context).textTheme.bodyMedium?.color,
           // 正文字号：跟随「外观 → 正文字号」（默认 16 即当前观感）

@@ -1,0 +1,249 @@
+# 多平台安装包 → GitHub Release（tag 驱动）。
+#
+# 触发：推 v* tag = 构建全部平台并发布 Release；
+#       workflow_dispatch = 只构建、传 artifact（不发 Release，用于试跑）。
+#
+# 产物矩阵：
+#   linux   → elsewhen_<ver>_amd64.deb + elsewhen-<ver>-1.*.rpm（宿主
+#             rpmbuild）+ Elsewhen-<ver>-x86_64.AppImage
+#             + elsewhen-<ver>-<rel>-x86_64.pkg.tar.zst（pacman，Arch 容器
+#             只做打包：PKGBUILD 收割宿主构建的 bundle，不重编）
+#   macos   → Elsewhen-<ver>-arm64.dmg（Apple Silicon；Intel 机器不支持——
+#             原生 dylib 无法靠 Rosetta，需要时另开 macos-13 x86_64 job）
+#   windows → Elsewhen-<ver>-x64.msi（WiX v3.x，choco 安装）
+#   android → Elsewhen-<ver>-android-arm64.apk（Rust arm64 + flutter arm64）
+#
+# 签名现实（无证书的统一边界，README/Release 文案明示即可）：
+#   dmg = ad-hoc（Gatekeeper 首开右键 → 打开 / xattr -cr）
+#   msi = 无签名（SmartScreen 警告，仍可安装）
+#   apk = debug key 签名（本机安装 OK，不可上架 Play）
+#
+# ⚠ private 仓库 macOS 分钟 10× 计费：本 workflow 单次全矩阵约
+#   60-80 计费分钟（macOS job 计 10×）。public 仓库免费。
+
+name: release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # Release 发布（tag 触发时）
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Linux：deb + AppImage ─────────────────────────────────────
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # Flutter Linux 桌面构建链（runner 未预装 GTK 开发头）
+      - name: 安装 Linux 构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev
+      - name: deb
+        run: ./scripts/package-deb.sh dist
+      - name: AppImage
+        run: ./scripts/package-appimage.sh dist
+      # rpmbuild 由 Debian 的「rpm」包提供；spec 是收割型（@ROOT@ 指向
+      # 已构建 bundle），脚本内 rust/flutter 为增量重建，成本近零。
+      - name: RPM
+        run: |
+          sudo apt-get install -y rpm
+          ./scripts/package-rpm.sh dist
+      - name: 归集产物
+        run: |
+          mkdir -p out
+          cp dist/*.deb out/
+          cp dist/*.rpm out/
+          cp dist/*.AppImage out/
+          # pacman job 只收割 bundle（PKGBUILD 无 build()），共享这次构建。
+          # 注意 upload-artifact 丢失执行位：pacman 侧需给主可执行补 +x。
+          mkdir -p out/linux-bundle/bundle
+          cp -a ui/build/linux/x64/release/bundle/. out/linux-bundle/bundle/
+          cp target/release/libelsewhen.so out/linux-bundle/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: |
+            out/*.deb
+            out/*.rpm
+            out/*.AppImage
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-bundle
+          path: out/linux-bundle/
+          if-no-files-found: error
+
+  # ── Linux：pacman 包（Arch 容器只做打包，不再重编）────────────
+  # 复用 linux job 的构建产物：PKGBUILD 的 package() 只收割 bundle。
+  # 容器选 base-devel（自带 makepkg/fakeroot/git）；GHA 容器默认 root
+  # 而 makepkg 拒绝 root，建 builder 用户代跑。
+  linux-pacman:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-bundle
+          path: bundle-artifacts
+      - name: 还原 bundle 到 PKGBUILD 预期路径
+        run: |
+          set -e
+          mkdir -p ui/build/linux/x64/release target/release
+          # upload-artifact 丢执行位：主可执行补 +x（lib 与 data 不需要）
+          cp -a bundle-artifacts/bundle ui/build/linux/x64/release/bundle
+          chmod +x ui/build/linux/x64/release/bundle/elsewhen_ui
+          cp bundle-artifacts/libelsewhen.so target/release/
+          # makepkg 拒绝 root：建用户并接管工作区
+          useradd -m build
+          chown -R build:build "$GITHUB_WORKSPACE" /tmp
+      - name: makepkg 打包
+        run: |
+          set -e
+          mkdir -p dist
+          chown build:build dist
+          su build -c "cd packaging/linux && PKGDEST=$GITHUB_WORKSPACE/dist makepkg -C"
+          ls -lh dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-pacman
+          path: dist/*.pkg.tar.zst
+          if-no-files-found: error
+
+  # ── macOS：dmg（Apple Silicon）────────────────────────────────
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: dmg
+        run: ./scripts/package-dmg.sh dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-macos
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  # ── Windows：msi ──────────────────────────────────────────────
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: 安装 WiX Toolset v3.11 并打 MSI
+        shell: pwsh
+        run: |
+          choco install -y wixtoolset
+          # choco 装的是 MSI 包，当前进程不继承新环境变量：直接拼 WiX bin
+          $wix = "C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          if (-not (Test-Path "$wix\candle.exe")) { throw "WiX 安装后未找到 candle.exe" }
+          $env:PATH = "$wix;$env:PATH"
+          scripts\package-msi.ps1 dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows
+          path: dist/*.msi
+          if-no-files-found: error
+
+  # ── Android：APK（arm64）──────────────────────────────────────
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # ubuntu runner 预装 Android SDK；NDK 若缺则装一份（脚找最新已装版本）
+      - name: 确认 Android NDK
+        run: |
+          if [ -z "$(ls -d "$ANDROID_HOME"/ndk/* 2>/dev/null)" ]; then
+            echo "runner 无 NDK，尝试 sdkmanager 安装…"
+            yes | "$ANDROID_HOME"/cmdline-tools/latest/bin/sdkmanager "ndk;26.3.11579264" || true
+          fi
+          ls -d "$ANDROID_HOME"/ndk/*/ || exit 1
+      - name: Rust 核心（arm64 → ui/rustLibs/）
+        run: ./scripts/build-android-rust.sh
+      - name: flutter pub get
+        working-directory: ui
+        run: flutter pub get
+      - name: APK（arm64 单 ABI）
+        working-directory: ui
+        run: flutter build apk --release --target-platform android-arm64
+      - name: 归集产物
+        run: |
+          mkdir -p out
+          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)"
+          src="ui/build/app/outputs/flutter-apk/app-release.apk"
+          [ -f "$src" ] || src="$(find ui/build/app/outputs -name '*.apk' | head -1)"
+          cp "$src" "out/Elsewhen-${version}-android-arm64.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-android
+          path: out/*
+          if-no-files-found: error
+
+  # ── 发布：全部平台产物附到 tag 对应的 GitHub Release ─────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, linux-pacman, macos, windows, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.deb
+            artifacts/*.rpm
+            artifacts/*.AppImage
+            artifacts/*.pkg.tar.zst
+            artifacts/*.dmg
+            artifacts/*.msi
+            artifacts/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

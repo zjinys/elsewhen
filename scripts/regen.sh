@@ -47,6 +47,31 @@ echo "[1/3] Clang headers: $FRB_CLANG_INCLUDE; C compiler header paths isolated"
 
 # ---------- 2. 重新生成 bridge 代码 ----------
 echo "[2/3] flutter_rust_bridge_codegen generate ..."
+
+# 版本必须与 Cargo.toml 里的 flutter_rust_bridge 严格一致，否则报错的位置
+# 离病因很远。已踩过的实例：机器上装的是 codegen 2.0.0-dev.41，而本项目用
+# flutter_rust_bridge 2.14.0-beta.2。旧 codegen 内部绑的 syn 解析不了新版宏
+# 展开出的 `#[unsafe(no_mangle)]`（Rust 1.82+ 的 unsafe attribute 语法），
+# 于是在 "Cargo expand & syn parse" 阶段抛
+#   expected identifier, found keyword `unsafe`
+# 这跟 libclang / CPATH / 业务代码都无关，很容易被误判成环境问题。
+FRB_WANT_VER=$(sed -n 's/^flutter_rust_bridge[[:space:]]*=[[:space:]]*"=\{0,1\}\([0-9A-Za-z.+-]*\)".*/\1/p' Cargo.toml | head -n1)
+FRB_GOT_VER=$(flutter_rust_bridge_codegen --version 2>/dev/null | awk '{print $NF}')
+if [ -n "$FRB_WANT_VER" ] && [ -n "$FRB_GOT_VER" ] && [ "$FRB_GOT_VER" != "$FRB_WANT_VER" ]; then
+  echo ""
+  echo "codegen 版本不匹配：装的是 $FRB_GOT_VER，Cargo.toml 需要 $FRB_WANT_VER"
+  echo ""
+  echo "flutter_rust_bridge 与 flutter_rust_bridge_codegen 必须是同一个版本。"
+  echo "装对版本："
+  echo "    cargo install flutter_rust_bridge_codegen --version $FRB_WANT_VER --locked --force"
+  echo ""
+  echo "版本不匹配的报错通常长得莫名其妙（syn 解析失败、类型不认识、生成结果对不上），"
+  echo "因为旧 codegen 读不懂新版库/宏展开的产物。改完版本请重跑本脚本。"
+  echo ""
+  exit 1
+fi
+echo "     codegen 版本 $FRB_GOT_VER（与 Cargo.toml 一致）"
+
 flutter_rust_bridge_codegen generate
 echo "     生成完成"
 

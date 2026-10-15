@@ -1,18 +1,33 @@
+import 'dart:io' show Platform;
+
+import 'package:intl/intl.dart';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/app_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/settings.dart';
 import '../models/token_usage.dart';
+import '../models/relation.dart';
 import '../models/rule.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../bridge/api.dart' as api;
+import '../widgets/chat_proposal_review.dart';
 import '../widgets/custom_title_bar.dart';
 import '../widgets/font_picker_dialog.dart';
+import '../widgets/local_sync_settings.dart';
+import '../widgets/provider_endpoint_notice.dart';
 import '../widgets/knowledge_digest_dialog.dart';
+import '../widgets/web_search_settings.dart';
+import '../widgets/doh_settings.dart';
 import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
+import '../utils/window_service.dart';
 import '../theme/app_theme.dart';
+import '../app_update.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -26,6 +41,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   final _formKey = GlobalKey<FormState>();
 
   late final TabController _tabController;
+
+  /// 应用版本（pubspec version），宽屏在左 tab 栏底部、窄屏在 tab 条下方。
+  String _version = '';
+
+  /// 「检查更新」在途标记。runFromSettings 自身弹窗闭环，本页只防重入。
+  bool _checkingUpdate = false;
 
   late TextEditingController _maxMessagesController;
 
@@ -41,6 +62,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   // 个人经验规则库
   List<Rule> _rules = [];
   bool _rulesLoading = true;
+  // 规则触发提醒（决策辅助 D1)：偏好模式 + 最近提醒列表
+  String _ruleTriggerMode = 'instant';
+  List<RuleHit> _recentRuleHits = [];
+
+  /// 情感回访偏好（D6）：开关 + 频率上限（天）。加载失败保持默认且不阻塞。
+  bool _companionRevisitEnabled = true;
+  int _companionIntervalDays = 7;
+  bool _companionPrefsLoading = true;
+  // 用户模型面板（决策辅助 D2 + D5 全维度收口）：关系边 + 情绪标注。
+  // 其余维度（承诺/复盘/节奏/健康/财务/地点/身份/创作线）按 D0 映射
+  // 以知识库页型承载，在知识库中查看/编辑（面板只给入口提示）。
+  List<Relation> _userModelRelations = [];
+  List<api.EventEmotionDto> _userModelEmotions = [];
+  bool _userModelLoading = true;
 
   // AI provider 多配置（仅一个激活）
   List<api.AiProviderConfigDto> _providers = [];
@@ -48,6 +83,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   // 推文抓取服务（当前仅支持 fxtwitter）
   String _tweetService = 'fxtwitter';
+
+  /// 桌面「关闭窗口时」偏好（本地 desktop.json）。
+  CloseAction _closeAction = CloseAction.minimizeToTray;
 
   // 启动期各区块读取失败的原因（区块名 → 异常文本）。
   //
@@ -95,8 +133,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
+    _loadVersion();
     final settings = ref.read(settingsProvider);
+    // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
+    _closeAction = ref.read(windowServiceProvider).closeAction;
 
     _maxMessagesController = TextEditingController(
       text: settings.memory.maxMessages?.toString() ?? '20',
@@ -139,7 +180,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Future<void> _loadTokenUsage() async {
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      final daily = await repo.getDailyTokenUsage(7);
+      final daily = await repo.getDailyTokenUsage(30);
       if (!mounted) return;
       setState(() {
         _dailyUsage = daily;
@@ -206,7 +247,266 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
-  Future<void> _loadRules() async {
+  Future<void> _loadRules() => _loadRulesInternal();
+
+  /// 用户模型（D2）：模型面板只读列全部关系边（最近被强化者在前）。
+  /// 来源事件跳转待事件详情视图存在后接入（如实遗留，见 roadmap D2）。
+  Future<void> _loadUserModel() async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final relations = await repo.listRelations();
+      // 情绪标注读取失败不拖垮关系边展示（D5：陪伴面拉取独立降级）。
+      List<api.EventEmotionDto> emotions;
+      try {
+        emotions = await repo.listEventEmotions();
+      } catch (e) {
+        debugPrint('loadEventEmotions failed: $e');
+        emotions = const [];
+      }
+      if (!mounted) return;
+      setState(() {
+        _userModelRelations = relations;
+        _userModelEmotions = emotions;
+        _userModelLoading = false;
+      });
+    } catch (e) {
+      debugPrint('loadUserModel failed: $e');
+      if (!mounted) return;
+      setState(() => _userModelLoading = false);
+    }
+  }
+
+  Future<void> _deleteEmotion(api.EventEmotionDto item) async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.deleteEventEmotion(
+        id: item.id,
+        target: item.target,
+        feeling: item.feeling,
+      );
+      if (!mounted) return;
+      setState(() => _userModelEmotions.remove(item));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('删除情绪标注', e))));
+    }
+  }
+
+  Future<void> _deleteRelation(Relation rel) async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.deleteRelation(rel.id);
+      if (!mounted) return;
+      setState(() => _userModelRelations.removeWhere((r) => r.id == rel.id));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('删除关系', e))));
+    }
+  }
+
+  /// 置信条（1..5）：点串联，视觉锚定「来源多样才强化」的语义。
+  Widget _buildConfidenceDots(int confidence) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 1; i <= 5; i++)
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(left: 2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: i <= confidence
+                  ? AppTheme.accentPrimary
+                  : AppTheme.surface3,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildUserModelContent() {
+    if (_userModelLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    if (_userModelRelations.isEmpty && _userModelEmotions.isEmpty) {
+      return Text(
+        '还没有积累。对话或快录里提到的人物与项目，经你确认（或 @/# 标注的权威组合）后会在这里长成一份可查可删的关系账本；有客观情绪反应的记录会给出简短文字标注（无数值、不是情绪分析报告）。删掉任何一条都不会动原始记录。',
+        style: TextStyle(
+          color: AppTheme.textSecondary,
+          fontSize: 13,
+          height: 1.6,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < _userModelRelations.length; i++) ...[
+          if (i > 0) Divider(height: 1, color: AppTheme.surface3),
+          Row(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_userModelRelations[i].fromSlug}  ——  ${_userModelRelations[i].relation}  ——  ${_userModelRelations[i].toSlug}',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          _buildConfidenceDots(
+                            _userModelRelations[i].confidence,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '最近 ${DateFormat('MM-dd HH:mm').format(_userModelRelations[i].lastSeenAt)}',
+                            style: TextStyle(
+                              color: AppTheme.textTertiary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_userModelRelations[i].note?.isNotEmpty ?? false)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            _userModelRelations[i].note!,
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 18),
+                color: AppTheme.textTertiary,
+                tooltip: '删除这条关系（原始记录不动）',
+                onPressed: () => _deleteRelation(_userModelRelations[i]),
+              ),
+            ],
+          ),
+        ],
+        // ── 情绪标注（D5）：文本无数值，跨维度独立，用户可删 ──
+        if (_userModelEmotions.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Divider(height: 1, color: AppTheme.surface3),
+          const SizedBox(height: 8),
+          Text(
+            '情绪标注',
+            style: TextStyle(
+              color: AppTheme.textTertiary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          for (final item in _userModelEmotions)
+            Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.target == null || item.target!.isEmpty
+                              ? '对这件事'
+                              : '对 ${item.target}',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                        Text(
+                          '${item.feeling} · ${DateFormat('MM-dd HH:mm').format(DateTime.tryParse(item.recordedAt)?.toLocal() ?? DateTime.now())}',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  color: AppTheme.textTertiary,
+                  tooltip: '删除这条情绪标注（原始记录不动）',
+                  onPressed: () => _deleteEmotion(item),
+                ),
+              ],
+            ),
+        ],
+        // ── 维度全集收口（D5）：其余维度按 D0 映射以知识库页承载 ──
+        const SizedBox(height: 12),
+        Text(
+          '其余维度（承诺、复盘、节奏、偏好红线、健康、财务、地点、身份、创作线）以知识库页面承载，在知识库中查看与编辑。',
+          style: TextStyle(
+            color: AppTheme.textTertiary,
+            fontSize: 11,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _loadRulesInternal() async {
+    // 提醒偏好与最近提醒独立于规则列表：读失败不拖垮规则库展示。
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final mode = await repo.getRuleTriggerMode();
+      final hits = await repo.listRecentRuleHits(limit: 8);
+      if (!mounted) return;
+      setState(() {
+        _ruleTriggerMode = mode;
+        _recentRuleHits = hits;
+      });
+    } catch (e) {
+      debugPrint('loadRuleTrigger failed: $e');
+    }
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final prefs = await repo.getCompanionPrefs();
+      if (!mounted) return;
+      setState(() {
+        _companionRevisitEnabled = prefs.revisitEnabled;
+        _companionIntervalDays = prefs.revisitIntervalDays;
+        _companionPrefsLoading = false;
+      });
+    } catch (e) {
+      debugPrint('loadCompanionPrefs failed: $e');
+      if (!mounted) return;
+      setState(() => _companionPrefsLoading = false);
+    }
+    await _loadUserModel();
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final all = await repo.listRules();
@@ -225,6 +525,294 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  /// 提醒偏好三态。默认 instant：预筛命中的规则经 LLM 判定后，高置信即时
+  /// 提醒（事件旁可见）、其余进每日回顾聚合。review_only 全部聚合；off 彻底
+  /// 关闭——预筛根本不跑。设计红线：分级防打扰，任何「默认全开」以失败论，
+  /// 因此即时提醒只给高置信命中，且用户随时可整体关闭。
+  Widget _buildRuleTriggerPrefs() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '事件提醒',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
+        const SizedBox(height: AppTheme.space2),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(value: 'instant', label: Text('即时+回顾')),
+            ButtonSegment(value: 'review_only', label: Text('仅回顾')),
+            ButtonSegment(value: 'off', label: Text('关闭')),
+          ],
+          selected: {_ruleTriggerMode},
+          onSelectionChanged: (selection) async {
+            final mode = selection.first;
+            try {
+              final repo =
+                  ref.read(storageRepositoryProvider) as RustBridgeRepository;
+              await repo.setRuleTriggerMode(mode);
+              if (!mounted) return;
+              setState(() => _ruleTriggerMode = mode);
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(reportUiError('保存提醒偏好', e))),
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  /// 情感回访（D6）：低打扰回引「被记住的事」，只在打开应用时可能出现，
+  /// 绝不做系统级推送。频率上限可配；关闭后检查路径零查询（零侵入）。
+  Widget _buildCompanionRevisitPrefs() {
+    return Row(
+      children: [
+        Text(
+          '情感回访',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
+        const Spacer(),
+        if (!_companionPrefsLoading)
+          DropdownButton<int>(
+            value: _companionIntervalDays,
+            underline: const SizedBox.shrink(),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            items: const [
+              DropdownMenuItem(value: 3, child: Text('3天')),
+              DropdownMenuItem(value: 7, child: Text('7天')),
+              DropdownMenuItem(value: 14, child: Text('14天')),
+              DropdownMenuItem(value: 30, child: Text('30天')),
+            ],
+            onChanged: (days) async {
+              if (days == null) return;
+              await _saveCompanionPrefs(_companionRevisitEnabled, days);
+            },
+          ),
+        Switch(
+          value: _companionRevisitEnabled,
+          onChanged: _companionPrefsLoading
+              ? null
+              : (enabled) =>
+                    _saveCompanionPrefs(enabled, _companionIntervalDays),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _saveCompanionPrefs(bool enabled, int intervalDays) async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.setCompanionPrefs(
+        enabled: enabled,
+        intervalDays: intervalDays,
+      );
+      if (!mounted) return;
+      setState(() {
+        _companionRevisitEnabled = enabled;
+        _companionIntervalDays = intervalDays;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('保存回访偏好', e))));
+    }
+  }
+
+  Future<void> _setHitFeedback(RuleHit hit, String feedback) async {
+    final next = hit.feedback == feedback ? null : feedback;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.setRuleHitFeedback(hit.id, next);
+      // 回读真实状态（不让乐观更新说谎）
+      final hits = await repo.listRecentRuleHits(limit: 8);
+      if (!mounted) return;
+      setState(() => _recentRuleHits = hits);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('记录提醒反馈', e))));
+    }
+  }
+
+  /// 最近提醒（D6）：每条可标「有用 / 不相关」，再点一次即清除。
+  /// 反馈只记录在本地命中行上，没有任何自动行为消费它。
+  Widget _buildRecentRuleHits() {
+    final helpfulCount = _recentRuleHits
+        .where((h) => h.feedback == 'helpful')
+        .length;
+    final notRelevantCount = _recentRuleHits
+        .where((h) => h.feedback == 'not_relevant')
+        .length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '最近提醒',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            ),
+            const Spacer(),
+            if (helpfulCount > 0 || notRelevantCount > 0)
+              Text(
+                '有用 $helpfulCount · 不相关 $notRelevantCount',
+                style: TextStyle(color: AppTheme.textTertiary, fontSize: 11),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppTheme.space2),
+        for (final hit in _recentRuleHits)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  hit.isNotified
+                      ? Icons.notifications_active_outlined
+                      : Icons.inbox_outlined,
+                  size: 14,
+                  color: hit.isNotified
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textTertiary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${hit.ruleContent} · ${DateFormat('MM-dd HH:mm').format(hit.createdAt.toLocal())}',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 30,
+                  height: 26,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 14,
+                    tooltip: '有用（再点一次清除）',
+                    icon: Icon(
+                      hit.feedback == 'helpful'
+                          ? Icons.thumb_up
+                          : Icons.thumb_up_outlined,
+                    ),
+                    color: hit.feedback == 'helpful'
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textTertiary,
+                    onPressed: () => _setHitFeedback(hit, 'helpful'),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                SizedBox(
+                  width: 30,
+                  height: 26,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 14,
+                    tooltip: '不相关（再点一次清除）',
+                    icon: Icon(
+                      hit.feedback == 'not_relevant'
+                          ? Icons.thumb_down
+                          : Icons.thumb_down_outlined,
+                    ),
+                    color: hit.feedback == 'not_relevant'
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textTertiary,
+                    onPressed: () => _setHitFeedback(hit, 'not_relevant'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _editRuleTrigger(Rule rule) async {
+    final keywordsController = TextEditingController(
+      text: rule.triggerKeywords.join(', '),
+    );
+    var scene = rule.triggerScene;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('触发条件'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                rule.content,
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: AppTheme.space4),
+              TextField(
+                controller: keywordsController,
+                decoration: const InputDecoration(
+                  labelText: '触发关键词（逗号分隔，留空 = 不预筛）',
+                  hintText: '如：X项目, deadline',
+                ),
+              ),
+              const SizedBox(height: AppTheme.space4),
+              DropdownButtonFormField<String>(
+                initialValue: scene.isEmpty ? '' : scene,
+                decoration: const InputDecoration(labelText: '触发场景'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('全场景')),
+                  DropdownMenuItem(value: 'capture', child: Text('快速捕获')),
+                  DropdownMenuItem(value: 'conversation', child: Text('对话')),
+                  DropdownMenuItem(value: 'daily_review', child: Text('每日回顾')),
+                ],
+                onChanged: (value) => setDialogState(() => scene = value ?? ''),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true) return;
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final keywords = keywordsController.text
+          .split(RegExp(r'[,，\n]'))
+          .map((kw) => kw.trim())
+          .where((kw) => kw.isNotEmpty)
+          .toList();
+      await repo.setRuleTrigger(
+        rule.id,
+        triggerScene: scene,
+        triggerKeywords: keywords,
+      );
+      if (!mounted) return;
+      await _loadRules();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('保存触发条件', e))));
+    }
+  }
+
   Future<void> _deleteRule(Rule rule) async {
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
@@ -235,6 +823,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(reportUiError('删除规则', e))));
+    }
+  }
+
+  Future<void> _loadVersion() async {
+    // pubspec 版本从没动过（恒 1.0.0）没区分度；报障要认的是构建 hash。
+    // 两者都取：版本号兜底标识，hash 精确到这次编译。
+    var build = '';
+    try {
+      build = await api.buildHash();
+    } catch (_) {}
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final label = build.isEmpty
+          ? 'elsewhen v${info.version}'
+          : 'elsewhen v${info.version} · $build';
+      if (mounted) setState(() => _version = label);
+    } catch (_) {
+      // 版本读取失败不影响设置页；留空即可。
+      if (mounted && build.isNotEmpty) {
+        setState(() => _version = 'elsewhen · $build');
+      }
     }
   }
 
@@ -249,28 +858,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    // 移动端：标题栏补状态栏安全区，返回键放左侧（app 惯例）；
+    // 桌面端：返回键在右侧 actions（窗口 chrome 风格）。
+    final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    final topInset = isMobile ? MediaQuery.viewPaddingOf(context).top : 0.0;
 
     return Scaffold(
       body: Column(
         children: [
           CustomTitleBar(
             title: '设置',
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, size: 18),
-                tooltip: '返回主界面',
-                color: const Color(0xFF9BA1AB),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              TextButton.icon(
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('保存'),
-                onPressed: () => _saveSettings(),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.accentPrimary,
-                ),
-              ),
-            ],
+            topInset: topInset,
+            leading: isMobile
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back, size: 20),
+                    tooltip: '返回主界面',
+                    color: AppTheme.textSecondary,
+                    onPressed: () => Navigator.of(context).pop(),
+                  )
+                : null,
+            actions: isMobile
+                ? null
+                : [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, size: 18),
+                      tooltip: '返回主界面',
+                      color: const Color(0xFF9BA1AB),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    // 原 titlebar 的全局「保存」已删：整页除「记忆策略」两个数字字段外
+                    // 都是即时保存，全局按钮名不副实。那两个字段的保存挪进记忆卡片。
+                  ],
           ),
           Expanded(
             child: Container(
@@ -286,6 +904,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 ),
               ),
               child: SafeArea(
+                // top: false —— 状态栏安全区已由 CustomTitleBar 的 topInset 处理，
+                // 这里只保留底部手势条/刘海的安全区。
+                top: false,
                 child: Form(
                   key: _formKey,
                   child: LayoutBuilder(
@@ -297,15 +918,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           _buildModelTab(settings),
                           _buildAppearanceTab(settings),
                           _buildServiceTab(),
-                          _buildStorageTab(settings),
+                          _buildSyncTab(),
                           _buildDataTab(),
+                          _buildRulesTab(),
                         ],
                       );
                       if (compact) {
+                        // 版本放页面最底部：顶部 tab 区挤进小字像噪点，底部
+                        // 是报障时顺手下滑就能看到的常规位置。
                         return Column(
                           children: [
                             _buildCompactTabBar(),
                             Expanded(child: content),
+                            if (_version.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        _version,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: AppTheme.textTertiary,
+                                        ),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: _checkingUpdate
+                                          ? null
+                                          : () => AppUpdate.runFromSettings(
+                                              context,
+                                            ),
+                                      child: Text(
+                                        _checkingUpdate ? '检查中…' : '检查更新',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: AppTheme.accentPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                  ],
+                                ),
+                              ),
                           ],
                         );
                       }
@@ -337,17 +993,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       ),
       child: AnimatedBuilder(
         animation: _tabController,
-        builder: (context, _) => ListView(
+        builder: (context, _) => Column(
           children: [
-            _buildSettingsTabItem(0, '模型', Icons.smart_toy_outlined),
-            const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(1, '外观', Icons.palette_outlined),
-            const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(2, '服务', Icons.cloud_outlined),
-            const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(3, '存储', Icons.storage_outlined),
-            const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(4, '数据', Icons.dataset_outlined),
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildSettingsTabItem(0, '模型', Icons.smart_toy_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(1, '外观', Icons.palette_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(2, '服务', Icons.cloud_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(3, '同步', Icons.devices_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(4, '数据', Icons.dataset_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(5, '规则', Icons.rule_outlined),
+                ],
+              ),
+            ),
+            if (_version.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: AppTheme.space2,
+                  left: AppTheme.space3,
+                  right: AppTheme.space3,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _version,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _checkingUpdate
+                          ? null
+                          : () => AppUpdate.runFromSettings(context),
+                      child: Text(
+                        _checkingUpdate ? '检查中…' : '检查更新',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.accentPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -357,20 +1053,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget _buildCompactTabBar() {
     return Material(
       color: AppTheme.surface1,
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        labelColor: AppTheme.accentPrimary,
-        unselectedLabelColor: AppTheme.textTertiary,
-        indicatorColor: AppTheme.accentPrimary,
-        labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-        tabs: const [
-          Tab(text: '模型', icon: Icon(Icons.smart_toy_outlined, size: 17)),
-          Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
-          Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
-          Tab(text: '存储', icon: Icon(Icons.storage_outlined, size: 17)),
-          Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: AppTheme.accentPrimary,
+            unselectedLabelColor: AppTheme.textTertiary,
+            indicatorColor: AppTheme.accentPrimary,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+            tabs: const [
+              Tab(text: '模型', icon: Icon(Icons.smart_toy_outlined, size: 17)),
+              Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
+              Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
+              Tab(text: '同步', icon: Icon(Icons.devices_outlined, size: 17)),
+              Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
+              Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),
+            ],
+          ),
         ],
       ),
     );
@@ -425,6 +1127,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           _buildSection(
             title: 'AI 提供商',
             icon: Icons.psychology_outlined,
+            trailing: FilledButton.icon(
+              onPressed: () => _openProviderEditor(null),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('添加'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.accentPrimary,
+                foregroundColor: Colors.white,
+              ),
+            ),
             child: _buildAiProviderSettings(settings),
           ),
           const SizedBox(height: AppTheme.space6),
@@ -545,8 +1256,110 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: Icons.palette_outlined,
             child: _buildAppearanceSettings(settings),
           ),
+          if (_isDesktopPlatform) ...[
+            const SizedBox(height: AppTheme.space6),
+            _buildSection(
+              title: '桌面窗口',
+              icon: Icons.desktop_windows_outlined,
+              child: _buildDesktopWindowSettings(),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  /// 是否桌面平台（窗口 chrome / 托盘 / 关闭语义只在这些平台存在）。
+  static bool get _isDesktopPlatform =>
+      Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+
+  /// 「关闭窗口时」设置：托盘可用才给选项，否则只说明「关闭即退出」。
+  /// 二选一用 M3 `SegmentedButton`（而非下拉），选中态走强调色。
+  Widget _buildDesktopWindowSettings() {
+    final windowService = ref.read(windowServiceProvider);
+    final trayAvailable = windowService.trayAvailable;
+    if (!trayAvailable) {
+      return Text(
+        '当前环境没有可用的系统托盘，关闭窗口将直接退出应用。',
+        style: TextStyle(
+          fontSize: 12,
+          color: AppTheme.textTertiary,
+          height: 1.5,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '关闭窗口时',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        SegmentedButton<CloseAction>(
+          segments: [
+            ButtonSegment(
+              value: CloseAction.minimizeToTray,
+              icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+              label: Text(CloseAction.minimizeToTray.displayName),
+            ),
+            ButtonSegment(
+              value: CloseAction.quit,
+              icon: const Icon(Icons.power_settings_new_rounded, size: 18),
+              label: Text(CloseAction.quit.displayName),
+            ),
+          ],
+          selected: {_closeAction},
+          onSelectionChanged: (selection) {
+            final action = selection.first;
+            if (action == _closeAction) return;
+            setState(() => _closeAction = action);
+            windowService.setCloseAction(action);
+          },
+          showSelectedIcon: false,
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              return states.contains(WidgetState.selected)
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.16)
+                  : AppTheme.surface2.withValues(alpha: 0.5);
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              return states.contains(WidgetState.selected)
+                  ? AppTheme.accentPrimary
+                  : AppTheme.textSecondary;
+            }),
+            side: WidgetStateProperty.resolveWith((states) {
+              return BorderSide(
+                color: states.contains(WidgetState.selected)
+                    ? AppTheme.accentPrimary.withValues(alpha: 0.55)
+                    : AppTheme.surface4,
+              );
+            }),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            textStyle: const WidgetStatePropertyAll(
+              TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '关闭后应用继续在后台运行，可从托盘菜单唤回或退出。',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.textTertiary,
+            height: 1.5,
+          ),
+        ),
+      ],
     );
   }
 
@@ -561,23 +1374,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: Icons.link_outlined,
             child: _buildTweetFetchSettings(),
           ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '外网搜索',
+            icon: Icons.travel_explore_outlined,
+            child: const WebSearchSettings(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '网络（DoH）',
+            icon: Icons.shield_outlined,
+            child: const DohSettings(),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStorageTab(AppSettings settings) {
+  /// 设备同步独立 tab：本地密钥/移交/名册/冲突态势都聚在区块内。
+  Widget _buildSyncTab() {
+    final repository = ref.watch(storageRepositoryProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSection(
-            title: '存储适配器',
-            icon: Icons.storage_outlined,
-            child: _buildStorageSettings(settings),
-          ),
-        ],
+      child: _buildSection(
+        title: '设备同步',
+        icon: Icons.devices_outlined,
+        child: LocalSyncSettings(
+          controller: repository is RustBridgeRepository
+              ? repository.localSync
+              : null,
+          repository: repository is RustBridgeRepository ? repository : null,
+        ),
       ),
     );
   }
@@ -605,11 +1432,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: Icons.analytics_outlined,
             child: _buildTokenUsageContent(),
           ),
-          const SizedBox(height: AppTheme.space6),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRulesTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           _buildSection(
             title: '个人规则库',
             icon: Icons.rule_outlined,
-            child: _buildRulesContent(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildRuleTriggerPrefs(),
+                const SizedBox(height: AppTheme.space4),
+                _buildCompanionRevisitPrefs(),
+                const SizedBox(height: AppTheme.space4),
+                _buildRulesContent(),
+                if (_recentRuleHits.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space4),
+                  _buildRecentRuleHits(),
+                ],
+                ChatProposalReviewButton(
+                  conversationId: null,
+                  label: '审阅历史未归属规则',
+                  onChanged: _loadRules,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '用户模型',
+            icon: Icons.account_tree_outlined,
+            child: _buildUserModelContent(),
           ),
         ],
       ),
@@ -634,7 +1495,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (rulesError != null) return rulesError;
     if (_rules.isEmpty) {
       return Text(
-        '还没有规则。在对话里分享踩坑或心得时，AI 会建议把其中的经验沉淀成规则，你回复「好」确认后就会出现在这里，以后遇到类似情况 AI 会主动引用并提醒你。',
+        '还没有规则。在对话里分享踩坑或心得时，AI 会建议把其中的经验沉淀成规则，你在审阅卡接受具体规则后就会出现在这里，以后遇到类似情况 AI 会主动引用并提醒你。',
         style: TextStyle(
           color: AppTheme.textSecondary,
           fontSize: 13,
@@ -669,6 +1530,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 ),
               ),
               IconButton(
+                icon: Icon(
+                  _rules[i].hasTrigger
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_none,
+                  size: 18,
+                ),
+                color: _rules[i].hasTrigger
+                    ? AppTheme.accentPrimary
+                    : AppTheme.textTertiary,
+                tooltip: _rules[i].hasTrigger ? '触发条件（已配置）' : '配置触发条件',
+                onPressed: () => _editRuleTrigger(_rules[i]),
+              ),
+              IconButton(
                 icon: const Icon(Icons.delete_outline, size: 18),
                 color: AppTheme.textTertiary,
                 tooltip: '删除规则',
@@ -685,6 +1559,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     required String title,
     required IconData icon,
     required Widget child,
+    Widget? trailing,
   }) {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -695,33 +1570,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           color: AppTheme.accentPrimary.withValues(alpha: 0.1),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+      // 透明 Material 垫底：带背景色的 DecoratedBox 不能挡在 ListTile 与其
+      // Material 祖先之间，否则 CheckboxListTile（如主人端配对同意勾选）的
+      // 背景/水波纹不可见，debug 模式直接断言崩。
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: AppTheme.accentPrimary, size: 20),
                 ),
-                child: Icon(icon, color: AppTheme.accentPrimary, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          child,
-        ],
+                if (trailing != null) ...[const Spacer(), trailing],
+              ],
+            ),
+            const SizedBox(height: 20),
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -735,26 +1617,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '可配置多个 AI Provider，仅一个处于激活状态，对话使用激活项。',
-                style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: () => _openProviderEditor(null),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('添加配置'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.accentPrimary,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
         if (_providersLoading)
           const Padding(
             padding: EdgeInsets.all(24),
@@ -765,8 +1627,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         else if (_providers.isEmpty)
           _buildEmptyProviders()
         else
-          ..._providers.map(_buildProviderCard),
+          _buildProviderCardGrid(),
       ],
+    );
+  }
+
+  /// Provider 以卡片网格展示：宽度够时并排多列，窄窗（侧边栏 / 小窗口）自动收成一列。
+  ///
+  /// 用 `Wrap` 而不是 `GridView` —— 外层是 `SingleChildScrollView`，`GridView`
+  /// 需要显式 `shrinkWrap` + `NeverScrollableScrollPhysics`，而 `Wrap` 天然
+  /// 按可用高度伸展、少一个滚动容器嵌套的坑。
+  Widget _buildProviderCardGrid() {
+    const minCardWidth = 260.0;
+    const gap = AppTheme.space3;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // constraints.maxWidth 可能无限（理论上不会，但别让除法炸掉）。
+        final available = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : minCardWidth * 3;
+        final columns = ((available + gap) / (minCardWidth + gap))
+            .floor()
+            .clamp(1, 4);
+        final cardWidth = (available - gap * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final p in _providers)
+              SizedBox(width: cardWidth, child: _buildProviderCard(p)),
+          ],
+        );
+      },
     );
   }
 
@@ -784,7 +1678,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           Icon(Icons.cloud_off_rounded, color: AppTheme.textTertiary, size: 28),
           const SizedBox(height: 8),
           Text(
-            '尚未配置任何 AI Provider，点击右上角「添加配置」开始。',
+            '尚未配置任何 AI Provider，点击右上角「添加」开始。',
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
           ),
         ],
@@ -803,10 +1697,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  /// 单个 provider 卡片。
+  ///
+  /// 结构：标题行（名称 + 激活徽标）→ 类型徽标 + 模型名 → endpoint → 操作行。
+  /// 温度/上下文/输出上限/密钥来源等参数不进卡片（编辑对话框里可见），
+  /// 卡片只留识别与切换所需的最小信息。
   Widget _buildProviderCard(api.AiProviderConfigDto p) {
     return Container(
-      margin: const EdgeInsets.only(bottom: AppTheme.space3),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(AppTheme.space4),
       decoration: BoxDecoration(
         color: p.isActive
             ? AppTheme.accentPrimary.withValues(alpha: 0.08)
@@ -818,80 +1716,160 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               : AppTheme.surface3,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        p.name,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    if (p.isActive) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentPrimary.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          '激活中',
-                          style: TextStyle(
-                            color: AppTheme.accentPrimary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_providerTypeLabel(p.providerType)} · ${p.model}',
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  p.baseUrl,
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  p.name,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (p.isActive) ...[
+                const SizedBox(width: AppTheme.space2),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.space2,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  ),
+                  child: Text(
+                    '激活中',
+                    style: TextStyle(
+                      color: AppTheme.accentPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
-            ),
+            ],
           ),
-          if (!p.isActive)
-            TextButton(
-              onPressed: () => _activateProvider(p),
-              child: const Text('设为激活'),
-            ),
-          IconButton(
-            tooltip: '编辑',
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            color: AppTheme.textSecondary,
-            onPressed: () => _openProviderEditor(p),
+          const SizedBox(height: AppTheme.space2),
+          // 类型徽标与模型名同行：卡片纵向压缩，模型名可能较长， Flexible 会省略。
+          Row(
+            children: [
+              _buildProviderBadge(p.providerType),
+              const SizedBox(width: AppTheme.space2),
+              Flexible(
+                child: Text(
+                  p.model,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: '删除',
-            icon: const Icon(Icons.delete_outline, size: 18),
-            color: AppTheme.error,
-            onPressed: () => _deleteProvider(p),
+          const SizedBox(height: AppTheme.space3),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.link_rounded, size: 13, color: AppTheme.textTertiary),
+              const SizedBox(width: AppTheme.space1),
+              Expanded(
+                child: Text(
+                  p.baseUrl,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.textTertiary,
+                    fontSize: 11,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          ProviderEndpointNotice(baseUrl: p.baseUrl),
+          const SizedBox(height: AppTheme.space3),
+          // 不能加 const：AppTheme.surface3 是运行时主题色，深浅模式下不同。
+          Divider(height: 1, color: AppTheme.surface3),
+          const SizedBox(height: AppTheme.space2),
+          Row(
+            children: [
+              Expanded(
+                child: p.isActive
+                    // 激活项不再显示「设为激活」：按钮点了没意义，占位还让卡片左右不对称。
+                    ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '对话使用此配置',
+                          style: TextStyle(
+                            color: AppTheme.textTertiary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      )
+                    : Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => _activateProvider(p),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: const Size(0, 28),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('设为激活'),
+                        ),
+                      ),
+              ),
+              IconButton(
+                tooltip: '编辑',
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                color: AppTheme.textSecondary,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _openProviderEditor(p),
+              ),
+              IconButton(
+                tooltip: '删除',
+                icon: const Icon(Icons.delete_outline, size: 18),
+                color: AppTheme.error,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _deleteProvider(p),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProviderBadge(String providerType) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.space2,
+          vertical: 3,
+        ),
+        decoration: BoxDecoration(
+          color: AppTheme.surface3,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        ),
+        child: Text(
+          _providerTypeLabel(providerType),
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
@@ -899,7 +1877,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Future<void> _activateProvider(api.AiProviderConfigDto p) async {
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      await repo.setActiveAiProviderConfig(p.id);
+      await repo.setActiveAiProviderConfig(
+        p.id,
+        revisionToken: p.revisionToken,
+      );
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
@@ -934,7 +1915,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (confirmed != true || !mounted) return;
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      await repo.deleteAiProviderConfig(p.id);
+      await repo.deleteAiProviderConfig(p.id, revisionToken: p.revisionToken);
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
@@ -957,8 +1938,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         initialTemperature: existing?.temperature ?? 0.7,
         initialContextWindow: existing?.contextWindow?.toString() ?? '',
         initialMaxTokens: existing?.maxTokens?.toString() ?? '',
-        initialProviderType:
-            existing?.providerType ?? 'openai-compatible',
+        initialProviderType: existing?.providerType ?? 'openai-compatible',
       ),
     );
     // 控制器归 _ProviderEditorDialog 的 State 所有，随对话框真正卸载时释放；
@@ -980,6 +1960,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           temperature: saved.temperature,
           maxTokens: saved.maxTokens,
           contextWindow: saved.contextWindow,
+          revisionToken: existing?.revisionToken,
         ),
       );
       await _loadProviders();
@@ -1035,34 +2016,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             hint: '留空按 Provider 上下文窗口推算',
             keyboardType: TextInputType.number,
           ),
-      ],
-    );
-  }
-
-  Widget _buildStorageSettings(AppSettings settings) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDropdownField(
-          label: '适配器类型',
-          value: settings.storage.adapterType,
-          items: const [
-            DropdownMenuItem(value: 'sqlite', child: Text('SQLite')),
-          ],
-          onChanged: (value) {
-            if (value != null) {
-              ref
-                  .read(settingsProvider.notifier)
-                  .updateStorage(settings.storage.copyWith(adapterType: value));
-            }
-          },
-        ),
-        const SizedBox(height: 12),
-        Text(
-          '数据库路径: ${settings.storage.databasePath ?? "默认"}',
-          style: TextStyle(
-            fontSize: 13,
-            color: AppTheme.textSecondary.withValues(alpha: 0.7),
+        const SizedBox(height: 16),
+        // 保存按钮只负责本卡片的两个数字字段（maxMessages / maxTokens）；
+        // 策略类型下拉是 onChanged 即时存。原 titlebar 的全局「保存」已删，
+        // 按钮收进本卡片，语义与作用范围一致。
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('保存'),
+            onPressed: _saveSettings,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.accentPrimary,
+              foregroundColor: Colors.white,
+            ),
           ),
         ),
       ],
@@ -1107,7 +2074,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           children: [
             Expanded(
               child: _buildUsageMetric(
-                label: '近 7 天 Total',
+                label: '近 30 天 Total',
                 value: _fmtInt(totalTokens),
               ),
             ),
@@ -1121,73 +2088,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ],
         ),
         const SizedBox(height: 20),
-        Row(
-          children: [
-            SizedBox(
-              width: 96,
-              child: Text(
-                '日期',
-                style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                'Total',
-                style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                '调用',
-                textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
-              ),
-            ),
-          ],
+        _TokenUsageBarChart(
+          // 图表按时间正序（左旧右新）；_dailyUsage 是倒序（最新在前）。
+          days: _dailyUsage.take(30).toList().reversed.toList(),
+          today: today,
         ),
-        ..._dailyUsage
-            .take(7)
-            .map(
-              (d) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 96,
-                      child: Text(
-                        d.date == today
-                            ? '今天（${d.date.substring(5)}）'
-                            : d.date.substring(5),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        '${_fmtInt(d.totalTokens)}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        '${_fmtInt(d.callCount)} 次',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
       ],
     );
   }
@@ -1546,7 +2451,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<T>(
-          value: value,
+          initialValue: value,
           items: items,
           onChanged: onChanged,
           style: TextStyle(color: AppTheme.textPrimary),
@@ -1596,7 +2501,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('设置已保存'),
+          content: Text('记忆策略已保存'),
           backgroundColor: AppTheme.accentPrimary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -1811,5 +2716,102 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
         ),
       ],
     );
+  }
+}
+
+/// 每日 Token 用量柱状图。不引图表库（项目无此依赖），CustomPaint 手绘：
+/// 柱高 = 当日 totalTokens / 7 天峰值，今天的柱子用强调色，其余用次级色。
+/// 柱底标 MM-dd，今天额外标「今天」。
+class _TokenUsageBarChart extends StatelessWidget {
+  const _TokenUsageBarChart({required this.days, required this.today});
+
+  final List<DailyTokenUsage> days;
+  final String today;
+
+  @override
+  Widget build(BuildContext context) {
+    final peak = days.fold<int>(
+      1,
+      (m, d) => d.totalTokens > m ? d.totalTokens : m,
+    );
+    // >10 根柱子时柱顶数字与每日日期会挤成一团：只留今天与首尾日期，
+    // 柱顶数字仅最高柱保留。
+    final compact = days.length > 10;
+    final maxIndex = days.indexWhere((d) => d.totalTokens == peak);
+    return SizedBox(
+      height: 140,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final (i, d) in days.indexed)
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: compact ? 1.5 : 4),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (!compact || i == maxIndex)
+                      Text(
+                        _fmtShort(d.totalTokens),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.textTertiary,
+                        ),
+                      )
+                    else
+                      const SizedBox(height: 13),
+                    const SizedBox(height: 4),
+                    Flexible(
+                      child: FractionallySizedBox(
+                        heightFactor: (d.totalTokens / peak).clamp(0.02, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: d.date == today
+                                ? AppTheme.accentPrimary
+                                : AppTheme.accentPrimary.withValues(
+                                    alpha: 0.35,
+                                  ),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _dateLabel(i, d, compact),
+                      style: TextStyle(
+                        fontSize: compact ? 9 : 11,
+                        fontWeight: d.date == today
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: d.date == today
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 紧凑模式只标今天与首末两根柱子的日期，其余留空，防止日期串粘在一起。
+  String _dateLabel(int i, DailyTokenUsage d, bool compact) {
+    if (d.date == today) return '今天';
+    if (!compact) return d.date.substring(5);
+    if (i == 0 || i == days.length - 1) return d.date.substring(5);
+    return '';
+  }
+
+  /// 柱顶数字：>=1000 缩写为 x.xK，避免长数字挤在一起。
+  static String _fmtShort(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return '$n';
   }
 }

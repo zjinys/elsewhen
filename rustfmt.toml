@@ -1,0 +1,2 @@
+# Use Rust 2024 formatting consistently in cargo fmt and editors.
+style_edition = "2024"

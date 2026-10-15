@@ -5,7 +5,7 @@
 //! 应用元数据（app_meta）与全量分析列表。
 
 use anyhow::Result;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use super::adapter::AnalysisSummary;
@@ -71,7 +71,9 @@ impl Store {
         status: Option<RuleStatus>,
         conversation_id: Option<&str>,
     ) -> Result<Vec<RuleSummary>> {
-        let mut sql = "SELECT id, content, status, created_at FROM rules".to_string();
+        let mut sql =
+            "SELECT id, content, status, created_at, trigger_scene, trigger_keywords FROM rules"
+                .to_string();
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
         if let Some(s) = status {
@@ -100,6 +102,8 @@ impl Store {
                     RuleStatus::Active
                 },
                 created_at: row.get(3)?,
+                trigger_scene: row.get(4)?,
+                trigger_keywords: row.get(5)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -109,6 +113,43 @@ impl Store {
     /// 已生效的规则（注入 AI 回复上下文用）
     pub fn list_active_rules(&self) -> Result<Vec<RuleSummary>> {
         self.list_rules(Some(RuleStatus::Active), None)
+    }
+
+    /// 设置/清除规则的触发配置（决策辅助 D1）。
+    /// trigger_keywords 为 JSON 字符串数组或 None（None = 不参与预筛）。
+    /// trigger_scene 枚举（capture/conversation/daily_review）或 None（全场景）。
+    pub fn set_rule_trigger(
+        &self,
+        rule_id: &str,
+        trigger_scene: Option<&str>,
+        trigger_keywords: Option<&[String]>,
+    ) -> Result<()> {
+        if let Some(scene) = trigger_scene {
+            if !matches!(scene, "capture" | "conversation" | "daily_review") {
+                anyhow::bail!("trigger_scene 必须是 capture/conversation/daily_review");
+            }
+        }
+        if let Some(keywords) = trigger_keywords {
+            if keywords.iter().any(|kw| kw.trim().is_empty()) {
+                anyhow::bail!("触发关键词不能为空串");
+            }
+        }
+        let keywords_json = trigger_keywords
+            .map(|kw| serde_json::to_string(kw))
+            .transpose()?;
+        let updated = self.connection.execute(
+            "UPDATE rules SET trigger_scene=?2, trigger_keywords=?3, updated_at=?4 WHERE id=?1",
+            params![
+                rule_id,
+                trigger_scene,
+                keywords_json,
+                chrono::Utc::now().to_rfc3339()
+            ],
+        )?;
+        if updated == 0 {
+            anyhow::bail!("规则不存在：{rule_id}");
+        }
+        Ok(())
     }
 
     /// 新增一条规则。
@@ -121,43 +162,87 @@ impl Store {
     ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
         self.connection.execute(
             "INSERT INTO rules (id, content, status, conversation_id, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
             params![id, content, status.as_str(), conversation_id, now],
         )?;
+        self.sync_record_rule(&id, false)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(id)
     }
 
-    /// 把本会话的待确认规则升级为生效（含 v13 前遗留的无归属规则）
+    /// 把本会话的待确认规则升级为生效（含 v13 前遗留的无归属规则）。
+    /// 升级的每一条都在同事务捕获（规则行状态迁移随流复制）。
     pub fn promote_pending_rules(&self, conversation_id: &str) -> Result<usize> {
         let now = chrono::Utc::now().to_rfc3339();
-        let affected = self.connection.execute(
-            "UPDATE rules SET status = 'active', updated_at = ?1
-         WHERE status = 'pending'
-           AND (conversation_id = ?2 OR conversation_id IS NULL)",
-            params![now, conversation_id],
-        )?;
-        Ok(affected)
+        let tx = self.begin_write_transaction()?;
+        let ids: Vec<String> = {
+            let mut statement = self.connection.prepare(
+                "SELECT id FROM rules WHERE status = 'pending'
+                 AND (conversation_id = ?1 OR conversation_id IS NULL)",
+            )?;
+            statement
+                .query_map([conversation_id], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        for id in &ids {
+            self.connection.execute(
+                "UPDATE rules SET status = 'active', updated_at = ?1 WHERE id = ?2",
+                params![now, id],
+            )?;
+            self.sync_record_rule(id, false)?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(ids.len())
     }
 
-    /// 丢弃本会话的待确认规则（用户明确拒绝；含 v13 前遗留的无归属规则）
+    /// 丢弃本会话的待确认规则（用户明确拒绝；含 v13 前遗留的无归属规则）。
+    /// 逐条先捕获（deleted，行在）后删——删除语义全端物理删除。
     pub fn discard_pending_rules(&self, conversation_id: &str) -> Result<usize> {
-        let affected = self.connection.execute(
-            "DELETE FROM rules
-         WHERE status = 'pending'
-           AND (conversation_id = ?1 OR conversation_id IS NULL)",
-            params![conversation_id],
-        )?;
-        Ok(affected)
+        let tx = self.begin_write_transaction()?;
+        let ids: Vec<String> = {
+            let mut statement = self.connection.prepare(
+                "SELECT id FROM rules WHERE status = 'pending'
+                 AND (conversation_id = ?1 OR conversation_id IS NULL)",
+            )?;
+            statement
+                .query_map([conversation_id], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        for id in &ids {
+            self.sync_record_rule(id, true)?;
+            self.connection
+                .execute("DELETE FROM rules WHERE id = ?1", [id])?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(ids.len())
     }
 
-    /// 删除一条规则；返回是否存在并删除。
+    /// 删除一条规则；返回是否存在并删除。先捕获（deleted，行在）后删。
     pub fn delete_rule(&self, id: &str) -> Result<bool> {
-        let affected = self
-            .connection
-            .execute("DELETE FROM rules WHERE id = ?1", [id])?;
-        Ok(affected > 0)
+        let tx = self.begin_write_transaction()?;
+        let exists: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM rules WHERE id = ?1)",
+            [id],
+            |r| r.get(0),
+        )?;
+        if exists {
+            self.sync_record_rule(id, true)?;
+            self.connection
+                .execute("DELETE FROM rules WHERE id = ?1", [id])?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(exists)
     }
 
     /// 新增一条待确认动作（写类工具的草拟阶段）
@@ -190,11 +275,16 @@ impl Store {
     ) -> Result<Todo> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
         self.connection.execute(
         "INSERT INTO todos (id, title, status, priority, due_at, related_event_id, related_wiki_slug, note, created_at, updated_at)
          VALUES (?1, ?2, 'open', ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
         params![id, title, priority, due_at, related_event_id, related_wiki_slug, note, now],
     )?;
+        self.sync_record_todo(&id, false)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(Todo {
             id,
             title: title.to_string(),
@@ -271,20 +361,32 @@ impl Store {
 
     pub fn update_todo_status(&self, id: &str, status: TodoStatus) -> Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
-        self.connection.execute(
+        let tx = self.begin_write_transaction()?;
+        let changed = self.connection.execute(
             "UPDATE todos SET status=?1, updated_at=?2 WHERE id=?3",
             params![status.as_str(), now, id],
         )?;
+        if changed > 0 {
+            self.sync_record_todo(id, false)?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(())
     }
 
     pub fn set_todo_related_wiki_slug(&self, id: &str, slug: &str) -> Result<()> {
+        let tx = self.begin_write_transaction()?;
         let changed = self.connection.execute(
             "UPDATE todos SET related_wiki_slug=?1, updated_at=?2 WHERE id=?3",
             params![slug, chrono::Utc::now().to_rfc3339(), id],
         )?;
         if changed == 0 {
             anyhow::bail!("未找到待办（id={id}）");
+        }
+        self.sync_record_todo(id, false)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
         }
         Ok(())
     }
@@ -306,18 +408,38 @@ impl Store {
         }
         let priority = priority.unwrap_or("normal");
         let now = chrono::Utc::now().to_rfc3339();
-        self.connection.execute(
+        let tx = self.begin_write_transaction()?;
+        let changed = self.connection.execute(
             "UPDATE todos SET title=?1, note=?2, priority=?3, due_at=?4, updated_at=?5 WHERE id=?6",
             params![title, note, priority, due_at, now, id],
         )?;
+        if changed > 0 {
+            self.sync_record_todo(id, false)?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(())
     }
 
     pub fn delete_todo(&self, id: &str) -> Result<bool> {
-        let n = self
-            .connection
-            .execute("DELETE FROM todos WHERE id=?1", [id])?;
-        Ok(n > 0)
+        let tx = self.begin_write_transaction()?;
+        // 删除语义 = 全端物理删除（与 wiki 删除同款）：先在行还在时捕获，
+        // 再删行；不存在则幂等。
+        let exists: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM todos WHERE id=?1)",
+            [id],
+            |r| r.get(0),
+        )?;
+        if exists {
+            self.sync_record_todo(id, true)?;
+            self.connection
+                .execute("DELETE FROM todos WHERE id=?1", [id])?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(exists)
     }
 
     // ── 人物关系 ────────────────────────────────────────────────────────
@@ -326,26 +448,32 @@ impl Store {
     pub fn upsert_relation(&self, draft: &RelationDraft) -> Result<Relation> {
         let now = chrono::Utc::now().to_rfc3339();
         self.connection.execute(
-        "INSERT INTO relations
+            "INSERT INTO relations
            (id, from_slug, from_kind, to_slug, to_kind, relation, note, confidence,
             source_conversation_id, source_event_id, created_at, last_seen_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)
          ON CONFLICT(from_slug, to_slug, relation) DO UPDATE SET
-           note = ?7, confidence = ?8, source_event_id = COALESCE(?10, relations.source_event_id), last_seen_at = ?11",
-        params![
-            Uuid::new_v4().to_string(),
-            draft.from_slug,
-            draft.from_kind,
-            draft.to_slug,
-            draft.to_kind,
-            draft.relation,
-            draft.note,
-            draft.confidence,
-            draft.source_conversation_id,
-            draft.source_event_id,
-            now.clone(),
-        ],
-    )?;
+           note = ?7,
+           -- 增量合并（D2）：同一事件重复贡献（重放/reanalyze）不重复加权；
+           -- 新事件贡献走渐进增强，封顶 5（宁缺毋滥——置信只认来源多样）。
+           confidence = CASE
+             WHEN ?10 IS NOT NULL AND relations.source_event_id = ?10 THEN relations.confidence
+             ELSE MIN(5, relations.confidence + 1) END,
+           source_event_id = COALESCE(?10, relations.source_event_id), last_seen_at = ?11",
+            params![
+                Uuid::new_v4().to_string(),
+                draft.from_slug,
+                draft.from_kind,
+                draft.to_slug,
+                draft.to_kind,
+                draft.relation,
+                draft.note,
+                draft.confidence,
+                draft.source_conversation_id,
+                draft.source_event_id,
+                now.clone(),
+            ],
+        )?;
         // 读回真实行（拿到真实 id）
         let mut statement = self.connection.prepare(
             "SELECT id, from_slug, from_kind, to_slug, to_kind, relation, note, confidence,

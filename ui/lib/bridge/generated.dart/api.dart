@@ -3,6 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import 'api/rules.dart';
 import 'api/todos.dart';
 import 'frb_generated.dart';
 
@@ -10,9 +11,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `decision_support_material`, `default_event_kind`, `default_recordable`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These functions are ignored because they are not marked as `pub`: `decision_support_material`, `default_event_kind`, `default_recordable`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`, `try_auto_upsert_annotated_relation`, `wash_emotion`, `wash_guidance`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`, `EventEmotionTag`, `EventGuidanceRef`, `EventGuidance`, `EventRuleConfirmation`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -70,6 +71,14 @@ Future<InputRecordDto> submitConversationInput({
 Future<List<DailyEntryDto>> listDailyEntries({required String date}) =>
     RustLib.instance.api.crateApiListDailyEntries(date: date);
 
+Future<PeriodStatsDto> getPeriodStats({
+  required String periodType,
+  required String date,
+}) => RustLib.instance.api.crateApiGetPeriodStats(
+  periodType: periodType,
+  date: date,
+);
+
 Future<DailyOverviewDto> getDailyOverview({required String date}) =>
     RustLib.instance.api.crateApiGetDailyOverview(date: date);
 
@@ -87,6 +96,56 @@ Future<String> saveDailyReview({
 
 Future<DailyReviewResult> generateDailyReview({required String date}) =>
     RustLib.instance.api.crateApiGenerateDailyReview(date: date);
+
+Future<List<PageGuidanceDto>> listPageGuidance({required String slug}) =>
+    RustLib.instance.api.crateApiListPageGuidance(slug: slug);
+
+/// 设置单条 guidance 条目的采纳反馈（遗留收口切片 B，只记录不推断）；
+/// feedback None = 清除（toggle off）。未知值 fail-closed 报错。
+Future<bool> setGuidanceFeedback({
+  required String analysisId,
+  required String slug,
+  String? note,
+  String? feedback,
+}) => RustLib.instance.api.crateApiSetGuidanceFeedback(
+  analysisId: analysisId,
+  slug: slug,
+  note: note,
+  feedback: feedback,
+);
+
+/// 情绪标注列表（D5 用户模型面板）：最近分析的 emotion 派生。
+Future<List<EventEmotionDto>> listEventEmotions() =>
+    RustLib.instance.api.crateApiListEventEmotions();
+
+/// 删除一条情绪标注：只编辑分析产物的 emotion 字段，事件真源不动。
+Future<void> deleteEventEmotion({
+  required String id,
+  String? target,
+  required String feeling,
+}) => RustLib.instance.api.crateApiDeleteEventEmotion(
+  id: id,
+  target: target,
+  feeling: feeling,
+);
+
+/// 读取回访偏好。
+Future<CompanionPrefsDto> getCompanionPrefs() =>
+    RustLib.instance.api.crateApiGetCompanionPrefs();
+
+/// 更新回访偏好（间隔即频率下限；关 = 之后 check 零查询零成本）。
+Future<void> setCompanionPrefs({
+  required bool enabled,
+  required PlatformInt64 intervalDays,
+}) => RustLib.instance.api.crateApiSetCompanionPrefs(
+  enabled: enabled,
+  intervalDays: intervalDays,
+);
+
+/// 打开应用时的一次回访检查：返回可展示的温和回引（有则记账本次展示）；
+/// 关闭/未到期/无素材都返回 NULL。
+Future<CompanionRevisitDto?> checkCompanionRevisit() =>
+    RustLib.instance.api.crateApiCheckCompanionRevisit();
 
 Future<EventAnalysisDetailDto?> getEventAnalysisDetail({
   required String eventId,
@@ -107,6 +166,16 @@ Future<MessageRecordabilityDto> setEventRecordability({
 
 Future<bool> reanalyzeEvent({required String eventId}) =>
     RustLib.instance.api.crateApiReanalyzeEvent(eventId: eventId);
+
+/// 版本可溯源：设置页展示「这次构建对应哪个 git 提交」。pubspec 版本从
+/// 未动过（恒 1.0.0）无区分度，编译期抓短 hash 才有报障价值。
+Future<String> buildHash() => RustLib.instance.api.crateApiBuildHash();
+
+/// 最近事件读面（事件详情视图列表）：days 天窗口内按记录时间倒序 limit 条。
+Future<List<EventSummaryDto>> listRecentEvents({
+  required PlatformInt64 days,
+  required PlatformInt64 limit,
+}) => RustLib.instance.api.crateApiListRecentEvents(days: days, limit: limit);
 
 /// List all events
 Future<List<EventDto>> listEvents() =>
@@ -206,6 +275,60 @@ sealed class AnalysisTriggerResult with _$AnalysisTriggerResult {
   }) = AnalysisTriggerResult_Processed;
 }
 
+/// 情感回访偏好（D6：开关键 + 频率上限；面板可见可改）。
+class CompanionPrefsDto {
+  final bool revisitEnabled;
+  final PlatformInt64 revisitIntervalDays;
+
+  const CompanionPrefsDto({
+    required this.revisitEnabled,
+    required this.revisitIntervalDays,
+  });
+
+  @override
+  int get hashCode => revisitEnabled.hashCode ^ revisitIntervalDays.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CompanionPrefsDto &&
+          runtimeType == other.runtimeType &&
+          revisitEnabled == other.revisitEnabled &&
+          revisitIntervalDays == other.revisitIntervalDays;
+}
+
+/// 一次回访素材（D6）：被记住的事件 +（若有）当时情绪。
+class CompanionRevisitDto {
+  final String eventId;
+  final String recordedAt;
+  final String excerpt;
+  final String? feeling;
+
+  const CompanionRevisitDto({
+    required this.eventId,
+    required this.recordedAt,
+    required this.excerpt,
+    this.feeling,
+  });
+
+  @override
+  int get hashCode =>
+      eventId.hashCode ^
+      recordedAt.hashCode ^
+      excerpt.hashCode ^
+      feeling.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CompanionRevisitDto &&
+          runtimeType == other.runtimeType &&
+          eventId == other.eventId &&
+          recordedAt == other.recordedAt &&
+          excerpt == other.excerpt &&
+          feeling == other.feeling;
+}
+
 class DailyEntryDto {
   final String eventId;
   final String? inputId;
@@ -255,16 +378,30 @@ class DailyOverviewDto {
   final DailyReviewDto? review;
   final List<TodoDto> todos;
 
+  /// 当日触发的规则提醒与聚合（D6 回顾勾连：只呈现，不推断）。
+  final List<RuleHitDto> reminderHits;
+
+  /// 共同记忆回引（D6）：约一周前的条目原文，呈现「你上周说过……」。
+  /// 原文快照，不评价；没有合素材时为空。
+  final List<MemoryEchoDto> memoryEcho;
+
   const DailyOverviewDto({
     required this.date,
     required this.entries,
     this.review,
     required this.todos,
+    required this.reminderHits,
+    required this.memoryEcho,
   });
 
   @override
   int get hashCode =>
-      date.hashCode ^ entries.hashCode ^ review.hashCode ^ todos.hashCode;
+      date.hashCode ^
+      entries.hashCode ^
+      review.hashCode ^
+      todos.hashCode ^
+      reminderHits.hashCode ^
+      memoryEcho.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -274,7 +411,9 @@ class DailyOverviewDto {
           date == other.date &&
           entries == other.entries &&
           review == other.review &&
-          todos == other.todos;
+          todos == other.todos &&
+          reminderHits == other.reminderHits &&
+          memoryEcho == other.memoryEcho;
 }
 
 class DailyReviewDto {
@@ -354,6 +493,43 @@ sealed class DailyReviewResult with _$DailyReviewResult {
       DailyReviewResult_Created;
 }
 
+class DayCountDto {
+  final String date;
+  final PlatformInt64 count;
+
+  const DayCountDto({required this.date, required this.count});
+
+  @override
+  int get hashCode => date.hashCode ^ count.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DayCountDto &&
+          runtimeType == other.runtimeType &&
+          date == other.date &&
+          count == other.count;
+}
+
+/// 情绪标注展示（D5）：文本标注、无数值（红线：不是情绪分析报告）。
+class EmotionTagDto {
+  final String? target;
+  final String feeling;
+
+  const EmotionTagDto({this.target, required this.feeling});
+
+  @override
+  int get hashCode => target.hashCode ^ feeling.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EmotionTagDto &&
+          runtimeType == other.runtimeType &&
+          target == other.target &&
+          feeling == other.feeling;
+}
+
 class EntityFactDto {
   final String id;
   final String entityKind;
@@ -426,6 +602,8 @@ class EventAnalysisDetailDto {
   final List<String> projects;
   final List<String> activities;
   final List<String> followUps;
+  final GuidanceDto? guidance;
+  final List<EmotionTagDto>? emotion;
   final bool? recordable;
   final String? kind;
   final bool effectiveRecordable;
@@ -453,6 +631,8 @@ class EventAnalysisDetailDto {
     required this.projects,
     required this.activities,
     required this.followUps,
+    this.guidance,
+    this.emotion,
     this.recordable,
     this.kind,
     required this.effectiveRecordable,
@@ -482,6 +662,8 @@ class EventAnalysisDetailDto {
       projects.hashCode ^
       activities.hashCode ^
       followUps.hashCode ^
+      guidance.hashCode ^
+      emotion.hashCode ^
       recordable.hashCode ^
       kind.hashCode ^
       effectiveRecordable.hashCode ^
@@ -513,6 +695,8 @@ class EventAnalysisDetailDto {
           projects == other.projects &&
           activities == other.activities &&
           followUps == other.followUps &&
+          guidance == other.guidance &&
+          emotion == other.emotion &&
           recordable == other.recordable &&
           kind == other.kind &&
           effectiveRecordable == other.effectiveRecordable &&
@@ -558,6 +742,124 @@ class EventDto {
           occurredAt == other.occurredAt &&
           source == other.source &&
           status == other.status;
+}
+
+/// 情绪条目列表行（面板用）：analysis_id 是删除定位键。
+class EventEmotionDto {
+  final String id;
+  final String eventId;
+  final String recordedAt;
+  final String? target;
+  final String feeling;
+
+  const EventEmotionDto({
+    required this.id,
+    required this.eventId,
+    required this.recordedAt,
+    this.target,
+    required this.feeling,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      eventId.hashCode ^
+      recordedAt.hashCode ^
+      target.hashCode ^
+      feeling.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EventEmotionDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          eventId == other.eventId &&
+          recordedAt == other.recordedAt &&
+          target == other.target &&
+          feeling == other.feeling;
+}
+
+/// 事件摘要 DTO（遗留收口切片 C：事件列表卡；详情走
+/// get_event_analysis_detail，列表不拖分析结果）。
+class EventSummaryDto {
+  final String id;
+  final String rawText;
+  final String recordedAt;
+  final String source;
+  final String status;
+
+  const EventSummaryDto({
+    required this.id,
+    required this.rawText,
+    required this.recordedAt,
+    required this.source,
+    required this.status,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      rawText.hashCode ^
+      recordedAt.hashCode ^
+      source.hashCode ^
+      status.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EventSummaryDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          rawText == other.rawText &&
+          recordedAt == other.recordedAt &&
+          source == other.source &&
+          status == other.status;
+}
+
+/// guidance 派生层展示（D4）：related 指知识库页，lessons/精炼待办是纯文本。
+/// 只从 event_analyses.result_json 派生，不写事件真源。
+class GuidanceDto {
+  final List<GuidanceRefDto> related;
+  final List<String> lessons;
+  final List<String> followUpsRefined;
+
+  const GuidanceDto({
+    required this.related,
+    required this.lessons,
+    required this.followUpsRefined,
+  });
+
+  @override
+  int get hashCode =>
+      related.hashCode ^ lessons.hashCode ^ followUpsRefined.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GuidanceDto &&
+          runtimeType == other.runtimeType &&
+          related == other.related &&
+          lessons == other.lessons &&
+          followUpsRefined == other.followUpsRefined;
+}
+
+class GuidanceRefDto {
+  final String slug;
+  final String note;
+
+  const GuidanceRefDto({required this.slug, required this.note});
+
+  @override
+  int get hashCode => slug.hashCode ^ note.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GuidanceRefDto &&
+          runtimeType == other.runtimeType &&
+          slug == other.slug &&
+          note == other.note;
 }
 
 class InputRecordDto {
@@ -619,6 +921,31 @@ class InputRecordDto {
           updatedAt == other.updatedAt;
 }
 
+/// 回顾里的共同记忆回引条目。
+class MemoryEchoDto {
+  final String eventId;
+  final String recordedAt;
+  final String rawText;
+
+  const MemoryEchoDto({
+    required this.eventId,
+    required this.recordedAt,
+    required this.rawText,
+  });
+
+  @override
+  int get hashCode => eventId.hashCode ^ recordedAt.hashCode ^ rawText.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MemoryEchoDto &&
+          runtimeType == other.runtimeType &&
+          eventId == other.eventId &&
+          recordedAt == other.recordedAt &&
+          rawText == other.rawText;
+}
+
 class MessageRecordabilityDto {
   final String messageId;
   final String eventId;
@@ -660,4 +987,125 @@ class MessageRecordabilityDto {
           source == other.source &&
           jobStatus == other.jobStatus &&
           summary == other.summary;
+}
+
+/// 回顾页周/月拼装统计（R1）：本地 SQL 实时聚合，无 AI、无持久化。
+/// 口径：窗口内事件按 recordability 判定（manual 决策覆盖），与
+/// daily_overview 的 entries 同口径；待办完成日以 updated_at 为准
+/// （todos 无 completed_at，如实近似，见 storage::review）。
+class NamedCountDto {
+  final String label;
+  final PlatformInt64 count;
+
+  const NamedCountDto({required this.label, required this.count});
+
+  @override
+  int get hashCode => label.hashCode ^ count.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NamedCountDto &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          count == other.count;
+}
+
+/// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
+class PageGuidanceDto {
+  final String analysisId;
+  final String eventId;
+  final String recordedAt;
+  final String? note;
+  final List<String> lessons;
+  final List<String> followUpsRefined;
+  final String? feedback;
+
+  const PageGuidanceDto({
+    required this.analysisId,
+    required this.eventId,
+    required this.recordedAt,
+    this.note,
+    required this.lessons,
+    required this.followUpsRefined,
+    this.feedback,
+  });
+
+  @override
+  int get hashCode =>
+      analysisId.hashCode ^
+      eventId.hashCode ^
+      recordedAt.hashCode ^
+      note.hashCode ^
+      lessons.hashCode ^
+      followUpsRefined.hashCode ^
+      feedback.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PageGuidanceDto &&
+          runtimeType == other.runtimeType &&
+          analysisId == other.analysisId &&
+          eventId == other.eventId &&
+          recordedAt == other.recordedAt &&
+          note == other.note &&
+          lessons == other.lessons &&
+          followUpsRefined == other.followUpsRefined &&
+          feedback == other.feedback;
+}
+
+class PeriodStatsDto {
+  final String periodType;
+  final String startDate;
+  final String endDate;
+  final PlatformInt64 eventCount;
+  final PlatformInt64 todoDoneCount;
+  final List<NamedCountDto> byEventType;
+  final List<NamedCountDto> byPerson;
+  final List<NamedCountDto> byProject;
+  final List<NamedCountDto> byActivity;
+  final List<DayCountDto> dailyCounts;
+
+  const PeriodStatsDto({
+    required this.periodType,
+    required this.startDate,
+    required this.endDate,
+    required this.eventCount,
+    required this.todoDoneCount,
+    required this.byEventType,
+    required this.byPerson,
+    required this.byProject,
+    required this.byActivity,
+    required this.dailyCounts,
+  });
+
+  @override
+  int get hashCode =>
+      periodType.hashCode ^
+      startDate.hashCode ^
+      endDate.hashCode ^
+      eventCount.hashCode ^
+      todoDoneCount.hashCode ^
+      byEventType.hashCode ^
+      byPerson.hashCode ^
+      byProject.hashCode ^
+      byActivity.hashCode ^
+      dailyCounts.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PeriodStatsDto &&
+          runtimeType == other.runtimeType &&
+          periodType == other.periodType &&
+          startDate == other.startDate &&
+          endDate == other.endDate &&
+          eventCount == other.eventCount &&
+          todoDoneCount == other.todoDoneCount &&
+          byEventType == other.byEventType &&
+          byPerson == other.byPerson &&
+          byProject == other.byProject &&
+          byActivity == other.byActivity &&
+          dailyCounts == other.dailyCounts;
 }

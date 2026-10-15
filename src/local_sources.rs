@@ -3,7 +3,7 @@
 //! per-file source pages. The original directory remains the source of truth.
 
 use crate::ai::memory::ContextMessage;
-use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
+use crate::ai::provider::{OpenAiCompatibleConfig, OpenAiCompatibleProvider};
 use crate::storage::{ContentPolicy, Store, WikiPage, WikiPageDraft};
 use crate::wiki::{slugify, unique_slug};
 use anyhow::{Context, Result};
@@ -345,7 +345,13 @@ pub fn analyze_project_with_ai(store: &Store, directory: &Path) -> Result<Projec
         }
     };
 
-    match provider.generate_reply(vec![ContextMessage::new("user", prompt)]) {
+    match crate::ai::generation::request(
+        store,
+        &provider,
+        &config.name,
+        vec![ContextMessage::new("user", prompt)],
+        None,
+    ) {
         Ok(reply) if !reply.content.trim().is_empty() => {
             let report = reply
                 .content
@@ -378,6 +384,7 @@ pub fn analyze_project_with_ai(store: &Store, directory: &Path) -> Result<Projec
                 append_ai_status(&summary.content_md, "执行失败：AI Provider 返回了空报告。");
         }
         Err(error) => {
+            crate::ai::generation::check(store)?;
             summary.content_md = append_ai_status(
                 &summary.content_md,
                 &format!("执行失败：{}。以下仍保留确定性扫描摘要。", error),
@@ -1415,7 +1422,10 @@ pub fn plan_topic(store: &Store, topic: &str) -> Result<String> {
             .collect::<Vec<_>>()
             .join("\n")
     };
-    let content = format!("# {}\n\n## 目标解释\n\n将“{}”拆解为可衡量的结果、期限、资源与约束；当前需要先确认成功标准和可投入时间。\n\n## 初步实现方案\n\n1. 明确结果指标与截止日期。\n2. 基于已有资产选择一条最短验证路径，先做小规模实验。\n3. 每周复盘投入、产出和阻塞，保留有效动作并停止无效动作。\n\n## 现有知识库依据\n\n{}\n\n## 需要明确的问题\n\n- 目标中的金额/结果是收入、利润还是流水？\n- 截止日期、每周可投入时间和预算分别是多少？\n- 哪些能力、项目或资产可以直接复用？\n- 是否存在不能接受的风险或合规边界？\n\n> 这是基于当前知识库的第一版计划，补充答案后可再次生成。", topic, topic, evidence);
+    let content = format!(
+        "# {}\n\n## 目标解释\n\n将“{}”拆解为可衡量的结果、期限、资源与约束；当前需要先确认成功标准和可投入时间。\n\n## 初步实现方案\n\n1. 明确结果指标与截止日期。\n2. 基于已有资产选择一条最短验证路径，先做小规模实验。\n3. 每周复盘投入、产出和阻塞，保留有效动作并停止无效动作。\n\n## 现有知识库依据\n\n{}\n\n## 需要明确的问题\n\n- 目标中的金额/结果是收入、利润还是流水？\n- 截止日期、每周可投入时间和预算分别是多少？\n- 哪些能力、项目或资产可以直接复用？\n- 是否存在不能接受的风险或合规边界？\n\n> 这是基于当前知识库的第一版计划，补充答案后可再次生成。",
+        topic, topic, evidence
+    );
     let slug = unique_slug(store, &format!("topic/{}", slugify(topic)), topic)?;
     let mut events = hits
         .iter()

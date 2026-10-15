@@ -392,9 +392,8 @@ fn status_question_shows_existing_draft_without_confirming_or_duplicating_it() {
             &json!({"title":"视频草稿", "content_md":"完整视频草稿正文"}).to_string(),
         )
         .unwrap();
-    let (summary, wrote) = handle_pending_action_confirmation(&store, &conv).unwrap();
-    assert!(summary.is_none());
-    assert!(!wrote);
+    assert!(pending_review_context(&store, &conv).unwrap().is_some());
+    assert!(store.list_wiki_pages(None, None).unwrap().is_empty());
     let mut context = vec![ContextMessage::new("user", "？")];
     let provider = RecordingProvider::new(vec![
         native_reply(
@@ -440,8 +439,13 @@ fn successful_confirmation_survives_failure_to_generate_final_words() {
         )
         .unwrap();
     store.send_message(&conv, "user", "好", None).unwrap();
-    let (summary, wrote) = handle_pending_action_confirmation(&store, &conv).unwrap();
-    assert!(wrote);
+    let proposal = store.list_chat_proposals(Some(&conv), 0, 10).unwrap().remove(0);
+    let receipt = crate::ai::approval::resolve_chat_proposal(
+        &store, &proposal.kind, &proposal.id, Some(&conv), proposal.version,
+        &proposal.approval_token, "accept",
+    ).unwrap();
+    assert_eq!(receipt.status, "succeeded");
+    let summary = Some(receipt.result);
     let mut context = vec![
         ContextMessage::new("user", "好"),
         ContextMessage::new(
@@ -553,11 +557,19 @@ fn followup_full_request_reaches_http_provider_after_memory_compression() {
         store.send_message(&conv, role, text, None).unwrap();
     }
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    // This fixture tests original-request recovery, not a long completion.
+    // Keep its output reserve explicit; the separate 32K regression covers
+    // default-budget requests with the required time context included.
     store
-        .upsert_ai_provider_config(
+        .save_ai_provider_config(
+            None,
+            "default",
+            "openai-compatible",
             &format!("http://{}/v1", listener.local_addr().unwrap()),
             "fixture",
             "test-key",
+            0.7,
+            Some(512),
         )
         .unwrap();
     let server = std::thread::spawn(move || {

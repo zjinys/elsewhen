@@ -7,6 +7,8 @@
 library;
 
 export 'generated.dart/api.dart';
+export 'generated.dart/api/chat_proposals.dart';
+export 'generated.dart/api/chat_runs.dart';
 export 'generated.dart/api/conversations.dart';
 export 'generated.dart/api/entities.dart';
 export 'generated.dart/api/fonts.dart';
@@ -21,13 +23,20 @@ export 'generated.dart/knowledge/queue.dart';
 export 'generated.dart/api/import.dart';
 export 'generated.dart/api/knowledge_digest.dart';
 export 'generated.dart/api/provider_config.dart';
+export 'generated.dart/api/provider_reachability.dart';
 export 'generated.dart/api/relations.dart';
+export 'generated.dart/api/review_report.dart';
 export 'generated.dart/api/rules.dart';
+export 'generated.dart/api/sync.dart';
 export 'generated.dart/api/theme.dart';
 export 'generated.dart/api/todos.dart';
 export 'generated.dart/api/tweet.dart';
+export 'generated.dart/api/web_search.dart';
 export 'generated.dart/api/wiki_chat.dart';
 export 'generated.dart/api/wiki.dart';
 
 export 'generated.dart/api/knowledge_workflows.dart';
 export 'generated.dart/knowledge/workflows.dart';
+
+/// Saving, queueing and steering are distinct, explicit user choices.
+enum ChatInputMode { generate, recordOnly, supplement }

@@ -13,7 +13,7 @@ Elsewhen 已有事件存储、知识选材、引用校验、工具调用、写�
 - 本 Note 保存优化方向、取舍和产品边界。
 - [AI 对话体验优化 Roadmap](../../../roadmap/2026-09-30-ai-chat-experience-roadmap.md) 是这项工作的任务、依赖、验收和进度入口。
 - [个人认知主循环总路线图](../../../roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md) 仍是项目总路线；本优化是支持 Phase 4C / Phase 5 的子路线，不重置已完成工作。
-- [RikkaHub 架构分析](../../../analysis/rikkahub-desktop-chat-architecture-analysis.md) 与[早期上下文比较](2026-09-30-rikkahub-chat-context-comparison.md)保留为调研材料；其中旧优先级和未成立的缺陷推断不直接转成开发任务。
+- [RikkaHub 架构分析](../../../analysis/rikkahub-desktop-chat-architecture-analysis.md) 与[早期上下文比较](../../archived/2026-09-30-rikkahub-chat-context-comparison.md)保留为调研材料；其中旧优先级和未成立的缺陷推断不直接转成开发任务。
 
 ## Proposal
 
@@ -39,6 +39,8 @@ Elsewhen 已有事件存储、知识选材、引用校验、工具调用、写�
 
 现有 `FollowUp` 和空回复恢复行为是起点，不再建设一套与它相冲突的“任务记忆”。
 
+C05 的第一条安全边界是完整原生工具交换校验：在最终 payload gate 裁剪前后按 call ID 检查配对、重复与缺失；允许同一 assistant 并行调用多个工具，不把已规范化的文本工具历史套成原生消息规则。选择显式拒绝损坏交换，而不是发送给服务商后才把协议错误误判成上下文不足。这只是 C05 的配对切片，不替代 provider-aware 选材、分段预算报告或 C06 摘要。
+
 ### 3. 主动提供当前时间与历史时间线索
 
 Elsewhen 的“今天、昨天、刚才、明天”有明确业务含义，模型不应自行猜测当前日期。将时间上下文作为独立、优先可交付的小切片，不等待流式或摘要改造。
@@ -50,6 +52,8 @@ Elsewhen 的“今天、昨天、刚才、明天”有明确业务含义，模�
 - 时间提醒是系统提供的合成上下文，不改用户原文、不创建事件，也不作为模型总结出的事实写入记忆。仅有日期不能证明某天发生了什么，回答仍需检索真实记录。
 
 这个机制解决的是时间感知，不代表应用新增定时唤醒或主动推送能力。实施与固定时钟测试见 Roadmap 的 C00a。
+
+**2026-09-30 实施进度：** 时间上下文工程切片已落地，见[实现决定](../../implemented/architecture/2026-09-30-chat-time-context.md)；全量 Rust 341 passed / 2 ignored 与 release 构建通过，真实模型效果仍待验收。本 Note 的其他方向继续保持 proposed。
 
 ### 4. 生成期间仍允许用户表达新意图
 

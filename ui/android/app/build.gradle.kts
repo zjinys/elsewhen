@@ -67,3 +67,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// FileProvider（应用内升级：content:// 共享下载好的 APK 给系统安装器）。
+dependencies {
+    implementation("androidx.core:core-ktx:1.13.1")
+}

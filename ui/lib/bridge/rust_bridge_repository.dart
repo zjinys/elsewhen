@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart'
     show ExternalLibrary;
+import 'package:path_provider/path_provider.dart';
 
 import '../data/storage_repository.dart';
 import '../models/event.dart';
@@ -18,7 +19,9 @@ import '../models/tweet_fetch.dart';
 import '../models/rule.dart';
 import '../models/relation.dart';
 import '../models/goal.dart';
+import '../sync/sync_setup_controller.dart';
 import 'api.dart' as api;
+import 'chat_queue_dispatcher.dart';
 import 'generated.dart/frb_generated.dart';
 
 /// Rust bridge implementation of storage repository
@@ -33,6 +36,13 @@ class RustBridgeRepository implements StorageRepository {
   /// 时序随机撞出 `SQLITE_BUSY`——表现为「每次失败的用例和调用点都不同」。
   /// 测试要推进队列时显式调 `triggerAnalysis()` 即可，不需要后台线程代替它。
   final bool runBackgroundWorker;
+  final bool runChatQueueWorker;
+  late final SyncSetupController localSync;
+  late final _chatQueueDispatcher = ChatQueueDispatcher(poll: _pollChatQueue);
+  final Map<String, String> _observedQueueRuns = {};
+  final ValueNotifier<api.ChatRunDto?> chatQueueRunStarted = ValueNotifier(
+    null,
+  );
   bool _initialized = false;
   bool _analysisWorkerRunning = false;
   bool _analysisWorkerScheduled = false;
@@ -42,6 +52,15 @@ class RustBridgeRepository implements StorageRepository {
 
   /// 后台知识消化进行中（标题栏 AI 活动指示订阅，见 [knowledgeDigestBusyProvider]）。
   final ValueNotifier<bool> knowledgeDigestBusy = ValueNotifier(false);
+
+  /// 最近一次网络同步 tick 的结果（状态页展示范围/待同步/最近成功/错误）。
+  /// `ran == false` 表示本轮按防线跳过（锁定/他 worker 占用/快照导入中），不是错误。
+  final ValueNotifier<api.SyncTickResultDto?> lastSyncTick = ValueNotifier(
+    null,
+  );
+
+  /// 最近一次网络同步 tick 的错误（成功或跳过时清空）。
+  final ValueNotifier<String?> lastSyncTickError = ValueNotifier(null);
 
   /// Changes produced by the background worker invalidate visible knowledge views.
   final ValueNotifier<int> knowledgeRevision = ValueNotifier(0);
@@ -64,7 +83,28 @@ class RustBridgeRepository implements StorageRepository {
     return File(dylib).existsSync() ? ExternalLibrary.open(dylib) : null;
   }
 
-  RustBridgeRepository({this.databasePath, this.runBackgroundWorker = true});
+  RustBridgeRepository({
+    this.databasePath,
+    this.runBackgroundWorker = true,
+    this.runChatQueueWorker = true,
+    SyncSetupController? syncSetupController,
+  }) {
+    localSync =
+        syncSetupController ??
+        SyncSetupController(autoEnrollment: runBackgroundWorker);
+    localSync.onReady = _wakeAnalysisWorker;
+  }
+
+  /// 桌面平台让 Rust 侧 `ProjectDirs` 自解析；移动端 `directories` crate
+  /// 未实现（ProjectDirs 恒为 None），由 path_provider 取应用私有目录传入。
+  Future<String?> _resolveDatabasePath() async {
+    if (databasePath != null) return databasePath;
+    if (Platform.isAndroid || Platform.isIOS) {
+      final dir = await getApplicationSupportDirectory();
+      return dir.path;
+    }
+    return null;
+  }
 
   @override
   Future<void> initialize() async {
@@ -74,15 +114,25 @@ class RustBridgeRepository implements StorageRepository {
     // initBridge 走 Result<String> 契约：失败以异常上抛（P2-9），
     // 取代原先 startsWith('Error ') 的字符串判断。
     try {
-      await api.initBridge(databasePath: databasePath);
+      await api.initBridge(databasePath: await _resolveDatabasePath());
     } catch (e) {
       throw StateError('初始化存储失败: $e');
     }
     _initialized = true;
+    // Missing/locked native keys pause sync work, not local storage or browsing.
+    await localSync.restoreIfConfigured();
     if (!runBackgroundWorker) return;
     // Resume durable work after process restart. The timer also covers retry
     // backoff expiry and the Rust-side 50-job invocation bound.
     _analysisTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      // 空转退避：连续空闲时每 6 拍（≈30s）才做一次完整序列（开库+vault+
+      // 同步 tick+洞察 tick），其余拍零 FFI 直接返回。实测（release 空转）
+      // 每 5s 整序列贡献 ~5% CPU 毛刺，退避后抹平。显式唤醒（记事件/配
+      // key/同步到达/rerun）走 _wakeAnalysisWorker，会清零计数恢复 5s 跟拍。
+      // 已知代价（如实记）：重试 backoff 到期后最多等到下一拍完整序列，
+      // 即空闲期重试延迟从 ≤5s 变 ≤30s（重回活跃后立即恢复）。
+      _idleWakes++;
+      if (_idleWakes % _idleWakeFullEvery != 0) return;
       _wakeAnalysisWorker();
     });
     _wakeAnalysisWorker();
@@ -162,6 +212,24 @@ class RustBridgeRepository implements StorageRepository {
 
   Future<api.DailyOverviewDto> getDailyOverview(String date) =>
       api.getDailyOverview(date: date);
+
+  /// 回顾页周/月拼装统计（R1：本地实时聚合，无 AI、无持久化）。
+  Future<api.PeriodStatsDto> getPeriodStats(String periodType, String date) =>
+      api.getPeriodStats(periodType: periodType, date: date);
+
+  /// 周期盘点报告读面（R4）：最新在前的报告列表（含未读/偏差条目）。
+  Future<List<api.DeviationReportDto>> listDeviationReports({
+    required String periodType,
+    int limit = 12,
+  }) => api.listDeviationReports(periodType: periodType, limit: limit);
+
+  /// 标记报告已读（幂等；首次的 read\_at 保留）。
+  Future<void> markDeviationReportRead(String id) =>
+      api.markDeviationReportRead(id: id);
+
+  /// 忽略单条偏差（置位保留记录；报告兜底置已读）。
+  Future<void> dismissDeviation(String reportId, int index) =>
+      api.dismissDeviation(reportId: reportId, index: index);
 
   Future<api.DailyReviewResult> generateDailyReview(String date) =>
       api.generateDailyReview(date: date);
@@ -270,7 +338,14 @@ class RustBridgeRepository implements StorageRepository {
 
   /// Schedule analysis without making input persistence wait for the network.
   /// Multiple saves coalesce into one in-flight invocation.
+  /// 空转退避参数：每 _idleWakeFullEvery 拍（每拍 5s，6 拍≈30s）做一次完整
+  /// 后台序列（分析排空+知识消化+网络同步+洞察 tick）。序列本身每次都是全量的
+  /// （开 store、解密 vault、roster 校验），空闲期白烧——这是唯一的省法。
+  static const int _idleWakeFullEvery = 6;
+  int _idleWakes = 0;
+
   void _wakeAnalysisWorker() {
+    _idleWakes = 0;
     if (!_initialized || _disposed || !runBackgroundWorker) return;
     if (_analysisWorkerRunning) {
       _analysisRerunRequested = true;
@@ -292,7 +367,10 @@ class RustBridgeRepository implements StorageRepository {
             final result = await triggerAnalysis();
             // 结构化结果取代字符串契约（P2-9）：只有明确“已处理”才继续
             // 排空下一批；NoProvider 停表，交给启动/周期 5s timer 重唤。
-            if (result is! api.AnalysisTriggerResult_Processed) break;
+            if (result is! api.AnalysisTriggerResult_Processed ||
+                result.count <= 0) {
+              break;
+            }
             final stats = await getAnalysisJobStats();
             if (stats.pending == 0) break;
           }
@@ -300,6 +378,30 @@ class RustBridgeRepository implements StorageRepository {
         // 分析排空后再做知识消化：同一 worker 串行，避免与分析并发调用 provider；
         // 消化依赖分析结果（可记录性），先分析后消化也最省重试。
         await _drainKnowledgeDigest();
+        // 周期报告 + 偏差检测（R3）：同一 worker 串行（Q4：同一 timer）；
+        // 内部自带幂等/空窗跳过/检测退避，仅在有事发生时记日志
+        //（该 tick 在空闲期每 ≈30s 一次，逐拍打印会刷屏）。
+        try {
+          final reportTick = await api.tickPeriodicReports();
+          final String? eventful = switch (reportTick) {
+            api.PeriodReportTickResult_Idle() ||
+            api.PeriodReportTickResult_NoProvider() => null,
+            _ => reportTick.toString(),
+          };
+          if (eventful != null) debugPrint('period report: $eventful');
+        } catch (e) {
+          debugPrint('period report tick failed: $e');
+        }
+        // 网络同步与分析/消化串行复用同一条 worker 通道：P3 的有界 tick
+        // （每 peer ≤3 封 × ≤4 页，≤8 peer）复用持久重试与回执台账，防线在
+        // Rust 侧（确认会话 + 工作区租约 + 活跃成员 + 受信路由）。到达的新
+        // 事件/知识会让下一拍分析与消化自然接续；视图刷新走知识修订号。
+        final before = knowledgeRevision.value;
+        await _runNetworkSyncTick();
+        if (!_disposed && knowledgeRevision.value == before) {
+          // 有新到达时分析与消化已在上面跑过；这里无需额外动作，保留分支
+          // 以便将来按到达内容做定向刷新。
+        }
         if (!_disposed && !_analysisRerunRequested) {
           knowledgeDigestBusy.value = true;
           final changed = await api.tickKnowledgeInsights();
@@ -321,6 +423,27 @@ class RustBridgeRepository implements StorageRepository {
     });
   }
 
+  /// P3 网络同步 tick：锁/占用/未初始化时 Rust 返回 `ran == false`；错误
+  /// 只记入状态页，绝不影响本地记录（本地写路径不经过 relay）。
+  Future<void> _runNetworkSyncTick() async {
+    if (_disposed) return;
+    try {
+      final result = await api.triggerNetworkSync();
+      if (_disposed) return;
+      lastSyncTick.value = result;
+      lastSyncTickError.value = null;
+      if (result.ran && (result.pulledAccepted > 0 || result.uploaded > 0)) {
+        // 有新事件到达：唤醒分析队列并让知识视图在消化后刷新。
+        knowledgeRevision.value++;
+        _wakeAnalysisWorker();
+      }
+    } catch (e) {
+      if (_disposed) return;
+      lastSyncTickError.value = e.toString();
+      debugPrint('network sync tick failed: $e');
+    }
+  }
+
   /// 逐批排空到期的知识消化任务（没有手动触发入口，只由 worker 调用）。
   /// 有新输入时让位给分析队列（finally 会重新唤醒 worker）。
   Future<void> _drainKnowledgeDigest() async {
@@ -337,9 +460,13 @@ class RustBridgeRepository implements StorageRepository {
   /// Stop lifecycle polling. Production keeps the repository for the process
   /// lifetime; isolated tests call this before deleting their temporary data.
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     _analysisTimer?.cancel();
     _analysisTimer = null;
+    _chatQueueDispatcher.dispose();
+    _observedQueueRuns.clear();
+    localSync.dispose();
   }
 
   // Conversation methods
@@ -391,6 +518,8 @@ class RustBridgeRepository implements StorageRepository {
             content: dto.content,
             status: dto.status,
             createdAt: DateTime.parse(dto.createdAt).toLocal(),
+            triggerScene: dto.triggerScene,
+            triggerKeywords: dto.triggerKeywords,
           ),
         )
         .toList();
@@ -399,6 +528,78 @@ class RustBridgeRepository implements StorageRepository {
   Future<String> addRule(String content) => api.addRule(content: content);
 
   Future<void> deleteRule(String ruleId) => api.deleteRule(ruleId: ruleId);
+
+  /// 配置规则触发（决策辅助 D1）：keywords 空 = 不参与事件预筛。
+  Future<void> setRuleTrigger(
+    String ruleId, {
+    required String triggerScene,
+    required List<String> triggerKeywords,
+  }) => api.setRuleTrigger(
+    ruleId: ruleId,
+    triggerScene: triggerScene,
+    triggerKeywords: triggerKeywords,
+  );
+
+  /// 提醒偏好：instant / review_only / off。
+  Future<void> setRuleTriggerMode(String mode) =>
+      api.setRuleTriggerMode(mode: mode);
+
+  Future<String> getRuleTriggerMode() => api.getRuleTriggerMode();
+
+  /// D6 采纳反馈：记录 / 清除（feedback 传 null）。
+  Future<void> setRuleHitFeedback(String id, String? feedback) =>
+      api.setRuleHitFeedback(id: id, feedback: feedback);
+
+  /// D6 情感回访：读 / 写偏好；打开应用时的一次检查。
+  Future<api.CompanionPrefsDto> getCompanionPrefs() => api.getCompanionPrefs();
+  Future<void> setCompanionPrefs({
+    required bool enabled,
+    required int intervalDays,
+  }) => api.setCompanionPrefs(enabled: enabled, intervalDays: intervalDays);
+  Future<api.CompanionRevisitDto?> checkCompanionRevisit() =>
+      api.checkCompanionRevisit();
+
+  /// 最近的即时提醒与聚合（规则库设置的「最近提醒」读面）。
+  /// 最近事件读面（遗留收口切片 C）：列表卡不拖分析结果。
+  Future<List<api.EventSummaryDto>> listRecentEvents({
+    int days = 3650,
+    int limit = 50,
+  }) => api.listRecentEvents(days: days, limit: limit);
+
+  /// 事件旁标记（D1 旧账）：某事件的未拒绝命中。
+  Future<List<RuleHit>> listEventRuleHits(String eventId) => api
+      .listEventRuleHits(eventId: eventId)
+      .then(
+        (dtos) => dtos
+            .map(
+              (dto) => RuleHit(
+                id: dto.id,
+                ruleId: dto.ruleId,
+                ruleContent: dto.ruleContent,
+                status: dto.status,
+                createdAt: DateTime.parse(dto.createdAt).toLocal(),
+                feedback: dto.feedback,
+              ),
+            )
+            .toList(),
+      );
+
+  Future<List<RuleHit>> listRecentRuleHits({int limit = 8}) => api
+      .listRecentRuleHits(limit: limit)
+      .then(
+        (dtos) => dtos
+            .map(
+              (dto) => RuleHit(
+                id: dto.id,
+                ruleId: dto.ruleId,
+                ruleContent: dto.ruleContent,
+                status: dto.status,
+                createdAt: DateTime.parse(dto.createdAt).toLocal(),
+                feedback: dto.feedback,
+              ),
+            )
+            .toList(),
+      );
 
   Future<Conversation> createConversation({String? title, String? tag}) async {
     final dto = await api.createConversation(title: title, tag: tag);
@@ -425,22 +626,67 @@ class RustBridgeRepository implements StorageRepository {
     String conversationId,
   ) => api.listPendingActions(conversationId: conversationId);
 
-  Future<bool> updatePendingActionArgs(String actionId, String argsJson) =>
-      api.updatePendingActionArgs(actionId: actionId, argsJson: argsJson);
+  Future<bool> updatePendingActionArgs(
+    String conversationId,
+    api.PendingActionDto action,
+    String argsJson,
+  ) => api.updatePendingActionArgs(
+    conversationId: conversationId,
+    actionId: action.id,
+    argsJson: argsJson,
+    expectedVersion: action.version,
+    approvalToken: action.approvalToken,
+  );
 
   Future<String> confirmKnowledgeDraft(
     String conversationId,
-    String actionId,
+    api.PendingActionDto action,
   ) => api.confirmKnowledgeDraft(
     conversationId: conversationId,
-    actionId: actionId,
+    actionId: action.id,
+    expectedVersion: action.version,
+    approvalToken: action.approvalToken,
   );
 
-  Future<void> declineKnowledgeDraft(String conversationId, String actionId) =>
-      api.declineKnowledgeDraft(
-        conversationId: conversationId,
-        actionId: actionId,
-      );
+  Future<void> declineKnowledgeDraft(
+    String conversationId,
+    api.PendingActionDto action,
+  ) => api.declineKnowledgeDraft(
+    conversationId: conversationId,
+    actionId: action.id,
+    expectedVersion: action.version,
+    approvalToken: action.approvalToken,
+  );
+
+  Future<List<api.ChatProposalDto>> listChatProposals(
+    String? conversationId, {
+    int offset = 0,
+    int limit = 25,
+  }) => api.listChatProposals(
+    conversationId: conversationId,
+    offset: offset,
+    limit: limit,
+  );
+
+  Future<List<api.ChatDecisionDto>> listChatDecisions(
+    String? conversationId, {
+    int offset = 0,
+    int limit = 25,
+  }) => api.listChatDecisions(
+    conversationId: conversationId,
+    offset: offset,
+    limit: limit,
+  );
+
+  Future<api.ChatProposalDto> editChatProposal(
+    api.ChatReviewRequest request,
+    String argsJson,
+  ) => api.editChatProposal(request: request, argsJson: argsJson);
+
+  Future<api.ChatDecisionDto> decideChatProposal(
+    api.ChatReviewRequest request, {
+    required bool accept,
+  }) => api.decideChatProposal(request: request, accept: accept);
 
   Future<List<Message>> getChildMessages(String parentId) async {
     final dtos = await api.getChildMessages(parentId: parentId);
@@ -474,6 +720,36 @@ class RustBridgeRepository implements StorageRepository {
         .toList();
   }
 
+  bool get supportsPageTasks => _initialized;
+
+  Future<api.WikiChatMaterialDto> getWikiChatMaterial(String slug) =>
+      api.getWikiChatMaterial(pageSlug: slug);
+
+  Future<String?> getWikiChatTask(String conversationId) =>
+      api.getWikiChatTask(conversationId: conversationId);
+
+  Future<Message> submitWikiChatInput(
+    String conversationId,
+    String content, {
+    required String idempotencyKey,
+    required String taskJson,
+  }) async {
+    final dto = await api.submitWikiChatInput(
+      conversationId: conversationId,
+      content: content,
+      idempotencyKey: idempotencyKey,
+      taskJson: taskJson,
+    );
+    return Message(
+      id: dto.id,
+      conversationId: dto.conversationId,
+      parentMessageId: dto.parentMessageId,
+      role: MessageRole.fromString(dto.role),
+      content: dto.content,
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
+    );
+  }
+
   Future<Message> sendMessage(
     String conversationId,
     String role,
@@ -495,6 +771,152 @@ class RustBridgeRepository implements StorageRepository {
       createdAt: DateTime.parse(dto.createdAt).toLocal(),
     );
   }
+
+  /// Legacy in-memory test repositories can keep their synchronous reply path.
+  /// A successfully initialized real bridge always uses durable generation.
+  bool get supportsChatRuns => _initialized;
+  bool get supportsChatQueue => _initialized;
+
+  void _watchChatQueue(String conversationId) {
+    if (_initialized && !_disposed && runChatQueueWorker) {
+      _chatQueueDispatcher.watch(conversationId);
+    }
+  }
+
+  Future<bool> _pollChatQueue(String conversationId) async {
+    if (_disposed) return false;
+    final started = await dispatchChatInputQueue(conversationId);
+    if (_disposed) return false;
+    // A lost dispatch response can still have committed a run. Reconcile its
+    // identity without recreating input or automatically retrying generation.
+    final latest = started ?? await getLatestChatRun(conversationId);
+    if (_disposed) return false;
+    if (latest != null && _observedQueueRuns[conversationId] != latest.id) {
+      _observedQueueRuns[conversationId] = latest.id;
+      chatQueueRunStarted.value = latest;
+    }
+    final queue = await getChatInputQueue(conversationId);
+    if (queue.paused) _observedQueueRuns.remove(conversationId);
+    return !queue.paused;
+  }
+
+  Future<api.ChatRunDto?> scheduleChatInput(
+    String conversationId,
+    String inputMessageId,
+  ) async {
+    try {
+      return await api.scheduleChatInput(
+        conversationId: conversationId,
+        inputMessageId: inputMessageId,
+      );
+    } finally {
+      _watchChatQueue(conversationId);
+    }
+  }
+
+  Future<List<api.UnscheduledChatInputDto>> listUnscheduledChatInputs(
+    String conversationId, {
+    int offset = 0,
+  }) => api.listUnscheduledChatInputs(
+    conversationId: conversationId,
+    offset: offset,
+    limit: 20,
+  );
+
+  Future<List<api.ChatRunDto>> listChatRuns(
+    String conversationId, {
+    int offset = 0,
+  }) => api.listChatRuns(
+    conversationId: conversationId,
+    offset: offset,
+    limit: 20,
+  );
+
+  Future<int> enqueueChatInput(
+    String conversationId,
+    String inputMessageId,
+  ) async {
+    try {
+      return await api.enqueueChatInput(
+        conversationId: conversationId,
+        inputMessageId: inputMessageId,
+      );
+    } finally {
+      _watchChatQueue(conversationId);
+    }
+  }
+
+  Future<int> enqueueChatSupplement(
+    String conversationId,
+    String inputMessageId,
+    String runId, {
+    String contextJson = '{}',
+  }) => api.enqueueChatSupplement(
+    conversationId: conversationId,
+    inputMessageId: inputMessageId,
+    runId: runId,
+    contextJson: contextJson,
+  );
+  Future<api.ChatInputQueueDto> getChatInputQueue(
+    String conversationId, {
+    int afterId = 0,
+  }) => api.getChatInputQueue(
+    conversationId: conversationId,
+    afterId: afterId,
+    limit: 100,
+  );
+  Future<bool> withdrawChatInput(String conversationId, int queueId) =>
+      api.withdrawChatInput(conversationId: conversationId, queueId: queueId);
+  Future<void> resumeChatInputQueue(String conversationId) async {
+    try {
+      await api.resumeChatInputQueue(conversationId: conversationId);
+    } finally {
+      _watchChatQueue(conversationId);
+    }
+  }
+
+  Future<void> pauseChatInputQueue(String conversationId) async {
+    await api.pauseChatInputQueue(conversationId: conversationId);
+    _chatQueueDispatcher.forget(conversationId);
+    _observedQueueRuns.remove(conversationId);
+  }
+
+  Future<api.ChatRunDto?> dispatchChatInputQueue(String conversationId) =>
+      api.dispatchChatInputQueue(conversationId: conversationId);
+
+  Future<api.ChatRunDto> startChatRun(
+    String conversationId,
+    String inputMessageId,
+    String idempotencyKey,
+  ) => api.startChatRun(
+    conversationId: conversationId,
+    inputMessageId: inputMessageId,
+    idempotencyKey: idempotencyKey,
+  );
+
+  Future<api.ChatRunDto?> getChatRun(String conversationId, String runId) =>
+      api.getChatRun(conversationId: conversationId, runId: runId);
+
+  Future<api.ChatRunDto?> getLatestChatRun(String conversationId) =>
+      api.getLatestChatRun(conversationId: conversationId);
+
+  Future<api.ChatRunEventPageDto> listChatRunEvents(
+    String conversationId,
+    String runId,
+    int afterSequence, {
+    int limit = 64,
+  }) => api.listChatRunEvents(
+    conversationId: conversationId,
+    runId: runId,
+    afterSequence: afterSequence,
+    limit: limit,
+  );
+
+  /// Call only from an explicit application quit, never chat-view disposal.
+  Future<int> shutdownChatRuns() => api.shutdownChatRuns();
+
+  Future<api.ChatRunDto?> cancelChatRun(String conversationId, String runId) =>
+      api.cancelChatRun(conversationId: conversationId, runId: runId);
 
   Future<String> generateReply(
     String conversationId, {
@@ -523,6 +945,13 @@ class RustBridgeRepository implements StorageRepository {
   Future<List<WikiPage>> listWikiPages({String? kind, String? area}) async {
     final dtos = await api.listWikiPages(kind: kind, area: area);
     return dtos.map(WikiPage.fromDto).toList();
+  }
+
+  /// 页面列表元数据（sidebar 专用）：无正文、无图片解析、SQL 级有界
+  /// （默认 500 条，Rust 侧按 updated_at 倒序）。明细按 slug 单页读。
+  Future<List<WikiPageMeta>> listWikiPageMetas({int? limit}) async {
+    final dtos = await api.listWikiPageMetas(limit: limit);
+    return dtos.map(WikiPageMeta.fromDto).toList();
   }
 
   /// 某页的派生产物列表（AI 加工成果：总结/提炼/文案…）
@@ -562,6 +991,10 @@ class RustBridgeRepository implements StorageRepository {
     return WikiPage.fromDto(dto);
   }
 
+  /// 删除知识页（同步库先捕获 deleted 变更再物理删除；不存在返回 false）。
+  Future<bool> deleteWikiPage({required String slug}) =>
+      api.deleteWikiPage(slug: slug);
+
   /// 按项目页记录的本地目录重新扫描，并更新原知识页。
   Future<WikiPage> refreshProjectPage(String slug) async {
     final dto = await api.refreshProjectPage(slug: slug);
@@ -596,6 +1029,35 @@ class RustBridgeRepository implements StorageRepository {
     if (!_disposed) knowledgeRevision.value++;
     return WikiPage.fromDto(dto);
   }
+
+  /// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
+  Future<List<api.PageGuidanceDto>> listPageGuidance(String slug) =>
+      api.listPageGuidance(slug: slug);
+
+  /// guidance 采纳反馈（遗留收口切片 B）：只记不外推；feedback null = 清
+  /// 除（toggle off）。与 rule_hit feedback 同纪律，未知值 fail-closed。
+  Future<bool> setGuidanceFeedback({
+    required String analysisId,
+    required String slug,
+    String? note,
+    String? feedback,
+  }) => api.setGuidanceFeedback(
+    analysisId: analysisId,
+    slug: slug,
+    note: note,
+    feedback: feedback,
+  );
+
+  /// 情绪标注列表（D5 用户模型面板）：分析产物派生，文本无数值。
+  Future<List<api.EventEmotionDto>> listEventEmotions() =>
+      api.listEventEmotions();
+
+  /// 删除一条情绪标注：只编辑分析产物 emotion 字段，事件真源不动。
+  Future<void> deleteEventEmotion({
+    required String id,
+    String? target,
+    required String feeling,
+  }) => api.deleteEventEmotion(id: id, target: target, feeling: feeling);
 
   // ── 人物关系 ──
 
@@ -672,6 +1134,17 @@ class RustBridgeRepository implements StorageRepository {
     return WikiPage.fromDto(dto);
   }
 
+  /// 把一段文本保存为「主题」（kind=topic）页——对话消息「存为主题」入口专用。
+  /// 文本完整写入，标题留空时取正文首行前 60 字；tags 可选。
+  Future<WikiPage> saveTopicPage({
+    required String text,
+    String? title,
+    List<String> tags = const [],
+  }) async {
+    final dto = await api.saveTopicPage(text: text, title: title, tags: tags);
+    return WikiPage.fromDto(dto);
+  }
+
   /// 判断一个网址需要走哪种抓取方式（"tweet" → fxtwitter 专用 API，"web" → 普通网页提取）。
   /// 统一由 Rust 侧分类，避免前端各自猜测。
   Future<String> guessImportKind(String url) => api.guessImportKind(url: url);
@@ -741,12 +1214,12 @@ class RustBridgeRepository implements StorageRepository {
       api.saveAiProviderConfig(provider: provider);
 
   /// 设为激活（唯一激活项）
-  Future<void> setActiveAiProviderConfig(String id) =>
-      api.setActiveAiProviderConfig(id: id);
+  Future<void> setActiveAiProviderConfig(String id, {String? revisionToken}) =>
+      api.setActiveAiProviderConfig(id: id, revisionToken: revisionToken);
 
   /// 删除配置（删除激活项时剩余第一个自动接管激活）
-  Future<void> deleteAiProviderConfig(String id) =>
-      api.deleteAiProviderConfig(id: id);
+  Future<void> deleteAiProviderConfig(String id, {String? revisionToken}) =>
+      api.deleteAiProviderConfig(id: id, revisionToken: revisionToken);
 
   // ── 个人待办 ──
 

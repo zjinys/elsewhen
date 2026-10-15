@@ -1,7 +1,7 @@
 //! One source version per tick, using the existing durable background ledger.
 use crate::{ai::provider::AiProvider, storage::Store};
 use anyhow::{Context, Result};
-use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
+use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 
 const TASK: &str = "source-compilation";
 
@@ -22,6 +22,10 @@ pub(super) fn run_source_task(
     let now = chrono::Utc::now();
     let strategy = "fulltext-maintenance-v2";
     let tx = Transaction::new_unchecked(&store.connection, TransactionBehavior::Immediate)?;
+    if !store.background_processing_allowed()? {
+        tx.commit()?;
+        return Ok(0);
+    }
     store.connection.execute(
         "UPDATE knowledge_background_runs SET status='failed',finished_at=?1,error='上次整理中断，稍后自动重试'
          WHERE task=?2 AND status='running' AND started_at<?3",

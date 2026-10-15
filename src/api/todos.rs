@@ -87,13 +87,13 @@ pub fn open_todo_work_item(id: String) -> Result<WikiPageDto> {
     if let Some(slug) = todo.related_wiki_slug.as_deref() {
         return store
             .get_wiki_page(slug)?
-            .map(WikiPageDto::from)
+            .map(|p| WikiPageDto::serve(&store, p))
             .ok_or_else(|| anyhow::anyhow!("待办关联页面不存在（slug={slug}）"));
     }
     let marker = format!("work-item-id:{}", todo.id);
     if let Some(existing) = store.find_wiki_page_by_tag(&marker)? {
         store.set_todo_related_wiki_slug(&todo.id, &existing.slug)?;
-        return Ok(WikiPageDto::from(existing));
+        return Ok(WikiPageDto::serve(&store, existing));
     }
     let mut content = format!("# {}\n\n", todo.title);
     content.push_str("## 工作项状态\n\n");
@@ -112,7 +112,7 @@ pub fn open_todo_work_item(id: String) -> Result<WikiPageDto> {
         &store,
     )?;
     store.set_todo_related_wiki_slug(&todo.id, &page.slug)?;
-    Ok(WikiPageDto::from(page))
+    Ok(WikiPageDto::serve(&store, page))
 }
 
 /// 更新待办的可编辑字段（标题 / 补充 / 优先级 / 截止时间）。

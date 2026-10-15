@@ -7,7 +7,8 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `hit_dto`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
 
 /// 列出规则库（含已生效与待确认）
 Future<List<RuleDto>> listRules() =>
@@ -21,6 +22,42 @@ Future<String> addRule({required String content}) =>
 Future<void> deleteRule({required String ruleId}) =>
     RustLib.instance.api.crateApiRulesDeleteRule(ruleId: ruleId);
 
+/// 配置规则的触发条件（决策辅助 D1）。keywords 为空 = 清除、不参与事件预筛；
+/// scene 为空 = 全场景。规则触发是本地预筛 + 分析判定，不外发任何内容。
+Future<void> setRuleTrigger({
+  required String ruleId,
+  required String triggerScene,
+  required List<String> triggerKeywords,
+}) => RustLib.instance.api.crateApiRulesSetRuleTrigger(
+  ruleId: ruleId,
+  triggerScene: triggerScene,
+  triggerKeywords: triggerKeywords,
+);
+
+/// 提醒偏好：instant（默认，高置信即时 + 其余聚合）/ review_only（全部聚合）/
+/// off（彻底关闭，预筛不跑）。
+Future<void> setRuleTriggerMode({required String mode}) =>
+    RustLib.instance.api.crateApiRulesSetRuleTriggerMode(mode: mode);
+
+Future<String> getRuleTriggerMode() =>
+    RustLib.instance.api.crateApiRulesGetRuleTriggerMode();
+
+/// 事件旁标记：某事件的未拒绝命中（即时提醒 notoified + 聚合 aggregated）。
+Future<List<RuleHitDto>> listEventRuleHits({required String eventId}) =>
+    RustLib.instance.api.crateApiRulesListEventRuleHits(eventId: eventId);
+
+/// 用户对单条提醒的采纳反馈（D6 只记录不推断）：Some("helpful"|"not_relevant")
+/// 记录；None 清除反馈。命中行不存在或非已处置状态时 fail-closed。
+Future<void> setRuleHitFeedback({required String id, String? feedback}) =>
+    RustLib.instance.api.crateApiRulesSetRuleHitFeedback(
+      id: id,
+      feedback: feedback,
+    );
+
+/// 最近的即时提醒与聚合（今日提醒列表 / 每日回顾读面）。
+Future<List<RuleHitDto>> listRecentRuleHits({required PlatformInt64 limit}) =>
+    RustLib.instance.api.crateApiRulesListRecentRuleHits(limit: limit);
+
 /// 个人经验规则 DTO
 class RuleDto {
   final String id;
@@ -28,16 +65,29 @@ class RuleDto {
   final String status;
   final String createdAt;
 
+  /// 触发场景（capture/conversation/daily_review；空 = 全场景）
+  final String triggerScene;
+
+  /// 触发关键词（空 = 不参与事件预筛）
+  final List<String> triggerKeywords;
+
   const RuleDto({
     required this.id,
     required this.content,
     required this.status,
     required this.createdAt,
+    required this.triggerScene,
+    required this.triggerKeywords,
   });
 
   @override
   int get hashCode =>
-      id.hashCode ^ content.hashCode ^ status.hashCode ^ createdAt.hashCode;
+      id.hashCode ^
+      content.hashCode ^
+      status.hashCode ^
+      createdAt.hashCode ^
+      triggerScene.hashCode ^
+      triggerKeywords.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -47,5 +97,49 @@ class RuleDto {
           id == other.id &&
           content == other.content &&
           status == other.status &&
-          createdAt == other.createdAt;
+          createdAt == other.createdAt &&
+          triggerScene == other.triggerScene &&
+          triggerKeywords == other.triggerKeywords;
+}
+
+/// 规则命中 DTO
+class RuleHitDto {
+  final String id;
+  final String ruleId;
+  final String ruleContent;
+  final String status;
+  final String createdAt;
+
+  /// 采纳反馈（D6 闭环度量）：helpful / not_relevant / 未反馈 NULL。
+  final String? feedback;
+
+  const RuleHitDto({
+    required this.id,
+    required this.ruleId,
+    required this.ruleContent,
+    required this.status,
+    required this.createdAt,
+    this.feedback,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      ruleId.hashCode ^
+      ruleContent.hashCode ^
+      status.hashCode ^
+      createdAt.hashCode ^
+      feedback.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RuleHitDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          ruleId == other.ruleId &&
+          ruleContent == other.ruleContent &&
+          status == other.status &&
+          createdAt == other.createdAt &&
+          feedback == other.feedback;
 }

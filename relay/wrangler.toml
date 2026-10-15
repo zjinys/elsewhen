@@ -1,0 +1,34 @@
+# Elsewhen 盲中继 Worker 配置
+# 部署：cd relay && npx wrangler deploy
+# 首次部署会自动创建 Durable Objects 绑定所需的迁移。
+
+name = "elsewhen-relay"
+main = "src/worker.ts"
+compatibility_date = "2026-09-30"
+# 认证：本目录 .env（已 gitignore）里的 CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID，
+# 或 `npx wrangler login` 的 OAuth 凭证，二选一。不要把 token 写进本文件。
+
+# Durable Objects：每个设备一个 Mailbox 实例（按 mailbox_key 分片）
+[[durable_objects.bindings]]
+name = "MAILBOX"
+class_name = "Mailbox"
+
+# 新类需要一条迁移记录（wrangler deploy 时应用）
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Mailbox"]
+
+# 应用升级分发桶（/release/*）。首次部署前需：
+#   npx wrangler r2 bucket create elsewhen-releases
+[[r2_buckets]]
+binding = "RELEASES"
+bucket_name = "elsewhen-releases"
+
+# 可调限制（免费额度内个人 2-3 设备远低于此）
+[vars]
+# 邮箱条目存活时间（毫秒），默认 7 天
+MAIL_TTL_MS = "604800000"
+# 每个设备邮箱的最大字节数，默认 500MB
+MAILBOX_QUOTA_BYTES = "524288000"
+# 单条增量包最大字节数，默认 8MB
+MAX_ENVELOPE_BYTES = "8388608"

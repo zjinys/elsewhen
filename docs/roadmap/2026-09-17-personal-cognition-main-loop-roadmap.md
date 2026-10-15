@@ -39,22 +39,117 @@
 
 - **当前阶段：** Phase 2.5 — 事件账本质量治理收尾（已完成）
 - **整体状态：** 进行中，当前执行 Phase 4C
-- **下一步骤：** 启动 [AI 对话体验优化子路线](2026-09-30-ai-chat-experience-roadmap.md)，优先 C00a 对话时间上下文，同步 C00 基线与契约、C01 动作确认；既有建议反馈、素材采用和规模验证继续独立记录，不因对话优化而视为完成。
+- **下一步骤：** [AI 对话体验优化子路线](2026-09-30-ai-chat-experience-roadmap.md) C00–C09 工程、自动化和真实端点合成场景均完成；真人GUI点按签收已移交独立[人工验收 roadmap](2026-10-04-ai-chat-manual-acceptance-roadmap.md)（S1–S6，尚未执行）。既有建议反馈、素材采用和规模验证继续独立记录，不因对话优化而视为完成。
+
+### 决策辅助子路线（2026-10-14）
+
+用户确认把[决策辅助闭环 Agent Note](../notes/proposed/architecture/2026-09-19-decision-support-loop.md)（决策辅助 + 情绪陪伴定位）转为实施：规则触发引擎、用户模型增量维护、分析「提取+指导」、情绪维度与闭环度量，切片 D0–D6 见[决策辅助闭环 Roadmap](2026-10-14-decision-support-loop-roadmap.md)。全部未开工；首个可用范围为 D1+D2+D4 真人验收。
+
+### 多设备同步子路线（2026-10-03）
+
+用户确认采用“多端离线记录、加密中继优先、后台加工有归属、修改有版本”，并要求新设备加入后完整恢复 Provider 配置（含 API Key、当前激活项和运行参数），无需重新填写。规范见[同步设计 Note](../notes/proposed/architecture/2026-09-30-multi-device-sync.md)，实施与验收见[同步子路线 S00–S06](2026-10-03-multi-device-sync-roadmap.md)。这不替代既有 AI 对话人工签收，也不代表完整 Wiki 同步已经完成。
+
+- [x] S00：修订同步方案、建立实施路线与验收清单；2026-10-06 补齐类型/回归与独立 Node/OpenSSL 固定信封向量。协议基线不代表 S01–S06 功能验收完成。
+- [x] S01：两/三份隔离数据库的身份、领域操作、outbox/inbox、版本/删除与原子复制。（2026-10-14 关闭）
+- [x] S02：安全配对、真实端到端加密、Provider 敏感载荷保护与中继权限加固。（2026-10-14 关闭）
+- [x] S03：首次一致快照、持久投递、应用回执、TTL/GC 和恢复。（2026-10-14 关闭）
+- [x] S04：App 接入、Provider 开箱即用、前台生成身份与指定后台加工。（2026-10-14 关闭）
+- [x] S05：Wiki/来源/修订/依赖及待办/规则的完整同步与冲突审阅。（2026-10-14 关闭）
+- [ ] S06：设备撤销、明确移交、备份恢复与分范围真实设备发布验收。（开发侧完成；等待真人按
+  [人工测试路线 M0–M7](2026-10-14-sync-manual-test-roadmap.md) 与
+  [S06 门禁清单](2026-10-14-s06-human-gate-checklist.md) 验收）
+
+**2026-10-03 — S00 完成证据：** 原位修订同步 Note，新增同步子路线并更新 `relay/README.md`。Provider 全部信息从首版通过认证加密同步，设备身份私钥不复制；普通设置 DTO 继续不返回明文 Key。当前仅有 Rust RelayClient/Worker 传输原型，尚未接入配对/加密/业务复制。中继权限与发现路由问题仅作源码风险记录，未在本轮运行复现或修复；四份文档的 40 个相对链接、Note 结构、状态与文档限定范围检查通过，`git diff --check` 通过。文档校验不计为 S01–S06 或人工验收完成，既有 C00–C09 状态不变。
+
+**2026-10-04 — 同步工程底座进展：** 工作区新增 v16、领域操作/outbox/inbox/应用回执、冲突与删除保护、持久加密信封、完整 Provider 配置加密应用及 relay v2 owner/sender 权限。最近全量 Rust lib 484 passed / 10 ignored / 1 live relay 明确排除；后续定向 sync 40 passed，实际 workerd/双库 Rust 互通 13 passed，覆盖事件与 Provider 配置经中继落库/回执。Noise 配对在用户显式授权新增依赖构建后已有 8 项原语测试通过；密钥持久化、完整快照、App 接入/加工归属、完整 Wiki 与真实设备发布验收仍未完成。详见[同步完成记录](2026-10-03-multi-device-sync-roadmap.md#完成记录)，S01–S06 总项继续保持未完成。
+
+**2026-10-04 — S03 快照投递切片：** 新增 v17 和受支持范围的一致 WAL 快照（256 KiB 密文分块、单记录/总量有界）、全新暂存库的整批验证/原子发布、Provider 保真、操作哈希检查点、持久导出/最终应用回执及有界分页取件。清单先到、分块乱序、重启、源端持续记录、发布回执丢失和旧请求隔离已有回归；定向 sync 62 passed / 1 Worker 测试 ignored，全量 Rust 509 passed / 11 ignored；实际 Worker 13 passed，包含多库快照/Provider/毒邮件分页与最终回执。完整 Wiki、密钥持久化、App/加工归属、TTL/GC 和真实设备验收仍未完成，S03 总项不勾选；详细上限与证据见[同步完成记录](2026-10-03-multi-device-sync-roadmap.md#完成记录)。
+
+**2026-10-04 — S03 大增量补齐：** 新增 v18、领域操作的加密分块/持久重组与整条操作回执；超过单信封的大记录不再只能依赖快照。每操作 16 MiB、每块 256 KiB；缺父对象等待、不完整/异文/未知版本拒绝提前确认，配额约束与其他来源隔离已有测试。定向 sync 66 passed / 1 ignored，实际 Worker 13 passed（含快照后的大记录增量往返）。首轮一项测试比较了捕获前的尾部空白，已改为比较两端实际不可变事件并重跑通过；详见子路线，S03 总项仍待 TTL/GC/恢复与 App 调度。
+
+**2026-10-04 — S02 本机密钥库切片：** v19 以安装主密钥封装身份私钥/邮箱凭证/配对方向密钥，修订 CAS、撤销版本和快照身份隔离有 5 项 Rust 测试；Flutter 原生主密钥适配有 8 项 fake-store 测试，不在锁定/缺失/损坏时重置。Android 排除密钥备份/设备搬迁，Linux 补 libsecret 依赖。Flutter 全量 291 passed、Linux build 通过；原生密钥库、App 解锁/配对协调、受保护修订下限、Provider 静态加密和完整 S02/S04/S06 仍未签收，详见同步完成记录。
+
+**2026-10-04 — S04 后台领取防线：** v20 的 Rust/SQLite 校验阻止非指定/非活动设备及初始暂存库领取后台任务，保留可离线追加和 pending 队列；启用时拒绝遗弃在途加工。6 项定向测试通过，最新全量 Rust 524 passed / 11 ignored、release build 通过（已有环回流式测试因进程代理 502，限定本次 NO_PROXY 后通过）。尚无加工移交/稳定结果复制/App 角色协调，不能视为完整 S04 或分布式互斥。
+
+**2026-10-05 — S04 分析结果回传：** 绑定原事件哈希/策略的稳定任务身份、加工端资格与分析完成结果已接入原子领域复制；观察端仅更新终态，不启动模型。4 项双/三库测试加入后定向 sync 81 passed / 1 ignored，真实 Worker 13 passed，含新库恢复 Provider 后不重填 Key 即调用受控环回服务、分析结果与回执往返。桥接重生成/hash 校验通过。App 配对/解锁、前台输入身份闭环、完整派生知识及加工移交仍未完成，不当作 S04 整体或真实设备签收。
+
+**2026-10-05 — S04 终态回复输入关联：** v21 只从实际完成 run 回填/保存回复原输入链接，并经领域操作与快照传递只读关联；三端并发/输入晚到时上下文回到原轮次，不复制执行队列、run 或草稿。6 项测试加入后 Rust 全量 534 passed / 11 ignored；桥接重生成/release、Flutter 全量 291 passed、定向 analyze、Linux build 和 Worker 13 项通过。完整 App 同步/成员授权链/加工移交/知识闭包仍在后续切片，真实设备门禁未完成。
+
+**2026-10-05 — S02 签名成员授权：** v22 以固定 owner 的 Ed25519 签名名册授权成员，Noise 审批绑定信任根/版本锚点；配对不自动激活。撤销不回退，同版本异文、伪造/错公钥与无签名快照成员被拒绝，旧内容快照不能恢复已撤销权限或切换加工端。8 项隔离测试与实际 Worker 完整授权/收发/回执用例通过；Rust 全量 542 passed / 11 ignored、Flutter 291 passed、Worker 13 passed、release build 通过。成员管理暂限 owner；App 解锁/配对/方向通道、GC/恢复、加工移交与真实设备验收仍未完成。
+
+**2026-10-05 — S04 数据集隔离底座：** 本机目录册与每次加入的独立 UUID 目录保留原库/Provider；只有已验证签名成员、解锁密钥及完成快照的目标才可提交启动选择。当前进程的 `AppConfig::pin` 不改，重启后生效；缺失/损坏目标不静默回默认。6 项隔离测试通过，Rust 全量 548 passed / 11 ignored、release build 通过。App 选择/恢复界面及完整配对生命周期仍在后续切片。
+
+**2026-10-05 — S04 App 本机准备/解锁：** 原生主密钥、受保护修订、Rust 工作区租约与设置页接通；初始修订先于 DB vault 预留，确认后才恢复后台，旧回调不能释放新会话。在途后台保留租约，锁定不妨碍本地捕获；修复 `Processed(0)` 的 Flutter 热循环。Rust 全量 555 passed / 11 ignored、Flutter 302 passed，定向 19 项及新增文件 analyze、桥接重生成/release/Linux build 通过。本机创建仅开发预览，仍未开启不完整的配对/联网同步；完整 S04/S05/S06 继续推进。
+
+**2026-10-06 — S00/S02/S04 密钥与路由基线：** v23/v24 Provider 静态密文列、SQL 明文禁写、运行时解锁及原编辑 token 的事务校验已验证；设置页和真实隔离 bridge 覆盖锁定/过期编辑失败，不拼接旧 URL 与新 Key。Noise prologue/双方签名绑定 relay 路由，方向路由进入加密 vault，新增 6 项测试；独立 Node/OpenSSL 固定信封向量新增 2 项，S00 协议基线完成。全量 Rust 570 passed / 11 ignored（另配置环境 5 passed）、Flutter 302 passed、实际 Worker 13 passed；定向 analyze、桥接/release/Linux build 通过。App 完整配对协调/自动调度、冲突与数据集恢复 UI、加工移交、GC/S05/真实设备门禁继续未完成，详见[同步完成记录](2026-10-03-multi-device-sync-roadmap.md#完成记录)。
+
+**2026-10-06 — S02/S04 后审批恢复：** 已审批响应/方向密钥、安装证明与已消费邀请保存在加密 vault；未审批 Noise 状态重启失效。旧端密钥/名册/来源 outbox/回执原子提交，新端安装只接纳全新库，名册与 Provider 静态保护原子发布。运行时每次修订需原生确认才释放帧/名册；后台在途时拒绝更新，捕获不阻塞。新增存储 8 项、运行时 3 项测试通过；首轮全量 Rust 581 passed / 11 ignored（另配置环境 5 passed）、release 与实际 Worker 13 passed，含经邮箱投递的 Noise/安装证明和重开检查点。恢复清单/本机撤销门禁、relay register/revoke 精确后态重试的新增回归与 Flutter 重跑暂受工具服务错误影响，继续补门禁。App 邀请传输/relay 授权、joiner 原生握手、选择 UI/自动同步、GC/移交/S05 与真实设备仍未完成，S02/S04 总项不勾选；详见[同步完成记录](2026-10-03-multi-device-sync-roadmap.md#完成记录)。
+
+**2026-10-07 — S02 恢复链补齐：** 临时方向 sender 能力与配对帧一同进入加密检查点，重启后无须保留邀请 PSK 或 UI 提交响应；完成/过期不再输出能力，恢复清单反映撤销，本机撤销不能继续发安装证明。relay register/revoke 的丢失响应只按原请求精确后态重试，不盲目追随新版本。配对存储 10 项、全量 Rust 583 passed / 11 ignored（另配置环境 5 passed）、release、实际 Worker 14 passed；Flutter 本轮 306 passed，最终 release 重建后再跑仍待工具恢复。App 邀请/确认、joiner 原生握手及自动调度等仍未完成，详见[同步完成记录](2026-10-03-multi-device-sync-roadmap.md#完成记录)。
+
+**2026-10-07 — S04 owner 邀请预览：** 设置开发预览已接 owner 的实际中继注册/邀请、指纹核对与原 token 明确审批；原生修订确认后才投递，网络操作保留工作区租约，关闭等待原生写入。新增 Rust 5 项、Flutter 6 项（定向共15项）通过；Rust全量588 passed / 11 ignored（另5项配置）、实际Worker14 passed，桥接重生成/release通过。analyze两条测试风格提示已修，复验及Flutter全量受工具故障待补。joiner UI、安装确认/名册/快照自动交接仍未接通，界面明确不宣称配对完成；详见同步子路线。
+
+**2026-10-07 — S04 owner P0 补验完成（全仓质量例外单列）：** 用户提供 `/tmp/elsewhen-owner-validation.HPSWCT`，已核对全部检查结果；基线 `6743a09`，Flutter 3.47.6 / Dart 3.13.5。owner Rust 定向 5、审批运行时 3、配对存储 10 项通过；Rust 全量 **588 passed / 11 ignored**（另配置环境 **5 passed**）、release、Flutter owner 定向 **6 passed**／同步相关定向 **25 passed**／全量 **312 passed**、实际 Worker **14 passed**。owner 的 5 个 Rust 文件格式、8 个 Dart 文件格式和定向 analyze 通过；全仓 Rust 格式仍有 3 个非本切片文件差异，Flutter 全量 analyze **78 项（4 warning、74 info）**，两项检查继续记为失败。本轮只有 owner 格式/模块顺序修正，无 API/schema 变更；未重生成桥接，已重建 release 并通过隔离 bridge。下一步转入 joiner 暂存库原生握手及安装证明/名册/快照自动交接，不勾选整个 S02/S04/S06；详见[交接记录](2026-10-07-multi-device-sync-handoff.md)。
+
+**2026-10-08 — P1 joiner 实施进展（最终门禁待补）：** 新增工作区租约内的独立 joiner 会话、暂存库与专用原生修订确认、Noise 请求/审批接收、加密安装证明投递/恢复、FRB 与设置开发预览；不复用会恢复后台的 owner 确认入口，不切换当前库、不激活成员。新增 Rust 12 项包含于全量 **600 passed / 11 ignored**（另配置环境 **5 passed**），新增 Flutter 控制器/隔离 bridge **10 passed**，桥接重生成/release 通过。首轮事务边界错误已修并回归；定向 analyze 的 7 条风格提示已修、复跑待执行，实际 Worker 新用例与 Flutter 全量同样待补。命令启动前的工具服务错误不算执行结果；P1/S02/S04 整体未勾选。恢复步骤见[Handoff §9](2026-10-07-multi-device-sync-handoff.md)，本轮未动其他任务的聊天 UI 改动。
+
+**2026-10-08 — P1 joiner 工程与自动化验收完成：** 已核对用户提供的 `/tmp/elsewhen-joiner-validation.6fu81z`；Rust joiner 定向 **12 passed**、全量 **600 passed / 11 ignored**（另配置环境 **5 passed**），Flutter 新增定向 **11 passed**／同步相关定向 **36 passed**／全量 **323 passed**，实际 Worker **14 passed**（含新 owner→joiner 请求、审批安装、重开检查点/证明重发及撤销拒绝流程），release 通过。P1 的 9 个 Rust 文件格式、9 个 Dart 文件格式及定向 analyze 通过；全仓格式 3 个既有差异和 analyze 78 项问题仍保留，未关闭检查。下一步为 P2 自动交接；P1 不激活成员、不切换数据集，不等于完整同步或真人原生密钥库签收，S02/S04/S06 总项继续未完成。详见[Handoff §9](2026-10-07-multi-device-sync-handoff.md)。
+
+**2026-10-08 — P2 新 session 接手断点：** P2 已批准并开始实施，加密意图/可信 bootstrap、限定快照传输、Rust runtime 与新 Rust API 部分已写，一次 `cargo check --lib` 通过。尚缺 `src/sync/runtime/enrollment/tests.rs`（已有 mod 声明）、Flutter 自动协调器、P2 bridge 重生成及完整回归；P1 的 600/323/14 不得挪作 P2 通过数。当前工作区还存在其他并行修改，全部保留。新会话从[Handoff §10](2026-10-07-multi-device-sync-handoff.md)和其中列出的已批准计划接手，不重新做 P1、不开始 P3、不提前勾选 P2。
+
+**2026-10-09 — P2 接续实现，验收仍待执行：** 已补 enrollment Rust 边界用例、Flutter 单飞/退避/native 确认与 owner/joiner 生命周期接线、只读交接进度，以及完整生产运行时的 Worker 丢响应/重开/Provider 恢复用例。修正原确认 token 的幂等绑定、owner 交接确认不恢复后台、坏证明扫描、完成回执门禁及失败导出的共享名册过滤。原数据集不切换，P3 未开始。本会话测试、编译与重生成命令都在启动前遇到工具服务故障，不能声明通过；`git diff --check` 实际通过。工作区后来出现的 P2 生成绑定两侧 hash 同为 `-558091073`，仍需匹配 release 和回归。统一验证脚本及下一步见 [Handoff §11](2026-10-07-multi-device-sync-handoff.md)；保留并行 web-search、聊天 UI 等修改，不勾选 P2/S02/S04/S06。
+
+**2026-10-13 — P4b Provider 冲突掩码审阅/显式裁决/可达性提示验收完成：** 迁移 v28 为 `sync_provider_versions.state` 增 `'dismissed'`；冲突审阅用 vault 密钥解密信封并双侧掩码（UTF-8 安全），裁决只支持显式 KeepLocal/AcceptRemote 整包、双版本绑定失败关闭、绝不字段拼接；纯静态可达性提示码零 I/O、不静默改 URL；FRB API 完成。Rust 全量 **660 passed / 17 ignored**（6 个新端到端用例 + v28 迁移测试）、relay **16 passed**、Flutter 全量 **345 passed**、桥接/release 与 `cargo fmt --check` 通过。审阅对话框 UI 接线同日完成（设置 → 数据 → 设备同步展示双侧掩码配置与显式裁决按钮，Flutter 全量 **349 passed**）；不签收原生/真人门禁。详见 [Handoff §15/§16](2026-10-07-multi-device-sync-handoff.md)。
+
+**2026-10-14 — 多设备同步子路线开发关闭（等待真人验收）：** S00–S05 全部交付。自 10-13 后完成：P4d/P4e 加工移交与撤销 UX、S05 全部切片（Handoff §24–§28）、快照 v2 断档恢复类型化管线（§29）、绑定设备扫码（§30）、URL 导入配图同步三连（§31 正文占位符不变式 / §31a 存量回填与应用端补口 / §31b 快照目录段——字节直达磁盘、wiki_assets 瘦身为台账）。代码基线 `f7f6e74`，迁移 34，快照版本 3；最终门禁 Rust **711 passed**、Flutter **372 passed**、analyze 0 error/warning、fmt/regen/release/APK 通过。同步开发路线已关闭（细项勾选不再回填，以 Handoff 为准）；**发版唯一阻塞项为 S06 真人门禁**，按[人工测试路线](2026-10-14-sync-manual-test-roadmap.md)执行后回填 [S06 清单](2026-10-14-s06-human-gate-checklist.md)。
+
+**2026-10-13 — P4c S03 生命周期 GC/水印/补快照验收完成：** 迁移 v29 建 `sync_member_state`（每成员应用水印 + needs_resnapshot）与 `sync_gc_state`（每流单调 GC 游标）；「relay 收到 ≠ 对端已应用 ≠ 允许 GC」三个确认分开——GC 只用应用层水印（`acknowledge_sync_operation` 推进），绝不用 relay ack；所有 active 成员纳入水印计算，缺水位按 0 计不过滤；落后成员（`confirmed < floor - catch_up_window`）翻 `needs_resnapshot` 并令 GC 完全停摆，绝不静默清历史；保留窗口额外保底最新 N 条本地 op；GC 只修剪本流已确认历史，绝不动域数据或他设备历史；快照 ack 用建快照时的 frontier 播种成员水印（不是 0 也不是实时值）。Rust 全量 **667 passed / 17 ignored**（7 个新测试）、relay **16 passed**、Flutter 全量 **349 passed**、桥接/release 与 `cargo fmt --check` 通过。加工移交与撤销 UX 属后续切片；不签收原生/真人门禁。详见 [Handoff §17](2026-10-07-multi-device-sync-handoff.md)。
+
+**2026-10-12 — P3 数据集选择/修复与 App 自动同步调度验收完成：** 网络稳态 tick 复用持久 outbox/回执台账与逐层防线（确认会话→授权根→活跃成员→当前确认 vault→受信路由），接入同一后台 worker 串行调度；数据集选择以用户所见预览 + 原生确认 vault 提交、仅下次启动生效；状态页显示范围/待同步/处理设备/最近成功/异常。全量 Rust **640 passed / 17 ignored**、实际 Worker **16 passed**（含新 P3 稳态增量用例）、Flutter 全量 **345 passed**、桥接/release 与全仓 Rust 格式通过；Flutter analyze 72 项例外单列。锁定暂停同步不暂停捕获；不签收原生/真人门禁，下一步 P4 首版剩余语义与发布恢复门禁。详见 [Handoff §13](2026-10-07-multi-device-sync-handoff.md)。
+
+**2026-10-11 — P2 自动交接工程与自动化验收完成：** 收尾复验逐条实际执行：P2 Rust 定向 **16 passed**、全量 Rust **640 passed / 16 ignored**（另配置环境 **5 passed**）、实际 Worker **15 passed**（含生产 P1→P2 丢响应/重开/Provider 恢复流程）、桥接 hash 两侧 **233902080**；Flutter 同步相关定向 **48 passed**、全量 **345 passed**、P2 定向 analyze 无问题；P2 格式与 `git diff --check` 通过。owner 证明接收→正式授权→名册→快照/回执全链路经生产运行时验证；不切换当前数据集，不激活通用增量调度。同日经用户明确要求修复全仓 Rust 格式（16 个文件纯格式化）并复验通过；Flutter analyze 71 项全 info 为例外单列。P2 完成不代表 S02/S04/S06 总项或原生/真人门禁；下一步为 P3 数据集选择/修复与 App 自动同步调度。详见 [Handoff §12](2026-10-07-multi-device-sync-handoff.md)。
+
+**2026-10-10 — P2 补验与 Flutter 收尾：** 已实际通过测试目标编译、P2 Rust **16 项**、Rust 全量 **640 passed / 16 ignored**（另配置环境 **5 passed**）、实际 Worker **15 项**及桥接重生成/release（hash **233902080**）。Worker 新完整生产流程包含已提交 grant/revoke/回执丢响应、native 未保存时重开、选定快照恢复和 Provider 保真/受控调用。Flutter 控制器 **11 passed**；release 后全量首轮 **343 passed / 2 failed**，适配旧 Markdown finder 和本地模拟 Provider 窗口后复验 **345 passed**。另修 P2 joiner 括号 lint，未改生产预算或并行功能；P2 Rust 23 文件格式、Dart 10 文件格式（0 changed）通过。最终静态检查与同步定向仍遇命令启动前的工具服务故障。全仓 Rust 格式 13 个文件差异、Flutter analyze 首轮 75 项如实保留，不把历史例外自动豁免。P2 最终门禁仍未完成，不进入 P3；详见 [Handoff §12](2026-10-07-multi-device-sync-handoff.md)。
 
 ### AI 对话体验优化子路线（2026-09-30）
 
 以成熟聊天产品的生成生命周期、上下文管理和交互控制为参考，完善主对话与知识页对话，不整体迁移技术栈。产品方向与取舍见 [AI 对话体验方案](../notes/proposed/architecture/2026-09-30-ai-chat-experience.md)，任务、依赖与验收见 [子路线 C00–C09](2026-09-30-ai-chat-experience-roadmap.md)。本子路线支持 Phase 4C / Phase 5，不重置其既有进度。
 
-- [x] D00：保存优化方案与实施路线图；仅文档交付，功能改造尚未开始。
-- [ ] C00a：优先补充应用提供的当前时间、时区与历史时间提醒，不等待流式改造。
-- [ ] C00：建立固定验收场景、基线与共享生成契约。
-- [ ] C01–C04：具体动作确认、统一 run 与恢复底座、流式与取消、真实工具进度和审阅。
-- [ ] C05–C07：预算与选材协调、非破坏性摘要和任务连续性、长知识页对话。
-- [ ] C08–C09：生成中本地输入、持久待生成队列、轮边界补充要求和恢复。
+- [x] D00：保存优化方案与实施路线图；该项仅为文档交付，不代表功能完成。
+- [x] C00a：当前时间、时区与历史时间提醒；工程回归及合成材料真实端点时间感知验收通过（2026-10-02）。
+- [x] C00：固定验收场景、可执行本机基线与共享生成契约已建立；后续能力按各阶段分别实现验收。
+- [x] C01–C04：工程及真实端点合成审阅/取消场景完成；真人GUI点按签收已移交独立[人工验收 roadmap](2026-10-04-ai-chat-manual-acceptance-roadmap.md)。
+  - [x] C01：具体提议/版本/目标授权、事务内复核、执行租约与回执、共享审阅界面。
+  - [x] C02：统一生成 run、事件与恢复底座。
+  - [x] C03：端到端流式与取消，真实Bridge本机门槛及实际端点流取消、原输入恢复通过。
+  - [x] C04：真实工具进度、审阅与诚实收尾，两入口隔离Bridge及真实端点拒绝/新稿接受链路通过。
+- [x] C05–C07：预算与选材协调、非破坏性摘要和任务连续性、长知识页对话。
+  - [x] C05：分段预算、工具配对和整轮选材，最终请求预算闸门保留。
+  - [x] C06：非破坏性摘要与连续性；真实摘要生成/复用及原文回读通过。
+  - [x] C07：知识页任务范围、版本/选区保护；分块否定语义修复后，真实全文覆盖与语义核对通过。
+- [x] C08–C09：生成中本地输入、持久待生成队列、轮边界补充要求和恢复；全量集成及双入口真实补充验收通过。
 
 完成规则：每交付一个独立 C 步骤，立即在子路线勾选并追加代码、测试和验收证据，同时在本节追加对应完成记录；组合项只在全部子步骤验收后勾选。Rust/Bridge 测试不替代真实模型质量验收，事件不可变、输入不等待 AI、知识后台无手动触发等门禁继续有效。
 
 **2026-09-30 — D00 完成证据：** 已保存上述方案与路线图，并为早期比较稿补充执行入口；未改业务代码，C00–C09 均未开始。
+
+**2026-09-30 — C00a 工程实现：** 时间感知已接入主对话与知识页对话，保留消息时间、按需插入历史提醒，并随预算裁剪维护所属关系。新增 14 项定向测试；全量 Rust 341 passed / 2 ignored / 0 failed、release 构建与差异空白检查通过。真实模型验收待完成，C00a 整体及后续步骤尚未完成。实现取舍见[聊天时间上下文](../notes/implemented/architecture/2026-09-30-chat-time-context.md)。
+
+**2026-09-30 — C00 基线与契约：** 新增[共享契约与验收基线](../testing/ai-chat-contract-and-baseline.md)和可执行本机基准；直答/读工具各 8 样本，显式测试通过。明确输入截止点、run/请求/动作身份与终态、取消、快照规则；这不代表后续事件协议和 UI 已实现。继续 C01 明确动作确认。
+
+**2026-10-01 — C01 完成：** schema v10 为具体提议增加版本、目标依据、执行租约和回执；主对话/知识页及规则使用共享审阅界面，普通短回复不执行或删除积压动作。本地组合写入在实际事务内复核目标，联系人失效 slug 不静默换目标，重复/迟到执行受约束。全量 Rust 354 passed / 3 ignored、Flutter 233 passed、release 构建及隔离真实 Bridge 通过；analyze 无错误但仍有 4 条既有 warning，未记为全绿。决定与边界见[对话提议版本与回执](../notes/implemented/architecture/2026-10-01-chat-proposal-approval.md)。继续 C02，未完成整个第一里程碑。
+
+**2026-10-01 — C02 完成：** schema v11 持久化 run/输入/历史基底/请求与单调事件，主对话和知识页共享观察、停止、重开与精确输入重试。终态和回复同事务，检查点有界，未知工具结果不自动重做，退出只停止本进程任务。切片全量 Rust 398 passed / 3 ignored、Flutter 251 passed、FRB 重生成与 release 构建通过；analyze 无错误但仍有 4 条既有 warning。C03 性能闭环、C04 与真实模型验收继续独立完成，未勾选第一里程碑。见[运行与恢复决定](../notes/implemented/architecture/2026-10-01-chat-generation-runtime.md)。
+
+**2026-10-01 — C03/C04 工程完成：** 全量 Rust 403 passed / 3 ignored、Flutter 256 passed；FRB 重生成与 release 构建通过，重生成后 3 项真实 Bridge 回归通过。两入口均覆盖检索、草拟、显式拒绝/接受与回执；共享 widget 正文可见/取消实测 403ms/468ms，低于 2 秒本机门槛。全量 analyze 仍有 4 条既有 warning，真实模型验收未执行，组合阶段仍未完成。详见子路线完成记录及[基线](../testing/ai-chat-contract-and-baseline.md)。
+
+**2026-10-02 — C05 工程完成：** 分段来源/版本/省略策略、provider-aware 前置工具预算、可选背景优先和整轮裁剪已接入，最终序列化 payload gate 保留。新增损坏旧交换与 SimpleMemory 边界回归，memory 25 passed，随后全量 Rust 409 passed / 3 ignored、FRB/release 通过。C06/C08 后续集成须另跑门禁，真实模型质量不由本条证明。见[预算边界决定](../notes/implemented/architecture/2026-10-01-chat-context-budget.md)。
+
+**2026-10-02 — C00a 完成：** 用户授权下使用 `deepseek-flash`（窗口65536，输出4096）发送合成测试材料；当前日期、昨天记录的真实工具检索、明天截止全部通过，共4次请求，未发送个人原文或修改个人配置。全量 Rust 447 passed / 7 ignored，FRB/release 通过。集成首轮 Flutter 273 passed / 1 failed（32K预算），真实端点其他场景也有失败，未据此勾选阶段出口；详情见子路线的首轮记录。
+
+**2026-10-03 — C06–C09 集成收尾：** 修复过期生成绑定，FRB/release 成功；全量 Rust 455 passed / 7 ignored、Flutter 283 passed，analyze 无 error、4 既有 warning（退出码1）。C06 真实夹具按工具预留后的选材预算触发，实际生成并注入1个摘要节点；首次3请求/7960ms、重试2请求/2313ms，重试无新增摘要请求，原始约束与回读正确。C07 六种范围、任务恢复、比较依赖、选区/版本保护有全量及Bridge证据。C08 输入/队列/保存未排队恢复与停止冻结通过；C09 双入口真实读工具后按补充范围收敛，各2请求，无业务写入。新授权17次中实际已用9次；完整真实工具审阅仍需复验，未勾选第一阶段组合项，详见子路线完成记录。
+
+**2026-10-03 — 最终交付：** Rust 457 passed / 10 ignored、Flutter 283 passed、Python额度测试2 passed，FRB及最终release成功；analyze无error但4既有warning、退出码1。真实主对话与知识页均完成检索、草拟、拒绝/新稿接受及重复回执；真实取消/重开冻结/原输入重试通过。全文首次发现断句导致否定反转，修改 `ai/page_tasks.rs` 的句末边界与有界邻文，新增两项回归；最终4752字符全文3请求/20902ms，首中尾完整且保留“不表示试验已经完成”。本轮分次授权44次，实际39次，不再使用余额。四份决定迁为implemented，完整失败样例与数据见[子路线完成记录](2026-09-30-ai-chat-experience-roadmap.md#完成记录)及[验收基线](../testing/ai-chat-contract-and-baseline.md)。真人GUI连接真实端点的点按签收未执行，第一阶段严格人工出口保留未完成，不冒充人工验收。
 
 ### LLM Wiki 主线补全（2026-09-29）
 
@@ -135,7 +230,7 @@
 
 ### Step 1：Phase 2.5 — 事件账本质量治理
 
-对应：`docs/notes/proposed/architecture/2026-09-19-event-recordability-filter.md`
+对应：`docs/notes/implemented/architecture/2026-09-19-event-recordability-filter.md`
 
 - 对话层先判断是否值得记录；评价 AI、闲聊、元对话默认不写 `events`。
 - **已完成第一步：** system prompt 与 `record_event` 工具描述已明确上述边界，用户显式要求记录时仍按意图执行。
@@ -168,7 +263,7 @@
 
 ### Step 3：基础设施并行项 — 归档对话清理（已完成）
 
-对应：`docs/notes/proposed/architecture/2026-09-19-archived-conversation-deletion.md`
+对应：`docs/notes/implemented/architecture/2026-09-19-archived-conversation-deletion.md`
 
 - 只允许删除已归档、非知识页会话。
 - UI 二次确认；AI 指令走 `WriteConfirm`。
@@ -202,7 +297,7 @@
 
 当前进度：上下文注入与建议反馈切片已完成；自动提醒和完整行动度量仍需独立验收。
 
-2026-09-30 对话入口回归修复：完整请求预算去除重复工具说明；跨会话背景排除当前流与知识页讨论，预算不足时整体省略；本地预算错误不触发协议重试，必要材料不截断。用户展示名“人物”改为“联系人”，内部数据标识不迁移。验证：Rust 326 passed / 2 ignored、Flutter 联系人文案与隔离关系测试 4 passed；详细边界见[输入预算调查的修复记录](../notes/proposed/refactor/2026-09-29-input-budget-token-accounting.md)。此修复不代表自动提醒或真实模型质量验收已完成。
+2026-09-30 对话入口回归修复：完整请求预算去除重复工具说明；跨会话背景排除当前流与知识页讨论，预算不足时整体省略；本地预算错误不触发协议重试，必要材料不截断。用户展示名“人物”改为“联系人”，内部数据标识不迁移。验证：Rust 326 passed / 2 ignored、Flutter 联系人文案与隔离关系测试 4 passed；详细边界见[输入预算调查的修复记录](../notes/implemented/simplification/2026-09-29-input-budget-token-accounting.md)。此修复不代表自动提醒或真实模型质量验收已完成。
 
 ### Step 6：Phase 3 UI — Today 工作台（后置）
 

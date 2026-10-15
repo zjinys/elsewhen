@@ -5,12 +5,12 @@
 //! 记录历史，slug 唯一性由 unique_slug 类逻辑保证。
 
 use anyhow::{Context, Result};
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use super::{
-    map_wiki_page, ContentPolicy, RenameWikiOutcome, Store, WikiPage, WikiPageDraft,
-    WikiUpsertOutcome, WIKI_PAGE_COLS,
+    ContentPolicy, RenameWikiOutcome, Store, WIKI_PAGE_COLS, WIKI_PAGE_META_COLS, WikiPage,
+    WikiPageDraft, WikiPageMeta, WikiUpsertOutcome, map_wiki_page, map_wiki_page_meta,
 };
 
 impl Store {
@@ -85,10 +85,42 @@ impl Store {
             .map_err(Into::into)
     }
 
+    /// 实体名 → canonical slug（D3 归一管道）：标题/别名不区分大小写命中；
+    /// 恰好命中一页且 kind 相符、页面 active 才算归一成功（多义或无命中 →
+    /// None，调用方降级到草拟确认/人工消歧，绝不猜）。
+    /// 已合并页不算命中：其别名在合并时已迁到目标页，标题指向旧页是历史。
+    pub fn resolve_entity_slug(&self, kind: &str, name: &str) -> Result<Option<String>> {
+        let exact: Vec<WikiPage> = self
+            .find_wiki_pages_by_title_or_alias(name)?
+            .into_iter()
+            .filter(|p| p.kind == kind && p.status == "active")
+            .collect();
+        Ok(if exact.len() == 1 {
+            Some(exact[0].slug.clone())
+        } else {
+            None
+        })
+    }
+
     /// 列出知识库页面（主列表）。
     /// - `kind`：按内容类型过滤；`area`：按来源/用途分区过滤（imported/network/insight）。
     /// - 默认排除派生产物（area=derivative，它们只经 `list_derivatives` 按原文展开读取）。
     /// - 顺序：有来源 URL 的（素材）在前，其余按最近更新时间倒序。
+    /// 列表元数据视图（sidebar/列表专用）：无 content_md、无图片解析、
+    /// SQL 级排序 + LIMIT 有界。与 `list_wiki_pages` 同款派生产物排除；
+    /// 语义装饰（AI 提炼 kind 排除、slug 前缀过滤、archived 状态）留在
+    /// Dart 侧 `_isSidebarVisiblePage`——单一真源不过双写。
+    pub fn list_wiki_page_metas(&self, limit: i64) -> Result<Vec<WikiPageMeta>> {
+        let mut statement = self.connection.prepare_cached(&format!(
+            "SELECT {WIKI_PAGE_META_COLS} FROM wiki_pages \
+             WHERE COALESCE(area, 'insight') != 'derivative' \
+             ORDER BY updated_at DESC, rowid DESC LIMIT ?1"
+        ))?;
+        let rows = statement.query_map([limit], map_wiki_page_meta)?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     pub fn list_wiki_pages(&self, kind: Option<&str>, area: Option<&str>) -> Result<Vec<WikiPage>> {
         let mut sql = String::from("SELECT ");
         sql.push_str(WIKI_PAGE_COLS);
@@ -181,6 +213,7 @@ impl Store {
                 && title.chars().count() <= 200,
             "产物类型或标题无效"
         );
+        let tx = self.begin_write_transaction()?;
         let base = self.get_wiki_page(based_on_slug)?.with_context(|| {
             format!("知识页不存在：{based_on_slug}（不能对不存在的页面创建派生产物）")
         })?;
@@ -198,10 +231,6 @@ impl Store {
             .to_string();
         let now = chrono::Utc::now().to_rfc3339();
         let tags_raw = serde_json::to_string(&vec!["派生产物".to_string()])?;
-        let tx = rusqlite::Transaction::new_unchecked(
-            &self.connection,
-            rusqlite::TransactionBehavior::Immediate,
-        )?;
         self.connection.execute(
             "INSERT INTO wiki_pages
          (id, slug, kind, title, summary, content_md, tags, source_event_ids,
@@ -245,7 +274,9 @@ impl Store {
         if let Some(conversation) = conversation {
             crate::knowledge::workflows::attach_generation(self, &page, conversation)?;
         }
-        tx.commit()?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(page)
     }
 
@@ -285,12 +316,11 @@ impl Store {
         draft: &WikiPageDraft,
         policy: ContentPolicy,
     ) -> Result<WikiUpsertOutcome> {
-        let tx = rusqlite::Transaction::new_unchecked(
-            &self.connection,
-            rusqlite::TransactionBehavior::Immediate,
-        )?;
+        let tx = self.begin_write_transaction()?;
         let outcome = self.upsert_wiki_page_in_tx(draft, policy)?;
-        tx.commit()?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(outcome)
     }
 
@@ -390,13 +420,8 @@ impl Store {
                     draft.source_url,
                 ],
             )?;
-            Self::record_wiki_revision_on(
-                &self.connection,
-                &page.id,
-                &draft.content_md,
-                &draft.reason,
-                None,
-            )?;
+            self.sync_record_wiki_page(&page.id, false)?;
+            Self::record_wiki_revision_on(self, &page.id, &draft.content_md, &draft.reason, None)?;
             let updated = self.get_wiki_page(&draft.slug)?.unwrap();
             super::knowledge::capture_source_on(&self.connection, &updated)?;
             Ok(WikiUpsertOutcome {
@@ -433,13 +458,10 @@ impl Store {
                     area,
                 ],
             )?;
-            Self::record_wiki_revision_on(
-                &self.connection,
-                &id,
-                &draft.content_md,
-                &draft.reason,
-                None,
-            )?;
+            self.sync_record_wiki_page(&id, false)?;
+            Self::record_wiki_revision_on(self, &id, &draft.content_md, &draft.reason, None)?;
+            // 占位符引用的图片字节随页入库（文件在导入下载阶段已落盘）。
+            let _ = self.ingest_wiki_page_assets();
             let page = self.get_wiki_page(&draft.slug)?.unwrap();
             super::knowledge::capture_source_on(&self.connection, &page)?;
             Ok(WikiUpsertOutcome {
@@ -448,6 +470,61 @@ impl Store {
                 protected: false,
             })
         }
+    }
+
+    /// 把本机文件系统里被正文占位符引用的图片记入 `wiki_assets` 台账
+    /// （字节不入库，§31b；快照文件段按台账导出时读盘搬运）。幂等：已有行按 rel 跳过。
+    /// 扫描全部页面（个人量级为个位数），文件缺失的引用静默跳过——
+    /// 字节本就无法凭空恢复，显示层自愈时自然退化。
+    pub(crate) fn ingest_wiki_page_assets(&self) -> Result<usize> {
+        let data_dir = self
+            .path
+            .parent()
+            .map(std::path::Path::to_path_buf)
+            .context("数据目录不可定位，无法收集图片资产")?;
+        let mut relations: i64 = 0;
+        let pages: Vec<String> = {
+            let mut q = self
+                .connection
+                .prepare("SELECT content_md FROM wiki_pages")?;
+            let rows = q.query_map([], |r| r.get::<_, String>(0))?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        for content_md in pages {
+            for rel in super::wiki_images::collect_tweet_image_rels(&content_md) {
+                let existing: bool = self.connection.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM wiki_assets WHERE rel=?1)",
+                    [&rel],
+                    |r| r.get(0),
+                )?;
+                if existing {
+                    continue;
+                }
+                let Some(ext) = rel.rsplit('.').next() else {
+                    continue;
+                };
+                let Some(mime) = super::wiki_images::mime_for_ext(ext) else {
+                    continue;
+                };
+                let Ok(bytes) = std::fs::read(data_dir.join(&rel)) else {
+                    continue;
+                };
+                let sha = {
+                    use ring::digest::{Digest, SHA256};
+                    let d: Digest = ring::digest::digest(&SHA256, &bytes);
+                    d.as_ref()
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect::<String>()
+                };
+                self.connection.execute(
+                    "INSERT OR REPLACE INTO wiki_assets(rel,sha256,mime,size) VALUES(?1,?2,?3,?4)",
+                    rusqlite::params![rel, sha, mime, bytes.len() as i64],
+                )?;
+                relations += 1;
+            }
+        }
+        Ok(relations as usize)
     }
 
     /// 用户手动重写一页的标签（元数据组织用）。
@@ -470,6 +547,7 @@ impl Store {
         }
         let now = chrono::Utc::now().to_rfc3339();
         let tags_raw = serde_json::to_string(&cleaned)?;
+        let transaction = self.begin_write_transaction()?;
         self.connection.execute(
             "UPDATE wiki_pages SET tags = ?1, updated_at = ?2 WHERE id = ?3",
             params![tags_raw, now, page.id],
@@ -481,6 +559,10 @@ impl Store {
             format!("标签更新：{}", cleaned.join(", "))
         };
         self.record_wiki_revision(&page.id, &page.content_md, &reason, None)?;
+        self.sync_record_wiki_page(&page.id, false)?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         self.get_wiki_page(slug)?.context("标签更新后读取失败")
     }
 
@@ -523,6 +605,8 @@ impl Store {
         }
         let old_url = page.source_url.clone().unwrap_or_default();
         let now = chrono::Utc::now().to_rfc3339();
+        // 修订捕获要求领域事务（P5b：修订历史随流复制）。
+        let tx = self.begin_write_transaction()?;
         self.connection.execute(
             "UPDATE wiki_pages SET source_url = ?1, content_md = ?2, updated_at = ?3 WHERE id = ?4",
             params![new_url, content, now, page.id],
@@ -533,13 +617,58 @@ impl Store {
             format!("项目路径修改：{old_url} → {new_url}")
         };
         self.record_wiki_revision(&page.id, &content, &reason, None)?;
+        self.sync_record_wiki_page(&page.id, false)?;
         self.append_wiki_log(&format!("项目路径修改：{slug} → {display}"))?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         self.get_wiki_page(slug)?.context("项目路径修改后读取失败")
     }
 
     /// 存量回填（幂等）：目录导入时代久远的项目页只有正文快照、没有 `source_url`，
     /// 从「项目目录：`...`」解析出路径并记进 `source_url`（file://）。
     /// 只命中 `source_url IS NULL` 的 project 页，填过后不再重复执行，无副作用。
+    /// 启动期一次性回填：存量页正文里的本机绝对路径/杂形态引用折叠为
+    /// 占位符（§31 之前导入的推文配图全是绝对路径），并收集其字节入
+    /// `wiki_assets`。裸 UPDATE + wiki_log（同 backfill_project_source_urls
+    /// 惯例：不记 revision、不发 op），对端靠下一份快照收敛。幂等。
+    pub fn backfill_wiki_image_placeholders(&self) -> Result<usize> {
+        let rows: Vec<(String, String, String)> = {
+            let mut statement = self
+                .connection
+                .prepare("SELECT id, slug, content_md FROM wiki_pages")?;
+            let mapped = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?;
+            mapped.collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        let mut changed = 0;
+        for (id, slug, content_md) in rows {
+            let folded = super::wiki_images::fold_tweet_image_refs(&content_md);
+            if folded == content_md {
+                continue;
+            }
+            self.connection.execute(
+                "UPDATE wiki_pages SET content_md = ?1 WHERE id = ?2",
+                params![folded, id],
+            )?;
+            self.append_wiki_log(&format!("图片引用回填：{slug} 占位符归一化"))?;
+            changed += 1;
+        }
+        // 顺手把存量引用的字节收进资产表（文件还在本机就能收齐）。
+        let collected = self.ingest_wiki_page_assets()?;
+        if changed > 0 || collected > 0 {
+            self.append_wiki_log(&format!(
+                "图片资产回填：{changed} 页引用归一化，{collected} 字节入库"
+            ))?;
+        }
+        Ok(changed)
+    }
+
     pub fn backfill_project_source_urls(&self) -> Result<usize> {
         let mut statement = self.connection.prepare(
             "SELECT id, slug, content_md FROM wiki_pages
@@ -623,10 +752,10 @@ impl Store {
             );
             if !consistent {
                 anyhow::bail!(
-                "编辑冲突：页面在你编辑期间已被更新（加载于 {}，当前 {}）；请重新加载后合并修改，或强制覆盖",
-                expected,
-                page.updated_at
-            );
+                    "编辑冲突：页面在你编辑期间已被更新（加载于 {}，当前 {}）；请重新加载后合并修改，或强制覆盖",
+                    expected,
+                    page.updated_at
+                );
             }
         }
         let content_md = content_md.trim().to_string();
@@ -638,11 +767,15 @@ impl Store {
             anyhow::bail!("正文超过 64k 字符上限（当前 {char_count} 字符）");
         }
         let now = chrono::Utc::now().to_rfc3339();
+        let transaction = self.begin_write_transaction()?;
         self.connection.execute(
             "UPDATE wiki_pages SET content_md=?1, human_edited_at=?2, updated_at=?2 WHERE id=?3",
             params![content_md, now, page.id],
         )?;
         let reason = reason.trim();
+        // 页 op 先于修订 op 捕获：收端按流内序 drain，修订的页存在依赖
+        // 必须先被页 op 满足。
+        self.sync_record_wiki_page(&page.id, false)?;
         self.record_wiki_revision(
             &page.id,
             &content_md,
@@ -664,6 +797,9 @@ impl Store {
                 reason
             }
         ))?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         self.get_wiki_page(slug)?.context("人工编辑保存后读取失败")
     }
 
@@ -715,6 +851,18 @@ impl Store {
             _ => "清空（回归未表态，缺省认可）",
         };
         self.append_wiki_log(&format!("素材评价：{slug} → {label}"))?;
+        let affected: Vec<String> = {
+            let mut stmt = self.connection.prepare(
+                "SELECT id FROM wiki_pages WHERE id=?1 OR id IN\
+                    (SELECT m.page_id FROM knowledge_source_pages m WHERE m.source_id IN\
+                     (SELECT source_id FROM knowledge_source_pages WHERE page_id=?1))",
+            )?;
+            let rows = stmt.query_map(params![page.id], |r| r.get::<_, String>(0))?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        for id in affected {
+            self.sync_record_wiki_page(&id, false)?;
+        }
         tx.commit()?;
         self.get_wiki_page(slug)?.context("评价保存后读取失败")
     }
@@ -730,6 +878,7 @@ impl Store {
         new_title: &str,
         reason: &str,
     ) -> Result<RenameWikiOutcome> {
+        let tx = self.begin_write_transaction()?;
         let page = self.get_wiki_page(slug)?.with_context(|| {
         format!(
             "知识页不存在：{slug}（可能已被改名或删除——如果刚改过名，请用新名字操作，可在对话里列出知识库确认当前名称）"
@@ -752,6 +901,8 @@ impl Store {
                 chats_moved: 0,
             });
         }
+        // P5b：重命名同步的 base 锚点必须在本地变更前读取（CAS 锚）。
+        let sync_base_revision = self.sync_wiki_base_revision(&page.id)?;
         // 计算新 slug：带前缀的页面重算（撞名避让），无前缀的保留原 slug
         let new_slug = match slug.rsplit_once('/') {
             Some((prefix, _)) => crate::wiki::unique_slug(
@@ -762,32 +913,31 @@ impl Store {
             None => slug.to_string(),
         };
         let now = chrono::Utc::now().to_rfc3339();
-        let tx = self.connection.unchecked_transaction()?;
         // 1) 页面本体：换 slug + 标题，summary 里的旧名同步替换
         let new_summary = if old_title.is_empty() {
             page.summary.clone()
         } else {
             page.summary.replace(&old_title, &new_title)
         };
-        tx.execute(
+        self.connection.execute(
             "UPDATE wiki_pages SET slug=?1, title=?2, summary=?3, updated_at=?4 WHERE id=?5",
             params![new_slug, new_title, new_summary, now, page.id],
         )?;
         // 2) 关系引用迁移
         let mut relations_moved = 0usize;
         if new_slug != slug {
-            relations_moved += tx.execute(
+            relations_moved += self.connection.execute(
                 "UPDATE relations SET from_slug=?1 WHERE from_slug=?2",
                 params![new_slug, slug],
             )? as usize;
-            relations_moved += tx.execute(
+            relations_moved += self.connection.execute(
                 "UPDATE relations SET to_slug=?1 WHERE to_slug=?2",
                 params![new_slug, slug],
             )? as usize;
         }
         // 3) 页内聊天会话迁移
         let chats_moved = if new_slug != slug {
-            tx.execute(
+            self.connection.execute(
                 "UPDATE conversations SET wiki_page_slug=?1 WHERE wiki_page_slug=?2",
                 params![new_slug, slug],
             )? as usize
@@ -795,7 +945,7 @@ impl Store {
             0
         };
         // 4) 审计修订记录
-        tx.execute(
+        self.connection.execute(
         "INSERT INTO wiki_revisions (id, page_id, content_md, reason, source_event_id, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
@@ -807,10 +957,19 @@ impl Store {
             now,
         ],
     )?;
-        tx.commit()?;
         self.append_wiki_log(&format!(
             "知识页重命名：{old_title}（{slug}）→ {new_title}（{new_slug}）"
         ))?;
+        // 捕获在领域事务内：真正换 slug 走专用 rename 变体（收端做同样的
+        // 关系/会话迁移）；标题-only（前缀页保留原 slug）走整行捕获。
+        if new_slug != slug {
+            self.sync_record_wiki_rename(&page.id, slug, sync_base_revision)?;
+        } else {
+            self.sync_record_wiki_page(&page.id, false)?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(RenameWikiOutcome {
             old_slug: slug.to_string(),
             new_slug,
@@ -829,38 +988,45 @@ impl Store {
         reason: &str,
         source_event_id: Option<&str>,
     ) -> Result<()> {
-        Self::record_wiki_revision_on(
-            &self.connection,
-            page_id,
-            content_md,
-            reason,
-            source_event_id,
-        )
+        Self::record_wiki_revision_on(self, page_id, content_md, reason, source_event_id)
     }
 
     /// 在指定连接上追加一条 wiki revision；事务通过 Deref 传入 `&Transaction` 亦可。
     /// upsert_wiki_page 把「页面写入 + revision」放进同一事务原子提交，
     /// 避免页面改了但 revision 没记（或反之）导致审计断链。
+    /// 写一条修订并捕获同步 op（修订历史随流复制，起源端权威）。事务约束
+    /// 由调用方满足：所有写路径（upsert/改名/正文保存/标签/项目路径）都
+    /// 已在 begin_write_transaction 包裹内或自动提交单写。
     fn record_wiki_revision_on(
-        conn: &rusqlite::Connection,
+        store: &Store,
         page_id: &str,
         content_md: &str,
         reason: &str,
         source_event_id: Option<&str>,
     ) -> Result<()> {
+        let conn = &store.connection;
+        let revision = crate::sync::protocol::WikiRevisionRecord {
+            id: Uuid::new_v4().to_string(),
+            page_id: page_id.to_string(),
+            content_md: content_md.to_string(),
+            reason: reason.to_string(),
+            source_event_id: source_event_id.map(|s| s.to_string()),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
         conn.execute(
             "INSERT INTO wiki_revisions
          (id, page_id, content_md, reason, source_event_id, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
-                Uuid::new_v4().to_string(),
-                page_id,
-                content_md,
-                reason,
-                source_event_id,
-                chrono::Utc::now().to_rfc3339(),
+                revision.id,
+                revision.page_id,
+                revision.content_md,
+                revision.reason,
+                revision.source_event_id,
+                revision.created_at,
             ],
         )?;
+        store.sync_record_wiki_revision(&revision)?;
         Ok(())
     }
 
@@ -893,5 +1059,26 @@ impl Store {
         let rows = statement.query_map(params![limit], |row| Ok((row.get(0)?, row.get(1)?)))?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
+    }
+}
+
+impl Store {
+    /// P5b：Wiki 页面业务删除。与本页所有写路径同一事务纪律：
+    /// 先在行仍存在时捕获 `deleted=true` 同步变更（含 head 推进），再物理
+    /// 删除本行（wiki_revisions / knowledge_source_pages 等随外键级联）。
+    /// 删除后离线对端的迟到编辑会在应用端得到 `wiki_page_deleted` 冲突候选，
+    /// 不会被静默覆盖。返回 false 表示页面不存在（幂等）。
+    pub fn delete_wiki_page(&self, slug: &str) -> Result<bool> {
+        let Some(page_id) = self.get_wiki_page(slug)?.map(|page| page.id) else {
+            return Ok(false);
+        };
+        let tx = self.begin_write_transaction()?;
+        self.sync_record_wiki_page(&page_id, true)?;
+        self.connection
+            .execute("DELETE FROM wiki_pages WHERE id=?1", params![page_id])?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(true)
     }
 }

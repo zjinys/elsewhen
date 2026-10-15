@@ -61,6 +61,102 @@ void main() {
     }
   });
 
+  test('规则触发往返（决策辅助 D1）：触发词/场景/提醒偏好', () async {
+    final ruleId = await repo.addRule('__D1 触发测试__ X 项目相关要提醒');
+    try {
+      // 默认：不参与预筛、全场景、偏好 instant
+      var rules = await repo.listRules();
+      final created = rules.firstWhere((r) => r.id == ruleId);
+      expect(created.triggerKeywords, isEmpty);
+      // 配置触发：关键词 + 场景
+      await repo.setRuleTrigger(
+        ruleId,
+        triggerScene: 'capture',
+        triggerKeywords: ['X项目', 'deadline'],
+      );
+      rules = await repo.listRules();
+      final configured = rules.firstWhere((r) => r.id == ruleId);
+      expect(configured.triggerKeywords, ['X项目', 'deadline']);
+      expect(configured.triggerScene, 'capture');
+      expect(configured.hasTrigger, isTrue);
+
+      // 提醒偏好往返：review_only → off → instant(默认)
+      await repo.setRuleTriggerMode('review_only');
+      expect(await repo.getRuleTriggerMode(), 'review_only');
+      await repo.setRuleTriggerMode('off');
+      expect(await repo.getRuleTriggerMode(), 'off');
+      await repo.setRuleTriggerMode('instant');
+      expect(await repo.getRuleTriggerMode(), 'instant');
+
+      // 最近提醒读面可用（隔离库可能无命中，只验证接口与结构）
+      final hits = await repo.listRecentRuleHits(limit: 5);
+      expect(hits, isA<List<dynamic>>());
+    } finally {
+      await repo.deleteRule(ruleId);
+    }
+  });
+
+  test('D6 采纳反馈：不存在的命中 fail-closed，反馈面可调用', () async {
+    // fail-closed：不存在的 hit id 必须 bail 而不是静默成功
+    await expectLater(
+      repo.setRuleHitFeedback('no-such-hit-id', 'helpful'),
+      throwsA(isA<Object>()),
+    );
+    // 接口可用性：对空/失败读面返回结构正确列表
+    final hits = await repo.listRecentRuleHits(limit: 5);
+    expect(hits, isA<List<dynamic>>());
+  });
+
+  test('遗留收口 B：guidance 反馈面可调用，不存在的 analysis 返回 false', () async {
+    // 接口可用性：不存在 analysis（fail-soft 返回 false，与 rule_hit 的
+    // bail 语义不同——guidance 条目来自派生视图，键可能已随分析淘汰）。
+    final applied = await repo.setGuidanceFeedback(
+      analysisId: 'no-such-analysis',
+      slug: 'topic/none',
+      note: '示例',
+      feedback: 'helpful',
+    );
+    expect(applied, isFalse);
+    // 读面可用（隔离库可能空，只验证结构）。
+    final items = await repo.listPageGuidance('__无此页__');
+    expect(items, isA<List<dynamic>>());
+  });
+
+  test('遗留收口 C：事件读面（最近列表 / 分析详情 / 旁标记）', () async {
+    // 列表形状可用（隔离库可能空）。
+    final events = await repo.listRecentEvents(days: 3650, limit: 50);
+    expect(events, isA<List<dynamic>>());
+    // 详情与旁标记：不存在事件 fail-soft（detail null / hits 空表）。
+    final missing = await repo.getEventAnalysisDetail('__无此事件__');
+    expect(missing, isNull);
+    final hits = await repo.listEventRuleHits('__无此事件__');
+    expect(hits, isEmpty);
+  });
+
+  test('D6 情感回访：偏好读写往返 + 检查面可用', () async {
+    try {
+      await repo.setCompanionPrefs(enabled: false, intervalDays: 9);
+      final prefs = await repo.getCompanionPrefs();
+      expect(prefs.revisitEnabled, isFalse);
+      expect(prefs.revisitIntervalDays, 9);
+
+      await repo.setCompanionPrefs(enabled: true, intervalDays: 14);
+      final prefs2 = await repo.getCompanionPrefs();
+      expect(prefs2.revisitEnabled, isTrue);
+      expect(prefs2.revisitIntervalDays, 14);
+
+      // 检查面：隔离库多半无素材 → null 也算成功；有素材则字段齐全
+      final item = await repo.checkCompanionRevisit();
+      if (item != null) {
+        expect(item.eventId, isNotEmpty);
+        expect(item.excerpt, isNotEmpty);
+      }
+    } finally {
+      // 恢复默认，避免污染共享库
+      await repo.setCompanionPrefs(enabled: true, intervalDays: 7);
+    }
+  });
+
   test('daily token usage returns aggregated list', () async {
     final daily = await repo.getDailyTokenUsage(7);
 
@@ -71,6 +167,26 @@ void main() {
       expect(day.totalTokens, greaterThanOrEqualTo(0));
       expect(day.callCount, greaterThanOrEqualTo(0));
     }
+  });
+
+  test('用户模型面板（D2）：读面结构 + 建页前置校验', () async {
+    // 读面：不假设库非空，只验证接口可用与结构正确（模型面板直接消费）。
+    final listed = await repo.listRelations();
+    for (final r in listed) {
+      expect(r.fromSlug, isNotEmpty);
+      expect(r.toSlug, isNotEmpty);
+      expect(r.relation, isNotEmpty);
+      expect(r.confidence, inExclusiveRange(0, 6));
+    }
+    // add_relation 的前置校验：页面不存在时明确报错（不静默挂空引用）。
+    await expectLater(
+      repo.addRelation(
+        fromSlug: '__no_such_person__',
+        toSlug: '__no_such_topic__',
+        relation: '参与',
+      ),
+      throwsA(anything),
+    );
   });
 
   test('theme prefs 读写 roundtrip（含正文字号）', () async {
@@ -131,6 +247,33 @@ void main() {
     // 清除覆盖不影响全局层
     expect(cleared.font, 'system');
     expect(cleared.fontSize, 16);
+  });
+
+  test(
+    'listEventEmotions returns empty (not error) on empty library',
+    () async {
+      // D5 桥面：情绪标注派生面空库空列表、不报错。
+      final items = await repo.listEventEmotions();
+      expect(items, isEmpty);
+    },
+  );
+
+  test(
+    'deleteEventEmotion on missing id surfaces an error (fail-closed)',
+    () async {
+      try {
+        await repo.deleteEventEmotion(id: 'nonexistent', feeling: '被理解');
+        fail('expected error');
+      } catch (_) {
+        // ensure 抛错即正确消息（面板会以 SnackBar 呈现）。
+      }
+    },
+  );
+
+  test('listPageGuidance returns empty (not error) on unknown slug', () async {
+    // D4 聚合视图桥面：未知 slug 空结果、不抛错——空库不劣化契约。
+    final items = await repo.listPageGuidance('person/nonexistent-slug');
+    expect(items, isEmpty);
   });
 
   test('analysis job stats expose durable queue statuses', () async {

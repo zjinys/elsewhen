@@ -8,7 +8,7 @@ void main() {
       'Failed to send request to AI provider\n'
       '\n'
       'Caused by:\n'
-      '    0: error sending request for url (https://api.fengwind.com/v1/chat/completions)\n'
+      '    0: error sending request for url (https://api.example.com/v1/chat/completions)\n'
       '    1: client error (Connect)\n'
       '    2: Connection timed out (os error 110)',
     );

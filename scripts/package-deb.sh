@@ -27,6 +27,7 @@ Version: $version
 Section: utils
 Priority: optional
 Architecture: amd64
+Depends: libsecret-1-0
 Maintainer: Elsewhen contributors
 Description: Local-first personal event recorder with global hotkey capture
 EOF

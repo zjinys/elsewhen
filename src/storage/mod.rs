@@ -1,4 +1,11 @@
 mod adapter;
+pub(crate) mod approvals;
+pub(crate) mod chat_page_tasks;
+pub(crate) mod chat_queue;
+pub(crate) mod chat_runs;
+pub(crate) mod chat_summaries;
+pub(crate) mod chat_supplements;
+pub(crate) mod companion;
 mod conversations;
 mod digest;
 mod entities;
@@ -7,12 +14,21 @@ mod goals;
 pub(crate) mod knowledge;
 mod new_migrations;
 mod provider;
+mod provider_keys;
 mod records;
+mod review;
+pub(crate) mod rule_triggers;
+pub(crate) mod sync;
+mod web_search;
 mod wiki;
+pub(crate) mod wiki_images;
+
+// 唯一跨模块复用的 review 行投影（R4 报告读面 DTO 组装用）。
+pub(crate) use review::DeviationReportRow;
 
 use crate::event::{EventSummary, NewEvent};
 use anyhow::{Context, Result};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -22,15 +38,45 @@ use std::sync::{Mutex, OnceLock};
 // a database path performs migrations/backfills/checkpointing.
 static INITIALIZED_DATABASES: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
+/// 后台 worker 路径的写冲突重试：`SQLITE_BUSY` 时短暂退避，其余错误直接上抛。
+/// 仅用于「失败可安全重试、下个 tick 也会重来」的幂等写操作（队列回收/领取）；
+/// 前台用户操作不要用——长等待应由 busy_timeout 与明确报错呈现。
+pub(crate) fn with_busy_retry<T>(mut op: impl FnMut() -> Result<T>) -> Result<T> {
+    const BACKOFF_MS: [u64; 2] = [150, 400];
+    for (attempt, backoff) in BACKOFF_MS.iter().enumerate() {
+        match op() {
+            Err(error) if is_busy_error(&error) => {
+                std::thread::sleep(std::time::Duration::from_millis(*backoff));
+                if attempt + 1 == BACKOFF_MS.len() {
+                    return Err(error);
+                }
+            }
+            result => return result,
+        }
+    }
+    op()
+}
+
+fn is_busy_error(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        matches!(
+            cause.downcast_ref::<rusqlite::Error>(),
+            Some(rusqlite::Error::SqliteFailure(ffi, _))
+                if ffi.code == rusqlite::ErrorCode::DatabaseBusy
+        )
+    })
+}
+
 pub use adapter::{
     AiProviderConfig, AiProviderConfigRow, AnalysisJob, AnalysisSummary, StorageAdapter,
 };
 pub use digest::{
-    DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
     DIGEST_FAILED_COOLDOWN_SECS, DIGEST_MAX_ATTEMPTS, DIGEST_SETTLE_SECS, DIGEST_VERSION,
+    DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
 };
 pub use goals::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
 pub use knowledge::{KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, SourceSnapshot};
+pub use web_search::{DohMode, NetworkSettings, WebSearchConfig};
 
 // Conversation and Message summary structs
 #[derive(Debug, Clone)]
@@ -120,6 +166,10 @@ pub struct RuleSummary {
     pub content: String,
     pub status: RuleStatus,
     pub created_at: String,
+    /// 触发场景（capture/conversation/daily_review；None = 全场景，不预筛时无意义）
+    pub trigger_scene: Option<String>,
+    /// 触发关键词 JSON 数组字符串（None = 不参与事件预筛）
+    pub trigger_keywords: Option<String>,
 }
 
 /// 待办状态
@@ -221,6 +271,54 @@ pub struct InsightSummary {
     pub action: Option<String>,
     pub status: String,
 }
+
+/// wiki_pages 的列表元数据视图：刻意**不含 content_md**。
+/// 左侧栏/列表场景只需要元数据——全量正文随 FFI 传输 + 每页图片引用解析
+/// （WikiPageDto::serve 的 N+1）是页数增长后的首要成本。明细一律按 slug
+/// 经 wiki_pageProvider 单页读取。
+#[derive(Debug, Clone)]
+pub struct WikiPageMeta {
+    pub id: String,
+    pub slug: String,
+    pub kind: String,
+    pub title: String,
+    pub summary: String,
+    pub tags: Vec<String>,
+    pub evidence_count: i64,
+    pub first_seen_at: String,
+    pub last_seen_at: String,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub source_url: Option<String>,
+    pub area: String,
+}
+
+pub(crate) fn map_wiki_page_meta(row: &rusqlite::Row) -> rusqlite::Result<WikiPageMeta> {
+    let tags_raw: String = row.get(5)?;
+    Ok(WikiPageMeta {
+        id: row.get(0)?,
+        slug: row.get(1)?,
+        kind: row.get(2)?,
+        title: row.get(3)?,
+        summary: row.get(4)?,
+        tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
+        evidence_count: row.get(6)?,
+        first_seen_at: row.get(7)?,
+        last_seen_at: row.get(8)?,
+        status: row.get(9)?,
+        created_at: row.get(10)?,
+        updated_at: row.get(11)?,
+        source_url: row.get(12)?,
+        area: row.get(13)?,
+    })
+}
+
+/// wiki_pages 行 → WikiPageMeta 的公共列清单（无 content_md）。
+/// 顺序必须与 `map_wiki_page_meta` 的按位取值（0..=13）严格一致。
+pub(crate) const WIKI_PAGE_META_COLS: &str = "id, slug, kind, title, summary, tags, \
+     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at, source_url, \
+     COALESCE(area, 'insight')";
 
 /// wiki 页面（LLM wiki 知识库的一页，markdown 正文，derived data）
 #[derive(Debug, Clone)]
@@ -419,6 +517,37 @@ pub struct EventAnalysisDetail {
     pub analysis_created_at: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct PageGuidanceItem {
+    pub analysis_id: String,
+    pub event_id: String,
+    pub recorded_at: String,
+    pub note: Option<String>,
+    pub lessons: Vec<String>,
+    pub follow_ups_refined: Vec<String>,
+    /// 本机采纳反馈（guidance_feedback 表注入；None = 未反馈）。
+    pub feedback: Option<String>,
+}
+
+/// 情绪标注面（D5）：从 event_analyses.result_json 的 `$.emotion` 派生。
+/// D0 原定的 `event_emotions` 独立表不建——result_json 本身就是分析产物真源
+/// 且随快照同步，独立转写表会引入跨设备删除不一致；编辑情绪 = 编辑
+/// result_json 里的 emotion 字段，事件真源（events 表）不动。
+pub struct EventEmotionItem {
+    /// 所属分析结果 id（删除定位键）。
+    pub analysis_id: String,
+    pub event_id: String,
+    pub recorded_at: String,
+    /// None = 对事件本身的感受（D0 语义）。
+    pub target: Option<String>,
+    pub feeling: String,
+}
+
+/// 宽容解析 JSON 字符串数组：坏类型/坏 JSON 一律空数组（派生层不因展示瑕疵报错）。
+pub(crate) fn parse_json_string_array(raw: &str) -> Vec<String> {
+    serde_json::from_str::<Vec<String>>(raw).unwrap_or_default()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventRecordabilityDecision {
     pub event_id: String,
@@ -473,29 +602,58 @@ pub(crate) fn map_wiki_page(row: &rusqlite::Row) -> rusqlite::Result<WikiPage> {
 
 /// wiki_pages 行 → WikiPage 的公共列清单。
 /// 顺序必须与 `map_wiki_page` 的按位取值（0..=19）严格一致。
-pub(crate) const WIKI_PAGE_COLS: &str =
-    "id, slug, kind, title, summary, content_md, tags, source_event_ids, \
+pub(crate) const WIKI_PAGE_COLS: &str = "id, slug, kind, title, summary, content_md, tags, source_event_ids, \
      evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at, source_url, \
      COALESCE(area, 'insight'), based_on, content_type, human_edited_at, opinion";
+
+#[derive(Clone)]
+pub(crate) struct ConversationSnapshot {
+    pub conversation_id: String,
+    pub input_message_id: String,
+    pub messages: std::sync::Arc<[MessageSummary]>,
+}
 
 pub struct Store {
     // pub(crate) 而非私有：storage.rs 拆出的子模块（migrations / provider / …）
     // 在同一 crate 的 `impl Store` 块里需要直接访问连接与路径。
     pub(crate) connection: Connection,
     pub(crate) path: std::path::PathBuf,
+    pub(crate) provider_master: Option<[u8; 32]>,
+    pub(crate) conversation_snapshot: Option<ConversationSnapshot>,
+    pub(crate) chat_run_identity: Option<crate::ai::generation::RunIdentity>,
+    pub(crate) captured_page_task: std::cell::RefCell<Option<(String, chat_page_tasks::PageTask)>>,
 }
 
 impl Clone for Store {
     fn clone(&self) -> Self {
-        Self::open(&self.path).expect("reopen database")
+        let mut store = Self::open(&self.path).expect("reopen database");
+        store.provider_master = self.provider_master;
+        store.conversation_snapshot = self.conversation_snapshot.clone();
+        store.chat_run_identity = self.chat_run_identity.clone();
+        store.captured_page_task = self.captured_page_task.clone();
+        store
     }
 }
 
 impl Store {
+    /// Local compound writes may join a caller-owned transaction. The caller
+    /// must propagate errors and own rollback/commit for the entire operation.
+    pub(crate) fn begin_write_transaction(&self) -> Result<Option<rusqlite::Transaction<'_>>> {
+        if self.connection.is_autocommit() {
+            Ok(Some(rusqlite::Transaction::new_unchecked(
+                &self.connection,
+                rusqlite::TransactionBehavior::Immediate,
+            )?))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub fn open(path: &Path) -> Result<Self> {
         let mut connection = Connection::open(path)
             .with_context(|| format!("open SQLite database {}", path.display()))?;
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
+        connection.pragma_update(None, "foreign_keys", true)?;
         let initialized = INITIALIZED_DATABASES
             .get_or_init(|| Mutex::new(HashSet::new()))
             .lock()
@@ -506,24 +664,44 @@ impl Store {
             new_migrations::initialize(&mut connection)?;
             knowledge::backfill_sources_once(&connection)?;
             #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
-            }
+            crate::config::set_unix_permissions(path, 0o600)?;
         }
         let store = Self {
             connection,
             path: path.to_path_buf(),
+            provider_master: None,
+            conversation_snapshot: None,
+            chat_run_identity: None,
+            captured_page_task: Default::default(),
         };
         if first_open {
             // 启动期一次性完成存量回填和 WAL 收敛；普通 API 打开连接不再写库。
             store.backfill_project_source_urls()?;
+            store.backfill_wiki_image_placeholders()?;
             crate::knowledge::dependencies::backfill_epochs(&store)?;
             let _ = store
                 .connection
                 .execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
         }
         Ok(store)
+    }
+
+    /// 后台 worker 路径专用打开方式：不做迁移/回填/checkpoint 等启动写入。
+    /// 库版本落后于代码预期（init 尚未跑完或库待升级）时返回 `Ok(None)`，
+    /// 调用方按「本轮无事可做」处理；绝不能由后台补跑启动写入。
+    pub fn open_background(path: &Path) -> Result<Option<Self>> {
+        let expected = new_migrations::latest_version()?;
+        let current: i64 = {
+            let conn = Connection::open(path)
+                .with_context(|| format!("open SQLite database {}", path.display()))?;
+            conn.query_row("PRAGMA main.user_version", [], |row| row.get(0))?
+        };
+        if current < expected {
+            return Ok(None);
+        }
+        // 版本已就绪：标记为已初始化，让 open 走快路径（不写库）。
+        Self::mark_initialized(path)?;
+        Self::open(path).map(Some)
     }
 
     /// Mark a database as initialized after the bridge startup sequence.
@@ -662,14 +840,5 @@ impl StorageAdapter for Store {
     }
 }
 
-impl Drop for Store {
-    fn drop(&mut self) {
-        // 关闭时再 checkpoint 一次：进程退出前把未合并的 WAL 页写回主库，
-        // 让 -wal 文件保持接近空的状态（P2-8）。
-        let _ = self
-            .connection
-            .execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
-    }
-}
 #[cfg(test)]
 mod tests;

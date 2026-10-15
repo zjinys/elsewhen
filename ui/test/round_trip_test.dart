@@ -27,7 +27,7 @@ const _gates = <String, Gate>{
   'real-kb-qian': Gate.spaced, // 标题接段落空行归一
   'real-kb-shipin': Gate.spaced,
   'real-note': Gate.spaced,
-  'real-person-liu': Gate.spaced, // 尾随空格(hard break)归一
+  'real-person-zhang': Gate.spaced, // 尾随空格(hard break)归一
   'real-tw-long-0ol': Gate.spaced, // 「0. 编号」保持；空行/尾随空格归一
   'real-tw-long-2': Gate.spaced,
   'real-tw-star': Gate.spaced,

@@ -1,0 +1,1140 @@
+//! Local synchronization setup, protected-key handshake and owner invitations.
+//! Invitations require an unlocked owner and explicit Provider-key disclosure;
+//! ordinary synchronization is not started by these pairing-only operations.
+
+use crate::{
+    api::provider_reachability::{ReachabilityHint, assess_base_url},
+    config::AppConfig,
+    storage::{
+        Store,
+        sync::{
+            page_conflicts::WikiPageConflictReview, provider_conflicts::ProviderConflictResolution,
+        },
+    },
+    sync::runtime,
+};
+use anyhow::{Context, Result, ensure};
+use rusqlite::OptionalExtension;
+use std::path::Path;
+
+#[derive(Clone, Debug)]
+pub struct LocalSyncStateDto {
+    pub state: String,
+    pub installation_id: Option<String>,
+    pub vault_revision: i64,
+    pub dataset_id: Option<String>,
+    pub device_id: Option<String>,
+    pub device_name: Option<String>,
+    pub is_owner: bool,
+    pub is_processor: bool,
+    pub active_peers: i64,
+    pub pending_operations: i64,
+    /// 当前生效的 relay 地址（本机已解锁并持有 peer route 时才有；锁定/未配置为 None）。
+    pub relay_url: Option<String>,
+}
+#[derive(Clone, Debug)]
+pub struct SyncKeyRequestDto {
+    pub token: String,
+    pub installation_id: String,
+    pub revision: i64,
+    pub creating: bool,
+}
+#[derive(Clone, Debug)]
+pub struct SyncKeyCommitDto {
+    pub token: String,
+    pub installation_id: String,
+    pub revision: i64,
+}
+
+/// Secret-bearing result for the explicit invitation copy UI, not a settings DTO.
+#[derive(Clone)]
+pub struct SyncInvitationOfferDto {
+    pub invitation_id: String,
+    pub code: String,
+    pub expires_at_ms: i64,
+}
+
+#[derive(Clone, Debug)]
+pub struct SyncInvitationPreviewDto {
+    pub invitation_id: String,
+    pub token: String,
+    pub device_name: String,
+    pub device_platform: String,
+    pub fingerprint: String,
+    pub expires_at_ms: i64,
+}
+
+/// 加工移交状态查询（独立 DTO，不影响 LocalSyncStateDto）。
+#[derive(Clone, Debug)]
+pub struct ProcessorHandoffStateDto {
+    pub state: String, // idle | relinquished | pending_takeover | active
+    pub from_device_id: Option<String>,
+    pub to_device_id: Option<String>,
+    pub final_sequence: Option<i64>,
+    pub can_confirm: bool,
+}
+
+/// 加工移交证明（旧端签名，供 owner 签发新名册）。
+#[derive(Clone, Debug)]
+pub struct ProcessingYieldProofDto {
+    pub dataset_id: String,
+    pub from_device_id: String,
+    pub to_device_id: String,
+    pub roster_revision: i64,
+    pub final_sequence: i64,
+    pub signature: Vec<u8>,
+}
+
+pub fn create_owner_sync_invitation(
+    relay_url: String,
+    acknowledge_provider_key_sharing: bool,
+) -> Result<SyncInvitationOfferDto> {
+    let offer = runtime::invitations::issue(
+        &AppConfig::load()?,
+        &relay_url,
+        acknowledge_provider_key_sharing,
+    )?;
+    Ok(SyncInvitationOfferDto {
+        invitation_id: offer.invitation_id,
+        code: offer.code,
+        expires_at_ms: offer.expires_at_ms,
+    })
+}
+
+pub fn inspect_owner_sync_invitation(
+    invitation_id: String,
+) -> Result<Option<SyncInvitationPreviewDto>> {
+    Ok(
+        runtime::invitations::poll(&AppConfig::load()?, &invitation_id)?.map(|preview| {
+            SyncInvitationPreviewDto {
+                invitation_id: preview.invitation_id,
+                token: preview.token,
+                fingerprint: preview.device.fingerprint(),
+                device_name: preview.device.name,
+                device_platform: preview.device.platform,
+                expires_at_ms: preview.expires_at_ms,
+            }
+        }),
+    )
+}
+
+/// Bind approval to the original displayed request. Saving the returned revision
+/// in native storage and confirm_sync_key must precede send_owner_sync_approval.
+pub fn approve_owner_sync_invitation(
+    invitation_id: String,
+    preview_token: String,
+    acknowledge_provider_key_sharing: bool,
+) -> Result<SyncKeyCommitDto> {
+    let approved = runtime::invitations::approve(
+        &AppConfig::load()?,
+        &invitation_id,
+        &preview_token,
+        acknowledge_provider_key_sharing,
+    )?;
+    Ok(SyncKeyCommitDto {
+        token: approved.key.token,
+        installation_id: approved.key.installation_id,
+        revision: approved.key.revision,
+    })
+}
+
+pub fn cancel_owner_sync_invitation(invitation_id: String) -> Result<()> {
+    runtime::invitations::cancel(&AppConfig::load()?, &invitation_id)
+}
+
+/// Relay acceptance is not an installed member or completed synchronization.
+pub fn send_owner_sync_approval(invitation_id: String) -> Result<()> {
+    runtime::invitations::send_approval(&AppConfig::load()?, &invitation_id)
+}
+
+pub fn get_local_sync_state() -> Result<LocalSyncStateDto> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let vault: Option<(String, i64)> = store
+        .connection
+        .query_row(
+            "SELECT installation_id,revision FROM sync_local_vault WHERE singleton=1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let identity = store.sync_identity()?;
+    let authority = store.has_sync_authority()?;
+    let roster = if authority {
+        store.current_signed_roster()?
+    } else {
+        None
+    };
+    let active = authority && store.local_sync_membership_active()?;
+    let state = if !authority {
+        if vault.is_some() || identity.is_some() {
+            "requires_repair"
+        } else {
+            "not_configured"
+        }
+    } else if !active {
+        "membership_inactive"
+    } else if runtime::unlocked(&config, vault.as_ref().map(|v| v.1).unwrap_or(0)) {
+        "local_ready"
+    } else {
+        "locked"
+    };
+    let device_name = identity.as_ref().and_then(|id| {
+        roster.as_ref().and_then(|r| {
+            r.roster
+                .members
+                .iter()
+                .find(|m| m.device.device_id == id.device_id)
+                .map(|m| m.device.name.clone())
+        })
+    });
+    let is_owner = identity.as_ref().is_some_and(|id| {
+        roster
+            .as_ref()
+            .is_some_and(|r| r.roster.owner.device_id == id.device_id)
+    });
+    let is_processor = identity
+        .as_ref()
+        .is_some_and(|id| id.processor_device_id == id.device_id);
+    let active_peers = if let Some(id) = identity.as_ref() {
+        store.connection.query_row(
+            "SELECT COUNT(DISTINCT device_id) FROM sync_members WHERE active=1 AND device_id!=?1",
+            [&id.device_id],
+            |r| r.get(0),
+        )?
+    } else {
+        0
+    };
+    let pending_operations = store.connection.query_row(
+        "SELECT COUNT(*) FROM sync_outbox WHERE acknowledged=0",
+        [],
+        |r| r.get(0),
+    )?;
+    // relay 读面（设置页展示用）：本机已解锁才有 master 可解密 vault。
+    // 锁定/加入中/未配置都是 None，UI 显示「不可见」而不是猜一个值。
+    let relay_url = match (vault.as_ref(), identity.as_ref()) {
+        (Some((installation, revision)), Some(identity)) => {
+            runtime::session_master(&config, *revision).and_then(|master| {
+                store
+                    .load_sync_vault(installation, &master, *revision)
+                    .ok()
+                    .and_then(|vault| vault.relay_url(&identity.dataset_id))
+            })
+        }
+        _ => None,
+    };
+    Ok(LocalSyncStateDto {
+        state: state.into(),
+        installation_id: vault.as_ref().map(|v| v.0.clone()),
+        vault_revision: vault.map(|v| v.1).unwrap_or(0),
+        dataset_id: identity.as_ref().map(|i| i.dataset_id.clone()),
+        device_id: identity.map(|i| i.device_id),
+        device_name,
+        is_owner,
+        is_processor,
+        active_peers,
+        pending_operations,
+        relay_url,
+    })
+}
+
+/// UI creation requires an explicit disclosure that pairing shares Provider keys.
+/// Unlocking an existing installation does not repeat or change that authorization.
+pub fn prepare_sync_key_request(
+    name: Option<String>,
+    platform: Option<String>,
+    acknowledge_provider_key_sharing: bool,
+) -> Result<SyncKeyRequestDto> {
+    let config = AppConfig::load()?;
+    let state = get_local_sync_state()?;
+    if state.state == "not_configured" {
+        ensure!(
+            acknowledge_provider_key_sharing,
+            "sync_provider_key_consent_required"
+        );
+    }
+    let request = runtime::prepare_key(&config, name.as_deref(), platform.as_deref())?;
+    Ok(SyncKeyRequestDto {
+        token: request.token,
+        installation_id: request.installation_id,
+        revision: request.revision,
+        creating: request.creating,
+    })
+}
+
+/// Secret-bearing input, never returned in a settings DTO or diagnostic string.
+pub fn install_sync_key(
+    token: String,
+    key: Vec<u8>,
+    protected_revision: i64,
+) -> Result<SyncKeyCommitDto> {
+    let commit = runtime::install_key(&AppConfig::load()?, &token, key, protected_revision)?;
+    Ok(SyncKeyCommitDto {
+        token: commit.token,
+        installation_id: commit.installation_id,
+        revision: commit.revision,
+    })
+}
+
+pub fn confirm_sync_key(token: String, protected_revision: i64) -> Result<LocalSyncStateDto> {
+    runtime::confirm_key(&AppConfig::load()?, &token, protected_revision)?;
+    get_local_sync_state()
+}
+
+pub fn release_sync_key_request(token: String) -> Result<bool> {
+    Ok(runtime::release_request(&AppConfig::load()?, &token))
+}
+
+pub fn lock_local_sync() -> Result<LocalSyncStateDto> {
+    let config = AppConfig::load().context("sync_workspace_unavailable")?;
+    runtime::lock(&config);
+    get_local_sync_state()
+}
+
+/// Read-only join progress. The operation and confirmation tokens have distinct
+/// scopes; no arbitrary staging path, Noise frame or transport key crosses FRB.
+#[derive(Clone, Debug)]
+pub struct SyncJoinStateDto {
+    pub operation_id: String,
+    pub token: String,
+    pub entry_id: Option<String>,
+    pub installation_id: Option<String>,
+    pub dataset_id: String,
+    pub owner_name: String,
+    pub owner_fingerprint: String,
+    pub local_fingerprint: Option<String>,
+    pub relay_url: String,
+    pub expires_at_ms: i64,
+    pub phase: String,
+    pub revision: i64,
+    pub creating: bool,
+    pub approval_ack_pending: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct SyncJoinEntryDto {
+    pub entry_id: String,
+    pub installation_id: String,
+    pub dataset_id: String,
+    pub name: String,
+}
+
+fn join_dto(state: runtime::joining::JoinView) -> SyncJoinStateDto {
+    SyncJoinStateDto {
+        operation_id: state.operation_id,
+        token: state.token,
+        entry_id: state.entry_id,
+        installation_id: state.installation_id,
+        dataset_id: state.dataset_id,
+        owner_name: state.owner_name,
+        owner_fingerprint: state.owner_fingerprint,
+        local_fingerprint: state.local_fingerprint,
+        relay_url: state.relay_url,
+        expires_at_ms: state.expires_at_ms,
+        phase: state.phase,
+        revision: state.revision,
+        creating: state.creating,
+        approval_ack_pending: state.approval_ack_pending,
+    }
+}
+
+/// Parses and binds an invitation preview without contacting its relay.
+pub fn preview_sync_join(invitation_code: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::preview(
+        &AppConfig::load()?,
+        &invitation_code,
+    )?))
+}
+
+pub fn prepare_sync_join_key(
+    preview_token: String,
+    name: String,
+    platform: String,
+    acknowledge_provider_key_sharing: bool,
+) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::prepare_key(
+        &AppConfig::load()?,
+        &preview_token,
+        &name,
+        &platform,
+        acknowledge_provider_key_sharing,
+    )?))
+}
+
+pub fn list_pending_sync_joins() -> Result<Vec<SyncJoinEntryDto>> {
+    Ok(runtime::joining::pending_entries(&AppConfig::load()?)?
+        .into_iter()
+        .map(|entry| SyncJoinEntryDto {
+            entry_id: entry.id,
+            installation_id: entry.installation_id,
+            dataset_id: entry.dataset_id,
+            name: entry.name,
+        })
+        .collect())
+}
+
+pub fn prepare_sync_join_resume(entry_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::prepare_resume(
+        &AppConfig::load()?,
+        &entry_id,
+    )?))
+}
+
+/// 删除一个未完成的加入暂存项（仅 staging；ready 数据集永不受理）。
+/// 对应的本机密钥由 Dart 侧 SyncKeyStore 在同一动作里删除。
+pub fn discard_sync_join_staging(entry_id: String) -> Result<()> {
+    crate::sync::protocol::validate_id(&entry_id)?;
+    crate::sync::datasets::DatasetCatalog::open(&AppConfig::load()?.data_dir)?
+        .discard_staging(&entry_id)
+}
+
+pub fn install_sync_join_key(
+    token: String,
+    key: Vec<u8>,
+    protected_revision: i64,
+) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::install_key(
+        &AppConfig::load()?,
+        &token,
+        key,
+        protected_revision,
+    )?))
+}
+
+pub fn confirm_sync_join_key(token: String, protected_revision: i64) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::confirm_key(
+        &AppConfig::load()?,
+        &token,
+        protected_revision,
+    )?))
+}
+
+pub fn get_sync_join_state(operation_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::state(
+        &AppConfig::load()?,
+        &operation_id,
+    )?))
+}
+
+pub fn send_sync_join_request(operation_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::send_request(
+        &AppConfig::load()?,
+        &operation_id,
+    )?))
+}
+
+pub fn inspect_sync_join_approval(operation_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::poll(
+        &AppConfig::load()?,
+        &operation_id,
+    )?))
+}
+
+pub fn send_sync_join_proof(operation_id: String) -> Result<SyncJoinStateDto> {
+    Ok(join_dto(runtime::joining::send_proof(
+        &AppConfig::load()?,
+        &operation_id,
+    )?))
+}
+
+/// Stops this local operation only; it neither recalls a delivered proof nor
+/// deletes the staged database/native key, and it cannot release a newer session.
+pub fn release_sync_join(operation_id: String) -> Result<bool> {
+    Ok(runtime::joining::release(
+        &AppConfig::load()?,
+        &operation_id,
+    ))
+}
+
+/// Enrollment progress never selects the staged database or claims ongoing sync.
+#[derive(Clone, Debug)]
+pub struct SyncEnrollmentStateDto {
+    pub role: String,
+    pub operation_id: String,
+    pub invitation_id: String,
+    pub installation_id: String,
+    pub revision: i64,
+    pub confirmation_token: Option<String>,
+    pub phase: String,
+    pub snapshot_id: Option<String>,
+    pub received_chunks: i64,
+    pub total_chunks: i64,
+    pub local_applied: bool,
+    pub remote_applied: bool,
+    pub notification_pending: bool,
+}
+
+fn enrollment_dto(state: runtime::enrollment::EnrollmentView) -> SyncEnrollmentStateDto {
+    SyncEnrollmentStateDto {
+        role: state.role,
+        operation_id: state.operation_id,
+        invitation_id: state.invitation_id,
+        installation_id: state.installation_id,
+        revision: state.revision,
+        confirmation_token: state.confirmation_token,
+        phase: state.phase,
+        snapshot_id: state.snapshot_id,
+        received_chunks: state.received_chunks,
+        total_chunks: state.total_chunks,
+        local_applied: state.local_applied,
+        remote_applied: state.remote_applied,
+        notification_pending: state.notification_pending,
+    }
+}
+
+pub fn list_sync_enrollments() -> Result<Vec<SyncEnrollmentStateDto>> {
+    Ok(runtime::enrollment::list(&AppConfig::load()?)?
+        .into_iter()
+        .map(enrollment_dto)
+        .collect())
+}
+
+pub fn advance_sync_enrollment(
+    role: String,
+    operation_id: String,
+    invitation_id: String,
+) -> Result<SyncEnrollmentStateDto> {
+    Ok(enrollment_dto(runtime::enrollment::advance(
+        &AppConfig::load()?,
+        &role,
+        &operation_id,
+        &invitation_id,
+    )?))
+}
+
+pub fn confirm_sync_enrollment(
+    role: String,
+    operation_id: String,
+    invitation_id: String,
+    token: String,
+    protected_revision: i64,
+) -> Result<SyncEnrollmentStateDto> {
+    Ok(enrollment_dto(runtime::enrollment::confirm(
+        &AppConfig::load()?,
+        &role,
+        &operation_id,
+        &invitation_id,
+        &token,
+        protected_revision,
+    )?))
+}
+
+/// What one bounded incremental sync tick actually did. All counters are
+/// best-effort progress signals; receipt confirmation arrives in later ticks.
+#[derive(Clone, Debug)]
+pub struct SyncTickResultDto {
+    /// false when a tick must not run now (locked, another worker busy, a
+    /// snapshot import still staging, sync not initialized). Not an error.
+    pub ran: bool,
+    pub staged_operations: i64,
+    pub uploaded: i64,
+    pub pulled_accepted: i64,
+    pub pulled_waiting: i64,
+    pub pulled_rejected: i64,
+    /// Rejected because the sender runs a protocol version we cannot decode.
+    /// Deployment mismatch, not content corruption; upgrades heal it.
+    pub pulled_version_mismatch: i64,
+    /// True when this tick re-sent the current signed roster to a stale
+    /// member (P4e convergence signal; diagnostic only).
+    pub roster_converged: bool,
+    pub acknowledgement_failed: bool,
+    /// Devices waiting for a re-snapshot (fell too far behind); GC stays
+    /// frozen for them until the transfer completes.
+    pub resnapshot_pending: Vec<String>,
+}
+
+/// Runs one bounded push/pull cycle against every active peer. Callers are the
+/// app background worker only; there is no manual "sync now" business trigger.
+/// A failure here never affects local capture, which is purely local.
+pub fn trigger_network_sync() -> Result<SyncTickResultDto> {
+    let config = AppConfig::load()?;
+    match runtime::network::tick(&config)? {
+        Some(report) => Ok(SyncTickResultDto {
+            ran: true,
+            staged_operations: report.staged_operations as i64,
+            uploaded: report.uploaded as i64,
+            pulled_accepted: report.pulled_accepted as i64,
+            pulled_waiting: report.pulled_waiting as i64,
+            pulled_rejected: report.pulled_rejected as i64,
+            pulled_version_mismatch: report.pulled_version_mismatch as i64,
+            roster_converged: report.roster_converged,
+            acknowledgement_failed: report.acknowledgement_failed,
+            resnapshot_pending: report.resnapshot_pending.clone(),
+        }),
+        None => Ok(SyncTickResultDto {
+            ran: false,
+            staged_operations: 0,
+            uploaded: 0,
+            pulled_accepted: 0,
+            pulled_waiting: 0,
+            pulled_rejected: 0,
+            pulled_version_mismatch: 0,
+            roster_converged: false,
+            acknowledgement_failed: false,
+            resnapshot_pending: Vec::new(),
+        }),
+    }
+}
+
+/// One row of the installation-local dataset catalog.
+#[derive(Clone, Debug)]
+pub struct SyncDatasetEntryDto {
+    pub entry_id: String,
+    pub dataset_id: String,
+    pub installation_id: String,
+    pub name: String,
+    pub ready: bool,
+    pub selected: bool,
+}
+
+/// Read-only catalog for the selection UI. Secret-bearing material is never
+/// part of a dataset entry; repair of a lost identity goes through the
+/// ordinary P2 restore/join flows against the chosen dataset.
+pub fn list_sync_datasets() -> Result<(Vec<SyncDatasetEntryDto>, i64)> {
+    let config = AppConfig::load()?;
+    let catalog = crate::sync::datasets::DatasetCatalog::open(&config.data_dir)?;
+    let selected_id = catalog.selected_id()?;
+    let revision = catalog.revision()?;
+    let entries = catalog
+        .list()?
+        .into_iter()
+        .map(|entry| SyncDatasetEntryDto {
+            selected: selected_id.as_deref() == Some(entry.id.as_str()),
+            entry_id: entry.id,
+            dataset_id: entry.dataset_id,
+            installation_id: entry.installation_id,
+            name: entry.name,
+            ready: entry.ready,
+        })
+        .collect();
+    Ok((entries, revision))
+}
+
+/// Commits the user's selection of an existing catalog entry. The selection
+/// must be the exact preview the UI displayed: a concurrent repair, staging
+/// change or vault re-confirmation invalidates it instead of being selected
+/// silently. Takes effect on the next process start; the pinned in-process
+/// database never moves and no open SQLite/WAL pair is renamed.
+pub fn select_sync_dataset(entry_id: String) -> Result<()> {
+    let config = AppConfig::load()?;
+    let catalog = crate::sync::datasets::DatasetCatalog::open(&config.data_dir)?;
+    let selection = catalog.prepare_selection(&entry_id)?;
+    // The committed selection needs the native-confirmed master of the exact
+    // vault revision the user saw; without a live confirmed session the user
+    // must unlock the runtime again instead of silently using stale material.
+    let master = runtime::session_master(&config, selection.vault_revision)
+        .context("sync_dataset_selection_requires_unlock")?;
+    catalog.select_import(&selection, &master, selection.vault_revision)
+}
+
+/// Returns to the legacy default database. Same revision contract as
+/// `select_sync_dataset`: the UI must commit the revision it displayed.
+pub fn select_default_sync_dataset(expected_catalog_revision: i64) -> Result<()> {
+    let config = AppConfig::load()?;
+    let catalog = crate::sync::datasets::DatasetCatalog::open(&config.data_dir)?;
+    catalog.select_default(expected_catalog_revision)
+}
+
+// ---------------------------------------------------------------------------
+// P4b: Provider sync conflict review. Keys are masked, choices are explicit
+// (keep local / accept remote whole-bundle), and both bindings must match the
+// revisions the user actually reviewed.
+
+#[derive(Clone, Debug)]
+pub struct ProviderConflictProfileDto {
+    pub id: String,
+    pub name: String,
+    pub provider_type: String,
+    pub base_url: String,
+    pub model: String,
+    pub api_key_masked: String,
+    pub api_key_present: bool,
+    pub enabled: bool,
+    pub is_active: bool,
+    pub temperature: f64,
+    pub max_tokens: Option<i64>,
+    pub context_window: Option<i64>,
+    pub reachability_hints: Vec<ReachabilityHint>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ProviderSyncConflictDto {
+    pub revision_id: String,
+    pub base_revision: Option<String>,
+    pub sender_device_id: String,
+    pub sender_device_name: Option<String>,
+    pub local_revision: String,
+    pub remote_profiles: Vec<ProviderConflictProfileDto>,
+    pub remote_active_id: Option<String>,
+    pub remote_failover_order: Vec<String>,
+    pub local_profiles: Vec<ProviderConflictProfileDto>,
+    pub local_active_id: Option<String>,
+}
+
+fn conflict_profile_dto(
+    p: crate::storage::sync::provider_conflicts::ProviderConflictProfile,
+) -> ProviderConflictProfileDto {
+    ProviderConflictProfileDto {
+        reachability_hints: assess_base_url(&p.base_url),
+        id: p.id,
+        name: p.name,
+        provider_type: p.provider_type,
+        base_url: p.base_url,
+        model: p.model,
+        api_key_masked: p.api_key_masked,
+        api_key_present: p.api_key_present,
+        enabled: p.enabled,
+        is_active: p.is_active,
+        temperature: p.temperature,
+        max_tokens: p.max_tokens,
+        context_window: p.context_window,
+    }
+}
+
+/// 列出待审阅的 Provider 同步冲突；密钥已掩码，锁定状态失败关闭。
+/// UI 必须保存 local_revision / revision_id，裁决时原样回传。
+pub fn list_sync_provider_conflicts() -> Result<Vec<ProviderSyncConflictDto>> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let reviews = store.list_sync_provider_conflicts()?;
+    let roster = store.current_signed_roster()?;
+    Ok(reviews
+        .into_iter()
+        .map(|r| {
+            let sender_device_name = roster.as_ref().and_then(|roster| {
+                roster
+                    .roster
+                    .members
+                    .iter()
+                    .find(|m| m.device.device_id == r.sender_device_id)
+                    .map(|m| m.device.name.clone())
+            });
+            ProviderSyncConflictDto {
+                revision_id: r.revision_id,
+                base_revision: r.base_revision,
+                sender_device_id: r.sender_device_id.clone(),
+                sender_device_name,
+                local_revision: r.local_revision,
+                remote_profiles: r
+                    .remote_profiles
+                    .into_iter()
+                    .map(conflict_profile_dto)
+                    .collect(),
+                remote_active_id: r.remote_active_id,
+                remote_failover_order: r.remote_failover_order,
+                local_profiles: r
+                    .local_profiles
+                    .into_iter()
+                    .map(conflict_profile_dto)
+                    .collect(),
+                local_active_id: r.local_active_id,
+            }
+        })
+        .collect())
+}
+
+/// 显式裁决一条 Provider 同步冲突。
+/// `expected_local_revision` 与 `expected_remote_revision` 必须原样回传审阅时
+/// 展示的值；任一不匹配都失败关闭，避免竞态覆盖审阅后的新变更。
+/// `accept_remote` 为 false 时保留本地并把当前本地状态重新广播给对端。
+pub fn resolve_sync_provider_conflict(
+    revision_id: String,
+    expected_local_revision: String,
+    expected_remote_revision: String,
+    accept_remote: bool,
+) -> Result<()> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.resolve_sync_provider_conflict(
+        &revision_id,
+        &expected_local_revision,
+        &expected_remote_revision,
+        if accept_remote {
+            ProviderConflictResolution::AcceptRemote
+        } else {
+            ProviderConflictResolution::KeepLocal
+        },
+    )
+}
+
+/// 名册设备列表（只读公开信息：设备名/平台/角色，不含密钥）。
+#[derive(Clone, Debug)]
+pub struct SyncRosterMemberDto {
+    pub device_id: String,
+    pub name: String,
+    pub platform: String,
+    pub active: bool,
+    pub is_owner: bool,
+    pub is_processor: bool,
+    pub is_local: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct SyncRosterDto {
+    pub revision: i64,
+    pub dataset_id: String,
+    pub owner_device_id: String,
+    pub processor_device_id: String,
+    pub local_device_id: Option<String>,
+    pub members: Vec<SyncRosterMemberDto>,
+}
+
+/// 查询当前名册设备列表。非活跃（已撤销）成员也展示，供 owner 审计。
+pub fn get_sync_roster() -> Result<SyncRosterDto> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let identity = store.sync_identity()?;
+    let signed = store
+        .current_signed_roster()?
+        .context("sync_authority_not_ready")?;
+    let roster = &signed.roster;
+    Ok(SyncRosterDto {
+        revision: roster.revision as i64,
+        dataset_id: roster.dataset_id.clone(),
+        owner_device_id: roster.owner.device_id.clone(),
+        processor_device_id: roster.processor_device_id.clone(),
+        local_device_id: identity.as_ref().map(|i| i.device_id.clone()),
+        members: roster
+            .members
+            .iter()
+            .map(|m| SyncRosterMemberDto {
+                is_owner: m.device.device_id == roster.owner.device_id,
+                is_processor: m.device.device_id == roster.processor_device_id,
+                is_local: identity
+                    .as_ref()
+                    .is_some_and(|i| i.device_id == m.device.device_id),
+                active: m.active,
+                device_id: m.device.device_id.clone(),
+                name: m.device.name.clone(),
+                platform: m.device.platform.clone(),
+            })
+            .collect(),
+    })
+}
+
+/// 名册 owner 撤销成员设备（需本机已解锁）。修订号必须与 UI 审阅时所见一致；
+/// 撤销 owner/加工设备会被 sync_membership_handoff_required 硬拦。
+pub fn revoke_sync_member(device_id: String, expected_revision: i64) -> Result<()> {
+    ensure!(expected_revision > 0, "sync_membership_revision_invalid");
+    // 期望修订号恒为正，i64 上限无需再比（clippy::absurd_extreme_comparisons）。
+    let config = AppConfig::load()?;
+    runtime::handoff::revoke_member(
+        &config,
+        &device_id,
+        u64::try_from(expected_revision)
+            .map_err(|_| anyhow::anyhow!("sync_membership_revision_invalid"))?,
+    )
+}
+
+/// owner 改设备显示名（含本机）：vault + 签名 roster + 锚原子更新，
+/// 广播由 membership tick 接管。仅 owner 本机可调（签名权所在）。
+pub fn rename_sync_device(
+    device_id: String,
+    new_name: String,
+    expected_vault_revision: i64,
+) -> Result<i64> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let vault: (String, i64) = store
+        .connection
+        .query_row(
+            "SELECT installation_id,revision FROM sync_local_vault WHERE singleton=1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?
+        .context("sync_not_configured")?;
+    ensure!(
+        vault.1 == expected_vault_revision,
+        "sync_vault_revision_changed"
+    );
+    let master =
+        runtime::session_master(&config, vault.1).context("sync_rename_requires_unlock")?;
+    ensure!(
+        !new_name.trim().is_empty()
+            && new_name.len() <= 256
+            && !new_name.chars().any(char::is_control),
+        "pairing_device_name_invalid"
+    );
+    let revision =
+        store.rename_sync_vault_device(&vault.0, &master, vault.1, &device_id, &new_name)?;
+    i64::try_from(revision).map_err(|_| anyhow::anyhow!("sync_membership_revision_invalid"))
+}
+
+/// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。
+pub fn get_processor_handoff_state() -> Result<ProcessorHandoffStateDto> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let state = store.get_processor_handoff_state()?;
+    Ok(ProcessorHandoffStateDto {
+        state: state.state,
+        from_device_id: state.from_device_id,
+        to_device_id: state.to_device_id,
+        final_sequence: state.final_sequence,
+        can_confirm: state.can_confirm,
+    })
+}
+
+/// 旧加工端让出加工权：生成移交证明（需本机已解锁会话）。
+/// 后继修订号始终取当前名册的下一修订，调用方不可指定。
+pub fn yield_sync_processor(to_device_id: String) -> Result<ProcessingYieldProofDto> {
+    let config = AppConfig::load()?;
+    let proof = runtime::handoff::yield_processor(&config, &to_device_id)?;
+    Ok(ProcessingYieldProofDto {
+        dataset_id: proof.dataset_id,
+        from_device_id: proof.from_device_id,
+        to_device_id: proof.to_device_id,
+        roster_revision: proof.roster_revision as i64,
+        final_sequence: proof.final_sequence as i64,
+        signature: proof.signature,
+    })
+}
+
+/// 名册 owner 审批旧加工端的移交证明并签发后继名册（需 owner 本机已解锁）。
+pub fn approve_processor_handoff(proof: ProcessingYieldProofDto) -> Result<()> {
+    let config = AppConfig::load()?;
+    let proof = runtime::handoff::proof_from_parts(
+        proof.dataset_id,
+        proof.from_device_id,
+        proof.to_device_id,
+        proof.roster_revision,
+        proof.final_sequence,
+        proof.signature,
+    )?;
+    runtime::handoff::approve_handoff(&config, &proof)
+}
+
+/// 新加工端确认接管（frontier 追平后调用）。
+pub fn confirm_processor_takeover() -> Result<()> {
+    let config = AppConfig::load()?;
+    runtime::handoff::confirm_takeover(&config)
+}
+
+// ---------------------------------------------------------------------------
+// S05: Wiki 页同步冲突审阅。三种候选语义（删除后离线编辑 / 两端各自改名 /
+// 新 slug 撞名）并列展示双端状态，裁决显式二选一；绑定失败关闭与 Provider
+// 冲突审阅同款。
+
+#[derive(Clone, Debug)]
+pub struct WikiPageConflictSideDto {
+    pub slug: String,
+    pub title: String,
+    pub content_md_len: i64,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct WikiPageConflictDto {
+    pub op_id: String,
+    pub object_id: String,
+    pub reason: String,
+    pub sender_device_id: String,
+    pub sender_device_name: Option<String>,
+    pub incoming_slug: String,
+    pub incoming_title: String,
+    pub incoming_deleted: bool,
+    pub incoming_renamed_from: Option<String>,
+    pub incoming_summary: String,
+    pub incoming_content_md_len: i64,
+    pub incoming_updated_at: String,
+    pub local: Option<WikiPageConflictSideDto>,
+    pub local_head_deleted: bool,
+}
+
+fn wiki_page_conflict_dto(
+    review: WikiPageConflictReview,
+    sender_device_name: Option<String>,
+) -> WikiPageConflictDto {
+    WikiPageConflictDto {
+        local: review.local.map(|l| WikiPageConflictSideDto {
+            slug: l.slug,
+            title: l.title,
+            content_md_len: l.content_md_len,
+            updated_at: l.updated_at,
+        }),
+        op_id: review.op_id,
+        object_id: review.object_id,
+        reason: review.reason,
+        sender_device_id: review.sender_device_id,
+        sender_device_name,
+        incoming_slug: review.incoming.slug,
+        incoming_title: review.incoming.title,
+        incoming_deleted: review.incoming.deleted,
+        incoming_renamed_from: review.incoming.renamed_from,
+        incoming_summary: review.incoming.summary,
+        incoming_content_md_len: review.incoming.content_md_len,
+        incoming_updated_at: review.incoming.updated_at,
+        local_head_deleted: review.local_head_deleted,
+    }
+}
+
+/// 列出待审阅的 wiki 页同步冲突（按流内序）。UI 必须保存 `local.updated_at`
+///（行已物理删除为 null）并在裁决时原样回传；`localHeadDeleted` 提示删除态。
+pub fn list_wiki_page_conflicts() -> Result<Vec<WikiPageConflictDto>> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let reviews = store.list_wiki_page_conflicts()?;
+    let roster = store.current_signed_roster()?;
+    Ok(reviews
+        .into_iter()
+        .map(|r| {
+            let sender_device_name = roster.as_ref().and_then(|roster| {
+                roster
+                    .roster
+                    .members
+                    .iter()
+                    .find(|m| m.device.device_id == r.sender_device_id)
+                    .map(|m| m.device.name.clone())
+            });
+            wiki_page_conflict_dto(r, sender_device_name)
+        })
+        .collect())
+}
+
+/// 显式裁决一条 wiki 页冲突。`expected_local_updated_at` 原样回传审阅时展示
+/// 的本端行 updated_at；不匹配失败关闭。`accept_remote=false` = 保留本端现状
+/// （删除态则物理删除，编辑态则重新捕获广播）。
+pub fn resolve_wiki_page_conflict(
+    op_id: String,
+    expected_local_updated_at: Option<String>,
+    accept_remote: bool,
+) -> Result<()> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.resolve_wiki_page_conflict(&op_id, expected_local_updated_at.as_deref(), accept_remote)
+}
+
+// ---------------------------------------------------------------------------
+// S05: 待办/目标/规则同步冲突审阅。通用化 wiki 页审阅：候选 reason
+// （todo_deleted / goal_deleted / rule_deleted / base_revision_changed /
+// goal_active_limit）并列展示双端状态，裁决显式二选一；绑定失败关闭。
+// goal_active_limit 的「采纳对端」被显式拒绝（活跃上限是业务不变式）。
+
+#[derive(Clone, Debug)]
+pub struct ObjectConflictDto {
+    pub op_id: String,
+    pub object_kind: String,
+    pub object_id: String,
+    pub reason: String,
+    pub sender_device_id: String,
+    pub sender_device_name: Option<String>,
+    pub incoming_summary: String,
+    pub incoming_status: String,
+    pub incoming_deleted: bool,
+    pub incoming_updated_at: String,
+    pub local_summary: Option<String>,
+    pub local_status: Option<String>,
+    pub local_updated_at: Option<String>,
+    pub local_head_deleted: bool,
+}
+
+/// 列出待审阅的待办/目标/规则同步冲突（按流内序）。UI 必须保存
+/// `local_updated_at`（行已物理删除为 null）并在裁决时原样回传。
+pub fn list_object_conflicts() -> Result<Vec<ObjectConflictDto>> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let reviews = store.list_object_conflicts()?;
+    let roster = store.current_signed_roster()?;
+    Ok(reviews
+        .into_iter()
+        .map(|r| {
+            let sender_device_name = roster.as_ref().and_then(|roster| {
+                roster
+                    .roster
+                    .members
+                    .iter()
+                    .find(|m| m.device.device_id == r.sender_device_id)
+                    .map(|m| m.device.name.clone())
+            });
+            ObjectConflictDto {
+                op_id: r.op_id,
+                object_kind: r.object_kind,
+                object_id: r.object_id,
+                reason: r.reason,
+                sender_device_id: r.sender_device_id,
+                sender_device_name,
+                incoming_summary: r.incoming.summary,
+                incoming_status: r.incoming.status,
+                incoming_deleted: r.incoming.deleted,
+                incoming_updated_at: r.incoming.updated_at,
+                local_summary: r.local_summary,
+                local_status: r.local_status,
+                local_updated_at: r.local_updated_at,
+                local_head_deleted: r.local_head_deleted,
+            }
+        })
+        .collect())
+}
+
+/// 显式裁决一条待办/目标/规则冲突。`expected_local_updated_at` 原样回传审阅
+/// 时展示的本端行 updated_at；不匹配失败关闭。`accept_remote=false` = 保留
+/// 本端现状（head 活跃则重新捕获广播，对端看到反向候选对称收敛）。
+pub fn resolve_object_conflict(
+    op_id: String,
+    expected_local_updated_at: Option<String>,
+    accept_remote: bool,
+) -> Result<()> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.resolve_object_conflict(&op_id, expected_local_updated_at.as_deref(), accept_remote)
+}
+
+/// 应用升级检查结果。has_update 只在远端提交序号**严格大于**本地时为
+/// 真——hash 相同/不同都不足以分辨方向，`git rev-list --count` 才单调。
+#[derive(Clone, Debug)]
+pub struct AppUpdateDto {
+    pub has_update: bool,
+    pub latest_hash: String,
+    pub latest_seq: i64,
+    pub local_hash: String,
+    pub local_seq: i64,
+    pub version: String,
+    pub changelog: String,
+    pub apk_size: i64,
+    pub apk_sha256: String,
+}
+
+/// 本地构建序号（build.rs 注入的 git 提交计数；tarball 降级为 0）。
+pub fn build_seq() -> i64 {
+    env!("ELSEWHEN_BUILD_SEQ", "build.rs 未注入构建序号")
+        .parse()
+        .unwrap_or(0)
+}
+
+/// 检查应用更新。走与同步相同的 relay（同域名分发，附完整性校验）。
+/// relayUrl 由 Dart 传入（设置页已有来源），本函数不依赖 vault 解锁。
+pub fn check_app_update(relay_url: String) -> Result<AppUpdateDto> {
+    let client = crate::sync::transport_relay::RelayClient::new(relay_url.trim())?;
+    let manifest = client.fetch_release_manifest()?;
+    let local_seq = build_seq();
+    Ok(AppUpdateDto {
+        has_update: manifest.build_seq > local_seq,
+        latest_hash: manifest.build_hash,
+        latest_seq: manifest.build_seq,
+        local_hash: crate::api::build_hash(),
+        local_seq,
+        version: manifest.version,
+        changelog: manifest.changelog,
+        apk_size: manifest.apk_size,
+        apk_sha256: manifest.apk_sha256,
+    })
+}
+
+/// 下载更新 APK（destDir 由 Dart 用 path_provider 取缓存目录后传入），
+/// 完成后本函数内部已通过 sha256 校验并原子改名；返回最终文件路径。
+pub fn download_update_apk(
+    relay_url: String,
+    build_hash: String,
+    apk_sha256: String,
+    apk_size: i64,
+    dest_dir: String,
+) -> Result<String> {
+    let client = crate::sync::transport_relay::RelayClient::new(relay_url.trim())?;
+    let path = client.download_release_apk(
+        build_hash.trim(),
+        apk_sha256.trim(),
+        apk_size,
+        Path::new(dest_dir.trim()),
+    )?;
+    Ok(path.display().to_string())
+}

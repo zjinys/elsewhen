@@ -8,8 +8,9 @@ import '../theme/content_font.dart';
 /// 轻量 markdown 渲染器（面向 wiki 页正文，零依赖）
 ///
 /// 支持：标题(#/##/###)、无序/有序列表（含 [ ]/[x] 复选）、引用(>)、
-/// 代码块(```)、分隔线(---)、行内粗体/斜体(**x** / *x*)、行内代码(`x`)、
-/// wikilink([[slug]])、markdown 链接([文字](url))。
+/// 代码块(```)、分隔线(---)、GFM 表格(|...| 且需分隔行)、行内粗体/斜体
+/// (**x** / *x*)、删除线(~~x~~)、行内代码(`x`)、wikilink([[slug]])、
+/// markdown 链接([文字](url))。
 /// 未覆盖的语法按段落文本降级展示。
 ///
 /// 排版取向：正文用高对比正文色 + 宽松行高，标题分级带留白，尽量接近
@@ -175,10 +176,24 @@ List<_Block> _parseBlocks(String markdown) {
       continue;
     }
 
-    // 无序列表
+    // 无序列表：项之间允许空行，遇到下一个列表项就续上。
     if (RegExp(r'^\s*[-*]\s+').hasMatch(line)) {
       final buf = <String>[];
-      while (i < lines.length && RegExp(r'^\s*[-*]\s+').hasMatch(lines[i])) {
+      while (i < lines.length) {
+        if (!RegExp(r'^\s*[-*]\s+').hasMatch(lines[i])) {
+          if (lines[i].trim().isEmpty) {
+            var next = i + 1;
+            while (next < lines.length && lines[next].trim().isEmpty) {
+              next++;
+            }
+            if (next < lines.length &&
+                RegExp(r'^\s*[-*]\s+').hasMatch(lines[next])) {
+              i = next;
+              continue;
+            }
+          }
+          break;
+        }
         buf.add(lines[i].replaceFirst(RegExp(r'^\s*[-*]\s+'), ''));
         i++;
       }
@@ -186,14 +201,48 @@ List<_Block> _parseBlocks(String markdown) {
       continue;
     }
 
-    // 有序列表
+    // 有序列表：项之间允许空行（AI 常在每项前留空行排版），遇到下一个
+    // 编号项就续上；空行后面不是列表项才真正结束。
     if (RegExp(r'^\s*\d+[.)]\s+').hasMatch(line)) {
       final buf = <String>[];
-      while (i < lines.length && RegExp(r'^\s*\d+[.)]\s+').hasMatch(lines[i])) {
+      while (i < lines.length) {
+        final itemMatch = RegExp(r'^\s*\d+[.)]\s+').firstMatch(lines[i]);
+        if (itemMatch == null) {
+          // 空行：窥看下一非空行是否还是列表项，是则跳过空行续上
+          if (lines[i].trim().isEmpty) {
+            var next = i + 1;
+            while (next < lines.length && lines[next].trim().isEmpty) {
+              next++;
+            }
+            if (next < lines.length &&
+                RegExp(r'^\s*\d+[.)]\s+').hasMatch(lines[next])) {
+              i = next;
+              continue;
+            }
+          }
+          break;
+        }
         buf.add(lines[i].replaceFirst(RegExp(r'^\s*\d+[.)]\s+'), ''));
         i++;
       }
       blocks.add(_List(items: buf, ordered: true));
+      continue;
+    }
+
+    // 表格（GFM）：表头行 + 分隔行（| --- |）才认定为表格，
+    // 单独一行竖线文本按普通段落降级。
+    if (_isTableStart(lines, i)) {
+      final header = _splitTableRow(lines[i]);
+      final aligns = [
+        for (final cell in _splitTableRow(lines[i + 1])) _tableAlignOf(cell),
+      ];
+      i += 2;
+      final rows = <List<String>>[];
+      while (i < lines.length && lines[i].trimLeft().startsWith('|')) {
+        rows.add(_splitTableRow(lines[i]));
+        i++;
+      }
+      blocks.add(_TableBlock(header: header, aligns: aligns, rows: rows));
       continue;
     }
 
@@ -203,9 +252,11 @@ List<_Block> _parseBlocks(String markdown) {
       continue;
     }
 
-    // 普通段落（合并连续非空行）
+    // 普通段落（合并连续非空行；AI 常把块级元素直接贴在引导句后面，
+    // 此处遇到任何块级起始都要提前收手，交给下轮解析）
     final buf = <String>[];
     while (i < lines.length && lines[i].trim().isNotEmpty) {
+      if (buf.isNotEmpty && _isBlockStart(lines, i)) break;
       buf.add(lines[i]);
       i++;
     }
@@ -213,6 +264,66 @@ List<_Block> _parseBlocks(String markdown) {
   }
 
   return blocks;
+}
+
+/// 块级起始判定：段落合并遇到这些行要收手。与 _parseBlocks 主循环的
+/// 识别集合保持一致（代码块/分隔线/标题/引用/列表/表格）。
+bool _isBlockStart(List<String> lines, int i) {
+  final line = lines[i];
+  if (line.trimLeft().startsWith('```')) return true;
+  if (RegExp(r'^\s*([-*_])\s*(\1\s*){2,}$').hasMatch(line)) return true;
+  if (RegExp(r'^#{1,6}\s+').hasMatch(line)) return true;
+  if (line.trimLeft().startsWith('>')) return true;
+  if (RegExp(r'^\s*[-*]\s+').hasMatch(line)) return true;
+  if (RegExp(r'^\s*\d+[.)]\s+').hasMatch(line)) return true;
+  return _isTableStart(lines, i);
+}
+
+/// GFM 表格起始判定：当前行以 `|` 开头，且下一行是合法分隔行
+/// （每个单元格都是 `:?-+:?` 形态）。
+bool _isTableStart(List<String> lines, int i) {
+  if (i + 1 >= lines.length) return false;
+  if (!lines[i].trimLeft().startsWith('|')) return false;
+  if (!lines[i + 1].trimLeft().startsWith('|')) return false;
+  final cells = _splitTableRow(lines[i + 1]);
+  if (cells.isEmpty) return false;
+  return cells.every((c) => RegExp(r'^:?-+:?$').hasMatch(c));
+}
+
+/// 切分一行表格文本为单元格：去掉首尾的 `|`，按未转义的 `|` 切分，
+/// `\|` 还原为字面竖线。
+List<String> _splitTableRow(String line) {
+  var s = line.trim();
+  if (s.startsWith('|')) s = s.substring(1);
+  if (s.endsWith('|') && !s.endsWith(r'\|')) {
+    s = s.substring(0, s.length - 1);
+  }
+  final cells = <String>[];
+  final buf = StringBuffer();
+  for (var idx = 0; idx < s.length; idx++) {
+    final ch = s[idx];
+    if (ch == r'\' && idx + 1 < s.length && s[idx + 1] == '|') {
+      buf.write('|');
+      idx++;
+      continue;
+    }
+    if (ch == '|') {
+      cells.add(buf.toString().trim());
+      buf.clear();
+      continue;
+    }
+    buf.write(ch);
+  }
+  cells.add(buf.toString().trim());
+  return cells;
+}
+
+/// 分隔行单元格 → 列对齐：`:--:` 居中、`--:` 右对齐，其余默认左对齐。
+TextAlign? _tableAlignOf(String cell) {
+  final c = cell.trim();
+  if (c.startsWith(':') && c.endsWith(':')) return TextAlign.center;
+  if (c.endsWith(':')) return TextAlign.right;
+  return null;
 }
 
 // ---- 内部块模型 ----
@@ -247,6 +358,13 @@ class _CodeBlock extends _Block {
 }
 
 class _Rule extends _Block {}
+
+class _TableBlock extends _Block {
+  final List<String> header;
+  final List<TextAlign?> aligns;
+  final List<List<String>> rows;
+  _TableBlock({required this.header, required this.aligns, required this.rows});
+}
 
 class _BlockWidget extends StatefulWidget {
   final _Block block;
@@ -296,6 +414,11 @@ class _BlockWidgetState extends State<_BlockWidget> {
     _releaseRecognizers();
     final block = widget.block;
     return switch (block) {
+      _TableBlock(:final header, :final aligns, :final rows) => _buildTable(
+        header,
+        aligns,
+        rows,
+      ),
       _Rule() => Padding(
         padding: const EdgeInsets.symmetric(vertical: AppTheme.space4),
         child: Container(height: 1, color: AppTheme.surface3),
@@ -408,6 +531,67 @@ class _BlockWidgetState extends State<_BlockWidget> {
     return widget;
   }
 
+  /// 表格：IntrinsicColumnWidth 按内容取列宽，超宽交给横向滚动
+  /// （与代码块同一溢出策略）；单列内容上限 360，防止长句把整表撑爆。
+  /// 列数不对齐的数据行按表头列数截断/补空，绝不越界。
+  Widget _buildTable(
+    List<String> header,
+    List<TextAlign?> aligns,
+    List<List<String>> rows,
+  ) {
+    final cols = header.length;
+    final cellStyle = base.copyWith(fontSize: (base.fontSize ?? 15) - 1);
+    final headerStyle = cellStyle.copyWith(fontWeight: FontWeight.w600);
+
+    TextAlign? alignOf(int idx) => idx < aligns.length ? aligns[idx] : null;
+
+    TableRow rowOf(List<String> cells, {required bool isHeader}) => TableRow(
+      decoration: isHeader ? BoxDecoration(color: AppTheme.surface2) : null,
+      children: [
+        for (var idx = 0; idx < cols; idx++)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: AppTheme.space2,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: RichText(
+                textAlign: alignOf(idx) ?? TextAlign.left,
+                text: _inlineSpans(
+                  idx < cells.length ? cells[idx] : '',
+                  isHeader ? headerStyle : cellStyle,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppTheme.space3),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppTheme.surface3),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Table(
+          defaultColumnWidth: const IntrinsicColumnWidth(),
+          border: TableBorder(
+            horizontalInside: BorderSide(color: AppTheme.surface3),
+            verticalInside: BorderSide(color: AppTheme.surface3),
+          ),
+          children: [
+            rowOf(header, isHeader: true),
+            for (final row in rows) rowOf(row, isHeader: false),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildListItem(String item, int idx, bool ordered) {
     // 复选列表：- [ ] / - [x]
     final check = RegExp(r'^\[([ xX])\]\s+(.*)$').firstMatch(item.trim());
@@ -463,10 +647,10 @@ class _BlockWidgetState extends State<_BlockWidget> {
     );
   }
 
-  /// 行内解析：**粗体**、*斜体*、`代码`、[[wikilink]]、[文字](url)
+  /// 行内解析：~~删除线~~、**粗体**、*斜体*、`代码`、[[wikilink]]、[文字](url)
   TextSpan _inlineSpans(String text, TextStyle base) {
     const pattern =
-        r'(\*\*.+?\*\*|`[^`]+`|\[\[[^\]]+\]\]|\[[^\]]+\]\([^)]+\)|\*[^*]+\*)';
+        r'(~~.+?~~|\*\*.+?\*\*|`[^`]+`|\[\[[^\]]+\]\]|\[[^\]]+\]\([^)]+\)|\*[^*]+\*)';
     final spans = <TextSpan>[];
     final re = RegExp(pattern);
     var last = 0;
@@ -476,7 +660,17 @@ class _BlockWidgetState extends State<_BlockWidget> {
         spans.add(TextSpan(text: text.substring(last, m.start)));
       }
       final raw = m.group(0)!;
-      if (raw.startsWith('**') && raw.endsWith('**')) {
+      if (raw.startsWith('~~') && raw.endsWith('~~')) {
+        spans.add(
+          TextSpan(
+            text: raw.substring(2, raw.length - 2),
+            style: base.copyWith(
+              decoration: TextDecoration.lineThrough,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        );
+      } else if (raw.startsWith('**') && raw.endsWith('**')) {
         spans.add(
           TextSpan(
             text: raw.substring(2, raw.length - 2),

@@ -1,6 +1,8 @@
 # Agent Note: 周期统计报告与目标偏差检测的实现路径
 
-Status: proposed
+Status: adopted（2026-10-15）——统计/偏差设计与待决问题已并入实施路线（含与「回顾页」重新定义的归一裁决），进度由该 roadmap 承载，本文保留为设计决策记录。
+
+实施路线：[回顾与目标偏差 Roadmap](../../../roadmap/2026-10-15-review-and-goal-deviation-roadmap.md)
 
 关联需求：[FR-PES-005 目标与偏差检测](../../../requirements/product/FR-PES-005-目标与偏差检测.md)（FR-PES-005-04 偏差检测、FR-PES-005-05 评估可观察性）
 

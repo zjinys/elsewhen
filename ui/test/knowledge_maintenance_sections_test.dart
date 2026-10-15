@@ -190,12 +190,14 @@ void main() {
       MaintenanceFake(),
       const KnowledgeReviewHistorySection(slug: 'method/one'),
     );
-    await tester.tap(find.text('处理记录'));
+    await tester.tap(find.text('知识演进'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('人工选段修订'));
     await tester.pumpAndSettle();
-    expect(find.text('采纳的差异段：1、3'), findsOneWidget);
-    expect(find.text('保存的适用条件：人工条件'), findsOneWidget);
+    expect(find.text('采纳的差异段'), findsOneWidget);
+    expect(find.text('1、3'), findsOneWidget);
+    expect(find.text('保存的适用条件'), findsOneWidget);
+    expect(find.text('人工条件'), findsOneWidget);
     await tester.tap(find.text('原始建议'));
     await tester.pumpAndSettle();
     expect(find.textContaining('原始 AI 建议', findRichText: true), findsWidgets);

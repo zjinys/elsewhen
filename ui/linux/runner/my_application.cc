@@ -7,6 +7,10 @@
 #include <gdk/gdkx.h>
 #endif
 
+#ifdef GDK_WINDOWING_WAYLAND
+#include <gdk/gdkwayland.h>
+#endif
+
 #include "flutter/generated_plugin_registrant.h"
 
 struct _MyApplication {
@@ -45,8 +49,17 @@ static void set_window_icon(GtkWindow* window) {
 static void first_frame_cb(MyApplication* self, FlView* view) {
   GtkWidget* toplevel = gtk_widget_get_toplevel(GTK_WIDGET(view));
   // Some Wayland/X11 environments restore decorations while the Flutter
-  // surface is being realized. Re-apply this immediately before showing the
-  // window; no visual/context is changed here.
+  // surface is being realized. X11 下重新应用 decorated=FALSE；Wayland 下
+  // titlebar（空 header bar）已在 activate 里装好，这里不再覆盖
+  // （置 NULL 会把 CSD 拆掉，KWin 立刻画回 SSD 标题栏）。
+#ifdef GDK_WINDOWING_WAYLAND
+  if (GDK_IS_WAYLAND_DISPLAY(gdk_display_get_default())) {
+    // Wayland：空 header bar 已装好，重设 titlebar 为 NULL 会把 CSD 拆掉
+    // 导致 KWin 画回 SSD 标题栏；这里只负责 show。
+    gtk_widget_show(toplevel);
+    return;
+  }
+#endif
   gtk_window_set_titlebar(GTK_WINDOW(toplevel), NULL);
   gtk_window_set_decorated(GTK_WINDOW(toplevel), FALSE);
   gtk_widget_show(toplevel);
@@ -63,31 +76,33 @@ static void my_application_activate(GApplication* application) {
 
   // 无边框窗口。**必须在这里做**（FlView 创建之前），不能在 Dart 侧做：
   //
-  // nativeapi 的 `w.titleBarStyle = hidden` 是在 Flutter 已经建好 GL 上下文
-  // 之后才执行的，GTK 为此重建窗口的 GdkVisual，与已建好的上下文不匹配，
-  // 于是首帧报 `Could not determine GL version` +
-  // `Failed to create platform view rendering surface` +
-  // `FlutterEngineRunTask returned kInvalidArguments`，表现为窗口只有边框、
-  // 完全没有内容。逐项二分定位：跳过 titleBarStyle 即恢复（GL 错误 0），
-  // 跳过 backgroundColor / minimumSize / isVisibleInTaskbar / isClosable /
-  // title / 尺寸落位 全部无效。
+  // 运行时（Dart 侧 window_manager / nativeapi 的 setTitleBarStyle(hidden)）
+  // 改 GTK 装饰时 GL 上下文已建好，GTK 为此重建窗口的 GdkVisual，与已建好
+  // 的上下文不匹配，首帧报 `Could not determine GL version` +
+  // `Failed to create platform view rendering surface`，表现为窗口只有边框、
+  // 完全没有内容（nativeapi 时代逐项二分定位的坑，window_manager 同病）。
   //
   // 窗口创建时设置则安全（visual 还没被 Flutter 用上）。相应地 Dart 侧
-  // window_service_desktop.dart 在 Linux 上不再设 titleBarStyle。
-  const gboolean borderless = TRUE;
-  gtk_window_set_decorated(window, !borderless);
-
-  // Use a header bar when running in GNOME as this is the common style used
-  // by applications and is the setup most users will be using (e.g. Ubuntu
-  // desktop).
-  // If running on X and not using GNOME then just use a traditional title bar
-  // in case the window manager does more exotic layout, e.g. tiling.
-  // If running on Wayland assume the header bar will work (may need changing
-  // if future cases occur).
-  // The Flutter UI supplies its own title bar. Never install a GTK header bar
-  // or native title bar, otherwise Linux renders two title bars.
-  gtk_window_set_titlebar(window, NULL);
-  gtk_window_set_decorated(window, FALSE);
+  // window_service_desktop.dart 在 Linux 上跳过 titleBarStyle。
+  // X11：gtk_window_set_decorated(FALSE) 走 Motif hints，KWin/任何 WM 都认。
+  // Wayland：GTK3 不认 decorated 标志，必须安装 client-side decoration——
+  // 给窗口装一个空的 GtkHeaderBar。GTK3 看到应用提供了 titlebar 就会让
+  // compositor 关掉服务端装饰；空 header bar 零高度不可见，Flutter 的
+  // 自定义标题栏不受影响。仅装 decorated=FALSE 在 KDE Wayland 下无效
+  // （KWin 会画 SSD 标题栏，出现双标题栏——Flutter 一条 + KWin 一条）。
+#ifdef GDK_WINDOWING_WAYLAND
+  if (GDK_IS_WAYLAND_DISPLAY(gdk_display_get_default())) {
+    GtkWidget* header_bar = gtk_header_bar_new();
+    gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(header_bar), FALSE);
+    gtk_header_bar_set_title(GTK_HEADER_BAR(header_bar), NULL);
+    gtk_widget_set_size_request(header_bar, 0, 0);
+    gtk_window_set_titlebar(window, header_bar);
+  } else
+#endif
+  {
+    gtk_window_set_titlebar(window, NULL);
+    gtk_window_set_decorated(window, FALSE);
+  }
   gtk_window_set_title(window, "Elsewhen");
 
   gtk_window_set_default_size(window, 1920, 1080);
@@ -98,11 +113,12 @@ static void my_application_activate(GApplication* application) {
 
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;
-  // 窗口圆角要求窗口真透明：#00000000 把 FlView 底色设为透明，
-  // 角落区域由 Flutter 根部 ClipRRect 裁成圆角后透出桌面（需 RGBA visual，
-  // Wayland/X11+compositor 下 GTK3 顶层窗口自动启用）。
-  //
-  gdk_rgba_parse(&background_color, "#00000000");
+  // 首帧前窗口底色 = 暗色主题 surface0（0xFF05070C）：设透明曾是圆角
+  // 方案的残留，但 Dart 根部早已改为「窗口不透明直角，圆角交给系统」
+  // （main.dart FlClash 纪律），透明底色只剩一个效果——Flutter 首帧前
+  // 合成器把透明渲成纯黑，每次启动都闪一块黑窗。不透明底色与首帧
+  // 无缝衔接；浅色主题用户最多一瞬深底，比合成黑柔和得多。
+  gdk_rgba_parse(&background_color, "#05070C");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));

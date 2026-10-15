@@ -4,7 +4,7 @@
 //! 会话标题缺省时由首条用户消息派生（derive_conversation_title）。
 
 use anyhow::Result;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use super::{ConversationSummary, DailyTokenUsage, MessageSummary, RecentUserMessage, Store};
@@ -53,10 +53,15 @@ impl Store {
     pub fn create_conversation(&self, title: Option<&str>, tag: Option<&str>) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
+        let transaction = self.begin_write_transaction()?;
         self.connection.execute(
         "INSERT INTO conversations (id, title, tag, assistant_mode, created_at, updated_at) VALUES (?1, ?2, ?3, 'personal_secretary', ?4, ?4)",
         params![id, title, tag, now],
     )?;
+        self.sync_record_conversation(&id, false)?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         Ok(id)
     }
 
@@ -81,11 +86,16 @@ impl Store {
     ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
         self.connection.execute(
         "INSERT INTO conversations (id, title, tag, wiki_page_slug, assistant_mode, created_at, updated_at)
          VALUES (?1, ?2, 'idea', ?3, 'knowledge_mentor', ?4, ?4)",
         params![id, title, wiki_page_slug, now],
     )?;
+        self.sync_record_conversation(&id, false)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(id)
     }
 
@@ -96,7 +106,7 @@ impl Store {
                 COUNT(m.id) as message_count,
                 (SELECT m2.content FROM messages m2
                  WHERE m2.conversation_id = c.id
-                 ORDER BY m2.created_at DESC, m2.rowid DESC LIMIT 1) as last_message
+                 ORDER BY COALESCE((SELECT logical_clock FROM sync_message_order WHERE message_id=m2.id),0) DESC, m2.created_at DESC, m2.id DESC LIMIT 1) as last_message
          FROM conversations c
          LEFT JOIN messages m ON m.conversation_id = c.id
          WHERE c.archived = 0 AND c.wiki_page_slug IS NULL
@@ -129,7 +139,7 @@ impl Store {
                 COUNT(m.id) as message_count,
                 (SELECT m2.content FROM messages m2
                  WHERE m2.conversation_id = c.id
-                 ORDER BY m2.created_at DESC, m2.rowid DESC LIMIT 1) as last_message
+                 ORDER BY COALESCE((SELECT logical_clock FROM sync_message_order WHERE message_id=m2.id),0) DESC, m2.created_at DESC, m2.id DESC LIMIT 1) as last_message
          FROM conversations c
          LEFT JOIN messages m ON m.conversation_id = c.id
          WHERE c.archived = 1 AND c.wiki_page_slug IS NULL
@@ -155,35 +165,55 @@ impl Store {
     }
 
     pub fn rename_conversation(&self, conversation_id: &str, title: &str) -> Result<()> {
+        let transaction = self.begin_write_transaction()?;
         let now = chrono::Utc::now().to_rfc3339();
         self.connection.execute(
             "UPDATE conversations SET title = ?1, updated_at = ?2 WHERE id = ?3",
             params![title, now, conversation_id],
         )?;
+        self.sync_record_conversation(conversation_id, false)?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         Ok(())
     }
 
     pub fn set_conversation_archived(&self, conversation_id: &str, archived: bool) -> Result<()> {
+        let transaction = self.begin_write_transaction()?;
         let now = chrono::Utc::now().to_rfc3339();
         self.connection.execute(
             "UPDATE conversations SET archived = ?1, updated_at = ?2 WHERE id = ?3",
             params![archived as i64, now, conversation_id],
         )?;
+        self.sync_record_conversation(conversation_id, false)?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         Ok(())
     }
 
     /// 删除已归档的普通对话；知识页专用会话和未归档对话均拒绝删除。
     pub fn delete_archived_conversation(&self, conversation_id: &str) -> Result<bool> {
+        let transaction = self.begin_write_transaction()?;
         let eligible: bool = self.connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM conversations WHERE id=?1 AND archived=1 AND wiki_page_slug IS NULL)",
         [conversation_id], |row| row.get(0))?;
         if !eligible {
             return Ok(false);
         }
-        Ok(self
+        self.sync_record_conversation(conversation_id, true)?;
+        self.connection.execute(
+            "UPDATE input_records SET message_id=NULL WHERE message_id IN (SELECT id FROM messages WHERE conversation_id=?1)",
+            [conversation_id],
+        )?;
+        let deleted = self
             .connection
             .execute("DELETE FROM conversations WHERE id=?1", [conversation_id])?
-            > 0)
+            > 0;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
+        Ok(deleted)
     }
 
     pub fn get_conversation(&self, conversation_id: &str) -> Result<Option<ConversationSummary>> {
@@ -194,7 +224,7 @@ impl Store {
                     COUNT(m.id) as message_count,
                     (SELECT m2.content FROM messages m2
                      WHERE m2.conversation_id = c.id
-                     ORDER BY m2.created_at DESC, m2.rowid DESC LIMIT 1) as last_message
+                     ORDER BY COALESCE((SELECT logical_clock FROM sync_message_order WHERE message_id=m2.id),0) DESC, m2.created_at DESC, m2.id DESC LIMIT 1) as last_message
              FROM conversations c
              LEFT JOIN messages m ON m.conversation_id = c.id
              WHERE c.id = ?1
@@ -227,25 +257,45 @@ impl Store {
         content: &str,
         parent_message_id: Option<&str>,
     ) -> Result<String> {
+        self.send_message_with_input(conversation_id, role, content, parent_message_id, None)
+    }
+
+    pub(crate) fn send_message_with_input(
+        &self,
+        conversation_id: &str,
+        role: &str,
+        content: &str,
+        parent_message_id: Option<&str>,
+        input_message_id: Option<&str>,
+    ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
 
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = self.begin_write_transaction()?;
 
         // Insert message
-        transaction.execute(
+        self.connection.execute(
         "INSERT INTO messages (id, conversation_id, parent_message_id, role, content, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![id, conversation_id, parent_message_id, role, content, now],
     )?;
 
         // Update conversation timestamp
-        transaction.execute(
+        self.connection.execute(
             "UPDATE conversations SET updated_at = ?1 WHERE id = ?2",
             params![now, conversation_id],
         )?;
 
-        transaction.commit()?;
+        if let Some(input) = input_message_id {
+            self.connection.execute(
+                "INSERT INTO message_response_links(message_id,input_message_id) VALUES(?1,?2)",
+                params![id, input],
+            )?;
+        }
+        self.sync_record_message(&id)?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         Ok(id)
     }
 
@@ -299,12 +349,83 @@ impl Store {
             .map_err(Into::into)
     }
 
+    pub(crate) fn context_for_input(
+        &self,
+        conversation_id: &str,
+        input_message_id: &str,
+    ) -> Result<Vec<MessageSummary>> {
+        let messages = self.list_messages(conversation_id)?;
+        let index = messages
+            .iter()
+            .position(|m| m.id == input_message_id && m.role == "user")
+            .ok_or_else(|| anyhow::anyhow!("生成输入不存在、不是用户消息或不属于此会话"))?;
+        let earlier: std::collections::HashMap<_, _> = messages[..index]
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| m.role == "user")
+            .map(|(i, m)| (m.id.clone(), i))
+            .collect();
+        let replies: std::collections::HashMap<String, String> = self.connection.prepare(
+            "SELECT l.message_id,l.input_message_id FROM message_response_links l JOIN messages m ON m.id=l.message_id WHERE m.conversation_id=?1
+             UNION ALL SELECT r.final_message_id,r.input_message_id FROM chat_runs r WHERE r.conversation_id=?1 AND r.status='completed' AND r.final_message_id IS NOT NULL
+               AND NOT EXISTS(SELECT 1 FROM message_response_links l WHERE l.message_id=r.final_message_id)",
+        )?.query_map([conversation_id], |r| Ok((r.get(0)?,r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        // Saved queue inputs can precede their answers in wall-clock order. Put
+        // each completed answer back into its owning turn before selecting or
+        // summarizing history; never rewrite the original messages/timestamps.
+        // Unassociated legacy messages keep their order within their old turn.
+        let mut turns = std::collections::BTreeMap::<Option<usize>, Vec<MessageSummary>>::new();
+        let mut current_turn = None;
+        for (position, message) in messages.into_iter().enumerate() {
+            let answer_turn = (message.role == "assistant")
+                .then(|| {
+                    replies
+                        .get(&message.id)
+                        .and_then(|input| earlier.get(input))
+                        .copied()
+                })
+                .flatten();
+            if let Some(owner) = answer_turn {
+                turns.entry(Some(owner)).or_default().push(message);
+            } else if position <= index {
+                if message.role == "user" {
+                    current_turn = Some(position);
+                }
+                turns.entry(current_turn).or_default().push(message);
+            }
+        }
+        Ok(turns.into_values().flatten().collect())
+    }
+
+    pub(crate) fn snapshot_for_input(
+        &self,
+        conversation_id: &str,
+        input_message_id: &str,
+    ) -> Result<Store> {
+        let mut store = Store::open(&self.path)?;
+        store.provider_master = self.provider_master;
+        let messages = store.context_for_input(conversation_id, input_message_id)?;
+        store.conversation_snapshot = Some(super::ConversationSnapshot {
+            conversation_id: conversation_id.to_owned(),
+            input_message_id: input_message_id.to_owned(),
+            messages: messages.into(),
+        });
+        Ok(store)
+    }
+
     pub fn list_messages(&self, conversation_id: &str) -> Result<Vec<MessageSummary>> {
+        if let Some(snapshot) = &self.conversation_snapshot {
+            if snapshot.conversation_id == conversation_id {
+                return Ok(snapshot.messages.to_vec());
+            }
+        }
         let mut statement = self.connection.prepare(
-            "SELECT id, conversation_id, parent_message_id, role, content, created_at
-         FROM messages
-         WHERE conversation_id = ?1
-         ORDER BY created_at ASC, id ASC",
+            "SELECT m.id, m.conversation_id, m.parent_message_id, m.role, m.content, m.created_at
+         FROM messages m LEFT JOIN sync_message_order s ON s.message_id=m.id
+         WHERE m.conversation_id = ?1
+         ORDER BY COALESCE(s.logical_clock,0), COALESCE(s.origin_stream_id,''),
+             COALESCE(s.origin_sequence,0), m.created_at, m.id",
         )?;
         let rows = statement.query_map([conversation_id], |row| {
             Ok(MessageSummary {

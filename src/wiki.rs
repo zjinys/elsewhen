@@ -216,6 +216,20 @@ struct FxTweet {
     author: Option<FxAuthor>,
     /// 文章型推文（x.com/i/article/…）：长文在这里，tweet.text 只是文章链接
     article: Option<FxArticle>,
+    /// 普通推文（非文章型）的配图：追加在正文末尾。
+    media: Option<FxMedia>,
+}
+
+/// 普通推文的顶层媒体容器（只取照片；视频/GIF 不落盘）。
+#[derive(Debug, Deserialize)]
+struct FxMedia {
+    #[serde(default)]
+    photos: Vec<FxPhoto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FxPhoto {
+    url: Option<String>,
 }
 
 /// fxtwitter 的 article 字段（note tweet / x 文章）
@@ -223,6 +237,10 @@ struct FxTweet {
 struct FxArticle {
     title: Option<String>,
     content: Option<FxArticleContent>,
+    /// 文章配图（atomic block 通过 entityRanges[0].key 1-based 索引关联到这里）。
+    /// 图片直链在 media_info.original_img_url（pbs.twimg.com，可直接下载）。
+    #[serde(default)]
+    media_entities: Vec<FxMediaEntity>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -234,6 +252,28 @@ struct FxArticleContent {
 #[derive(Debug, Deserialize)]
 struct FxArticleBlock {
     text: Option<String>,
+    /// "unstyled" / "header-two" / "atomic"（图片占位）等；缺省视为普通段落。
+    #[serde(rename = "type", default)]
+    block_type: Option<String>,
+    /// atomic block 的第一个 entityRange.key = media_entities 的 1-based 索引。
+    #[serde(rename = "entityRanges", default)]
+    entity_ranges: Vec<FxEntityRange>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FxEntityRange {
+    key: Option<usize>,
+}
+
+/// 文章配图实体：只取媒体直链所需的字段。
+#[derive(Debug, Deserialize)]
+struct FxMediaEntity {
+    media_info: Option<FxMediaInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FxMediaInfo {
+    original_img_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -274,7 +314,7 @@ pub fn fetch_import_url(url: &str) -> Result<ImportedContent> {
         })
     } else {
         // 普通网页
-        let client = reqwest::blocking::Client::builder()
+        let client = crate::http_proxy::with_env_proxy(reqwest::blocking::Client::builder())
             .timeout(std::time::Duration::from_secs(20))
             .build()
             .context("创建 HTTP 客户端失败")?;
@@ -317,11 +357,7 @@ fn extract_title(html: &str) -> Option<String> {
     let inner = &rest[gt + 1..];
     let end = inner.find("</title>").or_else(|| inner.find("</TITLE>"))?;
     let title = inner[..end].trim().to_string();
-    if title.is_empty() {
-        None
-    } else {
-        Some(title)
-    }
+    if title.is_empty() { None } else { Some(title) }
 }
 
 /// 抓取到的推文内容（纯数据，尚未入库；只有点击保存才写库）
@@ -342,6 +378,18 @@ struct FxTweetContent {
     title: Option<String>,
     author_name: Option<String>,
     screen_name: Option<String>,
+    /// 正文里出现的图片直链（atomic block 占位 `{{tweet-image-N}}` 的 N-1 索引对应这里）。
+    /// 纯解析层只收集 URL；实际下载落盘在网络层完成。
+    image_urls: Vec<String>,
+}
+
+/// 正文里的图片占位标记前缀（atomic block 处先插入占位，下载后替换为本地路径）。
+const IMAGE_PLACEHOLDER_PREFIX: &str = "{{tweet-image-";
+
+/// 生成第 `idx`（0-based）张图的占位标记。
+/// 前缀 `{{` 与后缀 `}}` 在 format! 里都需双写转义。
+fn image_placeholder(idx: usize) -> String {
+    format!("{IMAGE_PLACEHOLDER_PREFIX}{idx}}}}}")
 }
 
 /// 从 x.com / twitter.com 链接中提取推文 id（形如 /status/{纯数字}）。
@@ -433,12 +481,33 @@ fn parse_tweet_content(parsed: FxTwitterResponse) -> Result<FxTweetContent> {
     }
     let tweet = parsed.tweet.context("fxtwitter 响应缺少 tweet 字段")?;
     let article_title = tweet.article.as_ref().and_then(|a| a.title.clone());
+    let mut image_urls: Vec<String> = Vec::new();
     let text = match &tweet.article {
         Some(article) => {
-            let paragraphs: Vec<&str> = article
+            let paragraphs: Vec<String> = article
                 .content
                 .as_ref()
-                .map(|c| c.blocks.iter().filter_map(|b| b.text.as_deref()).collect())
+                .map(|c| {
+                    c.blocks
+                        .iter()
+                        .filter_map(|b| {
+                            // atomic block = 图片占位：记录直链、插入占位标记。
+                            if b.block_type.as_deref() == Some("atomic") {
+                                let idx1 = b.entity_ranges.first().and_then(|r| r.key)?;
+                                let url = article
+                                    .media_entities
+                                    .get(idx1.saturating_sub(1))
+                                    .and_then(|e| e.media_info.as_ref())
+                                    .and_then(|m| m.original_img_url.clone())?;
+                                let ph = image_placeholder(image_urls.len());
+                                image_urls.push(url);
+                                Some(ph)
+                            } else {
+                                b.text.clone()
+                            }
+                        })
+                        .collect()
+                })
                 .unwrap_or_default();
             if paragraphs.is_empty() {
                 match tweet.text {
@@ -449,10 +518,24 @@ fn parse_tweet_content(parsed: FxTwitterResponse) -> Result<FxTweetContent> {
                 paragraphs.join("\n\n")
             }
         }
-        None => match tweet.text {
-            Some(t) => t,
-            None => anyhow::bail!("推文没有正文"),
-        },
+        None => {
+            let mut t = match tweet.text {
+                Some(t) => t,
+                None => anyhow::bail!("推文没有正文"),
+            };
+            // 普通推文配图：追加在正文末尾（无段落穿插概念）。
+            if let Some(media) = &tweet.media {
+                for photo in &media.photos {
+                    if let Some(url) = &photo.url {
+                        let ph = image_placeholder(image_urls.len());
+                        image_urls.push(url.clone());
+                        t.push_str("\n\n");
+                        t.push_str(&ph);
+                    }
+                }
+            }
+            t
+        }
     };
     let author = tweet.author;
     Ok(FxTweetContent {
@@ -460,6 +543,7 @@ fn parse_tweet_content(parsed: FxTwitterResponse) -> Result<FxTweetContent> {
         title: article_title,
         author_name: author.as_ref().and_then(|a| a.name.clone()),
         screen_name: author.as_ref().and_then(|a| a.screen_name.clone()),
+        image_urls,
     })
 }
 
@@ -487,7 +571,15 @@ pub fn fetch_tweet_text(url: &str) -> Result<TweetText> {
     let tweet_id = extract_tweet_id(url).context(
         "不是有效的 x.com / twitter.com 推文链接（形如 https://x.com/{用户}/status/{推文id}）",
     )?;
-    let content = fetch_tweet(&tweet_id)?;
+    let mut content = fetch_tweet(&tweet_id)?;
+    // 下载配图落盘（数据目录/tweet_images/<tweet_id>/），正文占位替换为本地绝对路径。
+    // 失败不阻断正文导入——单张下载失败仅跳过该图、占位换成「图片下载失败」说明。
+    if !content.image_urls.is_empty() {
+        let data_dir = crate::config::AppConfig::load().map(|c| c.data_dir).ok();
+        if let Some(dir) = data_dir {
+            download_tweet_images(&tweet_id, &dir, &mut content);
+        }
+    }
     Ok(TweetText {
         tweet_id,
         text: content.text,
@@ -495,6 +587,146 @@ pub fn fetch_tweet_text(url: &str) -> Result<TweetText> {
         author_name: content.author_name,
         screen_name: content.screen_name,
     })
+}
+
+/// 把文章配图下载到 `{data_dir}/tweet_images/{tweet_id}/img_N.{ext}`，
+/// 并把正文里的临时占位标记 `{{tweet-image-N}}` 替换为存储态占位符
+/// `![]({{tweet-image:tweet_images/…}})`（相对路径为主体，显示时才解析为本机路径）。
+/// 单张失败仅留说明文字、不影响其它图与正文。
+///
+/// 网络策略：先直连；被墙的图床（如 pbs.twimg.com）直连失败的图，
+/// 若用户配置了 DoH（`should_use_doh`），改走 DoH+ECH 隧道重试。
+fn download_tweet_images(tweet_id: &str, data_dir: &std::path::Path, content: &mut FxTweetContent) {
+    let dir = data_dir.join("tweet_images").join(tweet_id);
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        // 目录都建不了：所有占位换为说明，放弃下载。
+        for (idx, _) in content.image_urls.iter().enumerate() {
+            content.text = content.text.replace(
+                &image_placeholder(idx),
+                &format!("*[图片目录创建失败：{e}]*"),
+            );
+        }
+        return;
+    }
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    // 第一遍：直连下载；记录失败的图待 DoH 兜底。成功图不写本机绝对路径——
+    // 正文里落占位符（相对 data_dir 的确定性路径），显示时动态解析；
+    // 字节由保存路径收进 wiki_assets 随快照同步。
+    let mut direct_failed: Vec<usize> = Vec::new();
+    let mut replacements: Vec<Option<String>> = Vec::with_capacity(content.image_urls.len());
+    for (idx, url) in content.image_urls.iter().enumerate() {
+        match download_one_image(&client, url, &dir, idx) {
+            Ok(path) => match crate::storage::wiki_images::tweet_image_rel(&path, data_dir) {
+                Some(rel) => replacements.push(Some(format!("![]({{{{tweet-image:{rel}}}}})"))),
+                None => replacements.push(Some(format!("![]({})", path.display()))),
+            },
+            Err(_) => {
+                direct_failed.push(idx);
+                replacements.push(None);
+            }
+        }
+    }
+    // 第二遍：直连失败的图，若配置了 DoH 则走 DoH+ECH 隧道重试。
+    if !direct_failed.is_empty() {
+        if let Some(net) = load_doh_settings() {
+            if net.should_use_doh() {
+                for &idx in &direct_failed {
+                    let url = &content.image_urls[idx];
+                    match download_one_image_via_doh(url, &net.doh_uri, &dir, idx) {
+                        Ok(path) => {
+                            replacements[idx] = Some(
+                                match crate::storage::wiki_images::tweet_image_rel(&path, data_dir)
+                                {
+                                    Some(rel) => format!("![]({{{{tweet-image:{rel}}}}})"),
+                                    None => format!("![]({})", path.display()),
+                                },
+                            );
+                        }
+                        Err(_) => {
+                            // DoH 也失败：保持 None，下面统一写失败说明。
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // 统一替换占位：成功的写本地路径，最终仍失败的写说明。
+    for (idx, rep) in replacements.iter().enumerate() {
+        let placeholder = image_placeholder(idx);
+        let text = match rep {
+            Some(md) => md.clone(),
+            None => "*[配图下载失败：直连不可用，且未配置可用的 DoH 隧道]*".to_string(),
+        };
+        content.text = content.text.replace(&placeholder, &text);
+    }
+}
+
+/// 读取 DoH 配置（仅在需要 DoH 兜底时才开库，正常直连成功时零开销）。
+/// 读不到（如库不可用）返回 None，下载退化为直连-only。
+fn load_doh_settings() -> Option<crate::storage::NetworkSettings> {
+    let config = crate::config::AppConfig::load().ok()?;
+    let store = crate::storage::Store::open(&config.database_path).ok()?;
+    store.network_settings().ok()
+}
+
+/// 经 DoH+ECH 隧道下载单张图片到本地（被墙图床的兜底通道）。
+fn download_one_image_via_doh(
+    url: &str,
+    doh_uri: &str,
+    dir: &std::path::Path,
+    idx: usize,
+) -> Result<std::path::PathBuf> {
+    let bytes =
+        crate::net_doh::https_get_bytes_via_doh(url, doh_uri, std::time::Duration::from_secs(30))
+            .with_context(|| format!("DoH 下载失败 {url}"))?;
+    write_image_bytes(&bytes, url, dir, idx)
+}
+
+/// 直连下载单张图片到本地，返回落盘路径。
+fn download_one_image(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    dir: &std::path::Path,
+    idx: usize,
+) -> Result<std::path::PathBuf> {
+    let bytes = client
+        .get(url)
+        .header(
+            "User-Agent",
+            "elsewhen/0.1 (local-first personal knowledge base)",
+        )
+        .send()
+        .with_context(|| format!("请求失败 {url}"))?
+        .error_for_status()
+        .with_context(|| format!("HTTP 错误 {url}"))?
+        .bytes()
+        .context("读取图片字节失败")?;
+    write_image_bytes(&bytes, url, dir, idx)
+}
+
+/// 把图片字节写入 `img_{idx+1}.{ext}`，扩展名从 URL 推断（默认 jpg），返回落盘路径。
+fn write_image_bytes(
+    bytes: &[u8],
+    url: &str,
+    dir: &std::path::Path,
+    idx: usize,
+) -> Result<std::path::PathBuf> {
+    let ext = url
+        .split('?')
+        .next()
+        .and_then(|p| p.rsplit('.').next())
+        .map(|e| e.to_ascii_lowercase())
+        .filter(|e| matches!(e.as_str(), "jpg" | "jpeg" | "png" | "gif" | "webp"))
+        .unwrap_or_else(|| "jpg".to_string());
+    let path = dir.join(format!("img_{}.{ext}", idx + 1));
+    std::fs::write(&path, bytes).with_context(|| format!("写入图片失败 {}", path.display()))?;
+    Ok(path)
 }
 
 /// 把已抓取的推文内容保存为知识库页面（kind=source）。
@@ -529,12 +761,24 @@ pub fn save_tweet_page(t: &TweetText, source_url: Option<&str>, store: &Store) -
     Ok(outcome.page)
 }
 
-/// 把用户粘贴的纯文本保存为知识库页面（kind=topic）。
+/// 把用户粘贴的纯文本保存为知识库页面（kind=note，随手笔记）。
 /// content_md 保留全文、绝不截断，仅 summary（索引摘要）截断。
 pub fn save_text_page(
     text: &str,
     title: Option<&str>,
     tags: &[String],
+    store: &Store,
+) -> Result<WikiPage> {
+    save_text_page_with_kind(text, title, tags, "note", store)
+}
+
+/// 同 `save_text_page`，但页型由调用方指定（"note"=随手笔记 / "topic"=主题）。
+/// 「存为主题」从对话消息保存时传 "topic"；其余导入入口仍走 note。
+pub fn save_text_page_with_kind(
+    text: &str,
+    title: Option<&str>,
+    tags: &[String],
+    kind: &str,
     store: &Store,
 ) -> Result<WikiPage> {
     let trimmed = text.trim();
@@ -557,23 +801,30 @@ pub fn save_text_page(
             }
         }
     };
+    // 只允许 note / topic 两种，其余报错（避免 UI 传错生成奇怪的页型）。
+    let kind = match kind {
+        "note" | "topic" => kind,
+        other => anyhow::bail!("不支持的页面类型：{other}（仅支持 note/topic）"),
+    };
+
     // 摘要只用于索引展示，截断无妨
     let summary: String = trimmed.chars().take(120).collect();
-    let slug = format!("note-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    // slug 前缀与页型一致：note-xxx / topic-xxx
+    let slug = format!("{}-{}", kind, &uuid::Uuid::new_v4().to_string()[..8]);
 
-    // 去掉空白项并去重；始终保留「note」锚点标签
+    // 去掉空白项并去重；始终保留与页型一致的锚点标签（note / topic）
     let mut all_tags: Vec<String> = tags
         .iter()
         .map(|t| t.trim().trim_start_matches('#').to_string())
         .filter(|t| !t.is_empty())
         .collect();
-    all_tags.push("note".to_string());
+    all_tags.push(kind.to_string());
     all_tags.sort();
     all_tags.dedup();
 
     let draft = WikiPageDraft {
         slug,
-        kind: "note".to_string(),
+        kind: kind.to_string(),
         title,
         summary,
         content_md: trimmed.to_string(),
@@ -636,6 +887,22 @@ pub fn apply_people_relations(
         anyhow::bail!("没有需要保存的联系人或关系");
     }
 
+    let tx = store.begin_write_transaction()?;
+    for relation in &parsed.relations {
+        for (name, selected) in [
+            (&relation.person, &relation.from_slug),
+            (&relation.target, &relation.to_slug),
+        ] {
+            if let Some(slug) = selected.as_deref() {
+                let candidates = store.find_wiki_pages_by_title_or_alias(name.trim())?;
+                anyhow::ensure!(
+                    candidates.iter().any(|p| p.slug == slug),
+                    "明确选择的目标 {slug} 已失效或不再对应 {name}，请重新消歧审阅"
+                );
+            }
+        }
+    }
+
     // 1) 联系人建档：标题精确查重 → 不存在才建 person 页
     let mut person_entries: Vec<(String, String, String)> = Vec::new(); // (name, slug, kind)
     for p in &parsed.people {
@@ -662,12 +929,17 @@ pub fn apply_people_relations(
                     .join("、")
             );
         }
-        if let Some(page) = selected_slug
-            .as_deref()
-            .and_then(|slug| matches.iter().find(|page| page.slug == slug))
-            .or_else(|| matches.first())
-            .cloned()
-        {
+        let selected = match selected_slug.as_deref() {
+            Some(slug) => Some(
+                matches
+                    .iter()
+                    .find(|page| page.slug == slug)
+                    .cloned()
+                    .with_context(|| format!("选中的联系人 {slug} 已变化，请重新审阅"))?,
+            ),
+            None => matches.first().cloned(),
+        };
+        if let Some(page) = selected {
             person_entries.push((name, page.slug.clone(), page.kind.clone()));
             continue;
         }
@@ -722,12 +994,17 @@ pub fn apply_people_relations(
                     .join("、")
             );
         }
-        let (slug, kind) = match selected_target_slug
-            .as_deref()
-            .and_then(|slug| target_matches.iter().find(|page| page.slug == slug))
-            .or_else(|| target_matches.first())
-            .cloned()
-        {
+        let selected = match selected_target_slug.as_deref() {
+            Some(slug) => Some(
+                target_matches
+                    .iter()
+                    .find(|page| page.slug == slug)
+                    .cloned()
+                    .with_context(|| format!("选中的事项 {slug} 已变化，请重新审阅"))?,
+            ),
+            None => target_matches.first().cloned(),
+        };
+        let (slug, kind) = match selected {
             Some(page) => (page.slug, page.kind),
             None => {
                 let slug = unique_slug(store, &format!("topic/{}", slugify(&target)), &target)?;
@@ -736,7 +1013,9 @@ pub fn apply_people_relations(
                     kind: "topic".to_string(),
                     title: target.clone(),
                     summary: format!("{target}（由联系人关系确认时自动建档）"),
-                    content_md: format!("# {target}\n\n（由联系人关系确认时自动创建，待补充内容。）"),
+                    content_md: format!(
+                        "# {target}\n\n（由联系人关系确认时自动创建，待补充内容。）"
+                    ),
                     tags: vec![],
                     source_event_ids: vec![],
                     status: "active".to_string(),
@@ -771,9 +1050,23 @@ pub fn apply_people_relations(
             .as_deref()
             .unwrap_or(inferred_from_slug)
             .to_string();
-        let from_kind = inferred_from_kind.clone();
+        let from_kind = if r.from_slug.is_some() {
+            store
+                .get_wiki_page(&from_slug)?
+                .context("选中的联系人已失效")?
+                .kind
+        } else {
+            inferred_from_kind.clone()
+        };
         let to_slug = r.to_slug.as_deref().unwrap_or(inferred_to_slug).to_string();
-        let to_kind = inferred_to_kind.clone();
+        let to_kind = if r.to_slug.is_some() {
+            store
+                .get_wiki_page(&to_slug)?
+                .context("选中的事项已失效")?
+                .kind
+        } else {
+            inferred_to_kind.clone()
+        };
         let relation = if r.relation.trim().is_empty() {
             "参与".to_string()
         } else {
@@ -834,6 +1127,9 @@ pub fn apply_people_relations(
     } else {
         out.push_str("（没有落地的关系）");
     }
+    if let Some(tx) = tx {
+        tx.commit()?;
+    }
     Ok(out)
 }
 
@@ -850,7 +1146,7 @@ const BATCH_EXTRACT_EVENT_CHARS: usize = 220;
 /// `{ "people": [{name,role_note}], "relations": [{person,target,relation,note}] }`
 /// （落库仍走 execute_pending_action → apply_people_relations，用户确认后才写）。
 pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json::Value> {
-    use crate::event::{parse_annotations_many, AnnotationSet};
+    use crate::event::{AnnotationSet, parse_annotations_many};
 
     let events = store.list_events()?;
     if events.is_empty() {
@@ -882,7 +1178,7 @@ pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json:
     let system = r#"你是 elsewhen 个人知识库的「联系人关系」批量提取器。任务：阅读用户的事件，输出「联系人 + 联系人↔事情/项目关系」。
 
 抽取规则：
-- 事件里用 @人名 标注的一定是人、#事情 标注的一定是事情/项目（如「@张伟 负责 #双链路付款」）。已标注实体必须全部纳入 people / relations；同名但备注不同（「张伟（市场部）」「张伟（设计）」）是不同的人，不能合并。
+- 事件里用 @人名 标注的一定是人、#事情 标注的一定是事情/项目（如「@李四 负责 #网站改版」）。已标注实体必须全部纳入 people / relations；同名但备注不同（「李四（市场部）」「李四（设计）」）是不同的人，不能合并。
 - 未标注的联系人：只提取信息具体、对用户重要的人（有称呼、有身份或参与的明确事情），不为随口一提的名字建条目。
 - relations 的 person/target 必须来自 people 或已标注实体；relation 用 负责/参与/合作/对接/跟进/顾问 等 2~4 字动词。
 - role_note 一句话身份/背景，来自事件上下文；没有可写信息就留空字符串。
@@ -1267,8 +1563,16 @@ pub fn export_wiki(store: &Store, dir: &Path) -> Result<ExportReport> {
             page.evidence_count,
             page.status,
             page.updated_at,
-            if tags.is_empty() { "  - []".to_string() } else { tags.join("\n") },
-            if sources.is_empty() { "  - []".to_string() } else { sources.join("\n") },
+            if tags.is_empty() {
+                "  - []".to_string()
+            } else {
+                tags.join("\n")
+            },
+            if sources.is_empty() {
+                "  - []".to_string()
+            } else {
+                sources.join("\n")
+            },
             page.title,
             page.content_md
         );
@@ -1341,29 +1645,29 @@ mod tests {
 
         let parsed = serde_json::json!({
             "people": [
-                {"name": "张伟", "role_note": "对接付款流程"},
+                {"name": "李四", "role_note": "对接网站改版"},
                 {"name": "项目负责人"}
             ],
             "relations": [
-                {"person": "张伟", "target": "双链路付款", "relation": "负责", "note": ""},
+                {"person": "李四", "target": "网站改版", "relation": "负责", "note": ""},
                 {"person": "不存在的人", "target": "幻想的项目", "relation": "负责", "note": ""}
             ]
         });
         let ann = AnnotationSet {
-            people: vec!["张伟".into(), "李婷（客户）".into()],
-            targets: vec!["双链路付款".into()],
+            people: vec!["李四".into(), "孙七（客户）".into()],
+            targets: vec!["网站改版".into()],
         };
         let out = normalize_extraction(&parsed, &ann);
         let people = out["people"].as_array().unwrap();
         let names: Vec<&str> = people.iter().map(|p| p["name"].as_str().unwrap()).collect();
         // LLM 漏掉的标注实体兜底补进 people
-        assert!(names.contains(&"李婷（客户）"));
+        assert!(names.contains(&"孙七（客户）"));
         assert_eq!(people[people.len() - 1]["role_note"].as_str().unwrap(), "");
         // 幻觉关系被过滤（person 不在实体集里）
         let relations = out["relations"].as_array().unwrap();
         assert_eq!(relations.len(), 1);
-        assert_eq!(relations[0]["person"], "张伟");
-        assert_eq!(relations[0]["target"], "双链路付款");
+        assert_eq!(relations[0]["person"], "李四");
+        assert_eq!(relations[0]["target"], "网站改版");
     }
 
     #[test]
@@ -1396,7 +1700,7 @@ mod tests {
             .unwrap();
         // 不同标题 → 后缀避让
         assert_eq!(
-            unique_slug(&store, "person/zhang-wei", "张伟").unwrap(),
+            unique_slug(&store, "person/zhang-wei", "李四").unwrap(),
             "person/zhang-wei-2"
         );
         // 同名 slug 但标题相同 → 直接复用
@@ -1406,7 +1710,7 @@ mod tests {
         );
         // 空闲 slug 直接用
         assert_eq!(
-            unique_slug(&store, "topic/shuang-lian-lu", "双链路").unwrap(),
+            unique_slug(&store, "topic/shuang-lian-lu", "网站改版").unwrap(),
             "topic/shuang-lian-lu"
         );
         let _ = std::fs::remove_file(path);
@@ -1563,7 +1867,7 @@ mod tests {
                 &WikiPageDraft {
                     slug: "project/shuanglian".into(),
                     kind: "project".into(),
-                    title: "双链路付款".into(),
+                    title: "网站改版".into(),
                     summary: "项目简介".into(),
                     content_md: "正文".into(),
                     tags: vec![],
@@ -1578,30 +1882,30 @@ mod tests {
 
         let args = serde_json::json!({
             "people": [
-                {"name": "张玮", "role_note": "双链路付款项目的产研负责人"},
-                {"name": "李婷", "role_note": "客户对接人"}
+                {"name": "张三", "role_note": "网站改版项目的产研负责人"},
+                {"name": "孙七", "role_note": "客户对接人"}
             ],
             "relations": [
-                {"person": "张玮", "target": "双链路付款", "relation": "负责", "note": "主导项目推进"},
-                {"person": "李婷", "target": "双链路付款", "relation": "参与", "note": ""}
+                {"person": "张三", "target": "网站改版", "relation": "负责", "note": "主导项目推进"},
+                {"person": "孙七", "target": "网站改版", "relation": "参与", "note": ""}
             ]
         });
         let summary = apply_people_relations(&args, &store, "conv-1").unwrap();
-        assert!(summary.contains("张玮"), "{summary}");
+        assert!(summary.contains("张三"), "{summary}");
         assert!(summary.contains("负责"), "{summary}");
 
         // 联系人页建档且分别是 person / topic 目标复用已有 project 页
-        let zhangwei = store.get_wiki_page("person/张玮").unwrap().unwrap();
+        let zhangwei = store.get_wiki_page("person/张三").unwrap().unwrap();
         assert_eq!(zhangwei.kind, "person");
         assert!(zhangwei.content_md.contains("产研负责人"));
-        let liting = store.get_wiki_page("person/李婷").unwrap().unwrap();
+        let liting = store.get_wiki_page("person/孙七").unwrap().unwrap();
         assert_eq!(liting.kind, "person");
 
         // 目标页：已存在的 project 页被复用，没有自动建 topic 页
-        assert!(store.get_wiki_page("topic/双链路付款").unwrap().is_none());
+        assert!(store.get_wiki_page("topic/网站改版").unwrap().is_none());
         assert_eq!(
             store
-                .find_wiki_page_by_title("双链路付款")
+                .find_wiki_page_by_title("网站改版")
                 .unwrap()
                 .unwrap()
                 .kind,
@@ -1609,7 +1913,7 @@ mod tests {
         );
 
         // 关系双向可见
-        let rels = store.list_relations_for_page("person/张玮").unwrap();
+        let rels = store.list_relations_for_page("person/张三").unwrap();
         assert_eq!(rels.len(), 1);
         assert_eq!(rels[0].relation, "负责");
         assert_eq!(rels[0].to_slug, "project/shuanglian");
@@ -1623,12 +1927,12 @@ mod tests {
 
         // 再次提交同样的联系人 → 不重复建档
         let again = apply_people_relations(
-            &serde_json::json!({"people": [{"name": "张玮", "role_note": "产研负责人"}]}),
+            &serde_json::json!({"people": [{"name": "张三", "role_note": "产研负责人"}]}),
             &store,
             "conv-1",
         )
         .unwrap();
-        assert!(again.contains("张玮"));
+        assert!(again.contains("张三"));
         assert_eq!(
             store.list_wiki_pages(Some("person"), None).unwrap().len(),
             2,
@@ -1650,13 +1954,13 @@ mod tests {
                 .as_nanos()
         ));
         let store = Store::open(&path).unwrap();
-        for slug in ["person/张伟-市场部", "person/张伟-设计"] {
+        for slug in ["person/李四-市场部", "person/李四-设计"] {
             store
                 .upsert_wiki_page(
                     &WikiPageDraft {
                         slug: slug.into(),
                         kind: "person".into(),
-                        title: "张伟".into(),
+                        title: "李四".into(),
                         summary: slug.into(),
                         content_md: "正文".into(),
                         tags: vec![],
@@ -1670,22 +1974,24 @@ mod tests {
                 .unwrap();
         }
         let args = serde_json::json!({
-            "people": [{"name":"张伟"}],
-            "relations": [{"person":"张伟","target":"新项目","relation":"负责","from_slug":"person/张伟-设计"}]
+            "people": [{"name":"李四"}],
+            "relations": [{"person":"李四","target":"新项目","relation":"负责","from_slug":"person/李四-设计"}]
         });
         let summary = apply_people_relations(&args, &store, "conv-1").unwrap();
-        assert!(summary.contains("张伟"));
+        assert!(summary.contains("李四"));
         assert_eq!(
             store
-                .list_relations_for_page("person/张伟-设计")
+                .list_relations_for_page("person/李四-设计")
                 .unwrap()
                 .len(),
             1
         );
-        assert!(store
-            .list_relations_for_page("person/张伟-市场部")
-            .unwrap()
-            .is_empty());
+        assert!(
+            store
+                .list_relations_for_page("person/李四-市场部")
+                .unwrap()
+                .is_empty()
+        );
         drop(store);
         let _ = std::fs::remove_file(path);
     }
@@ -1780,7 +2086,10 @@ mod tests {
             out.title.as_deref(),
             Some("为什么你手握 Codex、Claude，依然赚不到钱？")
         );
-        assert_eq!(out.text, "过去，一个人赚不到钱，往往还能找到很多具体的理由。\n\n这些理由过去确实成立，因为技术本身就是门槛。");
+        assert_eq!(
+            out.text,
+            "过去，一个人赚不到钱，往往还能找到很多具体的理由。\n\n这些理由过去确实成立，因为技术本身就是门槛。"
+        );
         assert_eq!(out.author_name.as_deref(), Some("伟大"));
         assert_eq!(out.screen_name.as_deref(), Some("Huouo908070"));
     }
@@ -1798,6 +2107,99 @@ mod tests {
         let out = parse_tweet_content(parsed).unwrap();
         assert_eq!(out.text, "just setting up my twttr");
         assert_eq!(out.title, None);
+        assert!(out.image_urls.is_empty());
+    }
+
+    #[test]
+    fn article_tweet_collects_images_at_atomic_blocks() {
+        // 文章型推文配图：atomic block 经 entityRanges.key（1-based）关联
+        // media_entities，纯解析层在原位插入占位标记并收集直链。
+        let json = r#"{
+            "code": 200,
+            "tweet": {
+                "text": "https://x.com/i/article/2108373211285266465",
+                "author": {"name": "冬青", "screen_name": "DongQingAsk"},
+                "article": {
+                    "title": "小红书虚拟产品卖什么？",
+                    "media_entities": [
+                        {"media_info": {"original_img_url": "https://pbs.twimg.com/media/AAA.jpg"}},
+                        {"media_info": {"original_img_url": "https://pbs.twimg.com/media/BBB.png"}}
+                    ],
+                    "content": {
+                        "blocks": [
+                            {"type": "unstyled", "text": "第一段"},
+                            {"type": "atomic", "text": " ", "entityRanges": [{"key": 1, "offset": 0, "length": 1}]},
+                            {"type": "unstyled", "text": "第二段"},
+                            {"type": "atomic", "text": " ", "entityRanges": [{"key": 2, "offset": 0, "length": 1}]},
+                            {"type": "unstyled", "text": "结尾"}
+                        ]
+                    }
+                }
+            }
+        }"#;
+        let parsed: FxTwitterResponse = serde_json::from_str(json).unwrap();
+        let out = parse_tweet_content(parsed).unwrap();
+        // 图片原位插入占位，正文顺序不变
+        assert_eq!(
+            out.text,
+            "第一段\n\n{{tweet-image-0}}\n\n第二段\n\n{{tweet-image-1}}\n\n结尾"
+        );
+        // 直链按出现顺序收集
+        assert_eq!(
+            out.image_urls,
+            vec![
+                "https://pbs.twimg.com/media/AAA.jpg".to_string(),
+                "https://pbs.twimg.com/media/BBB.png".to_string(),
+            ]
+        );
+        assert_eq!(out.title.as_deref(), Some("小红书虚拟产品卖什么？"));
+    }
+
+    #[test]
+    fn article_atomic_block_with_missing_media_is_skipped() {
+        // atomic block 指向的 media_entities 缺失/无 URL → 跳过，不产占位也不崩。
+        let json = r#"{
+            "code": 200,
+            "tweet": {
+                "article": {
+                    "title": "t",
+                    "media_entities": [],
+                    "content": {"blocks": [
+                        {"type": "unstyled", "text": "甲"},
+                        {"type": "atomic", "text": " ", "entityRanges": [{"key": 5}]},
+                        {"type": "unstyled", "text": "乙"}
+                    ]}
+                }
+            }
+        }"#;
+        let parsed: FxTwitterResponse = serde_json::from_str(json).unwrap();
+        let out = parse_tweet_content(parsed).unwrap();
+        assert_eq!(out.text, "甲\n\n乙");
+        assert!(out.image_urls.is_empty());
+    }
+
+    #[test]
+    fn normal_tweet_appends_top_level_photos() {
+        // 普通推文（非文章型）：media.photos 追加在正文末尾。
+        let json = r#"{
+            "code": 200,
+            "tweet": {
+                "text": "看看这个",
+                "author": {"name": "u", "screen_name": "u"},
+                "media": {"photos": [
+                    {"url": "https://pbs.twimg.com/media/X1.jpg", "type": "photo"},
+                    {"url": "https://pbs.twimg.com/media/X2.png", "type": "photo"}
+                ]}
+            }
+        }"#;
+        let parsed: FxTwitterResponse = serde_json::from_str(json).unwrap();
+        let out = parse_tweet_content(parsed).unwrap();
+        assert_eq!(
+            out.text,
+            "看看这个\n\n{{tweet-image-0}}\n\n{{tweet-image-1}}"
+        );
+        assert_eq!(out.image_urls.len(), 2);
+        assert_eq!(out.image_urls[0], "https://pbs.twimg.com/media/X1.jpg");
     }
 
     #[test]

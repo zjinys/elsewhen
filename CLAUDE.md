@@ -43,6 +43,32 @@ Elsewhen is a local-first personal event system with a **Rust core** and **Flutt
 
 ## Development Commands
 
+> **新环境从零搭建请先读 `docs/development/build-environment.md`** —— 它按
+> Windows / macOS / Linux 分列了完整依赖（含各平台的系统包名）、libclang 这个
+> 容易漏掉的第三工具、以及每平台的验证步骤。本节只列命令，不含环境配置。
+
+#### 新 clone 之后第一条命令
+```bash
+git clone https://github.com/zjinys/elsewhen.git && cd elsewhen
+./scripts/bootstrap.sh          # 预检 → 装 Flutter SDK → pub get → 编 Rust → 校验 hash → 启动
+```
+```powershell
+git clone https://github.com/zjinys/elsewhen.git; cd elsewhen
+powershell -File scripts\bootstrap.ps1
+```
+
+前提只有一条：系统依赖与工具链已按 `docs/development/build-environment.md` 装好。
+`bootstrap` **不装任何系统包**（那些要 sudo / 交互式安装器），它做的是把
+「装好之后到跑起来之间」这段固定下来 —— `target/release/`、`.fvm/`、`.dart_tool/`
+三样都不在 git 里，直接跑 `elsewhen.sh` 会在 `RustLib.init()` 才炸。
+
+`bootstrap.sh --setup-only` 只准备不启动；`--regen` 先重生成桥接（改了 Rust 公开
+API 时）；`--device <id>` 换设备。日常开发仍用 `elsewhen.sh` / `debug-run.sh`。
+
+> ⚠ **PowerShell 的参数绑定与 bash 不同**：`-d android`、`--device android` 都会被
+> 前缀匹配绑到 `-Device`，而不是透传给 `flutter run`。Windows 上设备一律用
+> `-Device` 指定。原因与实测见 `docs/development/build-environment.md` §7 末。
+
 ### Rust Core
 
 #### Build and test
@@ -102,6 +128,51 @@ Desktop UI app packages（Flutter UI + Rust bridge lib；先跑 scripts/regen.sh
 ./scripts/package-dmg.sh           # macOS → dist/Elsewhen-*.dmg（ad-hoc 签名；分发需 Developer ID + 公证）
 powershell -File scripts/package-msi.ps1   # Windows → dist/Elsewhen-*-x64.msi（需 WiX Toolset v3.11）
 ```
+
+### Windows 开发脚本
+
+`scripts/` 下每个 `.sh` 都有对应的 `.ps1`（**均需 PowerShell 5.1+，文件带 UTF-8 BOM**——
+无 BOM 时 5.1 会按系统 ANSI 代码页读，中文注释与输出全部乱码）：
+
+| 用途 | bash | PowerShell |
+|---|---|---|
+| **新环境一键准备 + 启动** | `./scripts/bootstrap.sh` | `powershell -File scripts\bootstrap.ps1` |
+| 启动主应用 | `./scripts/elsewhen.sh` | `powershell -File scripts\elsewhen.ps1` |
+| Capture 模式 | `./scripts/elsewhen-capture.sh` | `powershell -File scripts\elsewhen-capture.ps1` |
+| 带诊断日志启动 | `./scripts/debug-run.sh` | `powershell -File scripts\debug-run.ps1` |
+| 重建 frb bridge | `./scripts/regen.sh` | `powershell -File scripts\regen.ps1` |
+| 校验 bridge 集成 | `./scripts/test_bridge.sh` | `powershell -File scripts\test_bridge.ps1` |
+| 打 Android APK | `./scripts/build-apk.sh` | `powershell -File scripts\build-apk.ps1` |
+| 旧库版本标记修复 | `./scripts/stamp-legacy-db.sh` | `powershell -File scripts\stamp-legacy-db.ps1` |
+
+`regen.ps1` 比 `regen.sh` 多一步前置检查和一步静态校验：
+
+- **前置检查 `libclang.dll`**（第 0 步）。ffigen 靠 libclang 解析 C 头，缺了
+  `generate` 跑不起来，且报错位置与根因相距很远，所以先查。ffigen 22.0.0 在
+  Windows 上**默认只搜两个位置**（`C:\Program Files\LLVM\bin\` 与
+  `%USERPROFILE%\scoop\apps\llvm\current\bin`），不做 PATH 搜索，
+  **`LIBCLANG_PATH` 也无效**（ffigen 的 `lib/` 全量 grep 零命中）。
+  装 llvm.org 官方安装器或 `scoop install llvm` 即落在默认位置，无需额外配置；
+  装在别处时用 `-LlvmPath <LLVM 根目录>`（转成 `--llvm-path` 透传，优先级高于
+  默认位置），**不要改 `flutter_rust_bridge.yaml`** —— 那份文件三平台共享，
+  frb 没有条件键。
+  **Visual Studio 自带的 clang-cl 不能替代**：那是 clang-cl.exe / clang.exe 两个驱动，
+  不是 `libclang.dll`，也不在 ffigen 的搜索路径里。这与 cargo 链接所需的 MSVC
+  Build Tools 是两件独立的事——能 `cargo build` 不代表 ffigen 能用，反之亦然。
+- **收尾静态校验两侧 hash**：比对 `ui/lib/bridge/generated.dart/frb_generated.dart` 的
+  `rustContentHash` 与 `src/frb_generated.rs` 的 `FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH`。
+  `regen.sh` 只靠「总是重编」保证一致，codegen 若静默失效要到 app 启动时
+  `RustLib.init()` 才炸。
+
+**没有 Windows 版本的脚本是故意的**：`package-{deb,rpm,pacman,appimage,dmg}.sh` 与
+`install-linux-desktop.sh` 平台绑定；`flutter-wrapper.sh` 硬编码了某台机器的
+FVM 路径，不该移植。`Makefile` 同样是 `/bin/sh`，Windows 上用不了。
+
+`regen.ps1` 第 1 步（clang 头文件 / CPATH）与第 0 步的 libclang 检查是两件事：前者是
+**探测到才启用**，不像 `regen.sh` 那样缺了就报错——那个 stdbool.h 缺失是 Debian/Ubuntu
+的 clang 打包问题，官方 LLVM 安装器的 libclang 自带编译期 resource dir 路径，Windows 上
+通常不复现。若你的机器反而需要，加 `-ForceClangInclude`；若它反而引入了问题，删掉那一段
+即可，libclang 检查不受影响。
 
 ## Database Schema
 
@@ -179,6 +250,8 @@ Real Flutter bridge tests must initialize `RustBridgeRepository` through `ui/tes
 
 The active implementation plan is `docs/roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md`. It supersedes the old phase ordering while retaining the local-first invariants. Every completed roadmap step must immediately update its checkbox and completion evidence in that file.
 
+The cross-cutting proposal backlog index is `docs/proposal-backlog.md` — the single authoritative overview of unfinished proposals. Whenever a proposal is created, advanced, or completed, update that index (status, evidence, date) in the same change and sync the note's `Status` field; do not defer it.
+
 ## CI
 
 GitHub Actions workflow (`.github/workflows/ci.yml`) runs on Ubuntu, macOS, Windows:
@@ -210,3 +283,20 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on Ubuntu, macOS, Wind
 - Dependency epochs accelerate stale checks; full bases remain the final confirmation contract. Background dependency refresh always prepares reviewed proposals, never silently accepts them.
 - Suggestions have append-only feedback, scoped to the originating conversation. Acceptance is not execution and does not create a permanent rule.
 - Library and artifact lists load bounded metadata; queue aggregation is in SQLite. Remaining full scans and measured limits: `docs/llm-wiki-scale-and-refactoring.md`. Do not call the entire app ten-thousand/hundred-thousand-page ready based on one query benchmark.
+
+### AI chat experience and explicit review (schema v10)
+
+- Follow `docs/roadmap/2026-09-30-ai-chat-experience-roadmap.md` as a sub-track of the main roadmap; update both when a step is delivered. Shared contracts and loopback baselines: `docs/testing/ai-chat-contract-and-baseline.md`.
+- `ai/time_context.rs` supplies application and message time as synthetic context. Preserve original messages, count the actual request, and remove old time reminders with their owning turns. A cached clock block is not a source of event facts.
+- Natural-language acknowledgements never execute or discard pending chat actions/rules. FRB review requests bind kind, ID, conversation, proposal version and target token; never fetch a new token for previously displayed content.
+- `storage/approvals.rs` stores durable claims, execution leases and receipts. Local compound writes validate target bases and commit their result together. Stale explicit contact slugs never silently fall back by name. Non-atomic import outcomes may need inspection, not blind replay.
+- Healthy execution leases survive re-initialization; only expired claims recover as uncertain, and late completions are fenced. The main chat, wiki chat and legacy global-rule review use the same review contract. This is not yet the full generation/streaming lifecycle; follow the remaining roadmap steps.
+
+## Flutter UI Guidelines
+
+### ListTile style constraints
+- **禁止**将 `ListTile` 直接作为 `DecoratedBox`/`Container`/`Card` 等带 `color`/`decoration.color` 背景的容器的直接子组件，容易导致 `ListTile background color or ink splashes may be invisible` 警告。
+- 当 `ListTile` 需要在带背景的容器内使用时，必须在其外层包裹 `Material`（推荐 `Material(type: MaterialType.transparency)` 或显式指定 `color` 的 `Material`）来提供 ink splash 的绘制祖先。
+- 对于 `PopupMenuItem`、`DropdownMenuItem`、`BottomSheet`、`Dialog` 等菜单/面板内的列表项：优先考虑使用 `ListTile` 自带的 `tileColor`，或在 `ListTile` 外包 `Material` 以避免背景色冲突。不要让中间层的带色容器遮挡 ListTile 的背景和 ripple 效果。
+- 修复原则：要么移除中间容器的背景色，要么确保 `ListTile` 拥有最近的 `Material` 祖先。
+

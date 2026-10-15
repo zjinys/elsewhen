@@ -37,15 +37,34 @@ dependencies:
   # Rust FFI bridge
   flutter_rust_bridge: 2.14.0-beta.2
 
+  # Device-local sync master keys; never replicated with Provider configuration.
+  flutter_secure_storage: ^11.2.0
+
   # UI utilities
   intl: ^0.20.1
   # wiki md⇄JSON codec 行内语法（[[wikilink]] 等，vendored 编辑器同款协议）
   markdown: ^7.3.1
+  # 移动端应用私有目录：directories crate 在 Android 上未实现（ProjectDirs 恒为
+  # None），改由 Dart 侧 path_provider 取应用私有目录显式传给 initBridge。
+  path_provider: ^2.1.6
+
+  # 设置页展示应用版本（pubspec version；报障时用户要能一眼报出版本）。
+  package_info_plus: ^10.0.0
 
   # Desktop integration
-  # window_manager / screen_retriever 已合并迁移到 nativeapi（同一作者 leanflutter
-  # 的统一原生 API 继任者）：窗口大小/位置/无边框/置顶/事件 + 显示器信息一包覆盖。
-  nativeapi: ^0.4.0
+  # 桌面窗口管理：window_manager。曾迁往其继任者 nativeapi（同作者 leanflutter），
+  # 但 nativeapi 0.4 在 Windows 上透明背景被 DWM 合成白边、且缺
+  # waitUntilReadyToShow 启动编排，遂迁回（FlClash 生产验证的纪律：
+  # 不透明窗口 + 不自裁圆角，圆角交给系统）。
+  window_manager: ^0.5.1
+  screen_retriever: ^0.2.0
+  # 系统托盘（显示主窗 / 快速捕获 / 退出）。
+  # 锁 0.5.3：0.6+ 迁到 nativeapi，会把那个会把 Android release AOT 打崩、
+  # 且在 Linux 改 GTK 装饰即崩的依赖重新拖回依赖图（本仓库刚从 nativeapi
+  # 迁回 window_manager，见上方注释）。0.5.3 与 window_manager 同代，
+  # platform channel 风格，无 nativeapi。
+  # Linux 需要 libayatana-appindicator3（或 appindicator3）开发包。
+  tray_manager: 0.5.3
 
   # Icons
   cupertino_icons: ^1.0.8
@@ -69,6 +88,9 @@ dependencies:
   # 详见 third_party/appflowy_editor/README.local.md。
   appflowy_editor:
     path: third_party/appflowy_editor
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.4.2
+  device_info_plus: ^13.3.0
 
 dependency_overrides:
   # appflowy_editor（vendored）锁死 keyboard_height_plugin ^0.1.5（compileSdk 31，
@@ -103,6 +125,8 @@ flutter:
 
   assets:
     - assets/brand/elsewhen-icon-v2.svg
+    - assets/brand/elsewhen-tray.png
+    - assets/brand/elsewhen-tray.ico
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -7,10 +7,14 @@ pub mod ai;
 pub mod config;
 pub mod event;
 pub mod fonts;
-pub mod local_sources;
+pub(crate) mod http_proxy;
 pub mod knowledge;
 mod knowledge_background;
+pub mod local_sources;
+pub mod net_doh;
 pub mod storage;
+pub mod sync;
+pub mod web_search;
 pub mod wiki;
 
 // Bridge API module - exposes Rust core to Flutter
@@ -20,6 +24,6 @@ pub mod api;
 #[cfg(test)]
 mod digest_tests;
 #[cfg(test)]
-mod storage_tests;
-#[cfg(test)]
 mod knowledge_tests;
+#[cfg(test)]
+mod storage_tests;

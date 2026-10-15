@@ -1,9 +1,12 @@
 //! Every page affected by a source update owns a durable completion record.
 use crate::{ai::provider::AiProvider, storage::Store};
-use anyhow::{ensure, Context, Result};
-use rusqlite::{params, Transaction, TransactionBehavior};
+use anyhow::{Context, Result, ensure};
+use rusqlite::{Transaction, TransactionBehavior, params};
 
 pub(crate) fn run_knowledge_refresh(store: &Store, provider: &dyn AiProvider) -> Result<i64> {
+    if !store.background_processing_allowed()? {
+        return Ok(0);
+    }
     let now = chrono::Utc::now();
     // Queue only pages whose direct parents are ready. Descendants follow after
     // their parents are confirmed, avoiding repeated model calls on stale input.
@@ -80,6 +83,7 @@ pub(crate) fn run_knowledge_refresh(store: &Store, provider: &dyn AiProvider) ->
         let result = (|| -> Result<i64> {
             let proposal = crate::knowledge::build_refresh_proposal(store, &slug, provider)?;
             let tx = Transaction::new_unchecked(&store.connection, TransactionBehavior::Immediate)?;
+            store.require_background_processor()?;
             let active:bool=store.connection.query_row("SELECT EXISTS(SELECT 1 FROM knowledge_refresh_jobs WHERE page_id=?1 AND generation=?2 AND status='running' AND EXISTS(SELECT 1 FROM knowledge_background_runs WHERE id=?3 AND status='running'))",params![id,generation,run],|r|r.get(0))?;
             ensure!(active, "更新期间来源再次变化，等待新一轮处理");
             let review_only: bool = store.connection.query_row(

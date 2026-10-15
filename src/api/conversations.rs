@@ -33,42 +33,117 @@ pub struct PendingActionDto {
     pub action: String,
     pub args_json: String,
     pub created_at: String,
+    pub version: i64,
+    pub approval_token: String,
+    pub target_basis_json: String,
 }
 
 pub fn list_pending_actions(conversation_id: String) -> Result<Vec<PendingActionDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     Ok(store
-        .pending_actions_for_conversation(&conversation_id)?
+        .list_chat_proposals(Some(&conversation_id), 0, 100)?
         .into_iter()
+        .filter(|item| item.kind == "action")
         .map(|item| PendingActionDto {
             id: item.id,
             action: item.action,
             args_json: item.args_json,
             created_at: item.created_at,
+            version: item.version,
+            approval_token: item.approval_token,
+            target_basis_json: item.target_basis_json,
         })
         .collect())
 }
 
-pub fn update_pending_action_args(action_id: String, args_json: String) -> Result<bool> {
+pub fn update_pending_action_args(
+    conversation_id: String,
+    action_id: String,
+    expected_version: i64,
+    approval_token: String,
+    args_json: String,
+) -> Result<bool> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
-    let _: serde_json::Value = serde_json::from_str(&args_json)?;
-    store.update_pending_action_args(&action_id, &args_json)
+    store.edit_chat_proposal(
+        "action",
+        &action_id,
+        Some(&conversation_id),
+        expected_version,
+        &approval_token,
+        &args_json,
+    )?;
+    Ok(true)
 }
 
 /// 从对话中的草稿预览单独保存一张知识页，不确认同会话的其他动作。
-pub fn confirm_knowledge_draft(conversation_id: String, action_id: String) -> Result<String> {
-    let config = crate::config::AppConfig::load()?;
-    let store = Store::open(&config.database_path)?;
-    crate::ai::tool::confirm_knowledge_draft(&store, &conversation_id, &action_id)
+pub fn confirm_knowledge_draft(
+    conversation_id: String,
+    action_id: String,
+    expected_version: i64,
+    approval_token: String,
+) -> Result<String> {
+    resolve_knowledge_draft(
+        &conversation_id,
+        &action_id,
+        expected_version,
+        &approval_token,
+        true,
+    )
 }
 
-/// 只拒绝这一篇待入库知识草稿，不删除已保存页面或其他待确认动作。
-pub fn decline_knowledge_draft(conversation_id: String, action_id: String) -> Result<()> {
+/// Refuse only the exact reviewed draft version, never other pending actions.
+pub fn decline_knowledge_draft(
+    conversation_id: String,
+    action_id: String,
+    expected_version: i64,
+    approval_token: String,
+) -> Result<()> {
+    resolve_knowledge_draft(
+        &conversation_id,
+        &action_id,
+        expected_version,
+        &approval_token,
+        false,
+    )?;
+    Ok(())
+}
+
+fn resolve_knowledge_draft(
+    conversation_id: &str,
+    action_id: &str,
+    version: i64,
+    token: &str,
+    accept: bool,
+) -> Result<String> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
-    crate::ai::tool::decline_knowledge_draft(&store, &conversation_id, &action_id)
+    let action =
+        if let Some(receipt) = store.chat_decision("action", action_id, Some(conversation_id))? {
+            receipt.action
+        } else {
+            store
+                .chat_proposal("action", action_id, Some(conversation_id))?
+                .context("待确认草稿不存在")?
+                .action
+        };
+    if action != "save_knowledge_draft" {
+        anyhow::bail!("只能从此入口审阅知识页草稿");
+    }
+    let receipt = crate::ai::approval::resolve_chat_proposal(
+        &store,
+        "action",
+        action_id,
+        Some(conversation_id),
+        version,
+        token,
+        if accept { "accept" } else { "reject" },
+    )?;
+    if !matches!(receipt.status.as_str(), "succeeded" | "declined") {
+        anyhow::bail!("{}", receipt.result);
+    }
+    Ok(receipt.result)
 }
 
 /// Create a new conversation

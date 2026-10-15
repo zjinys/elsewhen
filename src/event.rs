@@ -52,7 +52,7 @@ impl AnnotationSet {
 }
 
 /// 解析规范标注：`@`（或全角 `＠`）后跟人物名，`#`（或全角 `＃`）后跟事情/项目名。
-/// 名字：紧随符号的连续字符（中文/字母/数字/括号——括号可作同名备注，如 `@张伟（市场部）`），
+/// 名字：紧随符号的连续字符（中文/字母/数字/括号——括号可作同名备注，如 `@李四（市场部）`），
 /// 遇空白或标点（，。、！？；：,.!?;:/\|）或另一个标注符号即结束；自动去重。
 pub fn parse_annotations(text: &str) -> AnnotationSet {
     let mut out = AnnotationSet::default();
@@ -134,29 +134,29 @@ mod tests {
 
     #[test]
     fn parses_person_and_target() {
-        let a = parse_annotations("今天 @张伟 负责的 #双链路付款 有进展");
-        assert_eq!(a.people, vec!["张伟"]);
-        assert_eq!(a.targets, vec!["双链路付款"]);
+        let a = parse_annotations("今天 @李四 负责的 #网站改版 有进展");
+        assert_eq!(a.people, vec!["李四"]);
+        assert_eq!(a.targets, vec!["网站改版"]);
     }
 
     #[test]
     fn parens_are_part_of_name_for_disambiguation() {
-        let a = parse_annotations("跟 @张伟（市场部） 对齐，@张伟（设计） 也来了");
-        assert_eq!(a.people, vec!["张伟（市场部）", "张伟（设计）"]);
+        let a = parse_annotations("跟 @李四（市场部） 对齐，@李四（设计） 也来了");
+        assert_eq!(a.people, vec!["李四（市场部）", "李四（设计）"]);
     }
 
     #[test]
     fn stops_at_punctuation_and_whitespace() {
-        let a = parse_annotations("@李婷，负责#贵州交付；@老王 走了");
-        assert_eq!(a.people, vec!["李婷", "老王"]);
-        assert_eq!(a.targets, vec!["贵州交付"]);
+        let a = parse_annotations("@孙七，负责#测试项目；@王五 走了");
+        assert_eq!(a.people, vec!["孙七", "王五"]);
+        assert_eq!(a.targets, vec!["测试项目"]);
     }
 
     #[test]
     fn fullwidth_symbols_and_dedup() {
-        let a = parse_annotations("＠张伟 ＃双链路 #双链路 @张伟");
-        assert_eq!(a.people, vec!["张伟"]);
-        assert_eq!(a.targets, vec!["双链路"]);
+        let a = parse_annotations("＠李四 ＃网站改版 #网站改版 @李四");
+        assert_eq!(a.people, vec!["李四"]);
+        assert_eq!(a.targets, vec!["网站改版"]);
     }
 
     #[test]

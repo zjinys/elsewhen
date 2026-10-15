@@ -7,6 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `resolve_knowledge_draft`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<List<PendingActionDto>> listPendingActions({
@@ -16,10 +17,16 @@ Future<List<PendingActionDto>> listPendingActions({
 );
 
 Future<bool> updatePendingActionArgs({
+  required String conversationId,
   required String actionId,
+  required PlatformInt64 expectedVersion,
+  required String approvalToken,
   required String argsJson,
 }) => RustLib.instance.api.crateApiConversationsUpdatePendingActionArgs(
+  conversationId: conversationId,
   actionId: actionId,
+  expectedVersion: expectedVersion,
+  approvalToken: approvalToken,
   argsJson: argsJson,
 );
 
@@ -27,18 +34,26 @@ Future<bool> updatePendingActionArgs({
 Future<String> confirmKnowledgeDraft({
   required String conversationId,
   required String actionId,
+  required PlatformInt64 expectedVersion,
+  required String approvalToken,
 }) => RustLib.instance.api.crateApiConversationsConfirmKnowledgeDraft(
   conversationId: conversationId,
   actionId: actionId,
+  expectedVersion: expectedVersion,
+  approvalToken: approvalToken,
 );
 
-/// 只拒绝这一篇待入库知识草稿，不删除已保存页面或其他待确认动作。
+/// Refuse only the exact reviewed draft version, never other pending actions.
 Future<void> declineKnowledgeDraft({
   required String conversationId,
   required String actionId,
+  required PlatformInt64 expectedVersion,
+  required String approvalToken,
 }) => RustLib.instance.api.crateApiConversationsDeclineKnowledgeDraft(
   conversationId: conversationId,
   actionId: actionId,
+  expectedVersion: expectedVersion,
+  approvalToken: approvalToken,
 );
 
 /// Create a new conversation
@@ -267,17 +282,29 @@ class PendingActionDto {
   final String action;
   final String argsJson;
   final String createdAt;
+  final PlatformInt64 version;
+  final String approvalToken;
+  final String targetBasisJson;
 
   const PendingActionDto({
     required this.id,
     required this.action,
     required this.argsJson,
     required this.createdAt,
+    required this.version,
+    required this.approvalToken,
+    required this.targetBasisJson,
   });
 
   @override
   int get hashCode =>
-      id.hashCode ^ action.hashCode ^ argsJson.hashCode ^ createdAt.hashCode;
+      id.hashCode ^
+      action.hashCode ^
+      argsJson.hashCode ^
+      createdAt.hashCode ^
+      version.hashCode ^
+      approvalToken.hashCode ^
+      targetBasisJson.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -287,5 +314,8 @@ class PendingActionDto {
           id == other.id &&
           action == other.action &&
           argsJson == other.argsJson &&
-          createdAt == other.createdAt;
+          createdAt == other.createdAt &&
+          version == other.version &&
+          approvalToken == other.approvalToken &&
+          targetBasisJson == other.targetBasisJson;
 }

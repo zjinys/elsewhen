@@ -33,7 +33,7 @@ Status: implemented
 
 ### 输入预算文档的审阅结论
 
-已审阅 [输入预算的 token 口径失真](../../proposed/refactor/2026-09-29-input-budget-token-accounting.md)。完整请求预算尚未在本次修复中实施；本次先解决独立可复现的协议异常。预算方案需要修正以下推论后再落地：
+已审阅 [输入预算的 token 口径失真](../simplification/2026-09-29-input-budget-token-accounting.md)。完整请求预算尚未在本次修复中实施；本次先解决独立可复现的协议异常。预算方案需要修正以下推论后再落地：
 
 1. **缺陷成立**：正文粗估偏低、工具 schema 未计费于预算、工具参数/推理/消息封装未计入、无 user 时提前返回、长最新消息会挤掉历史且可能没有省略标记。恢复短追问的独立措施不能代替完整预算治理。
 2. **单位需要纠正**：3195 / 4831 ≈ 0.662 是 token/字符，不是 0.662 字符/token；且这是混合提示词的平均值，不能直接当成中文字符的 tokenizer 权重。低估输入也不能保证“不撞上限”，此前代码注释的这句论证不成立。
@@ -414,10 +414,10 @@ Provider 配置中 `max_tokens = NULL` 只表示客户端没有显式设置，�
 | provider | 状态 |
 | --- | --- |
 | `default`（hub.oaifree.com，gpt-4o） | 活跃；对「模型决定调工具」的请求 100% 返回坏响应 |
-| `glm-5.3-flash@虾蹬王` | 可用 |
-| `deepseek-flash@fengwind` | 实测 503 网关暂时不可用 |
-| `deepseek-flash@deepseek` | **402 Insufficient Balance**（欠费） |
-| `deepseek@zerocat` | **403 Forbidden** |
+| `glm-5.3-flash@账号A` | 可用 |
+| `deepseek-flash@账号B` | 实测 503 网关暂时不可用 |
+| `deepseek-flash@账号C` | **402 Insufficient Balance**（欠费） |
+| `deepseek@账号D` | **403 Forbidden** |
 
 5 个里 2 个已死、1 个当时 503，**failover 实际只有 1 个真实目标**。用户选择暂不处理
 （自行充费或删配置），已记入 backlog。这也说明「改成触发轮换」在当前配置下收益有限：

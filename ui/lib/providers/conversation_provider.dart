@@ -1,10 +1,21 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'state_holder.dart';
 
 import '../models/conversation.dart';
 import '../bridge/rust_bridge_repository.dart';
-import '../bridge/api.dart' show MessageRecordabilityDto;
+import '../bridge/api.dart'
+    show
+        MessageRecordabilityDto,
+        PendingActionDto,
+        ChatProposalDto,
+        ChatDecisionDto,
+        ChatReviewRequest,
+        ChatRunDto,
+        UnscheduledChatInputDto,
+        ChatInputQueueDto,
+        ChatRunEventPageDto;
 import '../models/token_usage.dart';
 
 /// Mock conversation repository (will be replaced with Rust bridge)
@@ -108,16 +119,43 @@ class ConversationRepository {
   Future<List<dynamic>> listPendingActions(String conversationId) =>
       _bridge.listPendingActions(conversationId);
 
-  Future<bool> updatePendingActionArgs(String actionId, String argsJson) =>
-      _bridge.updatePendingActionArgs(actionId, argsJson);
+  Future<bool> updatePendingActionArgs(
+    String conversationId,
+    PendingActionDto action,
+    String argsJson,
+  ) => _bridge.updatePendingActionArgs(conversationId, action, argsJson);
 
   Future<String> confirmKnowledgeDraft(
     String conversationId,
-    String actionId,
-  ) => _bridge.confirmKnowledgeDraft(conversationId, actionId);
+    PendingActionDto action,
+  ) => _bridge.confirmKnowledgeDraft(conversationId, action);
 
-  Future<void> declineKnowledgeDraft(String conversationId, String actionId) =>
-      _bridge.declineKnowledgeDraft(conversationId, actionId);
+  Future<void> declineKnowledgeDraft(
+    String conversationId,
+    PendingActionDto action,
+  ) => _bridge.declineKnowledgeDraft(conversationId, action);
+
+  Future<List<ChatProposalDto>> listChatProposals(
+    String? conversationId, {
+    int offset = 0,
+    int limit = 25,
+  }) => _bridge.listChatProposals(conversationId, offset: offset, limit: limit);
+
+  Future<List<ChatDecisionDto>> listChatDecisions(
+    String? conversationId, {
+    int offset = 0,
+    int limit = 25,
+  }) => _bridge.listChatDecisions(conversationId, offset: offset, limit: limit);
+
+  Future<ChatProposalDto> editChatProposal(
+    ChatReviewRequest request,
+    String argsJson,
+  ) => _bridge.editChatProposal(request, argsJson);
+
+  Future<ChatDecisionDto> decideChatProposal(
+    ChatReviewRequest request, {
+    required bool accept,
+  }) => _bridge.decideChatProposal(request, accept: accept);
 
   /// Send a message in a conversation
   Future<Message> sendMessage(
@@ -131,6 +169,75 @@ class ConversationRepository {
       idempotencyKey: idempotencyKey,
     );
   }
+
+  bool get supportsChatRuns => _bridge.supportsChatRuns;
+  bool get supportsChatQueue => _bridge.supportsChatQueue;
+  ValueListenable<ChatRunDto?> get chatQueueRunStarted =>
+      _bridge.chatQueueRunStarted;
+  Future<ChatRunDto?> scheduleChatInput(
+    String conversationId,
+    String inputMessageId,
+  ) => _bridge.scheduleChatInput(conversationId, inputMessageId);
+  Future<List<UnscheduledChatInputDto>> listUnscheduledChatInputs(
+    String conversationId, {
+    int offset = 0,
+  }) => _bridge.listUnscheduledChatInputs(conversationId, offset: offset);
+  Future<List<ChatRunDto>> listChatRuns(
+    String conversationId, {
+    int offset = 0,
+  }) => _bridge.listChatRuns(conversationId, offset: offset);
+  Future<int> enqueueChatInput(String conversationId, String inputMessageId) =>
+      _bridge.enqueueChatInput(conversationId, inputMessageId);
+  Future<int> enqueueChatSupplement(
+    String conversationId,
+    String inputMessageId,
+    String runId, {
+    String contextJson = '{}',
+  }) => _bridge.enqueueChatSupplement(
+    conversationId,
+    inputMessageId,
+    runId,
+    contextJson: contextJson,
+  );
+  Future<ChatInputQueueDto> getChatInputQueue(
+    String conversationId, {
+    int afterId = 0,
+  }) => _bridge.getChatInputQueue(conversationId, afterId: afterId);
+  Future<bool> withdrawChatInput(String conversationId, int queueId) =>
+      _bridge.withdrawChatInput(conversationId, queueId);
+  Future<void> resumeChatInputQueue(String conversationId) =>
+      _bridge.resumeChatInputQueue(conversationId);
+  Future<void> pauseChatInputQueue(String conversationId) =>
+      _bridge.pauseChatInputQueue(conversationId);
+  Future<ChatRunDto?> dispatchChatInputQueue(String conversationId) =>
+      _bridge.dispatchChatInputQueue(conversationId);
+
+  Future<ChatRunDto> startChatRun(
+    String conversationId,
+    String inputMessageId,
+    String idempotencyKey,
+  ) => _bridge.startChatRun(conversationId, inputMessageId, idempotencyKey);
+
+  Future<ChatRunDto?> getChatRun(String conversationId, String runId) =>
+      _bridge.getChatRun(conversationId, runId);
+
+  Future<ChatRunDto?> getLatestChatRun(String conversationId) =>
+      _bridge.getLatestChatRun(conversationId);
+
+  Future<ChatRunEventPageDto> listChatRunEvents(
+    String conversationId,
+    String runId,
+    int afterSequence, {
+    int limit = 64,
+  }) => _bridge.listChatRunEvents(
+    conversationId,
+    runId,
+    afterSequence,
+    limit: limit,
+  );
+
+  Future<ChatRunDto?> cancelChatRun(String conversationId, String runId) =>
+      _bridge.cancelChatRun(conversationId, runId);
 
   /// Trigger AI generation of an assistant reply for the conversation
   Future<String> generateReply(String conversationId) async {

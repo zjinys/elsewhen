@@ -1,6 +1,6 @@
 import 'window_service.dart';
 
-/// 移动端 no-op 实现：nativeapi/cnativeapi 只有桌面原生库，其 FFI 代码还会把
+/// 移动端 no-op 实现：桌面窗口插件（window_manager）只有桌面原生库，
 /// Android AOT 编译器打崩（Class with illegal cid），因此移动端不链接、全部空转。
 class StubWindowService implements WindowService {
   @override
@@ -38,6 +38,18 @@ class StubWindowService implements WindowService {
 
   @override
   Future<void> quitApp() async {}
+
+  @override
+  CloseAction get closeAction => CloseAction.minimizeToTray;
+
+  @override
+  Future<void> setCloseAction(CloseAction action) async {}
+
+  @override
+  bool get trayAvailable => false;
+
+  @override
+  Future<void> requestClose() async {}
 
   @override
   void startDragging() {}

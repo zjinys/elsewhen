@@ -13,7 +13,7 @@
 //! 都不会漏；证据按事件 id 并集去重，重试不会重复累加。
 
 use anyhow::{Context, Result};
-use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use uuid::Uuid;
 
 use super::{ContentPolicy, EventRecord, Store, WikiPageDraft};
@@ -132,6 +132,10 @@ impl Store {
     pub fn settle_digest_queue(&self) -> Result<usize> {
         let now = chrono::Utc::now().to_rfc3339();
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        if !self.background_processing_allowed()? {
+            tx.commit()?;
+            return Ok(0);
+        }
         tx.execute(
             "UPDATE knowledge_digest_jobs
          SET status='retry', attempts=0, failed_rounds=failed_rounds+1, updated_at=?1
@@ -209,6 +213,10 @@ impl Store {
     ) -> Result<Option<DigestBatch>> {
         let now = chrono::Utc::now().to_rfc3339();
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        if !self.background_processing_allowed()? {
+            tx.commit()?;
+            return Ok(None);
+        }
         // 可领取：已到期；且有人工分类，或分析已终态（succeeded/failed/无分析任务）。
         let rows: Vec<(String, EventRecord)> = {
             let mut statement = tx.prepare(
@@ -283,6 +291,7 @@ impl Store {
         let now = chrono::Utc::now();
         let now_text = now.to_rfc3339();
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        self.require_background_processor()?;
         let mut outcome = DigestBatchOutcome::default();
         for draft in drafts {
             let result = self.upsert_wiki_page_in_tx(draft, ContentPolicy::PreserveHumanEdits)?;
@@ -401,6 +410,10 @@ impl Store {
     pub fn recover_interrupted_digest_jobs(&self) -> Result<usize> {
         let now = chrono::Utc::now().to_rfc3339();
         let tx = self.connection.unchecked_transaction()?;
+        if !self.background_processing_allowed()? {
+            tx.commit()?;
+            return Ok(0);
+        }
         let recovered = tx.execute(
             "UPDATE knowledge_digest_jobs
          SET status='retry', last_error='应用退出时消化尚未完成', available_at=?1, updated_at=?1

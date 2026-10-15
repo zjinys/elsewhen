@@ -7,8 +7,11 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api.dart';
+import 'api/chat_proposals.dart';
+import 'api/chat_runs.dart';
 import 'api/conversations.dart';
 import 'api/entities.dart';
+import 'api/event_stats.dart';
 import 'api/fonts.dart';
 import 'api/goals.dart';
 import 'api/import.dart';
@@ -16,11 +19,15 @@ import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
 import 'api/provider_config.dart';
+import 'api/provider_reachability.dart';
 import 'api/relations.dart';
+import 'api/review_report.dart';
 import 'api/rules.dart';
+import 'api/sync.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
+import 'api/web_search.dart';
 import 'api/wiki.dart';
 import 'api/wiki_chat.dart';
 
@@ -66,6 +73,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw);
 
   @protected
+  AppUpdateDto dco_decode_app_update_dto(dynamic raw);
+
+  @protected
   ArtifactVersion dco_decode_artifact_version(dynamic raw);
 
   @protected
@@ -81,6 +91,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
+  ChatReviewRequest dco_decode_box_autoadd_chat_review_request(dynamic raw);
+
+  @protected
+  ChatRunDto dco_decode_box_autoadd_chat_run_dto(dynamic raw);
+
+  @protected
+  CompanionRevisitDto dco_decode_box_autoadd_companion_revisit_dto(dynamic raw);
 
   @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw);
@@ -102,10 +121,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GuidanceDto dco_decode_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
   MessageRecordabilityDto dco_decode_box_autoadd_message_recordability_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
     dynamic raw,
   );
 
@@ -116,10 +143,50 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SuggestionFeedback dco_decode_box_autoadd_suggestion_feedback(dynamic raw);
 
   @protected
+  SyncInvitationPreviewDto dco_decode_box_autoadd_sync_invitation_preview_dto(
+    dynamic raw,
+  );
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  WikiPageConflictSideDto dco_decode_box_autoadd_wiki_page_conflict_side_dto(
+    dynamic raw,
+  );
+
+  @protected
   WikiPageDto dco_decode_box_autoadd_wiki_page_dto(dynamic raw);
+
+  @protected
+  ChatDecisionDto dco_decode_chat_decision_dto(dynamic raw);
+
+  @protected
+  ChatInputQueueDto dco_decode_chat_input_queue_dto(dynamic raw);
+
+  @protected
+  ChatProposalDto dco_decode_chat_proposal_dto(dynamic raw);
+
+  @protected
+  ChatQueuedInputDto dco_decode_chat_queued_input_dto(dynamic raw);
+
+  @protected
+  ChatReviewRequest dco_decode_chat_review_request(dynamic raw);
+
+  @protected
+  ChatRunDto dco_decode_chat_run_dto(dynamic raw);
+
+  @protected
+  ChatRunEventDto dco_decode_chat_run_event_dto(dynamic raw);
+
+  @protected
+  ChatRunEventPageDto dco_decode_chat_run_event_page_dto(dynamic raw);
+
+  @protected
+  CompanionPrefsDto dco_decode_companion_prefs_dto(dynamic raw);
+
+  @protected
+  CompanionRevisitDto dco_decode_companion_revisit_dto(dynamic raw);
 
   @protected
   ContentChatMessageDto dco_decode_content_chat_message_dto(dynamic raw);
@@ -146,6 +213,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
 
   @protected
+  DayCountDto dco_decode_day_count_dto(dynamic raw);
+
+  @protected
+  DeviationItemDto dco_decode_deviation_item_dto(dynamic raw);
+
+  @protected
+  DeviationReportDto dco_decode_deviation_report_dto(dynamic raw);
+
+  @protected
+  EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw);
+
+  @protected
   EntityFactDto dco_decode_entity_fact_dto(dynamic raw);
 
   @protected
@@ -158,10 +237,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventDto dco_decode_event_dto(dynamic raw);
 
   @protected
+  EventEmotionDto dco_decode_event_emotion_dto(dynamic raw);
+
+  @protected
+  EventStatsQuery dco_decode_event_stats_query(dynamic raw);
+
+  @protected
+  EventSummaryDto dco_decode_event_summary_dto(dynamic raw);
+
+  @protected
   double dco_decode_f_64(dynamic raw);
 
   @protected
   GoalDto dco_decode_goal_dto(dynamic raw);
+
+  @protected
+  GuidanceDto dco_decode_guidance_dto(dynamic raw);
+
+  @protected
+  GuidanceRefDto dco_decode_guidance_ref_dto(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -249,6 +343,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<BatchReviewResult> dco_decode_list_batch_review_result(dynamic raw);
 
   @protected
+  List<ChatDecisionDto> dco_decode_list_chat_decision_dto(dynamic raw);
+
+  @protected
+  List<ChatProposalDto> dco_decode_list_chat_proposal_dto(dynamic raw);
+
+  @protected
+  List<ChatQueuedInputDto> dco_decode_list_chat_queued_input_dto(dynamic raw);
+
+  @protected
+  List<ChatRunDto> dco_decode_list_chat_run_dto(dynamic raw);
+
+  @protected
+  List<ChatRunEventDto> dco_decode_list_chat_run_event_dto(dynamic raw);
+
+  @protected
   List<ContentChatMessageDto> dco_decode_list_content_chat_message_dto(
     dynamic raw,
   );
@@ -266,13 +375,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw);
 
   @protected
+  List<DayCountDto> dco_decode_list_day_count_dto(dynamic raw);
+
+  @protected
+  List<DeviationItemDto> dco_decode_list_deviation_item_dto(dynamic raw);
+
+  @protected
+  List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw);
+
+  @protected
+  List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw);
+
+  @protected
   List<EntityFactDto> dco_decode_list_entity_fact_dto(dynamic raw);
 
   @protected
   List<EventDto> dco_decode_list_event_dto(dynamic raw);
 
   @protected
+  List<EventEmotionDto> dco_decode_list_event_emotion_dto(dynamic raw);
+
+  @protected
+  List<EventSummaryDto> dco_decode_list_event_summary_dto(dynamic raw);
+
+  @protected
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
+
+  @protected
+  List<GuidanceRefDto> dco_decode_list_guidance_ref_dto(dynamic raw);
 
   @protected
   List<KnowledgeBackgroundRunDto> dco_decode_list_knowledge_background_run_dto(
@@ -323,10 +453,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<LibraryEntry> dco_decode_list_library_entry(dynamic raw);
 
   @protected
+  List<MemoryEchoDto> dco_decode_list_memory_echo_dto(dynamic raw);
+
+  @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
 
   @protected
+  List<NamedCountDto> dco_decode_list_named_count_dto(dynamic raw);
+
+  @protected
+  List<ObjectConflictDto> dco_decode_list_object_conflict_dto(dynamic raw);
+
+  @protected
   List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw);
+
+  @protected
+  List<PageGuidanceDto> dco_decode_list_page_guidance_dto(dynamic raw);
 
   @protected
   List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
@@ -335,7 +477,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Int64List dco_decode_list_prim_i_64_strict(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<ProviderConflictProfileDto>
+  dco_decode_list_provider_conflict_profile_dto(dynamic raw);
+
+  @protected
+  List<ProviderSyncConflictDto> dco_decode_list_provider_sync_conflict_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<ReachabilityHint> dco_decode_list_reachability_hint(dynamic raw);
 
   @protected
   List<RelationDto> dco_decode_list_relation_dto(dynamic raw);
@@ -344,10 +501,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> dco_decode_list_rule_dto(dynamic raw);
 
   @protected
+  List<RuleHitDto> dco_decode_list_rule_hit_dto(dynamic raw);
+
+  @protected
   List<SourceReference> dco_decode_list_source_reference(dynamic raw);
 
   @protected
   List<SourceSnapshot> dco_decode_list_source_snapshot(dynamic raw);
+
+  @protected
+  List<SyncDatasetEntryDto> dco_decode_list_sync_dataset_entry_dto(dynamic raw);
+
+  @protected
+  List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<SyncJoinEntryDto> dco_decode_list_sync_join_entry_dto(dynamic raw);
+
+  @protected
+  List<SyncRosterMemberDto> dco_decode_list_sync_roster_member_dto(dynamic raw);
 
   @protected
   List<SystemFontFace> dco_decode_list_system_font_face(dynamic raw);
@@ -361,13 +535,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UnscheduledChatInputDto> dco_decode_list_unscheduled_chat_input_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(dynamic raw);
+
+  @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
+
+  @protected
+  List<WikiPageMetaDto> dco_decode_list_wiki_page_meta_dto(dynamic raw);
+
+  @protected
+  LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw);
+
+  @protected
+  MemoryEchoDto dco_decode_memory_echo_dto(dynamic raw);
 
   @protected
   MessageDto dco_decode_message_dto(dynamic raw);
 
   @protected
   MessageRecordabilityDto dco_decode_message_recordability_dto(dynamic raw);
+
+  @protected
+  NamedCountDto dco_decode_named_count_dto(dynamic raw);
+
+  @protected
+  NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw);
+
+  @protected
+  ObjectConflictDto dco_decode_object_conflict_dto(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -379,6 +579,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  ChatRunDto? dco_decode_opt_box_autoadd_chat_run_dto(dynamic raw);
+
+  @protected
+  CompanionRevisitDto? dco_decode_opt_box_autoadd_companion_revisit_dto(
+    dynamic raw,
+  );
 
   @protected
   ConversationDto? dco_decode_opt_box_autoadd_conversation_dto(dynamic raw);
@@ -400,6 +608,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -416,22 +627,66 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SyncInvitationPreviewDto?
+  dco_decode_opt_box_autoadd_sync_invitation_preview_dto(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  WikiPageConflictSideDto?
+  dco_decode_opt_box_autoadd_wiki_page_conflict_side_dto(dynamic raw);
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
 
   @protected
+  List<EmotionTagDto>? dco_decode_opt_list_emotion_tag_dto(dynamic raw);
+
+  @protected
   OrganizedTopic dco_decode_organized_topic(dynamic raw);
 
   @protected
+  PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw);
+
+  @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
+
+  @protected
+  PeriodReportTickResult dco_decode_period_report_tick_result(dynamic raw);
+
+  @protected
+  PeriodStatsDto dco_decode_period_stats_dto(dynamic raw);
+
+  @protected
+  ProcessingYieldProofDto dco_decode_processing_yield_proof_dto(dynamic raw);
+
+  @protected
+  ProcessorHandoffStateDto dco_decode_processor_handoff_state_dto(dynamic raw);
+
+  @protected
+  ProviderConflictProfileDto dco_decode_provider_conflict_profile_dto(
+    dynamic raw,
+  );
+
+  @protected
+  ProviderSyncConflictDto dco_decode_provider_sync_conflict_dto(dynamic raw);
+
+  @protected
+  ReachabilityHint dco_decode_reachability_hint(dynamic raw);
+
+  @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  dco_decode_record_list_sync_dataset_entry_dto_i_64(dynamic raw);
 
   @protected
   RelationDto dco_decode_relation_dto(dynamic raw);
 
   @protected
   RuleDto dco_decode_rule_dto(dynamic raw);
+
+  @protected
+  RuleHitDto dco_decode_rule_hit_dto(dynamic raw);
 
   @protected
   SourceReference dco_decode_source_reference(dynamic raw);
@@ -444,6 +699,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SuggestionFeedback dco_decode_suggestion_feedback(dynamic raw);
+
+  @protected
+  SyncDatasetEntryDto dco_decode_sync_dataset_entry_dto(dynamic raw);
+
+  @protected
+  SyncEnrollmentStateDto dco_decode_sync_enrollment_state_dto(dynamic raw);
+
+  @protected
+  SyncInvitationOfferDto dco_decode_sync_invitation_offer_dto(dynamic raw);
+
+  @protected
+  SyncInvitationPreviewDto dco_decode_sync_invitation_preview_dto(dynamic raw);
+
+  @protected
+  SyncJoinEntryDto dco_decode_sync_join_entry_dto(dynamic raw);
+
+  @protected
+  SyncJoinStateDto dco_decode_sync_join_state_dto(dynamic raw);
+
+  @protected
+  SyncKeyCommitDto dco_decode_sync_key_commit_dto(dynamic raw);
+
+  @protected
+  SyncKeyRequestDto dco_decode_sync_key_request_dto(dynamic raw);
+
+  @protected
+  SyncRosterDto dco_decode_sync_roster_dto(dynamic raw);
+
+  @protected
+  SyncRosterMemberDto dco_decode_sync_roster_member_dto(dynamic raw);
+
+  @protected
+  SyncTickResultDto dco_decode_sync_tick_result_dto(dynamic raw);
 
   @protected
   SystemFontFace dco_decode_system_font_face(dynamic raw);
@@ -470,7 +758,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
+
+  @protected
+  BigInt dco_decode_usize(dynamic raw);
+
+  @protected
+  WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
+
+  @protected
+  WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
+
+  @protected
+  WikiPageConflictDto dco_decode_wiki_page_conflict_dto(dynamic raw);
+
+  @protected
+  WikiPageConflictSideDto dco_decode_wiki_page_conflict_side_dto(dynamic raw);
+
+  @protected
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw);
+
+  @protected
+  WikiPageMetaDto dco_decode_wiki_page_meta_dto(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -497,6 +806,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AppUpdateDto sse_decode_app_update_dto(SseDeserializer deserializer);
+
+  @protected
   ArtifactVersion sse_decode_artifact_version(SseDeserializer deserializer);
 
   @protected
@@ -514,6 +826,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  ChatReviewRequest sse_decode_box_autoadd_chat_review_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatRunDto sse_decode_box_autoadd_chat_run_dto(SseDeserializer deserializer);
+
+  @protected
+  CompanionRevisitDto sse_decode_box_autoadd_companion_revisit_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
@@ -539,10 +864,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GuidanceDto sse_decode_box_autoadd_guidance_dto(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
   MessageRecordabilityDto sse_decode_box_autoadd_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
     SseDeserializer deserializer,
   );
 
@@ -557,10 +890,62 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SyncInvitationPreviewDto sse_decode_box_autoadd_sync_invitation_preview_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  WikiPageConflictSideDto sse_decode_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WikiPageDto sse_decode_box_autoadd_wiki_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatDecisionDto sse_decode_chat_decision_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatInputQueueDto sse_decode_chat_input_queue_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatProposalDto sse_decode_chat_proposal_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatQueuedInputDto sse_decode_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatReviewRequest sse_decode_chat_review_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ChatRunDto sse_decode_chat_run_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatRunEventDto sse_decode_chat_run_event_dto(SseDeserializer deserializer);
+
+  @protected
+  ChatRunEventPageDto sse_decode_chat_run_event_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CompanionPrefsDto sse_decode_companion_prefs_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CompanionRevisitDto sse_decode_companion_revisit_dto(
     SseDeserializer deserializer,
   );
 
@@ -597,6 +982,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer);
+
+  @protected
+  DeviationItemDto sse_decode_deviation_item_dto(SseDeserializer deserializer);
+
+  @protected
+  DeviationReportDto sse_decode_deviation_report_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer);
+
+  @protected
   EntityFactDto sse_decode_entity_fact_dto(SseDeserializer deserializer);
 
   @protected
@@ -613,10 +1012,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EventDto sse_decode_event_dto(SseDeserializer deserializer);
 
   @protected
+  EventEmotionDto sse_decode_event_emotion_dto(SseDeserializer deserializer);
+
+  @protected
+  EventStatsQuery sse_decode_event_stats_query(SseDeserializer deserializer);
+
+  @protected
+  EventSummaryDto sse_decode_event_summary_dto(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
   GoalDto sse_decode_goal_dto(SseDeserializer deserializer);
+
+  @protected
+  GuidanceDto sse_decode_guidance_dto(SseDeserializer deserializer);
+
+  @protected
+  GuidanceRefDto sse_decode_guidance_ref_dto(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -730,6 +1144,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<ChatDecisionDto> sse_decode_list_chat_decision_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatProposalDto> sse_decode_list_chat_proposal_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatQueuedInputDto> sse_decode_list_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatRunDto> sse_decode_list_chat_run_dto(SseDeserializer deserializer);
+
+  @protected
+  List<ChatRunEventDto> sse_decode_list_chat_run_event_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<ContentChatMessageDto> sse_decode_list_content_chat_message_dto(
     SseDeserializer deserializer,
   );
@@ -755,6 +1192,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DayCountDto> sse_decode_list_day_count_dto(SseDeserializer deserializer);
+
+  @protected
+  List<DeviationItemDto> sse_decode_list_deviation_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DeviationReportDto> sse_decode_list_deviation_report_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<EmotionTagDto> sse_decode_list_emotion_tag_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<EntityFactDto> sse_decode_list_entity_fact_dto(
     SseDeserializer deserializer,
   );
@@ -763,7 +1218,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<EventDto> sse_decode_list_event_dto(SseDeserializer deserializer);
 
   @protected
+  List<EventEmotionDto> sse_decode_list_event_emotion_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<EventSummaryDto> sse_decode_list_event_summary_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer);
+
+  @protected
+  List<GuidanceRefDto> sse_decode_list_guidance_ref_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<KnowledgeBackgroundRunDto> sse_decode_list_knowledge_background_run_dto(
@@ -826,10 +1296,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<MemoryEchoDto> sse_decode_list_memory_echo_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
 
   @protected
+  List<NamedCountDto> sse_decode_list_named_count_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ObjectConflictDto> sse_decode_list_object_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<OrganizedTopic> sse_decode_list_organized_topic(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PageGuidanceDto> sse_decode_list_page_guidance_dto(
     SseDeserializer deserializer,
   );
 
@@ -842,7 +1332,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer);
 
   @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<ProviderConflictProfileDto>
+  sse_decode_list_provider_conflict_profile_dto(SseDeserializer deserializer);
+
+  @protected
+  List<ProviderSyncConflictDto> sse_decode_list_provider_sync_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ReachabilityHint> sse_decode_list_reachability_hint(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<RelationDto> sse_decode_list_relation_dto(SseDeserializer deserializer);
@@ -851,12 +1358,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleDto> sse_decode_list_rule_dto(SseDeserializer deserializer);
 
   @protected
+  List<RuleHitDto> sse_decode_list_rule_hit_dto(SseDeserializer deserializer);
+
+  @protected
   List<SourceReference> sse_decode_list_source_reference(
     SseDeserializer deserializer,
   );
 
   @protected
   List<SourceSnapshot> sse_decode_list_source_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SyncDatasetEntryDto> sse_decode_list_sync_dataset_entry_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SyncJoinEntryDto> sse_decode_list_sync_join_entry_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SyncRosterMemberDto> sse_decode_list_sync_roster_member_dto(
     SseDeserializer deserializer,
   );
 
@@ -874,13 +1404,49 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UnscheduledChatInputDto> sse_decode_list_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
+
+  @protected
+  List<WikiPageMetaDto> sse_decode_list_wiki_page_meta_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LocalSyncStateDto sse_decode_local_sync_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MemoryEchoDto sse_decode_memory_echo_dto(SseDeserializer deserializer);
 
   @protected
   MessageDto sse_decode_message_dto(SseDeserializer deserializer);
 
   @protected
   MessageRecordabilityDto sse_decode_message_recordability_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  NamedCountDto sse_decode_named_count_dto(SseDeserializer deserializer);
+
+  @protected
+  NetworkSettingsDto sse_decode_network_settings_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ObjectConflictDto sse_decode_object_conflict_dto(
     SseDeserializer deserializer,
   );
 
@@ -894,6 +1460,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  ChatRunDto? sse_decode_opt_box_autoadd_chat_run_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CompanionRevisitDto? sse_decode_opt_box_autoadd_companion_revisit_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ConversationDto? sse_decode_opt_box_autoadd_conversation_dto(
@@ -919,6 +1495,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GuidanceDto? sse_decode_opt_box_autoadd_guidance_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -937,7 +1518,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SyncInvitationPreviewDto?
+  sse_decode_opt_box_autoadd_sync_invitation_preview_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  WikiPageConflictSideDto?
+  sse_decode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WikiPageDto? sse_decode_opt_box_autoadd_wiki_page_dto(
@@ -945,16 +1538,64 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<EmotionTagDto>? sse_decode_opt_list_emotion_tag_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   OrganizedTopic sse_decode_organized_topic(SseDeserializer deserializer);
 
   @protected
+  PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer);
+
+  @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
+
+  @protected
+  PeriodReportTickResult sse_decode_period_report_tick_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PeriodStatsDto sse_decode_period_stats_dto(SseDeserializer deserializer);
+
+  @protected
+  ProcessingYieldProofDto sse_decode_processing_yield_proof_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProcessorHandoffStateDto sse_decode_processor_handoff_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProviderConflictProfileDto sse_decode_provider_conflict_profile_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ProviderSyncConflictDto sse_decode_provider_sync_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ReachabilityHint sse_decode_reachability_hint(SseDeserializer deserializer);
+
+  @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  sse_decode_record_list_sync_dataset_entry_dto_i_64(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RelationDto sse_decode_relation_dto(SseDeserializer deserializer);
 
   @protected
   RuleDto sse_decode_rule_dto(SseDeserializer deserializer);
+
+  @protected
+  RuleHitDto sse_decode_rule_hit_dto(SseDeserializer deserializer);
 
   @protected
   SourceReference sse_decode_source_reference(SseDeserializer deserializer);
@@ -969,6 +1610,53 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SuggestionFeedback sse_decode_suggestion_feedback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncDatasetEntryDto sse_decode_sync_dataset_entry_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncEnrollmentStateDto sse_decode_sync_enrollment_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncInvitationOfferDto sse_decode_sync_invitation_offer_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncInvitationPreviewDto sse_decode_sync_invitation_preview_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncJoinEntryDto sse_decode_sync_join_entry_dto(SseDeserializer deserializer);
+
+  @protected
+  SyncJoinStateDto sse_decode_sync_join_state_dto(SseDeserializer deserializer);
+
+  @protected
+  SyncKeyCommitDto sse_decode_sync_key_commit_dto(SseDeserializer deserializer);
+
+  @protected
+  SyncKeyRequestDto sse_decode_sync_key_request_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncRosterDto sse_decode_sync_roster_dto(SseDeserializer deserializer);
+
+  @protected
+  SyncRosterMemberDto sse_decode_sync_roster_member_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncTickResultDto sse_decode_sync_tick_result_dto(
     SseDeserializer deserializer,
   );
 
@@ -999,7 +1687,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
+  UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  WebSearchConfigDto sse_decode_web_search_config_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiChatMaterialDto sse_decode_wiki_chat_material_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiPageConflictDto sse_decode_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiPageConflictSideDto sse_decode_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WikiPageDto sse_decode_wiki_page_dto(SseDeserializer deserializer);
+
+  @protected
+  WikiPageMetaDto sse_decode_wiki_page_meta_dto(SseDeserializer deserializer);
 
   @protected
   String cst_encode_AnyhowException(AnyhowException raw) {
@@ -1028,6 +1747,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_f_64(raw.temperature),
       cst_encode_opt_box_autoadd_i_64(raw.maxTokens),
       cst_encode_opt_box_autoadd_i_64(raw.contextWindow),
+      cst_encode_opt_String(raw.revisionToken),
     ].jsify()!;
   }
 
@@ -1065,6 +1785,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
 
     throw Exception('unreachable');
+  }
+
+  @protected
+  JSAny cst_encode_app_update_dto(AppUpdateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.hasUpdate),
+      cst_encode_String(raw.latestHash),
+      cst_encode_i_64(raw.latestSeq),
+      cst_encode_String(raw.localHash),
+      cst_encode_i_64(raw.localSeq),
+      cst_encode_String(raw.version),
+      cst_encode_String(raw.changelog),
+      cst_encode_i_64(raw.apkSize),
+      cst_encode_String(raw.apkSha256),
+    ].jsify()!;
   }
 
   @protected
@@ -1107,6 +1843,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_box_autoadd_chat_review_request(ChatReviewRequest raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_chat_review_request(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_chat_run_dto(ChatRunDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_chat_run_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_companion_revisit_dto(CompanionRevisitDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_companion_revisit_dto(raw);
+  }
+
+  @protected
   JSAny cst_encode_box_autoadd_conversation_dto(ConversationDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_conversation_dto(raw);
@@ -1141,6 +1895,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_box_autoadd_guidance_dto(GuidanceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_guidance_dto(raw);
+  }
+
+  @protected
   JSAny cst_encode_box_autoadd_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_64(raw);
@@ -1152,6 +1912,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_message_recordability_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_processing_yield_proof_dto(
+    ProcessingYieldProofDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_processing_yield_proof_dto(raw);
   }
 
   @protected
@@ -1167,15 +1935,162 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_box_autoadd_sync_invitation_preview_dto(
+    SyncInvitationPreviewDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_sync_invitation_preview_dto(raw);
+  }
+
+  @protected
   int cst_encode_box_autoadd_u_32(int raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_u_32(raw);
   }
 
   @protected
+  JSAny cst_encode_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_wiki_page_conflict_side_dto(raw);
+  }
+
+  @protected
   JSAny cst_encode_box_autoadd_wiki_page_dto(WikiPageDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_wiki_page_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_chat_decision_dto(ChatDecisionDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.id),
+      cst_encode_opt_String(raw.conversationId),
+      cst_encode_i_64(raw.version),
+      cst_encode_String(raw.decision),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.result),
+      cst_encode_String(raw.action),
+      cst_encode_String(raw.argsJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_input_queue_dto(ChatInputQueueDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.paused),
+      cst_encode_list_chat_queued_input_dto(raw.items),
+      cst_encode_list_chat_queued_input_dto(raw.recentInjections),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_proposal_dto(ChatProposalDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.id),
+      cst_encode_opt_String(raw.conversationId),
+      cst_encode_String(raw.action),
+      cst_encode_String(raw.argsJson),
+      cst_encode_i_64(raw.version),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.approvalToken),
+      cst_encode_String(raw.targetBasisJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_queued_input_dto(ChatQueuedInputDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.id),
+      cst_encode_String(raw.inputMessageId),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.mode),
+      cst_encode_String(raw.preview),
+      cst_encode_opt_String(raw.deferReason),
+      cst_encode_opt_String(raw.runId),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_review_request(ChatReviewRequest raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.proposalId),
+      cst_encode_opt_String(raw.conversationId),
+      cst_encode_i_64(raw.expectedVersion),
+      cst_encode_String(raw.approvalToken),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_run_dto(ChatRunDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.conversationId),
+      cst_encode_String(raw.inputMessageId),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.phase),
+      cst_encode_i_64(raw.sequence),
+      cst_encode_i_64(raw.requestCount),
+      cst_encode_String(raw.providerBasisJson),
+      cst_encode_String(raw.content),
+      cst_encode_opt_String(raw.errorKind),
+      cst_encode_opt_String(raw.errorText),
+      cst_encode_opt_String(raw.finalMessageId),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_run_event_dto(ChatRunEventDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.runId),
+      cst_encode_i_64(raw.sequence),
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.payloadJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_chat_run_event_page_dto(ChatRunEventPageDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.runId),
+      cst_encode_list_chat_run_event_dto(raw.events),
+      cst_encode_i_64(raw.nextSequence),
+      cst_encode_bool(raw.hasMore),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_companion_prefs_dto(CompanionPrefsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.revisitEnabled),
+      cst_encode_i_64(raw.revisitIntervalDays),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_companion_revisit_dto(CompanionRevisitDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_String(raw.excerpt),
+      cst_encode_opt_String(raw.feeling),
+    ].jsify()!;
   }
 
   @protected
@@ -1225,6 +2140,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_daily_entry_dto(raw.entries),
       cst_encode_opt_box_autoadd_daily_review_dto(raw.review),
       cst_encode_list_todo_dto(raw.todos),
+      cst_encode_list_rule_hit_dto(raw.reminderHits),
+      cst_encode_list_memory_echo_dto(raw.memoryEcho),
     ].jsify()!;
   }
 
@@ -1281,6 +2198,56 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_day_count_dto(DayCountDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [cst_encode_String(raw.date), cst_encode_i_64(raw.count)].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_deviation_item_dto(DeviationItemDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.goalContent),
+      cst_encode_String(raw.deviationType),
+      cst_encode_String(raw.evidence),
+      cst_encode_String(raw.severity),
+      cst_encode_bool(raw.dismissed),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_deviation_report_dto(DeviationReportDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.period),
+      cst_encode_String(raw.periodType),
+      cst_encode_String(raw.startDate),
+      cst_encode_String(raw.endDate),
+      cst_encode_String(raw.generatedAt),
+      cst_encode_opt_String(raw.detectedAt),
+      cst_encode_opt_String(raw.readAt),
+      cst_encode_i_64(raw.total),
+      cst_encode_i_64(raw.todoDoneCount),
+      cst_encode_list_day_count_dto(raw.daily),
+      cst_encode_list_named_count_dto(raw.byEventType),
+      cst_encode_list_named_count_dto(raw.byPerson),
+      cst_encode_list_named_count_dto(raw.byProject),
+      cst_encode_list_named_count_dto(raw.byActivity),
+      cst_encode_list_deviation_item_dto(raw.deviations),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_emotion_tag_dto(EmotionTagDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_opt_String(raw.target),
+      cst_encode_String(raw.feeling),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_entity_fact_dto(EntityFactDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -1331,6 +2298,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_String(raw.projects),
       cst_encode_list_String(raw.activities),
       cst_encode_list_String(raw.followUps),
+      cst_encode_opt_box_autoadd_guidance_dto(raw.guidance),
+      cst_encode_opt_list_emotion_tag_dto(raw.emotion),
       cst_encode_opt_box_autoadd_bool(raw.recordable),
       cst_encode_opt_String(raw.kind),
       cst_encode_bool(raw.effectiveRecordable),
@@ -1353,6 +2322,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_event_emotion_dto(EventEmotionDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_opt_String(raw.target),
+      cst_encode_String(raw.feeling),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_event_stats_query(EventStatsQuery raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_opt_String(raw.eventType),
+      cst_encode_opt_String(raw.person),
+      cst_encode_opt_String(raw.project),
+      cst_encode_opt_String(raw.activity),
+      cst_encode_opt_String(raw.textContains),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_event_summary_dto(EventSummaryDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.rawText),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_String(raw.source),
+      cst_encode_String(raw.status),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_goal_dto(GoalDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -1364,6 +2369,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.updatedAt),
       cst_encode_opt_String(raw.supersededAt),
     ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_guidance_dto(GuidanceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_list_guidance_ref_dto(raw.related),
+      cst_encode_list_String(raw.lessons),
+      cst_encode_list_String(raw.followUpsRefined),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_guidance_ref_dto(GuidanceRefDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [cst_encode_String(raw.slug), cst_encode_String(raw.note)].jsify()!;
   }
 
   @protected
@@ -1714,6 +2735,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_chat_decision_dto(List<ChatDecisionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_decision_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_chat_proposal_dto(List<ChatProposalDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_proposal_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_chat_queued_input_dto(List<ChatQueuedInputDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_queued_input_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_chat_run_dto(List<ChatRunDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_run_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_chat_run_event_dto(List<ChatRunEventDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_run_event_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_content_chat_message_dto(
     List<ContentChatMessageDto> raw,
   ) {
@@ -1746,6 +2797,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_day_count_dto(List<DayCountDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_day_count_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_deviation_item_dto(List<DeviationItemDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_deviation_item_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_deviation_report_dto(List<DeviationReportDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_deviation_report_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_emotion_tag_dto(List<EmotionTagDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_emotion_tag_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_entity_fact_dto(List<EntityFactDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_entity_fact_dto).toList().jsify()!;
@@ -1758,9 +2833,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_event_emotion_dto(List<EventEmotionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_event_emotion_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_event_summary_dto(List<EventSummaryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_event_summary_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_goal_dto(List<GoalDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_goal_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_guidance_ref_dto(List<GuidanceRefDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_guidance_ref_dto).toList().jsify()!;
   }
 
   @protected
@@ -1846,15 +2939,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_memory_echo_dto(List<MemoryEchoDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_memory_echo_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_message_dto(List<MessageDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_message_dto).toList().jsify()!;
   }
 
   @protected
+  JSAny cst_encode_list_named_count_dto(List<NamedCountDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_named_count_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_object_conflict_dto(List<ObjectConflictDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_object_conflict_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_organized_topic(List<OrganizedTopic> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_organized_topic).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_page_guidance_dto(List<PageGuidanceDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_page_guidance_dto).toList().jsify()!;
   }
 
   @protected
@@ -1870,9 +2987,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_prim_u_8_loose(List<int> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_prim_u_8_strict(Uint8List raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_provider_conflict_profile_dto(
+    List<ProviderConflictProfileDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_provider_conflict_profile_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_provider_sync_conflict_dto(
+    List<ProviderSyncConflictDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_provider_sync_conflict_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_reachability_hint(List<ReachabilityHint> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_reachability_hint).toList().jsify()!;
   }
 
   @protected
@@ -1888,6 +3033,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_rule_hit_dto(List<RuleHitDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_rule_hit_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_source_reference(List<SourceReference> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_source_reference).toList().jsify()!;
@@ -1897,6 +3048,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_source_snapshot(List<SourceSnapshot> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_source_snapshot).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_sync_dataset_entry_dto(List<SyncDatasetEntryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_sync_dataset_entry_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_sync_enrollment_state_dto(
+    List<SyncEnrollmentStateDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_sync_enrollment_state_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_sync_join_entry_dto(List<SyncJoinEntryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_sync_join_entry_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_sync_roster_member_dto(List<SyncRosterMemberDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_sync_roster_member_dto).toList().jsify()!;
   }
 
   @protected
@@ -1920,9 +3097,57 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_unscheduled_chat_input_dto(
+    List<UnscheduledChatInputDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_unscheduled_chat_input_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_wiki_page_conflict_dto(List<WikiPageConflictDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_wiki_page_conflict_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_wiki_page_dto(List<WikiPageDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_wiki_page_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_wiki_page_meta_dto(List<WikiPageMetaDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_wiki_page_meta_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_local_sync_state_dto(LocalSyncStateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.state),
+      cst_encode_opt_String(raw.installationId),
+      cst_encode_i_64(raw.vaultRevision),
+      cst_encode_opt_String(raw.datasetId),
+      cst_encode_opt_String(raw.deviceId),
+      cst_encode_opt_String(raw.deviceName),
+      cst_encode_bool(raw.isOwner),
+      cst_encode_bool(raw.isProcessor),
+      cst_encode_i_64(raw.activePeers),
+      cst_encode_i_64(raw.pendingOperations),
+      cst_encode_opt_String(raw.relayUrl),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_memory_echo_dto(MemoryEchoDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_String(raw.rawText),
+    ].jsify()!;
   }
 
   @protected
@@ -1953,6 +3178,43 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_named_count_dto(NamedCountDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [cst_encode_String(raw.label), cst_encode_i_64(raw.count)].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_network_settings_dto(NetworkSettingsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.dohUri),
+      cst_encode_String(raw.dohScope),
+      cst_encode_String(raw.dohMode),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_object_conflict_dto(ObjectConflictDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.opId),
+      cst_encode_String(raw.objectKind),
+      cst_encode_String(raw.objectId),
+      cst_encode_String(raw.reason),
+      cst_encode_String(raw.senderDeviceId),
+      cst_encode_opt_String(raw.senderDeviceName),
+      cst_encode_String(raw.incomingSummary),
+      cst_encode_String(raw.incomingStatus),
+      cst_encode_bool(raw.incomingDeleted),
+      cst_encode_String(raw.incomingUpdatedAt),
+      cst_encode_opt_String(raw.localSummary),
+      cst_encode_opt_String(raw.localStatus),
+      cst_encode_opt_String(raw.localUpdatedAt),
+      cst_encode_bool(raw.localHeadDeleted),
+    ].jsify()!;
+  }
+
+  @protected
   String? cst_encode_opt_String(String? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_String(raw);
@@ -1972,6 +3234,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? cst_encode_opt_box_autoadd_bool(bool? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_bool(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_chat_run_dto(ChatRunDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_chat_run_dto(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_companion_revisit_dto(raw);
   }
 
   @protected
@@ -2013,6 +3291,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny? cst_encode_opt_box_autoadd_guidance_dto(GuidanceDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_guidance_dto(raw);
+  }
+
+  @protected
   JSAny? cst_encode_opt_box_autoadd_i_64(PlatformInt64? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_i_64(raw);
@@ -2043,15 +3327,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny? cst_encode_opt_box_autoadd_sync_invitation_preview_dto(
+    SyncInvitationPreviewDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_sync_invitation_preview_dto(raw);
+  }
+
+  @protected
   int? cst_encode_opt_box_autoadd_u_32(int? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_u_32(raw);
   }
 
   @protected
+  JSAny? cst_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_wiki_page_conflict_side_dto(raw);
+  }
+
+  @protected
   JSAny? cst_encode_opt_box_autoadd_wiki_page_dto(WikiPageDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_list_emotion_tag_dto(List<EmotionTagDto>? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_list_emotion_tag_dto(raw);
   }
 
   @protected
@@ -2067,6 +3377,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_page_guidance_dto(PageGuidanceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.analysisId),
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_opt_String(raw.note),
+      cst_encode_list_String(raw.lessons),
+      cst_encode_list_String(raw.followUpsRefined),
+      cst_encode_opt_String(raw.feedback),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_pending_action_dto(PendingActionDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2074,6 +3398,144 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.action),
       cst_encode_String(raw.argsJson),
       cst_encode_String(raw.createdAt),
+      cst_encode_i_64(raw.version),
+      cst_encode_String(raw.approvalToken),
+      cst_encode_String(raw.targetBasisJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_period_report_tick_result(PeriodReportTickResult raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    if (raw is PeriodReportTickResult_NoProvider) {
+      return [0].jsify()!;
+    }
+    if (raw is PeriodReportTickResult_Idle) {
+      return [1].jsify()!;
+    }
+    if (raw is PeriodReportTickResult_Generated) {
+      return [
+        2,
+        cst_encode_String(raw.period),
+        cst_encode_String(raw.periodType),
+      ].jsify()!;
+    }
+    if (raw is PeriodReportTickResult_Detected) {
+      return [
+        3,
+        cst_encode_String(raw.reportId),
+        cst_encode_usize(raw.deviations),
+      ].jsify()!;
+    }
+    if (raw is PeriodReportTickResult_DetectFailed) {
+      return [
+        4,
+        cst_encode_String(raw.reportId),
+        cst_encode_String(raw.error),
+      ].jsify()!;
+    }
+
+    throw Exception('unreachable');
+  }
+
+  @protected
+  JSAny cst_encode_period_stats_dto(PeriodStatsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.periodType),
+      cst_encode_String(raw.startDate),
+      cst_encode_String(raw.endDate),
+      cst_encode_i_64(raw.eventCount),
+      cst_encode_i_64(raw.todoDoneCount),
+      cst_encode_list_named_count_dto(raw.byEventType),
+      cst_encode_list_named_count_dto(raw.byPerson),
+      cst_encode_list_named_count_dto(raw.byProject),
+      cst_encode_list_named_count_dto(raw.byActivity),
+      cst_encode_list_day_count_dto(raw.dailyCounts),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_processing_yield_proof_dto(ProcessingYieldProofDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.fromDeviceId),
+      cst_encode_String(raw.toDeviceId),
+      cst_encode_i_64(raw.rosterRevision),
+      cst_encode_i_64(raw.finalSequence),
+      cst_encode_list_prim_u_8_strict(raw.signature),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_processor_handoff_state_dto(ProcessorHandoffStateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.state),
+      cst_encode_opt_String(raw.fromDeviceId),
+      cst_encode_opt_String(raw.toDeviceId),
+      cst_encode_opt_box_autoadd_i_64(raw.finalSequence),
+      cst_encode_bool(raw.canConfirm),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_provider_conflict_profile_dto(
+    ProviderConflictProfileDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.name),
+      cst_encode_String(raw.providerType),
+      cst_encode_String(raw.baseUrl),
+      cst_encode_String(raw.model),
+      cst_encode_String(raw.apiKeyMasked),
+      cst_encode_bool(raw.apiKeyPresent),
+      cst_encode_bool(raw.enabled),
+      cst_encode_bool(raw.isActive),
+      cst_encode_f_64(raw.temperature),
+      cst_encode_opt_box_autoadd_i_64(raw.maxTokens),
+      cst_encode_opt_box_autoadd_i_64(raw.contextWindow),
+      cst_encode_list_reachability_hint(raw.reachabilityHints),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_provider_sync_conflict_dto(ProviderSyncConflictDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.revisionId),
+      cst_encode_opt_String(raw.baseRevision),
+      cst_encode_String(raw.senderDeviceId),
+      cst_encode_opt_String(raw.senderDeviceName),
+      cst_encode_String(raw.localRevision),
+      cst_encode_list_provider_conflict_profile_dto(raw.remoteProfiles),
+      cst_encode_opt_String(raw.remoteActiveId),
+      cst_encode_list_String(raw.remoteFailoverOrder),
+      cst_encode_list_provider_conflict_profile_dto(raw.localProfiles),
+      cst_encode_opt_String(raw.localActiveId),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_reachability_hint(ReachabilityHint raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.code),
+      cst_encode_String(raw.address),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_record_list_sync_dataset_entry_dto_i_64(
+    (List<SyncDatasetEntryDto>, PlatformInt64) raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_list_sync_dataset_entry_dto(raw.$1),
+      cst_encode_i_64(raw.$2),
     ].jsify()!;
   }
 
@@ -2102,6 +3564,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.content),
       cst_encode_String(raw.status),
       cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.triggerScene),
+      cst_encode_list_String(raw.triggerKeywords),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_rule_hit_dto(RuleHitDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.ruleId),
+      cst_encode_String(raw.ruleContent),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.createdAt),
+      cst_encode_opt_String(raw.feedback),
     ].jsify()!;
   }
 
@@ -2153,6 +3630,159 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.suggestion),
       cst_encode_opt_String(raw.rewrite),
       cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_dataset_entry_dto(SyncDatasetEntryDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.entryId),
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.installationId),
+      cst_encode_String(raw.name),
+      cst_encode_bool(raw.ready),
+      cst_encode_bool(raw.selected),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_enrollment_state_dto(SyncEnrollmentStateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.role),
+      cst_encode_String(raw.operationId),
+      cst_encode_String(raw.invitationId),
+      cst_encode_String(raw.installationId),
+      cst_encode_i_64(raw.revision),
+      cst_encode_opt_String(raw.confirmationToken),
+      cst_encode_String(raw.phase),
+      cst_encode_opt_String(raw.snapshotId),
+      cst_encode_i_64(raw.receivedChunks),
+      cst_encode_i_64(raw.totalChunks),
+      cst_encode_bool(raw.localApplied),
+      cst_encode_bool(raw.remoteApplied),
+      cst_encode_bool(raw.notificationPending),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_invitation_offer_dto(SyncInvitationOfferDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.invitationId),
+      cst_encode_String(raw.code),
+      cst_encode_i_64(raw.expiresAtMs),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_invitation_preview_dto(SyncInvitationPreviewDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.invitationId),
+      cst_encode_String(raw.token),
+      cst_encode_String(raw.deviceName),
+      cst_encode_String(raw.devicePlatform),
+      cst_encode_String(raw.fingerprint),
+      cst_encode_i_64(raw.expiresAtMs),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_join_entry_dto(SyncJoinEntryDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.entryId),
+      cst_encode_String(raw.installationId),
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.name),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_join_state_dto(SyncJoinStateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.operationId),
+      cst_encode_String(raw.token),
+      cst_encode_opt_String(raw.entryId),
+      cst_encode_opt_String(raw.installationId),
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.ownerName),
+      cst_encode_String(raw.ownerFingerprint),
+      cst_encode_opt_String(raw.localFingerprint),
+      cst_encode_String(raw.relayUrl),
+      cst_encode_i_64(raw.expiresAtMs),
+      cst_encode_String(raw.phase),
+      cst_encode_i_64(raw.revision),
+      cst_encode_bool(raw.creating),
+      cst_encode_bool(raw.approvalAckPending),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_key_commit_dto(SyncKeyCommitDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.token),
+      cst_encode_String(raw.installationId),
+      cst_encode_i_64(raw.revision),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_key_request_dto(SyncKeyRequestDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.token),
+      cst_encode_String(raw.installationId),
+      cst_encode_i_64(raw.revision),
+      cst_encode_bool(raw.creating),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_roster_dto(SyncRosterDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.revision),
+      cst_encode_String(raw.datasetId),
+      cst_encode_String(raw.ownerDeviceId),
+      cst_encode_String(raw.processorDeviceId),
+      cst_encode_opt_String(raw.localDeviceId),
+      cst_encode_list_sync_roster_member_dto(raw.members),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_roster_member_dto(SyncRosterMemberDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.deviceId),
+      cst_encode_String(raw.name),
+      cst_encode_String(raw.platform),
+      cst_encode_bool(raw.active),
+      cst_encode_bool(raw.isOwner),
+      cst_encode_bool(raw.isProcessor),
+      cst_encode_bool(raw.isLocal),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_sync_tick_result_dto(SyncTickResultDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.ran),
+      cst_encode_i_64(raw.stagedOperations),
+      cst_encode_i_64(raw.uploaded),
+      cst_encode_i_64(raw.pulledAccepted),
+      cst_encode_i_64(raw.pulledWaiting),
+      cst_encode_i_64(raw.pulledRejected),
+      cst_encode_i_64(raw.pulledVersionMismatch),
+      cst_encode_bool(raw.rosterConverged),
+      cst_encode_bool(raw.acknowledgementFailed),
+      cst_encode_list_String(raw.resnapshotPending),
     ].jsify()!;
   }
 
@@ -2223,6 +3853,78 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_unscheduled_chat_input_dto(UnscheduledChatInputDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.inputMessageId),
+      cst_encode_String(raw.preview),
+      cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_usize(BigInt raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return castNativeBigInt(raw);
+  }
+
+  @protected
+  JSAny cst_encode_web_search_config_dto(WebSearchConfigDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.enabled),
+      cst_encode_String(raw.engine),
+      cst_encode_String(raw.baseUrl),
+      cst_encode_String(raw.apiKey),
+      cst_encode_bool(raw.hasApiKey),
+      cst_encode_i_64(raw.maxResults),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_wiki_chat_material_dto(WikiChatMaterialDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.contentMd),
+      cst_encode_String(raw.basisJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_wiki_page_conflict_dto(WikiPageConflictDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.opId),
+      cst_encode_String(raw.objectId),
+      cst_encode_String(raw.reason),
+      cst_encode_String(raw.senderDeviceId),
+      cst_encode_opt_String(raw.senderDeviceName),
+      cst_encode_String(raw.incomingSlug),
+      cst_encode_String(raw.incomingTitle),
+      cst_encode_bool(raw.incomingDeleted),
+      cst_encode_opt_String(raw.incomingRenamedFrom),
+      cst_encode_String(raw.incomingSummary),
+      cst_encode_i_64(raw.incomingContentMdLen),
+      cst_encode_String(raw.incomingUpdatedAt),
+      cst_encode_opt_box_autoadd_wiki_page_conflict_side_dto(raw.local),
+      cst_encode_bool(raw.localHeadDeleted),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_wiki_page_conflict_side_dto(WikiPageConflictSideDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.title),
+      cst_encode_i_64(raw.contentMdLen),
+      cst_encode_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_wiki_page_dto(WikiPageDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2246,6 +3948,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_opt_String(raw.contentType),
       cst_encode_opt_String(raw.humanEditedAt),
       cst_encode_opt_String(raw.opinion),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_wiki_page_meta_dto(WikiPageMetaDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.summary),
+      cst_encode_list_String(raw.tags),
+      cst_encode_i_64(raw.evidenceCount),
+      cst_encode_String(raw.firstSeenAt),
+      cst_encode_String(raw.lastSeenAt),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
+      cst_encode_opt_String(raw.sourceUrl),
+      cst_encode_String(raw.area),
     ].jsify()!;
   }
 
@@ -2298,6 +4021,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_app_update_dto(AppUpdateDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_artifact_version(
     ArtifactVersion self,
     SseSerializer serializer,
@@ -2320,6 +4046,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_chat_review_request(
+    ChatReviewRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_chat_run_dto(
+    ChatRunDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_conversation_dto(
@@ -2349,6 +4093,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_guidance_dto(
+    GuidanceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -2357,6 +4107,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_message_recordability_dto(
     MessageRecordabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_processing_yield_proof_dto(
+    ProcessingYieldProofDto self,
     SseSerializer serializer,
   );
 
@@ -2373,11 +4129,80 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_sync_invitation_preview_dto(
+    SyncInvitationPreviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_wiki_page_dto(
     WikiPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_decision_dto(
+    ChatDecisionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_input_queue_dto(
+    ChatInputQueueDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_proposal_dto(
+    ChatProposalDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_queued_input_dto(
+    ChatQueuedInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_review_request(
+    ChatReviewRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_run_dto(ChatRunDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_chat_run_event_dto(
+    ChatRunEventDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chat_run_event_page_dto(
+    ChatRunEventPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_companion_prefs_dto(
+    CompanionPrefsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_companion_revisit_dto(
+    CompanionRevisitDto self,
     SseSerializer serializer,
   );
 
@@ -2427,6 +4252,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_day_count_dto(DayCountDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deviation_item_dto(
+    DeviationItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_deviation_report_dto(
+    DeviationReportDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_emotion_tag_dto(EmotionTagDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_entity_fact_dto(EntityFactDto self, SseSerializer serializer);
 
   @protected
@@ -2445,10 +4288,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_event_dto(EventDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_event_emotion_dto(
+    EventEmotionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_event_stats_query(
+    EventStatsQuery self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_event_summary_dto(
+    EventSummaryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
   void sse_encode_goal_dto(GoalDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_guidance_dto(GuidanceDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_guidance_ref_dto(
+    GuidanceRefDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -2595,6 +4465,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_chat_decision_dto(
+    List<ChatDecisionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_proposal_dto(
+    List<ChatProposalDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_queued_input_dto(
+    List<ChatQueuedInputDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_run_dto(
+    List<ChatRunDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_run_event_dto(
+    List<ChatRunEventDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_content_chat_message_dto(
     List<ContentChatMessageDto> self,
     SseSerializer serializer,
@@ -2625,6 +4525,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_day_count_dto(
+    List<DayCountDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_deviation_item_dto(
+    List<DeviationItemDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_deviation_report_dto(
+    List<DeviationReportDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_emotion_tag_dto(
+    List<EmotionTagDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_entity_fact_dto(
     List<EntityFactDto> self,
     SseSerializer serializer,
@@ -2634,7 +4558,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_event_dto(List<EventDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_event_emotion_dto(
+    List<EventEmotionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_event_summary_dto(
+    List<EventSummaryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_guidance_ref_dto(
+    List<GuidanceRefDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_knowledge_background_run_dto(
@@ -2709,14 +4651,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_memory_echo_dto(
+    List<MemoryEchoDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_message_dto(
     List<MessageDto> self,
     SseSerializer serializer,
   );
 
   @protected
+  void sse_encode_list_named_count_dto(
+    List<NamedCountDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_object_conflict_dto(
+    List<ObjectConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_organized_topic(
     List<OrganizedTopic> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_page_guidance_dto(
+    List<PageGuidanceDto> self,
     SseSerializer serializer,
   );
 
@@ -2733,8 +4699,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_provider_conflict_profile_dto(
+    List<ProviderConflictProfileDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_provider_sync_conflict_dto(
+    List<ProviderSyncConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_reachability_hint(
+    List<ReachabilityHint> self,
     SseSerializer serializer,
   );
 
@@ -2748,6 +4735,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_rule_dto(List<RuleDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_rule_hit_dto(
+    List<RuleHitDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_source_reference(
     List<SourceReference> self,
     SseSerializer serializer,
@@ -2756,6 +4749,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_source_snapshot(
     List<SourceSnapshot> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_sync_dataset_entry_dto(
+    List<SyncDatasetEntryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_sync_enrollment_state_dto(
+    List<SyncEnrollmentStateDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_sync_join_entry_dto(
+    List<SyncJoinEntryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_sync_roster_member_dto(
+    List<SyncRosterMemberDto> self,
     SseSerializer serializer,
   );
 
@@ -2775,10 +4792,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_unscheduled_chat_input_dto(
+    List<UnscheduledChatInputDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_wiki_page_conflict_dto(
+    List<WikiPageConflictDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_wiki_page_dto(
     List<WikiPageDto> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_wiki_page_meta_dto(
+    List<WikiPageMetaDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_local_sync_state_dto(
+    LocalSyncStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_memory_echo_dto(MemoryEchoDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_message_dto(MessageDto self, SseSerializer serializer);
@@ -2786,6 +4830,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_message_recordability_dto(
     MessageRecordabilityDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_named_count_dto(NamedCountDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_network_settings_dto(
+    NetworkSettingsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_object_conflict_dto(
+    ObjectConflictDto self,
     SseSerializer serializer,
   );
 
@@ -2800,6 +4859,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_chat_run_dto(
+    ChatRunDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_conversation_dto(
@@ -2829,6 +4900,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_guidance_dto(
+    GuidanceDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -2853,11 +4930,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_sync_invitation_preview_dto(
+    SyncInvitationPreviewDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_wiki_page_dto(
     WikiPageDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_list_emotion_tag_dto(
+    List<EmotionTagDto>? self,
     SseSerializer serializer,
   );
 
@@ -2868,8 +4963,62 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_page_guidance_dto(
+    PageGuidanceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_pending_action_dto(
     PendingActionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_period_report_tick_result(
+    PeriodReportTickResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_period_stats_dto(
+    PeriodStatsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_processing_yield_proof_dto(
+    ProcessingYieldProofDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_processor_handoff_state_dto(
+    ProcessorHandoffStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_provider_conflict_profile_dto(
+    ProviderConflictProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_provider_sync_conflict_dto(
+    ProviderSyncConflictDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_reachability_hint(
+    ReachabilityHint self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_list_sync_dataset_entry_dto_i_64(
+    (List<SyncDatasetEntryDto>, PlatformInt64) self,
     SseSerializer serializer,
   );
 
@@ -2878,6 +5027,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_rule_dto(RuleDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_rule_hit_dto(RuleHitDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_source_reference(
@@ -2900,6 +5052,69 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_suggestion_feedback(
     SuggestionFeedback self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_dataset_entry_dto(
+    SyncDatasetEntryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_enrollment_state_dto(
+    SyncEnrollmentStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_invitation_offer_dto(
+    SyncInvitationOfferDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_invitation_preview_dto(
+    SyncInvitationPreviewDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_join_entry_dto(
+    SyncJoinEntryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_join_state_dto(
+    SyncJoinStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_key_commit_dto(
+    SyncKeyCommitDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_key_request_dto(
+    SyncKeyRequestDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_roster_dto(SyncRosterDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sync_roster_member_dto(
+    SyncRosterMemberDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_tick_result_dto(
+    SyncTickResultDto self,
     SseSerializer serializer,
   );
 
@@ -2934,7 +5149,46 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_unit(void self, SseSerializer serializer);
 
   @protected
+  void sse_encode_unscheduled_chat_input_dto(
+    UnscheduledChatInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_web_search_config_dto(
+    WebSearchConfigDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_chat_material_dto(
+    WikiChatMaterialDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_page_conflict_dto(
+    WikiPageConflictDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_wiki_page_dto(WikiPageDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_wiki_page_meta_dto(
+    WikiPageMetaDto self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class
@@ -2999,6 +5253,38 @@ class RustLibWire implements BaseWire {
     adopt,
   );
 
+  void wire__crate__api__sync__advance_sync_enrollment(
+    NativePortType port_,
+    String role,
+    String operation_id,
+    String invitation_id,
+  ) => wasmModule.wire__crate__api__sync__advance_sync_enrollment(
+    port_,
+    role,
+    operation_id,
+    invitation_id,
+  );
+
+  void wire__crate__api__sync__approve_owner_sync_invitation(
+    NativePortType port_,
+    String invitation_id,
+    String preview_token,
+    bool acknowledge_provider_key_sharing,
+  ) => wasmModule.wire__crate__api__sync__approve_owner_sync_invitation(
+    port_,
+    invitation_id,
+    preview_token,
+    acknowledge_provider_key_sharing,
+  );
+
+  void wire__crate__api__sync__approve_processor_handoff(
+    NativePortType port_,
+    JSAny proof,
+  ) => wasmModule.wire__crate__api__sync__approve_processor_handoff(
+    port_,
+    proof,
+  );
+
   void wire__crate__api__goals__archive_goal(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__goals__archive_goal(port_, id);
 
@@ -3008,6 +5294,14 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__wiki_chat__archive_wiki_page_chat(
     port_,
     page_slug,
+  );
+
+  void wire__crate__api__provider_reachability__assess_base_url(
+    NativePortType port_,
+    String base_url,
+  ) => wasmModule.wire__crate__api__provider_reachability__assess_base_url(
+    port_,
+    base_url,
   );
 
   void wire__crate__api__begin_url_input(
@@ -3038,14 +5332,50 @@ class RustLibWire implements BaseWire {
     offset,
   );
 
+  void wire__crate__api__build_hash(NativePortType port_) =>
+      wasmModule.wire__crate__api__build_hash(port_);
+
+  void wire__crate__api__sync__build_seq(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__build_seq(port_);
+
+  void wire__crate__api__chat_runs__cancel_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+  ) => wasmModule.wire__crate__api__chat_runs__cancel_chat_run(
+    port_,
+    conversation_id,
+    run_id,
+  );
+
+  void wire__crate__api__sync__cancel_owner_sync_invitation(
+    NativePortType port_,
+    String invitation_id,
+  ) => wasmModule.wire__crate__api__sync__cancel_owner_sync_invitation(
+    port_,
+    invitation_id,
+  );
+
+  void wire__crate__api__sync__check_app_update(
+    NativePortType port_,
+    String relay_url,
+  ) => wasmModule.wire__crate__api__sync__check_app_update(port_, relay_url);
+
+  void wire__crate__api__check_companion_revisit(NativePortType port_) =>
+      wasmModule.wire__crate__api__check_companion_revisit(port_);
+
   void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
   ) => wasmModule.wire__crate__api__conversations__confirm_knowledge_draft(
     port_,
     conversation_id,
     action_id,
+    expected_version,
+    approval_token,
   );
 
   void wire__crate__api__knowledge__confirm_knowledge_source(
@@ -3064,6 +5394,46 @@ class RustLibWire implements BaseWire {
     source_kind,
     tags,
     expected_snapshot_id,
+  );
+
+  void wire__crate__api__sync__confirm_processor_takeover(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__confirm_processor_takeover(port_);
+
+  void wire__crate__api__sync__confirm_sync_enrollment(
+    NativePortType port_,
+    String role,
+    String operation_id,
+    String invitation_id,
+    String token,
+    JSAny protected_revision,
+  ) => wasmModule.wire__crate__api__sync__confirm_sync_enrollment(
+    port_,
+    role,
+    operation_id,
+    invitation_id,
+    token,
+    protected_revision,
+  );
+
+  void wire__crate__api__sync__confirm_sync_join_key(
+    NativePortType port_,
+    String token,
+    JSAny protected_revision,
+  ) => wasmModule.wire__crate__api__sync__confirm_sync_join_key(
+    port_,
+    token,
+    protected_revision,
+  );
+
+  void wire__crate__api__sync__confirm_sync_key(
+    NativePortType port_,
+    String token,
+    JSAny protected_revision,
+  ) => wasmModule.wire__crate__api__sync__confirm_sync_key(
+    port_,
+    token,
+    protected_revision,
   );
 
   void wire__crate__api__knowledge_workflows__create_artifact_from_message(
@@ -3097,6 +5467,16 @@ class RustLibWire implements BaseWire {
     String phase,
   ) => wasmModule.wire__crate__api__goals__create_goal(port_, content, phase);
 
+  void wire__crate__api__sync__create_owner_sync_invitation(
+    NativePortType port_,
+    String relay_url,
+    bool acknowledge_provider_key_sharing,
+  ) => wasmModule.wire__crate__api__sync__create_owner_sync_invitation(
+    port_,
+    relay_url,
+    acknowledge_provider_key_sharing,
+  );
+
   void wire__crate__api__todos__create_todo(
     NativePortType port_,
     String title,
@@ -3127,22 +5507,38 @@ class RustLibWire implements BaseWire {
     content_md,
   );
 
+  void wire__crate__api__chat_proposals__decide_chat_proposal(
+    NativePortType port_,
+    JSAny request,
+    bool accept,
+  ) => wasmModule.wire__crate__api__chat_proposals__decide_chat_proposal(
+    port_,
+    request,
+    accept,
+  );
+
   void wire__crate__api__conversations__decline_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
   ) => wasmModule.wire__crate__api__conversations__decline_knowledge_draft(
     port_,
     conversation_id,
     action_id,
+    expected_version,
+    approval_token,
   );
 
   void wire__crate__api__provider_config__delete_ai_provider_config(
     NativePortType port_,
     String id,
+    String? revision_token,
   ) => wasmModule.wire__crate__api__provider_config__delete_ai_provider_config(
     port_,
     id,
+    revision_token,
   );
 
   void wire__crate__api__conversations__delete_archived_conversation(
@@ -3158,6 +5554,18 @@ class RustLibWire implements BaseWire {
     String id,
   ) => wasmModule.wire__crate__api__entities__delete_entity_fact(port_, id);
 
+  void wire__crate__api__delete_event_emotion(
+    NativePortType port_,
+    String id,
+    String? target,
+    String feeling,
+  ) => wasmModule.wire__crate__api__delete_event_emotion(
+    port_,
+    id,
+    target,
+    feeling,
+  );
+
   void wire__crate__api__relations__delete_relation(
     NativePortType port_,
     String id,
@@ -3171,6 +5579,29 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__todos__delete_todo(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__todos__delete_todo(port_, id);
 
+  void wire__crate__api__wiki__delete_wiki_page(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__wiki__delete_wiki_page(port_, slug);
+
+  void wire__crate__api__sync__discard_sync_join_staging(
+    NativePortType port_,
+    String entry_id,
+  ) => wasmModule.wire__crate__api__sync__discard_sync_join_staging(
+    port_,
+    entry_id,
+  );
+
+  void wire__crate__api__review_report__dismiss_deviation(
+    NativePortType port_,
+    String report_id,
+    int index,
+  ) => wasmModule.wire__crate__api__review_report__dismiss_deviation(
+    port_,
+    report_id,
+    index,
+  );
+
   void wire__crate__api__knowledge__dismiss_knowledge_issue(
     NativePortType port_,
     String fingerprint,
@@ -3179,12 +5610,76 @@ class RustLibWire implements BaseWire {
     fingerprint,
   );
 
+  void wire__crate__api__chat_runs__dispatch_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__chat_runs__dispatch_chat_input_queue(
+    port_,
+    conversation_id,
+  );
+
+  void wire__crate__api__sync__download_update_apk(
+    NativePortType port_,
+    String relay_url,
+    String build_hash,
+    String apk_sha256,
+    JSAny apk_size,
+    String dest_dir,
+  ) => wasmModule.wire__crate__api__sync__download_update_apk(
+    port_,
+    relay_url,
+    build_hash,
+    apk_sha256,
+    apk_size,
+    dest_dir,
+  );
+
+  void wire__crate__api__chat_proposals__edit_chat_proposal(
+    NativePortType port_,
+    JSAny request,
+    String args_json,
+  ) => wasmModule.wire__crate__api__chat_proposals__edit_chat_proposal(
+    port_,
+    request,
+    args_json,
+  );
+
+  void wire__crate__api__chat_runs__enqueue_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+  ) => wasmModule.wire__crate__api__chat_runs__enqueue_chat_input(
+    port_,
+    conversation_id,
+    input_message_id,
+  );
+
+  void wire__crate__api__chat_runs__enqueue_chat_supplement(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+    String run_id,
+    String context_json,
+  ) => wasmModule.wire__crate__api__chat_runs__enqueue_chat_supplement(
+    port_,
+    conversation_id,
+    input_message_id,
+    run_id,
+    context_json,
+  );
+
   void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
     NativePortType port_,
     String page_slug,
   ) => wasmModule.wire__crate__api__wiki_chat__ensure_wiki_page_chat(
     port_,
     page_slug,
+  );
+
+  void wire__crate__api__event_stats__event_stats_query_default(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__event_stats__event_stats_query_default(
+    port_,
   );
 
   void wire__crate__api__import__fetch_import_url(
@@ -3254,6 +5749,28 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__get_analysis_job_stats(NativePortType port_) =>
       wasmModule.wire__crate__api__get_analysis_job_stats(port_);
 
+  void wire__crate__api__chat_runs__get_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+    JSAny after_id,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_runs__get_chat_input_queue(
+    port_,
+    conversation_id,
+    after_id,
+    limit,
+  );
+
+  void wire__crate__api__chat_runs__get_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+  ) => wasmModule.wire__crate__api__chat_runs__get_chat_run(
+    port_,
+    conversation_id,
+    run_id,
+  );
+
   void wire__crate__api__conversations__get_child_messages(
     NativePortType port_,
     String parent_id,
@@ -3261,6 +5778,9 @@ class RustLibWire implements BaseWire {
     port_,
     parent_id,
   );
+
+  void wire__crate__api__get_companion_prefs(NativePortType port_) =>
+      wasmModule.wire__crate__api__get_companion_prefs(port_);
 
   void wire__crate__api__conversations__get_conversation(
     NativePortType port_,
@@ -3335,6 +5855,17 @@ class RustLibWire implements BaseWire {
     id,
   );
 
+  void wire__crate__api__chat_runs__get_latest_chat_run(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__chat_runs__get_latest_chat_run(
+    port_,
+    conversation_id,
+  );
+
+  void wire__crate__api__sync__get_local_sync_state(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__get_local_sync_state(port_);
+
   void wire__crate__api__conversations__get_message_chain(
     NativePortType port_,
     String message_id,
@@ -3357,6 +5888,23 @@ class RustLibWire implements BaseWire {
   ) =>
       wasmModule.wire__crate__api__get_message_recordability(port_, message_id);
 
+  void wire__crate__api__web_search__get_network_settings(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__web_search__get_network_settings(port_);
+
+  void wire__crate__api__get_period_stats(
+    NativePortType port_,
+    String period_type,
+    String date,
+  ) => wasmModule.wire__crate__api__get_period_stats(port_, period_type, date);
+
+  void wire__crate__api__sync__get_processor_handoff_state(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__get_processor_handoff_state(port_);
+
+  void wire__crate__api__rules__get_rule_trigger_mode(NativePortType port_) =>
+      wasmModule.wire__crate__api__rules__get_rule_trigger_mode(port_);
+
   void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -3366,11 +5914,42 @@ class RustLibWire implements BaseWire {
         message_id,
       );
 
+  void wire__crate__api__sync__get_sync_join_state(
+    NativePortType port_,
+    String operation_id,
+  ) => wasmModule.wire__crate__api__sync__get_sync_join_state(
+    port_,
+    operation_id,
+  );
+
+  void wire__crate__api__sync__get_sync_roster(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__get_sync_roster(port_);
+
   void wire__crate__api__theme__get_theme_prefs(NativePortType port_) =>
       wasmModule.wire__crate__api__theme__get_theme_prefs(port_);
 
   void wire__crate__api__tweet__get_tweet_fetch_service(NativePortType port_) =>
       wasmModule.wire__crate__api__tweet__get_tweet_fetch_service(port_);
+
+  void wire__crate__api__web_search__get_web_search_config(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__web_search__get_web_search_config(port_);
+
+  void wire__crate__api__wiki_chat__get_wiki_chat_material(
+    NativePortType port_,
+    String page_slug,
+  ) => wasmModule.wire__crate__api__wiki_chat__get_wiki_chat_material(
+    port_,
+    page_slug,
+  );
+
+  void wire__crate__api__wiki_chat__get_wiki_chat_task(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__wiki_chat__get_wiki_chat_task(
+    port_,
+    conversation_id,
+  );
 
   void wire__crate__api__wiki__get_wiki_page(
     NativePortType port_,
@@ -3386,6 +5965,46 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String? database_path,
   ) => wasmModule.wire__crate__api__init_bridge(port_, database_path);
+
+  void wire__crate__api__sync__inspect_owner_sync_invitation(
+    NativePortType port_,
+    String invitation_id,
+  ) => wasmModule.wire__crate__api__sync__inspect_owner_sync_invitation(
+    port_,
+    invitation_id,
+  );
+
+  void wire__crate__api__sync__inspect_sync_join_approval(
+    NativePortType port_,
+    String operation_id,
+  ) => wasmModule.wire__crate__api__sync__inspect_sync_join_approval(
+    port_,
+    operation_id,
+  );
+
+  void wire__crate__api__sync__install_sync_join_key(
+    NativePortType port_,
+    String token,
+    JSAny key,
+    JSAny protected_revision,
+  ) => wasmModule.wire__crate__api__sync__install_sync_join_key(
+    port_,
+    token,
+    key,
+    protected_revision,
+  );
+
+  void wire__crate__api__sync__install_sync_key(
+    NativePortType port_,
+    String token,
+    JSAny key,
+    JSAny protected_revision,
+  ) => wasmModule.wire__crate__api__sync__install_sync_key(
+    port_,
+    token,
+    key,
+    protected_revision,
+  );
 
   void wire__crate__api__knowledge_workflows__knowledge_reading_state(
     NativePortType port_,
@@ -3427,6 +6046,56 @@ class RustLibWire implements BaseWire {
     offset,
   );
 
+  void wire__crate__api__chat_proposals__list_chat_decisions(
+    NativePortType port_,
+    String? conversation_id,
+    int offset,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_proposals__list_chat_decisions(
+    port_,
+    conversation_id,
+    offset,
+    limit,
+  );
+
+  void wire__crate__api__chat_proposals__list_chat_proposals(
+    NativePortType port_,
+    String? conversation_id,
+    int offset,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_proposals__list_chat_proposals(
+    port_,
+    conversation_id,
+    offset,
+    limit,
+  );
+
+  void wire__crate__api__chat_runs__list_chat_run_events(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+    JSAny after_sequence,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_runs__list_chat_run_events(
+    port_,
+    conversation_id,
+    run_id,
+    after_sequence,
+    limit,
+  );
+
+  void wire__crate__api__chat_runs__list_chat_runs(
+    NativePortType port_,
+    String conversation_id,
+    int offset,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_runs__list_chat_runs(
+    port_,
+    conversation_id,
+    offset,
+    limit,
+  );
+
   void wire__crate__api__conversations__list_conversations(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__conversations__list_conversations(port_);
@@ -3435,6 +6104,16 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String date,
   ) => wasmModule.wire__crate__api__list_daily_entries(port_, date);
+
+  void wire__crate__api__review_report__list_deviation_reports(
+    NativePortType port_,
+    String period_type,
+    int limit,
+  ) => wasmModule.wire__crate__api__review_report__list_deviation_reports(
+    port_,
+    period_type,
+    limit,
+  );
 
   void wire__crate__api__entities__list_entity_aliases(
     NativePortType port_,
@@ -3455,6 +6134,15 @@ class RustLibWire implements BaseWire {
     entity_kind,
     entity_slug,
   );
+
+  void wire__crate__api__list_event_emotions(NativePortType port_) =>
+      wasmModule.wire__crate__api__list_event_emotions(port_);
+
+  void wire__crate__api__rules__list_event_rule_hits(
+    NativePortType port_,
+    String event_id,
+  ) =>
+      wasmModule.wire__crate__api__rules__list_event_rule_hits(port_, event_id);
 
   void wire__crate__api__list_events(NativePortType port_) =>
       wasmModule.wire__crate__api__list_events(port_);
@@ -3546,6 +6234,14 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
+  void wire__crate__api__sync__list_object_conflicts(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_object_conflicts(port_);
+
+  void wire__crate__api__list_page_guidance(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__list_page_guidance(port_, slug);
+
   void wire__crate__api__conversations__list_pending_actions(
     NativePortType port_,
     String conversation_id,
@@ -3553,6 +6249,20 @@ class RustLibWire implements BaseWire {
     port_,
     conversation_id,
   );
+
+  void wire__crate__api__sync__list_pending_sync_joins(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_pending_sync_joins(port_);
+
+  void wire__crate__api__list_recent_events(
+    NativePortType port_,
+    JSAny days,
+    JSAny limit,
+  ) => wasmModule.wire__crate__api__list_recent_events(port_, days, limit);
+
+  void wire__crate__api__rules__list_recent_rule_hits(
+    NativePortType port_,
+    JSAny limit,
+  ) => wasmModule.wire__crate__api__rules__list_recent_rule_hits(port_, limit);
 
   void wire__crate__api__relations__list_relations(NativePortType port_) =>
       wasmModule.wire__crate__api__relations__list_relations(port_);
@@ -3567,6 +6277,16 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__rules__list_rules(NativePortType port_) =>
       wasmModule.wire__crate__api__rules__list_rules(port_);
+
+  void wire__crate__api__sync__list_sync_datasets(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_sync_datasets(port_);
+
+  void wire__crate__api__sync__list_sync_enrollments(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_sync_enrollments(port_);
+
+  void wire__crate__api__sync__list_sync_provider_conflicts(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__list_sync_provider_conflicts(port_);
 
   void wire__crate__api__fonts__list_system_fonts(NativePortType port_) =>
       wasmModule.wire__crate__api__fonts__list_system_fonts(port_);
@@ -3584,6 +6304,21 @@ class RustLibWire implements BaseWire {
     slug,
   );
 
+  void wire__crate__api__chat_runs__list_unscheduled_chat_inputs(
+    NativePortType port_,
+    String conversation_id,
+    int offset,
+    int limit,
+  ) => wasmModule.wire__crate__api__chat_runs__list_unscheduled_chat_inputs(
+    port_,
+    conversation_id,
+    offset,
+    limit,
+  );
+
+  void wire__crate__api__sync__list_wiki_page_conflicts(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__list_wiki_page_conflicts(port_);
+
   void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
@@ -3592,11 +6327,27 @@ class RustLibWire implements BaseWire {
     slug,
   );
 
+  void wire__crate__api__wiki__list_wiki_page_metas(
+    NativePortType port_,
+    JSAny? limit,
+  ) => wasmModule.wire__crate__api__wiki__list_wiki_page_metas(port_, limit);
+
   void wire__crate__api__wiki__list_wiki_pages(
     NativePortType port_,
     String? kind,
     String? area,
   ) => wasmModule.wire__crate__api__wiki__list_wiki_pages(port_, kind, area);
+
+  void wire__crate__api__sync__lock_local_sync(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__lock_local_sync(port_);
+
+  void wire__crate__api__review_report__mark_deviation_report_read(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__review_report__mark_deviation_report_read(
+    port_,
+    id,
+  );
 
   void wire__crate__api__entities__merge_entity(
     NativePortType port_,
@@ -3614,6 +6365,14 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String id,
   ) => wasmModule.wire__crate__api__todos__open_todo_work_item(port_, id);
+
+  void wire__crate__api__chat_runs__pause_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__chat_runs__pause_chat_input_queue(
+    port_,
+    conversation_id,
+  );
 
   void wire__crate__api__knowledge__prepare_knowledge_restore(
     NativePortType port_,
@@ -3635,6 +6394,40 @@ class RustLibWire implements BaseWire {
     snapshot_ids,
   );
 
+  void wire__crate__api__sync__prepare_sync_join_key(
+    NativePortType port_,
+    String preview_token,
+    String name,
+    String platform,
+    bool acknowledge_provider_key_sharing,
+  ) => wasmModule.wire__crate__api__sync__prepare_sync_join_key(
+    port_,
+    preview_token,
+    name,
+    platform,
+    acknowledge_provider_key_sharing,
+  );
+
+  void wire__crate__api__sync__prepare_sync_join_resume(
+    NativePortType port_,
+    String entry_id,
+  ) => wasmModule.wire__crate__api__sync__prepare_sync_join_resume(
+    port_,
+    entry_id,
+  );
+
+  void wire__crate__api__sync__prepare_sync_key_request(
+    NativePortType port_,
+    String? name,
+    String? platform,
+    bool acknowledge_provider_key_sharing,
+  ) => wasmModule.wire__crate__api__sync__prepare_sync_key_request(
+    port_,
+    name,
+    platform,
+    acknowledge_provider_key_sharing,
+  );
+
   void wire__crate__api__knowledge__prepare_topic_organization(
     NativePortType port_,
     JSAny slugs,
@@ -3653,6 +6446,14 @@ class RustLibWire implements BaseWire {
     port_,
     source_url,
     content_md,
+  );
+
+  void wire__crate__api__sync__preview_sync_join(
+    NativePortType port_,
+    String invitation_code,
+  ) => wasmModule.wire__crate__api__sync__preview_sync_join(
+    port_,
+    invitation_code,
   );
 
   void wire__crate__api__knowledge__propose_knowledge_page(
@@ -3693,6 +6494,18 @@ class RustLibWire implements BaseWire {
     String slug,
   ) => wasmModule.wire__crate__api__wiki__refresh_project_page(port_, slug);
 
+  void wire__crate__api__sync__release_sync_join(
+    NativePortType port_,
+    String operation_id,
+  ) =>
+      wasmModule.wire__crate__api__sync__release_sync_join(port_, operation_id);
+
+  void wire__crate__api__sync__release_sync_key_request(
+    NativePortType port_,
+    String token,
+  ) =>
+      wasmModule.wire__crate__api__sync__release_sync_key_request(port_, token);
+
   void wire__crate__api__conversations__rename_conversation(
     NativePortType port_,
     String conversation_id,
@@ -3701,6 +6514,18 @@ class RustLibWire implements BaseWire {
     port_,
     conversation_id,
     title,
+  );
+
+  void wire__crate__api__sync__rename_sync_device(
+    NativePortType port_,
+    String device_id,
+    String new_name,
+    JSAny expected_vault_revision,
+  ) => wasmModule.wire__crate__api__sync__rename_sync_device(
+    port_,
+    device_id,
+    new_name,
+    expected_vault_revision,
   );
 
   void wire__crate__api__knowledge_workflows__resolve_knowledge_batch(
@@ -3739,6 +6564,32 @@ class RustLibWire implements BaseWire {
     accept,
   );
 
+  void wire__crate__api__sync__resolve_object_conflict(
+    NativePortType port_,
+    String op_id,
+    String? expected_local_updated_at,
+    bool accept_remote,
+  ) => wasmModule.wire__crate__api__sync__resolve_object_conflict(
+    port_,
+    op_id,
+    expected_local_updated_at,
+    accept_remote,
+  );
+
+  void wire__crate__api__sync__resolve_sync_provider_conflict(
+    NativePortType port_,
+    String revision_id,
+    String expected_local_revision,
+    String expected_remote_revision,
+    bool accept_remote,
+  ) => wasmModule.wire__crate__api__sync__resolve_sync_provider_conflict(
+    port_,
+    revision_id,
+    expected_local_revision,
+    expected_remote_revision,
+    accept_remote,
+  );
+
   void wire__crate__api__knowledge__resolve_topic_organization(
     NativePortType port_,
     String id,
@@ -3747,6 +6598,36 @@ class RustLibWire implements BaseWire {
     port_,
     id,
     accept,
+  );
+
+  void wire__crate__api__sync__resolve_wiki_page_conflict(
+    NativePortType port_,
+    String op_id,
+    String? expected_local_updated_at,
+    bool accept_remote,
+  ) => wasmModule.wire__crate__api__sync__resolve_wiki_page_conflict(
+    port_,
+    op_id,
+    expected_local_updated_at,
+    accept_remote,
+  );
+
+  void wire__crate__api__chat_runs__resume_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__chat_runs__resume_chat_input_queue(
+    port_,
+    conversation_id,
+  );
+
+  void wire__crate__api__sync__revoke_sync_member(
+    NativePortType port_,
+    String device_id,
+    JSAny expected_revision,
+  ) => wasmModule.wire__crate__api__sync__revoke_sync_member(
+    port_,
+    device_id,
+    expected_revision,
   );
 
   void wire__crate__api__provider_config__save_ai_provider_config(
@@ -3769,6 +6650,16 @@ class RustLibWire implements BaseWire {
     result_json,
     prompt_version,
     source_event_ids,
+  );
+
+  void wire__crate__api__web_search__save_doh_settings(
+    NativePortType port_,
+    String doh_uri,
+    String doh_mode,
+  ) => wasmModule.wire__crate__api__web_search__save_doh_settings(
+    port_,
+    doh_uri,
+    doh_mode,
   );
 
   void wire__crate__api__import__save_imported_page(
@@ -3814,6 +6705,18 @@ class RustLibWire implements BaseWire {
     tags,
   );
 
+  void wire__crate__api__tweet__save_topic_page(
+    NativePortType port_,
+    String text,
+    String? title,
+    JSAny tags,
+  ) => wasmModule.wire__crate__api__tweet__save_topic_page(
+    port_,
+    text,
+    title,
+    tags,
+  );
+
   void wire__crate__api__tweet__save_tweet_page(
     NativePortType port_,
     String tweet_id,
@@ -3830,6 +6733,22 @@ class RustLibWire implements BaseWire {
     screen_name,
   );
 
+  void wire__crate__api__web_search__save_web_search_config(
+    NativePortType port_,
+    bool enabled,
+    String engine,
+    String base_url,
+    String api_key,
+    JSAny max_results,
+  ) => wasmModule.wire__crate__api__web_search__save_web_search_config(
+    port_,
+    enabled,
+    engine,
+    base_url,
+    api_key,
+    max_results,
+  );
+
   void wire__crate__api__wiki__save_wiki_page_content(
     NativePortType port_,
     String slug,
@@ -3843,6 +6762,29 @@ class RustLibWire implements BaseWire {
     reason,
     expected_updated_at,
   );
+
+  void wire__crate__api__chat_runs__schedule_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+  ) => wasmModule.wire__crate__api__chat_runs__schedule_chat_input(
+    port_,
+    conversation_id,
+    input_message_id,
+  );
+
+  void wire__crate__api__sync__select_default_sync_dataset(
+    NativePortType port_,
+    JSAny expected_catalog_revision,
+  ) => wasmModule.wire__crate__api__sync__select_default_sync_dataset(
+    port_,
+    expected_catalog_revision,
+  );
+
+  void wire__crate__api__sync__select_sync_dataset(
+    NativePortType port_,
+    String entry_id,
+  ) => wasmModule.wire__crate__api__sync__select_sync_dataset(port_, entry_id);
 
   void wire__crate__api__conversations__send_message(
     NativePortType port_,
@@ -3858,14 +6800,50 @@ class RustLibWire implements BaseWire {
     parent_message_id,
   );
 
+  void wire__crate__api__sync__send_owner_sync_approval(
+    NativePortType port_,
+    String invitation_id,
+  ) => wasmModule.wire__crate__api__sync__send_owner_sync_approval(
+    port_,
+    invitation_id,
+  );
+
+  void wire__crate__api__sync__send_sync_join_proof(
+    NativePortType port_,
+    String operation_id,
+  ) => wasmModule.wire__crate__api__sync__send_sync_join_proof(
+    port_,
+    operation_id,
+  );
+
+  void wire__crate__api__sync__send_sync_join_request(
+    NativePortType port_,
+    String operation_id,
+  ) => wasmModule.wire__crate__api__sync__send_sync_join_request(
+    port_,
+    operation_id,
+  );
+
   void wire__crate__api__provider_config__set_active_ai_provider_config(
     NativePortType port_,
     String id,
+    String? revision_token,
   ) => wasmModule
       .wire__crate__api__provider_config__set_active_ai_provider_config(
         port_,
         id,
+        revision_token,
       );
+
+  void wire__crate__api__set_companion_prefs(
+    NativePortType port_,
+    bool enabled,
+    JSAny interval_days,
+  ) => wasmModule.wire__crate__api__set_companion_prefs(
+    port_,
+    enabled,
+    interval_days,
+  );
 
   void wire__crate__api__conversations__set_conversation_archived(
     NativePortType port_,
@@ -3887,6 +6865,20 @@ class RustLibWire implements BaseWire {
     recordable,
   );
 
+  void wire__crate__api__set_guidance_feedback(
+    NativePortType port_,
+    String analysis_id,
+    String slug,
+    String? note,
+    String? feedback,
+  ) => wasmModule.wire__crate__api__set_guidance_feedback(
+    port_,
+    analysis_id,
+    slug,
+    note,
+    feedback,
+  );
+
   void wire__crate__api__knowledge_workflows__set_knowledge_reading_state(
     NativePortType port_,
     String slug,
@@ -3898,12 +6890,54 @@ class RustLibWire implements BaseWire {
         state,
       );
 
+  void wire__crate__api__rules__set_rule_hit_feedback(
+    NativePortType port_,
+    String id,
+    String? feedback,
+  ) => wasmModule.wire__crate__api__rules__set_rule_hit_feedback(
+    port_,
+    id,
+    feedback,
+  );
+
+  void wire__crate__api__rules__set_rule_trigger(
+    NativePortType port_,
+    String rule_id,
+    String trigger_scene,
+    JSAny trigger_keywords,
+  ) => wasmModule.wire__crate__api__rules__set_rule_trigger(
+    port_,
+    rule_id,
+    trigger_scene,
+    trigger_keywords,
+  );
+
+  void wire__crate__api__rules__set_rule_trigger_mode(
+    NativePortType port_,
+    String mode,
+  ) => wasmModule.wire__crate__api__rules__set_rule_trigger_mode(port_, mode);
+
   void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
     String slug,
     String? opinion,
   ) =>
       wasmModule.wire__crate__api__wiki__set_wiki_opinion(port_, slug, opinion);
+
+  void wire__crate__api__chat_runs__shutdown_chat_runs(NativePortType port_) =>
+      wasmModule.wire__crate__api__chat_runs__shutdown_chat_runs(port_);
+
+  void wire__crate__api__chat_runs__start_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+    String idempotency_key,
+  ) => wasmModule.wire__crate__api__chat_runs__start_chat_run(
+    port_,
+    conversation_id,
+    input_message_id,
+    idempotency_key,
+  );
 
   void wire__crate__api__submit_conversation_input(
     NativePortType port_,
@@ -3929,9 +6963,35 @@ class RustLibWire implements BaseWire {
     idempotency_key,
   );
 
+  void wire__crate__api__wiki_chat__submit_wiki_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String content,
+    String idempotency_key,
+    String task_json,
+  ) => wasmModule.wire__crate__api__wiki_chat__submit_wiki_chat_input(
+    port_,
+    conversation_id,
+    content,
+    idempotency_key,
+    task_json,
+  );
+
+  void wire__crate__api__web_search__test_doh_connection(
+    NativePortType port_,
+    String doh_uri,
+  ) => wasmModule.wire__crate__api__web_search__test_doh_connection(
+    port_,
+    doh_uri,
+  );
+
   void wire__crate__api__knowledge__tick_knowledge_insights(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__knowledge__tick_knowledge_insights(port_);
+
+  void wire__crate__api__review_report__tick_periodic_reports(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__review_report__tick_periodic_reports(port_);
 
   void wire__crate__api__knowledge_workflows__topic_organization_history(
     NativePortType port_,
@@ -3952,6 +7012,9 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__knowledge_digest__trigger_knowledge_digest(
     port_,
   );
+
+  void wire__crate__api__sync__trigger_network_sync(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__trigger_network_sync(port_);
 
   void wire__crate__api__entities__undo_entity_merge(
     NativePortType port_,
@@ -4008,11 +7071,17 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__conversations__update_pending_action_args(
     NativePortType port_,
+    String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
     String args_json,
   ) => wasmModule.wire__crate__api__conversations__update_pending_action_args(
     port_,
+    conversation_id,
     action_id,
+    expected_version,
+    approval_token,
     args_json,
   );
 
@@ -4082,6 +7151,24 @@ class RustLibWire implements BaseWire {
     String slug,
     JSAny tags,
   ) => wasmModule.wire__crate__api__wiki__update_wiki_tags(port_, slug, tags);
+
+  void wire__crate__api__chat_runs__withdraw_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    JSAny queue_id,
+  ) => wasmModule.wire__crate__api__chat_runs__withdraw_chat_input(
+    port_,
+    conversation_id,
+    queue_id,
+  );
+
+  void wire__crate__api__sync__yield_sync_processor(
+    NativePortType port_,
+    String to_device_id,
+  ) => wasmModule.wire__crate__api__sync__yield_sync_processor(
+    port_,
+    to_device_id,
+  );
 }
 
 @JS('wasm_bindgen')
@@ -4125,6 +7212,25 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool adopt,
   );
 
+  external void wire__crate__api__sync__advance_sync_enrollment(
+    NativePortType port_,
+    String role,
+    String operation_id,
+    String invitation_id,
+  );
+
+  external void wire__crate__api__sync__approve_owner_sync_invitation(
+    NativePortType port_,
+    String invitation_id,
+    String preview_token,
+    bool acknowledge_provider_key_sharing,
+  );
+
+  external void wire__crate__api__sync__approve_processor_handoff(
+    NativePortType port_,
+    JSAny proof,
+  );
+
   external void wire__crate__api__goals__archive_goal(
     NativePortType port_,
     String id,
@@ -4133,6 +7239,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__wiki_chat__archive_wiki_page_chat(
     NativePortType port_,
     String page_slug,
+  );
+
+  external void wire__crate__api__provider_reachability__assess_base_url(
+    NativePortType port_,
+    String base_url,
   );
 
   external void wire__crate__api__begin_url_input(
@@ -4151,10 +7262,34 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny offset,
   );
 
+  external void wire__crate__api__build_hash(NativePortType port_);
+
+  external void wire__crate__api__sync__build_seq(NativePortType port_);
+
+  external void wire__crate__api__chat_runs__cancel_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+  );
+
+  external void wire__crate__api__sync__cancel_owner_sync_invitation(
+    NativePortType port_,
+    String invitation_id,
+  );
+
+  external void wire__crate__api__sync__check_app_update(
+    NativePortType port_,
+    String relay_url,
+  );
+
+  external void wire__crate__api__check_companion_revisit(NativePortType port_);
+
   external void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
   );
 
   external void wire__crate__api__knowledge__confirm_knowledge_source(
@@ -4165,6 +7300,31 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String source_kind,
     JSAny tags,
     String? expected_snapshot_id,
+  );
+
+  external void wire__crate__api__sync__confirm_processor_takeover(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__sync__confirm_sync_enrollment(
+    NativePortType port_,
+    String role,
+    String operation_id,
+    String invitation_id,
+    String token,
+    JSAny protected_revision,
+  );
+
+  external void wire__crate__api__sync__confirm_sync_join_key(
+    NativePortType port_,
+    String token,
+    JSAny protected_revision,
+  );
+
+  external void wire__crate__api__sync__confirm_sync_key(
+    NativePortType port_,
+    String token,
+    JSAny protected_revision,
   );
 
   external void
@@ -4188,6 +7348,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String phase,
   );
 
+  external void wire__crate__api__sync__create_owner_sync_invitation(
+    NativePortType port_,
+    String relay_url,
+    bool acknowledge_provider_key_sharing,
+  );
+
   external void wire__crate__api__todos__create_todo(
     NativePortType port_,
     String title,
@@ -4205,15 +7371,24 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content_md,
   );
 
+  external void wire__crate__api__chat_proposals__decide_chat_proposal(
+    NativePortType port_,
+    JSAny request,
+    bool accept,
+  );
+
   external void wire__crate__api__conversations__decline_knowledge_draft(
     NativePortType port_,
     String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
   );
 
   external void wire__crate__api__provider_config__delete_ai_provider_config(
     NativePortType port_,
     String id,
+    String? revision_token,
   );
 
   external void wire__crate__api__conversations__delete_archived_conversation(
@@ -4224,6 +7399,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__entities__delete_entity_fact(
     NativePortType port_,
     String id,
+  );
+
+  external void wire__crate__api__delete_event_emotion(
+    NativePortType port_,
+    String id,
+    String? target,
+    String feeling,
   );
 
   external void wire__crate__api__relations__delete_relation(
@@ -4241,14 +7423,68 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__wiki__delete_wiki_page(
+    NativePortType port_,
+    String slug,
+  );
+
+  external void wire__crate__api__sync__discard_sync_join_staging(
+    NativePortType port_,
+    String entry_id,
+  );
+
+  external void wire__crate__api__review_report__dismiss_deviation(
+    NativePortType port_,
+    String report_id,
+    int index,
+  );
+
   external void wire__crate__api__knowledge__dismiss_knowledge_issue(
     NativePortType port_,
     String fingerprint,
   );
 
+  external void wire__crate__api__chat_runs__dispatch_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  );
+
+  external void wire__crate__api__sync__download_update_apk(
+    NativePortType port_,
+    String relay_url,
+    String build_hash,
+    String apk_sha256,
+    JSAny apk_size,
+    String dest_dir,
+  );
+
+  external void wire__crate__api__chat_proposals__edit_chat_proposal(
+    NativePortType port_,
+    JSAny request,
+    String args_json,
+  );
+
+  external void wire__crate__api__chat_runs__enqueue_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+  );
+
+  external void wire__crate__api__chat_runs__enqueue_chat_supplement(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+    String run_id,
+    String context_json,
+  );
+
   external void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
     NativePortType port_,
     String page_slug,
+  );
+
+  external void wire__crate__api__event_stats__event_stats_query_default(
+    NativePortType port_,
   );
 
   external void wire__crate__api__import__fetch_import_url(
@@ -4302,10 +7538,25 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__get_analysis_job_stats(NativePortType port_);
 
+  external void wire__crate__api__chat_runs__get_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+    JSAny after_id,
+    int limit,
+  );
+
+  external void wire__crate__api__chat_runs__get_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+  );
+
   external void wire__crate__api__conversations__get_child_messages(
     NativePortType port_,
     String parent_id,
   );
+
+  external void wire__crate__api__get_companion_prefs(NativePortType port_);
 
   external void wire__crate__api__conversations__get_conversation(
     NativePortType port_,
@@ -4357,6 +7608,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__chat_runs__get_latest_chat_run(
+    NativePortType port_,
+    String conversation_id,
+  );
+
+  external void wire__crate__api__sync__get_local_sync_state(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__conversations__get_message_chain(
     NativePortType port_,
     String message_id,
@@ -4372,15 +7632,54 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String message_id,
   );
 
+  external void wire__crate__api__web_search__get_network_settings(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__get_period_stats(
+    NativePortType port_,
+    String period_type,
+    String date,
+  );
+
+  external void wire__crate__api__sync__get_processor_handoff_state(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__rules__get_rule_trigger_mode(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
     NativePortType port_,
     String message_id,
   );
 
+  external void wire__crate__api__sync__get_sync_join_state(
+    NativePortType port_,
+    String operation_id,
+  );
+
+  external void wire__crate__api__sync__get_sync_roster(NativePortType port_);
+
   external void wire__crate__api__theme__get_theme_prefs(NativePortType port_);
 
   external void wire__crate__api__tweet__get_tweet_fetch_service(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__web_search__get_web_search_config(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__wiki_chat__get_wiki_chat_material(
+    NativePortType port_,
+    String page_slug,
+  );
+
+  external void wire__crate__api__wiki_chat__get_wiki_chat_task(
+    NativePortType port_,
+    String conversation_id,
   );
 
   external void wire__crate__api__wiki__get_wiki_page(
@@ -4396,6 +7695,30 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__init_bridge(
     NativePortType port_,
     String? database_path,
+  );
+
+  external void wire__crate__api__sync__inspect_owner_sync_invitation(
+    NativePortType port_,
+    String invitation_id,
+  );
+
+  external void wire__crate__api__sync__inspect_sync_join_approval(
+    NativePortType port_,
+    String operation_id,
+  );
+
+  external void wire__crate__api__sync__install_sync_join_key(
+    NativePortType port_,
+    String token,
+    JSAny key,
+    JSAny protected_revision,
+  );
+
+  external void wire__crate__api__sync__install_sync_key(
+    NativePortType port_,
+    String token,
+    JSAny key,
+    JSAny protected_revision,
   );
 
   external void wire__crate__api__knowledge_workflows__knowledge_reading_state(
@@ -4427,6 +7750,35 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny offset,
   );
 
+  external void wire__crate__api__chat_proposals__list_chat_decisions(
+    NativePortType port_,
+    String? conversation_id,
+    int offset,
+    int limit,
+  );
+
+  external void wire__crate__api__chat_proposals__list_chat_proposals(
+    NativePortType port_,
+    String? conversation_id,
+    int offset,
+    int limit,
+  );
+
+  external void wire__crate__api__chat_runs__list_chat_run_events(
+    NativePortType port_,
+    String conversation_id,
+    String run_id,
+    JSAny after_sequence,
+    int limit,
+  );
+
+  external void wire__crate__api__chat_runs__list_chat_runs(
+    NativePortType port_,
+    String conversation_id,
+    int offset,
+    int limit,
+  );
+
   external void wire__crate__api__conversations__list_conversations(
     NativePortType port_,
   );
@@ -4434,6 +7786,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__list_daily_entries(
     NativePortType port_,
     String date,
+  );
+
+  external void wire__crate__api__review_report__list_deviation_reports(
+    NativePortType port_,
+    String period_type,
+    int limit,
   );
 
   external void wire__crate__api__entities__list_entity_aliases(
@@ -4446,6 +7804,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String entity_kind,
     String entity_slug,
+  );
+
+  external void wire__crate__api__list_event_emotions(NativePortType port_);
+
+  external void wire__crate__api__rules__list_event_rule_hits(
+    NativePortType port_,
+    String event_id,
   );
 
   external void wire__crate__api__list_events(NativePortType port_);
@@ -4505,9 +7870,33 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
+  external void wire__crate__api__sync__list_object_conflicts(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__list_page_guidance(
+    NativePortType port_,
+    String slug,
+  );
+
   external void wire__crate__api__conversations__list_pending_actions(
     NativePortType port_,
     String conversation_id,
+  );
+
+  external void wire__crate__api__sync__list_pending_sync_joins(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__list_recent_events(
+    NativePortType port_,
+    JSAny days,
+    JSAny limit,
+  );
+
+  external void wire__crate__api__rules__list_recent_rule_hits(
+    NativePortType port_,
+    JSAny limit,
   );
 
   external void wire__crate__api__relations__list_relations(
@@ -4520,6 +7909,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__rules__list_rules(NativePortType port_);
+
+  external void wire__crate__api__sync__list_sync_datasets(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__sync__list_sync_enrollments(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__sync__list_sync_provider_conflicts(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__fonts__list_system_fonts(
     NativePortType port_,
@@ -4535,15 +7936,38 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
+  external void wire__crate__api__chat_runs__list_unscheduled_chat_inputs(
+    NativePortType port_,
+    String conversation_id,
+    int offset,
+    int limit,
+  );
+
+  external void wire__crate__api__sync__list_wiki_page_conflicts(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
+  );
+
+  external void wire__crate__api__wiki__list_wiki_page_metas(
+    NativePortType port_,
+    JSAny? limit,
   );
 
   external void wire__crate__api__wiki__list_wiki_pages(
     NativePortType port_,
     String? kind,
     String? area,
+  );
+
+  external void wire__crate__api__sync__lock_local_sync(NativePortType port_);
+
+  external void wire__crate__api__review_report__mark_deviation_report_read(
+    NativePortType port_,
+    String id,
   );
 
   external void wire__crate__api__entities__merge_entity(
@@ -4558,6 +7982,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__chat_runs__pause_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  );
+
   external void wire__crate__api__knowledge__prepare_knowledge_restore(
     NativePortType port_,
     String slug,
@@ -4570,6 +7999,26 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny snapshot_ids,
   );
 
+  external void wire__crate__api__sync__prepare_sync_join_key(
+    NativePortType port_,
+    String preview_token,
+    String name,
+    String platform,
+    bool acknowledge_provider_key_sharing,
+  );
+
+  external void wire__crate__api__sync__prepare_sync_join_resume(
+    NativePortType port_,
+    String entry_id,
+  );
+
+  external void wire__crate__api__sync__prepare_sync_key_request(
+    NativePortType port_,
+    String? name,
+    String? platform,
+    bool acknowledge_provider_key_sharing,
+  );
+
   external void wire__crate__api__knowledge__prepare_topic_organization(
     NativePortType port_,
     JSAny slugs,
@@ -4580,6 +8029,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String source_url,
     String content_md,
+  );
+
+  external void wire__crate__api__sync__preview_sync_join(
+    NativePortType port_,
+    String invitation_code,
   );
 
   external void wire__crate__api__knowledge__propose_knowledge_page(
@@ -4614,10 +8068,27 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
+  external void wire__crate__api__sync__release_sync_join(
+    NativePortType port_,
+    String operation_id,
+  );
+
+  external void wire__crate__api__sync__release_sync_key_request(
+    NativePortType port_,
+    String token,
+  );
+
   external void wire__crate__api__conversations__rename_conversation(
     NativePortType port_,
     String conversation_id,
     String title,
+  );
+
+  external void wire__crate__api__sync__rename_sync_device(
+    NativePortType port_,
+    String device_id,
+    String new_name,
+    JSAny expected_vault_revision,
   );
 
   external void wire__crate__api__knowledge_workflows__resolve_knowledge_batch(
@@ -4641,10 +8112,43 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool accept,
   );
 
+  external void wire__crate__api__sync__resolve_object_conflict(
+    NativePortType port_,
+    String op_id,
+    String? expected_local_updated_at,
+    bool accept_remote,
+  );
+
+  external void wire__crate__api__sync__resolve_sync_provider_conflict(
+    NativePortType port_,
+    String revision_id,
+    String expected_local_revision,
+    String expected_remote_revision,
+    bool accept_remote,
+  );
+
   external void wire__crate__api__knowledge__resolve_topic_organization(
     NativePortType port_,
     String id,
     bool accept,
+  );
+
+  external void wire__crate__api__sync__resolve_wiki_page_conflict(
+    NativePortType port_,
+    String op_id,
+    String? expected_local_updated_at,
+    bool accept_remote,
+  );
+
+  external void wire__crate__api__chat_runs__resume_chat_input_queue(
+    NativePortType port_,
+    String conversation_id,
+  );
+
+  external void wire__crate__api__sync__revoke_sync_member(
+    NativePortType port_,
+    String device_id,
+    JSAny expected_revision,
   );
 
   external void wire__crate__api__provider_config__save_ai_provider_config(
@@ -4658,6 +8162,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String result_json,
     String prompt_version,
     JSAny source_event_ids,
+  );
+
+  external void wire__crate__api__web_search__save_doh_settings(
+    NativePortType port_,
+    String doh_uri,
+    String doh_mode,
   );
 
   external void wire__crate__api__import__save_imported_page(
@@ -4684,6 +8194,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny tags,
   );
 
+  external void wire__crate__api__tweet__save_topic_page(
+    NativePortType port_,
+    String text,
+    String? title,
+    JSAny tags,
+  );
+
   external void wire__crate__api__tweet__save_tweet_page(
     NativePortType port_,
     String tweet_id,
@@ -4691,6 +8208,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? title,
     String? author_name,
     String? screen_name,
+  );
+
+  external void wire__crate__api__web_search__save_web_search_config(
+    NativePortType port_,
+    bool enabled,
+    String engine,
+    String base_url,
+    String api_key,
+    JSAny max_results,
   );
 
   external void wire__crate__api__wiki__save_wiki_page_content(
@@ -4701,6 +8227,22 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? expected_updated_at,
   );
 
+  external void wire__crate__api__chat_runs__schedule_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+  );
+
+  external void wire__crate__api__sync__select_default_sync_dataset(
+    NativePortType port_,
+    JSAny expected_catalog_revision,
+  );
+
+  external void wire__crate__api__sync__select_sync_dataset(
+    NativePortType port_,
+    String entry_id,
+  );
+
   external void wire__crate__api__conversations__send_message(
     NativePortType port_,
     String conversation_id,
@@ -4709,10 +8251,32 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? parent_message_id,
   );
 
+  external void wire__crate__api__sync__send_owner_sync_approval(
+    NativePortType port_,
+    String invitation_id,
+  );
+
+  external void wire__crate__api__sync__send_sync_join_proof(
+    NativePortType port_,
+    String operation_id,
+  );
+
+  external void wire__crate__api__sync__send_sync_join_request(
+    NativePortType port_,
+    String operation_id,
+  );
+
   external void
   wire__crate__api__provider_config__set_active_ai_provider_config(
     NativePortType port_,
     String id,
+    String? revision_token,
+  );
+
+  external void wire__crate__api__set_companion_prefs(
+    NativePortType port_,
+    bool enabled,
+    JSAny interval_days,
   );
 
   external void wire__crate__api__conversations__set_conversation_archived(
@@ -4727,6 +8291,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool recordable,
   );
 
+  external void wire__crate__api__set_guidance_feedback(
+    NativePortType port_,
+    String analysis_id,
+    String slug,
+    String? note,
+    String? feedback,
+  );
+
   external void
   wire__crate__api__knowledge_workflows__set_knowledge_reading_state(
     NativePortType port_,
@@ -4734,10 +8306,39 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String state,
   );
 
+  external void wire__crate__api__rules__set_rule_hit_feedback(
+    NativePortType port_,
+    String id,
+    String? feedback,
+  );
+
+  external void wire__crate__api__rules__set_rule_trigger(
+    NativePortType port_,
+    String rule_id,
+    String trigger_scene,
+    JSAny trigger_keywords,
+  );
+
+  external void wire__crate__api__rules__set_rule_trigger_mode(
+    NativePortType port_,
+    String mode,
+  );
+
   external void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
     String slug,
     String? opinion,
+  );
+
+  external void wire__crate__api__chat_runs__shutdown_chat_runs(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__chat_runs__start_chat_run(
+    NativePortType port_,
+    String conversation_id,
+    String input_message_id,
+    String idempotency_key,
   );
 
   external void wire__crate__api__submit_conversation_input(
@@ -4754,7 +8355,24 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? idempotency_key,
   );
 
+  external void wire__crate__api__wiki_chat__submit_wiki_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    String content,
+    String idempotency_key,
+    String task_json,
+  );
+
+  external void wire__crate__api__web_search__test_doh_connection(
+    NativePortType port_,
+    String doh_uri,
+  );
+
   external void wire__crate__api__knowledge__tick_knowledge_insights(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__review_report__tick_periodic_reports(
     NativePortType port_,
   );
 
@@ -4768,6 +8386,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__trigger_analysis(NativePortType port_);
 
   external void wire__crate__api__knowledge_digest__trigger_knowledge_digest(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__sync__trigger_network_sync(
     NativePortType port_,
   );
 
@@ -4804,7 +8426,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__conversations__update_pending_action_args(
     NativePortType port_,
+    String conversation_id,
     String action_id,
+    JSAny expected_version,
+    String approval_token,
     String args_json,
   );
 
@@ -4849,5 +8474,16 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     JSAny tags,
+  );
+
+  external void wire__crate__api__chat_runs__withdraw_chat_input(
+    NativePortType port_,
+    String conversation_id,
+    JSAny queue_id,
+  );
+
+  external void wire__crate__api__sync__yield_sync_processor(
+    NativePortType port_,
+    String to_device_id,
   );
 }

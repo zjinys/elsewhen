@@ -2,6 +2,11 @@ use super::tool::ToolCall;
 use crate::storage::Store;
 use anyhow::Result;
 
+mod segments;
+pub use segments::{
+    ContextSegment, OmissionPolicy, SegmentOrigin, SegmentPurpose, SelectionOmission,
+};
+
 /// Message for AI context
 #[derive(Debug, Clone)]
 pub struct ContextMessage {
@@ -14,18 +19,55 @@ pub struct ContextMessage {
     pub reasoning_content: Option<String>,
     /// Optional cross-conversation background; never serialized to the provider.
     pub optional_background: bool,
+    /// Never serialized as model messages; used for selection and diagnostics.
+    pub segment: ContextSegment,
+    pub(crate) selection_omissions: Vec<SelectionOmission>,
+    /// Original timestamp, retained for request-only temporal enrichment.
+    pub(crate) message_time: Option<chrono::DateTime<chrono::FixedOffset>>,
+    pub(crate) sampled_time: Option<chrono::DateTime<chrono::FixedOffset>>,
+    pub(crate) time_reminder: bool,
 }
 
 impl ContextMessage {
     pub fn new(role: &str, content: impl Into<String>) -> Self {
+        let content = content.into();
+        let segment = ContextSegment::for_role(role, &content);
         Self {
             role: role.to_string(),
-            content: content.into(),
+            content,
+            segment,
+            selection_omissions: Vec::new(),
             tool_calls: None,
             tool_call_id: None,
             reasoning_content: None,
             optional_background: false,
+            message_time: None,
+            sampled_time: None,
+            time_reminder: false,
         }
+    }
+
+    pub(crate) fn with_segment(
+        mut self,
+        purpose: SegmentPurpose,
+        origin: SegmentOrigin,
+        identity: Option<&str>,
+        omission: OmissionPolicy,
+    ) -> Self {
+        self.segment = ContextSegment::new(purpose, origin, identity, &self.content, omission);
+        self.optional_background = omission == OmissionPolicy::OptionalBackground;
+        self
+    }
+
+    pub(crate) fn from_record(message: crate::storage::MessageSummary) -> Self {
+        let mut context = Self::new(&message.role, message.content).with_segment(
+            SegmentPurpose::History,
+            SegmentOrigin::StoredMessage,
+            Some(&message.id),
+            OmissionPolicy::WholeEarlierTurn,
+        );
+        context.message_time = chrono::DateTime::parse_from_rfc3339(&message.created_at).ok();
+        context
     }
 
     /// 原样回传 assistant 的正文、工具调用和必要的推理字段。
@@ -34,26 +76,27 @@ impl ContextMessage {
         calls: Vec<ToolCall>,
         reasoning_content: Option<String>,
     ) -> Self {
-        Self {
-            role: "assistant".to_string(),
-            content,
-            tool_calls: Some(calls),
-            tool_call_id: None,
-            reasoning_content,
-            optional_background: false,
-        }
+        let mut message = Self::new("assistant", content).with_segment(
+            SegmentPurpose::ToolProtocol,
+            SegmentOrigin::ToolExecution,
+            None,
+            OmissionPolicy::Required,
+        );
+        message.tool_calls = Some(calls);
+        message.reasoning_content = reasoning_content;
+        message
     }
 
     /// tool 角色消息：一次工具调用的执行结果
     pub fn tool_result(call_id: String, content: String) -> Self {
-        Self {
-            role: "tool".to_string(),
-            content,
-            tool_calls: None,
-            tool_call_id: Some(call_id),
-            reasoning_content: None,
-            optional_background: false,
-        }
+        let mut message = Self::new("tool", content).with_segment(
+            SegmentPurpose::ToolResult,
+            SegmentOrigin::ToolExecution,
+            Some(&call_id),
+            OmissionPolicy::Required,
+        );
+        message.tool_call_id = Some(call_id);
+        message
     }
 }
 
@@ -72,10 +115,11 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 - 联系人与关系：对话中出现的对用户重要的联系人（姓名、身份、TA 参与或负责的事情/项目），你可以识别出来，草拟「联系人 + 关系」；用户确认后保存为知识库「联系人」页与结构化关系（在对应页面可查看）。用户说「记住这个人 / 这个人是什么角色 / 他和这个项目什么关系」时，尤其要主动做。
 - 个人规则库：你在对话中提议、用户确认后生效的规则，可在「设置 → 数据 → 个人规则库」查看和删除。
 - 设置：AI 提供商（模型/密钥/温度）、外观主题、每日 token 用量统计都在「设置」页。
-- 范围：你服务的是用户的个人记录、沉淀与回顾，不负责网络、天气等外部事务——用户问到，如实说帮不上，不要硬答。
+- 外网搜索：若用户已在「设置 → 外网搜索」配置搜索，可用 web_search 查最新/时效信息（新闻、热点）。只在用户明确要求或查时效内容时调用；拿不准先反问要不要联网搜，不自行断定。没配置时工具会说明，引导用户去设置开启。
+- 范围：你服务的是用户的个人记录、沉淀与回顾；天气等未接入的外部事务，用户问到如实说帮不上，不要硬答。
 
 工具调用（你可以调用系统内置工具查规则、搜知识库、抓网页/推文、问 token 用量、查待办等，清单在下方）：
-- 需要查信息时优先调用工具，不要凭记忆瞎编；等待工具结果返回后，再组织最终回复。
+- 需要查信息时优先调用工具，不要凭记忆瞎编；等待工具结果返回后，再组织最终回复。用户问最新/最近/新闻/热点类时效内容且已配置搜索时，用 web_search 查；没查到就说没查到，不编造。
 - 对话回复结束后不会有后台任务替你继续处理本次要求。不能只说“我去做”“稍后回复”；本轮给出成果、待确认内容或具体未完成的状态。
 - 用户发“？”“搞定了吗”等短追问时，结合上一件事说明实际进展；有原要求就接着处理，不要求重发，不用“模型返回空”代替回应。追问不是保存确认。
 - 如果运行环境支持原生工具调用，直接以工具调用形式发起即可；若你无法发起原生调用，也可以在回复中**独占一行**输出文本格式调用，等结果返回后再回复最终文本：
@@ -83,7 +127,7 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 - 只认上面这一种文本格式，不要输出 `<tool_call>` / `<arg_key>` / `<arg_value>` / XML 等其他任何格式，也不要把调用标记混在正文里。
 - 一次只调用一个工具，等结果回来再决定下一步；结果已足够回答时就不要再调。
 - 每轮最多调用一两次，不要为了调用而调用。
-- 其他写类工具都是「草拟确认制」：save_knowledge_draft（存知识页）、create_todo（建待办）、import_url_to_wiki（导入网址）、save_wiki_revision（修订知识页）、propose_people_relations（联系人与关系建档）、archive_conversations_by_title（归档对话）都只是登记待办草稿。必须区分三种事实：工具调用后仅有「待确认草稿，未入库」，知识库列表尚不可见（可在「今天」栏点击待入库数量，查看草稿列表及完整内容、单独保存或删除，也可回复「好」确认）；确认执行成功且返回真实保存结果后才可说「已保存」（引用结果中的真实 slug）；查到既有页面时说「知识库已有页面」，不可把草稿说成页面。草拟后给用户内容摘要并明确提示确认；没有实际执行结果绝不声称已保存/已创建。
+- 其他写类工具都是「草拟确认制」：save_knowledge_draft（存知识页）、create_todo（建待办）、import_url_to_wiki（导入网址）、save_wiki_revision（修订知识页）、propose_people_relations（联系人与关系建档）、archive_conversations_by_title（归档对话）都只是登记待办草稿。必须区分三种事实：工具调用后仅有「待确认草稿，未入库」，知识库列表尚不可见（可在「今天」栏点击待入库数量，查看草稿列表及完整内容、单独保存或删除，普通短回复不能代替具体审阅）；确认执行成功且返回真实保存结果后才可说「已保存」（引用结果中的真实 slug）；查到既有页面时说「知识库已有页面」，不可把草稿说成页面。草拟后给用户内容摘要并明确提示确认；没有实际执行结果绝不声称已保存/已创建。
 - 查看某天的事件：用户说「XX（日期）有哪些事件 / 看看那天记录了什么」等 → 用 list_events_by_date 查当天事件（把自然日期解析成 YYYY-MM-DD，「昨天/前天」按当前日期推算），只读、可直接把结果念给用户。
 - 归档对话：用户说「把XX对话归档」→ 用 archive_conversations_by_title（title=精确标题 或 contains=标题包含；标题显示为「新对话」的空标题会话按「新对话」匹配）；仅归档主对话列表，不动知识页内聊天；草拟出匹配清单，用户确认后才归档。
 - 知识页改名：用户说「把 X 改名为 Y」「这个项目不叫 X 实际叫 Y」→ 用 rename_wiki_page（slug=当前页标识、new_title=新名字）；改名会连可唯一标识一起换、自动迁移联系人关系引用和页内聊天会话；草拟确认制。只改正文不改名用 save_wiki_revision。
@@ -109,7 +153,7 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 - 然后说明本轮已经提供的帮助或可供确认的建议；没有实际执行就不承诺稍后自动完成。
 - 仍然要简短：情绪共情 + 一句要点，两段以内。
 - **严禁**输出「保持自己的节奏」「多留个心眼」「给自己留条后路」「相信自己」「加油」「放轻松」这类万金油套话、空泛建议或鼓励——空洞的话比不说话更糟。
-- 尽量贴着用户给出的具体细节回复：写出具体的人名（如张玮）、事件（如双链路付款、和太极沟通）、时间与你的判断，并给一个可执行的下一步（如：对方没做就主动发消息/邮件留痕确认），哪怕只有一句话。没有细节可贴时，宁可少说。
+- 尽量贴着用户给出的具体细节回复：写出具体的人名（如张三）、事件（如网站改版、王五沟通）、时间与你的判断，并给一个可执行的下一步（如：对方没做就主动发消息/邮件留痕确认），哪怕只有一句话。没有细节可贴时，宁可少说。
 
 个人经验规则库：
 - 用户常分享「踩坑 / 教训 / 心得」类经历，其中往往蕴含一条可复用、可执行的经验准则（例如：「和大型企业的人沟通重要事项必须留痕」）。
@@ -123,9 +167,17 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 2. 一切围绕用户的个人记录与需求展开，不要滑向通用知识或泛泛而谈的客套。
 3. 不知道或没有依据的，直接说不知道；不编造、不铺垫、不写正确的废话。";
 
-/// 组装 system 消息：基础角色设定 + 当前对话语境（标题/标签）+ 已生效的个人规则
-fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMessage> {
-    let mut prompt = SYSTEM_PROMPT_BASE.to_string();
+/// Stable instructions and live application state have separate provenance and budgets.
+fn build_system_context(store: &Store, conversation_id: &str) -> Result<Vec<ContextMessage>> {
+    let mut context = vec![
+        ContextMessage::new("system", SYSTEM_PROMPT_BASE).with_segment(
+            SegmentPurpose::StableSetup,
+            SegmentOrigin::Application,
+            Some("elsewhen-chat-setup-v1"),
+            OmissionPolicy::Required,
+        ),
+    ];
+    let mut prompt = String::new();
     let mut is_knowledge_mentor = false;
     if let Some(conversation) = store.get_conversation(conversation_id)? {
         is_knowledge_mentor = conversation.assistant_mode == "knowledge_mentor"
@@ -157,6 +209,14 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
             "\n\n当前对话没有自动事件记录。只有在用户明确要求记录，或内容是值得长期回看的客观经历、决定、行动或进展时，才调用 record_event；寒暄、纯提问、对 AI 回复的评价和页面讨论不要记录。不要把助手自己的解读改写成事件。",
         );
     }
+    context.push(
+        ContextMessage::new("system", std::mem::take(&mut prompt)).with_segment(
+            SegmentPurpose::ConversationState,
+            SegmentOrigin::Conversation,
+            Some(conversation_id),
+            OmissionPolicy::Required,
+        ),
+    );
     // 注入活跃目标（FR-PES-005-02）。
     //
     // 与个人规则库同属「用户自述的长期上下文」，但用法相反：规则是行为约束，
@@ -177,6 +237,14 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
         }
     }
 
+    context.push(
+        ContextMessage::new("system", std::mem::take(&mut prompt)).with_segment(
+            SegmentPurpose::Goals,
+            SegmentOrigin::Goals,
+            Some("active-goals"),
+            OmissionPolicy::Required,
+        ),
+    );
     // 注入已生效的个人规则，让 AI 回复时对照检查
     let active_rules = store.list_active_rules()?;
     if active_rules.is_empty() {
@@ -189,7 +257,13 @@ fn build_system_prompt(store: &Store, conversation_id: &str) -> Result<ContextMe
             prompt.push('\n');
         }
     }
-    Ok(ContextMessage::new("system", prompt))
+    context.push(ContextMessage::new("system", prompt).with_segment(
+        SegmentPurpose::PersonalRules,
+        SegmentOrigin::Rules,
+        Some("active-personal-rules"),
+        OmissionPolicy::Required,
+    ));
+    Ok(context)
 }
 
 fn recent_background(store: &Store, conversation_id: &str) -> Result<Option<ContextMessage>> {
@@ -204,14 +278,67 @@ fn recent_background(store: &Store, conversation_id: &str) -> Result<Option<Cont
     if recent.is_empty() {
         return Ok(None);
     }
-    let mut prompt = String::from("你最近和用户聊到过的事（跨对话要点，供回忆；回复时自然带入，不必逐条复述）：\n");
+    let mut prompt = String::from(
+        "你最近和用户聊到过的事（跨对话要点，供回忆；回复时自然带入，不必逐条复述）：\n",
+    );
     for msg in recent {
         prompt.push_str("- ");
         prompt.push_str(&msg.content);
         prompt.push('\n');
     }
-    let mut message = ContextMessage::new("system", prompt);
-    message.optional_background = true;
+    let message = ContextMessage::new("system", prompt).with_segment(
+        SegmentPurpose::CrossConversation,
+        SegmentOrigin::StoredMessage,
+        Some("recent-other-conversations"),
+        OmissionPolicy::OptionalBackground,
+    );
+    Ok(Some(message))
+}
+
+/// 今日记忆真检索（决策辅助 D6，合并今日记忆提案）：把今天记录下来的
+/// 事件原文作为可选背景注入,让 AI 回答「今天记了什么」时是在真检索,
+/// 不是靠模型推断编造。红线：只呈现原文快照,不评价不汇总;没有记录时
+/// 不注入（AI 无素材,由基础角色的零编造约束兜底,不为此每次多花一段）。
+/// knowledge_mentor / 知识库页对话模式跳过（与 recent_background 同口径）。
+fn today_memory_background(store: &Store, conversation_id: &str) -> Result<Option<ContextMessage>> {
+    let is_knowledge_mentor = store
+        .get_conversation(conversation_id)?
+        .is_some_and(|c| c.assistant_mode == "knowledge_mentor" || c.wiki_page_slug.is_some());
+    if is_knowledge_mentor {
+        return Ok(None);
+    }
+    let today = chrono::Local::now().date_naive();
+    let mut entries: Vec<(String, String)> = store
+        .daily_entries(today)?
+        .into_iter()
+        .map(|entry| (entry.recorded_at, entry.raw_text))
+        .collect();
+    if entries.is_empty() {
+        return Ok(None);
+    }
+    // 记录时间正序呈现（今天一整天的时间线）。
+    entries.reverse();
+    let mut prompt = String::from(
+        "今天（本地日期）记录下来的原始条目（真检索快照，按记录顺序；被问到今天记了什么时据实转述，只呈现不评价）：\n",
+    );
+    let mut count = 0;
+    for (recorded_at, raw_text) in entries {
+        let time = chrono::DateTime::parse_from_rfc3339(&recorded_at)
+            .map(|dt| dt.with_timezone(&chrono::Local).format("%H:%M").to_string())
+            .unwrap_or_else(|_| String::new());
+        let text: String = raw_text.chars().take(160).collect();
+        prompt.push_str(&format!("- {time} {text}\n"));
+        count += 1;
+        if count >= 12 {
+            break;
+        }
+    }
+    let message = ContextMessage::new("system", prompt).with_segment(
+        SegmentPurpose::CrossConversation,
+        SegmentOrigin::StoredMessage,
+        Some("today-recorded-events"),
+        OmissionPolicy::OptionalBackground,
+    );
     Ok(Some(message))
 }
 
@@ -248,18 +375,33 @@ impl MemoryProvider for SimpleMemory {
     fn prepare_context(&self, conversation_id: &str, store: &Store) -> Result<Vec<ContextMessage>> {
         let messages = store.list_messages(conversation_id)?;
 
+        // The count is a soft limit: keep the whole user exchange that crosses
+        // it rather than starting the retained history inside a tool round.
+        let desired = messages.len().saturating_sub(self.max_messages);
+        let start = messages[..desired.min(messages.len())]
+            .iter()
+            .rposition(|message| message.role == "user")
+            .filter(|_| {
+                messages
+                    .get(desired)
+                    .is_none_or(|message| message.role != "user")
+            })
+            .unwrap_or(desired);
         let mut context: Vec<ContextMessage> = messages
             .into_iter()
-            .rev()
-            .take(self.max_messages)
-            .rev()
-            .map(|m| ContextMessage::new(&m.role, m.content))
+            .skip(start)
+            .map(ContextMessage::from_record)
             .collect();
 
         // 角色设定置于最前，防止 AI 泛化成通用聊天助手
-        context.insert(0, build_system_prompt(store, conversation_id)?);
+        context.splice(0..0, build_system_context(store, conversation_id)?);
+        let mut next_index = 1usize;
         if let Some(background) = recent_background(store, conversation_id)? {
-            context.insert(1, background);
+            context.insert(next_index, background);
+            next_index += 1;
+        }
+        if let Some(today) = today_memory_background(store, conversation_id)? {
+            context.insert(next_index, today);
         }
 
         Ok(context)
@@ -269,6 +411,7 @@ impl MemoryProvider for SimpleMemory {
 /// Sliding window memory: token-limited context
 pub struct SlidingWindowMemory {
     max_tokens: usize,
+    model: String,
 }
 
 /// Local BPE accounting for memory selection; each provider separately counts
@@ -278,25 +421,25 @@ pub fn estimate_tokens(text: &str) -> usize {
         .encode_ordinary(text)
         .len()
 }
-fn truncate_tokens(text: &str, limit: usize) -> String {
-    let chars: Vec<_> = text.chars().collect();
-    let (mut low, mut high) = (0, chars.len());
-    while low < high {
-        let mid = (low + high).div_ceil(2);
-        let prefix: String = chars[..mid].iter().collect();
-        if estimate_tokens(&prefix) <= limit {
-            low = mid;
-        } else {
-            high = mid - 1;
-        }
-    }
-    chars[..low].iter().collect()
-}
 
 /// Compact older conversation history using a preliminary memory estimate.
 /// Required system context and the latest exchange are never truncated; the
 /// provider enforces the actual budget on the complete serialized request.
 pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
+    compress_context_for_model(context, max_tokens, "gpt-4");
+}
+
+pub(crate) fn compress_context_for_model(
+    context: &mut Vec<ContextMessage>,
+    max_tokens: usize,
+    model: &str,
+) {
+    // Never make malformed native history appear valid by dropping its bad turn.
+    // Preserve it intact so the provider's final gate reports the protocol error.
+    if super::budget::validate_context_exchanges(context).is_err() {
+        return;
+    }
+    let estimate_tokens = |text: &str| super::budget::text_tokens(model, text);
     if max_tokens == 0 {
         return;
     }
@@ -304,9 +447,42 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
     if total <= max_tokens {
         return;
     }
+    let mut omissions: Vec<_> = context
+        .iter_mut()
+        .flat_map(|message| std::mem::take(&mut message.selection_omissions))
+        .collect();
+    // Optional background is always sacrificed before original conversation turns.
+    context.retain(|message| {
+        if message.optional_background {
+            segments::note_omission(
+                &mut omissions,
+                &message.segment,
+                model,
+                estimate_tokens(&message.content),
+                "preselection_optional_background",
+            );
+            false
+        } else {
+            true
+        }
+    });
+    if context
+        .iter()
+        .map(|message| estimate_tokens(&message.content))
+        .sum::<usize>()
+        <= max_tokens
+    {
+        if let Some(first) = context.first_mut() {
+            first.selection_omissions = omissions;
+        }
+        return;
+    }
 
     let mut systems = context.iter().filter(|m| m.role == "system");
     let Some(primary) = systems.next().cloned() else {
+        if let Some(first) = context.first_mut() {
+            first.selection_omissions = omissions;
+        }
         return;
     };
     let mut history: Vec<_> = context
@@ -341,53 +517,75 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
         rebuilt.push(source.clone());
     }
 
+    // Keep complete user exchanges. An assistant's native calls and their tool
+    // results must never be separated by preliminary memory selection.
     let mut kept = Vec::new();
-    while let Some(message) = history.pop() {
-        let cost = estimate_tokens(&message.content);
+    while !history.is_empty() {
+        let start = history.iter().rposition(|m| m.role == "user").unwrap_or(0);
+        let cost: usize = history[start..]
+            .iter()
+            .map(|m| {
+                estimate_tokens(&m.content)
+                    + m.tool_calls.as_ref().map_or(0, |calls| {
+                        calls
+                            .iter()
+                            .map(|call| {
+                                estimate_tokens(&call.name)
+                                    + estimate_tokens(&call.arguments.to_string())
+                                    + estimate_tokens(&call.id)
+                            })
+                            .sum::<usize>()
+                    })
+                    + m.reasoning_content
+                        .as_ref()
+                        .map_or(0, |text| estimate_tokens(text))
+            })
+            .sum();
         if cost > remaining {
-            history.push(message);
             break;
         }
         remaining -= cost;
-        kept.push(message);
+        kept.push(history.split_off(start));
     }
-    let omitted = !history.is_empty();
-    let mut summarized = false;
-    if omitted && remaining >= 24 {
-        let prefix = "（自动压缩的较早对话，仅供回忆）\n";
-        let mut summary = prefix.to_string();
-        for message in history {
-            let label = if message.role == "user" {
-                "用户："
-            } else {
-                "助手："
-            };
-            let room = remaining.saturating_sub(estimate_tokens(&summary) + 2);
-            if room < 8 {
-                break;
-            }
-            summary.push_str(label);
-            summary.push_str(&truncate_tokens(&message.content, room.min(160)));
-            summary.push('\n');
+    if !history.is_empty() {
+        for message in &history {
+            segments::note_omission(
+                &mut omissions,
+                &message.segment,
+                model,
+                estimate_tokens(&message.content),
+                "preselection_earlier_turn",
+            );
         }
-        if summary.len() > prefix.len() {
-            summary = truncate_tokens(&summary, remaining);
-            summarized = true;
-            rebuilt.push(ContextMessage::new("system", summary));
-        }
+        // Truncated excerpts are not semantic summaries. C06 owns independently
+        // persisted summaries; until then explicitly disclose omitted history.
+        rebuilt.push(ContextMessage::new("system", omitted_marker).with_segment(
+            SegmentPurpose::BudgetNotice,
+            SegmentOrigin::Application,
+            None,
+            OmissionPolicy::Required,
+        ));
     }
-    if omitted && !summarized {
-        rebuilt.push(ContextMessage::new("system", omitted_marker));
+    for turn in kept.into_iter().rev() {
+        rebuilt.extend(turn);
     }
-    kept.reverse();
-    rebuilt.extend(kept);
     rebuilt.extend(current);
+    if let Some(first) = rebuilt.first_mut() {
+        first.selection_omissions = omissions;
+    }
     *context = rebuilt;
 }
 
 impl SlidingWindowMemory {
     pub fn new(max_tokens: usize) -> Self {
-        Self { max_tokens }
+        Self::for_model(max_tokens, "gpt-4")
+    }
+
+    pub(crate) fn for_model(max_tokens: usize, model: &str) -> Self {
+        Self {
+            max_tokens,
+            model: model.to_owned(),
+        }
     }
 
     /// Token 估算（ASCII 约 4 字符/token，CJK 约 2 字符/token）
@@ -396,19 +594,45 @@ impl SlidingWindowMemory {
     }
 }
 
+pub(crate) fn prepare_uncompressed_context(
+    conversation_id: &str,
+    store: &Store,
+) -> Result<Vec<ContextMessage>> {
+    let mut context: Vec<_> = store
+        .list_messages(conversation_id)?
+        .into_iter()
+        .map(ContextMessage::from_record)
+        .collect();
+    context.splice(0..0, build_system_context(store, conversation_id)?);
+    let mut next_index = 1usize;
+    if let Some(background) = recent_background(store, conversation_id)? {
+        context.insert(next_index, background);
+        next_index += 1;
+    }
+    if let Some(today) = today_memory_background(store, conversation_id)? {
+        context.insert(next_index, today);
+    }
+    Ok(context)
+}
+
 impl MemoryProvider for SlidingWindowMemory {
     fn prepare_context(&self, conversation_id: &str, store: &Store) -> Result<Vec<ContextMessage>> {
         let messages = store.list_messages(conversation_id)?;
 
         let mut context: Vec<_> = messages
             .into_iter()
-            .map(|m| ContextMessage::new(&m.role, m.content))
+            .map(ContextMessage::from_record)
             .collect();
-        context.insert(0, build_system_prompt(store, conversation_id)?);
+        context.splice(0..0, build_system_context(store, conversation_id)?);
+        let mut next_index = 1usize;
         if let Some(background) = recent_background(store, conversation_id)? {
-            context.insert(1, background);
+            context.insert(next_index, background);
+            next_index += 1;
         }
-        compress_context(&mut context, self.max_tokens);
+        if let Some(today) = today_memory_background(store, conversation_id)? {
+            context.insert(next_index, today);
+        }
+        compress_context_for_model(&mut context, self.max_tokens, &self.model);
 
         Ok(context)
     }
@@ -446,6 +670,115 @@ mod tests {
         (store, conversation_id, path)
     }
 
+    /// D6 今日记忆真检索：当日事件注入为可选背景段；没有记录时不注入。
+    #[test]
+    fn today_memory_background_is_real_retrieval() {
+        let (store, conversation, path) = setup_store();
+        // 会话里那段消息不算事件；事件库今天还没有记录 → 不注入
+        assert!(
+            today_memory_background(&store, &conversation)
+                .unwrap()
+                .is_none()
+        );
+        let event = store
+            .insert_event(crate::event::NewEvent::now("今天跑了五公里"))
+            .unwrap();
+        let _ = event;
+        let today = today_memory_background(&store, &conversation)
+            .unwrap()
+            .expect("今天有记录时应注入");
+        assert!(today.content.contains("今天跑了五公里"));
+        assert!(today.content.contains("真检索"));
+        // 注入段是可选背景：预算紧张时允许被整体省略
+        let context = SimpleMemory::new(1)
+            .prepare_context(&conversation, &store)
+            .unwrap();
+        let idx = context
+            .iter()
+            .position(|m| m.optional_background && m.content.contains("今天跑了五公里"));
+        assert!(idx.is_some(), "正常预算下今天记忆段应在上下文里");
+        assert!(idx.unwrap() >= 1, "今天的记忆应排在 system 角色设定之后");
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn preliminary_selection_cannot_hide_a_broken_earlier_exchange() {
+        let mut context = vec![
+            ContextMessage::new("system", "rules"),
+            ContextMessage::new("user", "old question ".repeat(400)),
+            ContextMessage::tool_result("missing-call".into(), "orphan".into()),
+            ContextMessage::new("user", "current"),
+        ];
+        let before = format!("{context:?}");
+        compress_context_for_model(&mut context, 100, "gpt-4o");
+        assert_eq!(format!("{context:?}"), before);
+        assert!(super::super::budget::validate_context_exchanges(&context).is_err());
+    }
+
+    #[test]
+    fn simple_memory_retains_the_user_at_the_exchange_boundary() {
+        let (store, conversation, path) = setup_store();
+        store
+            .send_message(&conversation, "assistant", "first answer", None)
+            .unwrap();
+        store
+            .send_message(&conversation, "assistant", "second answer", None)
+            .unwrap();
+        let context = SimpleMemory::new(1)
+            .prepare_context(&conversation, &store)
+            .unwrap();
+        let history: Vec<_> = context
+            .iter()
+            .filter(|message| message.role != "system")
+            .collect();
+        assert_eq!(history.len(), 3);
+        assert_eq!(history[0].role, "user");
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn preliminary_selection_never_keeps_an_orphan_tool_result() {
+        let call = ToolCall::new("lookup", serde_json::json!({}));
+        let mut context = vec![
+            ContextMessage::new("system", "rules"),
+            ContextMessage::new("user", "old question ".repeat(400)),
+            ContextMessage::assistant_with_tool_calls(String::new(), vec![call.clone()], None),
+            ContextMessage::tool_result(call.id, "tiny result".into()),
+            ContextMessage::new("user", "current"),
+        ];
+        compress_context_for_model(&mut context, 100, "gpt-4o");
+        assert!(
+            !context
+                .iter()
+                .any(|m| m.role == "tool" || m.tool_calls.is_some())
+        );
+        assert_eq!(context.last().unwrap().content, "current");
+    }
+
+    #[test]
+    fn unknown_model_preselection_uses_bytes_and_drops_optional_first() {
+        let original = vec![
+            ContextMessage::new("system", "rules"),
+            ContextMessage::new("user", "hello ".repeat(80)),
+            ContextMessage::new("assistant", "answer"),
+            ContextMessage::new("user", "current"),
+        ];
+        let mut known = original.clone();
+        let mut unknown = original;
+        compress_context_for_model(&mut known, 250, "gpt-4o");
+        compress_context_for_model(&mut unknown, 250, "unknown-model");
+        assert!(known.iter().any(|m| m.content.starts_with("hello")));
+        assert!(!unknown.iter().any(|m| m.content.starts_with("hello")));
+        let mut background = ContextMessage::new("system", "optional".repeat(400));
+        background.optional_background = true;
+        known.insert(1, background);
+        compress_context_for_model(&mut known, 250, "gpt-4o");
+        assert!(known.iter().any(|m| m.content.starts_with("hello")));
+        assert!(!known.iter().any(|m| m.optional_background));
+    }
+
     #[test]
     fn compress_context_preserves_system_and_latest_turns() {
         let mut context = vec![
@@ -462,9 +795,11 @@ mod tests {
             Some("system prompt")
         );
         assert!(context.iter().any(|m| m.content == "当前问题"));
-        assert!(context
-            .iter()
-            .any(|m| m.content.contains("自动压缩") || m.content.contains("已省略")));
+        assert!(
+            context
+                .iter()
+                .any(|m| m.content.contains("自动压缩") || m.content.contains("已省略"))
+        );
         assert!(
             context
                 .iter()
@@ -490,10 +825,20 @@ mod tests {
 
         assert_eq!(context[0].content, primary);
         assert_eq!(context.last().unwrap().content, question);
-        assert!(context.iter().any(|m| m.content == format!("页面正文：{}", "内容".repeat(500))));
+        assert!(
+            context
+                .iter()
+                .any(|m| m.content == format!("页面正文：{}", "内容".repeat(500)))
+        );
         // Required evidence may exceed the memory estimate; only the complete
         // provider boundary may reject it, never silently shorten it here.
-        assert!(context.iter().map(|m| estimate_tokens(&m.content)).sum::<usize>() > budget);
+        assert!(
+            context
+                .iter()
+                .map(|m| estimate_tokens(&m.content))
+                .sum::<usize>()
+                > budget
+        );
     }
 
     #[test]
@@ -521,8 +866,17 @@ mod tests {
 
     // ── 目标注入（FR-PES-005-02）──
 
+    fn system_text(context: &[ContextMessage]) -> String {
+        context
+            .iter()
+            .filter(|message| message.role == "system")
+            .map(|message| message.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     fn system_prompt_of(store: &Store, conversation_id: &str) -> String {
-        build_system_prompt(store, conversation_id).unwrap().content
+        system_text(&build_system_context(store, conversation_id).unwrap())
     }
 
     #[test]
@@ -692,12 +1046,23 @@ mod tests {
             "提示词应包含对工具零评价等硬性约束"
         );
         assert!(
-            context[0].content.contains("今日记录"),
+            system_text(&context).contains("今日记录"),
             "system 提示词应注入当前对话标题"
         );
         // 原始消息应保留在 system 之后
-        assert!(context[1].role == "user");
-        assert!(context[1].content.contains("opencode2"));
+        let user = context
+            .iter()
+            .find(|message| message.role == "user")
+            .unwrap();
+        assert!(user.content.contains("opencode2"));
+        assert!(
+            context[..context
+                .iter()
+                .position(|message| message.role == "user")
+                .unwrap()]
+                .iter()
+                .all(|message| message.role == "system")
+        );
 
         let _ = std::fs::remove_file(path);
     }
@@ -711,7 +1076,7 @@ mod tests {
 
         assert!(context[0].role == "system");
         assert!(context[0].content.contains("个人知识库"));
-        assert!(context[0].content.contains("今日记录"));
+        assert!(system_text(&context).contains("今日记录"));
 
         let _ = std::fs::remove_file(path);
     }
@@ -723,7 +1088,7 @@ mod tests {
             .prepare_context(&conversation_id, &store)
             .unwrap();
 
-        let system = &context[0].content;
+        let system = system_text(&context);
         // AI 应知道这套系统真实具备的能力与入口，而不是瞎猜
         assert!(system.contains("导入"), "应描述导入能力（推文/网页/文本）");
         assert!(system.contains("知识库"), "应描述知识库能力");
@@ -748,7 +1113,7 @@ mod tests {
         let context = SimpleMemory::new(10)
             .prepare_context(&conversation_id, &store)
             .unwrap();
-        let system = &context[0].content;
+        let system = system_text(&context);
         assert!(system.contains("已由系统原样保存"));
         assert!(!system.contains("record_event"));
 
@@ -761,7 +1126,7 @@ mod tests {
         let context = SimpleMemory::new(10)
             .prepare_context(&conversation_id, &store)
             .unwrap();
-        let system = &context[0].content;
+        let system = system_text(&context);
         assert!(system.contains("调用 record_event"));
         assert!(!system.contains("可用工具（name：用途）"));
         assert!(system.contains("当前对话没有自动事件记录"));
@@ -783,7 +1148,7 @@ mod tests {
         let context = SimpleMemory::new(10)
             .prepare_context(&conversation_id, &store)
             .unwrap();
-        let system = &context[0].content;
+        let system = system_text(&context);
         assert!(system.contains("知识页专业导师"));
         assert!(!system.contains("record_event"));
 
@@ -793,15 +1158,31 @@ mod tests {
     #[test]
     fn recent_background_excludes_current_stream_and_wiki_before_limiting() {
         let (store, conversation_id, path) = setup_store();
-        assert!(recent_background(&store, &conversation_id).unwrap().is_none());
-        let other = store.create_conversation(Some("历史普通对话"), None).unwrap();
-        store.send_message(&other, "user", "历史普通会话背景", None).unwrap();
-        let wiki = store.create_wiki_chat_conversation("topic/test", "知识页").unwrap();
+        assert!(
+            recent_background(&store, &conversation_id)
+                .unwrap()
+                .is_none()
+        );
+        let other = store
+            .create_conversation(Some("历史普通对话"), None)
+            .unwrap();
+        store
+            .send_message(&other, "user", "历史普通会话背景", None)
+            .unwrap();
+        let wiki = store
+            .create_wiki_chat_conversation("topic/test", "知识页")
+            .unwrap();
         for _ in 0..8 {
-            store.send_message(&wiki, "user", "知识页无关讨论", None).unwrap();
-            store.send_message(&conversation_id, "user", "当前流已有消息", None).unwrap();
+            store
+                .send_message(&wiki, "user", "知识页无关讨论", None)
+                .unwrap();
+            store
+                .send_message(&conversation_id, "user", "当前流已有消息", None)
+                .unwrap();
         }
-        let background = recent_background(&store, &conversation_id).unwrap().unwrap();
+        let background = recent_background(&store, &conversation_id)
+            .unwrap()
+            .unwrap();
         assert!(background.optional_background);
         assert!(background.content.contains("历史普通会话背景"));
         assert!(!background.content.contains("知识页无关讨论"));
@@ -822,7 +1203,7 @@ mod tests {
             .send_message(
                 &other_id,
                 "user",
-                "昨天给海油服的张玮沟通了双链路付款的事情，必须留痕",
+                "昨天给张三沟通了网站改版的事情，必须留痕",
                 None,
             )
             .unwrap();
@@ -831,11 +1212,11 @@ mod tests {
             .prepare_context(&conversation_id, &store)
             .unwrap();
 
-        assert!(!context[0].content.contains("昨天给海油服"));
+        assert!(!context[0].content.contains("昨天给张三"));
         let background = context.iter().find(|m| m.optional_background).unwrap();
         let system = &background.content;
         assert!(
-            system.contains("张玮"),
+            system.contains("张三"),
             "跨对话近期消息应被注入 system 提示，实际: {}",
             system
         );

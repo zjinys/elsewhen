@@ -1,7 +1,5 @@
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
@@ -33,7 +31,7 @@ fn read_pinned() -> Option<AppConfig> {
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
-    /// 数据目录，即 `database_path` 所在目录。仅用于钉死冲突检测与报错信息。
+    /// 本机工作区根目录，用于进程钉死与数据集目录定位；不能在进程内切换。
     pub data_dir: PathBuf,
     pub database_path: PathBuf,
 }
@@ -54,9 +52,13 @@ impl AppConfig {
         std::fs::create_dir_all(data_dir)
             .with_context(|| format!("create data directory {}", data_dir.display()))?;
         secure_directory(data_dir)?;
+        let database_path = match crate::sync::datasets::selected_database_path(data_dir)? {
+            Some(path) => path,
+            None => migrate_db_file(data_dir)?,
+        };
         Ok(Self {
             data_dir: data_dir.to_path_buf(),
-            database_path: migrate_db_file(data_dir)?,
+            database_path,
         })
     }
 
@@ -103,8 +105,8 @@ impl AppConfig {
 
 /// 仅测试内用：清掉钉死状态，让下一个数据目录作用域重新解析。
 ///
-/// 必需：测试里 `DataDirGuard` 按用例临时改 `ELSEWHEN_DATA_DIR`，若不同时清掉钉死
-/// 值，先跑的用例会把路径钉死，后跑的用例静默读到别人的库。
+/// 必需：测试里 `DataDirGuard` 按用例钉死临时目录；不清掉钉死值，后跑的用例
+/// 会被拒绝切换目录。环境变量行为另由独立进程测试覆盖。
 #[cfg(test)]
 pub fn unpin() {
     *PINNED.write().unwrap_or_else(|e| e.into_inner()) = None;
@@ -112,8 +114,8 @@ pub fn unpin() {
 
 /// 测试内串行化「会改动进程级数据目录」的用例。
 ///
-/// 钉死值与环境变量都是进程级状态，而 Rust 测试默认并行跑在同一进程。凡是碰这两者的
-/// 用例都必须持这把锁，否则先跑的用例把自己的临时目录钉死，后跑的静默读到它的库。
+/// 钉死值是进程级状态，而 Rust 测试默认并行跑在同一进程。凡是碰钉死值的用例
+/// 都必须持这把锁；它不能保证修改进程环境变量的线程安全。
 #[cfg(test)]
 pub fn test_env_guard() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -160,108 +162,22 @@ fn migrate_db_file(data_dir: &Path) -> Result<PathBuf> {
     Ok(new_path)
 }
 
-fn secure_directory(path: &std::path::Path) -> Result<()> {
-    #[cfg(unix)]
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
+/// Unix 权限收紧的统一入口：Android 应用沙箱目录天然只允许本应用访问，
+/// 且对外部存储路径 chmod 会 EPERM 直接让 init_bridge 失败，因此 Android
+/// 一律跳过；桌面/服务器平台才需要显式收紧。
+#[cfg(all(unix, not(target_os = "android")))]
+pub(crate) fn set_unix_permissions(path: &std::path::Path, mode: u32) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn set_unix_permissions(_path: &std::path::Path, _mode: u32) -> std::io::Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::MutexGuard;
-
-    /// 每个用例一个唯一临时目录（pid + tag），避免跨用例/跨进程撞车。
-    fn temp_dir(tag: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("elsewhen-config-{tag}-{}", std::process::id()))
-    }
-
-    /// 持 config 测试锁 + 现场恢复：清钉死值、备份/恢复环境变量、删掉自建目录。
-    struct EnvReset {
-        _lock: MutexGuard<'static, ()>,
-        prev: Option<String>,
-        owned: PathBuf,
-    }
-    impl EnvReset {
-        fn set(dir: &Path) -> Self {
-            let lock = test_env_guard();
-            unpin();
-            let prev = std::env::var("ELSEWHEN_DATA_DIR").ok();
-            std::env::set_var("ELSEWHEN_DATA_DIR", dir);
-            Self {
-                _lock: lock,
-                prev,
-                owned: dir.to_path_buf(),
-            }
-        }
-    }
-    impl Drop for EnvReset {
-        fn drop(&mut self) {
-            unpin();
-            match &self.prev {
-                Some(v) => std::env::set_var("ELSEWHEN_DATA_DIR", v),
-                None => std::env::remove_var("ELSEWHEN_DATA_DIR"),
-            }
-            let _ = std::fs::remove_dir_all(&self.owned);
-        }
-    }
-
-    #[test]
-    fn pin_prefers_explicit_dir_over_env() {
-        let explicit = temp_dir("explicit");
-        let _reset = EnvReset::set(&temp_dir("from-env"));
-        let cfg = AppConfig::pin(Some(explicit.to_str().unwrap())).unwrap();
-        assert_eq!(cfg.data_dir, explicit);
-        assert_eq!(cfg.database_path, explicit.join(DB_FILE_NAME));
-    }
-
-    #[test]
-    fn load_keeps_pinned_dir_after_env_changes() {
-        let pinned = temp_dir("pinned");
-        let _reset = EnvReset::set(&pinned);
-        let cfg = AppConfig::pin(None).unwrap();
-        assert_eq!(cfg.data_dir, pinned);
-
-        // 钉死之后再改环境变量必须无效：这是本次修复的核心不变量
-        std::env::set_var("ELSEWHEN_DATA_DIR", temp_dir("after-pinned"));
-        assert_eq!(AppConfig::load().unwrap().data_dir, pinned);
-    }
-
-    #[test]
-    fn pin_is_idempotent_for_same_dir() {
-        let dir = temp_dir("idempotent");
-        let _reset = EnvReset::set(&dir);
-        let first = AppConfig::pin(Some(dir.to_str().unwrap())).unwrap();
-        let second = AppConfig::pin(Some(dir.to_str().unwrap())).unwrap();
-        assert_eq!(first.data_dir, second.data_dir);
-        assert_eq!(first.database_path, second.database_path);
-    }
-
-    #[test]
-    fn pin_rejects_switching_to_another_dir() {
-        let first = temp_dir("switch-a");
-        let _reset = EnvReset::set(&first);
-        AppConfig::pin(None).unwrap();
-
-        let other = temp_dir("switch-b");
-        let err = AppConfig::pin(Some(other.to_str().unwrap())).unwrap_err();
-        assert!(
-            err.to_string().contains("不能再改指向"),
-            "错误信息应说明冲突，实际: {err}"
-        );
-        // 冲突不得改动已钉死的值
-        assert_eq!(AppConfig::load().unwrap().data_dir, first);
-    }
-
-    #[test]
-    fn load_without_pin_follows_env_each_time() {
-        // 未钉死时保持旧行为：每次调用都重新解析环境变量（探测性调用不应被缓存）
-        let first = temp_dir("unpinned-a");
-        let _reset = EnvReset::set(&first);
-        assert_eq!(AppConfig::load().unwrap().data_dir, first);
-
-        let second = temp_dir("unpinned-b");
-        std::env::set_var("ELSEWHEN_DATA_DIR", &second);
-        assert_eq!(AppConfig::load().unwrap().data_dir, second);
-    }
+fn secure_directory(path: &std::path::Path) -> Result<()> {
+    #[cfg(unix)]
+    set_unix_permissions(path, 0o700)?;
+    Ok(())
 }

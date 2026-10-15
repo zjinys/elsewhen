@@ -97,17 +97,19 @@ fn source_reimport_reuses_page_and_preserves_immutable_versions() {
         s.source_snapshot(&old.id).unwrap().unwrap().content_md,
         "SQLite 事务旧原文"
     );
-    assert!(s
-        .connection
-        .execute(
-            "UPDATE knowledge_snapshots SET content_md='overwritten' WHERE id=?1",
-            [&old.id]
-        )
-        .is_err());
-    assert!(s
-        .connection
-        .execute("DELETE FROM knowledge_snapshots WHERE id=?1", [&old.id])
-        .is_err());
+    assert!(
+        s.connection
+            .execute(
+                "UPDATE knowledge_snapshots SET content_md='overwritten' WHERE id=?1",
+                [&old.id]
+            )
+            .is_err()
+    );
+    assert!(
+        s.connection
+            .execute("DELETE FROM knowledge_snapshots WHERE id=?1", [&old.id])
+            .is_err()
+    );
     assert_eq!(s.list_wiki_pages(None, None).unwrap().len(), 1);
     assert_eq!(first.evidence_count, 0, "外部原文不能伪称有个人事件支持");
 }
@@ -166,9 +168,11 @@ fn changed_or_rejected_sources_cannot_be_confirmed_or_selected() {
     assert!(s.resolve_knowledge_proposal(&id, true).is_err());
     assert_eq!(s.list_wiki_pages(None, None).unwrap().len(), 1);
     s.set_wiki_opinion(&original.slug, Some("reject")).unwrap();
-    assert!(select_knowledge(s, "SQLite 事务", "conversation", 4000)
-        .unwrap()
-        .is_empty());
+    assert!(
+        select_knowledge(s, "SQLite 事务", "conversation", 4000)
+            .unwrap()
+            .is_empty()
+    );
     assert!(propose_knowledge(s, &original.slug, "method", &compile_stub()).is_err());
 }
 
@@ -184,11 +188,12 @@ fn source_update_marks_dependents_without_overwriting_them() {
         s.get_wiki_page(&page.slug).unwrap().unwrap().content_md,
         page.content_md
     );
-    assert!(s
-        .knowledge_issues(Some(&page.slug))
-        .unwrap()
-        .iter()
-        .any(|i| i.kind == "source_changed"));
+    assert!(
+        s.knowledge_issues(Some(&page.slug))
+            .unwrap()
+            .iter()
+            .any(|i| i.kind == "source_changed")
+    );
     assert!(
         !select_knowledge(s, "SQLite 并发写入", "conversation", 4000)
             .unwrap()
@@ -197,11 +202,12 @@ fn source_update_marks_dependents_without_overwriting_them() {
     );
     let revision = propose_knowledge(s, &page.slug, "revision", &compile_stub()).unwrap();
     s.resolve_knowledge_proposal(&revision, true).unwrap();
-    assert!(!s
-        .knowledge_issues(Some(&page.slug))
-        .unwrap()
-        .iter()
-        .any(|i| i.kind == "source_changed"));
+    assert!(
+        !s.knowledge_issues(Some(&page.slug))
+            .unwrap()
+            .iter()
+            .any(|i| i.kind == "source_changed")
+    );
 }
 
 #[test]
@@ -562,11 +568,13 @@ fn legacy_v3_upgrade_preserves_originals_and_is_idempotent() {
         "旧原文"
     );
     assert_eq!(store.source_history("file").unwrap()[0].source_kind, "file");
-    assert!(store
-        .knowledge_issues(Some("derived"))
-        .unwrap()
-        .iter()
-        .any(|i| i.kind == "source_changed"));
+    assert!(
+        store
+            .knowledge_issues(Some("derived"))
+            .unwrap()
+            .iter()
+            .any(|i| i.kind == "source_changed")
+    );
     drop(store);
     let store = Store::open(&path).unwrap();
     assert_eq!(store.source_history("older").unwrap().len(), 2);
@@ -584,11 +592,12 @@ fn old_proposal_remains_resolvable_beyond_list_limit() {
         s.connection.execute("INSERT INTO knowledge_proposals(id,dedupe_key,target_slug,kind,title,content_md,reason,created_at)
             VALUES (?1,?1,?1,'method','another','body','test','2000-01-01')",[format!("proposal-{index}")]).unwrap();
     }
-    assert!(!s
-        .knowledge_proposals(None)
-        .unwrap()
-        .iter()
-        .any(|p| p.id == id));
+    assert!(
+        !s.knowledge_proposals(None)
+            .unwrap()
+            .iter()
+            .any(|p| p.id == id)
+    );
     assert!(s.resolve_knowledge_proposal(&id, true).unwrap().is_some());
 }
 
@@ -623,16 +632,19 @@ fn tweet_aliases_share_identity_and_rule_revisions_require_explicit_confirmation
     let page = s.resolve_knowledge_proposal(&id, true).unwrap().unwrap();
     s.set_knowledge_metadata(&page.slug, "独特适用场景", "rule")
         .unwrap();
-    assert!(select_knowledge(s, "独特适用場景", "conversation", 4000)
-        .unwrap()
-        .iter()
-        .any(|c| c.page_slug == page.slug));
+    assert!(
+        select_knowledge(s, "独特适用場景", "conversation", 4000)
+            .unwrap()
+            .iter()
+            .any(|c| c.page_slug == page.slug)
+    );
     let id = propose_knowledge(s, &page.slug, "revision", &compile_stub()).unwrap();
-    assert!(s
-        .knowledge_proposals(Some(&page.slug))
-        .unwrap()
-        .iter()
-        .any(|p| p.id == id && p.status == "pending"));
+    assert!(
+        s.knowledge_proposals(Some(&page.slug))
+            .unwrap()
+            .iter()
+            .any(|p| p.id == id && p.status == "pending")
+    );
     assert_eq!(
         s.knowledge_metadata(&page.slug).unwrap().applicable_when,
         "独特适用场景"
@@ -661,11 +673,13 @@ fn file_import_confirms_captured_originals_and_detects_concurrent_updates() {
     );
     assert_eq!(s.source_history(slug).unwrap()[0].source_kind, "file");
     let pending = crate::local_sources::preview_file_import(s, &dir).unwrap();
-    assert!(pending.entries[0]
-        .previous_excerpt
-        .as_ref()
-        .unwrap()
-        .contains("首处变化"));
+    assert!(
+        pending.entries[0]
+            .previous_excerpt
+            .as_ref()
+            .unwrap()
+            .contains("首处变化")
+    );
     std::fs::write(&file, "第三个版本").unwrap();
     let newer = crate::local_sources::preview_file_import(s, &dir).unwrap();
     crate::local_sources::confirm_file_import(s, &newer).unwrap();
@@ -700,7 +714,7 @@ fn topic_analysis_binds_only_applicable_sources() {
 
 #[test]
 fn chat_revision_does_not_overwrite_edits_made_after_the_preview() {
-    use crate::ai::tool::{dispatch, execute_pending_action, ToolCall, ToolRegistry};
+    use crate::ai::tool::{ToolCall, ToolRegistry, dispatch, execute_pending_action};
     let db = Db::new();
     let store = &db.store;
     let original = source(store, "https://example.com/revision", "SQLite 事务说明");

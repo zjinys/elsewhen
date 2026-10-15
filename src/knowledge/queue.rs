@@ -1,6 +1,6 @@
 //! Read-only inventory of work, including inputs without a run-log entry yet.
 use crate::storage::Store;
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 use rusqlite::params;
 
 #[derive(Debug, Clone)]
@@ -28,7 +28,11 @@ pub struct KnowledgeQueuePage {
 }
 
 pub(crate) fn usable(store: &Store, source: &crate::storage::SourceSnapshot) -> Result<bool> {
-    Ok(store.connection.query_row("SELECT EXISTS(SELECT 1 FROM knowledge_current_sources WHERE id=?1 AND usable)",[&source.id],|r|r.get(0))?)
+    Ok(store.connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM knowledge_current_sources WHERE id=?1 AND usable)",
+        [&source.id],
+        |r| r.get(0),
+    )?)
 }
 
 // The query transports metadata only. Pagination and counts stay in SQLite.

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
+import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Creates a real Rust bridge backed by a fresh per-suite temporary database.
@@ -12,16 +13,28 @@ import 'package:flutter_test/flutter_test.dart';
 /// 知识消化，这些是**写**操作，会插进测试自己的 FFI 调用之间抢 SQLite 锁，随事件循环
 /// 交错时序随机产出 `SQLITE_BUSY`（表现为「每次失败的用例都不同」）。需要推进队列的
 /// 用例显式调 `triggerAnalysis()`，语义更确定。
-Future<RustBridgeRepository> createIsolatedBridge() async {
+Future<RustBridgeRepository> createIsolatedBridge({
+  bool runChatQueueWorker = false,
+  SyncSetupController? syncSetupController,
+  RustBridgeRepository Function(String dataDir)? repositoryFactory,
+}) async {
   final dataDir = await Directory.systemTemp.createTemp(
     'elsewhen-flutter-test-',
   );
-  final repo = RustBridgeRepository(
-    databasePath: dataDir.path,
-    runBackgroundWorker: false,
-  );
+  final repo =
+      repositoryFactory?.call(dataDir.path) ??
+      RustBridgeRepository(
+        databasePath: dataDir.path,
+        runBackgroundWorker: false,
+        runChatQueueWorker: runChatQueueWorker,
+        syncSetupController: syncSetupController,
+      );
+  if (repo.databasePath != dataDir.path) {
+    throw StateError('Bridge tests must use the generated isolated directory');
+  }
   await repo.initialize();
   addTearDown(() async {
+    await repo.localSync.close();
     repo.dispose();
     if (await dataDir.exists()) {
       await dataDir.delete(recursive: true);

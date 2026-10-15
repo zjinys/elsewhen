@@ -1,4 +1,15 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+
 import 'suggestion_feedback.dart';
+import 'save_topic_dialog.dart';
+import 'chat_proposal_review.dart';
+import 'chat_run_status.dart';
+import 'chat_input_queue.dart';
+import '../providers/chat_run_provider.dart';
+import '../bridge/api.dart' as api;
+import '../bridge/api.dart' show ChatInputMode;
 
 import 'dart:convert';
 import 'dart:math';
@@ -12,6 +23,7 @@ import 'package:intl/intl.dart';
 import '../models/conversation.dart';
 import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
+import '../providers/state_holder.dart';
 import '../providers/wiki_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/goal_provider.dart';
@@ -24,6 +36,21 @@ import 'knowledge_panel.dart';
 import 'todo_view.dart';
 import 'goal_view.dart';
 
+/// 会话内搜索开关：放 provider 层，标题栏（MessageArea 之外）也能切换。
+/// 不是全局单例——family 按 conversationId 区分，各会话互不干扰。
+final messageSearchVisibleProvider = NotifierProvider.autoDispose
+    .family<StateHolder<bool>, bool, String>(
+      (conversationId) => StateHolder<bool>(false),
+    );
+
+/// 「存为主题」预填指令：AI 气泡悬浮按钮点一下写入这里，
+/// _MessageInput 监听后填进输入框（不直接发送，用户可改可发）。
+/// 比让按钮直接调工具更透明：用户看到将要发什么，草稿仍走确认门。
+final saveTopicDraftProvider = NotifierProvider.autoDispose
+    .family<StateHolder<String?>, String?, String>(
+      (conversationId) => StateHolder<String?>(null),
+    );
+
 String? explicitTopicName(String text) {
   final match =
       RegExp(r'^/topic\s+(.+)$', caseSensitive: false).firstMatch(text) ??
@@ -33,24 +60,29 @@ String? explicitTopicName(String text) {
   return name == null || name.isEmpty ? null : name;
 }
 
-/// 触发一次 AI 生成（发送后自动触发，或失败气泡上的「重新生成」点击）。
-/// 首次发送与重试走完全相同的路径：成功刷新消息/会话列表、失败追加
-/// 「会话内错误气泡」（带重新生成入口），结束统一清除「生成中」状态。
-/// [isMounted]：组件可能已卸载（如生成期间切走 tab），回调返回 false 时
-/// 跳过依赖 ref 的界面刷新（成功入库后的 invalidate 由下次加载兜底）。
+/// 发送与重试均绑定已保存的输入；真实 bridge 交给共享持久 run 控制器。
+/// 未初始化 bridge 的内存测试仓库保留同步应答兼容路径。
 Future<void> runAiGeneration(
   WidgetRef ref,
   String conversationId, {
+  required String inputMessageId,
   bool Function()? isMounted,
   VoidCallback? onError,
 }) async {
+  final repository = ref.read(conversationRepositoryProvider);
+  if (repository.supportsChatRuns) {
+    await ref
+        .read(chatRunControllerProvider(conversationId))
+        .start(inputMessageId);
+    return;
+  }
   final generatingNotifier = ref.read(aiGeneratingProvider.notifier);
   try {
     setAiGenerating(ref, conversationId, true);
     final repo = ref.read(conversationRepositoryProvider);
     await repo.generateReply(conversationId);
-    clearReplyFailed(ref, conversationId);
     if (isMounted == null || isMounted()) {
+      clearReplyFailed(ref, conversationId);
       ref.invalidate(messagesProvider);
       ref.invalidate(conversationsProvider);
       ref.invalidate(pendingActionsProvider);
@@ -70,10 +102,7 @@ Future<void> runAiGeneration(
       ref.read(scrollRequestProvider.notifier).update((v) => v + 1);
       // 记下失败的是**哪一条**消息：重新生成的入口跟着消息 id 走，不再依赖
       // 列表位置——后续追加消息或搜索/日期筛选都会让位置条件失效（P9）。
-      final failedMessageId = await latestUserMessageId(ref, conversationId);
-      if (failedMessageId != null && (isMounted == null || isMounted())) {
-        markReplyFailed(ref, conversationId, failedMessageId);
-      }
+      markReplyFailed(ref, conversationId, inputMessageId);
       onError?.call();
     }
   } finally {
@@ -82,21 +111,6 @@ Future<void> runAiGeneration(
       (current) => {...current}..remove(conversationId),
     );
   }
-}
-
-/// 会话里最后一条 user 消息的 id：生成失败时用它把「重新生成」入口钉在
-/// 那条消息上（Rust 侧 generateReply 始终回复最新一条 user 消息）。
-Future<String?> latestUserMessageId(
-  WidgetRef ref,
-  String conversationId,
-) async {
-  final messages = await ref
-      .read(conversationRepositoryProvider)
-      .getMessages(conversationId);
-  for (final message in messages.reversed) {
-    if (message.isUser) return message.id;
-  }
-  return null;
 }
 
 /// 把 AI 生成失败整理成**一行可读文案**，不展示 Anyhow 的 Caused by 调用链。
@@ -130,6 +144,81 @@ String aiFailureNotice(Object e) {
   return 'AI 回复失败：$detail';
 }
 
+bool get _isMobilePlatform => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+/// 移动端用 bottom sheet 呈现面板（Material 惯例：大屏对话框在小屏上
+/// 上下留白多、圆角悬浮感重）；桌面端保持居中对话框。
+Future<void> _showAdaptivePanel(
+  BuildContext context, {
+  required Widget dialog,
+  required Widget Function(BuildContext) sheetBuilder,
+}) {
+  if (_isMobilePlatform) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: sheetBuilder,
+    );
+  }
+  return showDialog<void>(context: context, builder: (_) => dialog);
+}
+
+/// 待入库草稿面板。抽成顶层函数供标题栏「今天」操作行复用。
+void openKnowledgeDraftsDialog(BuildContext context) {
+  _showAdaptivePanel(
+    context,
+    dialog: const _KnowledgeDraftsDialog(),
+    sheetBuilder: (sheetContext) => DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) =>
+          _KnowledgeDraftsSheet(scrollController: scrollController),
+    ),
+  );
+}
+
+void openTodoDialog(BuildContext context) {
+  _showAdaptivePanel(
+    context,
+    dialog: Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 560),
+        child: const SizedBox(width: 620, height: 560, child: TodoListView()),
+      ),
+    ),
+    sheetBuilder: (sheetContext) =>
+        _PanelSheet(title: '待办', builder: (context) => const TodoListView()),
+  );
+}
+
+void openGoalDialog(BuildContext context) {
+  _showAdaptivePanel(
+    context,
+    dialog: Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 560),
+        child: const SizedBox(
+          width: 560,
+          height: 560,
+          // 目标条数上限 3，弹窗不会过高；仍包一层滚动以容纳历史列表。
+          child: SingleChildScrollView(child: GoalListView()),
+        ),
+      ),
+    ),
+    sheetBuilder: (sheetContext) => _PanelSheet(
+      title: '目标',
+      // 目标条数上限 3，面板不会过高；仍包一层滚动以容纳历史列表。
+      builder: (context) => const SingleChildScrollView(child: GoalListView()),
+    ),
+  );
+}
+
 class MessageArea extends ConsumerStatefulWidget {
   const MessageArea({super.key});
 
@@ -150,8 +239,6 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
   bool _pendingScrollToBottom = true; // 会话刚切换/初始加载后，数据到达时滚到最新
   String _searchQuery = '';
   DateTime? _selectedDate;
-  bool _showSearch = false;
-
   @override
   void initState() {
     super.initState();
@@ -176,8 +263,25 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
     // 会话临时提示（AI 回复失败等，仅内存，不写库）
     final notices =
         ref.watch(conversationNoticeProvider)[selectedId] ?? const <String>[];
+    final showSearch =
+        selectedId != null &&
+        ref.watch(messageSearchVisibleProvider(selectedId));
     // 正在生成 AI 回复的会话（发送后反馈「AI 生成中」占位气泡）
     final generatingIds = ref.watch(aiGeneratingProvider);
+    final durable = ref.watch(conversationRepositoryProvider).supportsChatRuns;
+    final durableBusy =
+        selectedId != null &&
+        durable &&
+        ref.watch(
+          chatRunStateProvider(selectedId)
+              .select((value) => value.value?.busy ?? true),
+        );
+    final durableRunInput = selectedId != null && durable
+        ? ref.watch(
+            chatRunStateProvider(selectedId)
+                .select((value) => value.value?.run?.inputMessageId),
+          )
+        : null;
     // 待办 / provider / token / 待入库草稿等头部统计一律由 _NowStatus 自己
     // 订阅：放在这里 watch 会让这些与消息无关的状态每次变化都重建整份消息
     // 列表（P13）。
@@ -222,48 +326,15 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
     return Column(
       children: [
         _NowStatus(
+          conversationId: selectedId,
           messages: messagesAsync.value ?? const [],
-          showSearch: _showSearch,
-          onOpenDrafts: () => showDialog<void>(
-            context: context,
-            builder: (_) => const _KnowledgeDraftsDialog(),
-          ),
-          onOpenTodos: () => showDialog<void>(
-            context: context,
-            builder: (_) => Dialog(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 620,
-                  maxHeight: 560,
-                ),
-                child: const SizedBox(
-                  width: 620,
-                  height: 560,
-                  child: TodoListView(),
-                ),
-              ),
-            ),
-          ),
-          onOpenGoals: () => showDialog<void>(
-            context: context,
-            builder: (_) => Dialog(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 560,
-                  maxHeight: 560,
-                ),
-                child: const SizedBox(
-                  width: 560,
-                  height: 560,
-                  // 目标条数上限 3，弹窗不会过高；仍包一层滚动以容纳历史列表。
-                  child: SingleChildScrollView(child: GoalListView()),
-                ),
-              ),
-            ),
-          ),
-          onOpenTopics: () =>
-              ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki),
-          onToggleSearch: () => setState(() => _showSearch = !_showSearch),
+          showSearch: showSearch,
+          onOpenDrafts: () => openKnowledgeDraftsDialog(context),
+          onOpenTodos: () => openTodoDialog(context),
+          onOpenGoals: () => openGoalDialog(context),
+          onToggleSearch: () => ref
+              .read(messageSearchVisibleProvider(selectedId).notifier)
+              .set(!showSearch),
           // 复制全部并进「今天」行：有消息时显示，无消息时隐藏。
           onCopyAll: (messagesAsync.value?.isNotEmpty ?? false)
               ? () => _copyToClipboard(
@@ -273,14 +344,15 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                 )
               : null,
         ),
-        if (_showSearch) _buildSearchBar(messagesAsync.value ?? const []),
+        if (showSearch) _buildSearchBar(messagesAsync.value ?? const []),
         _PendingRelationsBanner(),
         // Messages list
         Expanded(
           child: messagesAsync.when(
             data: (messages) {
               // 当前会话是否正在生成 AI 回复（渲染尾部占位气泡）
-              final isAiTyping = generatingIds.contains(selectedId);
+              final legacyTyping = generatingIds.contains(selectedId);
+              final isAiTyping = legacyTyping || durableBusy;
 
               if (messages.isEmpty && notices.isEmpty && !isAiTyping) {
                 return _buildNoMessages();
@@ -346,7 +418,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
               final failedReplyId = ref.watch(
                 failedReplyMessageIdProvider.select((map) => map[selectedId]),
               );
-              final tailCount = notices.length + (isAiTyping ? 1 : 0);
+              final tailCount = notices.length + (legacyTyping ? 1 : 0);
               final rows = <Object>[];
               String? previousDay;
               for (var i = shownSince; i < total; i++) {
@@ -378,6 +450,9 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                     final needsReply =
                         message.isUser &&
                         !isAiTyping &&
+                        (!durable ||
+                            (durableRunInput != message.id &&
+                                message.conversationId == selectedId)) &&
                         ((message.id == latestUserMessageId &&
                                 !latestUserHasReply) ||
                             (failedReplyId != null &&
@@ -385,7 +460,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                     return _MessageBubble(
                       message: message,
                       showRetry: needsReply,
-                      onRetry: () => _retryAiGeneration(selectedId),
+                      onRetry: () => _retryAiGeneration(selectedId, message.id),
                     );
                   }
                   final tailIndex = libIndex - rows.length;
@@ -410,6 +485,18 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           ),
         ),
 
+        if (durable)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  ChatRunStatus(conversationId: selectedId),
+                  ChatInputQueue(conversationId: selectedId),
+                ],
+              ),
+            ),
+          ),
         // Input area
         _MessageInput(),
       ],
@@ -543,11 +630,16 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
   /// 按与首次发送完全相同的路径重启 AI 生成。
   /// 重试期间以「AI 正在思考…」占位反馈；若再次失败，
   /// runAiGeneration 会追加新的错误气泡（仍可继续重试）。
-  void _retryAiGeneration(String conversationId) {
+  void _retryAiGeneration(String conversationId, String inputMessageId) {
     if (ref.read(aiGeneratingProvider).contains(conversationId)) return;
     clearConversationNotices(ref, conversationId);
     if (mounted) setState(() {});
-    runAiGeneration(ref, conversationId, isMounted: () => mounted);
+    runAiGeneration(
+      ref,
+      conversationId,
+      inputMessageId: inputMessageId,
+      isMounted: () => mounted,
+    );
   }
 
   /// 加载更早消息：窗口向前扩展一页，然后回到顶部看旧内容
@@ -676,7 +768,7 @@ class _KnowledgeDraftsDialog extends ConsumerWidget {
                                   context: context,
                                   builder: (_) => _KnowledgeDraftDialog(
                                     conversationId: conversationId,
-                                    actionId: action.id,
+                                    proposal: action,
                                     title: title,
                                     kind:
                                         payload['kind']?.toString() ?? 'topic',
@@ -718,10 +810,195 @@ class _KnowledgeDraftsDialog extends ConsumerWidget {
   }
 }
 
+/// bottom sheet 通用外壳：拖拽把手 + 标题行 + 内容区。
+class _PanelSheet extends StatelessWidget {
+  final String title;
+  final Widget Function(BuildContext) builder;
+
+  const _PanelSheet({required this.title, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const _SheetHandle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: '关闭',
+                  icon: const Icon(Icons.close, size: 20),
+                  color: AppTheme.textSecondary,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+              ),
+              child: builder(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 10),
+      child: Container(
+        width: 36,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppTheme.surface3,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+}
+
+/// 待入库草稿的 bottom sheet 版（列表随 DraggableScrollableSheet 伸缩）。
+class _KnowledgeDraftsSheet extends ConsumerWidget {
+  final ScrollController scrollController;
+
+  const _KnowledgeDraftsSheet({required this.scrollController});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final actions = ref.watch(pendingActionsProvider).value ?? const [];
+    final drafts = actions
+        .where((action) => action.action == 'save_knowledge_draft')
+        .toList();
+    final conversationId = ref.watch(selectedConversationIdProvider);
+    return SafeArea(
+      top: false,
+      child: Column(
+        children: [
+          const _SheetHandle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '待入库草稿（${drafts.length}）',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: '关闭',
+                  icon: const Icon(Icons.close, size: 20),
+                  color: AppTheme.textSecondary,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: drafts.isEmpty
+                ? const Center(child: Text('当前对话没有待入库草稿'))
+                : ListView(
+                    controller: scrollController,
+                    children: [
+                      for (final action in drafts)
+                        Builder(
+                          builder: (itemContext) {
+                            Map<String, dynamic> payload;
+                            try {
+                              payload = Map<String, dynamic>.from(
+                                jsonDecode(action.argsJson) as Map,
+                              );
+                            } catch (_) {
+                              return const SizedBox.shrink();
+                            }
+                            final title = payload['title']?.toString() ?? '';
+                            return ListTile(
+                              leading: const Icon(Icons.article_outlined),
+                              title: Text(
+                                title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: const Text('待确认，未入库'),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: conversationId == null
+                                  ? null
+                                  : () => showDialog<void>(
+                                      context: itemContext,
+                                      builder: (_) => _KnowledgeDraftDialog(
+                                        conversationId: conversationId,
+                                        proposal: action,
+                                        title: title,
+                                        kind:
+                                            payload['kind']?.toString() ??
+                                            'topic',
+                                        content:
+                                            payload['content_md']?.toString() ??
+                                            '',
+                                        applicableWhen:
+                                            payload['applicable_when']
+                                                ?.toString() ??
+                                            '',
+                                        evidence:
+                                            (payload['verified_evidence']
+                                                        as List? ??
+                                                    [])
+                                                .map(
+                                                  (e) =>
+                                                      (e as Map)['title']
+                                                          ?.toString() ??
+                                                      (e)['page_slug']
+                                                          ?.toString() ??
+                                                      '',
+                                                )
+                                                .where((s) => s.isNotEmpty)
+                                                .toList(),
+                                      ),
+                                    ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _KnowledgeDraftDialog extends ConsumerStatefulWidget {
   const _KnowledgeDraftDialog({
     required this.conversationId,
-    required this.actionId,
+    required this.proposal,
     required this.title,
     required this.kind,
     required this.content,
@@ -730,7 +1007,7 @@ class _KnowledgeDraftDialog extends ConsumerStatefulWidget {
   });
 
   final String conversationId;
-  final String actionId;
+  final api.PendingActionDto proposal;
   final String title;
   final String kind;
   final String content;
@@ -772,7 +1049,7 @@ class _KnowledgeDraftDialogState extends ConsumerState<_KnowledgeDraftDialog> {
     try {
       await ref
           .read(conversationRepositoryProvider)
-          .declineKnowledgeDraft(widget.conversationId, widget.actionId);
+          .declineKnowledgeDraft(widget.conversationId, widget.proposal);
       if (!mounted) return;
       ref.invalidate(pendingActionsProvider);
       Navigator.of(context).pop();
@@ -795,7 +1072,7 @@ class _KnowledgeDraftDialogState extends ConsumerState<_KnowledgeDraftDialog> {
     try {
       final result = await ref
           .read(conversationRepositoryProvider)
-          .confirmKnowledgeDraft(widget.conversationId, widget.actionId);
+          .confirmKnowledgeDraft(widget.conversationId, widget.proposal);
       if (!mounted) return;
       ref.invalidate(pendingActionsProvider);
       ref.invalidate(wikiPagesProvider);
@@ -921,7 +1198,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
             child: Text(
               degraded
                   ? '有一条联系人关联建议，但数据无法解析。'
-                  : '发现联系人：$people\n关联事项：$targets\n回复“好”确认保存，回复“不要”忽略。',
+                  : '发现联系人：$people\n关联事项：$targets\n请打开“审阅提议”，接受或拒绝这项建议。',
               style: const TextStyle(fontSize: 12, height: 1.5),
             ),
           ),
@@ -967,6 +1244,8 @@ class _PendingRelationsBanner extends ConsumerWidget {
     WidgetRef ref,
     dynamic action,
   ) async {
+    final conversationId = ref.read(selectedConversationIdProvider);
+    if (conversationId == null) return;
     final Map<String, dynamic> payload;
     try {
       final decoded = jsonDecode(action.argsJson);
@@ -1031,7 +1310,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
     payload['relations'] = relations;
     await ref
         .read(conversationRepositoryProvider)
-        .updatePendingActionArgs(action.id, jsonEncode(payload));
+        .updatePendingActionArgs(conversationId, action, jsonEncode(payload));
     if (!context.mounted) return;
     ref.invalidate(pendingActionsProvider);
   }
@@ -1043,12 +1322,12 @@ class _PendingRelationsBanner extends ConsumerWidget {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<WikiPage?> _pickPage(
+  Future<WikiPageRef?> _pickPage(
     BuildContext context,
     String title,
-    List<WikiPage> pages,
+    List<WikiPageRef> pages,
   ) {
-    return showDialog<WikiPage>(
+    return showDialog<WikiPageRef>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
@@ -1114,28 +1393,79 @@ class _DayDivider extends StatelessWidget {
 /// 一律在**这里**订阅，而不是在消息列表所在的 State 里 watch：它们与消息
 /// 内容无关，放在父级 build 里会让每次 todo/wiki/token 变化都重建整份消息
 /// 列表（P13）。
+/// 「今天」栏和标题栏「今天」行共用的紧凑图标按钮。
+class NowStatusIconButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final String label;
+  final Color? color;
+  final VoidCallback? onPressed;
+
+  const NowStatusIconButton({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final effective = color ?? AppTheme.textSecondary;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: effective),
+              const SizedBox(width: 4),
+              Text(label, style: TextStyle(fontSize: 12, color: effective)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 会话顶部状态条。统计项（待办 / 话题 / provider / token / 待入库草稿）
+/// 一律在**这里**订阅，而不是在消息列表所在的 State 里 watch：它们与消息
+/// 内容无关，放在父级 build 里会让每次 todo/wiki/token 变化都重建整份消息
+/// 列表（P13）。
+///
+/// 移动端不显示：入口已全部移到标题栏「今天」行，这里整栏隐藏。
 class _NowStatus extends ConsumerWidget {
+  final String? conversationId;
   final List<Message> messages;
   final bool showSearch;
   final VoidCallback? onOpenDrafts;
   final VoidCallback? onOpenTodos;
   final VoidCallback? onOpenGoals;
-  final VoidCallback? onOpenTopics;
   final VoidCallback? onToggleSearch;
   final VoidCallback? onCopyAll;
   const _NowStatus({
+    this.conversationId,
     required this.messages,
     this.showSearch = false,
     this.onOpenDrafts,
     this.onOpenTodos,
     this.onOpenGoals,
-    this.onOpenTopics,
     this.onToggleSearch,
     this.onCopyAll,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 移动端：入口已上移到标题栏「今天」行，整栏不再显示。
+    final isMobilePlatform = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    if (isMobilePlatform) return const SizedBox.shrink();
+
     final openTodos = ref
         .watch(todosProvider)
         .value
@@ -1161,7 +1491,7 @@ class _NowStatus extends ConsumerWidget {
               m.createdAt.day == today.day,
         )
         .length;
-    final summary = '对话${count}次';
+    final summary = '对话$count次';
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1172,7 +1502,7 @@ class _NowStatus extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 660;
+          final compact = constraints.maxWidth < 780;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -1226,35 +1556,19 @@ class _NowStatus extends ConsumerWidget {
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
-                    //const SizedBox(width: 14),
-                    // TextButton(
-                    //   onPressed: onOpenTopics,
-                    //   style: TextButton.styleFrom(
-                    //     visualDensity: VisualDensity.compact,
-                    //   ),
-                    //   child: Text(
-                    //     '主题 (${topicCreatedToday ?? 0}/${topicUpdatedToday ?? 0}）',
-                    //     style: TextStyle(
-                    //       fontSize: 12,
-                    //       color: AppTheme.textSecondary,
-                    //     ),
-                    //   ),
-                    // ),
                     const SizedBox(width: 6),
                     TextButton.icon(
                       onPressed: onOpenTodos,
                       icon: const Icon(Icons.check_circle_outlined, size: 16),
-                      label: Text(
-                        '待办${openTodos ?? 0}项',
-                        // style: TextStyle(
-                        //   fontSize: 12,
-                        //   color: AppTheme.textSecondary,
-                        // ),
-                      ),
+                      label: Text('待办${openTodos ?? 0}项'),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
+                    if (conversationId != null) ...[
+                      const SizedBox(width: 6),
+                      ChatProposalReviewButton(conversationId: conversationId),
+                    ],
                     const Spacer(),
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1306,16 +1620,20 @@ class _NowStatus extends ConsumerWidget {
                             color: AppTheme.textTertiary,
                           ),
                           const SizedBox(width: 5),
-                          Text(
-                            activeProvider,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 120),
+                            child: Text(
+                              activeProvider,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
                         ],
-                        //const SizedBox(width: 8),
                         if (onCopyAll != null)
                           IconButton(
                             tooltip: '复制全部对话',
@@ -1353,108 +1671,102 @@ class _NowStatus extends ConsumerWidget {
               ),
               if (compact)
                 Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Row(
-                    children: [
-                      // 窄屏时目标入口落在第二行：它没有独立一级 tab，这里是唯一入口，
-                      // 空态也必须可见（故空态只显示「目标」，且用 accent 着色）。
-                      TextButton.icon(
-                        onPressed: onOpenGoals,
-                        icon: Icon(
-                          Icons.flag_outlined,
-                          size: 14,
+                  padding: const EdgeInsets.only(top: 4),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 窄屏时目标入口落在第二行：它没有独立一级 tab，这里是唯一入口，
+                        // 空态也必须可见（故空态只显示「目标」，且用 accent 着色）。
+                        NowStatusIconButton(
+                          tooltip: '目标',
+                          icon: Icons.flag_outlined,
+                          label: goalLabel,
                           color: activeGoals.isEmpty
                               ? AppTheme.accentPrimary
                               : AppTheme.textTertiary,
+                          onPressed: onOpenGoals,
                         ),
-                        label: Text(
-                          goalLabel,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: activeGoals.isEmpty
-                                ? AppTheme.accentPrimary
-                                : AppTheme.textTertiary,
+                        if (conversationId != null) ...[
+                          const SizedBox(width: 4),
+                          ChatProposalReviewButton(
+                            conversationId: conversationId,
+                            compact: true,
                           ),
-                        ),
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                        ),
-                      ),
-                      if (activeProvider != null) ...[
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.smart_toy_outlined,
-                          size: 14,
-                          color: AppTheme.textTertiary,
-                        ),
-                        const SizedBox(width: 5),
-                        Flexible(
-                          child: Text(
+                        ],
+                        if (activeProvider != null) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.smart_toy_outlined,
+                            size: 14,
+                            color: AppTheme.textTertiary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
                             activeProvider,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.textSecondary,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                      ],
-                      Icon(
-                        Icons.forum_outlined,
-                        size: 14,
-                        color: AppTheme.textTertiary,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        summary,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                      if (tokenUsage != null) ...[
-                        const SizedBox(width: 10),
+                        ],
+                        const SizedBox(width: 6),
                         Icon(
-                          Icons.data_usage_outlined,
+                          Icons.forum_outlined,
                           size: 14,
                           color: AppTheme.textTertiary,
                         ),
-                        const SizedBox(width: 5),
+                        const SizedBox(width: 4),
                         Text(
-                          'Token ${_formatTokens(tokenUsage.totalTokens)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          summary,
                           style: TextStyle(
                             fontSize: 12,
                             color: AppTheme.textSecondary,
                           ),
                         ),
-                      ],
-                      const Spacer(),
-                      if (onCopyAll != null)
+                        if (tokenUsage != null) ...[
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.data_usage_outlined,
+                            size: 14,
+                            color: AppTheme.textTertiary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Token ${_formatTokens(tokenUsage.totalTokens)}',
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                        if (onCopyAll != null) ...[
+                          const SizedBox(width: 4),
+                          IconButton(
+                            tooltip: '复制全部对话',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.copy_all_rounded, size: 16),
+                            color: AppTheme.textSecondary,
+                            onPressed: onCopyAll,
+                          ),
+                        ],
                         IconButton(
-                          tooltip: '复制全部对话',
+                          tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
                           visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.copy_all_rounded, size: 17),
-                          color: AppTheme.textSecondary,
-                          onPressed: onCopyAll,
+                          icon: Icon(
+                            showSearch ? Icons.search_off : Icons.search,
+                            size: 16,
+                          ),
+                          color: showSearch
+                              ? AppTheme.accentPrimary
+                              : AppTheme.textSecondary,
+                          onPressed: onToggleSearch,
                         ),
-                      IconButton(
-                        tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
-                        visualDensity: VisualDensity.compact,
-                        icon: Icon(
-                          showSearch ? Icons.search_off : Icons.search,
-                          size: 17,
-                        ),
-                        color: showSearch
-                            ? AppTheme.accentPrimary
-                            : AppTheme.textSecondary,
-                        onPressed: onToggleSearch,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
             ],
@@ -1563,7 +1875,7 @@ class _NoticeBubble extends StatelessWidget {
   }
 }
 
-class _MessageBubble extends ConsumerWidget {
+class _MessageBubble extends ConsumerStatefulWidget {
   final Message message;
 
   /// 是否显示「重新生成」：仅最后一条用户消息（且无 AI 回复）时为真
@@ -1577,7 +1889,13 @@ class _MessageBubble extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends ConsumerState<_MessageBubble> {
+  @override
+  Widget build(BuildContext context) {
+    final message = widget.message;
     final isUser = message.isUser;
     final displayContent = isUser
         ? message.content
@@ -1641,52 +1959,89 @@ class _MessageBubble extends ConsumerWidget {
                           onPressed: () =>
                               _copyToClipboard(context, message.content, '消息'),
                         ),
+                        // 「存为主题」：常驻显示在工具条（与「复制」并排），一眼可见。
+                        // 移动端另支持长按气泡弹底部菜单（见下方 GestureDetector），两者同一逻辑。
+                        // 点击不直接调工具——把明确指令预填进输入框，用户可改可发，
+                        // 草稿仍走确认门（比按钮直写库透明，也不绕开用户把关）。
+                        if (!isUser) _SaveTopicButton(message: message),
                         if (isUser) _buildRecordability(context, ref),
                       ],
                     ),
                   ),
 
                   // Message bubble
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.space3,
-                      vertical: AppTheme.space3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isUser
-                          ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                          : AppTheme.surface1,
-                      borderRadius: BorderRadius.circular(
-                        AppTheme.radiusMedium,
+                  // 移动端：长按气泡弹出操作菜单（复制 / 存为主题），是唯一的长按行为，
+                  // 故移动端不用 SelectionArea/SelectableText（避免长按选字与菜单手势竞争）。
+                  // 桌面端保持原有可选中（SelectionArea/SelectableText）+ hover 悬浮按钮。
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onLongPress: _isMobilePlatform
+                        ? () =>
+                              _showMessageActionsSheet(context, message, isUser)
+                        : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.space3,
+                        vertical: AppTheme.space3,
                       ),
-                      border: Border.all(
+                      decoration: BoxDecoration(
                         color: isUser
-                            ? AppTheme.accentPrimary.withValues(alpha: 0.3)
-                            : AppTheme.surface3.withValues(alpha: 0.7),
-                        width: 1,
+                            ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                            : AppTheme.surface1,
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                        border: Border.all(
+                          color: isUser
+                              ? AppTheme.accentPrimary.withValues(alpha: 0.3)
+                              : AppTheme.surface3.withValues(alpha: 0.7),
+                          width: 1,
+                        ),
                       ),
+                      child: _isMobilePlatform
+                          // 移动端：不可选字，纯展示，长按交给外层菜单。
+                          ? (isUser
+                                ? ContentFontScope(
+                                    child: Text(
+                                      displayContent,
+                                      style: TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontSize: 14,
+                                        height: 1.55,
+                                      ),
+                                    ),
+                                  )
+                                : MarkdownView(
+                                    markdown: displayContent,
+                                    baseStyle: TextStyle(
+                                      color: AppTheme.textPrimary,
+                                      fontSize: 15,
+                                      height: 1.65,
+                                    ),
+                                  ))
+                          // 桌面端：保持可选中。
+                          : (isUser
+                                ? ContentFontScope(
+                                    child: SelectableText(
+                                      displayContent,
+                                      style: TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontSize: 14,
+                                        height: 1.55,
+                                      ),
+                                    ),
+                                  )
+                                : SelectionArea(
+                                    child: MarkdownView(
+                                      markdown: displayContent,
+                                      baseStyle: TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontSize: 15,
+                                        height: 1.65,
+                                      ),
+                                    ),
+                                  )),
                     ),
-                    child: isUser
-                        ? ContentFontScope(
-                            child: SelectableText(
-                              displayContent,
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 14,
-                                height: 1.55,
-                              ),
-                            ),
-                          )
-                        : SelectionArea(
-                            child: MarkdownView(
-                              markdown: displayContent,
-                              baseStyle: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 15,
-                                height: 1.65,
-                              ),
-                            ),
-                          ),
                   ),
 
                   if (kSuggestionFeedbackEnabled && !isUser)
@@ -1697,11 +2052,11 @@ class _MessageBubble extends ConsumerWidget {
                   // 生成失败/未生成：最后一条用户消息上提供「重新生成」入口
                   if (!isUser && message.content.contains('[['))
                     KnowledgeCitationsButton(messageId: message.id),
-                  if (showRetry && onRetry != null)
+                  if (widget.showRetry && widget.onRetry != null)
                     Padding(
                       padding: const EdgeInsets.only(top: AppTheme.space1),
                       child: TextButton.icon(
-                        onPressed: onRetry,
+                        onPressed: widget.onRetry,
                         icon: const Icon(Icons.refresh_rounded, size: 15),
                         label: const Text('重新生成'),
                         style: TextButton.styleFrom(
@@ -1729,8 +2084,53 @@ class _MessageBubble extends ConsumerWidget {
     );
   }
 
+  /// 移动端长按气泡弹出的操作菜单：复制（所有消息）+ 存为主题（仅 AI 消息）。
+  /// 「存为主题」与桌面 hover 按钮同一条路径：把保存指令预填进输入框（草稿走确认门），
+  /// 不是直接写库，用户可改可发。
+  void _showMessageActionsSheet(
+    BuildContext context,
+    Message message,
+    bool isUser,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surface0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.copy_rounded, color: AppTheme.accentPrimary),
+              title: const Text('复制'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _copyToClipboard(context, message.content, '消息');
+              },
+            ),
+            if (!isUser)
+              ListTile(
+                leading: Icon(
+                  Icons.bookmark_add_outlined,
+                  color: AppTheme.accentPrimary,
+                ),
+                title: const Text('存为主题'),
+                subtitle: const Text('提取标题与正文，确认后存入主题库'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  SaveTopicDialog.show(context, message.content);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildRecordability(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(messageRecordabilityProvider(message.id));
+    final state = ref.watch(messageRecordabilityProvider(widget.message.id));
     final value = state.value;
     if (state.isLoading && value == null) {
       return const SizedBox(
@@ -1815,7 +2215,7 @@ class _MessageBubble extends ConsumerWidget {
       } else {
         await repo.setEventRecordability(eventId, action == 'record');
       }
-      ref.invalidate(messageRecordabilityProvider(message.id));
+      ref.invalidate(messageRecordabilityProvider(widget.message.id));
       if (context.mounted) {
         final text = action == 'record'
             ? '已纳入记录'
@@ -1826,10 +2226,11 @@ class _MessageBubble extends ConsumerWidget {
             .showSnackBar(SnackBar(content: Text(text)));
       }
     } catch (error) {
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(reportUiError('更新消息状态', error))));
+      }
     }
   }
 
@@ -1864,10 +2265,57 @@ class _MessageBubble extends ConsumerWidget {
   }
 }
 
+/// 「存为主题」按钮：常驻显示在 AI 气泡工具条（与「复制」并排），
+/// 点击弹出「存为主题」对话框：从消息提取标题/正文预填，用户确认后存为 topic 页。
+class _SaveTopicButton extends StatelessWidget {
+  final Message message;
+
+  const _SaveTopicButton({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(
+        Icons.bookmark_add_outlined,
+        size: 14,
+        color: AppTheme.accentPrimary,
+      ),
+      tooltip: '把这条内容存为主题',
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
+      onPressed: () => SaveTopicDialog.show(context, message.content),
+    );
+  }
+}
+
 /// AI 回复生成中的占位气泡：用户发送后、回复入库前，让界面明确告知
 /// 「后台正在执行」，避免发送后长时间无反馈的错觉。
-class _AiTypingBubble extends StatelessWidget {
+class _AiTypingBubble extends StatefulWidget {
   const _AiTypingBubble();
+
+  @override
+  State<_AiTypingBubble> createState() => _AiTypingBubbleState();
+}
+
+class _AiTypingBubbleState extends State<_AiTypingBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1892,10 +2340,7 @@ class _AiTypingBubble extends StatelessWidget {
           const SizedBox(width: AppTheme.space3),
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.space3,
-                vertical: AppTheme.space3,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: AppTheme.surface2,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -1904,20 +2349,48 @@ class _AiTypingBubble extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppTheme.accentPrimary,
-                    ),
+                  AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(3, (index) {
+                          final delay = index * 0.2;
+                          final t = (_controller.value - delay) % 1.0;
+                          // 柔和正弦起伏 (0.35 到 1.0 的透明度及微小比例缩放)
+                          final bounce = (sin(t * 2 * pi) + 1) / 2;
+                          final opacity = 0.35 + (0.65 * bounce);
+                          final scale = 0.85 + (0.3 * bounce);
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              right: index < 2 ? 4.0 : 0.0,
+                            ),
+                            child: Transform.scale(
+                              scale: scale,
+                              child: Opacity(
+                                opacity: opacity,
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentPrimary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      );
+                    },
                   ),
-                  const SizedBox(width: AppTheme.space2),
+                  const SizedBox(width: 10),
                   Text(
                     'AI 正在思考…',
                     style: TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 13,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ],
@@ -2045,7 +2518,10 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     _focusNode.requestFocus();
   }
 
-  Future<void> _handleSubmit() async {
+  Future<void> _handleSubmit({
+    ChatInputMode mode = ChatInputMode.generate,
+  }) async {
+    final recordOnly = mode == ChatInputMode.recordOnly;
     final text = _controller.text.trim();
     if (text.isEmpty || _isSubmitting) return;
 
@@ -2054,16 +2530,30 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       _showError('请先选择一个会话');
       return;
     }
-    // AI 正在生成本会话回复：暂不提交新消息，
-    // 避免并发生成互相覆盖上下文（用户可继续打字，生成完后再发送）。
-    if (ref.read(aiGeneratingProvider).contains(conversationId)) return;
+    final repository = ref.read(conversationRepositoryProvider);
+    final running =
+        ref.read(aiGeneratingProvider).contains(conversationId) ||
+        (repository.supportsChatRuns &&
+            ref.read(chatRunControllerProvider(conversationId)).state.busy);
+    if (running && !repository.supportsChatQueue && !recordOnly) return;
+    // Bind the displayed run before saving. If it finishes during the save,
+    // Rust preserves the input without silently steering a different run.
+    final targetRun = repository.supportsChatRuns
+        ? ref.read(chatRunControllerProvider(conversationId)).state.run
+        : null;
+    if (mode == ChatInputMode.supplement &&
+        (targetRun == null || !chatRunIsActive(targetRun.status))) {
+      _showError('当前没有可补充的任务，请选择保存或排队。');
+      return;
+    }
 
     setState(() => _isSubmitting = true);
     final submissionKey = _submissionKeyFor(text);
+    String? inputMessageId;
 
     try {
       final topic = explicitTopicName(text);
-      if (topic != null) {
+      if (topic != null && !recordOnly && !running) {
         await _enterTopic(topic);
         _controller.clear();
         _pendingSubmissionText = null;
@@ -2076,7 +2566,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
           (uri.scheme == 'http' || uri.scheme == 'https') &&
           uri.host.isNotEmpty &&
           !text.contains(RegExp(r'\s'));
-      if (isUrl) {
+      if (isUrl && !recordOnly && !running) {
         await _routeUrlToImportPreview(text, submissionKey);
         _controller.clear();
         _pendingSubmissionText = null;
@@ -2084,12 +2574,15 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         return;
       }
       final repo = ref.read(conversationRepositoryProvider);
-      // 先把用户消息写入库（不依赖 AI）
-      await repo.sendMessage(
+      // 先把用户消息写入库（不依赖 AI）；返回的消息 id 是后续 AI 生成的
+      // 输入锚点（chat run 绑定 inputMessageId，失败重试也钉在这条消息上）。
+      final sentMessage = await repo.sendMessage(
         conversationId,
         text,
         idempotencyKey: submissionKey,
       );
+      inputMessageId = sentMessage.id;
+      if (!mounted) return;
 
       // 新消息发出，清掉该会话之前的临时错误提示
       clearConversationNotices(ref, conversationId);
@@ -2116,17 +2609,35 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       }
     }
 
-    if (!mounted) return;
+    if (!mounted || recordOnly) return;
+    if (repository.supportsChatQueue) {
+      try {
+        if (mode == ChatInputMode.supplement) {
+          await repository.enqueueChatSupplement(
+            conversationId,
+            inputMessageId,
+            targetRun!.id,
+          );
+        } else {
+          await repository.scheduleChatInput(conversationId, inputMessageId);
+          if (mounted)
+            await ref.read(chatRunControllerProvider(conversationId)).restore();
+        }
+      } catch (_) {
+        if (mounted) _showError('输入已保存，但生成资格未确认。请从该消息继续生成，不要重新发送。');
+      }
+      return;
+    }
     // 接着触发 AI 分析生成回复（不阻塞输入，出错单独反馈）。
     // 「生成中」状态由 _generateAiReply 内部设置，确保 invalidate
     // 时列表仍在 data 分支（可渲染 notice），而非 AsyncLoading（空跑）。
-    await _generateAiReply(conversationId);
+    await _generateAiReply(conversationId, inputMessageId);
   }
 
   Future<void> _enterTopic(String title) async {
     final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
     final pages = ref.read(wikiPagesProvider).value ?? const [];
-    WikiPage? existing;
+    WikiPageRef? existing;
     for (final page in pages) {
       if (page.kind == 'topic' &&
           page.title.toLowerCase() == title.toLowerCase()) {
@@ -2184,12 +2695,15 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     }
   }
 
-  Future<void> _generateAiReply(String conversationId) async {
-    // 生成逻辑集中在顶部 runAiGeneration：重试（错误气泡按钮）与首次发送
-    // 走同一路径，保证成功/失败/收尾行为一致。
+  Future<void> _generateAiReply(
+    String conversationId,
+    String inputMessageId,
+  ) async {
+    // The saved message is the request identity, never a later "latest" input.
     await runAiGeneration(
       ref,
       conversationId,
+      inputMessageId: inputMessageId,
       isMounted: () => mounted,
       onError: () {
         if (mounted) setState(() {});
@@ -2200,14 +2714,37 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
   @override
   Widget build(BuildContext context) {
     final selectedId = ref.watch(selectedConversationIdProvider);
+    // 「存为主题」预填：AI 气泡悬浮按钮写入 provider，这里填进输入框并聚焦。
+    // 填一次即清空 provider（置 null），避免切会话/重建时重复填入。
+    if (selectedId != null) {
+      ref.listen(saveTopicDraftProvider(selectedId), (prev, next) {
+        if (next != null) {
+          _controller.text = next;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: next.length),
+          );
+          _focusNode.requestFocus();
+          ref.read(saveTopicDraftProvider(selectedId).notifier).set(null);
+        }
+      });
+    }
+    final durableBusy =
+        selectedId != null &&
+        ref.watch(conversationRepositoryProvider).supportsChatRuns &&
+        ref.watch(
+          chatRunStateProvider(selectedId)
+              .select((value) => value.value?.busy ?? true),
+        );
     final isGenerating =
         selectedId != null &&
-        ref.watch(aiGeneratingProvider).contains(selectedId);
-    // 三态：写库中（_isSubmitting）或 AI 生成中 → 忙碌
-    final busy = _isSubmitting || isGenerating;
+        (ref.watch(aiGeneratingProvider).contains(selectedId) || durableBusy);
+    final queueEnabled = ref
+        .watch(conversationRepositoryProvider)
+        .supportsChatQueue;
+    final busy = _isSubmitting || (isGenerating && !queueEnabled);
     final pages = ref.watch(wikiPagesProvider).value ?? const [];
     final completionPages = _completionMarker == null
-        ? const <WikiPage>[]
+        ? const <WikiPageRef>[]
         : pages
               .where((page) {
                 final allowed = _completionMarker == '@'
@@ -2352,8 +2889,25 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.arrow_upward, size: 16),
-                tooltip: isGenerating ? 'AI 正在思考…' : '发送',
+                tooltip: isGenerating && queueEnabled ? '保存并排队下一问' : '发送',
               ),
+              if (queueEnabled)
+                PopupMenuButton<ChatInputMode>(
+                  tooltip: '输入保存方式',
+                  enabled: !_isSubmitting,
+                  onSelected: (mode) => _handleSubmit(mode: mode),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: ChatInputMode.recordOnly,
+                      child: Text('仅保存，不生成回复'),
+                    ),
+                    if (isGenerating)
+                      const PopupMenuItem(
+                        value: ChatInputMode.supplement,
+                        child: Text('补充当前任务'),
+                      ),
+                  ],
+                ),
             ],
           ),
         ],
@@ -2408,7 +2962,7 @@ class _InputGuidePanel extends StatelessWidget {
 
 class _InputCompletionPanel extends StatelessWidget {
   final String marker;
-  final List<WikiPage> pages;
+  final List<WikiPageRef> pages;
   final ValueChanged<String> onSelected;
 
   const _InputCompletionPanel({

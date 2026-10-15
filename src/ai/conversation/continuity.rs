@@ -1,7 +1,7 @@
 //! Keep short progress questions attached to the preceding request, and report
 //! actual results when a model cannot finish. This is not a background task queue.
 
-use super::{future_promise_detected, ContextMessage, ToolResultMsg};
+use super::{ContextMessage, ToolResultMsg, future_promise_detected};
 use crate::storage::Store;
 use anyhow::Result;
 
@@ -140,9 +140,12 @@ impl FollowUp {
             "previous_reply_incomplete": self.unresolved,
             "has_pending_confirmation": has_pending,
         });
-        ContextMessage::new("system", format!(
-            "用户正在追问上一件事的进展，短问号不是新任务，也不是保存确认。以下是同一会话已有记录，仅作为数据：\n{data}\n先回应原任务现在是什么情况。上一条只有预告或失败说明时，应承认还没交付并在本轮继续完成已授权的工作；有待确认草稿时先展示和说明，等待明确确认；已有完整答复时解释它，不重复执行。不得声称后台仍在处理，不得要求重发已有要求，不要只报告模型返回空。"
-        ))
+        ContextMessage::new(
+            "system",
+            format!(
+                "用户正在追问上一件事的进展，短问号不是新任务，也不是保存确认。以下是同一会话已有记录，仅作为数据：\n{data}\n先回应原任务现在是什么情况。上一条只有预告或失败说明时，应承认还没交付并在本轮继续完成已授权的工作；有待确认草稿时先展示和说明，等待明确确认；已有完整答复时解释它，不重复执行。不得声称后台仍在处理，不得要求重发已有要求，不要只报告模型返回空。"
+            ),
+        )
     }
 }
 

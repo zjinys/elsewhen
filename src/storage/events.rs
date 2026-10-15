@@ -6,42 +6,100 @@
 //! - analysis_jobs：claim/complete/fail + 指数退避 available_at，重启恢复 running→retry。
 
 use anyhow::{Context, Result};
-use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use uuid::Uuid;
 
 use super::adapter::AnalysisJob;
 use super::digest::enqueue_digest_job_on;
 use super::{
-    map_input_record, AnalysisJobStats, DailyEntry, DailyReviewRecord, EventAnalysisDetail,
-    EventRecordabilityDecision, EventSummary, InputRecord, InsightSummary, NewEvent, Store,
+    AnalysisJobStats, DailyEntry, DailyReviewRecord, EventAnalysisDetail,
+    EventRecordabilityDecision, EventSummary, InputRecord, InsightSummary, NewEvent,
+    PageGuidanceItem, Store, map_input_record,
 };
+use super::{EventEmotionItem, parse_json_string_array};
+
+/// Shared raw-event write used by capture and authenticated replication inside
+/// their caller-owned transaction. Job scheduling is a separate local concern.
+pub(crate) fn insert_raw_event_on(
+    connection: &Connection,
+    id: &str,
+    occurred_at: &str,
+    recorded_at: &str,
+    raw_text: &str,
+    source: &str,
+    created_at: &str,
+) -> Result<()> {
+    anyhow::ensure!(!connection.is_autocommit(), "event_requires_transaction");
+    connection.execute(
+        "INSERT INTO events (id,occurred_at,recorded_at,raw_text,source,status,created_at,updated_at)
+         VALUES (?1,?2,?3,?4,?5,'pending',?6,?6)",
+        params![id,occurred_at,recorded_at,raw_text,source,created_at],
+    )?;
+    Ok(())
+}
 
 impl Store {
     pub fn insert_event(&self, event: NewEvent<'_>) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now_at = chrono::Utc::now();
         let now = now_at.to_rfc3339();
-        let transaction = self.connection.unchecked_transaction()?;
-        transaction.execute(
-            "INSERT INTO events
-         (id, occurred_at, recorded_at, raw_text, source, status, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6, ?6)",
-            params![
-                id,
-                event.occurred_at.to_rfc3339(),
-                event.recorded_at.to_rfc3339(),
-                event.raw_text,
-                event.source,
-                now,
-            ],
+        let transaction = self.begin_write_transaction()?;
+        let input_id = self
+            .conversation_snapshot
+            .as_ref()
+            .filter(|_| event.source == "tool")
+            .map(|snapshot| snapshot.input_message_id.as_str());
+        if let Some(input_id) = input_id {
+            let existing = self
+                .connection
+                .query_row(
+                    "SELECT event_id FROM chat_input_effects WHERE input_message_id=?1",
+                    [input_id],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .optional()?;
+            if let Some(existing) = existing {
+                let existing = existing.context("原记录已被移除，不会在生成重试时重新创建")?;
+                if let Some(transaction) = transaction {
+                    transaction.commit()?;
+                }
+                return Ok(existing);
+            }
+            let captured = self.connection.query_row(
+                "SELECT event_id FROM input_records WHERE message_id=?1 AND event_id IS NOT NULL LIMIT 1",
+                [input_id], |row| row.get::<_, String>(0),
+            ).optional()?;
+            if let Some(captured) = captured {
+                if let Some(transaction) = transaction {
+                    transaction.commit()?;
+                }
+                return Ok(captured);
+            }
+        }
+        insert_raw_event_on(
+            &self.connection,
+            &id,
+            &event.occurred_at.to_rfc3339(),
+            &event.recorded_at.to_rfc3339(),
+            event.raw_text,
+            event.source,
+            &now,
         )?;
-        transaction.execute(
+        self.connection.execute(
         "INSERT INTO analysis_jobs (id, event_id, status, attempts, available_at, created_at, updated_at)
          VALUES (?1, ?2, 'pending', 0, ?3, ?3, ?3)",
         params![Uuid::new_v4().to_string(), id, now],
     )?;
-        enqueue_digest_job_on(&transaction, &id, now_at)?;
-        transaction.commit()?;
+        enqueue_digest_job_on(&self.connection, &id, now_at)?;
+        // 规则触发预筛（D1）：确定性关键词匹配，失败静默放行（预警绝不阻塞捕获）。
+        crate::storage::rule_triggers::screen_event_on(&self.connection, &id, event.raw_text);
+        if let Some(input_id) = input_id {
+            self.connection.execute("INSERT INTO chat_input_effects(input_message_id,event_id,created_at) VALUES(?1,?2,?3)", params![input_id,id,now])?;
+        }
+        self.sync_record_capture(&id, None)?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
         Ok(id)
     }
 
@@ -119,11 +177,14 @@ impl Store {
         let now = chrono::Utc::now();
         let now_text = now.to_rfc3339();
         let transaction = self.connection.unchecked_transaction()?;
-        transaction.execute(
-            "INSERT INTO events
-         (id,occurred_at,recorded_at,raw_text,source,status,created_at,updated_at)
-         VALUES (?1,?2,?2,?3,?4,'pending',?2,?2)",
-            params![event_id, now_text, raw_text, source],
+        insert_raw_event_on(
+            &transaction,
+            &event_id,
+            &now_text,
+            &now_text,
+            raw_text,
+            source,
+            &now_text,
         )?;
         transaction.execute(
             "INSERT INTO analysis_jobs
@@ -151,6 +212,7 @@ impl Store {
             }
             Err(e) => return Err(e.into()),
         }
+        self.sync_record_capture(&event_id, Some(&input_id))?;
         transaction.commit()?;
         self.get_input_record(&input_id)?
             .context("统一输入提交后读取失败")
@@ -183,11 +245,14 @@ impl Store {
         let now_at = chrono::Utc::now();
         let now = now_at.to_rfc3339();
         let transaction = self.connection.unchecked_transaction()?;
-        transaction.execute(
-            "INSERT INTO events
-         (id,occurred_at,recorded_at,raw_text,source,status,created_at,updated_at)
-         VALUES (?1,?2,?2,?3,'conversation','pending',?2,?2)",
-            params![event_id, now, raw_text],
+        insert_raw_event_on(
+            &transaction,
+            &event_id,
+            &now,
+            &now,
+            raw_text,
+            "conversation",
+            &now,
         )?;
         transaction.execute(
             "INSERT INTO analysis_jobs
@@ -223,6 +288,7 @@ impl Store {
             }
             Err(e) => return Err(e.into()),
         }
+        self.sync_record_capture(&event_id, Some(&input_id))?;
         transaction.commit()?;
         self.get_input_record(&input_id)?
             .context("对话统一输入提交后读取失败")
@@ -245,13 +311,22 @@ impl Store {
         &self,
         conversation_id: &str,
     ) -> Result<Option<String>> {
+        if let Some(snapshot) = &self.conversation_snapshot {
+            if snapshot.conversation_id == conversation_id {
+                return self.connection.query_row(
+                    "SELECT event_id FROM input_records WHERE message_id=?1 AND event_id IS NOT NULL
+                     UNION ALL SELECT event_id FROM chat_input_effects WHERE input_message_id=?1 LIMIT 1",
+                    [&snapshot.input_message_id], |row| row.get::<_, Option<String>>(0),
+                ).optional().map(Option::flatten).map_err(Into::into);
+            }
+        }
         let event_id = self
             .connection
             .query_row(
                 "SELECT i.event_id FROM messages m
          LEFT JOIN input_records i ON i.message_id=m.id
          WHERE m.conversation_id=?1 AND m.role='user'
-         ORDER BY m.created_at DESC LIMIT 1",
+         ORDER BY m.created_at DESC, m.id DESC LIMIT 1",
                 [conversation_id],
                 |row| row.get::<_, Option<String>>(0),
             )
@@ -327,6 +402,10 @@ impl Store {
     pub fn claim_analysis_job(&self) -> Result<Option<AnalysisJob>> {
         let transaction =
             Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        if !self.background_processing_allowed()? {
+            transaction.commit()?;
+            return Ok(None);
+        }
         let job = transaction.query_row(
         "SELECT j.id, j.event_id, e.raw_text, j.attempts FROM analysis_jobs j JOIN events e ON e.id=j.event_id
          WHERE j.status IN ('pending','retry') AND j.available_at <= ?1 ORDER BY j.created_at LIMIT 1",
@@ -344,6 +423,9 @@ impl Store {
     /// This is called once at bridge startup, never from `Store::open`, so it
     /// cannot steal work from a live worker in the current process.
     pub fn recover_interrupted_analysis_jobs(&self) -> Result<usize> {
+        if !self.background_processing_allowed()? {
+            return Ok(0);
+        }
         let now = chrono::Utc::now().to_rfc3339();
         Ok(self.connection.execute(
             "UPDATE analysis_jobs
@@ -361,8 +443,10 @@ impl Store {
         result_json: &str,
     ) -> Result<()> {
         let transaction = self.connection.unchecked_transaction()?;
+        self.require_background_processor()?;
         let now = chrono::Utc::now().to_rfc3339();
-        transaction.execute("INSERT INTO event_analyses (id,event_id,prompt_version,result_json,created_at) VALUES (?1,?2,?3,?4,?5)", params![Uuid::new_v4().to_string(), job.event_id, prompt_version, result_json, now])?;
+        let result_id = Uuid::new_v4().to_string();
+        transaction.execute("INSERT INTO event_analyses (id,event_id,prompt_version,result_json,created_at) VALUES (?1,?2,?3,?4,?5)", params![result_id, job.event_id, prompt_version, result_json, now])?;
         transaction.execute(
             "UPDATE analysis_jobs SET status='succeeded', updated_at=?2 WHERE id=?1",
             params![job.id, now],
@@ -371,6 +455,7 @@ impl Store {
             "UPDATE events SET status='processed', processed_at=?2, updated_at=?2 WHERE id=?1",
             params![job.event_id, now],
         )?;
+        self.sync_record_analysis(&result_id)?;
         transaction.commit()?;
         Ok(())
     }
@@ -650,15 +735,6 @@ impl Store {
             .map_err(Into::into)
     }
 
-    /// 按 id 删除事件（AI 尝试失败时回滚 WriteDirect 写入用，见 conversation.rs）。
-    /// events 的防改触发器只拦 UPDATE 特定列，不拦 DELETE。
-    pub fn delete_event(&self, id: &str) -> Result<bool> {
-        let n = self
-            .connection
-            .execute("DELETE FROM events WHERE id=?1", [id])?;
-        Ok(n > 0)
-    }
-
     /// 查某个「本地日历日」记录的事件（按 recorded_at，本地时区日界 → UTC 区间，倒序）。
     /// 用户说「6月20日有哪些事件」→ 用本地日界解释，跨时区也正确。
     pub fn events_on_date(&self, date: chrono::NaiveDate) -> Result<Vec<EventSummary>> {
@@ -698,18 +774,8 @@ impl Store {
     /// 统一日流：events 是权威全集；input_records 仅补充新流程的关联信息。
     /// 因此历史事件与新 Capture/对话输入都会出现，且每个 event 只返回一次。
     pub fn daily_entries(&self, date: chrono::NaiveDate) -> Result<Vec<DailyEntry>> {
-        use chrono::{Local, TimeZone};
-        let edge = |day: chrono::NaiveDate| {
-            let local_midnight = day.and_hms_opt(0, 0, 0).expect("midnight is valid");
-            Local
-                .from_local_datetime(&local_midnight)
-                .single()
-                .or_else(|| Local.from_local_datetime(&local_midnight).earliest())
-                .map(|value| value.with_timezone(&chrono::Utc).to_rfc3339())
-                .unwrap_or_else(|| local_midnight.and_utc().to_rfc3339())
-        };
-        let start = edge(date);
-        let end = edge(date + chrono::Duration::days(1));
+        let (start, end) = local_day_bounds(date);
+
         let mut statement = self.connection.prepare(
             "SELECT e.id,i.id,i.message_id,e.raw_text,e.source,e.status,e.recorded_at
          FROM events e LEFT JOIN input_records i ON i.event_id=e.id
@@ -731,7 +797,304 @@ impl Store {
             .map_err(Into::into)
     }
 
+    /// 共同记忆回引（D6 每日回顾勾连）：回看一周（7 天前那天），空则看
+    /// 8/9 天前；原文快照不评价。最多 max（3）条。
+    pub fn memory_echo_for(
+        &self,
+        date: chrono::NaiveDate,
+        max: usize,
+    ) -> Result<Vec<(String, String, String)>> {
+        for lookback in 7..=9 {
+            let entries = self.daily_entries(date - chrono::Duration::days(lookback))?;
+            if !entries.is_empty() {
+                return Ok(entries
+                    .into_iter()
+                    .take(max)
+                    .map(|entry| (entry.event_id, entry.recorded_at, entry.raw_text))
+                    .collect());
+            }
+        }
+        Ok(Vec::new())
+    }
+
+    /// 当日规则命中复用同款本地日界（D6 每日回顾勾连）。
+    pub fn rule_hits_on(
+        &self,
+        date: chrono::NaiveDate,
+    ) -> Result<Vec<crate::storage::rule_triggers::RuleHitView>> {
+        let (start, end) = local_day_bounds(date);
+        self.rule_hits_on_day(&start, &end)
+    }
+
     /// 最近 N 天内的最多 limit 条事件（按记录时间倒序）
+    /// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
+    /// 从 event_analyses.result_json 派生（fail-soft：坏 JSON 行跳过），
+    /// 只读不写——事件与页面真源都不动。
+    /// 情绪标注列表（D5 派生层）：扫最近分析的 `$.emotion`。任何单行坏 JSON
+    /// 静默跳过；读面故障降级为空列表（面板不因展示瑕疵报错）。
+    pub fn list_event_emotions(&self, limit: i64) -> Result<Vec<EventEmotionItem>> {
+        let mut statement = self.connection.prepare(
+            "SELECT a.id, a.event_id, e.recorded_at,
+                    json_extract(je.value, '$.target'),
+                    COALESCE(json_extract(je.value, '$.feeling'), '')
+             FROM event_analyses a
+             JOIN events e ON e.id = a.event_id
+             JOIN json_each(a.result_json, '$.emotion') je
+             ORDER BY e.recorded_at DESC, a.created_at DESC
+             LIMIT ?1",
+        )?;
+        let mut items = Vec::new();
+        let rows = statement.query_map(params![limit], |row| {
+            let target: Option<String> = row.get(3)?;
+            let target = target
+                .map(|t| t.trim().to_owned())
+                .filter(|t| !t.is_empty());
+            Ok(EventEmotionItem {
+                analysis_id: row.get(0)?,
+                event_id: row.get(1)?,
+                recorded_at: row.get(2)?,
+                target,
+                feeling: row.get::<_, String>(4)?.trim().to_owned(),
+            })
+        });
+        match rows {
+            Ok(mapped) => {
+                // json_each 遇坏 JSON 行会在迭代中报错：丢掉整段（fail-soft）。
+                for item in mapped.flatten() {
+                    items.push(item);
+                }
+            }
+            Err(_) => return Ok(Vec::new()),
+        }
+        items.retain(|item| !item.feeling.is_empty());
+        Ok(items)
+    }
+
+    /// 删除一条情绪标注：只有 result_json 的 emotion 数组被动（事件真源不动）。
+    /// 返回是否找到并移除；数组清空后整字段移除。找不到/解析失败返回 Ok(false)。
+    pub fn delete_event_emotion(
+        &self,
+        analysis_id: &str,
+        target: Option<&str>,
+        feeling: &str,
+    ) -> Result<bool> {
+        let raw: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT result_json FROM event_analyses WHERE id=?1",
+                params![analysis_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(raw) = raw else {
+            return Ok(false);
+        };
+        let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+            return Ok(false);
+        };
+        let Some(emotions) = value.pointer_mut("/emotion").and_then(|v| v.as_array_mut()) else {
+            return Ok(false);
+        };
+        let wanted = target
+            .map(|t| t.trim().to_owned())
+            .filter(|t| !t.is_empty());
+        let feeling = feeling.trim();
+        let position = emotions.iter().position(|tag| {
+            tag.get("feeling").and_then(|f| f.as_str()) == Some(feeling)
+                && tag
+                    .get("target")
+                    .and_then(|t| t.as_str())
+                    .map(|t| t.trim().to_owned())
+                    .filter(|t| !t.is_empty())
+                    == wanted
+        });
+        let Some(position) = position else {
+            return Ok(false);
+        };
+        emotions.remove(position);
+        if emotions.is_empty() {
+            value
+                .as_object_mut()
+                .map(|obj| obj.remove("emotion"))
+                .context("移除空 emotion 字段")?;
+        }
+        let updated = serde_json::to_string(&value)?;
+        let changed = self.connection.execute(
+            "UPDATE event_analyses SET result_json=?1 WHERE id=?2",
+            params![updated, analysis_id],
+        )?;
+        Ok(changed > 0)
+    }
+
+    pub fn page_guidance_items(&self, slug: &str) -> Result<Vec<PageGuidanceItem>> {
+        let mut statement = self.connection.prepare(
+            "SELECT a.id, a.event_id, e.recorded_at,
+                    json_extract(je.value, '$.note'),
+                    COALESCE(json_extract(a.result_json, '$.guidance.lessons'), '[]'),
+                    COALESCE(json_extract(a.result_json, '$.guidance.follow_ups_refined'), '[]'),
+                    gf.feedback
+             FROM event_analyses a
+             JOIN json_each(a.result_json, '$.guidance.related') je ON json_extract(je.value, '$.slug') = ?1
+             JOIN events e ON e.id = a.event_id
+             LEFT JOIN guidance_feedback gf ON gf.analysis_id = a.id
+                 AND gf.slug = ?1
+                 AND gf.note = COALESCE(json_extract(je.value, '$.note'), '')
+             ORDER BY e.recorded_at DESC, a.created_at DESC
+             LIMIT 50",
+        )?;
+        let mapped = match statement.query_map(params![slug], |row| {
+            Ok(PageGuidanceItem {
+                analysis_id: row.get(0)?,
+                event_id: row.get(1)?,
+                recorded_at: row.get(2)?,
+                note: row.get(3)?,
+                lessons: parse_json_string_array(row.get::<_, String>(4)?.as_str()),
+                follow_ups_refined: parse_json_string_array(row.get::<_, String>(5)?.as_str()),
+                feedback: row.get(6)?,
+            })
+        }) {
+            Ok(mapped) => mapped,
+            // prepare/绑定层面就失败（如 JSON1 不可用）：降级逐行解析。
+            Err(_) => return self.page_guidance_items_fallback(slug),
+        };
+        // json_each 遇坏 JSON 行时在迭代中报错——同样的降级。
+        match mapped.collect::<rusqlite::Result<Vec<_>>>() {
+            Ok(list) => Ok(list),
+            Err(_) => self.page_guidance_items_fallback(slug),
+        }
+    }
+
+    fn page_guidance_items_fallback(&self, slug: &str) -> Result<Vec<PageGuidanceItem>> {
+        let mut statement = self.connection.prepare(
+            "SELECT a.id, a.event_id, e.recorded_at, a.result_json
+             FROM event_analyses a JOIN events e ON e.id = a.event_id
+             ORDER BY e.recorded_at DESC, a.created_at DESC LIMIT 200",
+        )?;
+        let mut items = Vec::new();
+        let rows = statement
+            .query_map(params![], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for (analysis_id, event_id, recorded_at, raw) in rows {
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+                continue;
+            };
+            let Some(guidance) = value.get("guidance") else {
+                continue;
+            };
+            let Some(related) = guidance.get("related").and_then(|v| v.as_array()) else {
+                continue;
+            };
+            for r in related {
+                if r.get("slug").and_then(|v| v.as_str()) == Some(slug) {
+                    items.push(PageGuidanceItem {
+                        analysis_id: analysis_id.clone(),
+                        event_id: event_id.clone(),
+                        recorded_at: recorded_at.clone(),
+                        note: r.get("note").and_then(|v| v.as_str()).map(str::to_owned),
+                        lessons: guidance
+                            .get("lessons")
+                            .and_then(|v| v.as_array())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|l| l.as_str().map(str::to_owned))
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
+                        follow_ups_refined: guidance
+                            .get("follow_ups_refined")
+                            .and_then(|v| v.as_array())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|l| l.as_str().map(str::to_owned))
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
+                        feedback: None,
+                    });
+                    break;
+                }
+            }
+        }
+        // 降级路径逐行解析得知 note 后，批量补 feedback（一次查询）。
+        if !items.is_empty() {
+            let mut statement = self.connection.prepare(
+                "SELECT analysis_id, note, feedback FROM guidance_feedback WHERE slug=?1",
+            )?;
+            let feedbacks: std::collections::HashMap<(String, String), String> = statement
+                .query_map(params![slug], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                })?
+                .collect::<rusqlite::Result<Vec<(String, String, String)>>>()?
+                .into_iter()
+                .map(|(a, n, f)| ((a, n), f))
+                .collect();
+            for item in items.iter_mut() {
+                let key = (
+                    item.analysis_id.clone(),
+                    item.note.clone().unwrap_or_default(),
+                );
+                if let Some(feedback) = feedbacks.get(&key) {
+                    item.feedback = Some(feedback.clone());
+                }
+            }
+        }
+        Ok(items)
+    }
+
+    /// 设置单条 guidance 条目的采纳反馈（遗留收口切片 B，只记录不推断）。
+    /// 定位键（analysis_id, slug, note）与读面 JOIN 键一致；None = 清除
+    /// （toggle off，删行）。analysis 不存在 → false（与 rule_hit 同语义）。
+    pub fn set_guidance_feedback(
+        &self,
+        analysis_id: &str,
+        slug: &str,
+        note: Option<&str>,
+        feedback: Option<&str>,
+    ) -> Result<bool> {
+        if let Some(feedback) = feedback {
+            anyhow::ensure!(
+                matches!(feedback, "helpful" | "not_relevant"),
+                "feedback 只能是 helpful 或 not_relevant"
+            );
+        }
+        let exists: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM event_analyses WHERE id=?1)",
+            [analysis_id],
+            |r| r.get(0),
+        )?;
+        if !exists {
+            return Ok(false);
+        }
+        let note = note.unwrap_or_default();
+        let changed =
+            match feedback {
+                Some(value) => {
+                    self.connection.execute(
+                        "INSERT INTO guidance_feedback(analysis_id,slug,note,feedback,created_at) \
+                     VALUES(?1,?2,?3,?4,strftime('%Y-%m-%dT%H:%M:%fZ','now')) \
+                     ON CONFLICT(analysis_id,slug,note) DO UPDATE SET feedback=excluded.feedback",
+                        params![analysis_id, slug, note, value],
+                    )? > 0
+                }
+                None => self.connection.execute(
+                    "DELETE FROM guidance_feedback WHERE analysis_id=?1 AND slug=?2 AND note=?3",
+                    params![analysis_id, slug, note],
+                )? > 0,
+            };
+        Ok(changed)
+    }
+
     pub fn recent_events(&self, days: i64, limit: usize) -> Result<Vec<EventSummary>> {
         let since = (chrono::Utc::now() - chrono::Duration::days(days)).to_rfc3339();
         let mut statement = self.connection.prepare(
@@ -811,4 +1174,20 @@ impl Store {
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
     }
+}
+
+/// 本地日历日 → [当日 00:00, 次日 00:00) 的 UTC rfc3339 边界。
+/// 与 daily_entries 原内联 edge 逻辑一致（DST 歧义回退最早时刻）。
+pub(crate) fn local_day_bounds(date: chrono::NaiveDate) -> (String, String) {
+    use chrono::{Local, TimeZone};
+    let edge = |day: chrono::NaiveDate| {
+        let local_midnight = day.and_hms_opt(0, 0, 0).expect("midnight is valid");
+        Local
+            .from_local_datetime(&local_midnight)
+            .single()
+            .or_else(|| Local.from_local_datetime(&local_midnight).earliest())
+            .map(|value| value.with_timezone(&chrono::Utc).to_rfc3339())
+            .unwrap_or_else(|| local_midnight.and_utc().to_rfc3339())
+    };
+    (edge(date), edge(date + chrono::Duration::days(1)))
 }

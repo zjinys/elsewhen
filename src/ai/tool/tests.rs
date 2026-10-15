@@ -1,4 +1,4 @@
-//! AI 工具行为测试（从 mod.rs 内联外移，只经 ToolRegistry::dispatch 公共入口）。
+//! AI 工具行为与提议提交边界测试（从 mod.rs 内联外移）。
 
 use super::*;
 
@@ -61,6 +61,99 @@ fn project_import_confirmation_saves_the_previewed_report() {
         .expect("confirmed project page should contain the previewed report");
     assert_eq!(page.content_md, expected);
 
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn project_report_staging_rejects_cancelled_and_expired_runs() {
+    for expired in [false, true] {
+        let (mut store, path) = temp_db();
+        Store::mark_initialized(&path).unwrap();
+        let conv = store
+            .create_conversation(Some("staging fence"), None)
+            .unwrap();
+        let input = store
+            .send_message(&conv, "user", "inspect test project", None)
+            .unwrap();
+        let run = store
+            .create_chat_run(&conv, &input, "request", "owner")
+            .unwrap();
+        store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
+            id: run.id.clone(),
+            owner: "owner".into(),
+        });
+        crate::ai::generation::check(&store).unwrap();
+
+        // The report is already prepared; a separate connection stops the run
+        // before the network tool reaches its final staging boundary.
+        let other = Store::open(&path).unwrap();
+        if expired {
+            other
+                .connection
+                .execute(
+                    "UPDATE chat_runs SET lease_until='2000-01-01T00:00:00+00:00' WHERE id=?1",
+                    [&run.id],
+                )
+                .unwrap();
+        } else {
+            other.cancel_chat_run(&conv, &run.id).unwrap();
+        }
+        let error = store_create_pending(
+            &store,
+            &conv,
+            "import_directory_as_project",
+            &json!({"directory":"synthetic-project", "content_md":"prepared report"}),
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .downcast_ref::<crate::storage::chat_runs::ChatRunStopped>()
+                .is_some()
+        );
+        assert!(
+            store
+                .pending_actions_for_conversation(&conv)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(store.connection.is_autocommit());
+        drop(other);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[test]
+fn project_report_staging_commits_for_live_run_and_joins_outer_transaction() {
+    let (mut store, path) = temp_db();
+    let conv = store
+        .create_conversation(Some("staging transaction"), None)
+        .unwrap();
+    let input = store
+        .send_message(&conv, "user", "inspect test project", None)
+        .unwrap();
+    let run = store
+        .create_chat_run(&conv, &input, "request", "owner")
+        .unwrap();
+    store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
+        id: run.id,
+        owner: "owner".into(),
+    });
+    let args = json!({"directory":"synthetic-project", "content_md":"prepared report"});
+    let id = store_create_pending(&store, &conv, "import_directory_as_project", &args).unwrap();
+    assert!(store.connection.is_autocommit());
+    let transaction = store.begin_write_transaction().unwrap().unwrap();
+    store_create_pending(&store, &conv, "import_directory_as_project", &args).unwrap();
+    assert!(!store.connection.is_autocommit());
+    assert_eq!(
+        store.pending_actions_for_conversation(&conv).unwrap().len(),
+        2
+    );
+    drop(transaction);
+    let actions = store.pending_actions_for_conversation(&conv).unwrap();
+    assert_eq!(actions.len(), 1);
+    assert_eq!(actions[0].id, id);
     drop(store);
     let _ = std::fs::remove_file(path);
 }
@@ -142,17 +235,19 @@ fn record_event_writes_directly() {
     let registry = ToolRegistry::default();
     let call = ToolCall::new(
         "record_event",
-        json!({"raw_text": "昨天和张玮沟通了双链路付款"}),
+        json!({"raw_text": "昨天和张三沟通了网站改版"}),
     );
     let result = dispatch(&call, &registry, &store, &conv);
     assert!(result.content.contains("已保存事件"), "{}", result.content);
     // 直接写入了 events 真源
     assert_eq!(store.list_events().unwrap().len(), 1);
     // 不产生待确认动作
-    assert!(store
-        .pending_actions_for_conversation(&conv)
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
     drop(store);
     let _ = std::fs::remove_file(path);
 }
@@ -342,10 +437,12 @@ fn knowledge_draft_does_not_overwrite_same_title() {
         "{}",
         result.content
     );
-    assert!(store
-        .pending_actions_for_conversation(&conv)
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
     assert_eq!(
         store
             .find_wiki_page_by_title("沟通复盘")
@@ -411,12 +508,12 @@ fn propose_people_relations_is_confirm_gated_then_saves() {
         "propose_people_relations",
         json!({
             "people": [
-                {"name": "张玮", "role_note": "双链路付款项目产研负责人"},
-                {"name": "和太极", "role_note": "外部合作方"}
+                {"name": "张三", "role_note": "网站改版项目产研负责人"},
+                {"name": "王五", "role_note": "外部合作方"}
             ],
             "relations": [
-                {"person": "张玮", "target": "双链路付款", "relation": "负责"},
-                {"person": "和太极", "target": "双链路付款", "relation": "合作"}
+                {"person": "张三", "target": "网站改版", "relation": "负责"},
+                {"person": "王五", "target": "网站改版", "relation": "合作"}
             ]
         }),
     );
@@ -431,20 +528,20 @@ fn propose_people_relations_is_confirm_gated_then_saves() {
 
     // 2) 确认后执行：人物页 + 目标页 + 关系落地
     let summary = execute_pending_action(&store, &pendings[0]).unwrap();
-    assert!(summary.contains("张玮"), "{summary}");
-    assert!(summary.contains("和太极"), "{summary}");
+    assert!(summary.contains("张三"), "{summary}");
+    assert!(summary.contains("王五"), "{summary}");
     assert!(summary.contains("负责"), "{summary}");
     assert_eq!(
         store.list_wiki_pages(Some("person"), None).unwrap().len(),
         2
     );
     assert_eq!(
-        store.list_relations_for_page("person/张玮").unwrap().len(),
+        store.list_relations_for_page("person/张三").unwrap().len(),
         1
     );
     assert_eq!(
         store
-            .list_relations_for_page("topic/双链路付款")
+            .list_relations_for_page("topic/网站改版")
             .unwrap()
             .len(),
         2,
@@ -459,13 +556,13 @@ fn confirmed_relation_from_conversation_creates_sourced_facts() {
     let (store, path) = temp_db();
     let conv = store.create_conversation(Some("t"), None).unwrap();
     let input = store
-        .submit_conversation_input(&conv, "@张伟 正在负责 #付款流程", Some("fact-1"))
+        .submit_conversation_input(&conv, "@李四 正在负责 #网站改版", Some("fact-1"))
         .unwrap();
     let call = ToolCall::new(
         "propose_people_relations",
         json!({
-            "people":[{"name":"张伟","role_note":"付款流程负责人"}],
-            "relations":[{"person":"张伟","target":"付款流程","relation":"负责"}]
+            "people":[{"name":"李四","role_note":"网站改版负责人"}],
+            "relations":[{"person":"李四","target":"网站改版","relation":"负责"}]
         }),
     );
     let result = dispatch(&call, &ToolRegistry::default(), &store, &conv);
@@ -473,14 +570,14 @@ fn confirmed_relation_from_conversation_creates_sourced_facts() {
     let pending = store.pending_actions_for_conversation(&conv).unwrap();
     execute_pending_action(&store, &pending[0]).unwrap();
 
-    let person = store.find_wiki_page_by_title("张伟").unwrap().unwrap();
-    let target = store.find_wiki_page_by_title("付款流程").unwrap().unwrap();
+    let person = store.find_wiki_page_by_title("李四").unwrap().unwrap();
+    let target = store.find_wiki_page_by_title("网站改版").unwrap().unwrap();
     let person_facts = store.list_entity_facts(&person.kind, &person.slug).unwrap();
     let target_facts = store.list_entity_facts(&target.kind, &target.slug).unwrap();
     assert_eq!(person_facts.len(), 1);
     assert_eq!(target_facts.len(), 1);
     assert_eq!(person_facts[0].source_event_id, input.event_id.unwrap());
-    assert!(target_facts[0].fact_text.contains("张伟"));
+    assert!(target_facts[0].fact_text.contains("李四"));
     drop(store);
     let _ = std::fs::remove_file(path);
 }
@@ -615,10 +712,12 @@ fn archive_conversations_by_title_is_confirm_gated_then_archives() {
     );
     let result = dispatch(&call, &registry, &store, &conv);
     assert!(result.content.contains("没有找到"), "{}", result.content);
-    assert!(store
-        .pending_actions_for_conversation(&conv)
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
 
     // 5) 知识页聊天始终未被动过
     assert!(
@@ -646,11 +745,11 @@ fn rename_wiki_page_is_confirm_gated_then_renames() {
     store
         .upsert_wiki_page(
             &crate::storage::WikiPageDraft {
-                slug: "topic/付款流程".to_string(),
+                slug: "topic/网站改版".to_string(),
                 kind: "topic".to_string(),
-                title: "付款流程".to_string(),
-                summary: "付款流程（自动建档）".to_string(),
-                content_md: "# 付款流程".to_string(),
+                title: "网站改版".to_string(),
+                summary: "网站改版（自动建档）".to_string(),
+                content_md: "# 网站改版".to_string(),
                 tags: vec![],
                 source_event_ids: vec![],
                 status: "active".to_string(),
@@ -662,9 +761,9 @@ fn rename_wiki_page_is_confirm_gated_then_renames() {
         .unwrap();
     store
         .upsert_relation(&crate::storage::RelationDraft {
-            from_slug: "person/谭俊".to_string(),
+            from_slug: "person/张三".to_string(),
             from_kind: "person".to_string(),
-            to_slug: "topic/付款流程".to_string(),
+            to_slug: "topic/网站改版".to_string(),
             to_kind: "topic".to_string(),
             relation: "跟进".to_string(),
             note: None,
@@ -677,7 +776,7 @@ fn rename_wiki_page_is_confirm_gated_then_renames() {
     // 1) 草拟：确认前不动任何数据
     let call = ToolCall::new(
         "rename_wiki_page",
-        json!({"slug": "topic/付款流程", "new_title": "fpso111 尾款", "reason": "项目真名更正"}),
+        json!({"slug": "topic/网站改版", "new_title": "测试项目 尾款", "reason": "项目真名更正"}),
     );
     let result = dispatch(&call, &registry, &store, &conv);
     assert!(result.content.contains("重命名为"), "{}", result.content);
@@ -689,26 +788,26 @@ fn rename_wiki_page_is_confirm_gated_then_renames() {
     let pendings = store.pending_actions_for_conversation(&conv).unwrap();
     assert_eq!(pendings.len(), 1);
     assert!(
-        store.get_wiki_page("topic/付款流程").unwrap().is_some(),
+        store.get_wiki_page("topic/网站改版").unwrap().is_some(),
         "确认前不应改名"
     );
 
     // 2) 确认执行：改名 + 关系引用迁移
     let summary = execute_pending_action(&store, &pendings[0]).unwrap();
-    assert!(summary.contains("fpso111 尾款"), "{summary}");
+    assert!(summary.contains("测试项目 尾款"), "{summary}");
     assert!(summary.contains("迁移了 1 条关系引用"), "{summary}");
-    assert!(store.get_wiki_page("topic/付款流程").unwrap().is_none());
+    assert!(store.get_wiki_page("topic/网站改版").unwrap().is_none());
     assert_eq!(
         store
-            .get_wiki_page("topic/fpso111-尾款")
+            .get_wiki_page("topic/测试项目-尾款")
             .unwrap()
             .unwrap()
             .title,
-        "fpso111 尾款"
+        "测试项目 尾款"
     );
     assert_eq!(
         store.list_relations().unwrap()[0].to_slug,
-        "topic/fpso111-尾款"
+        "topic/测试项目-尾款"
     );
 
     // 3) 不存在 / 标题没变：友好错误，不登记 pending
@@ -724,7 +823,7 @@ fn rename_wiki_page_is_confirm_gated_then_renames() {
     );
     let call = ToolCall::new(
         "rename_wiki_page",
-        json!({"slug": "topic/fpso111-尾款", "new_title": "fpso111 尾款"}),
+        json!({"slug": "topic/测试项目-尾款", "new_title": "测试项目 尾款"}),
     );
     let result = dispatch(&call, &registry, &store, &conv);
     assert!(
@@ -749,8 +848,8 @@ fn save_wiki_revision_rejects_missing_slug_and_never_creates_ghost_page() {
     let call = ToolCall::new(
         "save_wiki_revision",
         json!({
-            "slug": "topic/fpso111整船项目",
-            "title": "FPSO111整船项目",
+            "slug": "topic/测试项目整船项目",
+            "title": "测试项目整船项目",
             "content_md": "# x",
             "change_note": "补充内容"
         }),
@@ -759,17 +858,19 @@ fn save_wiki_revision_rejects_missing_slug_and_never_creates_ghost_page() {
     assert!(
         result
             .content
-            .contains("没有 slug=topic/fpso111整船项目 的页面"),
+            .contains("没有 slug=topic/测试项目整船项目 的页面"),
         "{}",
         result.content
     );
-    assert!(store
-        .pending_actions_for_conversation(&conv)
-        .unwrap()
-        .is_empty());
     assert!(
         store
-            .get_wiki_page("topic/fpso111整船项目")
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        store
+            .get_wiki_page("topic/测试项目整船项目")
             .unwrap()
             .is_none(),
         "不能新建幽灵页"
@@ -781,8 +882,8 @@ fn save_wiki_revision_rejects_missing_slug_and_never_creates_ghost_page() {
             &conv,
             "save_wiki_revision",
             &json!({
-                "slug": "topic/fpso111整船项目",
-                "title": "FPSO111整船项目",
+                "slug": "topic/测试项目整船项目",
+                "title": "测试项目整船项目",
                 "content_md": "# x",
                 "change_note": "补充内容"
             })
@@ -792,10 +893,12 @@ fn save_wiki_revision_rejects_missing_slug_and_never_creates_ghost_page() {
     let pa = store.pending_actions_for_conversation(&conv).unwrap();
     let err = execute_pending_action(&store, &pa[0]).unwrap_err();
     assert!(err.to_string().contains("知识页不存在"), "{err}");
-    assert!(store
-        .get_wiki_page("topic/fpso111整船项目")
-        .unwrap()
-        .is_none());
+    assert!(
+        store
+            .get_wiki_page("topic/测试项目整船项目")
+            .unwrap()
+            .is_none()
+    );
     drop(store);
     let _ = std::fs::remove_file(path);
 }

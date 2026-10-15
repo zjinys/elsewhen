@@ -1,0 +1,599 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../bridge/rust_bridge_repository.dart';
+import '../utils/device_name.dart';
+import '../bridge/api.dart' as api;
+import '../sync/sync_processor_handoff_controller.dart';
+import '../sync/sync_roster_controller.dart';
+import '../sync/sync_provider_conflicts_controller.dart';
+import '../sync/sync_wiki_conflicts_controller.dart';
+import '../sync/sync_setup_controller.dart';
+import 'sync_tick_status.dart';
+import 'owner_sync_pairing_settings.dart';
+import 'joiner_sync_pairing_settings.dart';
+import 'sync_key_health_settings.dart';
+import 'sync_members_settings.dart';
+import 'sync_processor_handoff_settings.dart';
+import 'sync_provider_conflicts_settings.dart';
+import '../sync/sync_object_conflicts_controller.dart';
+import 'sync_object_conflicts_settings.dart';
+import 'sync_wiki_conflicts_settings.dart';
+
+class LocalSyncSettings extends StatefulWidget {
+  const LocalSyncSettings({
+    super.key,
+    required this.controller,
+    this.repository,
+    this.conflictsController,
+    this.wikiConflictsController,
+    this.objectConflictsController,
+    this.handoffController,
+    this.rosterController,
+  });
+  final SyncSetupController? controller;
+  final RustBridgeRepository? repository;
+
+  /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
+  final SyncProviderConflictsController? conflictsController;
+  final SyncWikiConflictsController? wikiConflictsController;
+  final SyncObjectConflictsController? objectConflictsController;
+
+  /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
+  final SyncProcessorHandoffController? handoffController;
+
+  /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
+  final SyncRosterController? rosterController;
+
+  @override
+  State<LocalSyncSettings> createState() => _LocalSyncSettingsState();
+}
+
+/// 同步域的两个独立关切：「绑定」（准备本机/邀请/加入，一次性流程）与
+/// 「管理」（状态/设备列表/移交/密钥/冲突，日常运维）。曾挤在一列里，
+/// 用户反馈绑定流程找不到重点——拆成 tab。
+enum _SyncTab { bind, manage }
+
+class _LocalSyncSettingsState extends State<LocalSyncSettings> {
+  _SyncTab _tab = _SyncTab.bind;
+  bool _tabTouched = false;
+  final _name = TextEditingController(text: '这台设备');
+  bool _consent = false;
+  late final SyncProviderConflictsController _conflicts;
+  late final bool _ownsConflicts;
+  late final SyncWikiConflictsController _wikiConflicts;
+  late final bool _ownsWikiConflicts;
+  late final SyncObjectConflictsController _objectConflicts;
+  late final bool _ownsObjectConflicts;
+  late final SyncProcessorHandoffController _handoff;
+  late final bool _ownsHandoff;
+  late final SyncRosterController _roster;
+  late final bool _ownsRoster;
+
+  @override
+  void initState() {
+    super.initState();
+    // 缺省设备名用真机器名；用户已改过名将保持原值。
+    defaultDeviceName().then((name) {
+      if (name != null && mounted && _name.text == '这台设备') {
+        setState(() => _name.text = name);
+      }
+    });
+    _ownsConflicts = widget.conflictsController == null;
+    _conflicts =
+        widget.conflictsController ?? SyncProviderConflictsController();
+    _ownsWikiConflicts = widget.wikiConflictsController == null;
+    _wikiConflicts =
+        widget.wikiConflictsController ?? SyncWikiConflictsController();
+    _ownsObjectConflicts = widget.objectConflictsController == null;
+    _objectConflicts =
+        widget.objectConflictsController ?? SyncObjectConflictsController();
+    _ownsHandoff = widget.handoffController == null;
+    _handoff = widget.handoffController ?? SyncProcessorHandoffController();
+    _ownsRoster = widget.rosterController == null;
+    _roster = widget.rosterController ?? SyncRosterController();
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    if (_ownsConflicts) _conflicts.dispose();
+    if (_ownsWikiConflicts) _wikiConflicts.dispose();
+    if (_ownsObjectConflicts) _objectConflicts.dispose();
+    if (_ownsHandoff) _handoff.dispose();
+    if (_ownsRoster) _roster.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = widget.controller;
+    if (controller == null) {
+      return const Text('当前存储后端不支持设备同步。');
+    }
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final state = controller.state;
+        final theme = Theme.of(context);
+        final configured = state != null && state.state != 'not_configured';
+        // 未配置时落在「绑定」tab（当前要办事的地方），配置后默认「管理」；
+        // 用户主动点过后以用户选择为准。
+        final tab = _tabTouched
+            ? _tab
+            : (configured ? _SyncTab.manage : _SyncTab.bind);
+        final installation = state?.installationId;
+        final ready = state?.state == 'local_ready';
+
+        // —— 状态头卡：用户最关心的三件事（是否开启 / 本机是谁 / 用哪个
+        // relay）放最上面，一眼可见；诊断细节收进高级区。——
+        final statusLine = switch (state?.state) {
+          'local_ready' => '同步已开启',
+          'locked' => '同步已暂停（本机密钥已锁定）',
+          'membership_inactive' => '同步已关闭（本机未被授权）',
+          'requires_repair' => '同步需要修复',
+          'not_configured' => '同步未开启',
+          _ => controller.error == null ? '正在读取同步状态' : '同步状态暂不可用',
+        };
+        // 角色用用户语言：主设备=创建数据集的设备；「负责后台 AI 分析」
+        // 是 processor 的职责说明（内部术语「发起/加工」曾让用户看不懂）。
+        final roleLabel = switch ((
+          state?.isOwner ?? false,
+          state?.isProcessor ?? false,
+        )) {
+          (true, true) => '主设备 · 负责后台 AI 分析',
+          (true, false) => '主设备',
+          (false, true) => '成员设备 · 负责后台 AI 分析',
+          (false, false) => '成员设备',
+        };
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        ready
+                            ? Icons.sync
+                            : (configured
+                                  ? Icons.sync_disabled
+                                  : Icons.sync_problem),
+                        size: 20,
+                        color: ready
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          statusLine,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (controller.busy)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                    ],
+                  ),
+                  if (configured) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '本机：${state.deviceName ?? '未命名设备'} · $roleLabel',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    _RelayLine(relayUrl: state.relayUrl, locked: !ready),
+                  ],
+                ],
+              ),
+            ),
+            if (controller.error != null) ...[
+              const SizedBox(height: 12),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  controller.error!,
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              ),
+            ],
+            if (widget.repository != null && configured)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SyncTickStatusLine(
+                  ticks: widget.repository!.lastSyncTick,
+                  errors: widget.repository!.lastSyncTickError,
+                ),
+              ),
+            const SizedBox(height: 12),
+            SegmentedButton<_SyncTab>(
+              segments: const [
+                ButtonSegment(
+                  value: _SyncTab.bind,
+                  label: Text('绑定'),
+                  icon: Icon(Icons.link_outlined),
+                ),
+                ButtonSegment(
+                  value: _SyncTab.manage,
+                  label: Text('管理'),
+                  icon: Icon(Icons.tune_outlined),
+                ),
+              ],
+              selected: {tab},
+              onSelectionChanged: (selection) => setState(() {
+                _tab = selection.first;
+                _tabTouched = true;
+              }),
+            ),
+            const SizedBox(height: 12),
+            if (tab == _SyncTab.bind)
+              _buildBindContent(theme, controller, state, configured)
+            else
+              _buildManageContent(
+                theme,
+                controller,
+                state,
+                configured,
+                installation,
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 绑定 tab——一次性流程：准备本机、邀请新设备、本机加入既有数据集。
+  /// 与「管理」是两个独立关切（用户反馈：挤在一列里找不到绑定流程的重点）。
+  Widget _buildBindContent(
+    ThemeData theme,
+    SyncSetupController controller,
+    api.LocalSyncStateDto? state,
+    bool configured,
+  ) {
+    final ready = state?.state == 'local_ready';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!configured && state != null && controller.previewEnabled) ...[
+          const SizedBox(height: 16),
+          TextField(
+            controller: _name,
+            enabled: !controller.busy,
+            maxLength: 64,
+            decoration: const InputDecoration(
+              labelText: '设备名称',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          CheckboxListTile(
+            value: _consent,
+            enabled: !controller.busy,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: const Text('我理解：后续授权设备加入时，会共享所有 Provider 配置和 API Key。'),
+            onChanged: controller.busy
+                ? null
+                : (value) => setState(() => _consent = value ?? false),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            icon: const Icon(Icons.key_outlined),
+            label: const Text('准备本机'),
+            onPressed: controller.busy || !_consent
+                ? null
+                : () => controller.createOwner(
+                    _name.text,
+                    Platform.operatingSystem,
+                    consent: _consent,
+                  ),
+          ),
+        ] else if (!configured && state != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (ready && state?.isOwner == true && controller.previewEnabled)
+          OwnerSyncPairingSettings(controller: controller),
+        if (controller.previewEnabled)
+          JoinerSyncPairingSettings(controller: controller.joiner),
+      ],
+    );
+  }
+
+  /// 管理 tab——日常运维：设备列表、加工权移交、密钥健康、冲突、锁定。
+  Widget _buildManageContent(
+    ThemeData theme,
+    SyncSetupController controller,
+    api.LocalSyncStateDto? state,
+    bool configured,
+    String? installation,
+  ) {
+    // 未完成绑定时管理面无事可做——在这里提前返回，恢复 state 的非空提升。
+    if (!configured || state == null) {
+      return Text('完成绑定后，这里会显示设备列表与同步管理。', style: theme.textTheme.bodySmall);
+    }
+    final ready = state.state == 'local_ready';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (configured) ...[
+          const SizedBox(height: 16),
+          if (ready)
+            _LocalDeviceInfoCard(
+              state: state,
+              roster: _roster.roster,
+              onRename: (newName) async {
+                final deviceId = state.deviceId;
+                if (deviceId == null) return '本机设备 ID 不可见，请刷新。';
+                return controller.renameLocalDevice(deviceId, newName);
+              },
+            ),
+          if (ready)
+            SyncMembersSettings(controller: _roster)
+          else
+            Text('授权其他设备后，这里会显示设备列表。', style: theme.textTheme.bodySmall),
+          const SizedBox(height: 16),
+          if (ready)
+            SyncProcessorHandoffSettings(
+              controller: _handoff,
+              isProcessor: state.isProcessor,
+              isOwner: state.isOwner,
+              candidates: _handoffCandidates(),
+              onChanged: _roster.refresh,
+            ),
+          if (ready && installation != null)
+            SyncKeyHealthSettings(
+              api: FrbSyncKeyHealthApi(controller.keys),
+              installationId: installation,
+            ),
+          if (ready) SyncProviderConflictsSettings(controller: _conflicts),
+          if (ready) SyncWikiConflictsSettings(controller: _wikiConflicts),
+          if (ready) SyncObjectConflictsSettings(controller: _objectConflicts),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (ready)
+                OutlinedButton.icon(
+                  onPressed: controller.busy ? null : controller.lock,
+                  icon: const Icon(Icons.lock_outline),
+                  label: const Text('锁定本机密钥'),
+                )
+              else if (state.state == 'locked')
+                FilledButton.icon(
+                  onPressed: controller.busy ? null : controller.unlock,
+                  icon: const Icon(Icons.lock_open_outlined),
+                  label: const Text('解锁本机密钥'),
+                ),
+              TextButton(
+                onPressed: controller.busy ? null : controller.refresh,
+                child: const Text('刷新状态'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // 诊断细节折叠：对排障有用，但不是日常要看的。
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 8),
+            title: Text('诊断信息', style: theme.textTheme.titleSmall),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '待确认同步操作：${state.pendingOperations}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    if (state.datasetId != null) ...[
+                      const SizedBox(height: 4),
+                      Text('数据集标识', style: theme.textTheme.bodySmall),
+                      SelectableText(
+                        state.datasetId!,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 可接收加工权的设备：活跃、非本机成员（owner 也可接收，用于移交回 owner）。
+  List<api.SyncRosterMemberDto> _handoffCandidates() {
+    final roster = _roster.roster;
+    final local = roster?.localDeviceId;
+    if (roster == null || local == null) return const [];
+    return roster.members
+        .where((member) => member.active && member.deviceId != local)
+        .toList();
+  }
+}
+
+/// 本机信息卡：设备名（owner 可改）、本机设备 ID、角色。中继 URL 不放
+/// 这里——它是传输配置，不属于「本机是谁」。
+class _LocalDeviceInfoCard extends StatelessWidget {
+  const _LocalDeviceInfoCard({
+    required this.state,
+    required this.roster,
+    required this.onRename,
+  });
+
+  final api.LocalSyncStateDto state;
+  final api.SyncRosterDto? roster;
+
+  /// 改名后返回可读错误（null = 成功）；仅 owner 本机提供入口。
+  final Future<String?> Function(String newName) onRename;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final roster = this.roster;
+    final deviceId = roster?.localDeviceId;
+    final roles = <String>[
+      if (state.isOwner) '主设备',
+      if (state.isProcessor) '负责 AI 分析',
+    ];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('本机信息', style: theme.textTheme.titleSmall),
+              const Spacer(),
+              if (state.isOwner)
+                TextButton.icon(
+                  onPressed: () => _renameDialog(context),
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('重命名'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '设备名：${state.deviceName ?? '未命名设备'}',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '角色：${roles.isEmpty ? '成员' : roles.join(' · ')}',
+            style: theme.textTheme.bodyMedium,
+          ),
+          if (deviceId != null) ...[
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Text('本机 ID：', style: theme.textTheme.bodySmall),
+                Expanded(
+                  child: SelectableText(
+                    deviceId,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 改名弹窗：预填当前名；空名不提交。
+  Future<void> _renameDialog(BuildContext context) async {
+    final input = TextEditingController(text: state.deviceName ?? '');
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('重命名本机设备'),
+        content: TextField(
+          controller: input,
+          autofocus: true,
+          maxLength: 256,
+          decoration: const InputDecoration(labelText: '设备名'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(input.text.trim()),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (newName == null || newName.isEmpty || !context.mounted) return;
+    final error = await onRename(newName);
+    if (!context.mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
+    }
+  }
+}
+
+/// relay 行：有值时显示并可复制；锁定/未解锁时不猜值，只说「不可见」。
+class _RelayLine extends StatelessWidget {
+  const _RelayLine({required this.relayUrl, required this.locked});
+
+  final String? relayUrl;
+  final bool locked;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final relay = relayUrl;
+    if (relay == null || relay.isEmpty) {
+      // 「未连接」曾是误导（用户读作「连了但断了」）：值为空的真实含义
+      // 是还没有已配对成员经中继交换过路由信息，不是链路故障。
+      return Text(
+        locked ? '中继服务：解锁本机密钥后可见' : '尚未配置中继（首次邀请成员时填写）',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.outline,
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Text('中继服务：', style: theme.textTheme.bodySmall),
+        Expanded(
+          child: SelectableText(
+            relay,
+            style: theme.textTheme.bodySmall,
+            maxLines: 1,
+          ),
+        ),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          iconSize: 16,
+          tooltip: '复制中继地址',
+          icon: const Icon(Icons.copy_outlined),
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: relay));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('中继地址已复制')));
+          },
+        ),
+      ],
+    );
+  }
+}

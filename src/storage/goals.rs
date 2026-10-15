@@ -7,11 +7,11 @@
 //! 目标改内容走 `update_goal`（同一目标），换阶段或换方向走归档加新增，旧目标保留。
 
 use anyhow::Result;
-use rusqlite::{params, Error as SqliteError};
+use rusqlite::{Error as SqliteError, params};
 use uuid::Uuid;
 
-use super::new_migrations::ACTIVE_GOAL_LIMIT_REACHED;
 use super::Store;
+use super::new_migrations::ACTIVE_GOAL_LIMIT_REACHED;
 
 /// 活跃目标条数上限，与数据库触发器里的常量保持一致。
 pub const MAX_ACTIVE_GOALS: usize = 3;
@@ -169,6 +169,7 @@ impl Store {
             updated_at: now.clone(),
             superseded_at: None,
         };
+        let tx = self.begin_write_transaction()?;
         self.connection
             .execute(
                 "INSERT INTO goals(id, content, phase, status, created_at, updated_at, superseded_at)
@@ -176,6 +177,10 @@ impl Store {
                 params![goal.id, goal.content, phase.as_str(), now],
             )
             .map_err(map_write_error)?;
+        self.sync_record_goal(&goal.id)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(goal)
     }
 
@@ -186,6 +191,7 @@ impl Store {
             anyhow::bail!("目标内容不能为空");
         }
         let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
         let changed = self
             .connection
             .execute(
@@ -196,12 +202,17 @@ impl Store {
         if changed == 0 {
             anyhow::bail!("目标不存在: {id}");
         }
+        self.sync_record_goal(id)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(())
     }
 
     /// 归档一条目标。归档即让出活跃名额，但保留内容与阶段作为历史。
     pub fn archive_goal(&self, id: &str) -> Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
         let changed = self
             .connection
             .execute(
@@ -212,12 +223,17 @@ impl Store {
         if changed == 0 {
             anyhow::bail!("目标不存在: {id}");
         }
+        self.sync_record_goal(id)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(())
     }
 
     /// 复活一条已归档目标。达上限时由触发器拒绝。
     pub fn reactivate_goal(&self, id: &str) -> Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
         let changed = self
             .connection
             .execute(
@@ -227,6 +243,10 @@ impl Store {
             .map_err(map_write_error)?;
         if changed == 0 {
             anyhow::bail!("目标不存在: {id}");
+        }
+        self.sync_record_goal(id)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
         }
         Ok(())
     }
@@ -419,10 +439,12 @@ mod tests {
     #[test]
     fn unknown_id_reports_not_found() {
         let store = store();
-        assert!(store
-            .store
-            .update_goal("nope", "x", GoalPhase::Near)
-            .is_err());
+        assert!(
+            store
+                .store
+                .update_goal("nope", "x", GoalPhase::Near)
+                .is_err()
+        );
         assert!(store.store.archive_goal("nope").is_err());
         assert!(store.store.reactivate_goal("nope").is_err());
     }

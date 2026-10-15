@@ -1,7 +1,7 @@
 //! Exact source versions, reviewable compilation and knowledge provenance.
-use super::{map_wiki_page, ContentPolicy, Store, WikiPage, WikiPageDraft, WIKI_PAGE_COLS};
-use anyhow::{bail, Context, Result};
-use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
+use super::{ContentPolicy, Store, WIKI_PAGE_COLS, WikiPage, WikiPageDraft, map_wiki_page};
+use anyhow::{Context, Result, bail};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -638,6 +638,9 @@ impl Store {
         confirmed: bool,
     ) -> Result<Option<WikiPage>> {
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        if !confirmed {
+            self.require_background_processor()?;
+        }
         let page = self.apply_knowledge_proposal_in_tx(id, accept, confirmed)?;
         tx.commit()?;
         Ok(page)
@@ -910,11 +913,39 @@ impl Store {
             all.extend(self.list_wiki_pages(None, Some("derivative"))?);
             all
         };
+        // 批量预取点（原为 O(N) 逐条查询）：已审指纹集合、事件可记录性映射。
+        // 页数增长时这里是维护面板打开成本的大头——两条 SQL 换掉循环里的
+        // 每指纹一条 EXISTS、每事件一条 recordable。
+        let reviewed: std::collections::HashSet<String> = {
+            let mut stmt = self
+                .connection
+                .prepare("SELECT fingerprint FROM knowledge_maintenance_reviews")?;
+            let rows = stmt
+                .query_map([], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            rows.into_iter().collect()
+        };
+        let recordable: std::collections::HashMap<String, bool> = {
+            let mut map = std::collections::HashMap::new();
+            let mut stmt = self.connection.prepare(
+                "SELECT e.id, COALESCE(
+                    (SELECT d.recordable FROM event_recordability_decisions d WHERE d.event_id=e.id ORDER BY d.created_at DESC,d.rowid DESC LIMIT 1),
+                    (SELECT json_extract(a.result_json,'$.recordable') FROM event_analyses a WHERE a.event_id=e.id ORDER BY a.created_at DESC,a.id DESC LIMIT 1),1)
+                 FROM events e",
+            )?;
+            let rows = stmt
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, bool>(1)?)))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            for (id, ok) in rows {
+                map.insert(id, ok);
+            }
+            map
+        };
         let mut issues = Vec::new();
         for page in pages.into_iter().filter(|p| p.status != "archived") {
             let mut add = |kind: &str, detail: String, key: String| -> Result<()> {
                 let fingerprint = content_hash(&format!("{}|{kind}|{key}", page.id));
-                let reviewed:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM knowledge_maintenance_reviews WHERE fingerprint=?1)",[&fingerprint],|r|r.get(0))?;
+                let reviewed = reviewed.contains(&fingerprint);
                 if !reviewed {
                     issues.push(KnowledgeIssue {
                         fingerprint,
@@ -941,7 +972,7 @@ impl Store {
                 )?;
             }
             for id in &page.source_event_ids {
-                if !self.recordable_event(id)? {
+                if !recordable.get(id).copied().unwrap_or(false) {
                     add(
                         "invalid_event",
                         format!("来源事件 {id} 不存在或已标为讨论。"),
@@ -1053,6 +1084,7 @@ impl Store {
     }
 
     pub fn dismiss_knowledge_issue(&self, fingerprint: &str) -> Result<()> {
+        let tx = self.begin_write_transaction()?;
         let issue = self
             .knowledge_issues(None)?
             .into_iter()
@@ -1061,8 +1093,16 @@ impl Store {
         let page = self
             .get_wiki_page(&issue.page_slug)?
             .context("页面不存在")?;
-        self.connection.execute("INSERT OR IGNORE INTO knowledge_maintenance_reviews(fingerprint,page_id,resolution,created_at,issue_description)
+        let changed = self.connection.execute("INSERT OR IGNORE INTO knowledge_maintenance_reviews(fingerprint,page_id,resolution,created_at,issue_description)
             VALUES (?1,?2,'dismissed',?3,?4)",params![fingerprint,page.id,chrono::Utc::now().to_rfc3339(),issue.description])?;
+        // 已阅行是跨设备语义（B 设备不再重复弹同一 issue）：本端首次落行
+        // 时同事务广播；重复 dismiss 幂等，不再产生 op。
+        if changed > 0 {
+            self.sync_record_knowledge_review(fingerprint)?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(())
     }
 }

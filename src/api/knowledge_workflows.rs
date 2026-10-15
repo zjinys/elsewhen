@@ -3,7 +3,7 @@ use crate::{
     knowledge::{organization, workflows as flow},
     storage::Store,
 };
-use anyhow::{ensure, Context, Result};
+use anyhow::{Context, Result, ensure};
 fn store() -> Result<Store> {
     Store::open(&crate::config::AppConfig::load()?.database_path)
 }
@@ -132,6 +132,9 @@ pub fn resolve_knowledge_batch(ids: Vec<String>, accept: bool) -> Result<Vec<Bat
 
 /// Load exactly the revision displayed in a comparison; id and body come from
 /// one SQLite read, so a concurrent edit cannot pair old prose with a new id.
-pub fn read_artifact_version(slug: String, revision_id: Option<String>) -> Result<super::knowledge::KnowledgeRevisionDto> {
+pub fn read_artifact_version(
+    slug: String,
+    revision_id: Option<String>,
+) -> Result<super::knowledge::KnowledgeRevisionDto> {
     Ok(store()?.connection.query_row("SELECT r.id,r.content_md,r.reason,r.created_at FROM wiki_revisions r JOIN wiki_pages p ON p.id=r.page_id WHERE p.slug=?1 AND (?2 IS NULL OR r.id=?2) ORDER BY r.created_at DESC,r.rowid DESC LIMIT 1",rusqlite::params![slug,revision_id],|r|Ok(super::knowledge::KnowledgeRevisionDto{id:r.get(0)?,content_md:r.get(1)?,reason:r.get(2)?,created_at:r.get(3)?}))?)
 }

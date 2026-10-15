@@ -4,8 +4,11 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api.dart';
+import 'api/chat_proposals.dart';
+import 'api/chat_runs.dart';
 import 'api/conversations.dart';
 import 'api/entities.dart';
+import 'api/event_stats.dart';
 import 'api/fonts.dart';
 import 'api/goals.dart';
 import 'api/import.dart';
@@ -13,11 +16,15 @@ import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
 import 'api/provider_config.dart';
+import 'api/provider_reachability.dart';
 import 'api/relations.dart';
+import 'api/review_report.dart';
 import 'api/rules.dart';
+import 'api/sync.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
+import 'api/web_search.dart';
 import 'api/wiki.dart';
 import 'api/wiki_chat.dart';
 
@@ -91,7 +98,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -692400254;
+  int get rustContentHash => 844878033;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -131,9 +138,29 @@ abstract class RustLibApi extends BaseApi {
     required bool adopt,
   });
 
+  Future<SyncEnrollmentStateDto> crateApiSyncAdvanceSyncEnrollment({
+    required String role,
+    required String operationId,
+    required String invitationId,
+  });
+
+  Future<SyncKeyCommitDto> crateApiSyncApproveOwnerSyncInvitation({
+    required String invitationId,
+    required String previewToken,
+    required bool acknowledgeProviderKeySharing,
+  });
+
+  Future<void> crateApiSyncApproveProcessorHandoff({
+    required ProcessingYieldProofDto proof,
+  });
+
   Future<void> crateApiGoalsArchiveGoal({required String id});
 
   Future<void> crateApiWikiChatArchiveWikiPageChat({required String pageSlug});
+
+  Future<List<ReachabilityHint>> crateApiProviderReachabilityAssessBaseUrl({
+    required String baseUrl,
+  });
 
   Future<InputRecordDto> crateApiBeginUrlInput({
     required String rawText,
@@ -149,9 +176,28 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 offset,
   });
 
+  Future<String> crateApiBuildHash();
+
+  Future<PlatformInt64> crateApiSyncBuildSeq();
+
+  Future<ChatRunDto?> crateApiChatRunsCancelChatRun({
+    required String conversationId,
+    required String runId,
+  });
+
+  Future<void> crateApiSyncCancelOwnerSyncInvitation({
+    required String invitationId,
+  });
+
+  Future<AppUpdateDto> crateApiSyncCheckAppUpdate({required String relayUrl});
+
+  Future<CompanionRevisitDto?> crateApiCheckCompanionRevisit();
+
   Future<String> crateApiConversationsConfirmKnowledgeDraft({
     required String conversationId,
     required String actionId,
+    required PlatformInt64 expectedVersion,
+    required String approvalToken,
   });
 
   Future<WikiPageDto> crateApiKnowledgeConfirmKnowledgeSource({
@@ -161,6 +207,26 @@ abstract class RustLibApi extends BaseApi {
     required String sourceKind,
     required List<String> tags,
     String? expectedSnapshotId,
+  });
+
+  Future<void> crateApiSyncConfirmProcessorTakeover();
+
+  Future<SyncEnrollmentStateDto> crateApiSyncConfirmSyncEnrollment({
+    required String role,
+    required String operationId,
+    required String invitationId,
+    required String token,
+    required PlatformInt64 protectedRevision,
+  });
+
+  Future<SyncJoinStateDto> crateApiSyncConfirmSyncJoinKey({
+    required String token,
+    required PlatformInt64 protectedRevision,
+  });
+
+  Future<LocalSyncStateDto> crateApiSyncConfirmSyncKey({
+    required String token,
+    required PlatformInt64 protectedRevision,
   });
 
   Future<WikiPageDto> crateApiKnowledgeWorkflowsCreateArtifactFromMessage({
@@ -180,6 +246,11 @@ abstract class RustLibApi extends BaseApi {
     required String phase,
   });
 
+  Future<SyncInvitationOfferDto> crateApiSyncCreateOwnerSyncInvitation({
+    required String relayUrl,
+    required bool acknowledgeProviderKeySharing,
+  });
+
   Future<TodoDto> crateApiTodosCreateTodo({
     required String title,
     String? dueAt,
@@ -195,13 +266,21 @@ abstract class RustLibApi extends BaseApi {
     required String contentMd,
   });
 
+  Future<ChatDecisionDto> crateApiChatProposalsDecideChatProposal({
+    required ChatReviewRequest request,
+    required bool accept,
+  });
+
   Future<void> crateApiConversationsDeclineKnowledgeDraft({
     required String conversationId,
     required String actionId,
+    required PlatformInt64 expectedVersion,
+    required String approvalToken,
   });
 
   Future<void> crateApiProviderConfigDeleteAiProviderConfig({
     required String id,
+    String? revisionToken,
   });
 
   Future<bool> crateApiConversationsDeleteArchivedConversation({
@@ -210,19 +289,65 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiEntitiesDeleteEntityFact({required String id});
 
+  Future<void> crateApiDeleteEventEmotion({
+    required String id,
+    String? target,
+    required String feeling,
+  });
+
   Future<bool> crateApiRelationsDeleteRelation({required String id});
 
   Future<void> crateApiRulesDeleteRule({required String ruleId});
 
   Future<bool> crateApiTodosDeleteTodo({required String id});
 
+  Future<bool> crateApiWikiDeleteWikiPage({required String slug});
+
+  Future<void> crateApiSyncDiscardSyncJoinStaging({required String entryId});
+
+  Future<void> crateApiReviewReportDismissDeviation({
+    required String reportId,
+    required int index,
+  });
+
   Future<void> crateApiKnowledgeDismissKnowledgeIssue({
     required String fingerprint,
+  });
+
+  Future<ChatRunDto?> crateApiChatRunsDispatchChatInputQueue({
+    required String conversationId,
+  });
+
+  Future<String> crateApiSyncDownloadUpdateApk({
+    required String relayUrl,
+    required String buildHash,
+    required String apkSha256,
+    required PlatformInt64 apkSize,
+    required String destDir,
+  });
+
+  Future<ChatProposalDto> crateApiChatProposalsEditChatProposal({
+    required ChatReviewRequest request,
+    required String argsJson,
+  });
+
+  Future<PlatformInt64> crateApiChatRunsEnqueueChatInput({
+    required String conversationId,
+    required String inputMessageId,
+  });
+
+  Future<PlatformInt64> crateApiChatRunsEnqueueChatSupplement({
+    required String conversationId,
+    required String inputMessageId,
+    required String runId,
+    required String contextJson,
   });
 
   Future<ConversationDto> crateApiWikiChatEnsureWikiPageChat({
     required String pageSlug,
   });
+
+  Future<EventStatsQuery> crateApiEventStatsEventStatsQueryDefault();
 
   Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url});
 
@@ -256,9 +381,22 @@ abstract class RustLibApi extends BaseApi {
 
   Future<AnalysisJobStatsDto> crateApiGetAnalysisJobStats();
 
+  Future<ChatInputQueueDto> crateApiChatRunsGetChatInputQueue({
+    required String conversationId,
+    required PlatformInt64 afterId,
+    required int limit,
+  });
+
+  Future<ChatRunDto?> crateApiChatRunsGetChatRun({
+    required String conversationId,
+    required String runId,
+  });
+
   Future<List<MessageDto>> crateApiConversationsGetChildMessages({
     required String parentId,
   });
+
+  Future<CompanionPrefsDto> crateApiGetCompanionPrefs();
 
   Future<ConversationDto?> crateApiConversationsGetConversation({
     required String conversationId,
@@ -298,6 +436,12 @@ abstract class RustLibApi extends BaseApi {
     required String id,
   });
 
+  Future<ChatRunDto?> crateApiChatRunsGetLatestChatRun({
+    required String conversationId,
+  });
+
+  Future<LocalSyncStateDto> crateApiSyncGetLocalSyncState();
+
   Future<List<MessageDto>> crateApiConversationsGetMessageChain({
     required String messageId,
   });
@@ -309,19 +453,66 @@ abstract class RustLibApi extends BaseApi {
     required String messageId,
   });
 
+  Future<NetworkSettingsDto> crateApiWebSearchGetNetworkSettings();
+
+  Future<PeriodStatsDto> crateApiGetPeriodStats({
+    required String periodType,
+    required String date,
+  });
+
+  Future<ProcessorHandoffStateDto> crateApiSyncGetProcessorHandoffState();
+
+  Future<String> crateApiRulesGetRuleTriggerMode();
+
   Future<SuggestionFeedback?> crateApiKnowledgeWorkflowsGetSuggestionFeedback({
     required String messageId,
   });
 
+  Future<SyncJoinStateDto> crateApiSyncGetSyncJoinState({
+    required String operationId,
+  });
+
+  Future<SyncRosterDto> crateApiSyncGetSyncRoster();
+
   Future<ThemePrefsDto> crateApiThemeGetThemePrefs();
 
   Future<String> crateApiTweetGetTweetFetchService();
+
+  Future<WebSearchConfigDto> crateApiWebSearchGetWebSearchConfig();
+
+  Future<WikiChatMaterialDto> crateApiWikiChatGetWikiChatMaterial({
+    required String pageSlug,
+  });
+
+  Future<String?> crateApiWikiChatGetWikiChatTask({
+    required String conversationId,
+  });
 
   Future<WikiPageDto?> crateApiWikiGetWikiPage({required String slug});
 
   Future<String> crateApiTweetGuessImportKind({required String url});
 
   Future<String> crateApiInitBridge({String? databasePath});
+
+  Future<SyncInvitationPreviewDto?> crateApiSyncInspectOwnerSyncInvitation({
+    required String invitationId,
+  });
+
+  Future<SyncJoinStateDto> crateApiSyncInspectSyncJoinApproval({
+    required String operationId,
+  });
+
+  Future<SyncJoinStateDto> crateApiSyncInstallSyncJoinKey({
+    required String token,
+    required List<int> key,
+    required PlatformInt64 protectedRevision,
+  });
+
+  Future<SyncKeyCommitDto> crateApiSyncInstallSyncKey({
+    required String token,
+    required List<int> key,
+    required PlatformInt64 protectedRevision,
+  });
 
   Future<String> crateApiKnowledgeWorkflowsKnowledgeReadingState({
     required String slug,
@@ -344,9 +535,39 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 offset,
   });
 
+  Future<List<ChatDecisionDto>> crateApiChatProposalsListChatDecisions({
+    String? conversationId,
+    required int offset,
+    required int limit,
+  });
+
+  Future<List<ChatProposalDto>> crateApiChatProposalsListChatProposals({
+    String? conversationId,
+    required int offset,
+    required int limit,
+  });
+
+  Future<ChatRunEventPageDto> crateApiChatRunsListChatRunEvents({
+    required String conversationId,
+    required String runId,
+    required PlatformInt64 afterSequence,
+    required int limit,
+  });
+
+  Future<List<ChatRunDto>> crateApiChatRunsListChatRuns({
+    required String conversationId,
+    required int offset,
+    required int limit,
+  });
+
   Future<List<ConversationDto>> crateApiConversationsListConversations();
 
   Future<List<DailyEntryDto>> crateApiListDailyEntries({required String date});
+
+  Future<List<DeviationReportDto>> crateApiReviewReportListDeviationReports({
+    required String periodType,
+    required int limit,
+  });
 
   Future<List<String>> crateApiEntitiesListEntityAliases({
     required String entityKind,
@@ -356,6 +577,12 @@ abstract class RustLibApi extends BaseApi {
   Future<List<EntityFactDto>> crateApiEntitiesListEntityFacts({
     required String entityKind,
     required String entitySlug,
+  });
+
+  Future<List<EventEmotionDto>> crateApiListEventEmotions();
+
+  Future<List<RuleHitDto>> crateApiRulesListEventRuleHits({
+    required String eventId,
   });
 
   Future<List<EventDto>> crateApiListEvents();
@@ -402,8 +629,25 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
   });
 
+  Future<List<ObjectConflictDto>> crateApiSyncListObjectConflicts();
+
+  Future<List<PageGuidanceDto>> crateApiListPageGuidance({
+    required String slug,
+  });
+
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
+  });
+
+  Future<List<SyncJoinEntryDto>> crateApiSyncListPendingSyncJoins();
+
+  Future<List<EventSummaryDto>> crateApiListRecentEvents({
+    required PlatformInt64 days,
+    required PlatformInt64 limit,
+  });
+
+  Future<List<RuleHitDto>> crateApiRulesListRecentRuleHits({
+    required PlatformInt64 limit,
   });
 
   Future<List<RelationDto>> crateApiRelationsListRelations();
@@ -414,6 +658,13 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<RuleDto>> crateApiRulesListRules();
 
+  Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
+  crateApiSyncListSyncDatasets();
+
+  Future<List<SyncEnrollmentStateDto>> crateApiSyncListSyncEnrollments();
+
+  Future<List<ProviderSyncConflictDto>> crateApiSyncListSyncProviderConflicts();
+
   Future<List<SystemFontFace>> crateApiFontsListSystemFonts();
 
   Future<List<TodoDto>> crateApiTodosListTodos({String? status});
@@ -421,13 +672,32 @@ abstract class RustLibApi extends BaseApi {
   Future<List<TopicOrganizationPreview>>
   crateApiKnowledgeListTopicOrganizations({required String slug});
 
+  Future<List<UnscheduledChatInputDto>>
+  crateApiChatRunsListUnscheduledChatInputs({
+    required String conversationId,
+    required int offset,
+    required int limit,
+  });
+
+  Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts();
+
   Future<List<WikiPageDto>> crateApiWikiListWikiPageDerivatives({
     required String slug,
+  });
+
+  Future<List<WikiPageMetaDto>> crateApiWikiListWikiPageMetas({
+    PlatformInt64? limit,
   });
 
   Future<List<WikiPageDto>> crateApiWikiListWikiPages({
     String? kind,
     String? area,
+  });
+
+  Future<LocalSyncStateDto> crateApiSyncLockLocalSync();
+
+  Future<void> crateApiReviewReportMarkDeviationReportRead({
+    required String id,
   });
 
   Future<bool> crateApiEntitiesMergeEntity({
@@ -437,6 +707,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<WikiPageDto> crateApiTodosOpenTodoWorkItem({required String id});
+
+  Future<void> crateApiChatRunsPauseChatInputQueue({
+    required String conversationId,
+  });
 
   Future<String> crateApiKnowledgePrepareKnowledgeRestore({
     required String slug,
@@ -448,6 +722,23 @@ abstract class RustLibApi extends BaseApi {
     required List<String> snapshotIds,
   });
 
+  Future<SyncJoinStateDto> crateApiSyncPrepareSyncJoinKey({
+    required String previewToken,
+    required String name,
+    required String platform,
+    required bool acknowledgeProviderKeySharing,
+  });
+
+  Future<SyncJoinStateDto> crateApiSyncPrepareSyncJoinResume({
+    required String entryId,
+  });
+
+  Future<SyncKeyRequestDto> crateApiSyncPrepareSyncKeyRequest({
+    String? name,
+    String? platform,
+    required bool acknowledgeProviderKeySharing,
+  });
+
   Future<String> crateApiKnowledgePrepareTopicOrganization({
     required List<String> slugs,
     required String mode,
@@ -456,6 +747,10 @@ abstract class RustLibApi extends BaseApi {
   Future<SourceUpdatePreview> crateApiKnowledgePreviewKnowledgeSource({
     required String sourceUrl,
     required String contentMd,
+  });
+
+  Future<SyncJoinStateDto> crateApiSyncPreviewSyncJoin({
+    required String invitationCode,
   });
 
   Future<String> crateApiKnowledgeProposeKnowledgePage({
@@ -476,9 +771,19 @@ abstract class RustLibApi extends BaseApi {
 
   Future<WikiPageDto> crateApiWikiRefreshProjectPage({required String slug});
 
+  Future<bool> crateApiSyncReleaseSyncJoin({required String operationId});
+
+  Future<bool> crateApiSyncReleaseSyncKeyRequest({required String token});
+
   Future<void> crateApiConversationsRenameConversation({
     required String conversationId,
     required String title,
+  });
+
+  Future<PlatformInt64> crateApiSyncRenameSyncDevice({
+    required String deviceId,
+    required String newName,
+    required PlatformInt64 expectedVaultRevision,
   });
 
   Future<List<BatchReviewResult>>
@@ -499,9 +804,37 @@ abstract class RustLibApi extends BaseApi {
     required bool accept,
   });
 
+  Future<void> crateApiSyncResolveObjectConflict({
+    required String opId,
+    String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
+  });
+
+  Future<void> crateApiSyncResolveSyncProviderConflict({
+    required String revisionId,
+    required String expectedLocalRevision,
+    required String expectedRemoteRevision,
+    required bool acceptRemote,
+  });
+
   Future<List<String>> crateApiKnowledgeResolveTopicOrganization({
     required String id,
     required bool accept,
+  });
+
+  Future<void> crateApiSyncResolveWikiPageConflict({
+    required String opId,
+    String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
+  });
+
+  Future<void> crateApiChatRunsResumeChatInputQueue({
+    required String conversationId,
+  });
+
+  Future<void> crateApiSyncRevokeSyncMember({
+    required String deviceId,
+    required PlatformInt64 expectedRevision,
   });
 
   Future<String> crateApiProviderConfigSaveAiProviderConfig({
@@ -513,6 +846,11 @@ abstract class RustLibApi extends BaseApi {
     required String resultJson,
     required String promptVersion,
     required List<String> sourceEventIds,
+  });
+
+  Future<void> crateApiWebSearchSaveDohSettings({
+    required String dohUri,
+    required String dohMode,
   });
 
   Future<WikiPageDto> crateApiImportSaveImportedPage({
@@ -536,12 +874,26 @@ abstract class RustLibApi extends BaseApi {
     required List<String> tags,
   });
 
+  Future<WikiPageDto> crateApiTweetSaveTopicPage({
+    required String text,
+    String? title,
+    required List<String> tags,
+  });
+
   Future<WikiPageDto> crateApiTweetSaveTweetPage({
     required String tweetId,
     required String text,
     String? title,
     String? authorName,
     String? screenName,
+  });
+
+  Future<void> crateApiWebSearchSaveWebSearchConfig({
+    required bool enabled,
+    required String engine,
+    required String baseUrl,
+    required String apiKey,
+    required PlatformInt64 maxResults,
   });
 
   Future<WikiPageDto> crateApiWikiSaveWikiPageContent({
@@ -551,6 +903,17 @@ abstract class RustLibApi extends BaseApi {
     String? expectedUpdatedAt,
   });
 
+  Future<ChatRunDto?> crateApiChatRunsScheduleChatInput({
+    required String conversationId,
+    required String inputMessageId,
+  });
+
+  Future<void> crateApiSyncSelectDefaultSyncDataset({
+    required PlatformInt64 expectedCatalogRevision,
+  });
+
+  Future<void> crateApiSyncSelectSyncDataset({required String entryId});
+
   Future<MessageDto> crateApiConversationsSendMessage({
     required String conversationId,
     required String role,
@@ -558,8 +921,26 @@ abstract class RustLibApi extends BaseApi {
     String? parentMessageId,
   });
 
+  Future<void> crateApiSyncSendOwnerSyncApproval({
+    required String invitationId,
+  });
+
+  Future<SyncJoinStateDto> crateApiSyncSendSyncJoinProof({
+    required String operationId,
+  });
+
+  Future<SyncJoinStateDto> crateApiSyncSendSyncJoinRequest({
+    required String operationId,
+  });
+
   Future<void> crateApiProviderConfigSetActiveAiProviderConfig({
     required String id,
+    String? revisionToken,
+  });
+
+  Future<void> crateApiSetCompanionPrefs({
+    required bool enabled,
+    required PlatformInt64 intervalDays,
   });
 
   Future<void> crateApiConversationsSetConversationArchived({
@@ -572,14 +953,42 @@ abstract class RustLibApi extends BaseApi {
     required bool recordable,
   });
 
+  Future<bool> crateApiSetGuidanceFeedback({
+    required String analysisId,
+    required String slug,
+    String? note,
+    String? feedback,
+  });
+
   Future<void> crateApiKnowledgeWorkflowsSetKnowledgeReadingState({
     required String slug,
     required String state,
   });
 
+  Future<void> crateApiRulesSetRuleHitFeedback({
+    required String id,
+    String? feedback,
+  });
+
+  Future<void> crateApiRulesSetRuleTrigger({
+    required String ruleId,
+    required String triggerScene,
+    required List<String> triggerKeywords,
+  });
+
+  Future<void> crateApiRulesSetRuleTriggerMode({required String mode});
+
   Future<WikiPageDto> crateApiWikiSetWikiOpinion({
     required String slug,
     String? opinion,
+  });
+
+  Future<int> crateApiChatRunsShutdownChatRuns();
+
+  Future<ChatRunDto> crateApiChatRunsStartChatRun({
+    required String conversationId,
+    required String inputMessageId,
+    required String idempotencyKey,
   });
 
   Future<InputRecordDto> crateApiSubmitConversationInput({
@@ -594,7 +1003,18 @@ abstract class RustLibApi extends BaseApi {
     String? idempotencyKey,
   });
 
+  Future<MessageDto> crateApiWikiChatSubmitWikiChatInput({
+    required String conversationId,
+    required String content,
+    required String idempotencyKey,
+    required String taskJson,
+  });
+
+  Future<String> crateApiWebSearchTestDohConnection({required String dohUri});
+
   Future<PlatformInt64> crateApiKnowledgeTickKnowledgeInsights();
+
+  Future<PeriodReportTickResult> crateApiReviewReportTickPeriodicReports();
 
   Future<List<TopicOrganizationPreview>>
   crateApiKnowledgeWorkflowsTopicOrganizationHistory({
@@ -606,6 +1026,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<KnowledgeDigestTickResult>
   crateApiKnowledgeDigestTriggerKnowledgeDigest();
+
+  Future<SyncTickResultDto> crateApiSyncTriggerNetworkSync();
 
   Future<bool> crateApiEntitiesUndoEntityMerge({required String sourceSlug});
 
@@ -632,7 +1054,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<bool> crateApiConversationsUpdatePendingActionArgs({
+    required String conversationId,
     required String actionId,
+    required PlatformInt64 expectedVersion,
+    required String approvalToken,
     required String argsJson,
   });
 
@@ -669,6 +1094,15 @@ abstract class RustLibApi extends BaseApi {
   Future<WikiPageDto> crateApiWikiUpdateWikiTags({
     required String slug,
     required List<String> tags,
+  });
+
+  Future<bool> crateApiChatRunsWithdrawChatInput({
+    required String conversationId,
+    required PlatformInt64 queueId,
+  });
+
+  Future<ProcessingYieldProofDto> crateApiSyncYieldSyncProcessor({
+    required String toDeviceId,
   });
 }
 
@@ -860,6 +1294,112 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<SyncEnrollmentStateDto> crateApiSyncAdvanceSyncEnrollment({
+    required String role,
+    required String operationId,
+    required String invitationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(role);
+          var arg1 = cst_encode_String(operationId);
+          var arg2 = cst_encode_String(invitationId);
+          return wire.wire__crate__api__sync__advance_sync_enrollment(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_enrollment_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncAdvanceSyncEnrollmentConstMeta,
+        argValues: [role, operationId, invitationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncAdvanceSyncEnrollmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "advance_sync_enrollment",
+        argNames: ["role", "operationId", "invitationId"],
+      );
+
+  @override
+  Future<SyncKeyCommitDto> crateApiSyncApproveOwnerSyncInvitation({
+    required String invitationId,
+    required String previewToken,
+    required bool acknowledgeProviderKeySharing,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(invitationId);
+          var arg1 = cst_encode_String(previewToken);
+          var arg2 = cst_encode_bool(acknowledgeProviderKeySharing);
+          return wire.wire__crate__api__sync__approve_owner_sync_invitation(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_key_commit_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncApproveOwnerSyncInvitationConstMeta,
+        argValues: [invitationId, previewToken, acknowledgeProviderKeySharing],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncApproveOwnerSyncInvitationConstMeta =>
+      const TaskConstMeta(
+        debugName: "approve_owner_sync_invitation",
+        argNames: [
+          "invitationId",
+          "previewToken",
+          "acknowledgeProviderKeySharing",
+        ],
+      );
+
+  @override
+  Future<void> crateApiSyncApproveProcessorHandoff({
+    required ProcessingYieldProofDto proof,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_processing_yield_proof_dto(proof);
+          return wire.wire__crate__api__sync__approve_processor_handoff(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncApproveProcessorHandoffConstMeta,
+        argValues: [proof],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncApproveProcessorHandoffConstMeta =>
+      const TaskConstMeta(
+        debugName: "approve_processor_handoff",
+        argNames: ["proof"],
+      );
+
+  @override
   Future<void> crateApiGoalsArchiveGoal({required String id}) {
     return handler.executeNormal(
       NormalTask(
@@ -908,6 +1448,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "archive_wiki_page_chat",
         argNames: ["pageSlug"],
       );
+
+  @override
+  Future<List<ReachabilityHint>> crateApiProviderReachabilityAssessBaseUrl({
+    required String baseUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(baseUrl);
+          return wire.wire__crate__api__provider_reachability__assess_base_url(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_reachability_hint,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiProviderReachabilityAssessBaseUrlConstMeta,
+        argValues: [baseUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProviderReachabilityAssessBaseUrlConstMeta =>
+      const TaskConstMeta(debugName: "assess_base_url", argNames: ["baseUrl"]);
 
   @override
   Future<InputRecordDto> crateApiBeginUrlInput({
@@ -983,19 +1550,175 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiBuildHash() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__build_hash(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiBuildHashConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBuildHashConstMeta =>
+      const TaskConstMeta(debugName: "build_hash", argNames: []);
+
+  @override
+  Future<PlatformInt64> crateApiSyncBuildSeq() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__build_seq(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_64,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSyncBuildSeqConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncBuildSeqConstMeta =>
+      const TaskConstMeta(debugName: "build_seq", argNames: []);
+
+  @override
+  Future<ChatRunDto?> crateApiChatRunsCancelChatRun({
+    required String conversationId,
+    required String runId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(runId);
+          return wire.wire__crate__api__chat_runs__cancel_chat_run(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_chat_run_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsCancelChatRunConstMeta,
+        argValues: [conversationId, runId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsCancelChatRunConstMeta =>
+      const TaskConstMeta(
+        debugName: "cancel_chat_run",
+        argNames: ["conversationId", "runId"],
+      );
+
+  @override
+  Future<void> crateApiSyncCancelOwnerSyncInvitation({
+    required String invitationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(invitationId);
+          return wire.wire__crate__api__sync__cancel_owner_sync_invitation(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncCancelOwnerSyncInvitationConstMeta,
+        argValues: [invitationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncCancelOwnerSyncInvitationConstMeta =>
+      const TaskConstMeta(
+        debugName: "cancel_owner_sync_invitation",
+        argNames: ["invitationId"],
+      );
+
+  @override
+  Future<AppUpdateDto> crateApiSyncCheckAppUpdate({required String relayUrl}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(relayUrl);
+          return wire.wire__crate__api__sync__check_app_update(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_app_update_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncCheckAppUpdateConstMeta,
+        argValues: [relayUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncCheckAppUpdateConstMeta => const TaskConstMeta(
+    debugName: "check_app_update",
+    argNames: ["relayUrl"],
+  );
+
+  @override
+  Future<CompanionRevisitDto?> crateApiCheckCompanionRevisit() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__check_companion_revisit(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_companion_revisit_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiCheckCompanionRevisitConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCheckCompanionRevisitConstMeta =>
+      const TaskConstMeta(debugName: "check_companion_revisit", argNames: []);
+
+  @override
   Future<String> crateApiConversationsConfirmKnowledgeDraft({
     required String conversationId,
     required String actionId,
+    required PlatformInt64 expectedVersion,
+    required String approvalToken,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
           var arg1 = cst_encode_String(actionId);
+          var arg2 = cst_encode_i_64(expectedVersion);
+          var arg3 = cst_encode_String(approvalToken);
           return wire.wire__crate__api__conversations__confirm_knowledge_draft(
             port_,
             arg0,
             arg1,
+            arg2,
+            arg3,
           );
         },
         codec: DcoCodec(
@@ -1003,7 +1726,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiConversationsConfirmKnowledgeDraftConstMeta,
-        argValues: [conversationId, actionId],
+        argValues: [conversationId, actionId, expectedVersion, approvalToken],
         apiImpl: this,
       ),
     );
@@ -1012,7 +1735,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiConversationsConfirmKnowledgeDraftConstMeta =>
       const TaskConstMeta(
         debugName: "confirm_knowledge_draft",
-        argNames: ["conversationId", "actionId"],
+        argNames: [
+          "conversationId",
+          "actionId",
+          "expectedVersion",
+          "approvalToken",
+        ],
       );
 
   @override
@@ -1073,6 +1801,143 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "expectedSnapshotId",
         ],
       );
+
+  @override
+  Future<void> crateApiSyncConfirmProcessorTakeover() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__confirm_processor_takeover(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncConfirmProcessorTakeoverConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncConfirmProcessorTakeoverConstMeta =>
+      const TaskConstMeta(
+        debugName: "confirm_processor_takeover",
+        argNames: [],
+      );
+
+  @override
+  Future<SyncEnrollmentStateDto> crateApiSyncConfirmSyncEnrollment({
+    required String role,
+    required String operationId,
+    required String invitationId,
+    required String token,
+    required PlatformInt64 protectedRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(role);
+          var arg1 = cst_encode_String(operationId);
+          var arg2 = cst_encode_String(invitationId);
+          var arg3 = cst_encode_String(token);
+          var arg4 = cst_encode_i_64(protectedRevision);
+          return wire.wire__crate__api__sync__confirm_sync_enrollment(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_enrollment_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncConfirmSyncEnrollmentConstMeta,
+        argValues: [role, operationId, invitationId, token, protectedRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncConfirmSyncEnrollmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "confirm_sync_enrollment",
+        argNames: [
+          "role",
+          "operationId",
+          "invitationId",
+          "token",
+          "protectedRevision",
+        ],
+      );
+
+  @override
+  Future<SyncJoinStateDto> crateApiSyncConfirmSyncJoinKey({
+    required String token,
+    required PlatformInt64 protectedRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(token);
+          var arg1 = cst_encode_i_64(protectedRevision);
+          return wire.wire__crate__api__sync__confirm_sync_join_key(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncConfirmSyncJoinKeyConstMeta,
+        argValues: [token, protectedRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncConfirmSyncJoinKeyConstMeta =>
+      const TaskConstMeta(
+        debugName: "confirm_sync_join_key",
+        argNames: ["token", "protectedRevision"],
+      );
+
+  @override
+  Future<LocalSyncStateDto> crateApiSyncConfirmSyncKey({
+    required String token,
+    required PlatformInt64 protectedRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(token);
+          var arg1 = cst_encode_i_64(protectedRevision);
+          return wire.wire__crate__api__sync__confirm_sync_key(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_local_sync_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncConfirmSyncKeyConstMeta,
+        argValues: [token, protectedRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncConfirmSyncKeyConstMeta => const TaskConstMeta(
+    debugName: "confirm_sync_key",
+    argNames: ["token", "protectedRevision"],
+  );
 
   @override
   Future<WikiPageDto> crateApiKnowledgeWorkflowsCreateArtifactFromMessage({
@@ -1178,6 +2043,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<SyncInvitationOfferDto> crateApiSyncCreateOwnerSyncInvitation({
+    required String relayUrl,
+    required bool acknowledgeProviderKeySharing,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(relayUrl);
+          var arg1 = cst_encode_bool(acknowledgeProviderKeySharing);
+          return wire.wire__crate__api__sync__create_owner_sync_invitation(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_invitation_offer_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncCreateOwnerSyncInvitationConstMeta,
+        argValues: [relayUrl, acknowledgeProviderKeySharing],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncCreateOwnerSyncInvitationConstMeta =>
+      const TaskConstMeta(
+        debugName: "create_owner_sync_invitation",
+        argNames: ["relayUrl", "acknowledgeProviderKeySharing"],
+      );
+
+  @override
   Future<TodoDto> crateApiTodosCreateTodo({
     required String title,
     String? dueAt,
@@ -1258,19 +2156,58 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<ChatDecisionDto> crateApiChatProposalsDecideChatProposal({
+    required ChatReviewRequest request,
+    required bool accept,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_chat_review_request(request);
+          var arg1 = cst_encode_bool(accept);
+          return wire.wire__crate__api__chat_proposals__decide_chat_proposal(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_chat_decision_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatProposalsDecideChatProposalConstMeta,
+        argValues: [request, accept],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatProposalsDecideChatProposalConstMeta =>
+      const TaskConstMeta(
+        debugName: "decide_chat_proposal",
+        argNames: ["request", "accept"],
+      );
+
+  @override
   Future<void> crateApiConversationsDeclineKnowledgeDraft({
     required String conversationId,
     required String actionId,
+    required PlatformInt64 expectedVersion,
+    required String approvalToken,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(conversationId);
           var arg1 = cst_encode_String(actionId);
+          var arg2 = cst_encode_i_64(expectedVersion);
+          var arg3 = cst_encode_String(approvalToken);
           return wire.wire__crate__api__conversations__decline_knowledge_draft(
             port_,
             arg0,
             arg1,
+            arg2,
+            arg3,
           );
         },
         codec: DcoCodec(
@@ -1278,7 +2215,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiConversationsDeclineKnowledgeDraftConstMeta,
-        argValues: [conversationId, actionId],
+        argValues: [conversationId, actionId, expectedVersion, approvalToken],
         apiImpl: this,
       ),
     );
@@ -1287,21 +2224,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiConversationsDeclineKnowledgeDraftConstMeta =>
       const TaskConstMeta(
         debugName: "decline_knowledge_draft",
-        argNames: ["conversationId", "actionId"],
+        argNames: [
+          "conversationId",
+          "actionId",
+          "expectedVersion",
+          "approvalToken",
+        ],
       );
 
   @override
   Future<void> crateApiProviderConfigDeleteAiProviderConfig({
     required String id,
+    String? revisionToken,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_opt_String(revisionToken);
           return wire
               .wire__crate__api__provider_config__delete_ai_provider_config(
                 port_,
                 arg0,
+                arg1,
               );
         },
         codec: DcoCodec(
@@ -1309,7 +2254,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiProviderConfigDeleteAiProviderConfigConstMeta,
-        argValues: [id],
+        argValues: [id, revisionToken],
         apiImpl: this,
       ),
     );
@@ -1318,7 +2263,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiProviderConfigDeleteAiProviderConfigConstMeta =>
       const TaskConstMeta(
         debugName: "delete_ai_provider_config",
-        argNames: ["id"],
+        argNames: ["id", "revisionToken"],
       );
 
   @override
@@ -1376,6 +2321,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiEntitiesDeleteEntityFactConstMeta =>
       const TaskConstMeta(debugName: "delete_entity_fact", argNames: ["id"]);
+
+  @override
+  Future<void> crateApiDeleteEventEmotion({
+    required String id,
+    String? target,
+    required String feeling,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_opt_String(target);
+          var arg2 = cst_encode_String(feeling);
+          return wire.wire__crate__api__delete_event_emotion(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDeleteEventEmotionConstMeta,
+        argValues: [id, target, feeling],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDeleteEventEmotionConstMeta => const TaskConstMeta(
+    debugName: "delete_event_emotion",
+    argNames: ["id", "target", "feeling"],
+  );
 
   @override
   Future<bool> crateApiRelationsDeleteRelation({required String id}) {
@@ -1444,6 +2424,89 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "delete_todo", argNames: ["id"]);
 
   @override
+  Future<bool> crateApiWikiDeleteWikiPage({required String slug}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          return wire.wire__crate__api__wiki__delete_wiki_page(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiDeleteWikiPageConstMeta,
+        argValues: [slug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiDeleteWikiPageConstMeta =>
+      const TaskConstMeta(debugName: "delete_wiki_page", argNames: ["slug"]);
+
+  @override
+  Future<void> crateApiSyncDiscardSyncJoinStaging({required String entryId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entryId);
+          return wire.wire__crate__api__sync__discard_sync_join_staging(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncDiscardSyncJoinStagingConstMeta,
+        argValues: [entryId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncDiscardSyncJoinStagingConstMeta =>
+      const TaskConstMeta(
+        debugName: "discard_sync_join_staging",
+        argNames: ["entryId"],
+      );
+
+  @override
+  Future<void> crateApiReviewReportDismissDeviation({
+    required String reportId,
+    required int index,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(reportId);
+          var arg1 = cst_encode_i_32(index);
+          return wire.wire__crate__api__review_report__dismiss_deviation(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReviewReportDismissDeviationConstMeta,
+        argValues: [reportId, index],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReviewReportDismissDeviationConstMeta =>
+      const TaskConstMeta(
+        debugName: "dismiss_deviation",
+        argNames: ["reportId", "index"],
+      );
+
+  @override
   Future<void> crateApiKnowledgeDismissKnowledgeIssue({
     required String fingerprint,
   }) {
@@ -1471,6 +2534,183 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "dismiss_knowledge_issue",
         argNames: ["fingerprint"],
+      );
+
+  @override
+  Future<ChatRunDto?> crateApiChatRunsDispatchChatInputQueue({
+    required String conversationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          return wire.wire__crate__api__chat_runs__dispatch_chat_input_queue(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_chat_run_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsDispatchChatInputQueueConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsDispatchChatInputQueueConstMeta =>
+      const TaskConstMeta(
+        debugName: "dispatch_chat_input_queue",
+        argNames: ["conversationId"],
+      );
+
+  @override
+  Future<String> crateApiSyncDownloadUpdateApk({
+    required String relayUrl,
+    required String buildHash,
+    required String apkSha256,
+    required PlatformInt64 apkSize,
+    required String destDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(relayUrl);
+          var arg1 = cst_encode_String(buildHash);
+          var arg2 = cst_encode_String(apkSha256);
+          var arg3 = cst_encode_i_64(apkSize);
+          var arg4 = cst_encode_String(destDir);
+          return wire.wire__crate__api__sync__download_update_apk(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncDownloadUpdateApkConstMeta,
+        argValues: [relayUrl, buildHash, apkSha256, apkSize, destDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncDownloadUpdateApkConstMeta =>
+      const TaskConstMeta(
+        debugName: "download_update_apk",
+        argNames: ["relayUrl", "buildHash", "apkSha256", "apkSize", "destDir"],
+      );
+
+  @override
+  Future<ChatProposalDto> crateApiChatProposalsEditChatProposal({
+    required ChatReviewRequest request,
+    required String argsJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_chat_review_request(request);
+          var arg1 = cst_encode_String(argsJson);
+          return wire.wire__crate__api__chat_proposals__edit_chat_proposal(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_chat_proposal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatProposalsEditChatProposalConstMeta,
+        argValues: [request, argsJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatProposalsEditChatProposalConstMeta =>
+      const TaskConstMeta(
+        debugName: "edit_chat_proposal",
+        argNames: ["request", "argsJson"],
+      );
+
+  @override
+  Future<PlatformInt64> crateApiChatRunsEnqueueChatInput({
+    required String conversationId,
+    required String inputMessageId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(inputMessageId);
+          return wire.wire__crate__api__chat_runs__enqueue_chat_input(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_64,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsEnqueueChatInputConstMeta,
+        argValues: [conversationId, inputMessageId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsEnqueueChatInputConstMeta =>
+      const TaskConstMeta(
+        debugName: "enqueue_chat_input",
+        argNames: ["conversationId", "inputMessageId"],
+      );
+
+  @override
+  Future<PlatformInt64> crateApiChatRunsEnqueueChatSupplement({
+    required String conversationId,
+    required String inputMessageId,
+    required String runId,
+    required String contextJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(inputMessageId);
+          var arg2 = cst_encode_String(runId);
+          var arg3 = cst_encode_String(contextJson);
+          return wire.wire__crate__api__chat_runs__enqueue_chat_supplement(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_64,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsEnqueueChatSupplementConstMeta,
+        argValues: [conversationId, inputMessageId, runId, contextJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsEnqueueChatSupplementConstMeta =>
+      const TaskConstMeta(
+        debugName: "enqueue_chat_supplement",
+        argNames: ["conversationId", "inputMessageId", "runId", "contextJson"],
       );
 
   @override
@@ -1502,6 +2742,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "ensure_wiki_page_chat",
         argNames: ["pageSlug"],
       );
+
+  @override
+  Future<EventStatsQuery> crateApiEventStatsEventStatsQueryDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__event_stats__event_stats_query_default(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_event_stats_query,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEventStatsEventStatsQueryDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEventStatsEventStatsQueryDefaultConstMeta =>
+      const TaskConstMeta(debugName: "event_stats_query_default", argNames: []);
 
   @override
   Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url}) {
@@ -1780,6 +3043,74 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_analysis_job_stats", argNames: []);
 
   @override
+  Future<ChatInputQueueDto> crateApiChatRunsGetChatInputQueue({
+    required String conversationId,
+    required PlatformInt64 afterId,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_i_64(afterId);
+          var arg2 = cst_encode_u_32(limit);
+          return wire.wire__crate__api__chat_runs__get_chat_input_queue(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_chat_input_queue_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsGetChatInputQueueConstMeta,
+        argValues: [conversationId, afterId, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsGetChatInputQueueConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_chat_input_queue",
+        argNames: ["conversationId", "afterId", "limit"],
+      );
+
+  @override
+  Future<ChatRunDto?> crateApiChatRunsGetChatRun({
+    required String conversationId,
+    required String runId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(runId);
+          return wire.wire__crate__api__chat_runs__get_chat_run(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_chat_run_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsGetChatRunConstMeta,
+        argValues: [conversationId, runId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsGetChatRunConstMeta => const TaskConstMeta(
+    debugName: "get_chat_run",
+    argNames: ["conversationId", "runId"],
+  );
+
+  @override
   Future<List<MessageDto>> crateApiConversationsGetChildMessages({
     required String parentId,
   }) {
@@ -1808,6 +3139,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "get_child_messages",
         argNames: ["parentId"],
       );
+
+  @override
+  Future<CompanionPrefsDto> crateApiGetCompanionPrefs() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__get_companion_prefs(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_companion_prefs_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGetCompanionPrefsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetCompanionPrefsConstMeta =>
+      const TaskConstMeta(debugName: "get_companion_prefs", argNames: []);
 
   @override
   Future<ConversationDto?> crateApiConversationsGetConversation({
@@ -2102,6 +3454,57 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<ChatRunDto?> crateApiChatRunsGetLatestChatRun({
+    required String conversationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          return wire.wire__crate__api__chat_runs__get_latest_chat_run(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_chat_run_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsGetLatestChatRunConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsGetLatestChatRunConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_latest_chat_run",
+        argNames: ["conversationId"],
+      );
+
+  @override
+  Future<LocalSyncStateDto> crateApiSyncGetLocalSyncState() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__get_local_sync_state(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_local_sync_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncGetLocalSyncStateConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncGetLocalSyncStateConstMeta =>
+      const TaskConstMeta(debugName: "get_local_sync_state", argNames: []);
+
+  @override
   Future<List<MessageDto>> crateApiConversationsGetMessageChain({
     required String messageId,
   }) {
@@ -2190,6 +3593,102 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<NetworkSettingsDto> crateApiWebSearchGetNetworkSettings() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__web_search__get_network_settings(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_network_settings_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWebSearchGetNetworkSettingsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebSearchGetNetworkSettingsConstMeta =>
+      const TaskConstMeta(debugName: "get_network_settings", argNames: []);
+
+  @override
+  Future<PeriodStatsDto> crateApiGetPeriodStats({
+    required String periodType,
+    required String date,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(periodType);
+          var arg1 = cst_encode_String(date);
+          return wire.wire__crate__api__get_period_stats(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_period_stats_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGetPeriodStatsConstMeta,
+        argValues: [periodType, date],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetPeriodStatsConstMeta => const TaskConstMeta(
+    debugName: "get_period_stats",
+    argNames: ["periodType", "date"],
+  );
+
+  @override
+  Future<ProcessorHandoffStateDto> crateApiSyncGetProcessorHandoffState() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__get_processor_handoff_state(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_processor_handoff_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncGetProcessorHandoffStateConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncGetProcessorHandoffStateConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_processor_handoff_state",
+        argNames: [],
+      );
+
+  @override
+  Future<String> crateApiRulesGetRuleTriggerMode() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__rules__get_rule_trigger_mode(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesGetRuleTriggerModeConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesGetRuleTriggerModeConstMeta =>
+      const TaskConstMeta(debugName: "get_rule_trigger_mode", argNames: []);
+
+  @override
   Future<SuggestionFeedback?> crateApiKnowledgeWorkflowsGetSuggestionFeedback({
     required String messageId,
   }) {
@@ -2219,6 +3718,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "get_suggestion_feedback",
         argNames: ["messageId"],
       );
+
+  @override
+  Future<SyncJoinStateDto> crateApiSyncGetSyncJoinState({
+    required String operationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(operationId);
+          return wire.wire__crate__api__sync__get_sync_join_state(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncGetSyncJoinStateConstMeta,
+        argValues: [operationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncGetSyncJoinStateConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_sync_join_state",
+        argNames: ["operationId"],
+      );
+
+  @override
+  Future<SyncRosterDto> crateApiSyncGetSyncRoster() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__get_sync_roster(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_roster_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncGetSyncRosterConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncGetSyncRosterConstMeta =>
+      const TaskConstMeta(debugName: "get_sync_roster", argNames: []);
 
   @override
   Future<ThemePrefsDto> crateApiThemeGetThemePrefs() {
@@ -2261,6 +3808,89 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTweetGetTweetFetchServiceConstMeta =>
       const TaskConstMeta(debugName: "get_tweet_fetch_service", argNames: []);
+
+  @override
+  Future<WebSearchConfigDto> crateApiWebSearchGetWebSearchConfig() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__web_search__get_web_search_config(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_web_search_config_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWebSearchGetWebSearchConfigConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebSearchGetWebSearchConfigConstMeta =>
+      const TaskConstMeta(debugName: "get_web_search_config", argNames: []);
+
+  @override
+  Future<WikiChatMaterialDto> crateApiWikiChatGetWikiChatMaterial({
+    required String pageSlug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(pageSlug);
+          return wire.wire__crate__api__wiki_chat__get_wiki_chat_material(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_chat_material_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiChatGetWikiChatMaterialConstMeta,
+        argValues: [pageSlug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiChatGetWikiChatMaterialConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_wiki_chat_material",
+        argNames: ["pageSlug"],
+      );
+
+  @override
+  Future<String?> crateApiWikiChatGetWikiChatTask({
+    required String conversationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          return wire.wire__crate__api__wiki_chat__get_wiki_chat_task(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiChatGetWikiChatTaskConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiChatGetWikiChatTaskConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_wiki_chat_task",
+        argNames: ["conversationId"],
+      );
 
   @override
   Future<WikiPageDto?> crateApiWikiGetWikiPage({required String slug}) {
@@ -2327,6 +3957,138 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiInitBridgeConstMeta =>
       const TaskConstMeta(debugName: "init_bridge", argNames: ["databasePath"]);
+
+  @override
+  Future<SyncInvitationPreviewDto?> crateApiSyncInspectOwnerSyncInvitation({
+    required String invitationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(invitationId);
+          return wire.wire__crate__api__sync__inspect_owner_sync_invitation(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData:
+              dco_decode_opt_box_autoadd_sync_invitation_preview_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncInspectOwnerSyncInvitationConstMeta,
+        argValues: [invitationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncInspectOwnerSyncInvitationConstMeta =>
+      const TaskConstMeta(
+        debugName: "inspect_owner_sync_invitation",
+        argNames: ["invitationId"],
+      );
+
+  @override
+  Future<SyncJoinStateDto> crateApiSyncInspectSyncJoinApproval({
+    required String operationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(operationId);
+          return wire.wire__crate__api__sync__inspect_sync_join_approval(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncInspectSyncJoinApprovalConstMeta,
+        argValues: [operationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncInspectSyncJoinApprovalConstMeta =>
+      const TaskConstMeta(
+        debugName: "inspect_sync_join_approval",
+        argNames: ["operationId"],
+      );
+
+  @override
+  Future<SyncJoinStateDto> crateApiSyncInstallSyncJoinKey({
+    required String token,
+    required List<int> key,
+    required PlatformInt64 protectedRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(token);
+          var arg1 = cst_encode_list_prim_u_8_loose(key);
+          var arg2 = cst_encode_i_64(protectedRevision);
+          return wire.wire__crate__api__sync__install_sync_join_key(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncInstallSyncJoinKeyConstMeta,
+        argValues: [token, key, protectedRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncInstallSyncJoinKeyConstMeta =>
+      const TaskConstMeta(
+        debugName: "install_sync_join_key",
+        argNames: ["token", "key", "protectedRevision"],
+      );
+
+  @override
+  Future<SyncKeyCommitDto> crateApiSyncInstallSyncKey({
+    required String token,
+    required List<int> key,
+    required PlatformInt64 protectedRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(token);
+          var arg1 = cst_encode_list_prim_u_8_loose(key);
+          var arg2 = cst_encode_i_64(protectedRevision);
+          return wire.wire__crate__api__sync__install_sync_key(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_key_commit_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncInstallSyncKeyConstMeta,
+        argValues: [token, key, protectedRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncInstallSyncKeyConstMeta => const TaskConstMeta(
+    debugName: "install_sync_key",
+    argNames: ["token", "key", "protectedRevision"],
+  );
 
   @override
   Future<String> crateApiKnowledgeWorkflowsKnowledgeReadingState({
@@ -2510,6 +4272,153 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<ChatDecisionDto>> crateApiChatProposalsListChatDecisions({
+    String? conversationId,
+    required int offset,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(conversationId);
+          var arg1 = cst_encode_u_32(offset);
+          var arg2 = cst_encode_u_32(limit);
+          return wire.wire__crate__api__chat_proposals__list_chat_decisions(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_chat_decision_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatProposalsListChatDecisionsConstMeta,
+        argValues: [conversationId, offset, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatProposalsListChatDecisionsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_chat_decisions",
+        argNames: ["conversationId", "offset", "limit"],
+      );
+
+  @override
+  Future<List<ChatProposalDto>> crateApiChatProposalsListChatProposals({
+    String? conversationId,
+    required int offset,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(conversationId);
+          var arg1 = cst_encode_u_32(offset);
+          var arg2 = cst_encode_u_32(limit);
+          return wire.wire__crate__api__chat_proposals__list_chat_proposals(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_chat_proposal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatProposalsListChatProposalsConstMeta,
+        argValues: [conversationId, offset, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatProposalsListChatProposalsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_chat_proposals",
+        argNames: ["conversationId", "offset", "limit"],
+      );
+
+  @override
+  Future<ChatRunEventPageDto> crateApiChatRunsListChatRunEvents({
+    required String conversationId,
+    required String runId,
+    required PlatformInt64 afterSequence,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(runId);
+          var arg2 = cst_encode_i_64(afterSequence);
+          var arg3 = cst_encode_u_32(limit);
+          return wire.wire__crate__api__chat_runs__list_chat_run_events(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_chat_run_event_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsListChatRunEventsConstMeta,
+        argValues: [conversationId, runId, afterSequence, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsListChatRunEventsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_chat_run_events",
+        argNames: ["conversationId", "runId", "afterSequence", "limit"],
+      );
+
+  @override
+  Future<List<ChatRunDto>> crateApiChatRunsListChatRuns({
+    required String conversationId,
+    required int offset,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_u_32(offset);
+          var arg2 = cst_encode_u_32(limit);
+          return wire.wire__crate__api__chat_runs__list_chat_runs(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_chat_run_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsListChatRunsConstMeta,
+        argValues: [conversationId, offset, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsListChatRunsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_chat_runs",
+        argNames: ["conversationId", "offset", "limit"],
+      );
+
+  @override
   Future<List<ConversationDto>> crateApiConversationsListConversations() {
     return handler.executeNormal(
       NormalTask(
@@ -2553,6 +4462,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiListDailyEntriesConstMeta =>
       const TaskConstMeta(debugName: "list_daily_entries", argNames: ["date"]);
+
+  @override
+  Future<List<DeviationReportDto>> crateApiReviewReportListDeviationReports({
+    required String periodType,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(periodType);
+          var arg1 = cst_encode_i_32(limit);
+          return wire.wire__crate__api__review_report__list_deviation_reports(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_deviation_report_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReviewReportListDeviationReportsConstMeta,
+        argValues: [periodType, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReviewReportListDeviationReportsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_deviation_reports",
+        argNames: ["periodType", "limit"],
+      );
 
   @override
   Future<List<String>> crateApiEntitiesListEntityAliases({
@@ -2618,6 +4560,57 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "list_entity_facts",
         argNames: ["entityKind", "entitySlug"],
+      );
+
+  @override
+  Future<List<EventEmotionDto>> crateApiListEventEmotions() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__list_event_emotions(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_event_emotion_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListEventEmotionsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListEventEmotionsConstMeta =>
+      const TaskConstMeta(debugName: "list_event_emotions", argNames: []);
+
+  @override
+  Future<List<RuleHitDto>> crateApiRulesListEventRuleHits({
+    required String eventId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(eventId);
+          return wire.wire__crate__api__rules__list_event_rule_hits(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_rule_hit_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesListEventRuleHitsConstMeta,
+        argValues: [eventId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesListEventRuleHitsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_event_rule_hits",
+        argNames: ["eventId"],
       );
 
   @override
@@ -2968,6 +4961,51 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<ObjectConflictDto>> crateApiSyncListObjectConflicts() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__list_object_conflicts(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_object_conflict_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncListObjectConflictsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncListObjectConflictsConstMeta =>
+      const TaskConstMeta(debugName: "list_object_conflicts", argNames: []);
+
+  @override
+  Future<List<PageGuidanceDto>> crateApiListPageGuidance({
+    required String slug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          return wire.wire__crate__api__list_page_guidance(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_page_guidance_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListPageGuidanceConstMeta,
+        argValues: [slug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListPageGuidanceConstMeta =>
+      const TaskConstMeta(debugName: "list_page_guidance", argNames: ["slug"]);
+
+  @override
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
   }) {
@@ -2995,6 +5033,85 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "list_pending_actions",
         argNames: ["conversationId"],
+      );
+
+  @override
+  Future<List<SyncJoinEntryDto>> crateApiSyncListPendingSyncJoins() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__list_pending_sync_joins(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_sync_join_entry_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncListPendingSyncJoinsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncListPendingSyncJoinsConstMeta =>
+      const TaskConstMeta(debugName: "list_pending_sync_joins", argNames: []);
+
+  @override
+  Future<List<EventSummaryDto>> crateApiListRecentEvents({
+    required PlatformInt64 days,
+    required PlatformInt64 limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_i_64(days);
+          var arg1 = cst_encode_i_64(limit);
+          return wire.wire__crate__api__list_recent_events(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_event_summary_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListRecentEventsConstMeta,
+        argValues: [days, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListRecentEventsConstMeta => const TaskConstMeta(
+    debugName: "list_recent_events",
+    argNames: ["days", "limit"],
+  );
+
+  @override
+  Future<List<RuleHitDto>> crateApiRulesListRecentRuleHits({
+    required PlatformInt64 limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_i_64(limit);
+          return wire.wire__crate__api__rules__list_recent_rule_hits(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_rule_hit_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesListRecentRuleHitsConstMeta,
+        argValues: [limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesListRecentRuleHitsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_recent_rule_hits",
+        argNames: ["limit"],
       );
 
   @override
@@ -3070,6 +5187,76 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_rules", argNames: []);
 
   @override
+  Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
+  crateApiSyncListSyncDatasets() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__list_sync_datasets(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_record_list_sync_dataset_entry_dto_i_64,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncListSyncDatasetsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncListSyncDatasetsConstMeta =>
+      const TaskConstMeta(debugName: "list_sync_datasets", argNames: []);
+
+  @override
+  Future<List<SyncEnrollmentStateDto>> crateApiSyncListSyncEnrollments() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__list_sync_enrollments(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_sync_enrollment_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncListSyncEnrollmentsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncListSyncEnrollmentsConstMeta =>
+      const TaskConstMeta(debugName: "list_sync_enrollments", argNames: []);
+
+  @override
+  Future<List<ProviderSyncConflictDto>>
+  crateApiSyncListSyncProviderConflicts() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__list_sync_provider_conflicts(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_provider_sync_conflict_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncListSyncProviderConflictsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncListSyncProviderConflictsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_sync_provider_conflicts",
+        argNames: [],
+      );
+
+  @override
   Future<List<SystemFontFace>> crateApiFontsListSystemFonts() {
     return handler.executeNormal(
       NormalTask(
@@ -3142,6 +5329,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<UnscheduledChatInputDto>>
+  crateApiChatRunsListUnscheduledChatInputs({
+    required String conversationId,
+    required int offset,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_u_32(offset);
+          var arg2 = cst_encode_u_32(limit);
+          return wire.wire__crate__api__chat_runs__list_unscheduled_chat_inputs(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_unscheduled_chat_input_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsListUnscheduledChatInputsConstMeta,
+        argValues: [conversationId, offset, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsListUnscheduledChatInputsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_unscheduled_chat_inputs",
+        argNames: ["conversationId", "offset", "limit"],
+      );
+
+  @override
+  Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__list_wiki_page_conflicts(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_wiki_page_conflict_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncListWikiPageConflictsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncListWikiPageConflictsConstMeta =>
+      const TaskConstMeta(debugName: "list_wiki_page_conflicts", argNames: []);
+
+  @override
   Future<List<WikiPageDto>> crateApiWikiListWikiPageDerivatives({
     required String slug,
   }) {
@@ -3169,6 +5414,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "list_wiki_page_derivatives",
         argNames: ["slug"],
+      );
+
+  @override
+  Future<List<WikiPageMetaDto>> crateApiWikiListWikiPageMetas({
+    PlatformInt64? limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_box_autoadd_i_64(limit);
+          return wire.wire__crate__api__wiki__list_wiki_page_metas(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_wiki_page_meta_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiListWikiPageMetasConstMeta,
+        argValues: [limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiListWikiPageMetasConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_wiki_page_metas",
+        argNames: ["limit"],
       );
 
   @override
@@ -3202,6 +5474,58 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "list_wiki_pages",
     argNames: ["kind", "area"],
   );
+
+  @override
+  Future<LocalSyncStateDto> crateApiSyncLockLocalSync() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__lock_local_sync(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_local_sync_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncLockLocalSyncConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncLockLocalSyncConstMeta =>
+      const TaskConstMeta(debugName: "lock_local_sync", argNames: []);
+
+  @override
+  Future<void> crateApiReviewReportMarkDeviationReportRead({
+    required String id,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire
+              .wire__crate__api__review_report__mark_deviation_report_read(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReviewReportMarkDeviationReportReadConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReviewReportMarkDeviationReportReadConstMeta =>
+      const TaskConstMeta(
+        debugName: "mark_deviation_report_read",
+        argNames: ["id"],
+      );
 
   @override
   Future<bool> crateApiEntitiesMergeEntity({
@@ -3260,6 +5584,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTodosOpenTodoWorkItemConstMeta =>
       const TaskConstMeta(debugName: "open_todo_work_item", argNames: ["id"]);
+
+  @override
+  Future<void> crateApiChatRunsPauseChatInputQueue({
+    required String conversationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          return wire.wire__crate__api__chat_runs__pause_chat_input_queue(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsPauseChatInputQueueConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsPauseChatInputQueueConstMeta =>
+      const TaskConstMeta(
+        debugName: "pause_chat_input_queue",
+        argNames: ["conversationId"],
+      );
 
   @override
   Future<String> crateApiKnowledgePrepareKnowledgeRestore({
@@ -3329,6 +5683,121 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<SyncJoinStateDto> crateApiSyncPrepareSyncJoinKey({
+    required String previewToken,
+    required String name,
+    required String platform,
+    required bool acknowledgeProviderKeySharing,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(previewToken);
+          var arg1 = cst_encode_String(name);
+          var arg2 = cst_encode_String(platform);
+          var arg3 = cst_encode_bool(acknowledgeProviderKeySharing);
+          return wire.wire__crate__api__sync__prepare_sync_join_key(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncPrepareSyncJoinKeyConstMeta,
+        argValues: [
+          previewToken,
+          name,
+          platform,
+          acknowledgeProviderKeySharing,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncPrepareSyncJoinKeyConstMeta =>
+      const TaskConstMeta(
+        debugName: "prepare_sync_join_key",
+        argNames: [
+          "previewToken",
+          "name",
+          "platform",
+          "acknowledgeProviderKeySharing",
+        ],
+      );
+
+  @override
+  Future<SyncJoinStateDto> crateApiSyncPrepareSyncJoinResume({
+    required String entryId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entryId);
+          return wire.wire__crate__api__sync__prepare_sync_join_resume(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncPrepareSyncJoinResumeConstMeta,
+        argValues: [entryId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncPrepareSyncJoinResumeConstMeta =>
+      const TaskConstMeta(
+        debugName: "prepare_sync_join_resume",
+        argNames: ["entryId"],
+      );
+
+  @override
+  Future<SyncKeyRequestDto> crateApiSyncPrepareSyncKeyRequest({
+    String? name,
+    String? platform,
+    required bool acknowledgeProviderKeySharing,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(name);
+          var arg1 = cst_encode_opt_String(platform);
+          var arg2 = cst_encode_bool(acknowledgeProviderKeySharing);
+          return wire.wire__crate__api__sync__prepare_sync_key_request(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_key_request_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncPrepareSyncKeyRequestConstMeta,
+        argValues: [name, platform, acknowledgeProviderKeySharing],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncPrepareSyncKeyRequestConstMeta =>
+      const TaskConstMeta(
+        debugName: "prepare_sync_key_request",
+        argNames: ["name", "platform", "acknowledgeProviderKeySharing"],
+      );
+
+  @override
   Future<String> crateApiKnowledgePrepareTopicOrganization({
     required List<String> slugs,
     required String mode,
@@ -3392,6 +5861,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "preview_knowledge_source",
         argNames: ["sourceUrl", "contentMd"],
+      );
+
+  @override
+  Future<SyncJoinStateDto> crateApiSyncPreviewSyncJoin({
+    required String invitationCode,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(invitationCode);
+          return wire.wire__crate__api__sync__preview_sync_join(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncPreviewSyncJoinConstMeta,
+        argValues: [invitationCode],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncPreviewSyncJoinConstMeta =>
+      const TaskConstMeta(
+        debugName: "preview_sync_join",
+        argNames: ["invitationCode"],
       );
 
   @override
@@ -3553,6 +6049,59 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiSyncReleaseSyncJoin({required String operationId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(operationId);
+          return wire.wire__crate__api__sync__release_sync_join(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncReleaseSyncJoinConstMeta,
+        argValues: [operationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncReleaseSyncJoinConstMeta =>
+      const TaskConstMeta(
+        debugName: "release_sync_join",
+        argNames: ["operationId"],
+      );
+
+  @override
+  Future<bool> crateApiSyncReleaseSyncKeyRequest({required String token}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(token);
+          return wire.wire__crate__api__sync__release_sync_key_request(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncReleaseSyncKeyRequestConstMeta,
+        argValues: [token],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncReleaseSyncKeyRequestConstMeta =>
+      const TaskConstMeta(
+        debugName: "release_sync_key_request",
+        argNames: ["token"],
+      );
+
+  @override
   Future<void> crateApiConversationsRenameConversation({
     required String conversationId,
     required String title,
@@ -3583,6 +6132,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "rename_conversation",
         argNames: ["conversationId", "title"],
+      );
+
+  @override
+  Future<PlatformInt64> crateApiSyncRenameSyncDevice({
+    required String deviceId,
+    required String newName,
+    required PlatformInt64 expectedVaultRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_String(newName);
+          var arg2 = cst_encode_i_64(expectedVaultRevision);
+          return wire.wire__crate__api__sync__rename_sync_device(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_64,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncRenameSyncDeviceConstMeta,
+        argValues: [deviceId, newName, expectedVaultRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncRenameSyncDeviceConstMeta =>
+      const TaskConstMeta(
+        debugName: "rename_sync_device",
+        argNames: ["deviceId", "newName", "expectedVaultRevision"],
       );
 
   @override
@@ -3695,6 +6280,91 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiSyncResolveObjectConflict({
+    required String opId,
+    String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(opId);
+          var arg1 = cst_encode_opt_String(expectedLocalUpdatedAt);
+          var arg2 = cst_encode_bool(acceptRemote);
+          return wire.wire__crate__api__sync__resolve_object_conflict(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncResolveObjectConflictConstMeta,
+        argValues: [opId, expectedLocalUpdatedAt, acceptRemote],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncResolveObjectConflictConstMeta =>
+      const TaskConstMeta(
+        debugName: "resolve_object_conflict",
+        argNames: ["opId", "expectedLocalUpdatedAt", "acceptRemote"],
+      );
+
+  @override
+  Future<void> crateApiSyncResolveSyncProviderConflict({
+    required String revisionId,
+    required String expectedLocalRevision,
+    required String expectedRemoteRevision,
+    required bool acceptRemote,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(revisionId);
+          var arg1 = cst_encode_String(expectedLocalRevision);
+          var arg2 = cst_encode_String(expectedRemoteRevision);
+          var arg3 = cst_encode_bool(acceptRemote);
+          return wire.wire__crate__api__sync__resolve_sync_provider_conflict(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncResolveSyncProviderConflictConstMeta,
+        argValues: [
+          revisionId,
+          expectedLocalRevision,
+          expectedRemoteRevision,
+          acceptRemote,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncResolveSyncProviderConflictConstMeta =>
+      const TaskConstMeta(
+        debugName: "resolve_sync_provider_conflict",
+        argNames: [
+          "revisionId",
+          "expectedLocalRevision",
+          "expectedRemoteRevision",
+          "acceptRemote",
+        ],
+      );
+
+  @override
   Future<List<String>> crateApiKnowledgeResolveTopicOrganization({
     required String id,
     required bool accept,
@@ -3725,6 +6395,105 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "resolve_topic_organization",
         argNames: ["id", "accept"],
+      );
+
+  @override
+  Future<void> crateApiSyncResolveWikiPageConflict({
+    required String opId,
+    String? expectedLocalUpdatedAt,
+    required bool acceptRemote,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(opId);
+          var arg1 = cst_encode_opt_String(expectedLocalUpdatedAt);
+          var arg2 = cst_encode_bool(acceptRemote);
+          return wire.wire__crate__api__sync__resolve_wiki_page_conflict(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncResolveWikiPageConflictConstMeta,
+        argValues: [opId, expectedLocalUpdatedAt, acceptRemote],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncResolveWikiPageConflictConstMeta =>
+      const TaskConstMeta(
+        debugName: "resolve_wiki_page_conflict",
+        argNames: ["opId", "expectedLocalUpdatedAt", "acceptRemote"],
+      );
+
+  @override
+  Future<void> crateApiChatRunsResumeChatInputQueue({
+    required String conversationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          return wire.wire__crate__api__chat_runs__resume_chat_input_queue(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsResumeChatInputQueueConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsResumeChatInputQueueConstMeta =>
+      const TaskConstMeta(
+        debugName: "resume_chat_input_queue",
+        argNames: ["conversationId"],
+      );
+
+  @override
+  Future<void> crateApiSyncRevokeSyncMember({
+    required String deviceId,
+    required PlatformInt64 expectedRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_i_64(expectedRevision);
+          return wire.wire__crate__api__sync__revoke_sync_member(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncRevokeSyncMemberConstMeta,
+        argValues: [deviceId, expectedRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncRevokeSyncMemberConstMeta =>
+      const TaskConstMeta(
+        debugName: "revoke_sync_member",
+        argNames: ["deviceId", "expectedRevision"],
       );
 
   @override
@@ -3795,6 +6564,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "save_daily_review",
     argNames: ["date", "resultJson", "promptVersion", "sourceEventIds"],
   );
+
+  @override
+  Future<void> crateApiWebSearchSaveDohSettings({
+    required String dohUri,
+    required String dohMode,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(dohUri);
+          var arg1 = cst_encode_String(dohMode);
+          return wire.wire__crate__api__web_search__save_doh_settings(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWebSearchSaveDohSettingsConstMeta,
+        argValues: [dohUri, dohMode],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebSearchSaveDohSettingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_doh_settings",
+        argNames: ["dohUri", "dohMode"],
+      );
 
   @override
   Future<WikiPageDto> crateApiImportSaveImportedPage({
@@ -3915,6 +6717,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<WikiPageDto> crateApiTweetSaveTopicPage({
+    required String text,
+    String? title,
+    required List<String> tags,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(text);
+          var arg1 = cst_encode_opt_String(title);
+          var arg2 = cst_encode_list_String(tags);
+          return wire.wire__crate__api__tweet__save_topic_page(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTweetSaveTopicPageConstMeta,
+        argValues: [text, title, tags],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTweetSaveTopicPageConstMeta => const TaskConstMeta(
+    debugName: "save_topic_page",
+    argNames: ["text", "title", "tags"],
+  );
+
+  @override
   Future<WikiPageDto> crateApiTweetSaveTweetPage({
     required String tweetId,
     required String text,
@@ -3956,6 +6793,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiWebSearchSaveWebSearchConfig({
+    required bool enabled,
+    required String engine,
+    required String baseUrl,
+    required String apiKey,
+    required PlatformInt64 maxResults,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_bool(enabled);
+          var arg1 = cst_encode_String(engine);
+          var arg2 = cst_encode_String(baseUrl);
+          var arg3 = cst_encode_String(apiKey);
+          var arg4 = cst_encode_i_64(maxResults);
+          return wire.wire__crate__api__web_search__save_web_search_config(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWebSearchSaveWebSearchConfigConstMeta,
+        argValues: [enabled, engine, baseUrl, apiKey, maxResults],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebSearchSaveWebSearchConfigConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_web_search_config",
+        argNames: ["enabled", "engine", "baseUrl", "apiKey", "maxResults"],
+      );
+
+  @override
   Future<WikiPageDto> crateApiWikiSaveWikiPageContent({
     required String slug,
     required String contentMd,
@@ -3992,6 +6871,94 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "save_wiki_page_content",
         argNames: ["slug", "contentMd", "reason", "expectedUpdatedAt"],
+      );
+
+  @override
+  Future<ChatRunDto?> crateApiChatRunsScheduleChatInput({
+    required String conversationId,
+    required String inputMessageId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(inputMessageId);
+          return wire.wire__crate__api__chat_runs__schedule_chat_input(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_chat_run_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsScheduleChatInputConstMeta,
+        argValues: [conversationId, inputMessageId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsScheduleChatInputConstMeta =>
+      const TaskConstMeta(
+        debugName: "schedule_chat_input",
+        argNames: ["conversationId", "inputMessageId"],
+      );
+
+  @override
+  Future<void> crateApiSyncSelectDefaultSyncDataset({
+    required PlatformInt64 expectedCatalogRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_i_64(expectedCatalogRevision);
+          return wire.wire__crate__api__sync__select_default_sync_dataset(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncSelectDefaultSyncDatasetConstMeta,
+        argValues: [expectedCatalogRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncSelectDefaultSyncDatasetConstMeta =>
+      const TaskConstMeta(
+        debugName: "select_default_sync_dataset",
+        argNames: ["expectedCatalogRevision"],
+      );
+
+  @override
+  Future<void> crateApiSyncSelectSyncDataset({required String entryId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entryId);
+          return wire.wire__crate__api__sync__select_sync_dataset(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncSelectSyncDatasetConstMeta,
+        argValues: [entryId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncSelectSyncDatasetConstMeta =>
+      const TaskConstMeta(
+        debugName: "select_sync_dataset",
+        argNames: ["entryId"],
       );
 
   @override
@@ -4034,17 +7001,107 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiSyncSendOwnerSyncApproval({
+    required String invitationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(invitationId);
+          return wire.wire__crate__api__sync__send_owner_sync_approval(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncSendOwnerSyncApprovalConstMeta,
+        argValues: [invitationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncSendOwnerSyncApprovalConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_owner_sync_approval",
+        argNames: ["invitationId"],
+      );
+
+  @override
+  Future<SyncJoinStateDto> crateApiSyncSendSyncJoinProof({
+    required String operationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(operationId);
+          return wire.wire__crate__api__sync__send_sync_join_proof(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncSendSyncJoinProofConstMeta,
+        argValues: [operationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncSendSyncJoinProofConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_sync_join_proof",
+        argNames: ["operationId"],
+      );
+
+  @override
+  Future<SyncJoinStateDto> crateApiSyncSendSyncJoinRequest({
+    required String operationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(operationId);
+          return wire.wire__crate__api__sync__send_sync_join_request(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncSendSyncJoinRequestConstMeta,
+        argValues: [operationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncSendSyncJoinRequestConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_sync_join_request",
+        argNames: ["operationId"],
+      );
+
+  @override
   Future<void> crateApiProviderConfigSetActiveAiProviderConfig({
     required String id,
+    String? revisionToken,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_opt_String(revisionToken);
           return wire
               .wire__crate__api__provider_config__set_active_ai_provider_config(
                 port_,
                 arg0,
+                arg1,
               );
         },
         codec: DcoCodec(
@@ -4052,7 +7109,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiProviderConfigSetActiveAiProviderConfigConstMeta,
-        argValues: [id],
+        argValues: [id, revisionToken],
         apiImpl: this,
       ),
     );
@@ -4061,8 +7118,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiProviderConfigSetActiveAiProviderConfigConstMeta =>
       const TaskConstMeta(
         debugName: "set_active_ai_provider_config",
-        argNames: ["id"],
+        argNames: ["id", "revisionToken"],
       );
+
+  @override
+  Future<void> crateApiSetCompanionPrefs({
+    required bool enabled,
+    required PlatformInt64 intervalDays,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_bool(enabled);
+          var arg1 = cst_encode_i_64(intervalDays);
+          return wire.wire__crate__api__set_companion_prefs(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetCompanionPrefsConstMeta,
+        argValues: [enabled, intervalDays],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetCompanionPrefsConstMeta => const TaskConstMeta(
+    debugName: "set_companion_prefs",
+    argNames: ["enabled", "intervalDays"],
+  );
 
   @override
   Future<void> crateApiConversationsSetConversationArchived({
@@ -4132,6 +7217,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiSetGuidanceFeedback({
+    required String analysisId,
+    required String slug,
+    String? note,
+    String? feedback,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(analysisId);
+          var arg1 = cst_encode_String(slug);
+          var arg2 = cst_encode_opt_String(note);
+          var arg3 = cst_encode_opt_String(feedback);
+          return wire.wire__crate__api__set_guidance_feedback(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetGuidanceFeedbackConstMeta,
+        argValues: [analysisId, slug, note, feedback],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetGuidanceFeedbackConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_guidance_feedback",
+        argNames: ["analysisId", "slug", "note", "feedback"],
+      );
+
+  @override
   Future<void> crateApiKnowledgeWorkflowsSetKnowledgeReadingState({
     required String slug,
     required String state,
@@ -4167,6 +7291,103 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiRulesSetRuleHitFeedback({
+    required String id,
+    String? feedback,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_opt_String(feedback);
+          return wire.wire__crate__api__rules__set_rule_hit_feedback(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesSetRuleHitFeedbackConstMeta,
+        argValues: [id, feedback],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesSetRuleHitFeedbackConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_rule_hit_feedback",
+        argNames: ["id", "feedback"],
+      );
+
+  @override
+  Future<void> crateApiRulesSetRuleTrigger({
+    required String ruleId,
+    required String triggerScene,
+    required List<String> triggerKeywords,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(ruleId);
+          var arg1 = cst_encode_String(triggerScene);
+          var arg2 = cst_encode_list_String(triggerKeywords);
+          return wire.wire__crate__api__rules__set_rule_trigger(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesSetRuleTriggerConstMeta,
+        argValues: [ruleId, triggerScene, triggerKeywords],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesSetRuleTriggerConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_rule_trigger",
+        argNames: ["ruleId", "triggerScene", "triggerKeywords"],
+      );
+
+  @override
+  Future<void> crateApiRulesSetRuleTriggerMode({required String mode}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(mode);
+          return wire.wire__crate__api__rules__set_rule_trigger_mode(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesSetRuleTriggerModeConstMeta,
+        argValues: [mode],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesSetRuleTriggerModeConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_rule_trigger_mode",
+        argNames: ["mode"],
+      );
+
+  @override
   Future<WikiPageDto> crateApiWikiSetWikiOpinion({
     required String slug,
     String? opinion,
@@ -4197,6 +7418,63 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "set_wiki_opinion",
     argNames: ["slug", "opinion"],
   );
+
+  @override
+  Future<int> crateApiChatRunsShutdownChatRuns() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__chat_runs__shutdown_chat_runs(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_u_32,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsShutdownChatRunsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsShutdownChatRunsConstMeta =>
+      const TaskConstMeta(debugName: "shutdown_chat_runs", argNames: []);
+
+  @override
+  Future<ChatRunDto> crateApiChatRunsStartChatRun({
+    required String conversationId,
+    required String inputMessageId,
+    required String idempotencyKey,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(inputMessageId);
+          var arg2 = cst_encode_String(idempotencyKey);
+          return wire.wire__crate__api__chat_runs__start_chat_run(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_chat_run_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsStartChatRunConstMeta,
+        argValues: [conversationId, inputMessageId, idempotencyKey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsStartChatRunConstMeta =>
+      const TaskConstMeta(
+        debugName: "start_chat_run",
+        argNames: ["conversationId", "inputMessageId", "idempotencyKey"],
+      );
 
   @override
   Future<InputRecordDto> crateApiSubmitConversationInput({
@@ -4265,6 +7543,73 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<MessageDto> crateApiWikiChatSubmitWikiChatInput({
+    required String conversationId,
+    required String content,
+    required String idempotencyKey,
+    required String taskJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(content);
+          var arg2 = cst_encode_String(idempotencyKey);
+          var arg3 = cst_encode_String(taskJson);
+          return wire.wire__crate__api__wiki_chat__submit_wiki_chat_input(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_message_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiChatSubmitWikiChatInputConstMeta,
+        argValues: [conversationId, content, idempotencyKey, taskJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiChatSubmitWikiChatInputConstMeta =>
+      const TaskConstMeta(
+        debugName: "submit_wiki_chat_input",
+        argNames: ["conversationId", "content", "idempotencyKey", "taskJson"],
+      );
+
+  @override
+  Future<String> crateApiWebSearchTestDohConnection({required String dohUri}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(dohUri);
+          return wire.wire__crate__api__web_search__test_doh_connection(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWebSearchTestDohConnectionConstMeta,
+        argValues: [dohUri],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebSearchTestDohConnectionConstMeta =>
+      const TaskConstMeta(
+        debugName: "test_doh_connection",
+        argNames: ["dohUri"],
+      );
+
+  @override
   Future<PlatformInt64> crateApiKnowledgeTickKnowledgeInsights() {
     return handler.executeNormal(
       NormalTask(
@@ -4286,6 +7631,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKnowledgeTickKnowledgeInsightsConstMeta =>
       const TaskConstMeta(debugName: "tick_knowledge_insights", argNames: []);
+
+  @override
+  Future<PeriodReportTickResult> crateApiReviewReportTickPeriodicReports() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__review_report__tick_periodic_reports(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_period_report_tick_result,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReviewReportTickPeriodicReportsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReviewReportTickPeriodicReportsConstMeta =>
+      const TaskConstMeta(debugName: "tick_periodic_reports", argNames: []);
 
   @override
   Future<List<TopicOrganizationPreview>>
@@ -4368,6 +7736,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKnowledgeDigestTriggerKnowledgeDigestConstMeta =>
       const TaskConstMeta(debugName: "trigger_knowledge_digest", argNames: []);
+
+  @override
+  Future<SyncTickResultDto> crateApiSyncTriggerNetworkSync() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__trigger_network_sync(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_tick_result_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncTriggerNetworkSyncConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncTriggerNetworkSyncConstMeta =>
+      const TaskConstMeta(debugName: "trigger_network_sync", argNames: []);
 
   @override
   Future<bool> crateApiEntitiesUndoEntityMerge({required String sourceSlug}) {
@@ -4538,19 +7927,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<bool> crateApiConversationsUpdatePendingActionArgs({
+    required String conversationId,
     required String actionId,
+    required PlatformInt64 expectedVersion,
+    required String approvalToken,
     required String argsJson,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          var arg0 = cst_encode_String(actionId);
-          var arg1 = cst_encode_String(argsJson);
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(actionId);
+          var arg2 = cst_encode_i_64(expectedVersion);
+          var arg3 = cst_encode_String(approvalToken);
+          var arg4 = cst_encode_String(argsJson);
           return wire
               .wire__crate__api__conversations__update_pending_action_args(
                 port_,
                 arg0,
                 arg1,
+                arg2,
+                arg3,
+                arg4,
               );
         },
         codec: DcoCodec(
@@ -4558,7 +7956,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiConversationsUpdatePendingActionArgsConstMeta,
-        argValues: [actionId, argsJson],
+        argValues: [
+          conversationId,
+          actionId,
+          expectedVersion,
+          approvalToken,
+          argsJson,
+        ],
         apiImpl: this,
       ),
     );
@@ -4567,7 +7971,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiConversationsUpdatePendingActionArgsConstMeta =>
       const TaskConstMeta(
         debugName: "update_pending_action_args",
-        argNames: ["actionId", "argsJson"],
+        argNames: [
+          "conversationId",
+          "actionId",
+          "expectedVersion",
+          "approvalToken",
+          "argsJson",
+        ],
       );
 
   @override
@@ -4801,6 +8211,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     argNames: ["slug", "tags"],
   );
 
+  @override
+  Future<bool> crateApiChatRunsWithdrawChatInput({
+    required String conversationId,
+    required PlatformInt64 queueId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_i_64(queueId);
+          return wire.wire__crate__api__chat_runs__withdraw_chat_input(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiChatRunsWithdrawChatInputConstMeta,
+        argValues: [conversationId, queueId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatRunsWithdrawChatInputConstMeta =>
+      const TaskConstMeta(
+        debugName: "withdraw_chat_input",
+        argNames: ["conversationId", "queueId"],
+      );
+
+  @override
+  Future<ProcessingYieldProofDto> crateApiSyncYieldSyncProcessor({
+    required String toDeviceId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(toDeviceId);
+          return wire.wire__crate__api__sync__yield_sync_processor(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_processing_yield_proof_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncYieldSyncProcessorConstMeta,
+        argValues: [toDeviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncYieldSyncProcessorConstMeta =>
+      const TaskConstMeta(
+        debugName: "yield_sync_processor",
+        argNames: ["toDeviceId"],
+      );
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -4817,8 +8287,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AiProviderConfigDto dco_decode_ai_provider_config_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return AiProviderConfigDto(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -4831,6 +8301,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       temperature: dco_decode_f_64(arr[8]),
       maxTokens: dco_decode_opt_box_autoadd_i_64(arr[9]),
       contextWindow: dco_decode_opt_box_autoadd_i_64(arr[10]),
+      revisionToken: dco_decode_opt_String(arr[11]),
     );
   }
 
@@ -4875,6 +8346,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw Exception("unreachable");
     }
+  }
+
+  @protected
+  AppUpdateDto dco_decode_app_update_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return AppUpdateDto(
+      hasUpdate: dco_decode_bool(arr[0]),
+      latestHash: dco_decode_String(arr[1]),
+      latestSeq: dco_decode_i_64(arr[2]),
+      localHash: dco_decode_String(arr[3]),
+      localSeq: dco_decode_i_64(arr[4]),
+      version: dco_decode_String(arr[5]),
+      changelog: dco_decode_String(arr[6]),
+      apkSize: dco_decode_i_64(arr[7]),
+      apkSha256: dco_decode_String(arr[8]),
+    );
   }
 
   @protected
@@ -4931,6 +8421,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ChatReviewRequest dco_decode_box_autoadd_chat_review_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_chat_review_request(raw);
+  }
+
+  @protected
+  ChatRunDto dco_decode_box_autoadd_chat_run_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_chat_run_dto(raw);
+  }
+
+  @protected
+  CompanionRevisitDto dco_decode_box_autoadd_companion_revisit_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_companion_revisit_dto(raw);
+  }
+
+  @protected
   ConversationDto dco_decode_box_autoadd_conversation_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_conversation_dto(raw);
@@ -4965,6 +8475,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuidanceDto dco_decode_box_autoadd_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_guidance_dto(raw);
+  }
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_i_64(raw);
@@ -4976,6 +8492,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_message_recordability_dto(raw);
+  }
+
+  @protected
+  ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_processing_yield_proof_dto(raw);
   }
 
   @protected
@@ -4991,15 +8515,192 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncInvitationPreviewDto dco_decode_box_autoadd_sync_invitation_preview_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sync_invitation_preview_dto(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_u_32(raw);
   }
 
   @protected
+  WikiPageConflictSideDto dco_decode_box_autoadd_wiki_page_conflict_side_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_wiki_page_conflict_side_dto(raw);
+  }
+
+  @protected
   WikiPageDto dco_decode_box_autoadd_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_wiki_page_dto(raw);
+  }
+
+  @protected
+  ChatDecisionDto dco_decode_chat_decision_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return ChatDecisionDto(
+      kind: dco_decode_String(arr[0]),
+      id: dco_decode_String(arr[1]),
+      conversationId: dco_decode_opt_String(arr[2]),
+      version: dco_decode_i_64(arr[3]),
+      decision: dco_decode_String(arr[4]),
+      status: dco_decode_String(arr[5]),
+      result: dco_decode_String(arr[6]),
+      action: dco_decode_String(arr[7]),
+      argsJson: dco_decode_String(arr[8]),
+    );
+  }
+
+  @protected
+  ChatInputQueueDto dco_decode_chat_input_queue_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return ChatInputQueueDto(
+      paused: dco_decode_bool(arr[0]),
+      items: dco_decode_list_chat_queued_input_dto(arr[1]),
+      recentInjections: dco_decode_list_chat_queued_input_dto(arr[2]),
+    );
+  }
+
+  @protected
+  ChatProposalDto dco_decode_chat_proposal_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return ChatProposalDto(
+      kind: dco_decode_String(arr[0]),
+      id: dco_decode_String(arr[1]),
+      conversationId: dco_decode_opt_String(arr[2]),
+      action: dco_decode_String(arr[3]),
+      argsJson: dco_decode_String(arr[4]),
+      version: dco_decode_i_64(arr[5]),
+      createdAt: dco_decode_String(arr[6]),
+      approvalToken: dco_decode_String(arr[7]),
+      targetBasisJson: dco_decode_String(arr[8]),
+    );
+  }
+
+  @protected
+  ChatQueuedInputDto dco_decode_chat_queued_input_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return ChatQueuedInputDto(
+      id: dco_decode_i_64(arr[0]),
+      inputMessageId: dco_decode_String(arr[1]),
+      status: dco_decode_String(arr[2]),
+      mode: dco_decode_String(arr[3]),
+      preview: dco_decode_String(arr[4]),
+      deferReason: dco_decode_opt_String(arr[5]),
+      runId: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
+  ChatReviewRequest dco_decode_chat_review_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return ChatReviewRequest(
+      kind: dco_decode_String(arr[0]),
+      proposalId: dco_decode_String(arr[1]),
+      conversationId: dco_decode_opt_String(arr[2]),
+      expectedVersion: dco_decode_i_64(arr[3]),
+      approvalToken: dco_decode_String(arr[4]),
+    );
+  }
+
+  @protected
+  ChatRunDto dco_decode_chat_run_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return ChatRunDto(
+      id: dco_decode_String(arr[0]),
+      conversationId: dco_decode_String(arr[1]),
+      inputMessageId: dco_decode_String(arr[2]),
+      status: dco_decode_String(arr[3]),
+      phase: dco_decode_String(arr[4]),
+      sequence: dco_decode_i_64(arr[5]),
+      requestCount: dco_decode_i_64(arr[6]),
+      providerBasisJson: dco_decode_String(arr[7]),
+      content: dco_decode_String(arr[8]),
+      errorKind: dco_decode_opt_String(arr[9]),
+      errorText: dco_decode_opt_String(arr[10]),
+      finalMessageId: dco_decode_opt_String(arr[11]),
+      createdAt: dco_decode_String(arr[12]),
+      updatedAt: dco_decode_String(arr[13]),
+    );
+  }
+
+  @protected
+  ChatRunEventDto dco_decode_chat_run_event_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ChatRunEventDto(
+      runId: dco_decode_String(arr[0]),
+      sequence: dco_decode_i_64(arr[1]),
+      kind: dco_decode_String(arr[2]),
+      payloadJson: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  ChatRunEventPageDto dco_decode_chat_run_event_page_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ChatRunEventPageDto(
+      runId: dco_decode_String(arr[0]),
+      events: dco_decode_list_chat_run_event_dto(arr[1]),
+      nextSequence: dco_decode_i_64(arr[2]),
+      hasMore: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  CompanionPrefsDto dco_decode_companion_prefs_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CompanionPrefsDto(
+      revisitEnabled: dco_decode_bool(arr[0]),
+      revisitIntervalDays: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
+  CompanionRevisitDto dco_decode_companion_revisit_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return CompanionRevisitDto(
+      eventId: dco_decode_String(arr[0]),
+      recordedAt: dco_decode_String(arr[1]),
+      excerpt: dco_decode_String(arr[2]),
+      feeling: dco_decode_opt_String(arr[3]),
+    );
   }
 
   @protected
@@ -5054,13 +8755,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DailyOverviewDto dco_decode_daily_overview_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return DailyOverviewDto(
       date: dco_decode_String(arr[0]),
       entries: dco_decode_list_daily_entry_dto(arr[1]),
       review: dco_decode_opt_box_autoadd_daily_review_dto(arr[2]),
       todos: dco_decode_list_todo_dto(arr[3]),
+      reminderHits: dco_decode_list_rule_hit_dto(arr[4]),
+      memoryEcho: dco_decode_list_memory_echo_dto(arr[5]),
     );
   }
 
@@ -5126,6 +8829,71 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DayCountDto dco_decode_day_count_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DayCountDto(
+      date: dco_decode_String(arr[0]),
+      count: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
+  DeviationItemDto dco_decode_deviation_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return DeviationItemDto(
+      goalContent: dco_decode_String(arr[0]),
+      deviationType: dco_decode_String(arr[1]),
+      evidence: dco_decode_String(arr[2]),
+      severity: dco_decode_String(arr[3]),
+      dismissed: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  DeviationReportDto dco_decode_deviation_report_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    return DeviationReportDto(
+      id: dco_decode_String(arr[0]),
+      period: dco_decode_String(arr[1]),
+      periodType: dco_decode_String(arr[2]),
+      startDate: dco_decode_String(arr[3]),
+      endDate: dco_decode_String(arr[4]),
+      generatedAt: dco_decode_String(arr[5]),
+      detectedAt: dco_decode_opt_String(arr[6]),
+      readAt: dco_decode_opt_String(arr[7]),
+      total: dco_decode_i_64(arr[8]),
+      todoDoneCount: dco_decode_i_64(arr[9]),
+      daily: dco_decode_list_day_count_dto(arr[10]),
+      byEventType: dco_decode_list_named_count_dto(arr[11]),
+      byPerson: dco_decode_list_named_count_dto(arr[12]),
+      byProject: dco_decode_list_named_count_dto(arr[13]),
+      byActivity: dco_decode_list_named_count_dto(arr[14]),
+      deviations: dco_decode_list_deviation_item_dto(arr[15]),
+    );
+  }
+
+  @protected
+  EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return EmotionTagDto(
+      target: dco_decode_opt_String(arr[0]),
+      feeling: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
   EntityFactDto dco_decode_entity_fact_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -5162,8 +8930,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 25)
-      throw Exception('unexpected arr length: expect 25 but see ${arr.length}');
+    if (arr.length != 27)
+      throw Exception('unexpected arr length: expect 27 but see ${arr.length}');
     return EventAnalysisDetailDto(
       eventId: dco_decode_String(arr[0]),
       rawText: dco_decode_String(arr[1]),
@@ -5185,11 +8953,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       projects: dco_decode_list_String(arr[17]),
       activities: dco_decode_list_String(arr[18]),
       followUps: dco_decode_list_String(arr[19]),
-      recordable: dco_decode_opt_box_autoadd_bool(arr[20]),
-      kind: dco_decode_opt_String(arr[21]),
-      effectiveRecordable: dco_decode_bool(arr[22]),
-      effectiveKind: dco_decode_String(arr[23]),
-      recordabilitySource: dco_decode_String(arr[24]),
+      guidance: dco_decode_opt_box_autoadd_guidance_dto(arr[20]),
+      emotion: dco_decode_opt_list_emotion_tag_dto(arr[21]),
+      recordable: dco_decode_opt_box_autoadd_bool(arr[22]),
+      kind: dco_decode_opt_String(arr[23]),
+      effectiveRecordable: dco_decode_bool(arr[24]),
+      effectiveKind: dco_decode_String(arr[25]),
+      recordabilitySource: dco_decode_String(arr[26]),
     );
   }
 
@@ -5206,6 +8976,51 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       occurredAt: dco_decode_String(arr[3]),
       source: dco_decode_String(arr[4]),
       status: dco_decode_String(arr[5]),
+    );
+  }
+
+  @protected
+  EventEmotionDto dco_decode_event_emotion_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return EventEmotionDto(
+      id: dco_decode_String(arr[0]),
+      eventId: dco_decode_String(arr[1]),
+      recordedAt: dco_decode_String(arr[2]),
+      target: dco_decode_opt_String(arr[3]),
+      feeling: dco_decode_String(arr[4]),
+    );
+  }
+
+  @protected
+  EventStatsQuery dco_decode_event_stats_query(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return EventStatsQuery(
+      eventType: dco_decode_opt_String(arr[0]),
+      person: dco_decode_opt_String(arr[1]),
+      project: dco_decode_opt_String(arr[2]),
+      activity: dco_decode_opt_String(arr[3]),
+      textContains: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
+  EventSummaryDto dco_decode_event_summary_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return EventSummaryDto(
+      id: dco_decode_String(arr[0]),
+      rawText: dco_decode_String(arr[1]),
+      recordedAt: dco_decode_String(arr[2]),
+      source: dco_decode_String(arr[3]),
+      status: dco_decode_String(arr[4]),
     );
   }
 
@@ -5229,6 +9044,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       createdAt: dco_decode_String(arr[4]),
       updatedAt: dco_decode_String(arr[5]),
       supersededAt: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
+  GuidanceDto dco_decode_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return GuidanceDto(
+      related: dco_decode_list_guidance_ref_dto(arr[0]),
+      lessons: dco_decode_list_String(arr[1]),
+      followUpsRefined: dco_decode_list_String(arr[2]),
+    );
+  }
+
+  @protected
+  GuidanceRefDto dco_decode_guidance_ref_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return GuidanceRefDto(
+      slug: dco_decode_String(arr[0]),
+      note: dco_decode_String(arr[1]),
     );
   }
 
@@ -5646,6 +9486,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ChatDecisionDto> dco_decode_list_chat_decision_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_chat_decision_dto).toList();
+  }
+
+  @protected
+  List<ChatProposalDto> dco_decode_list_chat_proposal_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_chat_proposal_dto).toList();
+  }
+
+  @protected
+  List<ChatQueuedInputDto> dco_decode_list_chat_queued_input_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_chat_queued_input_dto).toList();
+  }
+
+  @protected
+  List<ChatRunDto> dco_decode_list_chat_run_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_chat_run_dto).toList();
+  }
+
+  @protected
+  List<ChatRunEventDto> dco_decode_list_chat_run_event_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_chat_run_event_dto).toList();
+  }
+
+  @protected
   List<ContentChatMessageDto> dco_decode_list_content_chat_message_dto(
     dynamic raw,
   ) {
@@ -5678,6 +9548,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DayCountDto> dco_decode_list_day_count_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_day_count_dto).toList();
+  }
+
+  @protected
+  List<DeviationItemDto> dco_decode_list_deviation_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_deviation_item_dto).toList();
+  }
+
+  @protected
+  List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_deviation_report_dto).toList();
+  }
+
+  @protected
+  List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_emotion_tag_dto).toList();
+  }
+
+  @protected
   List<EntityFactDto> dco_decode_list_entity_fact_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_entity_fact_dto).toList();
@@ -5690,9 +9584,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<EventEmotionDto> dco_decode_list_event_emotion_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_event_emotion_dto).toList();
+  }
+
+  @protected
+  List<EventSummaryDto> dco_decode_list_event_summary_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_event_summary_dto).toList();
+  }
+
+  @protected
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_goal_dto).toList();
+  }
+
+  @protected
+  List<GuidanceRefDto> dco_decode_list_guidance_ref_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_guidance_ref_dto).toList();
   }
 
   @protected
@@ -5782,15 +9694,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<MemoryEchoDto> dco_decode_list_memory_echo_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_memory_echo_dto).toList();
+  }
+
+  @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_message_dto).toList();
   }
 
   @protected
+  List<NamedCountDto> dco_decode_list_named_count_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_named_count_dto).toList();
+  }
+
+  @protected
+  List<ObjectConflictDto> dco_decode_list_object_conflict_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_object_conflict_dto).toList();
+  }
+
+  @protected
   List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_organized_topic).toList();
+  }
+
+  @protected
+  List<PageGuidanceDto> dco_decode_list_page_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_page_guidance_dto).toList();
   }
 
   @protected
@@ -5806,9 +9742,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as List<int>;
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  List<ProviderConflictProfileDto>
+  dco_decode_list_provider_conflict_profile_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw)
+        .map(dco_decode_provider_conflict_profile_dto)
+        .toList();
+  }
+
+  @protected
+  List<ProviderSyncConflictDto> dco_decode_list_provider_sync_conflict_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw)
+        .map(dco_decode_provider_sync_conflict_dto)
+        .toList();
+  }
+
+  @protected
+  List<ReachabilityHint> dco_decode_list_reachability_hint(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_reachability_hint).toList();
   }
 
   @protected
@@ -5824,6 +9791,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RuleHitDto> dco_decode_list_rule_hit_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_rule_hit_dto).toList();
+  }
+
+  @protected
   List<SourceReference> dco_decode_list_source_reference(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_source_reference).toList();
@@ -5833,6 +9806,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<SourceSnapshot> dco_decode_list_source_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_source_snapshot).toList();
+  }
+
+  @protected
+  List<SyncDatasetEntryDto> dco_decode_list_sync_dataset_entry_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_sync_dataset_entry_dto).toList();
+  }
+
+  @protected
+  List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw)
+        .map(dco_decode_sync_enrollment_state_dto)
+        .toList();
+  }
+
+  @protected
+  List<SyncJoinEntryDto> dco_decode_list_sync_join_entry_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_sync_join_entry_dto).toList();
+  }
+
+  @protected
+  List<SyncRosterMemberDto> dco_decode_list_sync_roster_member_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_sync_roster_member_dto).toList();
   }
 
   @protected
@@ -5858,9 +9863,67 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<UnscheduledChatInputDto> dco_decode_list_unscheduled_chat_input_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw)
+        .map(dco_decode_unscheduled_chat_input_dto)
+        .toList();
+  }
+
+  @protected
+  List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_wiki_page_conflict_dto).toList();
+  }
+
+  @protected
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_wiki_page_dto).toList();
+  }
+
+  @protected
+  List<WikiPageMetaDto> dco_decode_list_wiki_page_meta_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_wiki_page_meta_dto).toList();
+  }
+
+  @protected
+  LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return LocalSyncStateDto(
+      state: dco_decode_String(arr[0]),
+      installationId: dco_decode_opt_String(arr[1]),
+      vaultRevision: dco_decode_i_64(arr[2]),
+      datasetId: dco_decode_opt_String(arr[3]),
+      deviceId: dco_decode_opt_String(arr[4]),
+      deviceName: dco_decode_opt_String(arr[5]),
+      isOwner: dco_decode_bool(arr[6]),
+      isProcessor: dco_decode_bool(arr[7]),
+      activePeers: dco_decode_i_64(arr[8]),
+      pendingOperations: dco_decode_i_64(arr[9]),
+      relayUrl: dco_decode_opt_String(arr[10]),
+    );
+  }
+
+  @protected
+  MemoryEchoDto dco_decode_memory_echo_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return MemoryEchoDto(
+      eventId: dco_decode_String(arr[0]),
+      recordedAt: dco_decode_String(arr[1]),
+      rawText: dco_decode_String(arr[2]),
+    );
   }
 
   @protected
@@ -5897,6 +9960,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  NamedCountDto dco_decode_named_count_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return NamedCountDto(
+      label: dco_decode_String(arr[0]),
+      count: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
+  NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return NetworkSettingsDto(
+      dohUri: dco_decode_String(arr[0]),
+      dohScope: dco_decode_String(arr[1]),
+      dohMode: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  ObjectConflictDto dco_decode_object_conflict_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return ObjectConflictDto(
+      opId: dco_decode_String(arr[0]),
+      objectKind: dco_decode_String(arr[1]),
+      objectId: dco_decode_String(arr[2]),
+      reason: dco_decode_String(arr[3]),
+      senderDeviceId: dco_decode_String(arr[4]),
+      senderDeviceName: dco_decode_opt_String(arr[5]),
+      incomingSummary: dco_decode_String(arr[6]),
+      incomingStatus: dco_decode_String(arr[7]),
+      incomingDeleted: dco_decode_bool(arr[8]),
+      incomingUpdatedAt: dco_decode_String(arr[9]),
+      localSummary: dco_decode_opt_String(arr[10]),
+      localStatus: dco_decode_opt_String(arr[11]),
+      localUpdatedAt: dco_decode_opt_String(arr[12]),
+      localHeadDeleted: dco_decode_bool(arr[13]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -5916,6 +10028,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_bool(raw);
+  }
+
+  @protected
+  ChatRunDto? dco_decode_opt_box_autoadd_chat_run_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_chat_run_dto(raw);
+  }
+
+  @protected
+  CompanionRevisitDto? dco_decode_opt_box_autoadd_companion_revisit_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_companion_revisit_dto(raw);
   }
 
   @protected
@@ -5957,6 +10085,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_guidance_dto(raw);
+  }
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
@@ -5987,15 +10121,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncInvitationPreviewDto?
+  dco_decode_opt_box_autoadd_sync_invitation_preview_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_sync_invitation_preview_dto(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
   }
 
   @protected
+  WikiPageConflictSideDto?
+  dco_decode_opt_box_autoadd_wiki_page_conflict_side_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_wiki_page_conflict_side_dto(raw);
+  }
+
+  @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  List<EmotionTagDto>? dco_decode_opt_list_emotion_tag_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_emotion_tag_dto(raw);
   }
 
   @protected
@@ -6014,16 +10172,187 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return PageGuidanceDto(
+      analysisId: dco_decode_String(arr[0]),
+      eventId: dco_decode_String(arr[1]),
+      recordedAt: dco_decode_String(arr[2]),
+      note: dco_decode_opt_String(arr[3]),
+      lessons: dco_decode_list_String(arr[4]),
+      followUpsRefined: dco_decode_list_String(arr[5]),
+      feedback: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return PendingActionDto(
       id: dco_decode_String(arr[0]),
       action: dco_decode_String(arr[1]),
       argsJson: dco_decode_String(arr[2]),
       createdAt: dco_decode_String(arr[3]),
+      version: dco_decode_i_64(arr[4]),
+      approvalToken: dco_decode_String(arr[5]),
+      targetBasisJson: dco_decode_String(arr[6]),
+    );
+  }
+
+  @protected
+  PeriodReportTickResult dco_decode_period_report_tick_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    switch (dcoDecodePrimitiveInt(arr[0])) {
+      case 0:
+        return PeriodReportTickResult_NoProvider();
+      case 1:
+        return PeriodReportTickResult_Idle();
+      case 2:
+        return PeriodReportTickResult_Generated(
+          period: dco_decode_String(arr[1]),
+          periodType: dco_decode_String(arr[2]),
+        );
+      case 3:
+        return PeriodReportTickResult_Detected(
+          reportId: dco_decode_String(arr[1]),
+          deviations: dco_decode_usize(arr[2]),
+        );
+      case 4:
+        return PeriodReportTickResult_DetectFailed(
+          reportId: dco_decode_String(arr[1]),
+          error: dco_decode_String(arr[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  PeriodStatsDto dco_decode_period_stats_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return PeriodStatsDto(
+      periodType: dco_decode_String(arr[0]),
+      startDate: dco_decode_String(arr[1]),
+      endDate: dco_decode_String(arr[2]),
+      eventCount: dco_decode_i_64(arr[3]),
+      todoDoneCount: dco_decode_i_64(arr[4]),
+      byEventType: dco_decode_list_named_count_dto(arr[5]),
+      byPerson: dco_decode_list_named_count_dto(arr[6]),
+      byProject: dco_decode_list_named_count_dto(arr[7]),
+      byActivity: dco_decode_list_named_count_dto(arr[8]),
+      dailyCounts: dco_decode_list_day_count_dto(arr[9]),
+    );
+  }
+
+  @protected
+  ProcessingYieldProofDto dco_decode_processing_yield_proof_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return ProcessingYieldProofDto(
+      datasetId: dco_decode_String(arr[0]),
+      fromDeviceId: dco_decode_String(arr[1]),
+      toDeviceId: dco_decode_String(arr[2]),
+      rosterRevision: dco_decode_i_64(arr[3]),
+      finalSequence: dco_decode_i_64(arr[4]),
+      signature: dco_decode_list_prim_u_8_strict(arr[5]),
+    );
+  }
+
+  @protected
+  ProcessorHandoffStateDto dco_decode_processor_handoff_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return ProcessorHandoffStateDto(
+      state: dco_decode_String(arr[0]),
+      fromDeviceId: dco_decode_opt_String(arr[1]),
+      toDeviceId: dco_decode_opt_String(arr[2]),
+      finalSequence: dco_decode_opt_box_autoadd_i_64(arr[3]),
+      canConfirm: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  ProviderConflictProfileDto dco_decode_provider_conflict_profile_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    return ProviderConflictProfileDto(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      providerType: dco_decode_String(arr[2]),
+      baseUrl: dco_decode_String(arr[3]),
+      model: dco_decode_String(arr[4]),
+      apiKeyMasked: dco_decode_String(arr[5]),
+      apiKeyPresent: dco_decode_bool(arr[6]),
+      enabled: dco_decode_bool(arr[7]),
+      isActive: dco_decode_bool(arr[8]),
+      temperature: dco_decode_f_64(arr[9]),
+      maxTokens: dco_decode_opt_box_autoadd_i_64(arr[10]),
+      contextWindow: dco_decode_opt_box_autoadd_i_64(arr[11]),
+      reachabilityHints: dco_decode_list_reachability_hint(arr[12]),
+    );
+  }
+
+  @protected
+  ProviderSyncConflictDto dco_decode_provider_sync_conflict_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return ProviderSyncConflictDto(
+      revisionId: dco_decode_String(arr[0]),
+      baseRevision: dco_decode_opt_String(arr[1]),
+      senderDeviceId: dco_decode_String(arr[2]),
+      senderDeviceName: dco_decode_opt_String(arr[3]),
+      localRevision: dco_decode_String(arr[4]),
+      remoteProfiles: dco_decode_list_provider_conflict_profile_dto(arr[5]),
+      remoteActiveId: dco_decode_opt_String(arr[6]),
+      remoteFailoverOrder: dco_decode_list_String(arr[7]),
+      localProfiles: dco_decode_list_provider_conflict_profile_dto(arr[8]),
+      localActiveId: dco_decode_opt_String(arr[9]),
+    );
+  }
+
+  @protected
+  ReachabilityHint dco_decode_reachability_hint(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ReachabilityHint(
+      code: dco_decode_String(arr[0]),
+      address: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  dco_decode_record_list_sync_dataset_entry_dto_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_list_sync_dataset_entry_dto(arr[0]),
+      dco_decode_i_64(arr[1]),
     );
   }
 
@@ -6051,13 +10380,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RuleDto dco_decode_rule_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return RuleDto(
       id: dco_decode_String(arr[0]),
       content: dco_decode_String(arr[1]),
       status: dco_decode_String(arr[2]),
       createdAt: dco_decode_String(arr[3]),
+      triggerScene: dco_decode_String(arr[4]),
+      triggerKeywords: dco_decode_list_String(arr[5]),
+    );
+  }
+
+  @protected
+  RuleHitDto dco_decode_rule_hit_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return RuleHitDto(
+      id: dco_decode_String(arr[0]),
+      ruleId: dco_decode_String(arr[1]),
+      ruleContent: dco_decode_String(arr[2]),
+      status: dco_decode_String(arr[3]),
+      createdAt: dco_decode_String(arr[4]),
+      feedback: dco_decode_opt_String(arr[5]),
     );
   }
 
@@ -6121,6 +10468,192 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       suggestion: dco_decode_String(arr[1]),
       rewrite: dco_decode_opt_String(arr[2]),
       createdAt: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  SyncDatasetEntryDto dco_decode_sync_dataset_entry_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return SyncDatasetEntryDto(
+      entryId: dco_decode_String(arr[0]),
+      datasetId: dco_decode_String(arr[1]),
+      installationId: dco_decode_String(arr[2]),
+      name: dco_decode_String(arr[3]),
+      ready: dco_decode_bool(arr[4]),
+      selected: dco_decode_bool(arr[5]),
+    );
+  }
+
+  @protected
+  SyncEnrollmentStateDto dco_decode_sync_enrollment_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    return SyncEnrollmentStateDto(
+      role: dco_decode_String(arr[0]),
+      operationId: dco_decode_String(arr[1]),
+      invitationId: dco_decode_String(arr[2]),
+      installationId: dco_decode_String(arr[3]),
+      revision: dco_decode_i_64(arr[4]),
+      confirmationToken: dco_decode_opt_String(arr[5]),
+      phase: dco_decode_String(arr[6]),
+      snapshotId: dco_decode_opt_String(arr[7]),
+      receivedChunks: dco_decode_i_64(arr[8]),
+      totalChunks: dco_decode_i_64(arr[9]),
+      localApplied: dco_decode_bool(arr[10]),
+      remoteApplied: dco_decode_bool(arr[11]),
+      notificationPending: dco_decode_bool(arr[12]),
+    );
+  }
+
+  @protected
+  SyncInvitationOfferDto dco_decode_sync_invitation_offer_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return SyncInvitationOfferDto(
+      invitationId: dco_decode_String(arr[0]),
+      code: dco_decode_String(arr[1]),
+      expiresAtMs: dco_decode_i_64(arr[2]),
+    );
+  }
+
+  @protected
+  SyncInvitationPreviewDto dco_decode_sync_invitation_preview_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return SyncInvitationPreviewDto(
+      invitationId: dco_decode_String(arr[0]),
+      token: dco_decode_String(arr[1]),
+      deviceName: dco_decode_String(arr[2]),
+      devicePlatform: dco_decode_String(arr[3]),
+      fingerprint: dco_decode_String(arr[4]),
+      expiresAtMs: dco_decode_i_64(arr[5]),
+    );
+  }
+
+  @protected
+  SyncJoinEntryDto dco_decode_sync_join_entry_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SyncJoinEntryDto(
+      entryId: dco_decode_String(arr[0]),
+      installationId: dco_decode_String(arr[1]),
+      datasetId: dco_decode_String(arr[2]),
+      name: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  SyncJoinStateDto dco_decode_sync_join_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return SyncJoinStateDto(
+      operationId: dco_decode_String(arr[0]),
+      token: dco_decode_String(arr[1]),
+      entryId: dco_decode_opt_String(arr[2]),
+      installationId: dco_decode_opt_String(arr[3]),
+      datasetId: dco_decode_String(arr[4]),
+      ownerName: dco_decode_String(arr[5]),
+      ownerFingerprint: dco_decode_String(arr[6]),
+      localFingerprint: dco_decode_opt_String(arr[7]),
+      relayUrl: dco_decode_String(arr[8]),
+      expiresAtMs: dco_decode_i_64(arr[9]),
+      phase: dco_decode_String(arr[10]),
+      revision: dco_decode_i_64(arr[11]),
+      creating: dco_decode_bool(arr[12]),
+      approvalAckPending: dco_decode_bool(arr[13]),
+    );
+  }
+
+  @protected
+  SyncKeyCommitDto dco_decode_sync_key_commit_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return SyncKeyCommitDto(
+      token: dco_decode_String(arr[0]),
+      installationId: dco_decode_String(arr[1]),
+      revision: dco_decode_i_64(arr[2]),
+    );
+  }
+
+  @protected
+  SyncKeyRequestDto dco_decode_sync_key_request_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SyncKeyRequestDto(
+      token: dco_decode_String(arr[0]),
+      installationId: dco_decode_String(arr[1]),
+      revision: dco_decode_i_64(arr[2]),
+      creating: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  SyncRosterDto dco_decode_sync_roster_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return SyncRosterDto(
+      revision: dco_decode_i_64(arr[0]),
+      datasetId: dco_decode_String(arr[1]),
+      ownerDeviceId: dco_decode_String(arr[2]),
+      processorDeviceId: dco_decode_String(arr[3]),
+      localDeviceId: dco_decode_opt_String(arr[4]),
+      members: dco_decode_list_sync_roster_member_dto(arr[5]),
+    );
+  }
+
+  @protected
+  SyncRosterMemberDto dco_decode_sync_roster_member_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return SyncRosterMemberDto(
+      deviceId: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      platform: dco_decode_String(arr[2]),
+      active: dco_decode_bool(arr[3]),
+      isOwner: dco_decode_bool(arr[4]),
+      isProcessor: dco_decode_bool(arr[5]),
+      isLocal: dco_decode_bool(arr[6]),
+    );
+  }
+
+  @protected
+  SyncTickResultDto dco_decode_sync_tick_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return SyncTickResultDto(
+      ran: dco_decode_bool(arr[0]),
+      stagedOperations: dco_decode_i_64(arr[1]),
+      uploaded: dco_decode_i_64(arr[2]),
+      pulledAccepted: dco_decode_i_64(arr[3]),
+      pulledWaiting: dco_decode_i_64(arr[4]),
+      pulledRejected: dco_decode_i_64(arr[5]),
+      pulledVersionMismatch: dco_decode_i_64(arr[6]),
+      rosterConverged: dco_decode_bool(arr[7]),
+      acknowledgementFailed: dco_decode_bool(arr[8]),
+      resnapshotPending: dco_decode_list_String(arr[9]),
     );
   }
 
@@ -6224,6 +10757,93 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return UnscheduledChatInputDto(
+      inputMessageId: dco_decode_String(arr[0]),
+      preview: dco_decode_String(arr[1]),
+      createdAt: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  BigInt dco_decode_usize(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
+  }
+
+  @protected
+  WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return WebSearchConfigDto(
+      enabled: dco_decode_bool(arr[0]),
+      engine: dco_decode_String(arr[1]),
+      baseUrl: dco_decode_String(arr[2]),
+      apiKey: dco_decode_String(arr[3]),
+      hasApiKey: dco_decode_bool(arr[4]),
+      maxResults: dco_decode_i_64(arr[5]),
+    );
+  }
+
+  @protected
+  WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return WikiChatMaterialDto(
+      slug: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      contentMd: dco_decode_String(arr[2]),
+      basisJson: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  WikiPageConflictDto dco_decode_wiki_page_conflict_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return WikiPageConflictDto(
+      opId: dco_decode_String(arr[0]),
+      objectId: dco_decode_String(arr[1]),
+      reason: dco_decode_String(arr[2]),
+      senderDeviceId: dco_decode_String(arr[3]),
+      senderDeviceName: dco_decode_opt_String(arr[4]),
+      incomingSlug: dco_decode_String(arr[5]),
+      incomingTitle: dco_decode_String(arr[6]),
+      incomingDeleted: dco_decode_bool(arr[7]),
+      incomingRenamedFrom: dco_decode_opt_String(arr[8]),
+      incomingSummary: dco_decode_String(arr[9]),
+      incomingContentMdLen: dco_decode_i_64(arr[10]),
+      incomingUpdatedAt: dco_decode_String(arr[11]),
+      local: dco_decode_opt_box_autoadd_wiki_page_conflict_side_dto(arr[12]),
+      localHeadDeleted: dco_decode_bool(arr[13]),
+    );
+  }
+
+  @protected
+  WikiPageConflictSideDto dco_decode_wiki_page_conflict_side_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return WikiPageConflictSideDto(
+      slug: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      contentMdLen: dco_decode_i_64(arr[2]),
+      updatedAt: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -6250,6 +10870,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       contentType: dco_decode_opt_String(arr[17]),
       humanEditedAt: dco_decode_opt_String(arr[18]),
       opinion: dco_decode_opt_String(arr[19]),
+    );
+  }
+
+  @protected
+  WikiPageMetaDto dco_decode_wiki_page_meta_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return WikiPageMetaDto(
+      id: dco_decode_String(arr[0]),
+      slug: dco_decode_String(arr[1]),
+      kind: dco_decode_String(arr[2]),
+      title: dco_decode_String(arr[3]),
+      summary: dco_decode_String(arr[4]),
+      tags: dco_decode_list_String(arr[5]),
+      evidenceCount: dco_decode_i_64(arr[6]),
+      firstSeenAt: dco_decode_String(arr[7]),
+      lastSeenAt: dco_decode_String(arr[8]),
+      status: dco_decode_String(arr[9]),
+      createdAt: dco_decode_String(arr[10]),
+      updatedAt: dco_decode_String(arr[11]),
+      sourceUrl: dco_decode_opt_String(arr[12]),
+      area: dco_decode_String(arr[13]),
     );
   }
 
@@ -6283,6 +10927,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_temperature = sse_decode_f_64(deserializer);
     var var_maxTokens = sse_decode_opt_box_autoadd_i_64(deserializer);
     var var_contextWindow = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_revisionToken = sse_decode_opt_String(deserializer);
     return AiProviderConfigDto(
       id: var_id,
       name: var_name,
@@ -6295,6 +10940,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       temperature: var_temperature,
       maxTokens: var_maxTokens,
       contextWindow: var_contextWindow,
+      revisionToken: var_revisionToken,
     );
   }
 
@@ -6348,6 +10994,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  AppUpdateDto sse_decode_app_update_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hasUpdate = sse_decode_bool(deserializer);
+    var var_latestHash = sse_decode_String(deserializer);
+    var var_latestSeq = sse_decode_i_64(deserializer);
+    var var_localHash = sse_decode_String(deserializer);
+    var var_localSeq = sse_decode_i_64(deserializer);
+    var var_version = sse_decode_String(deserializer);
+    var var_changelog = sse_decode_String(deserializer);
+    var var_apkSize = sse_decode_i_64(deserializer);
+    var var_apkSha256 = sse_decode_String(deserializer);
+    return AppUpdateDto(
+      hasUpdate: var_hasUpdate,
+      latestHash: var_latestHash,
+      latestSeq: var_latestSeq,
+      localHash: var_localHash,
+      localSeq: var_localSeq,
+      version: var_version,
+      changelog: var_changelog,
+      apkSize: var_apkSize,
+      apkSha256: var_apkSha256,
+    );
   }
 
   @protected
@@ -6413,6 +11084,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ChatReviewRequest sse_decode_box_autoadd_chat_review_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_chat_review_request(deserializer));
+  }
+
+  @protected
+  ChatRunDto sse_decode_box_autoadd_chat_run_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_chat_run_dto(deserializer));
+  }
+
+  @protected
+  CompanionRevisitDto sse_decode_box_autoadd_companion_revisit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_companion_revisit_dto(deserializer));
+  }
+
+  @protected
   ConversationDto sse_decode_box_autoadd_conversation_dto(
     SseDeserializer deserializer,
   ) {
@@ -6451,6 +11144,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuidanceDto sse_decode_box_autoadd_guidance_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_guidance_dto(deserializer));
+  }
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
@@ -6462,6 +11163,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_message_recordability_dto(deserializer));
+  }
+
+  @protected
+  ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_processing_yield_proof_dto(deserializer));
   }
 
   @protected
@@ -6481,9 +11190,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncInvitationPreviewDto sse_decode_box_autoadd_sync_invitation_preview_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sync_invitation_preview_dto(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_32(deserializer));
+  }
+
+  @protected
+  WikiPageConflictSideDto sse_decode_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_wiki_page_conflict_side_dto(deserializer));
   }
 
   @protected
@@ -6492,6 +11217,212 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_wiki_page_dto(deserializer));
+  }
+
+  @protected
+  ChatDecisionDto sse_decode_chat_decision_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_conversationId = sse_decode_opt_String(deserializer);
+    var var_version = sse_decode_i_64(deserializer);
+    var var_decision = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_result = sse_decode_String(deserializer);
+    var var_action = sse_decode_String(deserializer);
+    var var_argsJson = sse_decode_String(deserializer);
+    return ChatDecisionDto(
+      kind: var_kind,
+      id: var_id,
+      conversationId: var_conversationId,
+      version: var_version,
+      decision: var_decision,
+      status: var_status,
+      result: var_result,
+      action: var_action,
+      argsJson: var_argsJson,
+    );
+  }
+
+  @protected
+  ChatInputQueueDto sse_decode_chat_input_queue_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_paused = sse_decode_bool(deserializer);
+    var var_items = sse_decode_list_chat_queued_input_dto(deserializer);
+    var var_recentInjections = sse_decode_list_chat_queued_input_dto(
+      deserializer,
+    );
+    return ChatInputQueueDto(
+      paused: var_paused,
+      items: var_items,
+      recentInjections: var_recentInjections,
+    );
+  }
+
+  @protected
+  ChatProposalDto sse_decode_chat_proposal_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_conversationId = sse_decode_opt_String(deserializer);
+    var var_action = sse_decode_String(deserializer);
+    var var_argsJson = sse_decode_String(deserializer);
+    var var_version = sse_decode_i_64(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_approvalToken = sse_decode_String(deserializer);
+    var var_targetBasisJson = sse_decode_String(deserializer);
+    return ChatProposalDto(
+      kind: var_kind,
+      id: var_id,
+      conversationId: var_conversationId,
+      action: var_action,
+      argsJson: var_argsJson,
+      version: var_version,
+      createdAt: var_createdAt,
+      approvalToken: var_approvalToken,
+      targetBasisJson: var_targetBasisJson,
+    );
+  }
+
+  @protected
+  ChatQueuedInputDto sse_decode_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_i_64(deserializer);
+    var var_inputMessageId = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_mode = sse_decode_String(deserializer);
+    var var_preview = sse_decode_String(deserializer);
+    var var_deferReason = sse_decode_opt_String(deserializer);
+    var var_runId = sse_decode_opt_String(deserializer);
+    return ChatQueuedInputDto(
+      id: var_id,
+      inputMessageId: var_inputMessageId,
+      status: var_status,
+      mode: var_mode,
+      preview: var_preview,
+      deferReason: var_deferReason,
+      runId: var_runId,
+    );
+  }
+
+  @protected
+  ChatReviewRequest sse_decode_chat_review_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_String(deserializer);
+    var var_proposalId = sse_decode_String(deserializer);
+    var var_conversationId = sse_decode_opt_String(deserializer);
+    var var_expectedVersion = sse_decode_i_64(deserializer);
+    var var_approvalToken = sse_decode_String(deserializer);
+    return ChatReviewRequest(
+      kind: var_kind,
+      proposalId: var_proposalId,
+      conversationId: var_conversationId,
+      expectedVersion: var_expectedVersion,
+      approvalToken: var_approvalToken,
+    );
+  }
+
+  @protected
+  ChatRunDto sse_decode_chat_run_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_conversationId = sse_decode_String(deserializer);
+    var var_inputMessageId = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_phase = sse_decode_String(deserializer);
+    var var_sequence = sse_decode_i_64(deserializer);
+    var var_requestCount = sse_decode_i_64(deserializer);
+    var var_providerBasisJson = sse_decode_String(deserializer);
+    var var_content = sse_decode_String(deserializer);
+    var var_errorKind = sse_decode_opt_String(deserializer);
+    var var_errorText = sse_decode_opt_String(deserializer);
+    var var_finalMessageId = sse_decode_opt_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_updatedAt = sse_decode_String(deserializer);
+    return ChatRunDto(
+      id: var_id,
+      conversationId: var_conversationId,
+      inputMessageId: var_inputMessageId,
+      status: var_status,
+      phase: var_phase,
+      sequence: var_sequence,
+      requestCount: var_requestCount,
+      providerBasisJson: var_providerBasisJson,
+      content: var_content,
+      errorKind: var_errorKind,
+      errorText: var_errorText,
+      finalMessageId: var_finalMessageId,
+      createdAt: var_createdAt,
+      updatedAt: var_updatedAt,
+    );
+  }
+
+  @protected
+  ChatRunEventDto sse_decode_chat_run_event_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_runId = sse_decode_String(deserializer);
+    var var_sequence = sse_decode_i_64(deserializer);
+    var var_kind = sse_decode_String(deserializer);
+    var var_payloadJson = sse_decode_String(deserializer);
+    return ChatRunEventDto(
+      runId: var_runId,
+      sequence: var_sequence,
+      kind: var_kind,
+      payloadJson: var_payloadJson,
+    );
+  }
+
+  @protected
+  ChatRunEventPageDto sse_decode_chat_run_event_page_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_runId = sse_decode_String(deserializer);
+    var var_events = sse_decode_list_chat_run_event_dto(deserializer);
+    var var_nextSequence = sse_decode_i_64(deserializer);
+    var var_hasMore = sse_decode_bool(deserializer);
+    return ChatRunEventPageDto(
+      runId: var_runId,
+      events: var_events,
+      nextSequence: var_nextSequence,
+      hasMore: var_hasMore,
+    );
+  }
+
+  @protected
+  CompanionPrefsDto sse_decode_companion_prefs_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_revisitEnabled = sse_decode_bool(deserializer);
+    var var_revisitIntervalDays = sse_decode_i_64(deserializer);
+    return CompanionPrefsDto(
+      revisitEnabled: var_revisitEnabled,
+      revisitIntervalDays: var_revisitIntervalDays,
+    );
+  }
+
+  @protected
+  CompanionRevisitDto sse_decode_companion_revisit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventId = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_excerpt = sse_decode_String(deserializer);
+    var var_feeling = sse_decode_opt_String(deserializer);
+    return CompanionRevisitDto(
+      eventId: var_eventId,
+      recordedAt: var_recordedAt,
+      excerpt: var_excerpt,
+      feeling: var_feeling,
+    );
   }
 
   @protected
@@ -6557,11 +11488,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_entries = sse_decode_list_daily_entry_dto(deserializer);
     var var_review = sse_decode_opt_box_autoadd_daily_review_dto(deserializer);
     var var_todos = sse_decode_list_todo_dto(deserializer);
+    var var_reminderHits = sse_decode_list_rule_hit_dto(deserializer);
+    var var_memoryEcho = sse_decode_list_memory_echo_dto(deserializer);
     return DailyOverviewDto(
       date: var_date,
       entries: var_entries,
       review: var_review,
       todos: var_todos,
+      reminderHits: var_reminderHits,
+      memoryEcho: var_memoryEcho,
     );
   }
 
@@ -6647,6 +11582,80 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_date = sse_decode_String(deserializer);
+    var var_count = sse_decode_i_64(deserializer);
+    return DayCountDto(date: var_date, count: var_count);
+  }
+
+  @protected
+  DeviationItemDto sse_decode_deviation_item_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_goalContent = sse_decode_String(deserializer);
+    var var_deviationType = sse_decode_String(deserializer);
+    var var_evidence = sse_decode_String(deserializer);
+    var var_severity = sse_decode_String(deserializer);
+    var var_dismissed = sse_decode_bool(deserializer);
+    return DeviationItemDto(
+      goalContent: var_goalContent,
+      deviationType: var_deviationType,
+      evidence: var_evidence,
+      severity: var_severity,
+      dismissed: var_dismissed,
+    );
+  }
+
+  @protected
+  DeviationReportDto sse_decode_deviation_report_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_period = sse_decode_String(deserializer);
+    var var_periodType = sse_decode_String(deserializer);
+    var var_startDate = sse_decode_String(deserializer);
+    var var_endDate = sse_decode_String(deserializer);
+    var var_generatedAt = sse_decode_String(deserializer);
+    var var_detectedAt = sse_decode_opt_String(deserializer);
+    var var_readAt = sse_decode_opt_String(deserializer);
+    var var_total = sse_decode_i_64(deserializer);
+    var var_todoDoneCount = sse_decode_i_64(deserializer);
+    var var_daily = sse_decode_list_day_count_dto(deserializer);
+    var var_byEventType = sse_decode_list_named_count_dto(deserializer);
+    var var_byPerson = sse_decode_list_named_count_dto(deserializer);
+    var var_byProject = sse_decode_list_named_count_dto(deserializer);
+    var var_byActivity = sse_decode_list_named_count_dto(deserializer);
+    var var_deviations = sse_decode_list_deviation_item_dto(deserializer);
+    return DeviationReportDto(
+      id: var_id,
+      period: var_period,
+      periodType: var_periodType,
+      startDate: var_startDate,
+      endDate: var_endDate,
+      generatedAt: var_generatedAt,
+      detectedAt: var_detectedAt,
+      readAt: var_readAt,
+      total: var_total,
+      todoDoneCount: var_todoDoneCount,
+      daily: var_daily,
+      byEventType: var_byEventType,
+      byPerson: var_byPerson,
+      byProject: var_byProject,
+      byActivity: var_byActivity,
+      deviations: var_deviations,
+    );
+  }
+
+  @protected
+  EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_target = sse_decode_opt_String(deserializer);
+    var var_feeling = sse_decode_String(deserializer);
+    return EmotionTagDto(target: var_target, feeling: var_feeling);
+  }
+
+  @protected
   EntityFactDto sse_decode_entity_fact_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -6713,6 +11722,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_projects = sse_decode_list_String(deserializer);
     var var_activities = sse_decode_list_String(deserializer);
     var var_followUps = sse_decode_list_String(deserializer);
+    var var_guidance = sse_decode_opt_box_autoadd_guidance_dto(deserializer);
+    var var_emotion = sse_decode_opt_list_emotion_tag_dto(deserializer);
     var var_recordable = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_kind = sse_decode_opt_String(deserializer);
     var var_effectiveRecordable = sse_decode_bool(deserializer);
@@ -6739,6 +11750,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       projects: var_projects,
       activities: var_activities,
       followUps: var_followUps,
+      guidance: var_guidance,
+      emotion: var_emotion,
       recordable: var_recordable,
       kind: var_kind,
       effectiveRecordable: var_effectiveRecordable,
@@ -6761,6 +11774,57 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       rawText: var_rawText,
       recordedAt: var_recordedAt,
       occurredAt: var_occurredAt,
+      source: var_source,
+      status: var_status,
+    );
+  }
+
+  @protected
+  EventEmotionDto sse_decode_event_emotion_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_eventId = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_target = sse_decode_opt_String(deserializer);
+    var var_feeling = sse_decode_String(deserializer);
+    return EventEmotionDto(
+      id: var_id,
+      eventId: var_eventId,
+      recordedAt: var_recordedAt,
+      target: var_target,
+      feeling: var_feeling,
+    );
+  }
+
+  @protected
+  EventStatsQuery sse_decode_event_stats_query(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventType = sse_decode_opt_String(deserializer);
+    var var_person = sse_decode_opt_String(deserializer);
+    var var_project = sse_decode_opt_String(deserializer);
+    var var_activity = sse_decode_opt_String(deserializer);
+    var var_textContains = sse_decode_opt_String(deserializer);
+    return EventStatsQuery(
+      eventType: var_eventType,
+      person: var_person,
+      project: var_project,
+      activity: var_activity,
+      textContains: var_textContains,
+    );
+  }
+
+  @protected
+  EventSummaryDto sse_decode_event_summary_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_rawText = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_source = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    return EventSummaryDto(
+      id: var_id,
+      rawText: var_rawText,
+      recordedAt: var_recordedAt,
       source: var_source,
       status: var_status,
     );
@@ -6791,6 +11855,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       updatedAt: var_updatedAt,
       supersededAt: var_supersededAt,
     );
+  }
+
+  @protected
+  GuidanceDto sse_decode_guidance_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_related = sse_decode_list_guidance_ref_dto(deserializer);
+    var var_lessons = sse_decode_list_String(deserializer);
+    var var_followUpsRefined = sse_decode_list_String(deserializer);
+    return GuidanceDto(
+      related: var_related,
+      lessons: var_lessons,
+      followUpsRefined: var_followUpsRefined,
+    );
+  }
+
+  @protected
+  GuidanceRefDto sse_decode_guidance_ref_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_slug = sse_decode_String(deserializer);
+    var var_note = sse_decode_String(deserializer);
+    return GuidanceRefDto(slug: var_slug, note: var_note);
   }
 
   @protected
@@ -7363,6 +12448,74 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ChatDecisionDto> sse_decode_list_chat_decision_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ChatDecisionDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_chat_decision_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ChatProposalDto> sse_decode_list_chat_proposal_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ChatProposalDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_chat_proposal_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ChatQueuedInputDto> sse_decode_list_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ChatQueuedInputDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_chat_queued_input_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ChatRunDto> sse_decode_list_chat_run_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ChatRunDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_chat_run_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ChatRunEventDto> sse_decode_list_chat_run_event_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ChatRunEventDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_chat_run_event_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<ContentChatMessageDto> sse_decode_list_content_chat_message_dto(
     SseDeserializer deserializer,
   ) {
@@ -7433,6 +12586,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DayCountDto> sse_decode_list_day_count_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DayCountDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_day_count_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DeviationItemDto> sse_decode_list_deviation_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DeviationItemDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_deviation_item_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DeviationReportDto> sse_decode_list_deviation_report_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DeviationReportDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_deviation_report_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<EmotionTagDto> sse_decode_list_emotion_tag_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EmotionTagDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_emotion_tag_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<EntityFactDto> sse_decode_list_entity_fact_dto(
     SseDeserializer deserializer,
   ) {
@@ -7459,6 +12668,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<EventEmotionDto> sse_decode_list_event_emotion_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EventEmotionDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_event_emotion_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<EventSummaryDto> sse_decode_list_event_summary_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EventSummaryDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_event_summary_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -7466,6 +12703,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <GoalDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_goal_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<GuidanceRefDto> sse_decode_list_guidance_ref_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GuidanceRefDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_guidance_ref_dto(deserializer));
     }
     return ans_;
   }
@@ -7639,6 +12890,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<MemoryEchoDto> sse_decode_list_memory_echo_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <MemoryEchoDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_memory_echo_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -7646,6 +12911,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <MessageDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_message_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<NamedCountDto> sse_decode_list_named_count_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NamedCountDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_named_count_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ObjectConflictDto> sse_decode_list_object_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ObjectConflictDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_object_conflict_dto(deserializer));
     }
     return ans_;
   }
@@ -7660,6 +12953,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <OrganizedTopic>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_organized_topic(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<PageGuidanceDto> sse_decode_list_page_guidance_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PageGuidanceDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_page_guidance_dto(deserializer));
     }
     return ans_;
   }
@@ -7686,10 +12993,58 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  List<ProviderConflictProfileDto>
+  sse_decode_list_provider_conflict_profile_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ProviderConflictProfileDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_provider_conflict_profile_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ProviderSyncConflictDto> sse_decode_list_provider_sync_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ProviderSyncConflictDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_provider_sync_conflict_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ReachabilityHint> sse_decode_list_reachability_hint(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ReachabilityHint>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_reachability_hint(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -7712,6 +13067,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <RuleDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_rule_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<RuleHitDto> sse_decode_list_rule_hit_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RuleHitDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_rule_hit_dto(deserializer));
     }
     return ans_;
   }
@@ -7740,6 +13107,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <SourceSnapshot>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_source_snapshot(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<SyncDatasetEntryDto> sse_decode_list_sync_dataset_entry_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SyncDatasetEntryDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sync_dataset_entry_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SyncEnrollmentStateDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sync_enrollment_state_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<SyncJoinEntryDto> sse_decode_list_sync_join_entry_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SyncJoinEntryDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sync_join_entry_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<SyncRosterMemberDto> sse_decode_list_sync_roster_member_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SyncRosterMemberDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sync_roster_member_dto(deserializer));
     }
     return ans_;
   }
@@ -7785,6 +13208,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<UnscheduledChatInputDto> sse_decode_list_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <UnscheduledChatInputDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_unscheduled_chat_input_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WikiPageConflictDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_wiki_page_conflict_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<WikiPageDto> sse_decode_list_wiki_page_dto(
     SseDeserializer deserializer,
   ) {
@@ -7796,6 +13247,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_wiki_page_dto(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  List<WikiPageMetaDto> sse_decode_list_wiki_page_meta_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WikiPageMetaDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_wiki_page_meta_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  LocalSyncStateDto sse_decode_local_sync_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_String(deserializer);
+    var var_installationId = sse_decode_opt_String(deserializer);
+    var var_vaultRevision = sse_decode_i_64(deserializer);
+    var var_datasetId = sse_decode_opt_String(deserializer);
+    var var_deviceId = sse_decode_opt_String(deserializer);
+    var var_deviceName = sse_decode_opt_String(deserializer);
+    var var_isOwner = sse_decode_bool(deserializer);
+    var var_isProcessor = sse_decode_bool(deserializer);
+    var var_activePeers = sse_decode_i_64(deserializer);
+    var var_pendingOperations = sse_decode_i_64(deserializer);
+    var var_relayUrl = sse_decode_opt_String(deserializer);
+    return LocalSyncStateDto(
+      state: var_state,
+      installationId: var_installationId,
+      vaultRevision: var_vaultRevision,
+      datasetId: var_datasetId,
+      deviceId: var_deviceId,
+      deviceName: var_deviceName,
+      isOwner: var_isOwner,
+      isProcessor: var_isProcessor,
+      activePeers: var_activePeers,
+      pendingOperations: var_pendingOperations,
+      relayUrl: var_relayUrl,
+    );
+  }
+
+  @protected
+  MemoryEchoDto sse_decode_memory_echo_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventId = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_rawText = sse_decode_String(deserializer);
+    return MemoryEchoDto(
+      eventId: var_eventId,
+      recordedAt: var_recordedAt,
+      rawText: var_rawText,
+    );
   }
 
   @protected
@@ -7841,6 +13350,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  NamedCountDto sse_decode_named_count_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_label = sse_decode_String(deserializer);
+    var var_count = sse_decode_i_64(deserializer);
+    return NamedCountDto(label: var_label, count: var_count);
+  }
+
+  @protected
+  NetworkSettingsDto sse_decode_network_settings_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_dohUri = sse_decode_String(deserializer);
+    var var_dohScope = sse_decode_String(deserializer);
+    var var_dohMode = sse_decode_String(deserializer);
+    return NetworkSettingsDto(
+      dohUri: var_dohUri,
+      dohScope: var_dohScope,
+      dohMode: var_dohMode,
+    );
+  }
+
+  @protected
+  ObjectConflictDto sse_decode_object_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_opId = sse_decode_String(deserializer);
+    var var_objectKind = sse_decode_String(deserializer);
+    var var_objectId = sse_decode_String(deserializer);
+    var var_reason = sse_decode_String(deserializer);
+    var var_senderDeviceId = sse_decode_String(deserializer);
+    var var_senderDeviceName = sse_decode_opt_String(deserializer);
+    var var_incomingSummary = sse_decode_String(deserializer);
+    var var_incomingStatus = sse_decode_String(deserializer);
+    var var_incomingDeleted = sse_decode_bool(deserializer);
+    var var_incomingUpdatedAt = sse_decode_String(deserializer);
+    var var_localSummary = sse_decode_opt_String(deserializer);
+    var var_localStatus = sse_decode_opt_String(deserializer);
+    var var_localUpdatedAt = sse_decode_opt_String(deserializer);
+    var var_localHeadDeleted = sse_decode_bool(deserializer);
+    return ObjectConflictDto(
+      opId: var_opId,
+      objectKind: var_objectKind,
+      objectId: var_objectId,
+      reason: var_reason,
+      senderDeviceId: var_senderDeviceId,
+      senderDeviceName: var_senderDeviceName,
+      incomingSummary: var_incomingSummary,
+      incomingStatus: var_incomingStatus,
+      incomingDeleted: var_incomingDeleted,
+      incomingUpdatedAt: var_incomingUpdatedAt,
+      localSummary: var_localSummary,
+      localStatus: var_localStatus,
+      localUpdatedAt: var_localUpdatedAt,
+      localHeadDeleted: var_localHeadDeleted,
+    );
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -7870,6 +13439,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_bool(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  ChatRunDto? sse_decode_opt_box_autoadd_chat_run_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_chat_run_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  CompanionRevisitDto? sse_decode_opt_box_autoadd_companion_revisit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_companion_revisit_dto(deserializer));
     } else {
       return null;
     }
@@ -7939,6 +13534,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuidanceDto? sse_decode_opt_box_autoadd_guidance_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_guidance_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -7989,11 +13597,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncInvitationPreviewDto?
+  sse_decode_opt_box_autoadd_sync_invitation_preview_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_sync_invitation_preview_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  WikiPageConflictSideDto?
+  sse_decode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_wiki_page_conflict_side_dto(deserializer));
     } else {
       return null;
     }
@@ -8007,6 +13643,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_wiki_page_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  List<EmotionTagDto>? sse_decode_opt_list_emotion_tag_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_emotion_tag_dto(deserializer));
     } else {
       return null;
     }
@@ -8030,18 +13679,237 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_analysisId = sse_decode_String(deserializer);
+    var var_eventId = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_note = sse_decode_opt_String(deserializer);
+    var var_lessons = sse_decode_list_String(deserializer);
+    var var_followUpsRefined = sse_decode_list_String(deserializer);
+    var var_feedback = sse_decode_opt_String(deserializer);
+    return PageGuidanceDto(
+      analysisId: var_analysisId,
+      eventId: var_eventId,
+      recordedAt: var_recordedAt,
+      note: var_note,
+      lessons: var_lessons,
+      followUpsRefined: var_followUpsRefined,
+      feedback: var_feedback,
+    );
+  }
+
+  @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
     var var_action = sse_decode_String(deserializer);
     var var_argsJson = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_String(deserializer);
+    var var_version = sse_decode_i_64(deserializer);
+    var var_approvalToken = sse_decode_String(deserializer);
+    var var_targetBasisJson = sse_decode_String(deserializer);
     return PendingActionDto(
       id: var_id,
       action: var_action,
       argsJson: var_argsJson,
       createdAt: var_createdAt,
+      version: var_version,
+      approvalToken: var_approvalToken,
+      targetBasisJson: var_targetBasisJson,
     );
+  }
+
+  @protected
+  PeriodReportTickResult sse_decode_period_report_tick_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return PeriodReportTickResult_NoProvider();
+      case 1:
+        return PeriodReportTickResult_Idle();
+      case 2:
+        var var_period = sse_decode_String(deserializer);
+        var var_periodType = sse_decode_String(deserializer);
+        return PeriodReportTickResult_Generated(
+          period: var_period,
+          periodType: var_periodType,
+        );
+      case 3:
+        var var_reportId = sse_decode_String(deserializer);
+        var var_deviations = sse_decode_usize(deserializer);
+        return PeriodReportTickResult_Detected(
+          reportId: var_reportId,
+          deviations: var_deviations,
+        );
+      case 4:
+        var var_reportId = sse_decode_String(deserializer);
+        var var_error = sse_decode_String(deserializer);
+        return PeriodReportTickResult_DetectFailed(
+          reportId: var_reportId,
+          error: var_error,
+        );
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  PeriodStatsDto sse_decode_period_stats_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_periodType = sse_decode_String(deserializer);
+    var var_startDate = sse_decode_String(deserializer);
+    var var_endDate = sse_decode_String(deserializer);
+    var var_eventCount = sse_decode_i_64(deserializer);
+    var var_todoDoneCount = sse_decode_i_64(deserializer);
+    var var_byEventType = sse_decode_list_named_count_dto(deserializer);
+    var var_byPerson = sse_decode_list_named_count_dto(deserializer);
+    var var_byProject = sse_decode_list_named_count_dto(deserializer);
+    var var_byActivity = sse_decode_list_named_count_dto(deserializer);
+    var var_dailyCounts = sse_decode_list_day_count_dto(deserializer);
+    return PeriodStatsDto(
+      periodType: var_periodType,
+      startDate: var_startDate,
+      endDate: var_endDate,
+      eventCount: var_eventCount,
+      todoDoneCount: var_todoDoneCount,
+      byEventType: var_byEventType,
+      byPerson: var_byPerson,
+      byProject: var_byProject,
+      byActivity: var_byActivity,
+      dailyCounts: var_dailyCounts,
+    );
+  }
+
+  @protected
+  ProcessingYieldProofDto sse_decode_processing_yield_proof_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_datasetId = sse_decode_String(deserializer);
+    var var_fromDeviceId = sse_decode_String(deserializer);
+    var var_toDeviceId = sse_decode_String(deserializer);
+    var var_rosterRevision = sse_decode_i_64(deserializer);
+    var var_finalSequence = sse_decode_i_64(deserializer);
+    var var_signature = sse_decode_list_prim_u_8_strict(deserializer);
+    return ProcessingYieldProofDto(
+      datasetId: var_datasetId,
+      fromDeviceId: var_fromDeviceId,
+      toDeviceId: var_toDeviceId,
+      rosterRevision: var_rosterRevision,
+      finalSequence: var_finalSequence,
+      signature: var_signature,
+    );
+  }
+
+  @protected
+  ProcessorHandoffStateDto sse_decode_processor_handoff_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_String(deserializer);
+    var var_fromDeviceId = sse_decode_opt_String(deserializer);
+    var var_toDeviceId = sse_decode_opt_String(deserializer);
+    var var_finalSequence = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_canConfirm = sse_decode_bool(deserializer);
+    return ProcessorHandoffStateDto(
+      state: var_state,
+      fromDeviceId: var_fromDeviceId,
+      toDeviceId: var_toDeviceId,
+      finalSequence: var_finalSequence,
+      canConfirm: var_canConfirm,
+    );
+  }
+
+  @protected
+  ProviderConflictProfileDto sse_decode_provider_conflict_profile_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_providerType = sse_decode_String(deserializer);
+    var var_baseUrl = sse_decode_String(deserializer);
+    var var_model = sse_decode_String(deserializer);
+    var var_apiKeyMasked = sse_decode_String(deserializer);
+    var var_apiKeyPresent = sse_decode_bool(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_isActive = sse_decode_bool(deserializer);
+    var var_temperature = sse_decode_f_64(deserializer);
+    var var_maxTokens = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_contextWindow = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_reachabilityHints = sse_decode_list_reachability_hint(deserializer);
+    return ProviderConflictProfileDto(
+      id: var_id,
+      name: var_name,
+      providerType: var_providerType,
+      baseUrl: var_baseUrl,
+      model: var_model,
+      apiKeyMasked: var_apiKeyMasked,
+      apiKeyPresent: var_apiKeyPresent,
+      enabled: var_enabled,
+      isActive: var_isActive,
+      temperature: var_temperature,
+      maxTokens: var_maxTokens,
+      contextWindow: var_contextWindow,
+      reachabilityHints: var_reachabilityHints,
+    );
+  }
+
+  @protected
+  ProviderSyncConflictDto sse_decode_provider_sync_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_revisionId = sse_decode_String(deserializer);
+    var var_baseRevision = sse_decode_opt_String(deserializer);
+    var var_senderDeviceId = sse_decode_String(deserializer);
+    var var_senderDeviceName = sse_decode_opt_String(deserializer);
+    var var_localRevision = sse_decode_String(deserializer);
+    var var_remoteProfiles = sse_decode_list_provider_conflict_profile_dto(
+      deserializer,
+    );
+    var var_remoteActiveId = sse_decode_opt_String(deserializer);
+    var var_remoteFailoverOrder = sse_decode_list_String(deserializer);
+    var var_localProfiles = sse_decode_list_provider_conflict_profile_dto(
+      deserializer,
+    );
+    var var_localActiveId = sse_decode_opt_String(deserializer);
+    return ProviderSyncConflictDto(
+      revisionId: var_revisionId,
+      baseRevision: var_baseRevision,
+      senderDeviceId: var_senderDeviceId,
+      senderDeviceName: var_senderDeviceName,
+      localRevision: var_localRevision,
+      remoteProfiles: var_remoteProfiles,
+      remoteActiveId: var_remoteActiveId,
+      remoteFailoverOrder: var_remoteFailoverOrder,
+      localProfiles: var_localProfiles,
+      localActiveId: var_localActiveId,
+    );
+  }
+
+  @protected
+  ReachabilityHint sse_decode_reachability_hint(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_code = sse_decode_String(deserializer);
+    var var_address = sse_decode_String(deserializer);
+    return ReachabilityHint(code: var_code, address: var_address);
+  }
+
+  @protected
+  (List<SyncDatasetEntryDto>, PlatformInt64)
+  sse_decode_record_list_sync_dataset_entry_dto_i_64(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_list_sync_dataset_entry_dto(deserializer);
+    var var_field1 = sse_decode_i_64(deserializer);
+    return (var_field0, var_field1);
   }
 
   @protected
@@ -8078,11 +13946,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_content = sse_decode_String(deserializer);
     var var_status = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_String(deserializer);
+    var var_triggerScene = sse_decode_String(deserializer);
+    var var_triggerKeywords = sse_decode_list_String(deserializer);
     return RuleDto(
       id: var_id,
       content: var_content,
       status: var_status,
       createdAt: var_createdAt,
+      triggerScene: var_triggerScene,
+      triggerKeywords: var_triggerKeywords,
+    );
+  }
+
+  @protected
+  RuleHitDto sse_decode_rule_hit_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_ruleId = sse_decode_String(deserializer);
+    var var_ruleContent = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_feedback = sse_decode_opt_String(deserializer);
+    return RuleHitDto(
+      id: var_id,
+      ruleId: var_ruleId,
+      ruleContent: var_ruleContent,
+      status: var_status,
+      createdAt: var_createdAt,
+      feedback: var_feedback,
     );
   }
 
@@ -8161,6 +14052,255 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       suggestion: var_suggestion,
       rewrite: var_rewrite,
       createdAt: var_createdAt,
+    );
+  }
+
+  @protected
+  SyncDatasetEntryDto sse_decode_sync_dataset_entry_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_entryId = sse_decode_String(deserializer);
+    var var_datasetId = sse_decode_String(deserializer);
+    var var_installationId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_ready = sse_decode_bool(deserializer);
+    var var_selected = sse_decode_bool(deserializer);
+    return SyncDatasetEntryDto(
+      entryId: var_entryId,
+      datasetId: var_datasetId,
+      installationId: var_installationId,
+      name: var_name,
+      ready: var_ready,
+      selected: var_selected,
+    );
+  }
+
+  @protected
+  SyncEnrollmentStateDto sse_decode_sync_enrollment_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_role = sse_decode_String(deserializer);
+    var var_operationId = sse_decode_String(deserializer);
+    var var_invitationId = sse_decode_String(deserializer);
+    var var_installationId = sse_decode_String(deserializer);
+    var var_revision = sse_decode_i_64(deserializer);
+    var var_confirmationToken = sse_decode_opt_String(deserializer);
+    var var_phase = sse_decode_String(deserializer);
+    var var_snapshotId = sse_decode_opt_String(deserializer);
+    var var_receivedChunks = sse_decode_i_64(deserializer);
+    var var_totalChunks = sse_decode_i_64(deserializer);
+    var var_localApplied = sse_decode_bool(deserializer);
+    var var_remoteApplied = sse_decode_bool(deserializer);
+    var var_notificationPending = sse_decode_bool(deserializer);
+    return SyncEnrollmentStateDto(
+      role: var_role,
+      operationId: var_operationId,
+      invitationId: var_invitationId,
+      installationId: var_installationId,
+      revision: var_revision,
+      confirmationToken: var_confirmationToken,
+      phase: var_phase,
+      snapshotId: var_snapshotId,
+      receivedChunks: var_receivedChunks,
+      totalChunks: var_totalChunks,
+      localApplied: var_localApplied,
+      remoteApplied: var_remoteApplied,
+      notificationPending: var_notificationPending,
+    );
+  }
+
+  @protected
+  SyncInvitationOfferDto sse_decode_sync_invitation_offer_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_invitationId = sse_decode_String(deserializer);
+    var var_code = sse_decode_String(deserializer);
+    var var_expiresAtMs = sse_decode_i_64(deserializer);
+    return SyncInvitationOfferDto(
+      invitationId: var_invitationId,
+      code: var_code,
+      expiresAtMs: var_expiresAtMs,
+    );
+  }
+
+  @protected
+  SyncInvitationPreviewDto sse_decode_sync_invitation_preview_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_invitationId = sse_decode_String(deserializer);
+    var var_token = sse_decode_String(deserializer);
+    var var_deviceName = sse_decode_String(deserializer);
+    var var_devicePlatform = sse_decode_String(deserializer);
+    var var_fingerprint = sse_decode_String(deserializer);
+    var var_expiresAtMs = sse_decode_i_64(deserializer);
+    return SyncInvitationPreviewDto(
+      invitationId: var_invitationId,
+      token: var_token,
+      deviceName: var_deviceName,
+      devicePlatform: var_devicePlatform,
+      fingerprint: var_fingerprint,
+      expiresAtMs: var_expiresAtMs,
+    );
+  }
+
+  @protected
+  SyncJoinEntryDto sse_decode_sync_join_entry_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_entryId = sse_decode_String(deserializer);
+    var var_installationId = sse_decode_String(deserializer);
+    var var_datasetId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    return SyncJoinEntryDto(
+      entryId: var_entryId,
+      installationId: var_installationId,
+      datasetId: var_datasetId,
+      name: var_name,
+    );
+  }
+
+  @protected
+  SyncJoinStateDto sse_decode_sync_join_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_operationId = sse_decode_String(deserializer);
+    var var_token = sse_decode_String(deserializer);
+    var var_entryId = sse_decode_opt_String(deserializer);
+    var var_installationId = sse_decode_opt_String(deserializer);
+    var var_datasetId = sse_decode_String(deserializer);
+    var var_ownerName = sse_decode_String(deserializer);
+    var var_ownerFingerprint = sse_decode_String(deserializer);
+    var var_localFingerprint = sse_decode_opt_String(deserializer);
+    var var_relayUrl = sse_decode_String(deserializer);
+    var var_expiresAtMs = sse_decode_i_64(deserializer);
+    var var_phase = sse_decode_String(deserializer);
+    var var_revision = sse_decode_i_64(deserializer);
+    var var_creating = sse_decode_bool(deserializer);
+    var var_approvalAckPending = sse_decode_bool(deserializer);
+    return SyncJoinStateDto(
+      operationId: var_operationId,
+      token: var_token,
+      entryId: var_entryId,
+      installationId: var_installationId,
+      datasetId: var_datasetId,
+      ownerName: var_ownerName,
+      ownerFingerprint: var_ownerFingerprint,
+      localFingerprint: var_localFingerprint,
+      relayUrl: var_relayUrl,
+      expiresAtMs: var_expiresAtMs,
+      phase: var_phase,
+      revision: var_revision,
+      creating: var_creating,
+      approvalAckPending: var_approvalAckPending,
+    );
+  }
+
+  @protected
+  SyncKeyCommitDto sse_decode_sync_key_commit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_token = sse_decode_String(deserializer);
+    var var_installationId = sse_decode_String(deserializer);
+    var var_revision = sse_decode_i_64(deserializer);
+    return SyncKeyCommitDto(
+      token: var_token,
+      installationId: var_installationId,
+      revision: var_revision,
+    );
+  }
+
+  @protected
+  SyncKeyRequestDto sse_decode_sync_key_request_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_token = sse_decode_String(deserializer);
+    var var_installationId = sse_decode_String(deserializer);
+    var var_revision = sse_decode_i_64(deserializer);
+    var var_creating = sse_decode_bool(deserializer);
+    return SyncKeyRequestDto(
+      token: var_token,
+      installationId: var_installationId,
+      revision: var_revision,
+      creating: var_creating,
+    );
+  }
+
+  @protected
+  SyncRosterDto sse_decode_sync_roster_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_revision = sse_decode_i_64(deserializer);
+    var var_datasetId = sse_decode_String(deserializer);
+    var var_ownerDeviceId = sse_decode_String(deserializer);
+    var var_processorDeviceId = sse_decode_String(deserializer);
+    var var_localDeviceId = sse_decode_opt_String(deserializer);
+    var var_members = sse_decode_list_sync_roster_member_dto(deserializer);
+    return SyncRosterDto(
+      revision: var_revision,
+      datasetId: var_datasetId,
+      ownerDeviceId: var_ownerDeviceId,
+      processorDeviceId: var_processorDeviceId,
+      localDeviceId: var_localDeviceId,
+      members: var_members,
+    );
+  }
+
+  @protected
+  SyncRosterMemberDto sse_decode_sync_roster_member_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_platform = sse_decode_String(deserializer);
+    var var_active = sse_decode_bool(deserializer);
+    var var_isOwner = sse_decode_bool(deserializer);
+    var var_isProcessor = sse_decode_bool(deserializer);
+    var var_isLocal = sse_decode_bool(deserializer);
+    return SyncRosterMemberDto(
+      deviceId: var_deviceId,
+      name: var_name,
+      platform: var_platform,
+      active: var_active,
+      isOwner: var_isOwner,
+      isProcessor: var_isProcessor,
+      isLocal: var_isLocal,
+    );
+  }
+
+  @protected
+  SyncTickResultDto sse_decode_sync_tick_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_ran = sse_decode_bool(deserializer);
+    var var_stagedOperations = sse_decode_i_64(deserializer);
+    var var_uploaded = sse_decode_i_64(deserializer);
+    var var_pulledAccepted = sse_decode_i_64(deserializer);
+    var var_pulledWaiting = sse_decode_i_64(deserializer);
+    var var_pulledRejected = sse_decode_i_64(deserializer);
+    var var_pulledVersionMismatch = sse_decode_i_64(deserializer);
+    var var_rosterConverged = sse_decode_bool(deserializer);
+    var var_acknowledgementFailed = sse_decode_bool(deserializer);
+    var var_resnapshotPending = sse_decode_list_String(deserializer);
+    return SyncTickResultDto(
+      ran: var_ran,
+      stagedOperations: var_stagedOperations,
+      uploaded: var_uploaded,
+      pulledAccepted: var_pulledAccepted,
+      pulledWaiting: var_pulledWaiting,
+      pulledRejected: var_pulledRejected,
+      pulledVersionMismatch: var_pulledVersionMismatch,
+      rosterConverged: var_rosterConverged,
+      acknowledgementFailed: var_acknowledgementFailed,
+      resnapshotPending: var_resnapshotPending,
     );
   }
 
@@ -8277,6 +14417,121 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_inputMessageId = sse_decode_String(deserializer);
+    var var_preview = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    return UnscheduledChatInputDto(
+      inputMessageId: var_inputMessageId,
+      preview: var_preview,
+      createdAt: var_createdAt,
+    );
+  }
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  WebSearchConfigDto sse_decode_web_search_config_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_engine = sse_decode_String(deserializer);
+    var var_baseUrl = sse_decode_String(deserializer);
+    var var_apiKey = sse_decode_String(deserializer);
+    var var_hasApiKey = sse_decode_bool(deserializer);
+    var var_maxResults = sse_decode_i_64(deserializer);
+    return WebSearchConfigDto(
+      enabled: var_enabled,
+      engine: var_engine,
+      baseUrl: var_baseUrl,
+      apiKey: var_apiKey,
+      hasApiKey: var_hasApiKey,
+      maxResults: var_maxResults,
+    );
+  }
+
+  @protected
+  WikiChatMaterialDto sse_decode_wiki_chat_material_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_slug = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_contentMd = sse_decode_String(deserializer);
+    var var_basisJson = sse_decode_String(deserializer);
+    return WikiChatMaterialDto(
+      slug: var_slug,
+      title: var_title,
+      contentMd: var_contentMd,
+      basisJson: var_basisJson,
+    );
+  }
+
+  @protected
+  WikiPageConflictDto sse_decode_wiki_page_conflict_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_opId = sse_decode_String(deserializer);
+    var var_objectId = sse_decode_String(deserializer);
+    var var_reason = sse_decode_String(deserializer);
+    var var_senderDeviceId = sse_decode_String(deserializer);
+    var var_senderDeviceName = sse_decode_opt_String(deserializer);
+    var var_incomingSlug = sse_decode_String(deserializer);
+    var var_incomingTitle = sse_decode_String(deserializer);
+    var var_incomingDeleted = sse_decode_bool(deserializer);
+    var var_incomingRenamedFrom = sse_decode_opt_String(deserializer);
+    var var_incomingSummary = sse_decode_String(deserializer);
+    var var_incomingContentMdLen = sse_decode_i_64(deserializer);
+    var var_incomingUpdatedAt = sse_decode_String(deserializer);
+    var var_local = sse_decode_opt_box_autoadd_wiki_page_conflict_side_dto(
+      deserializer,
+    );
+    var var_localHeadDeleted = sse_decode_bool(deserializer);
+    return WikiPageConflictDto(
+      opId: var_opId,
+      objectId: var_objectId,
+      reason: var_reason,
+      senderDeviceId: var_senderDeviceId,
+      senderDeviceName: var_senderDeviceName,
+      incomingSlug: var_incomingSlug,
+      incomingTitle: var_incomingTitle,
+      incomingDeleted: var_incomingDeleted,
+      incomingRenamedFrom: var_incomingRenamedFrom,
+      incomingSummary: var_incomingSummary,
+      incomingContentMdLen: var_incomingContentMdLen,
+      incomingUpdatedAt: var_incomingUpdatedAt,
+      local: var_local,
+      localHeadDeleted: var_localHeadDeleted,
+    );
+  }
+
+  @protected
+  WikiPageConflictSideDto sse_decode_wiki_page_conflict_side_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_slug = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_contentMdLen = sse_decode_i_64(deserializer);
+    var var_updatedAt = sse_decode_String(deserializer);
+    return WikiPageConflictSideDto(
+      slug: var_slug,
+      title: var_title,
+      contentMdLen: var_contentMdLen,
+      updatedAt: var_updatedAt,
+    );
+  }
+
+  @protected
   WikiPageDto sse_decode_wiki_page_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -8320,6 +14575,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       contentType: var_contentType,
       humanEditedAt: var_humanEditedAt,
       opinion: var_opinion,
+    );
+  }
+
+  @protected
+  WikiPageMetaDto sse_decode_wiki_page_meta_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_slug = sse_decode_String(deserializer);
+    var var_kind = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_summary = sse_decode_String(deserializer);
+    var var_tags = sse_decode_list_String(deserializer);
+    var var_evidenceCount = sse_decode_i_64(deserializer);
+    var var_firstSeenAt = sse_decode_String(deserializer);
+    var var_lastSeenAt = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_updatedAt = sse_decode_String(deserializer);
+    var var_sourceUrl = sse_decode_opt_String(deserializer);
+    var var_area = sse_decode_String(deserializer);
+    return WikiPageMetaDto(
+      id: var_id,
+      slug: var_slug,
+      kind: var_kind,
+      title: var_title,
+      summary: var_summary,
+      tags: var_tags,
+      evidenceCount: var_evidenceCount,
+      firstSeenAt: var_firstSeenAt,
+      lastSeenAt: var_lastSeenAt,
+      status: var_status,
+      createdAt: var_createdAt,
+      updatedAt: var_updatedAt,
+      sourceUrl: var_sourceUrl,
+      area: var_area,
     );
   }
 
@@ -8391,6 +14681,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.temperature, serializer);
     sse_encode_opt_box_autoadd_i_64(self.maxTokens, serializer);
     sse_encode_opt_box_autoadd_i_64(self.contextWindow, serializer);
+    sse_encode_opt_String(self.revisionToken, serializer);
   }
 
   @protected
@@ -8428,6 +14719,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(1, serializer);
         sse_encode_i_64(count, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_app_update_dto(AppUpdateDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.hasUpdate, serializer);
+    sse_encode_String(self.latestHash, serializer);
+    sse_encode_i_64(self.latestSeq, serializer);
+    sse_encode_String(self.localHash, serializer);
+    sse_encode_i_64(self.localSeq, serializer);
+    sse_encode_String(self.version, serializer);
+    sse_encode_String(self.changelog, serializer);
+    sse_encode_i_64(self.apkSize, serializer);
+    sse_encode_String(self.apkSha256, serializer);
   }
 
   @protected
@@ -8481,6 +14786,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_chat_review_request(
+    ChatReviewRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_chat_review_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_chat_run_dto(
+    ChatRunDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_chat_run_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_companion_revisit_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_conversation_dto(
     ConversationDto self,
     SseSerializer serializer,
@@ -8523,6 +14855,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_guidance_dto(
+    GuidanceDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_guidance_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -8538,6 +14879,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_message_recordability_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_processing_yield_proof_dto(
+    ProcessingYieldProofDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_processing_yield_proof_dto(self, serializer);
   }
 
   @protected
@@ -8559,9 +14909,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_sync_invitation_preview_dto(
+    SyncInvitationPreviewDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sync_invitation_preview_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_wiki_page_conflict_side_dto(self, serializer);
   }
 
   @protected
@@ -8571,6 +14939,144 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_wiki_page_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_decision_dto(
+    ChatDecisionDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.id, serializer);
+    sse_encode_opt_String(self.conversationId, serializer);
+    sse_encode_i_64(self.version, serializer);
+    sse_encode_String(self.decision, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_String(self.result, serializer);
+    sse_encode_String(self.action, serializer);
+    sse_encode_String(self.argsJson, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_input_queue_dto(
+    ChatInputQueueDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.paused, serializer);
+    sse_encode_list_chat_queued_input_dto(self.items, serializer);
+    sse_encode_list_chat_queued_input_dto(self.recentInjections, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_proposal_dto(
+    ChatProposalDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.id, serializer);
+    sse_encode_opt_String(self.conversationId, serializer);
+    sse_encode_String(self.action, serializer);
+    sse_encode_String(self.argsJson, serializer);
+    sse_encode_i_64(self.version, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.approvalToken, serializer);
+    sse_encode_String(self.targetBasisJson, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_queued_input_dto(
+    ChatQueuedInputDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.id, serializer);
+    sse_encode_String(self.inputMessageId, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_String(self.mode, serializer);
+    sse_encode_String(self.preview, serializer);
+    sse_encode_opt_String(self.deferReason, serializer);
+    sse_encode_opt_String(self.runId, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_review_request(
+    ChatReviewRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.proposalId, serializer);
+    sse_encode_opt_String(self.conversationId, serializer);
+    sse_encode_i_64(self.expectedVersion, serializer);
+    sse_encode_String(self.approvalToken, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_run_dto(ChatRunDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.conversationId, serializer);
+    sse_encode_String(self.inputMessageId, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_String(self.phase, serializer);
+    sse_encode_i_64(self.sequence, serializer);
+    sse_encode_i_64(self.requestCount, serializer);
+    sse_encode_String(self.providerBasisJson, serializer);
+    sse_encode_String(self.content, serializer);
+    sse_encode_opt_String(self.errorKind, serializer);
+    sse_encode_opt_String(self.errorText, serializer);
+    sse_encode_opt_String(self.finalMessageId, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.updatedAt, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_run_event_dto(
+    ChatRunEventDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.runId, serializer);
+    sse_encode_i_64(self.sequence, serializer);
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.payloadJson, serializer);
+  }
+
+  @protected
+  void sse_encode_chat_run_event_page_dto(
+    ChatRunEventPageDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.runId, serializer);
+    sse_encode_list_chat_run_event_dto(self.events, serializer);
+    sse_encode_i_64(self.nextSequence, serializer);
+    sse_encode_bool(self.hasMore, serializer);
+  }
+
+  @protected
+  void sse_encode_companion_prefs_dto(
+    CompanionPrefsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.revisitEnabled, serializer);
+    sse_encode_i_64(self.revisitIntervalDays, serializer);
+  }
+
+  @protected
+  void sse_encode_companion_revisit_dto(
+    CompanionRevisitDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_String(self.excerpt, serializer);
+    sse_encode_opt_String(self.feeling, serializer);
   }
 
   @protected
@@ -8625,6 +15131,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_daily_entry_dto(self.entries, serializer);
     sse_encode_opt_box_autoadd_daily_review_dto(self.review, serializer);
     sse_encode_list_todo_dto(self.todos, serializer);
+    sse_encode_list_rule_hit_dto(self.reminderHits, serializer);
+    sse_encode_list_memory_echo_dto(self.memoryEcho, serializer);
   }
 
   @protected
@@ -8684,6 +15192,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_day_count_dto(DayCountDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.date, serializer);
+    sse_encode_i_64(self.count, serializer);
+  }
+
+  @protected
+  void sse_encode_deviation_item_dto(
+    DeviationItemDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.goalContent, serializer);
+    sse_encode_String(self.deviationType, serializer);
+    sse_encode_String(self.evidence, serializer);
+    sse_encode_String(self.severity, serializer);
+    sse_encode_bool(self.dismissed, serializer);
+  }
+
+  @protected
+  void sse_encode_deviation_report_dto(
+    DeviationReportDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.period, serializer);
+    sse_encode_String(self.periodType, serializer);
+    sse_encode_String(self.startDate, serializer);
+    sse_encode_String(self.endDate, serializer);
+    sse_encode_String(self.generatedAt, serializer);
+    sse_encode_opt_String(self.detectedAt, serializer);
+    sse_encode_opt_String(self.readAt, serializer);
+    sse_encode_i_64(self.total, serializer);
+    sse_encode_i_64(self.todoDoneCount, serializer);
+    sse_encode_list_day_count_dto(self.daily, serializer);
+    sse_encode_list_named_count_dto(self.byEventType, serializer);
+    sse_encode_list_named_count_dto(self.byPerson, serializer);
+    sse_encode_list_named_count_dto(self.byProject, serializer);
+    sse_encode_list_named_count_dto(self.byActivity, serializer);
+    sse_encode_list_deviation_item_dto(self.deviations, serializer);
+  }
+
+  @protected
+  void sse_encode_emotion_tag_dto(
+    EmotionTagDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.target, serializer);
+    sse_encode_String(self.feeling, serializer);
+  }
+
+  @protected
   void sse_encode_entity_fact_dto(
     EntityFactDto self,
     SseSerializer serializer,
@@ -8738,6 +15300,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.projects, serializer);
     sse_encode_list_String(self.activities, serializer);
     sse_encode_list_String(self.followUps, serializer);
+    sse_encode_opt_box_autoadd_guidance_dto(self.guidance, serializer);
+    sse_encode_opt_list_emotion_tag_dto(self.emotion, serializer);
     sse_encode_opt_box_autoadd_bool(self.recordable, serializer);
     sse_encode_opt_String(self.kind, serializer);
     sse_encode_bool(self.effectiveRecordable, serializer);
@@ -8752,6 +15316,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.rawText, serializer);
     sse_encode_String(self.recordedAt, serializer);
     sse_encode_String(self.occurredAt, serializer);
+    sse_encode_String(self.source, serializer);
+    sse_encode_String(self.status, serializer);
+  }
+
+  @protected
+  void sse_encode_event_emotion_dto(
+    EventEmotionDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_opt_String(self.target, serializer);
+    sse_encode_String(self.feeling, serializer);
+  }
+
+  @protected
+  void sse_encode_event_stats_query(
+    EventStatsQuery self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.eventType, serializer);
+    sse_encode_opt_String(self.person, serializer);
+    sse_encode_opt_String(self.project, serializer);
+    sse_encode_opt_String(self.activity, serializer);
+    sse_encode_opt_String(self.textContains, serializer);
+  }
+
+  @protected
+  void sse_encode_event_summary_dto(
+    EventSummaryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.rawText, serializer);
+    sse_encode_String(self.recordedAt, serializer);
     sse_encode_String(self.source, serializer);
     sse_encode_String(self.status, serializer);
   }
@@ -8772,6 +15375,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.createdAt, serializer);
     sse_encode_String(self.updatedAt, serializer);
     sse_encode_opt_String(self.supersededAt, serializer);
+  }
+
+  @protected
+  void sse_encode_guidance_dto(GuidanceDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_guidance_ref_dto(self.related, serializer);
+    sse_encode_list_String(self.lessons, serializer);
+    sse_encode_list_String(self.followUpsRefined, serializer);
+  }
+
+  @protected
+  void sse_encode_guidance_ref_dto(
+    GuidanceRefDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.slug, serializer);
+    sse_encode_String(self.note, serializer);
   }
 
   @protected
@@ -9168,6 +15789,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_chat_decision_dto(
+    List<ChatDecisionDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_chat_decision_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_chat_proposal_dto(
+    List<ChatProposalDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_chat_proposal_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_chat_queued_input_dto(
+    List<ChatQueuedInputDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_chat_queued_input_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_chat_run_dto(
+    List<ChatRunDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_chat_run_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_chat_run_event_dto(
+    List<ChatRunEventDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_chat_run_event_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_content_chat_message_dto(
     List<ContentChatMessageDto> self,
     SseSerializer serializer,
@@ -9228,6 +15909,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_day_count_dto(
+    List<DayCountDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_day_count_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_deviation_item_dto(
+    List<DeviationItemDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_deviation_item_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_deviation_report_dto(
+    List<DeviationReportDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_deviation_report_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_emotion_tag_dto(
+    List<EmotionTagDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_emotion_tag_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_entity_fact_dto(
     List<EntityFactDto> self,
     SseSerializer serializer,
@@ -9252,11 +15981,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_event_emotion_dto(
+    List<EventEmotionDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_event_emotion_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_event_summary_dto(
+    List<EventSummaryDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_event_summary_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_goal_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_guidance_ref_dto(
+    List<GuidanceRefDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_guidance_ref_dto(item, serializer);
     }
   }
 
@@ -9405,6 +16170,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_memory_echo_dto(
+    List<MemoryEchoDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_memory_echo_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_message_dto(
     List<MessageDto> self,
     SseSerializer serializer,
@@ -9417,6 +16194,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_named_count_dto(
+    List<NamedCountDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_named_count_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_object_conflict_dto(
+    List<ObjectConflictDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_object_conflict_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_organized_topic(
     List<OrganizedTopic> self,
     SseSerializer serializer,
@@ -9425,6 +16226,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_organized_topic(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_page_guidance_dto(
+    List<PageGuidanceDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_page_guidance_dto(item, serializer);
     }
   }
 
@@ -9451,6 +16264,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_prim_u_8_loose(
+    List<int> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putUint8List(
+      self is Uint8List ? self : Uint8List.fromList(self),
+    );
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -9458,6 +16283,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_list_provider_conflict_profile_dto(
+    List<ProviderConflictProfileDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_provider_conflict_profile_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_provider_sync_conflict_dto(
+    List<ProviderSyncConflictDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_provider_sync_conflict_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_reachability_hint(
+    List<ReachabilityHint> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_reachability_hint(item, serializer);
+    }
   }
 
   @protected
@@ -9482,6 +16343,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_rule_hit_dto(
+    List<RuleHitDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_rule_hit_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_source_reference(
     List<SourceReference> self,
     SseSerializer serializer,
@@ -9502,6 +16375,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_source_snapshot(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_sync_dataset_entry_dto(
+    List<SyncDatasetEntryDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sync_dataset_entry_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_sync_enrollment_state_dto(
+    List<SyncEnrollmentStateDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sync_enrollment_state_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_sync_join_entry_dto(
+    List<SyncJoinEntryDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sync_join_entry_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_sync_roster_member_dto(
+    List<SyncRosterMemberDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sync_roster_member_dto(item, serializer);
     }
   }
 
@@ -9539,6 +16460,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_unscheduled_chat_input_dto(
+    List<UnscheduledChatInputDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_unscheduled_chat_input_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_wiki_page_conflict_dto(
+    List<WikiPageConflictDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_wiki_page_conflict_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_wiki_page_dto(
     List<WikiPageDto> self,
     SseSerializer serializer,
@@ -9548,6 +16493,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     for (final item in self) {
       sse_encode_wiki_page_dto(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_list_wiki_page_meta_dto(
+    List<WikiPageMetaDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_wiki_page_meta_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_local_sync_state_dto(
+    LocalSyncStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.state, serializer);
+    sse_encode_opt_String(self.installationId, serializer);
+    sse_encode_i_64(self.vaultRevision, serializer);
+    sse_encode_opt_String(self.datasetId, serializer);
+    sse_encode_opt_String(self.deviceId, serializer);
+    sse_encode_opt_String(self.deviceName, serializer);
+    sse_encode_bool(self.isOwner, serializer);
+    sse_encode_bool(self.isProcessor, serializer);
+    sse_encode_i_64(self.activePeers, serializer);
+    sse_encode_i_64(self.pendingOperations, serializer);
+    sse_encode_opt_String(self.relayUrl, serializer);
+  }
+
+  @protected
+  void sse_encode_memory_echo_dto(
+    MemoryEchoDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_String(self.rawText, serializer);
   }
 
   @protected
@@ -9574,6 +16561,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.source, serializer);
     sse_encode_String(self.jobStatus, serializer);
     sse_encode_opt_String(self.summary, serializer);
+  }
+
+  @protected
+  void sse_encode_named_count_dto(
+    NamedCountDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.label, serializer);
+    sse_encode_i_64(self.count, serializer);
+  }
+
+  @protected
+  void sse_encode_network_settings_dto(
+    NetworkSettingsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.dohUri, serializer);
+    sse_encode_String(self.dohScope, serializer);
+    sse_encode_String(self.dohMode, serializer);
+  }
+
+  @protected
+  void sse_encode_object_conflict_dto(
+    ObjectConflictDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.opId, serializer);
+    sse_encode_String(self.objectKind, serializer);
+    sse_encode_String(self.objectId, serializer);
+    sse_encode_String(self.reason, serializer);
+    sse_encode_String(self.senderDeviceId, serializer);
+    sse_encode_opt_String(self.senderDeviceName, serializer);
+    sse_encode_String(self.incomingSummary, serializer);
+    sse_encode_String(self.incomingStatus, serializer);
+    sse_encode_bool(self.incomingDeleted, serializer);
+    sse_encode_String(self.incomingUpdatedAt, serializer);
+    sse_encode_opt_String(self.localSummary, serializer);
+    sse_encode_opt_String(self.localStatus, serializer);
+    sse_encode_opt_String(self.localUpdatedAt, serializer);
+    sse_encode_bool(self.localHeadDeleted, serializer);
   }
 
   @protected
@@ -9606,6 +16636,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_bool(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_chat_run_dto(
+    ChatRunDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_chat_run_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_companion_revisit_dto(
+    CompanionRevisitDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_companion_revisit_dto(self, serializer);
     }
   }
 
@@ -9672,6 +16728,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_guidance_dto(
+    GuidanceDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_guidance_dto(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -9724,12 +16793,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_sync_invitation_preview_dto(
+    SyncInvitationPreviewDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_sync_invitation_preview_dto(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_wiki_page_conflict_side_dto(self, serializer);
     }
   }
 
@@ -9747,6 +16842,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_list_emotion_tag_dto(
+    List<EmotionTagDto>? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_emotion_tag_dto(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_organized_topic(
     OrganizedTopic self,
     SseSerializer serializer,
@@ -9760,6 +16868,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_page_guidance_dto(
+    PageGuidanceDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.analysisId, serializer);
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_opt_String(self.note, serializer);
+    sse_encode_list_String(self.lessons, serializer);
+    sse_encode_list_String(self.followUpsRefined, serializer);
+    sse_encode_opt_String(self.feedback, serializer);
+  }
+
+  @protected
   void sse_encode_pending_action_dto(
     PendingActionDto self,
     SseSerializer serializer,
@@ -9769,6 +16892,154 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.action, serializer);
     sse_encode_String(self.argsJson, serializer);
     sse_encode_String(self.createdAt, serializer);
+    sse_encode_i_64(self.version, serializer);
+    sse_encode_String(self.approvalToken, serializer);
+    sse_encode_String(self.targetBasisJson, serializer);
+  }
+
+  @protected
+  void sse_encode_period_report_tick_result(
+    PeriodReportTickResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case PeriodReportTickResult_NoProvider():
+        sse_encode_i_32(0, serializer);
+      case PeriodReportTickResult_Idle():
+        sse_encode_i_32(1, serializer);
+      case PeriodReportTickResult_Generated(
+        period: final period,
+        periodType: final periodType,
+      ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(period, serializer);
+        sse_encode_String(periodType, serializer);
+      case PeriodReportTickResult_Detected(
+        reportId: final reportId,
+        deviations: final deviations,
+      ):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(reportId, serializer);
+        sse_encode_usize(deviations, serializer);
+      case PeriodReportTickResult_DetectFailed(
+        reportId: final reportId,
+        error: final error,
+      ):
+        sse_encode_i_32(4, serializer);
+        sse_encode_String(reportId, serializer);
+        sse_encode_String(error, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_period_stats_dto(
+    PeriodStatsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.periodType, serializer);
+    sse_encode_String(self.startDate, serializer);
+    sse_encode_String(self.endDate, serializer);
+    sse_encode_i_64(self.eventCount, serializer);
+    sse_encode_i_64(self.todoDoneCount, serializer);
+    sse_encode_list_named_count_dto(self.byEventType, serializer);
+    sse_encode_list_named_count_dto(self.byPerson, serializer);
+    sse_encode_list_named_count_dto(self.byProject, serializer);
+    sse_encode_list_named_count_dto(self.byActivity, serializer);
+    sse_encode_list_day_count_dto(self.dailyCounts, serializer);
+  }
+
+  @protected
+  void sse_encode_processing_yield_proof_dto(
+    ProcessingYieldProofDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.datasetId, serializer);
+    sse_encode_String(self.fromDeviceId, serializer);
+    sse_encode_String(self.toDeviceId, serializer);
+    sse_encode_i_64(self.rosterRevision, serializer);
+    sse_encode_i_64(self.finalSequence, serializer);
+    sse_encode_list_prim_u_8_strict(self.signature, serializer);
+  }
+
+  @protected
+  void sse_encode_processor_handoff_state_dto(
+    ProcessorHandoffStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.state, serializer);
+    sse_encode_opt_String(self.fromDeviceId, serializer);
+    sse_encode_opt_String(self.toDeviceId, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.finalSequence, serializer);
+    sse_encode_bool(self.canConfirm, serializer);
+  }
+
+  @protected
+  void sse_encode_provider_conflict_profile_dto(
+    ProviderConflictProfileDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.providerType, serializer);
+    sse_encode_String(self.baseUrl, serializer);
+    sse_encode_String(self.model, serializer);
+    sse_encode_String(self.apiKeyMasked, serializer);
+    sse_encode_bool(self.apiKeyPresent, serializer);
+    sse_encode_bool(self.enabled, serializer);
+    sse_encode_bool(self.isActive, serializer);
+    sse_encode_f_64(self.temperature, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.maxTokens, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.contextWindow, serializer);
+    sse_encode_list_reachability_hint(self.reachabilityHints, serializer);
+  }
+
+  @protected
+  void sse_encode_provider_sync_conflict_dto(
+    ProviderSyncConflictDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.revisionId, serializer);
+    sse_encode_opt_String(self.baseRevision, serializer);
+    sse_encode_String(self.senderDeviceId, serializer);
+    sse_encode_opt_String(self.senderDeviceName, serializer);
+    sse_encode_String(self.localRevision, serializer);
+    sse_encode_list_provider_conflict_profile_dto(
+      self.remoteProfiles,
+      serializer,
+    );
+    sse_encode_opt_String(self.remoteActiveId, serializer);
+    sse_encode_list_String(self.remoteFailoverOrder, serializer);
+    sse_encode_list_provider_conflict_profile_dto(
+      self.localProfiles,
+      serializer,
+    );
+    sse_encode_opt_String(self.localActiveId, serializer);
+  }
+
+  @protected
+  void sse_encode_reachability_hint(
+    ReachabilityHint self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.code, serializer);
+    sse_encode_String(self.address, serializer);
+  }
+
+  @protected
+  void sse_encode_record_list_sync_dataset_entry_dto_i_64(
+    (List<SyncDatasetEntryDto>, PlatformInt64) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_sync_dataset_entry_dto(self.$1, serializer);
+    sse_encode_i_64(self.$2, serializer);
   }
 
   @protected
@@ -9793,6 +17064,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.content, serializer);
     sse_encode_String(self.status, serializer);
     sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.triggerScene, serializer);
+    sse_encode_list_String(self.triggerKeywords, serializer);
+  }
+
+  @protected
+  void sse_encode_rule_hit_dto(RuleHitDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.ruleId, serializer);
+    sse_encode_String(self.ruleContent, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_opt_String(self.feedback, serializer);
   }
 
   @protected
@@ -9848,6 +17132,170 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.suggestion, serializer);
     sse_encode_opt_String(self.rewrite, serializer);
     sse_encode_String(self.createdAt, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_dataset_entry_dto(
+    SyncDatasetEntryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.entryId, serializer);
+    sse_encode_String(self.datasetId, serializer);
+    sse_encode_String(self.installationId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_bool(self.ready, serializer);
+    sse_encode_bool(self.selected, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_enrollment_state_dto(
+    SyncEnrollmentStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.role, serializer);
+    sse_encode_String(self.operationId, serializer);
+    sse_encode_String(self.invitationId, serializer);
+    sse_encode_String(self.installationId, serializer);
+    sse_encode_i_64(self.revision, serializer);
+    sse_encode_opt_String(self.confirmationToken, serializer);
+    sse_encode_String(self.phase, serializer);
+    sse_encode_opt_String(self.snapshotId, serializer);
+    sse_encode_i_64(self.receivedChunks, serializer);
+    sse_encode_i_64(self.totalChunks, serializer);
+    sse_encode_bool(self.localApplied, serializer);
+    sse_encode_bool(self.remoteApplied, serializer);
+    sse_encode_bool(self.notificationPending, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_invitation_offer_dto(
+    SyncInvitationOfferDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.invitationId, serializer);
+    sse_encode_String(self.code, serializer);
+    sse_encode_i_64(self.expiresAtMs, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_invitation_preview_dto(
+    SyncInvitationPreviewDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.invitationId, serializer);
+    sse_encode_String(self.token, serializer);
+    sse_encode_String(self.deviceName, serializer);
+    sse_encode_String(self.devicePlatform, serializer);
+    sse_encode_String(self.fingerprint, serializer);
+    sse_encode_i_64(self.expiresAtMs, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_join_entry_dto(
+    SyncJoinEntryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.entryId, serializer);
+    sse_encode_String(self.installationId, serializer);
+    sse_encode_String(self.datasetId, serializer);
+    sse_encode_String(self.name, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_join_state_dto(
+    SyncJoinStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.operationId, serializer);
+    sse_encode_String(self.token, serializer);
+    sse_encode_opt_String(self.entryId, serializer);
+    sse_encode_opt_String(self.installationId, serializer);
+    sse_encode_String(self.datasetId, serializer);
+    sse_encode_String(self.ownerName, serializer);
+    sse_encode_String(self.ownerFingerprint, serializer);
+    sse_encode_opt_String(self.localFingerprint, serializer);
+    sse_encode_String(self.relayUrl, serializer);
+    sse_encode_i_64(self.expiresAtMs, serializer);
+    sse_encode_String(self.phase, serializer);
+    sse_encode_i_64(self.revision, serializer);
+    sse_encode_bool(self.creating, serializer);
+    sse_encode_bool(self.approvalAckPending, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_key_commit_dto(
+    SyncKeyCommitDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.token, serializer);
+    sse_encode_String(self.installationId, serializer);
+    sse_encode_i_64(self.revision, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_key_request_dto(
+    SyncKeyRequestDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.token, serializer);
+    sse_encode_String(self.installationId, serializer);
+    sse_encode_i_64(self.revision, serializer);
+    sse_encode_bool(self.creating, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_roster_dto(
+    SyncRosterDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.revision, serializer);
+    sse_encode_String(self.datasetId, serializer);
+    sse_encode_String(self.ownerDeviceId, serializer);
+    sse_encode_String(self.processorDeviceId, serializer);
+    sse_encode_opt_String(self.localDeviceId, serializer);
+    sse_encode_list_sync_roster_member_dto(self.members, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_roster_member_dto(
+    SyncRosterMemberDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.platform, serializer);
+    sse_encode_bool(self.active, serializer);
+    sse_encode_bool(self.isOwner, serializer);
+    sse_encode_bool(self.isProcessor, serializer);
+    sse_encode_bool(self.isLocal, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_tick_result_dto(
+    SyncTickResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.ran, serializer);
+    sse_encode_i_64(self.stagedOperations, serializer);
+    sse_encode_i_64(self.uploaded, serializer);
+    sse_encode_i_64(self.pulledAccepted, serializer);
+    sse_encode_i_64(self.pulledWaiting, serializer);
+    sse_encode_i_64(self.pulledRejected, serializer);
+    sse_encode_i_64(self.pulledVersionMismatch, serializer);
+    sse_encode_bool(self.rosterConverged, serializer);
+    sse_encode_bool(self.acknowledgementFailed, serializer);
+    sse_encode_list_String(self.resnapshotPending, serializer);
   }
 
   @protected
@@ -9936,6 +17384,86 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_unscheduled_chat_input_dto(
+    UnscheduledChatInputDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.inputMessageId, serializer);
+    sse_encode_String(self.preview, serializer);
+    sse_encode_String(self.createdAt, serializer);
+  }
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_web_search_config_dto(
+    WebSearchConfigDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.enabled, serializer);
+    sse_encode_String(self.engine, serializer);
+    sse_encode_String(self.baseUrl, serializer);
+    sse_encode_String(self.apiKey, serializer);
+    sse_encode_bool(self.hasApiKey, serializer);
+    sse_encode_i_64(self.maxResults, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_chat_material_dto(
+    WikiChatMaterialDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.slug, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.contentMd, serializer);
+    sse_encode_String(self.basisJson, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_page_conflict_dto(
+    WikiPageConflictDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.opId, serializer);
+    sse_encode_String(self.objectId, serializer);
+    sse_encode_String(self.reason, serializer);
+    sse_encode_String(self.senderDeviceId, serializer);
+    sse_encode_opt_String(self.senderDeviceName, serializer);
+    sse_encode_String(self.incomingSlug, serializer);
+    sse_encode_String(self.incomingTitle, serializer);
+    sse_encode_bool(self.incomingDeleted, serializer);
+    sse_encode_opt_String(self.incomingRenamedFrom, serializer);
+    sse_encode_String(self.incomingSummary, serializer);
+    sse_encode_i_64(self.incomingContentMdLen, serializer);
+    sse_encode_String(self.incomingUpdatedAt, serializer);
+    sse_encode_opt_box_autoadd_wiki_page_conflict_side_dto(
+      self.local,
+      serializer,
+    );
+    sse_encode_bool(self.localHeadDeleted, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_page_conflict_side_dto(
+    WikiPageConflictSideDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.slug, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_i_64(self.contentMdLen, serializer);
+    sse_encode_String(self.updatedAt, serializer);
+  }
+
+  @protected
   void sse_encode_wiki_page_dto(WikiPageDto self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -9958,5 +17486,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.contentType, serializer);
     sse_encode_opt_String(self.humanEditedAt, serializer);
     sse_encode_opt_String(self.opinion, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_page_meta_dto(
+    WikiPageMetaDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.slug, serializer);
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.summary, serializer);
+    sse_encode_list_String(self.tags, serializer);
+    sse_encode_i_64(self.evidenceCount, serializer);
+    sse_encode_String(self.firstSeenAt, serializer);
+    sse_encode_String(self.lastSeenAt, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.updatedAt, serializer);
+    sse_encode_opt_String(self.sourceUrl, serializer);
+    sse_encode_String(self.area, serializer);
   }
 }
