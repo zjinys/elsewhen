@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../bridge/api.dart' as api;
 import '../sync/sync_setup_controller.dart';
+import '../utils/desktop_prefs.dart';
 
 class OwnerSyncPairingSettings extends StatefulWidget {
   const OwnerSyncPairingSettings({super.key, required this.controller});
@@ -17,6 +18,18 @@ class OwnerSyncPairingSettings extends StatefulWidget {
 class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
   final _relay = TextEditingController();
   bool _consent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      final prefs = const DesktopPrefsStore();
+      final last = prefs.loadLastOwnerRelayUrl();
+      if (last != null && last.isNotEmpty) {
+        _relay.text = last;
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -104,7 +117,17 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
           FilledButton.icon(
             onPressed: controller.busy || !_consent
                 ? null
-                : () => controller.createInvitation(_relay.text, consent: true),
+                : () async {
+                    try {
+                      const DesktopPrefsStore().saveLastOwnerRelayUrl(
+                        _relay.text.trim(),
+                      );
+                    } catch (_) {}
+                    await controller.createInvitation(
+                      _relay.text,
+                      consent: true,
+                    );
+                  },
             icon: const Icon(Icons.add_link),
             label: const Text('创建短期邀请'),
           ),

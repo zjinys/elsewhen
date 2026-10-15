@@ -69,4 +69,42 @@ class DesktopPrefsStore {
       // 写失败静默：偏好丢了只是下次回到默认，不值得打断用户。
     }
   }
+
+  /// 读取上次用于创建主人端邀请的中继 URL。
+  String? loadLastOwnerRelayUrl() {
+    try {
+      final f = _file();
+      if (!f.existsSync()) return null;
+      final decoded = jsonDecode(f.readAsStringSync());
+      if (decoded is! Map) return null;
+      final v = decoded['lastOwnerRelayUrl'];
+      return v is String && v.isNotEmpty ? v : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void saveLastOwnerRelayUrl(String? url) {
+    try {
+      final f = _file();
+      f.parent.createSync(recursive: true);
+      Map<String, dynamic> data = {};
+      if (f.existsSync()) {
+        try {
+          final decoded = jsonDecode(f.readAsStringSync());
+          if (decoded is Map) data = Map<String, dynamic>.from(decoded);
+        } catch (_) {
+          data = {};
+        }
+      }
+      if (url == null || url.isEmpty) {
+        data.remove('lastOwnerRelayUrl');
+      } else {
+        data['lastOwnerRelayUrl'] = url;
+      }
+      f.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(data));
+    } catch (_) {
+      // 静默失败
+    }
+  }
 }

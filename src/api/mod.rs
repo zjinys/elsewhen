@@ -18,7 +18,6 @@ pub mod todos;
 pub mod tweet;
 pub mod web_search;
 pub mod wiki;
-pub mod sync_config;
 pub mod wiki_chat;
 use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
