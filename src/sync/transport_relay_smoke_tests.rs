@@ -72,13 +72,19 @@ mod smoke {
         let url = std::env::var("ELSEWHEN_RELAY_TEST_URL")
             .expect("test harness must provide ELSEWHEN_RELAY_TEST_URL");
         let parsed = reqwest::Url::parse(&url).unwrap();
+        // 允许 loopback 与私网（NAS 自建中继）；公网域名仍禁止，防止误打生产。
         assert!(
             parsed.host_str().is_some_and(|host| host == "localhost"
                 || host
                     .trim_matches(['[', ']'])
                     .parse::<std::net::IpAddr>()
-                    .is_ok_and(|ip| ip.is_loopback())),
-            "interoperability tests may only access loopback"
+                    .is_ok_and(|ip| match ip {
+                        std::net::IpAddr::V4(v4) => v4.is_loopback() || v4.is_private(),
+                        std::net::IpAddr::V6(v6) => {
+                            v6.is_loopback() || (v6.segments()[0] & 0xfe00) == 0xfc00
+                        }
+                    })),
+            "interoperability tests may only access loopback or private addresses"
         );
         let client = RelayClient::new(&url).unwrap();
         assert!(client.health().unwrap());

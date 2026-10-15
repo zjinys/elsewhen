@@ -5,14 +5,41 @@
 //! receive the end-to-end encryption key. Each device needs a distinct owner key.
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
+use ring::digest::SHA256;
 use ring::hmac;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::io::Read;
+use std::fs;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 
 const VERSION: u8 = 2;
 const MAX_RESPONSE_BYTES: u64 = 17 * 1024 * 1024;
 const MAX_ENVELOPE_BYTES: usize = 8 * 1024 * 1024;
 const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
+/// 升级 APK 体积上限（当前产物 ~60MB；为后续增长留余量）。
+const RELEASE_APK_MAX_BYTES: u64 = 128 * 1024 * 1024;
+
+/// 应用升级发布清单（发布方写入 R2 的 release/manifest.json）。清单由
+/// 发布脚本（Node 侧）生成，字段是 JS 惯例 camelCase。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseManifest {
+    pub version: String,
+    pub build_hash: String,
+    pub build_seq: i64,
+    pub changelog: String,
+    pub apk_sha256: String,
+    pub apk_size: i64,
+    pub published_at: i64,
+}
+
+/// 7-64 位小写十六进制（git 短 hash…全 hash 都合法）。
+fn is_short_hash(value: &str) -> bool {
+    (7..=64).contains(&value.len())
+        && value
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelayEnvelope {
@@ -67,11 +94,17 @@ impl RelayClient {
                 || host
                     .trim_matches(['[', ']'])
                     .parse::<std::net::IpAddr>()
-                    .is_ok_and(|ip| ip.is_loopback())
+                    .is_ok_and(|ip| match ip {
+                        std::net::IpAddr::V4(v4) => v4.is_loopback() || v4.is_private(),
+                        // IPv6：回环或唯一本地段（fc00::/7）。
+                        std::net::IpAddr::V6(v6) => {
+                            v6.is_loopback() || (v6.segments()[0] & 0xfe00) == 0xfc00
+                        }
+                    })
         });
         ensure!(
             url.scheme() == "https" || (url.scheme() == "http" && local),
-            "relay URL must use HTTPS (HTTP only for loopback development)"
+            "relay URL must use HTTPS (HTTP only for private/loopback addresses)"
         );
         ensure!(
             url.host_str().is_some()
@@ -102,6 +135,108 @@ impl RelayClient {
             body.get("version").and_then(|v| v.as_u64()) == Some(VERSION.into())
                 && body.get("ok").and_then(|v| v.as_bool()) == Some(true),
         )
+    }
+
+    /// 拉取应用升级发布清单（/release/latest，见 relay worker +
+    /// scripts/publish-release.sh）。失败直接报错（区别于 health 的布尔降
+    /// 级）：升级检查需要用户可感知的原因。
+    pub fn fetch_release_manifest(&self) -> Result<ReleaseManifest> {
+        let response = self
+            .http
+            .get(format!("{}/release/latest", self.base_url))
+            .send()?;
+        let manifest: ReleaseManifest = response_json(response)?;
+        // 盲中继不承诺清单可信：字段级校验（hash 格式、大小上限）防捏造。
+        // build_seq 的方向判断交给调用方（与本地比较），这里只挡明显非法。
+        ensure!(
+            is_short_hash(&manifest.build_hash)
+                && manifest.apk_sha256.len() == 64
+                && manifest.apk_sha256.chars().all(|c| c.is_ascii_hexdigit())
+                && manifest.apk_size > 0
+                && manifest.apk_size as u64 <= RELEASE_APK_MAX_BYTES,
+            "release manifest failed validation"
+        );
+        Ok(manifest)
+    }
+
+    /// 下载升级 APK 到目录（/release/apk?h=<hash>），返回最终文件路径。
+    /// 先写 .part 再原子改名；同 hash 的 .part 已存在时 Range 续传（直连
+    /// CF 的长下载容易被慢窗口打断，重下 60MB 不可接受）。完成后校验
+    /// sha256——清单来自不可信中继，指纹对上才算数。
+    pub fn download_release_apk(
+        &self,
+        build_hash: &str,
+        apk_sha256: &str,
+        apk_size: i64,
+        dest_dir: &Path,
+    ) -> Result<PathBuf> {
+        ensure!(is_short_hash(build_hash), "invalid release hash");
+        fs::create_dir_all(dest_dir).context("create update download dir")?;
+        let final_path = dest_dir.join(format!("elsewhen-{build_hash}.apk"));
+        if fs::metadata(&final_path).is_ok_and(|m| m.len() == apk_size as u64) {
+            return Ok(final_path);
+        }
+        let part = dest_dir.join(format!("elsewhen-{build_hash}.apk.part"));
+        let existing = fs::metadata(&part)
+            .ok()
+            .map(|m| m.len())
+            .filter(|len| *len > 0 && *len < apk_size as u64);
+        let mut request = self
+            .http
+            .get(format!("{}/release/apk?h={}", self.base_url, build_hash))
+            .header("Accept", "application/vnd.android.package-archive");
+        if let Some(offset) = existing {
+            request = request.header("Range", format!("bytes={offset}-"));
+        }
+        let response = request.send()?;
+        // 服务器不支持 Range 会回 200 全量；只有 206 才算续传。
+        if response.status() == reqwest::StatusCode::PARTIAL_CONTENT {
+            ensure!(
+                existing.is_some(),
+                "relay returned partial content without a range request"
+            );
+        } else {
+            ensure!(
+                response.status().is_success(),
+                RelayHttpError(response.status())
+            );
+            let _ = fs::remove_file(&part);
+        }
+        let size = apk_size as u64;
+        let offset = existing.unwrap_or(0);
+        if let Some(length) = response.content_length() {
+            ensure!(length <= size - offset, "release apk larger than manifest");
+        }
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(existing.is_some())
+            .open(&part)
+            .context("open update part file")?;
+        let mut remaining = size - offset;
+        let mut buf = [0u8; 64 * 1024];
+        let mut stream = response.take(remaining);
+        while remaining > 0 {
+            let n = stream.read(&mut buf)?;
+            if n == 0 {
+                bail!(
+                    "release apk stream ended early (got {} of {})",
+                    size - remaining,
+                    size
+                );
+            }
+            file.write_all(&buf[..n])?;
+            remaining -= n as u64;
+        }
+        file.flush()?;
+        drop(file);
+        let actual = apk_sha256_hex(&part)?;
+        ensure!(
+            actual.eq_ignore_ascii_case(apk_sha256),
+            "release apk sha256 mismatch"
+        );
+        fs::rename(&part, &final_path).context("promote downloaded apk")?;
+        Ok(final_path)
     }
 
     /// Initial mailbox identity. Persist it across subsequent owner-key rotation.
@@ -506,6 +641,21 @@ impl std::fmt::Display for RelayHttpError {
 }
 impl std::error::Error for RelayHttpError {}
 
+/// 流式计算文件 sha256（60MB 量级，不整读进内存）。
+fn apk_sha256_hex(path: &Path) -> Result<String> {
+    let mut file = fs::File::open(path).context("open apk for hashing")?;
+    let mut ctx = ring::digest::Context::new(&SHA256);
+    let mut buf = [0u8; 256 * 1024];
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        ctx.update(&buf[..n]);
+    }
+    Ok(bytes_to_hex(ctx.finish().as_ref()))
+}
+
 fn response_json<T: DeserializeOwned>(response: reqwest::blocking::Response) -> Result<T> {
     // A compromised relay may return secrets in an error body. Never echo it.
     if !response.status().is_success() {
@@ -610,6 +760,9 @@ mod tests {
             "http://localhost.evil.invalid",
             "http://127.0.0.1.evil.invalid",
             "http://localhost@evil.invalid",
+            // 私网段之外的明文 http 仍然拒绝。
+            "http://8.8.8.8:8787",
+            "http://example.com:8787",
             "https://user:secret@relay.invalid",
             "https://relay.invalid?key=secret",
             "https://relay.invalid#fragment",
@@ -621,6 +774,11 @@ mod tests {
             "http://localhost:8787",
             "http://127.0.0.1:8787",
             "http://[::1]:8787",
+            // 自建局域网中继（NAS）：私网明文地址放行。
+            "http://192.168.1.10:8787",
+            "http://10.0.0.2",
+            "http://172.16.5.5:8787",
+            "http://[fd00::5]:8787",
         ] {
             assert!(RelayClient::new(url).is_ok(), "{url}");
         }
@@ -665,5 +823,171 @@ mod tests {
             sign(&[7; 32], "status", &["mailbox"], 123, "nonce"),
             hmac_sign_hex(&[7; 32], &["relay-v2-status", "mailbox", "123", "nonce"])
         );
+    }
+}
+
+#[cfg(test)]
+mod release_tests {
+    use super::*;
+
+    /// 极简回环 HTTP 服务：按给定脚本应答（清单 / APK / 断点响应）。
+    struct FakeRelay {
+        url: String,
+        handle: Option<std::thread::JoinHandle<()>>,
+    }
+
+    impl FakeRelay {
+        fn start(script: impl Fn(String, Vec<String>) -> Vec<u8> + Send + 'static) -> Self {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let url = format!("http://{}", listener.local_addr().unwrap());
+            let handle = std::thread::spawn(move || {
+                for stream in listener.incoming() {
+                    let Ok(mut socket) = stream else { break };
+                    let mut request = Vec::new();
+                    let mut buffer = [0u8; 4096];
+                    loop {
+                        let n = socket.read(&mut buffer).unwrap();
+                        request.extend_from_slice(&buffer[..n]);
+                        if request.windows(4).any(|b| b == b"\r\n\r\n") {
+                            break;
+                        }
+                    }
+                    let text = String::from_utf8_lossy(&request);
+                    let mut lines = text.lines();
+                    let first = lines.next().unwrap_or_default().to_string();
+                    let headers: Vec<String> = lines
+                        .take_while(|l| !l.is_empty())
+                        .map(|l| l.to_ascii_lowercase())
+                        .collect();
+                    let body = script(first, headers);
+                    let head = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
+                    );
+                    let _ = socket.write_all(head.as_bytes());
+                    let _ = socket.write_all(&body);
+                }
+            });
+            Self {
+                url,
+                handle: Some(handle),
+            }
+        }
+    }
+
+    impl Drop for FakeRelay {
+        fn drop(&mut self) {
+            // 连接是短生命周期的；断开 listener 靠进程结束即可（测试线程容忍）。
+            let _ = self.handle.take();
+        }
+    }
+
+    fn manifest_json(changelog: &str) -> String {
+        format!(
+            r#"{{"version":"1.0.0","buildHash":"abcd123","buildSeq":9,"changelog":"{changelog}","apkSha256":"{}","apkSize":5,"publishedAt":1}}"#,
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        )
+    }
+
+    fn write_dir() -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("elsewhen-release-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn debug_raw_response() {
+        let relay = FakeRelay::start(|_f, _h| manifest_json("ok").into_bytes());
+        let client = RelayClient::new(&relay.url).unwrap();
+        let resp = client
+            .http
+            .get(format!("{}/release/latest", client.base_url))
+            .send()
+            .unwrap();
+        eprintln!(
+            "status={} ct={:?}",
+            resp.status(),
+            resp.headers().get("content-type")
+        );
+        let bytes = resp.bytes().unwrap();
+        eprintln!(
+            "body(\u{22}raw\u{22}) = {:?}",
+            String::from_utf8_lossy(&bytes)
+        );
+    }
+
+    #[test]
+    fn manifest_validates_fields() {
+        let relay = FakeRelay::start(|_first, _h| manifest_json("ok").into_bytes());
+        let client = RelayClient::new(&relay.url).unwrap();
+        let m = client.fetch_release_manifest().unwrap();
+        assert_eq!(m.build_hash, "abcd123");
+        assert_eq!(m.build_seq, 9);
+        assert_eq!(m.changelog, "ok");
+
+        // 非法 hash / 大小直接拒绝。
+        let bad =
+            manifest_json("x").replace("\"buildHash\":\"abcd123\"", "\"buildHash\":\"AB(..\"");
+        let relay_bad = FakeRelay::start(move |_f, _h| bad.clone().into_bytes());
+        let client_bad = RelayClient::new(&relay_bad.url).unwrap();
+        assert!(client_bad.fetch_release_manifest().is_err());
+    }
+
+    #[test]
+    fn apk_downloads_verifies_hash() {
+        let payload = b"hello";
+        let mut hasher = ring::digest::Context::new(&SHA256);
+        hasher.update(payload);
+        let sha_hex = bytes_to_hex(hasher.finish().as_ref());
+        let manifest_line = format!(
+            r#"{{"version":"1.0.0","buildHash":"abcd123","buildSeq":9,"changelog":"x","apkSha256":"{sha_hex}","apkSize":5,"publishedAt":1}}"#
+        );
+
+        // 成功路径：FakeRelay 对 /release/apk?h=abcd123 回指定 5 字节内容
+        //（同一端口先 /release/latest 也回相同正文——仅测试简化）。hash
+        // 与清单吻合，rename 后不再有 .part。
+        let apk_body = payload.to_vec();
+        let manifest_for_latest = manifest_line.clone();
+        let relay = FakeRelay::start(move |first, _h| {
+            if first.starts_with("GET /release/latest") {
+                manifest_for_latest.clone().into_bytes()
+            } else {
+                apk_body.clone()
+            }
+        });
+        let client = RelayClient::new(&relay.url).unwrap();
+        let manifest = client.fetch_release_manifest().unwrap();
+        let dir = write_dir();
+        let path = client
+            .download_release_apk(
+                &manifest.build_hash,
+                &manifest.apk_sha256,
+                manifest.apk_size,
+                &dir,
+            )
+            .unwrap();
+        assert_eq!(fs::read(&path).unwrap(), payload);
+        assert!(!fs::metadata(&dir.join("elsewhen-abcd123.apk.part")).is_ok());
+        let _ = fs::remove_dir_all(&dir);
+
+        // sha256 不符：拒收（不产生 final 文件）。
+        let refuse_line = manifest_line.replace(&sha_hex, &"0".repeat(64));
+        let relay_bad = FakeRelay::start(move |_f, _h| refuse_line.clone().into_bytes());
+        let client_bad = RelayClient::new(&relay_bad.url).unwrap();
+        let bad_manifest = client_bad.fetch_release_manifest().unwrap();
+        let dir_bad = write_dir();
+        assert!(
+            client_bad
+                .download_release_apk(
+                    &bad_manifest.build_hash,
+                    &bad_manifest.apk_sha256,
+                    bad_manifest.apk_size,
+                    &dir_bad
+                )
+                .is_err()
+        );
+        assert!(!fs::metadata(dir_bad.join("elsewhen-abcd123.apk")).is_ok());
+        let _ = fs::remove_dir_all(&dir_bad);
     }
 }

@@ -18,11 +18,17 @@ class_name = "Mailbox"
 tag = "v1"
 new_sqlite_classes = ["Mailbox"]
 
+# 应用升级分发桶（/release/*）。首次部署前需：
+#   npx wrangler r2 bucket create elsewhen-releases
+[[r2_buckets]]
+binding = "RELEASES"
+bucket_name = "elsewhen-releases"
+
 # 可调限制（免费额度内个人 2-3 设备远低于此）
 [vars]
 # 邮箱条目存活时间（毫秒），默认 7 天
 MAIL_TTL_MS = "604800000"
-# 每个设备邮箱的最大字节数，默认 50MB
-MAILBOX_QUOTA_BYTES = "52428800"
+# 每个设备邮箱的最大字节数，默认 500MB
+MAILBOX_QUOTA_BYTES = "524288000"
 # 单条增量包最大字节数，默认 8MB
 MAX_ENVELOPE_BYTES = "8388608"

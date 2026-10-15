@@ -133,12 +133,19 @@ pub(crate) fn validate_relay(value: &str) -> Result<()> {
     ensure!(value.len() <= 512, "pairing_relay_url_invalid");
     let url =
         reqwest::Url::parse(value).map_err(|_| anyhow::anyhow!("pairing_relay_url_invalid"))?;
+    // 与 transport_relay::RelayClient 同一口径：http 仅限回环/私网地址
+    // （自建 NAS 中继），公网域名必须 HTTPS。
     let local = url.host_str().is_some_and(|host| {
         host == "localhost"
             || host
                 .trim_matches(['[', ']'])
                 .parse::<std::net::IpAddr>()
-                .is_ok_and(|ip| ip.is_loopback())
+                .is_ok_and(|ip| match ip {
+                    std::net::IpAddr::V4(v4) => v4.is_loopback() || v4.is_private(),
+                    std::net::IpAddr::V6(v6) => {
+                        v6.is_loopback() || (v6.segments()[0] & 0xfe00) == 0xfc00
+                    }
+                })
     });
     ensure!(
         (url.scheme() == "https" || (url.scheme() == "http" && local))

@@ -45,7 +45,7 @@ export function rotateBody(owner, mb, replacement) {
 }
 
 let compiled;
-export async function startRelay({ bindings = {}, persist } = {}) {
+export async function startRelay({ bindings = {}, r2 = false, persist } = {}) {
   compiled ??= build({
     entryPoints: [fileURLToPath(new URL('../src/worker.ts', import.meta.url))],
     bundle: true, format: 'esm', platform: 'neutral', target: 'es2022',
@@ -54,6 +54,7 @@ export async function startRelay({ bindings = {}, persist } = {}) {
   const runtime = new Miniflare(convertV4MiniflareOptions({
     modules: true, script: await compiled, compatibilityDate: '2026-09-30',
     durableObjects: { MAILBOX: { className: 'Mailbox', useSQLite: true } },
+    ...(r2 ? { r2Buckets: { RELEASES: 'test-releases' } } : {}),
     bindings: { MAIL_TTL_MS: '604800000', MAILBOX_QUOTA_BYTES: '52428800', MAX_ENVELOPE_BYTES: '8388608', ...bindings },
     ...(persist ? { resourcePersistencePath: persist } : {}),
     telemetry: { enabled: false },

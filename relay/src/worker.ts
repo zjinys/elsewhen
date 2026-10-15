@@ -11,6 +11,8 @@ export interface Env {
   MAIL_TTL_MS: string;
   MAILBOX_QUOTA_BYTES: string;
   MAX_ENVELOPE_BYTES: string;
+  /** 应用升级分发桶（release 清单与 APK，见 /release/*）。 */
+  RELEASES: R2Bucket;
 }
 
 const VERSION = 2;
@@ -139,6 +141,29 @@ export default {
       const url = new URL(request.url);
       if (url.pathname === "/health" && request.method === "GET") return json({ ok: true, service: "elsewhen-relay", version: VERSION });
       if (url.pathname === "/presence" || url.pathname === "/peers") throw new HttpError(410, "discovery is not supported in relay v2");
+      if (url.pathname === "/release/latest" && request.method === "GET") {
+        // 升级清单：发布脚本写入 R2 的小 JSON。Etag 即便客户端缓存了，
+        // 结合短 edge cache 也能在发布后一分钟内看到新版本。
+        const manifest = await env.RELEASES.get("release/manifest.json");
+        if (!manifest) throw new HttpError(404, "no release published");
+        return new Response(manifest.body, {
+          headers: { "content-type": "application/json", "cache-control": "public, max-age=60" },
+        });
+      }
+      if (url.pathname === "/release/apk" && request.method === "GET") {
+        // APK 大文件：流式转发 R2 对象，响应体不过 Worker 内存。
+        const h = url.searchParams.get("h") ?? "";
+        require(/^[0-9a-f]{7,64}$/.test(h), 400, "invalid release hash");
+        const obj = await env.RELEASES.get(`apk/${h}.apk`);
+        if (!obj) throw new HttpError(404, "release apk not found");
+        return new Response(obj.body, {
+          headers: {
+            "content-type": "application/vnd.android.package-archive",
+            "content-length": String(obj.size),
+            "cache-control": "public, max-age=31536000, immutable",
+          },
+        });
+      }
       const post = POST_ROUTES.has(url.pathname);
       require(post || GET_ROUTES.has(url.pathname), 404, "not found");
       require(request.method === (post ? "POST" : "GET"), 405, "method not allowed");
@@ -152,7 +177,9 @@ export default {
         body = parsedJson(text);
       } else { body = queryBody(url); }
       validateEnvelope(body);
-      const stub = env.MAILBOX.getByName(body.mailbox_key);
+      // SQLite-backed DO 仅在首次创建时受 locationHint 影响：把信箱钉在
+      // 亚太（apac），避免跨洋往返造成的多秒级长尾延迟。
+      const stub = env.MAILBOX.getByName(body.mailbox_key, { locationHint: "apac" });
       return stub.fetch(post
         ? new Request(new URL(url.pathname, url.origin), { method: "POST", headers: { "content-type": "application/json" }, body: text })
         : new Request(url));
