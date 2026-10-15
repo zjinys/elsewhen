@@ -564,9 +564,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
                 dense: true,
                 title: ContentFontScope(
                   child: SelectableText(
-                    item.note ??
-                        item.lessons.firstOrNull ??
-                        '查看指导',
+                    item.note ?? item.lessons.firstOrNull ?? '查看指导',
                   ),
                 ),
                 subtitle: Text(
@@ -591,8 +589,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
                         color: item.feedback == 'helpful'
                             ? AppTheme.accentPrimary
                             : AppTheme.textTertiary,
-                        onPressed: () =>
-                            _setFeedback(item, 'helpful'),
+                        onPressed: () => _setFeedback(item, 'helpful'),
                       ),
                     ),
                     const SizedBox(width: 2),
@@ -611,8 +608,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
                         color: item.feedback == 'not_relevant'
                             ? AppTheme.accentPrimary
                             : AppTheme.textTertiary,
-                        onPressed: () =>
-                            _setFeedback(item, 'not_relevant'),
+                        onPressed: () => _setFeedback(item, 'not_relevant'),
                       ),
                     ),
                   ],
@@ -650,9 +646,8 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
         _items![index] = _copyWithFeedback(item, previous);
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('反馈失败: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('反馈失败: $e')));
       }
     }
   }

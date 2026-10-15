@@ -16,6 +16,11 @@ extension OwnerSyncPairing on SyncSetupController {
       invitation = offer;
       pairingPreview = null;
       pendingPairingId = null;
+      approvalDelivered = false;
+      debugPrint(
+        '[sync-pairing] owner: invitation created id=${offer.invitationId} '
+        'expires=${DateTime.fromMillisecondsSinceEpoch(offer.expiresAtMs).toLocal()}',
+      );
       pairingNotice = '邀请码 24 小时内有效。新设备扫码发起加入后，这里会自动收到请求，核对设备与指纹后批准即可。';
     });
   }
@@ -29,6 +34,10 @@ extension OwnerSyncPairing on SyncSetupController {
       if (invitation?.invitationId != offer.invitationId) return;
       pairingPreview = preview;
       pairingNotice = preview == null ? '尚未收到加入请求。' : '核对设备及指纹后再明确批准。';
+      debugPrint(
+        '[sync-pairing] owner: inspected id=${offer.invitationId} '
+        'request=${preview == null ? 'none' : '${preview.deviceName}/${preview.devicePlatform}'}',
+      );
     });
   }
 
@@ -50,6 +59,10 @@ extension OwnerSyncPairing on SyncSetupController {
       pendingPairingId = preview.invitationId;
       invitation = null;
       pairingPreview = null;
+      debugPrint(
+        '[sync-pairing] owner: approved device=${preview.deviceName} '
+        'id=${preview.invitationId} (keys persisted locally)',
+      );
       try {
         _requirePairingOpen();
         if (commit.installationId != state?.installationId) {
@@ -74,6 +87,10 @@ extension OwnerSyncPairing on SyncSetupController {
       }
       onReady?.call();
       await _pairing.sendApproval(preview.invitationId);
+      approvalDelivered = true;
+      debugPrint(
+        '[sync-pairing] owner: approval delivered id=${preview.invitationId}',
+      );
       _requirePairingOpen();
       pairingNotice = '审批已投递，等待新设备安装确认；这不表示设备已加入或同步完成。';
     });
@@ -84,8 +101,9 @@ extension OwnerSyncPairing on SyncSetupController {
     if (id == null) return;
     await _pairingAction(() async {
       await _pairing.sendApproval(id);
+      approvalDelivered = true;
       _requirePairingOpen();
-      pairingNotice = '审批已重新投递，仍需新设备完成安装确认。';
+      pairingNotice = '审批已投递，等待新设备安装确认。';
     });
   }
 
@@ -101,6 +119,25 @@ extension OwnerSyncPairing on SyncSetupController {
         pairingPreview = null;
       }
     });
+  }
+
+  /// 自动重投未确认的审批（邀请页 3 秒轮询调用）。成功后更新提示；
+  /// 失败保持现状静默，由下一轮继续。
+  Future<void> autoRedeliverPendingApproval() async {
+    final id = pendingPairingId;
+    if (id == null || approvalDelivered) return;
+    try {
+      await _pairing.sendApproval(id);
+      _requirePairingOpen();
+      debugPrint('[sync-pairing] owner: auto-redelivery confirmed id=$id');
+      if (pendingPairingId == id && !approvalDelivered) {
+        approvalDelivered = true;
+        pairingNotice = '审批已投递，等待新设备完成安装确认。';
+        _changed();
+      }
+    } catch (_) {
+      // 投递仍未确认：保持原状态，下一轮继续。
+    }
   }
 
   void _requirePairingOpen() {
@@ -126,6 +163,7 @@ extension OwnerSyncPairing on SyncSetupController {
       _requirePairingOpen();
       await action();
     } catch (failure) {
+      debugPrint('[sync-pairing] owner: action failed: $failure');
       final text = failure.toString();
       if (failure is SyncKeyStoreException) {
         error = _message(failure);
@@ -134,7 +172,10 @@ extension OwnerSyncPairing on SyncSetupController {
       } else if (text.contains('revocation_unconfirmed')) {
         error = '本机已取消邀请，但中继撤销尚未确认；临时发送权限会随短期邀请到期。';
       } else if (text.contains('delivery_unconfirmed')) {
-        error = '审批已安全保存，但中继投递未确认。可在邀请到期前重发同一审批。';
+        error = '批准已保存，但暂时没送到新设备（网络或中继不可用）。系统会自动重试，无需重新批准。';
+        debugPrint(
+          '[sync-pairing] owner: approval delivery unconfirmed (auto-retry armed): $failure',
+        );
       } else {
         error = '配对步骤未完成，请检查本机解锁状态和中继地址；没有自动授权新设备。';
       }

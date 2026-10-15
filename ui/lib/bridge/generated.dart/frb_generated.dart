@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 520684572;
+  int get rustContentHash => -1230750797;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -173,6 +173,8 @@ abstract class RustLibApi extends BaseApi {
     String? state,
     required PlatformInt64 offset,
   });
+
+  Future<String> crateApiBuildHash();
 
   Future<ChatRunDto?> crateApiChatRunsCancelChatRun({
     required String conversationId,
@@ -1501,6 +1503,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "browse_knowledge",
         argNames: ["query", "area", "kind", "tag", "state", "offset"],
       );
+
+  @override
+  Future<String> crateApiBuildHash() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__build_hash(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiBuildHashConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBuildHashConstMeta =>
+      const TaskConstMeta(debugName: "build_hash", argNames: []);
 
   @override
   Future<ChatRunDto?> crateApiChatRunsCancelChatRun({

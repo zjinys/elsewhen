@@ -6836,6 +6836,17 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__build_hash(int port_) {
+    return _wire__crate__api__build_hash(port_);
+  }
+
+  late final _wire__crate__api__build_hashPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__build_hash',
+      );
+  late final _wire__crate__api__build_hash = _wire__crate__api__build_hashPtr
+      .asFunction<void Function(int)>();
+
   void wire__crate__api__chat_proposals__decide_chat_proposal(
     int port_,
     ffi.Pointer<wire_cst_chat_review_request> request,

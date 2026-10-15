@@ -110,6 +110,9 @@ class SyncSetupController extends ChangeNotifier {
   api.SyncInvitationOfferDto? invitation;
   api.SyncInvitationPreviewDto? pairingPreview;
   String? pendingPairingId;
+
+  /// 审批是否已获中继投递确认；未确认时由邀请页轮询自动重投。
+  bool approvalDelivered = false;
   String? pairingNotice;
   final bool previewEnabled;
   api.LocalSyncStateDto? state;

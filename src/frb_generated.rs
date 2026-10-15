@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 520684572;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1230750797;
 
 // Section: executor
 
@@ -413,6 +413,23 @@ fn wire__crate__api__knowledge_workflows__browse_knowledge_impl(
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__build_hash_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "build_hash",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, ()>((move || {
+                    let output_ok = Ok::<_, ()>(crate::api::build_hash())?;
+                    std::result::Result::Ok(output_ok)
+                })())
             }
         },
     )
@@ -18109,6 +18126,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__build_hash(port_: i64) {
+        wire__crate__api__build_hash_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__chat_runs__cancel_chat_run(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -26017,6 +26039,11 @@ mod web {
         wire__crate__api__knowledge_workflows__browse_knowledge_impl(
             port_, query, area, kind, tag, state, offset,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__build_hash(port_: flutter_rust_bridge::for_generated::MessagePort) {
+        wire__crate__api__build_hash_impl(port_)
     }
 
     #[wasm_bindgen]

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../sync/sync_join_controller.dart';
 import 'joiner_qr_scan_page.dart';
+import 'sync_pairing_steps.dart';
 
 class JoinerSyncPairingSettings extends StatefulWidget {
   const JoinerSyncPairingSettings({
@@ -65,6 +66,20 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
           const Text(
             '使用独立暂存库，原记录和 Provider 不会覆盖。明确批准并安装后，自动协调正式通道、成员名册及初始快照；当前数据集不会切换。',
           ),
+          if (phase != null) ...[
+            const SizedBox(height: 8),
+            SyncPairingSteps(
+              steps: const [
+                '预览并核对邀请',
+                '发送加入请求',
+                '等待主设备批准',
+                '安装确认',
+                '等待成员授权与初始同步',
+              ],
+              current: joinerStageFor(phase),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (!controller.active) ...[
             const SizedBox(height: 12),
             TextField(

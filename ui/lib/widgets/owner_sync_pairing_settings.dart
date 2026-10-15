@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../bridge/api.dart' as api;
 import '../sync/sync_setup_controller.dart';
+import 'sync_pairing_steps.dart';
 import '../utils/desktop_prefs.dart';
 
 class OwnerSyncPairingSettings extends StatefulWidget {
@@ -30,7 +31,13 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
     _joinPoll = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!mounted) return;
       final c = widget.controller;
-      if (c.busy || c.invitation == null || c.pairingPreview != null) return;
+      if (c.busy) return;
+      // 已批准但投递未确认：自动重投，直到中继确认。
+      if (c.pendingPairingId != null && !c.approvalDelivered) {
+        c.autoRedeliverPendingApproval();
+        return;
+      }
+      if (c.invitation == null || c.pairingPreview != null) return;
       c.inspectInvitation();
     });
     try {
@@ -145,6 +152,22 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
           ),
         ] else ...[
           const SizedBox(height: 12),
+          SyncPairingSteps(
+            steps: const [
+              '邀请已生成（出示二维码或复制邀请）',
+              '新设备已发起加入请求',
+              '已批准，正在投递审批',
+              '审批已送达，等待新设备完成安装',
+              '新设备接入（在「管理」确认设备列表）',
+            ],
+            current: ownerPairingStage(
+              invitationId: offer.invitationId,
+              hasPreview: preview != null,
+              pendingPairingId: controller.pendingPairingId,
+              approvalDelivered: controller.approvalDelivered,
+            ),
+          ),
+          const SizedBox(height: 8),
           const Text('邀请码仅交给可信设备。'),
           Text(
             '到期时间：${DateTime.fromMillisecondsSinceEpoch(offer.expiresAtMs).toLocal()}',

@@ -1157,6 +1157,12 @@ pub struct EventSummaryDto {
     pub status: String,
 }
 
+/// 版本可溯源：设置页展示「这次构建对应哪个 git 提交」。pubspec 版本从
+/// 未动过（恒 1.0.0）无区分度，编译期抓短 hash 才有报障价值。
+pub fn build_hash() -> String {
+    env!("ELSEWHEN_BUILD_HASH", "build.rs 未注入构建 hash").to_string()
+}
+
 /// 最近事件读面（事件详情视图列表）：days 天窗口内按记录时间倒序 limit 条。
 pub fn list_recent_events(days: i64, limit: i64) -> Result<Vec<EventSummaryDto>> {
     let config = crate::config::AppConfig::load()?;

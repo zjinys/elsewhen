@@ -227,7 +227,8 @@ void main() {
         f.controller.pairingPreview!,
         consent: true,
       );
-      expect(f.controller.error, contains('投递未确认'));
+      expect(f.controller.error, contains('批准已保存'));
+      expect(f.controller.error, contains('自动重试'));
       expect(f.controller.error, isNot(contains('SYNTHETIC_SECRET')));
       expect(f.controller.pendingPairingId, 'invite');
       f.pairing.failSend = false;
@@ -279,14 +280,14 @@ void main() {
       );
       // 邀请面板住在「绑定」tab（拆分后默认落在管理 tab）。
       await tester.tap(find.text('绑定'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 4));
       // 邀请出示即渲染二维码（扫描通道），原文与复制仍是回退通道。
       // QrImageView 的 data 字段是私有的；存在性断言 + 同行 data: offer.code。
       expect(find.byType(QrImageView), findsOneWidget);
       final review = find.text('核对并审批');
       await tester.ensureVisible(review);
       await tester.tap(review);
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 4));
       final approveButton = find.widgetWithText(FilledButton, '批准这台设备');
       expect(tester.widget<FilledButton>(approveButton).onPressed, isNull);
       expect(find.textContaining('公钥指纹'), findsOneWidget);
@@ -298,7 +299,7 @@ void main() {
       );
       await tester.pump();
       await tester.tap(approveButton);
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 4));
       expect(f.pairing.approved, 1);
       expect(f.pairing.sent, 1);
       expect(tester.takeException(), isNull);

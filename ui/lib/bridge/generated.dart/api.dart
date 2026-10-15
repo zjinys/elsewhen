@@ -159,6 +159,10 @@ Future<MessageRecordabilityDto> setEventRecordability({
 Future<bool> reanalyzeEvent({required String eventId}) =>
     RustLib.instance.api.crateApiReanalyzeEvent(eventId: eventId);
 
+/// 版本可溯源：设置页展示「这次构建对应哪个 git 提交」。pubspec 版本从
+/// 未动过（恒 1.0.0）无区分度，编译期抓短 hash 才有报障价值。
+Future<String> buildHash() => RustLib.instance.api.crateApiBuildHash();
+
 /// 最近事件读面（事件详情视图列表）：days 天窗口内按记录时间倒序 limit 条。
 Future<List<EventSummaryDto>> listRecentEvents({
   required PlatformInt64 days,

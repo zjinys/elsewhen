@@ -5020,6 +5020,9 @@ class RustLibWire implements BaseWire {
     offset,
   );
 
+  void wire__crate__api__build_hash(NativePortType port_) =>
+      wasmModule.wire__crate__api__build_hash(port_);
+
   void wire__crate__api__chat_runs__cancel_chat_run(
     NativePortType port_,
     String conversation_id,
@@ -6858,6 +6861,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? state,
     JSAny offset,
   );
+
+  external void wire__crate__api__build_hash(NativePortType port_);
 
   external void wire__crate__api__chat_runs__cancel_chat_run(
     NativePortType port_,

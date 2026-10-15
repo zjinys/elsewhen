@@ -51,6 +51,12 @@ class SyncJoinController extends ChangeNotifier {
     if (next.operationId != _operation) {
       throw StateError('sync_join_request_stale');
     }
+    if (state?.phase != next.phase) {
+      debugPrint(
+        '[sync-pairing] joiner: phase ${state?.phase ?? 'none'} -> ${next.phase} '
+        '(op=${next.operationId})',
+      );
+    }
     state = next;
     _changed();
   }
@@ -105,6 +111,7 @@ class SyncJoinController extends ChangeNotifier {
 
   Future<void> preview(String code) => _action(() async {
     if (active) throw StateError('sync_join_already_open');
+    debugPrint('[sync-pairing] joiner: preview invitation (offline decode)');
     _own(await _bridge.preview(code.trim()));
     notice = '预览未连接中继。请核对邀请来源、地址和设备指纹。';
   });
@@ -124,6 +131,9 @@ class SyncJoinController extends ChangeNotifier {
       if (shown.operationId != _operation) {
         throw StateError('sync_join_request_stale');
       }
+      debugPrint(
+        '[sync-pairing] joiner: joining as "$name/$platform" relay=${shown.relayUrl}',
+      );
       final request = await _bridge.prepare(
         shown.token,
         name.trim(),
@@ -135,6 +145,9 @@ class SyncJoinController extends ChangeNotifier {
       _requireOpen();
       if (state?.phase == 'ready_to_request') {
         _accept(await _bridge.sendRequest(_operation!));
+        debugPrint(
+          '[sync-pairing] joiner: request delivered, owner fingerprint=${state?.ownerFingerprint}',
+        );
         notice = '加入请求已投递。请在已有设备核对本机指纹并明确批准。';
       }
     });

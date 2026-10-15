@@ -823,11 +823,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   Future<void> _loadVersion() async {
+    // pubspec 版本从没动过（恒 1.0.0）没区分度；报障要认的是构建 hash。
+    // 两者都取：版本号兜底标识，hash 精确到这次编译。
+    var build = '';
+    try {
+      build = await api.buildHash();
+    } catch (_) {}
     try {
       final info = await PackageInfo.fromPlatform();
-      if (mounted) setState(() => _version = 'elsewhen v${info.version}');
+      final label = build.isEmpty
+          ? 'elsewhen v${info.version}'
+          : 'elsewhen v${info.version} · $build';
+      if (mounted) setState(() => _version = label);
     } catch (_) {
       // 版本读取失败不影响设置页；留空即可。
+      if (mounted && build.isNotEmpty) {
+        setState(() => _version = 'elsewhen · $build');
+      }
     }
   }
 
@@ -908,10 +920,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         ],
                       );
                       if (compact) {
+                        // 版本放页面最底部：顶部 tab 区挤进小字像噪点，底部
+                        // 是报障时顺手下滑就能看到的常规位置。
                         return Column(
                           children: [
                             _buildCompactTabBar(),
                             Expanded(child: content),
+                            if (_version.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  _version,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppTheme.textTertiary,
+                                  ),
+                                ),
+                              ),
                           ],
                         );
                       }
@@ -1008,20 +1033,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),
             ],
           ),
-          if (_version.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 12, bottom: 4),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  _version,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppTheme.textTertiary,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
