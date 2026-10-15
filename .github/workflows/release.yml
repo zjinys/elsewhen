@@ -1,0 +1,185 @@
+# 多平台安装包 → GitHub Release（tag 驱动）。
+#
+# 触发：推 v* tag = 构建全部平台并发布 Release；
+#       workflow_dispatch = 只构建、传 artifact（不发 Release，用于试跑）。
+#
+# 产物矩阵：
+#   linux   → elsewhen_<ver>_amd64.deb + Elsewhen-<ver>-x86_64.AppImage
+#   macos   → Elsewhen-<ver>-arm64.dmg（Apple Silicon；Intel 机器不支持——
+#             原生 dylib 无法靠 Rosetta，需要时另开 macos-13 x86_64 job）
+#   windows → Elsewhen-<ver>-x64.msi（WiX v3.x，choco 安装）
+#   android → Elsewhen-<ver>-android-arm64.apk（Rust arm64 + flutter arm64）
+#
+# 签名现实（无证书的统一边界，README/Release 文案明示即可）：
+#   dmg = ad-hoc（Gatekeeper 首开右键 → 打开 / xattr -cr）
+#   msi = 无签名（SmartScreen 警告，仍可安装）
+#   apk = debug key 签名（本机安装 OK，不可上架 Play）
+#
+# ⚠ private 仓库 macOS 分钟 10× 计费：本 workflow 单次全矩阵约
+#   60-80 计费分钟（macOS job 计 10×）。public 仓库免费。
+
+name: release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # Release 发布（tag 触发时）
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Linux：deb + AppImage ─────────────────────────────────────
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # Flutter Linux 桌面构建链（runner 未预装 GTK 开发头）
+      - name: 安装 Linux 构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev
+      - name: deb
+        run: ./scripts/package-deb.sh dist
+      - name: AppImage
+        run: ./scripts/package-appimage.sh dist
+      - name: 归集产物
+        run: |
+          mkdir -p out
+          cp dist/*.deb out/
+          cp dist/*.AppImage out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: out/*
+          if-no-files-found: error
+
+  # ── macOS：dmg（Apple Silicon）────────────────────────────────
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: dmg
+        run: ./scripts/package-dmg.sh dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-macos
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  # ── Windows：msi ──────────────────────────────────────────────
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: 安装 WiX Toolset v3.11 并打 MSI
+        shell: pwsh
+        run: |
+          choco install -y wixtoolset
+          # choco 装的是 MSI 包，当前进程不继承新环境变量：直接拼 WiX bin
+          $wix = "C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          if (-not (Test-Path "$wix\candle.exe")) { throw "WiX 安装后未找到 candle.exe" }
+          $env:PATH = "$wix;$env:PATH"
+          scripts\package-msi.ps1 dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows
+          path: dist/*.msi
+          if-no-files-found: error
+
+  # ── Android：APK（arm64）──────────────────────────────────────
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # ubuntu runner 预装 Android SDK；NDK 若缺则装一份（脚找最新已装版本）
+      - name: 确认 Android NDK
+        run: |
+          if [ -z "$(ls -d "$ANDROID_HOME"/ndk/* 2>/dev/null)" ]; then
+            echo "runner 无 NDK，尝试 sdkmanager 安装…"
+            yes | "$ANDROID_HOME"/cmdline-tools/latest/bin/sdkmanager "ndk;26.3.11579264" || true
+          fi
+          ls -d "$ANDROID_HOME"/ndk/*/ || exit 1
+      - name: Rust 核心（arm64 → ui/rustLibs/）
+        run: ./scripts/build-android-rust.sh
+      - name: flutter pub get
+        working-directory: ui
+        run: flutter pub get
+      - name: APK（arm64 单 ABI）
+        working-directory: ui
+        run: flutter build apk --release --target-platform android-arm64
+      - name: 归集产物
+        run: |
+          mkdir -p out
+          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)"
+          src="ui/build/app/outputs/flutter-apk/app-release.apk"
+          [ -f "$src" ] || src="$(find ui/build/app/outputs -name '*.apk' | head -1)"
+          cp "$src" "out/Elsewhen-${version}-android-arm64.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-android
+          path: out/*
+          if-no-files-found: error
+
+  # ── 发布：全部平台产物附到 tag 对应的 GitHub Release ─────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, macos, windows, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.deb
+            artifacts/*.AppImage
+            artifacts/*.dmg
+            artifacts/*.msi
+            artifacts/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
