@@ -5,6 +5,8 @@
 #
 # 产物矩阵：
 #   linux   → elsewhen_<ver>_amd64.deb + Elsewhen-<ver>-x86_64.AppImage
+#             + elsewhen-<ver>-<rel>-x86_64.pkg.tar.zst（pacman，Arch 容器
+#             只做打包：PKGBUILD 收割宿主构建的 bundle，不重编）
 #   macos   → Elsewhen-<ver>-arm64.dmg（Apple Silicon；Intel 机器不支持——
 #             原生 dylib 无法靠 Rosetta，需要时另开 macos-13 x86_64 job）
 #   windows → Elsewhen-<ver>-x64.msi（WiX v3.x，choco 安装）
@@ -60,10 +62,61 @@ jobs:
           mkdir -p out
           cp dist/*.deb out/
           cp dist/*.AppImage out/
+          # pacman job 只收割 bundle（PKGBUILD 无 build()），共享这次构建。
+          # 注意 upload-artifact 丢失执行位：pacman 侧需给主可执行补 +x。
+          mkdir -p out/linux-bundle/bundle
+          cp -a ui/build/linux/x64/release/bundle/. out/linux-bundle/bundle/
+          cp target/release/libelsewhen.so out/linux-bundle/
       - uses: actions/upload-artifact@v4
         with:
           name: dist-linux
-          path: out/*
+          path: |
+            out/*.deb
+            out/*.AppImage
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-bundle
+          path: out/linux-bundle/
+          if-no-files-found: error
+
+  # ── Linux：pacman 包（Arch 容器只做打包，不再重编）────────────
+  # 复用 linux job 的构建产物：PKGBUILD 的 package() 只收割 bundle。
+  # 容器选 base-devel（自带 makepkg/fakeroot/git）；GHA 容器默认 root
+  # 而 makepkg 拒绝 root，建 builder 用户代跑。
+  linux-pacman:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-bundle
+          path: bundle-artifacts
+      - name: 还原 bundle 到 PKGBUILD 预期路径
+        run: |
+          set -e
+          mkdir -p ui/build/linux/x64/release target/release
+          # upload-artifact 丢执行位：主可执行补 +x（lib 与 data 不需要）
+          cp -a bundle-artifacts/bundle ui/build/linux/x64/release/bundle
+          chmod +x ui/build/linux/x64/release/bundle/elsewhen_ui
+          cp bundle-artifacts/libelsewhen.so target/release/
+          # makepkg 拒绝 root：建用户并接管工作区
+          useradd -m build
+          chown -R build:build "$GITHUB_WORKSPACE" /tmp
+      - name: makepkg 打包
+        run: |
+          set -e
+          mkdir -p dist
+          chown build:build dist
+          su build -c "cd packaging/linux && PKGDEST=$GITHUB_WORKSPACE/dist makepkg -C"
+          ls -lh dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-pacman
+          path: dist/*.pkg.tar.zst
           if-no-files-found: error
 
   # ── macOS：dmg（Apple Silicon）────────────────────────────────
@@ -163,7 +216,7 @@ jobs:
   # ── 发布：全部平台产物附到 tag 对应的 GitHub Release ─────────
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, macos, windows, android]
+    needs: [linux, linux-pacman, macos, windows, android]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -177,6 +230,7 @@ jobs:
           files: |
             artifacts/*.deb
             artifacts/*.AppImage
+            artifacts/*.pkg.tar.zst
             artifacts/*.dmg
             artifacts/*.msi
             artifacts/*.apk
