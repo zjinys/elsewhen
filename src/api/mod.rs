@@ -12,6 +12,7 @@ pub mod knowledge_workflows;
 pub mod provider_config;
 pub mod provider_reachability;
 pub mod relations;
+pub mod review_report;
 pub mod rules;
 pub mod sync;
 pub mod theme;

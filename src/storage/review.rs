@@ -1,7 +1,8 @@
 //! 回顾数据面（R1）：周/月拼装统计的窗口查询。
+
+//! R3 追加 `deviation_reports` 的存取（管道产物，不进快照）。
 //!
-//! 只读、无持久化（roadmap 裁决：第一刀实时聚合，`deviation_reports`
-//! 推迟到偏差检测切片）。日界口径与 `events::local_day_bounds` 一致。
+//! 日界口径与 `events::local_day_bounds` 一致。
 
 use super::Store;
 use crate::event::EventSummary;
@@ -61,6 +62,116 @@ impl Store {
             params![start, end],
             |row| row.get(0),
         )?)
+    }
+
+    // ── deviation_reports（R3 管道产物）────────────────────────────
+
+    /// 幂等写入周期报告：同 (period, period_type) 已存在时不覆盖
+    /// （表层 UNIQUE 兜底），返回是否新建。
+    pub fn insert_deviation_report(
+        &self,
+        id: &str,
+        period: chrono::NaiveDate,
+        period_type: &str,
+        report_json: &str,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> Result<bool> {
+        anyhow::ensure!(
+            period_type == "week" || period_type == "month",
+            "未知 period_type：{period_type}"
+        );
+        let inserted = self.connection.execute(
+            "INSERT OR IGNORE INTO deviation_reports
+                 (id, period, period_type, generated_at, report_json, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?4)",
+            params![
+                id,
+                period.format("%F").to_string(),
+                period_type,
+                now.to_rfc3339(),
+                report_json,
+            ],
+        )?;
+        Ok(inserted == 1)
+    }
+
+    /// 待检测的报告（最旧优先）：deviations_json 为 NULL = 尚未检测，
+    /// 是合法状态；检测成功前会一直出现在这个列表里。
+    pub fn pending_deviation_report_ids(&self) -> Result<Vec<(String, String)>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id, period_type FROM deviation_reports
+             WHERE deviations_json IS NULL
+             ORDER BY created_at ASC, id ASC",
+        )?;
+        let rows = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// 读取报告 JSON（含 goal_content 去重所需的历史偏差）。
+    pub fn deviation_report_row(
+        &self,
+        id: &str,
+    ) -> Result<Option<(String, String, Option<String>)>> {
+        let mut statement = self.connection.prepare(
+            "SELECT period_type, report_json, deviations_json
+             FROM deviation_reports WHERE id = ?1",
+        )?;
+        let mut rows = statement.query_map(params![id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })?;
+        match rows.next() {
+            Some(row) => Ok(Some(row?)),
+            None => Ok(None),
+        }
+    }
+
+    /// 检测结果入档（仅当仍为 NULL：不覆盖已有检测结论）。
+    pub fn record_detected_deviations(
+        &self,
+        id: &str,
+        deviations_json: &str,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> Result<()> {
+        let changed = self.connection.execute(
+            "UPDATE deviation_reports
+             SET deviations_json = ?2, detected_at = ?3
+             WHERE id = ?1 AND deviations_json IS NULL",
+            params![id, deviations_json, now.to_rfc3339()],
+        )?;
+        anyhow::ensure!(changed == 1, "报告不存在或已有检测结论: {id}");
+        Ok(())
+    }
+
+    /// 历史（已检测过）偏差的类型集合，供确定性去重：
+    /// 同 (goal_content, deviation_type) 不重报——情况未变时不重复输出，
+    /// 不用 AI 判断重复（不变式 3）。
+    pub fn reported_deviation_keys(&self, period_type: &str) -> Result<Vec<(String, String)>> {
+        let mut statement = self.connection.prepare(
+            "SELECT deviations_json FROM deviation_reports
+             WHERE period_type = ?1 AND deviations_json IS NOT NULL
+             ORDER BY created_at DESC, id DESC",
+        )?;
+        let rows = statement.query_map(params![period_type], |row| row.get::<_, String>(0))?;
+        let mut keys = Vec::new();
+        for row in rows {
+            let raw = row?;
+            if let Ok(list) = serde_json::from_str::<Vec<serde_json::Value>>(&raw) {
+                for item in list {
+                    if let (Some(goal), Some(kind)) = (
+                        item.get("goal_content").and_then(|v| v.as_str()),
+                        item.get("deviation_type").and_then(|v| v.as_str()),
+                    ) {
+                        keys.push((goal.trim().to_string(), kind.trim().to_string()));
+                    }
+                }
+            }
+        }
+        Ok(keys)
     }
 }
 

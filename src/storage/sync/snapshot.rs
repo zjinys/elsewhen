@@ -136,6 +136,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // carried 集——双设备 issue 关闭与已读/收藏互见；其余管道过程产物
     // （jobs/runs/snapshots/metrics/topic_plans…）每设备本地重算，永久排除。
     ("knowledge_artifact_adoptions", "local-knowledge-pipeline"),
+    // 周期报告与偏差检测（R3）：管道产物，本机回顾状态不跨设备复制
+    // （report/stats 本地可重算，偏差与已读是本机体验状态）。
+    ("deviation_reports", "local-knowledge-pipeline"),
     ("knowledge_artifact_versions", "local-knowledge-pipeline"),
     ("knowledge_background_runs", "local-knowledge-pipeline"),
     ("knowledge_dependencies", "local-knowledge-pipeline"),

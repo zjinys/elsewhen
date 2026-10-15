@@ -8,6 +8,7 @@ import 'api/chat_proposals.dart';
 import 'api/chat_runs.dart';
 import 'api/conversations.dart';
 import 'api/entities.dart';
+import 'api/event_stats.dart';
 import 'api/fonts.dart';
 import 'api/goals.dart';
 import 'api/import.dart';
@@ -17,6 +18,7 @@ import 'api/knowledge_workflows.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/relations.dart';
+import 'api/review_report.dart';
 import 'api/rules.dart';
 import 'api/sync.dart';
 import 'api/theme.dart';
@@ -96,7 +98,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1433112879;
+  int get rustContentHash => 975262033;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -339,6 +341,8 @@ abstract class RustLibApi extends BaseApi {
   Future<ConversationDto> crateApiWikiChatEnsureWikiPageChat({
     required String pageSlug,
   });
+
+  Future<EventStatsQuery> crateApiEventStatsEventStatsQueryDefault();
 
   Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url});
 
@@ -995,6 +999,8 @@ abstract class RustLibApi extends BaseApi {
   Future<String> crateApiWebSearchTestDohConnection({required String dohUri});
 
   Future<PlatformInt64> crateApiKnowledgeTickKnowledgeInsights();
+
+  Future<PeriodReportTickResult> crateApiReviewReportTickPeriodicReports();
 
   Future<List<TopicOrganizationPreview>>
   crateApiKnowledgeWorkflowsTopicOrganizationHistory({
@@ -2689,6 +2695,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "ensure_wiki_page_chat",
         argNames: ["pageSlug"],
       );
+
+  @override
+  Future<EventStatsQuery> crateApiEventStatsEventStatsQueryDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__event_stats__event_stats_query_default(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_event_stats_query,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEventStatsEventStatsQueryDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEventStatsEventStatsQueryDefaultConstMeta =>
+      const TaskConstMeta(debugName: "event_stats_query_default", argNames: []);
 
   @override
   Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url}) {
@@ -7493,6 +7522,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "tick_knowledge_insights", argNames: []);
 
   @override
+  Future<PeriodReportTickResult> crateApiReviewReportTickPeriodicReports() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__review_report__tick_periodic_reports(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_period_report_tick_result,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiReviewReportTickPeriodicReportsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiReviewReportTickPeriodicReportsConstMeta =>
+      const TaskConstMeta(debugName: "tick_periodic_reports", argNames: []);
+
+  @override
   Future<List<TopicOrganizationPreview>>
   crateApiKnowledgeWorkflowsTopicOrganizationHistory({
     required String slug,
@@ -8791,6 +8843,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EventStatsQuery dco_decode_event_stats_query(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return EventStatsQuery(
+      eventType: dco_decode_opt_String(arr[0]),
+      person: dco_decode_opt_String(arr[1]),
+      project: dco_decode_opt_String(arr[2]),
+      activity: dco_decode_opt_String(arr[3]),
+      textContains: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
   EventSummaryDto dco_decode_event_summary_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -9975,6 +10042,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PeriodReportTickResult dco_decode_period_report_tick_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    switch (dcoDecodePrimitiveInt(arr[0])) {
+      case 0:
+        return PeriodReportTickResult_NoProvider();
+      case 1:
+        return PeriodReportTickResult_Idle();
+      case 2:
+        return PeriodReportTickResult_Generated(
+          period: dco_decode_String(arr[1]),
+          periodType: dco_decode_String(arr[2]),
+        );
+      case 3:
+        return PeriodReportTickResult_Detected(
+          reportId: dco_decode_String(arr[1]),
+          deviations: dco_decode_usize(arr[2]),
+        );
+      case 4:
+        return PeriodReportTickResult_DetectFailed(
+          reportId: dco_decode_String(arr[1]),
+          error: dco_decode_String(arr[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   PeriodStatsDto dco_decode_period_stats_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -10507,6 +10603,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       preview: dco_decode_String(arr[1]),
       createdAt: dco_decode_String(arr[2]),
     );
+  }
+
+  @protected
+  BigInt dco_decode_usize(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
   }
 
   @protected
@@ -11469,6 +11571,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       recordedAt: var_recordedAt,
       target: var_target,
       feeling: var_feeling,
+    );
+  }
+
+  @protected
+  EventStatsQuery sse_decode_event_stats_query(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventType = sse_decode_opt_String(deserializer);
+    var var_person = sse_decode_opt_String(deserializer);
+    var var_project = sse_decode_opt_String(deserializer);
+    var var_activity = sse_decode_opt_String(deserializer);
+    var var_textContains = sse_decode_opt_String(deserializer);
+    return EventStatsQuery(
+      eventType: var_eventType,
+      person: var_person,
+      project: var_project,
+      activity: var_activity,
+      textContains: var_textContains,
     );
   }
 
@@ -13352,6 +13471,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PeriodReportTickResult sse_decode_period_report_tick_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return PeriodReportTickResult_NoProvider();
+      case 1:
+        return PeriodReportTickResult_Idle();
+      case 2:
+        var var_period = sse_decode_String(deserializer);
+        var var_periodType = sse_decode_String(deserializer);
+        return PeriodReportTickResult_Generated(
+          period: var_period,
+          periodType: var_periodType,
+        );
+      case 3:
+        var var_reportId = sse_decode_String(deserializer);
+        var var_deviations = sse_decode_usize(deserializer);
+        return PeriodReportTickResult_Detected(
+          reportId: var_reportId,
+          deviations: var_deviations,
+        );
+      case 4:
+        var var_reportId = sse_decode_String(deserializer);
+        var var_error = sse_decode_String(deserializer);
+        return PeriodReportTickResult_DetectFailed(
+          reportId: var_reportId,
+          error: var_error,
+        );
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   PeriodStatsDto sse_decode_period_stats_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_periodType = sse_decode_String(deserializer);
@@ -14022,6 +14179,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       preview: var_preview,
       createdAt: var_createdAt,
     );
+  }
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
   }
 
   @protected
@@ -14881,6 +15044,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.recordedAt, serializer);
     sse_encode_opt_String(self.target, serializer);
     sse_encode_String(self.feeling, serializer);
+  }
+
+  @protected
+  void sse_encode_event_stats_query(
+    EventStatsQuery self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.eventType, serializer);
+    sse_encode_opt_String(self.person, serializer);
+    sse_encode_opt_String(self.project, serializer);
+    sse_encode_opt_String(self.activity, serializer);
+    sse_encode_opt_String(self.textContains, serializer);
   }
 
   @protected
@@ -16411,6 +16587,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_period_report_tick_result(
+    PeriodReportTickResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case PeriodReportTickResult_NoProvider():
+        sse_encode_i_32(0, serializer);
+      case PeriodReportTickResult_Idle():
+        sse_encode_i_32(1, serializer);
+      case PeriodReportTickResult_Generated(
+        period: final period,
+        periodType: final periodType,
+      ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(period, serializer);
+        sse_encode_String(periodType, serializer);
+      case PeriodReportTickResult_Detected(
+        reportId: final reportId,
+        deviations: final deviations,
+      ):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(reportId, serializer);
+        sse_encode_usize(deviations, serializer);
+      case PeriodReportTickResult_DetectFailed(
+        reportId: final reportId,
+        error: final error,
+      ):
+        sse_encode_i_32(4, serializer);
+        sse_encode_String(reportId, serializer);
+        sse_encode_String(error, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_period_stats_dto(
     PeriodStatsDto self,
     SseSerializer serializer,
@@ -16870,6 +17081,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.inputMessageId, serializer);
     sse_encode_String(self.preview, serializer);
     sse_encode_String(self.createdAt, serializer);
+  }
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
   }
 
   @protected

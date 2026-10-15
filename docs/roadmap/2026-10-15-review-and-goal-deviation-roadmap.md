@@ -87,14 +87,14 @@
 
 **收益：** 每周/每月一份对照活跃目标的行为盘点；该说的偏差被说出来，且只说一次。
 
-- [ ] migration 39 `deviation_reports`：`id/period/period_type/generated_at/report_json/deviations_json/detected_at/read_at/created_at`；`report_json` 内联 `GoalSnapshot`（phase+content 活跃目标快照）；UNIQUE(period, period_type) 幂等防重生成。
-- [ ] `generate_periodic_report()`：本地聚合，结构复用 R2 的聚合函数（同一 SQL 层，两个消费面）；**报告生成 ≠ 偏差检测**，各自独立状态。
-- [ ] `detect_deviation()`：一次 AI 调用（输入 = 报告 + 目标快照 + 历史偏差摘要），prompt 纪律 = 不变式 2/3/4；输出结构化 JSON（`goal_content/deviation_type/evidence/severity`）逐字校验后入库；校验失败整批不入、不确认、按退避重试。
-- [ ] 触发：复用 5s timer worker；Q4 时间点裁决；进程未运行不追补过期空窗。
-- [ ] AI 失败不影响统计：报告照常可读，`deviations_json` 为 NULL（「尚未检测」是合法状态）。
-- [ ] Provider 缺失：静默等待重试，与知识消化同模式。
-- [ ] 管道产出 `knowledge_background_runs` 同款运行账本（task=period-report）。
-- [ ] 测试：幂等（同周期不重生）、去重（同偏差不重报）、AI 失败隔离、退避恢复、报告排除于快照。
+- [x] migration 39 `deviation_reports`（2026-10-16）：结构同裁决；`period`=周期末日（周=周日/月=月末），UNIQUE 幂等；表排除于快照（`local-knowledge-pipeline` 域，管道产物纪律）。
+- [x] 生成：`build_period_report` 复用 R2 聚合层（同一实现两个消费面）；内联生成时刻活跃目标快照（phase+content）；空窗（0 可记录事件）跳过不建表行；generate/detect 独立状态（`deviations_json` NULL=尚未检测）。
+- [x] 检测：一次 AI 调用（digest_provider 复用），prompt 五条红线（宁缺毋滥/不评判不指路/证据引数字/goal 逐字/枚举封闭）；输出 JSON 逐字校验（goal 必须命中快照、type/severity 枚举、evidence ≤400 字）；**校验失败整批不入**；确定性去重（goal_content+deviation_type 对历史集合，同偏差连续周期不重报，不用 AI 判断重复）。
+- [x] 触发：5s timer worker 在知识消化后调 `tick_periodic_reports()`（同一 worker 串行）。触达语义 = Q4 与验收场景「进程一周未开 → 补做最近完整周期，历史空窗不补」的调和：每 tick 保证**最近一个完整周期**有报告（若非空且缺失），生成时刻下限 = 周期结束次日 08:00（本地）；检测失败指数退避 5min→60min（进程内状态）。
+- [x] AI 失败不影响统计：检测失败返回 `DetectFailed` 枚举（不抛错），报告照常可读。
+- [x] Provider 缺失：`NoProvider` 静默等待（报告已生成的照常等检测），与知识消化同模式。
+- [x] 运行账本：`knowledge_background_runs` task=`period-report-detect`（生成幂等重试不重复记账）。
+- [x] 测试 4 项（Rust 763）：窗口/due gate（周一 08:00 界、月 gate、周五补做、锚日推导）、生成幂等+空窗跳过+目标快照内联、校验整批拒绝+确定性去重+code fence、AI 失败隔离+已检测幂等+跨期去重+快照排除。FRB 面：`tickPeriodicReports` 单函数（枚举全 String/usize，零 chrono 泄漏）；聚合层 `#[frb(ignore)]`（&Store/NaiveDate 非 FRB 面，R2 起即如此）。
 
 ## R4 — 评估可观察性（FR-PES-005-05）
 

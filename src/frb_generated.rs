@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1433112879;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 975262033;
 
 // Section: executor
 
@@ -1395,6 +1395,26 @@ fn wire__crate__api__wiki_chat__ensure_wiki_page_chat_impl(
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__event_stats__event_stats_query_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "event_stats_query_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, ()>((move || {
+                    let output_ok =
+                        Ok::<_, ()>(crate::api::event_stats::EventStatsQuery::default())?;
+                    std::result::Result::Ok(output_ok)
+                })())
             }
         },
     )
@@ -5507,6 +5527,27 @@ fn wire__crate__api__knowledge__tick_knowledge_insights_impl(
         },
     )
 }
+fn wire__crate__api__review_report__tick_periodic_reports_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tick_periodic_reports",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::review_report::tick_periodic_reports()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge_workflows__topic_organization_history_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     slug: impl CstDecode<String>,
@@ -6036,6 +6077,12 @@ impl CstDecode<u32> for u32 {
 impl CstDecode<u8> for u8 {
     // Codec=Cst (C-struct based), see doc to use other codecs
     fn cst_decode(self) -> u8 {
+        self
+    }
+}
+impl CstDecode<usize> for usize {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> usize {
         self
     }
 }
@@ -6741,6 +6788,24 @@ impl SseDecode for crate::api::EventEmotionDto {
             recorded_at: var_recordedAt,
             target: var_target,
             feeling: var_feeling,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_stats::EventStatsQuery {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_eventType = <Option<String>>::sse_decode(deserializer);
+        let mut var_person = <Option<String>>::sse_decode(deserializer);
+        let mut var_project = <Option<String>>::sse_decode(deserializer);
+        let mut var_activity = <Option<String>>::sse_decode(deserializer);
+        let mut var_textContains = <Option<String>>::sse_decode(deserializer);
+        return crate::api::event_stats::EventStatsQuery {
+            event_type: var_eventType,
+            person: var_person,
+            project: var_project,
+            activity: var_activity,
+            text_contains: var_textContains,
         };
     }
 }
@@ -8611,6 +8676,48 @@ impl SseDecode for crate::api::conversations::PendingActionDto {
     }
 }
 
+impl SseDecode for crate::api::review_report::PeriodReportTickResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::review_report::PeriodReportTickResult::NoProvider;
+            }
+            1 => {
+                return crate::api::review_report::PeriodReportTickResult::Idle;
+            }
+            2 => {
+                let mut var_period = <String>::sse_decode(deserializer);
+                let mut var_periodType = <String>::sse_decode(deserializer);
+                return crate::api::review_report::PeriodReportTickResult::Generated {
+                    period: var_period,
+                    period_type: var_periodType,
+                };
+            }
+            3 => {
+                let mut var_reportId = <String>::sse_decode(deserializer);
+                let mut var_deviations = <usize>::sse_decode(deserializer);
+                return crate::api::review_report::PeriodReportTickResult::Detected {
+                    report_id: var_reportId,
+                    deviations: var_deviations,
+                };
+            }
+            4 => {
+                let mut var_reportId = <String>::sse_decode(deserializer);
+                let mut var_error = <String>::sse_decode(deserializer);
+                return crate::api::review_report::PeriodReportTickResult::DetectFailed {
+                    report_id: var_reportId,
+                    error: var_error,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::api::PeriodStatsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9283,6 +9390,13 @@ impl SseDecode for crate::api::chat_runs::UnscheduledChatInputDto {
             preview: var_preview,
             created_at: var_createdAt,
         };
+    }
+}
+
+impl SseDecode for usize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u64::<NativeEndian>().unwrap() as _
     }
 }
 
@@ -10259,6 +10373,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::EventEmotionDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::event_stats::EventStatsQuery {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.event_type.into_into_dart().into_dart(),
+            self.person.into_into_dart().into_dart(),
+            self.project.into_into_dart().into_dart(),
+            self.activity.into_into_dart().into_dart(),
+            self.text_contains.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::event_stats::EventStatsQuery
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::event_stats::EventStatsQuery>
+    for crate::api::event_stats::EventStatsQuery
+{
+    fn into_into_dart(self) -> crate::api::event_stats::EventStatsQuery {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::EventSummaryDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -11123,6 +11261,58 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversations::PendingActionD
     for crate::api::conversations::PendingActionDto
 {
     fn into_into_dart(self) -> crate::api::conversations::PendingActionDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::review_report::PeriodReportTickResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::review_report::PeriodReportTickResult::NoProvider => {
+                [0.into_dart()].into_dart()
+            }
+            crate::api::review_report::PeriodReportTickResult::Idle => [1.into_dart()].into_dart(),
+            crate::api::review_report::PeriodReportTickResult::Generated {
+                period,
+                period_type,
+            } => [
+                2.into_dart(),
+                period.into_into_dart().into_dart(),
+                period_type.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::review_report::PeriodReportTickResult::Detected {
+                report_id,
+                deviations,
+            } => [
+                3.into_dart(),
+                report_id.into_into_dart().into_dart(),
+                deviations.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::review_report::PeriodReportTickResult::DetectFailed {
+                report_id,
+                error,
+            } => [
+                4.into_dart(),
+                report_id.into_into_dart().into_dart(),
+                error.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::review_report::PeriodReportTickResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::review_report::PeriodReportTickResult>
+    for crate::api::review_report::PeriodReportTickResult
+{
+    fn into_into_dart(self) -> crate::api::review_report::PeriodReportTickResult {
         self
     }
 }
@@ -12494,6 +12684,17 @@ impl SseEncode for crate::api::EventEmotionDto {
     }
 }
 
+impl SseEncode for crate::api::event_stats::EventStatsQuery {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.event_type, serializer);
+        <Option<String>>::sse_encode(self.person, serializer);
+        <Option<String>>::sse_encode(self.project, serializer);
+        <Option<String>>::sse_encode(self.activity, serializer);
+        <Option<String>>::sse_encode(self.text_contains, serializer);
+    }
+}
+
 impl SseEncode for crate::api::EventSummaryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -13810,6 +14011,47 @@ impl SseEncode for crate::api::conversations::PendingActionDto {
     }
 }
 
+impl SseEncode for crate::api::review_report::PeriodReportTickResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::review_report::PeriodReportTickResult::NoProvider => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::review_report::PeriodReportTickResult::Idle => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::api::review_report::PeriodReportTickResult::Generated {
+                period,
+                period_type,
+            } => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(period, serializer);
+                <String>::sse_encode(period_type, serializer);
+            }
+            crate::api::review_report::PeriodReportTickResult::Detected {
+                report_id,
+                deviations,
+            } => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(report_id, serializer);
+                <usize>::sse_encode(deviations, serializer);
+            }
+            crate::api::review_report::PeriodReportTickResult::DetectFailed {
+                report_id,
+                error,
+            } => {
+                <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(report_id, serializer);
+                <String>::sse_encode(error, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for crate::api::PeriodStatsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -14224,6 +14466,16 @@ impl SseEncode for crate::api::chat_runs::UnscheduledChatInputDto {
         <String>::sse_encode(self.input_message_id, serializer);
         <String>::sse_encode(self.preview, serializer);
         <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
+impl SseEncode for usize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer
+            .cursor
+            .write_u64::<NativeEndian>(self as _)
+            .unwrap();
     }
 }
 
@@ -14950,6 +15202,18 @@ mod io {
                 recorded_at: self.recorded_at.cst_decode(),
                 target: self.target.cst_decode(),
                 feeling: self.feeling.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::event_stats::EventStatsQuery> for wire_cst_event_stats_query {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::event_stats::EventStatsQuery {
+            crate::api::event_stats::EventStatsQuery {
+                event_type: self.event_type.cst_decode(),
+                person: self.person.cst_decode(),
+                project: self.project.cst_decode(),
+                activity: self.activity.cst_decode(),
+                text_contains: self.text_contains.cst_decode(),
             }
         }
     }
@@ -16158,6 +16422,39 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::review_report::PeriodReportTickResult>
+        for wire_cst_period_report_tick_result
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::review_report::PeriodReportTickResult {
+            match self.tag {
+                0 => crate::api::review_report::PeriodReportTickResult::NoProvider,
+                1 => crate::api::review_report::PeriodReportTickResult::Idle,
+                2 => {
+                    let ans = unsafe { self.kind.Generated };
+                    crate::api::review_report::PeriodReportTickResult::Generated {
+                        period: ans.period.cst_decode(),
+                        period_type: ans.period_type.cst_decode(),
+                    }
+                }
+                3 => {
+                    let ans = unsafe { self.kind.Detected };
+                    crate::api::review_report::PeriodReportTickResult::Detected {
+                        report_id: ans.report_id.cst_decode(),
+                        deviations: ans.deviations.cst_decode(),
+                    }
+                }
+                4 => {
+                    let ans = unsafe { self.kind.DetectFailed };
+                    crate::api::review_report::PeriodReportTickResult::DetectFailed {
+                        report_id: ans.report_id.cst_decode(),
+                        error: ans.error.cst_decode(),
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
     impl CstDecode<crate::api::PeriodStatsDto> for wire_cst_period_stats_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::PeriodStatsDto {
@@ -17245,6 +17542,22 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_event_stats_query {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                event_type: core::ptr::null_mut(),
+                person: core::ptr::null_mut(),
+                project: core::ptr::null_mut(),
+                activity: core::ptr::null_mut(),
+                text_contains: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_event_stats_query {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_event_summary_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -17848,6 +18161,19 @@ mod io {
         }
     }
     impl Default for wire_cst_pending_action_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_period_report_tick_result {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                tag: -1,
+                kind: PeriodReportTickResultKind { nil__: () },
+            }
+        }
+    }
+    impl Default for wire_cst_period_report_tick_result {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -19054,6 +19380,13 @@ mod io {
         page_slug: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__wiki_chat__ensure_wiki_page_chat_impl(port_, page_slug)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__event_stats__event_stats_query_default(
+        port_: i64,
+    ) {
+        wire__crate__api__event_stats__event_stats_query_default_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -20539,6 +20872,13 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__knowledge__tick_knowledge_insights_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__tick_periodic_reports(
+        port_: i64,
+    ) {
+        wire__crate__api__review_report__tick_periodic_reports_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -22115,6 +22455,15 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_event_stats_query {
+        event_type: *mut wire_cst_list_prim_u_8_strict,
+        person: *mut wire_cst_list_prim_u_8_strict,
+        project: *mut wire_cst_list_prim_u_8_strict,
+        activity: *mut wire_cst_list_prim_u_8_strict,
+        text_contains: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_event_summary_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         raw_text: *mut wire_cst_list_prim_u_8_strict,
@@ -22886,6 +23235,38 @@ mod io {
         version: i64,
         approval_token: *mut wire_cst_list_prim_u_8_strict,
         target_basis_json: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_period_report_tick_result {
+        tag: i32,
+        kind: PeriodReportTickResultKind,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub union PeriodReportTickResultKind {
+        Generated: wire_cst_PeriodReportTickResult_Generated,
+        Detected: wire_cst_PeriodReportTickResult_Detected,
+        DetectFailed: wire_cst_PeriodReportTickResult_DetectFailed,
+        nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_PeriodReportTickResult_Generated {
+        period: *mut wire_cst_list_prim_u_8_strict,
+        period_type: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_PeriodReportTickResult_Detected {
+        report_id: *mut wire_cst_list_prim_u_8_strict,
+        deviations: usize,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_PeriodReportTickResult_DetectFailed {
+        report_id: *mut wire_cst_list_prim_u_8_strict,
+        error: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -24103,6 +24484,29 @@ mod web {
                 recorded_at: self_.get(2).cst_decode(),
                 target: self_.get(3).cst_decode(),
                 feeling: self_.get(4).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::event_stats::EventStatsQuery>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::event_stats::EventStatsQuery {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::event_stats::EventStatsQuery {
+                event_type: self_.get(0).cst_decode(),
+                person: self_.get(1).cst_decode(),
+                project: self_.get(2).cst_decode(),
+                activity: self_.get(3).cst_decode(),
+                text_contains: self_.get(4).cst_decode(),
             }
         }
     }
@@ -25702,6 +26106,31 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::review_report::PeriodReportTickResult>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::review_report::PeriodReportTickResult {
+            let self_ = self.unchecked_into::<flutter_rust_bridge::for_generated::js_sys::Array>();
+            match self_.get(0).unchecked_into_f64() as _ {
+                0 => crate::api::review_report::PeriodReportTickResult::NoProvider,
+                1 => crate::api::review_report::PeriodReportTickResult::Idle,
+                2 => crate::api::review_report::PeriodReportTickResult::Generated {
+                    period: self_.get(1).cst_decode(),
+                    period_type: self_.get(2).cst_decode(),
+                },
+                3 => crate::api::review_report::PeriodReportTickResult::Detected {
+                    report_id: self_.get(1).cst_decode(),
+                    deviations: self_.get(2).cst_decode(),
+                },
+                4 => crate::api::review_report::PeriodReportTickResult::DetectFailed {
+                    report_id: self_.get(1).cst_decode(),
+                    error: self_.get(2).cst_decode(),
+                },
+                _ => unreachable!(),
+            }
+        }
+    }
     impl CstDecode<crate::api::PeriodStatsDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -26697,6 +27126,12 @@ mod web {
             self.unchecked_into_f64() as _
         }
     }
+    impl CstDecode<usize> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> usize {
+            ::std::convert::TryInto::<u64>::try_into(self).unwrap() as _
+        }
+    }
 
     #[wasm_bindgen]
     pub fn wire__crate__api__knowledge__accept_knowledge_proposal_parts(
@@ -27231,6 +27666,13 @@ mod web {
         page_slug: String,
     ) {
         wire__crate__api__wiki_chat__ensure_wiki_page_chat_impl(port_, page_slug)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__event_stats__event_stats_query_default(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__event_stats__event_stats_query_default_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -28746,6 +29188,13 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__knowledge__tick_knowledge_insights_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__review_report__tick_periodic_reports(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__review_report__tick_periodic_reports_impl(port_)
     }
 
     #[wasm_bindgen]

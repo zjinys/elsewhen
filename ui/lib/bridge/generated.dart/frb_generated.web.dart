@@ -11,6 +11,7 @@ import 'api/chat_proposals.dart';
 import 'api/chat_runs.dart';
 import 'api/conversations.dart';
 import 'api/entities.dart';
+import 'api/event_stats.dart';
 import 'api/fonts.dart';
 import 'api/goals.dart';
 import 'api/import.dart';
@@ -20,6 +21,7 @@ import 'api/knowledge_workflows.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/relations.dart';
+import 'api/review_report.dart';
 import 'api/rules.dart';
 import 'api/sync.dart';
 import 'api/theme.dart';
@@ -230,6 +232,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EventEmotionDto dco_decode_event_emotion_dto(dynamic raw);
+
+  @protected
+  EventStatsQuery dco_decode_event_stats_query(dynamic raw);
 
   @protected
   EventSummaryDto dco_decode_event_summary_dto(dynamic raw);
@@ -636,6 +641,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
 
   @protected
+  PeriodReportTickResult dco_decode_period_report_tick_result(dynamic raw);
+
+  @protected
   PeriodStatsDto dco_decode_period_stats_dto(dynamic raw);
 
   @protected
@@ -739,6 +747,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
+
+  @protected
+  BigInt dco_decode_usize(dynamic raw);
 
   @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
@@ -982,6 +993,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EventEmotionDto sse_decode_event_emotion_dto(SseDeserializer deserializer);
+
+  @protected
+  EventStatsQuery sse_decode_event_stats_query(SseDeserializer deserializer);
 
   @protected
   EventSummaryDto sse_decode_event_summary_dto(SseDeserializer deserializer);
@@ -1508,6 +1522,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
 
   @protected
+  PeriodReportTickResult sse_decode_period_report_tick_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PeriodStatsDto sse_decode_period_stats_dto(SseDeserializer deserializer);
 
   @protected
@@ -1641,6 +1660,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
@@ -2243,6 +2265,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.recordedAt),
       cst_encode_opt_String(raw.target),
       cst_encode_String(raw.feeling),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_event_stats_query(EventStatsQuery raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_opt_String(raw.eventType),
+      cst_encode_opt_String(raw.person),
+      cst_encode_opt_String(raw.project),
+      cst_encode_opt_String(raw.activity),
+      cst_encode_opt_String(raw.textContains),
     ].jsify()!;
   }
 
@@ -3294,6 +3328,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_period_report_tick_result(PeriodReportTickResult raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    if (raw is PeriodReportTickResult_NoProvider) {
+      return [0].jsify()!;
+    }
+    if (raw is PeriodReportTickResult_Idle) {
+      return [1].jsify()!;
+    }
+    if (raw is PeriodReportTickResult_Generated) {
+      return [
+        2,
+        cst_encode_String(raw.period),
+        cst_encode_String(raw.periodType),
+      ].jsify()!;
+    }
+    if (raw is PeriodReportTickResult_Detected) {
+      return [
+        3,
+        cst_encode_String(raw.reportId),
+        cst_encode_usize(raw.deviations),
+      ].jsify()!;
+    }
+    if (raw is PeriodReportTickResult_DetectFailed) {
+      return [
+        4,
+        cst_encode_String(raw.reportId),
+        cst_encode_String(raw.error),
+      ].jsify()!;
+    }
+
+    throw Exception('unreachable');
+  }
+
+  @protected
   JSAny cst_encode_period_stats_dto(PeriodStatsDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -3718,6 +3786,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_usize(BigInt raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return castNativeBigInt(raw);
+  }
+
+  @protected
   JSAny cst_encode_web_search_config_dto(WebSearchConfigDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -4127,6 +4201,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_event_emotion_dto(
     EventEmotionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_event_stats_query(
+    EventStatsQuery self,
     SseSerializer serializer,
   );
 
@@ -4794,6 +4874,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_period_report_tick_result(
+    PeriodReportTickResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_period_stats_dto(
     PeriodStatsDto self,
     SseSerializer serializer,
@@ -4966,6 +5052,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     UnscheduledChatInputDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_web_search_config_dto(
@@ -5474,6 +5563,12 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__wiki_chat__ensure_wiki_page_chat(
     port_,
     page_slug,
+  );
+
+  void wire__crate__api__event_stats__event_stats_query_default(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__event_stats__event_stats_query_default(
+    port_,
   );
 
   void wire__crate__api__import__fetch_import_url(
@@ -6765,6 +6860,10 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__knowledge__tick_knowledge_insights(port_);
 
+  void wire__crate__api__review_report__tick_periodic_reports(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__review_report__tick_periodic_reports(port_);
+
   void wire__crate__api__knowledge_workflows__topic_organization_history(
     NativePortType port_,
     String slug,
@@ -7247,6 +7346,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
     NativePortType port_,
     String page_slug,
+  );
+
+  external void wire__crate__api__event_stats__event_stats_query_default(
+    NativePortType port_,
   );
 
   external void wire__crate__api__import__fetch_import_url(
@@ -8120,6 +8223,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__knowledge__tick_knowledge_insights(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__review_report__tick_periodic_reports(
     NativePortType port_,
   );
 

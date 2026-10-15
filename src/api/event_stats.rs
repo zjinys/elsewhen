@@ -71,6 +71,7 @@ fn fold_optional(value: Option<&str>) -> Option<String> {
 /// 把对话用语解析成本地日界窗口（fail-closed：未知值报错不猜）。
 /// 复杂/自定义区间不在本工具的语境内解决——用户给明确日期时用
 /// `list_events_by_date` 或直接回答。
+#[flutter_rust_bridge::frb(ignore)]
 pub fn resolve_date_range(spec: &str, today: NaiveDate) -> Result<(NaiveDate, NaiveDate)> {
     let weekday = today.weekday().num_days_from_monday() as i64;
     let week_start = today - chrono::Duration::days(weekday);
@@ -108,6 +109,10 @@ pub fn resolve_date_range(spec: &str, today: NaiveDate) -> Result<(NaiveDate, Na
 
 /// 窗口内可记录事件的过滤聚合。`group_by` 控制计数维度（none = 只给总数
 /// 与样本）；样本取窗口内最新 [`SAMPLE_MAX`] 条。窗口为本地日界（含端点）。
+///
+/// 聚合层不是 FRB 面（&Store/chrono 参数；RFC(fr.) 对话工具与 R3 报告管道
+/// 经 Rust 内部调用），codegen 显式忽略。
+#[flutter_rust_bridge::frb(ignore)]
 pub fn query_event_stats(
     store: &Store,
     start: NaiveDate,

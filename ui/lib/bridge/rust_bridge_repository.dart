@@ -364,6 +364,20 @@ class RustBridgeRepository implements StorageRepository {
         // 分析排空后再做知识消化：同一 worker 串行，避免与分析并发调用 provider；
         // 消化依赖分析结果（可记录性），先分析后消化也最省重试。
         await _drainKnowledgeDigest();
+        // 周期报告 + 偏差检测（R3）：同一 worker 串行（Q4：同一 timer）；
+        // 内部自带幂等/空窗跳过/检测退避，仅在有事发生时记日志
+        //（该 tick 在空闲期每 ≈30s 一次，逐拍打印会刷屏）。
+        try {
+          final reportTick = await api.tickPeriodicReports();
+          final String? eventful = switch (reportTick) {
+            api.PeriodReportTickResult_Idle() ||
+            api.PeriodReportTickResult_NoProvider() => null,
+            _ => reportTick.toString(),
+          };
+          if (eventful != null) debugPrint('period report: $eventful');
+        } catch (e) {
+          debugPrint('period report tick failed: $e');
+        }
         // 网络同步与分析/消化串行复用同一条 worker 通道：P3 的有界 tick
         // （每 peer ≤3 封 × ≤4 页，≤8 peer）复用持久重试与回执台账，防线在
         // Rust 侧（确认会话 + 工作区租约 + 活跃成员 + 受信路由）。到达的新
