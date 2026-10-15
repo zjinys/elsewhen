@@ -203,11 +203,7 @@ void main() {
         find.byType(WikiContentEditor),
       );
       expect(editors, isNotEmpty);
-      expect(
-        editors.every((e) => !e.editable),
-        isTrue,
-        reason: '沉浸覆盖层是只读的',
-      );
+      expect(editors.every((e) => !e.editable), isTrue, reason: '沉浸覆盖层是只读的');
       await tester.tap(find.byTooltip('退出沉浸阅读（Esc）'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('退出沉浸阅读（Esc）'), findsNothing);

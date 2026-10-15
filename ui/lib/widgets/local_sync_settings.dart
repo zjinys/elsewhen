@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../bridge/rust_bridge_repository.dart';
+import '../utils/device_name.dart';
 import '../bridge/api.dart' as api;
 import '../sync/sync_processor_handoff_controller.dart';
 import '../sync/sync_roster_controller.dart';
@@ -13,7 +14,6 @@ import '../sync/sync_setup_controller.dart';
 import 'sync_tick_status.dart';
 import 'owner_sync_pairing_settings.dart';
 import 'joiner_sync_pairing_settings.dart';
-import 'sync_enrollment_progress.dart';
 import 'sync_key_health_settings.dart';
 import 'sync_members_settings.dart';
 import 'sync_processor_handoff_settings.dart';
@@ -75,6 +75,12 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   @override
   void initState() {
     super.initState();
+    // 缺省设备名用真机器名；用户已改过名将保持原值。
+    defaultDeviceName().then((name) {
+      if (name != null && mounted && _name.text == '这台设备') {
+        setState(() => _name.text = name);
+      }
+    });
     _ownsConflicts = widget.conflictsController == null;
     _conflicts =
         widget.conflictsController ?? SyncProviderConflictsController();
@@ -311,8 +317,6 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         const SizedBox(height: 16),
         if (ready && state?.isOwner == true && controller.previewEnabled)
           OwnerSyncPairingSettings(controller: controller),
-        if (controller.autoEnrollment)
-          SyncEnrollmentProgress(controller: controller.enrollment),
         if (controller.previewEnabled)
           JoinerSyncPairingSettings(controller: controller.joiner),
       ],
@@ -337,6 +341,16 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
       children: [
         if (configured) ...[
           const SizedBox(height: 16),
+          if (ready)
+            _LocalDeviceInfoCard(
+              state: state,
+              roster: _roster.roster,
+              onRename: (newName) async {
+                final deviceId = state.deviceId;
+                if (deviceId == null) return '本机设备 ID 不可见，请刷新。';
+                return controller.renameLocalDevice(deviceId, newName);
+              },
+            ),
           if (ready)
             SyncMembersSettings(controller: _roster)
           else
@@ -423,6 +437,117 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     return roster.members
         .where((member) => member.active && member.deviceId != local)
         .toList();
+  }
+}
+
+/// 本机信息卡：设备名（owner 可改）、本机设备 ID、角色。中继 URL 不放
+/// 这里——它是传输配置，不属于「本机是谁」。
+class _LocalDeviceInfoCard extends StatelessWidget {
+  const _LocalDeviceInfoCard({
+    required this.state,
+    required this.roster,
+    required this.onRename,
+  });
+
+  final api.LocalSyncStateDto state;
+  final api.SyncRosterDto? roster;
+
+  /// 改名后返回可读错误（null = 成功）；仅 owner 本机提供入口。
+  final Future<String?> Function(String newName) onRename;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final roster = this.roster;
+    final deviceId = roster?.localDeviceId;
+    final roles = <String>[
+      if (state.isOwner) '主设备',
+      if (state.isProcessor) '负责 AI 分析',
+    ];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('本机信息', style: theme.textTheme.titleSmall),
+              const Spacer(),
+              if (state.isOwner)
+                TextButton.icon(
+                  onPressed: () => _renameDialog(context),
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('重命名'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '设备名：${state.deviceName ?? '未命名设备'}',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '角色：${roles.isEmpty ? '成员' : roles.join(' · ')}',
+            style: theme.textTheme.bodyMedium,
+          ),
+          if (deviceId != null) ...[
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Text('本机 ID：', style: theme.textTheme.bodySmall),
+                Expanded(
+                  child: SelectableText(
+                    deviceId,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 改名弹窗：预填当前名；空名不提交。
+  Future<void> _renameDialog(BuildContext context) async {
+    final input = TextEditingController(text: state.deviceName ?? '');
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('重命名本机设备'),
+        content: TextField(
+          controller: input,
+          autofocus: true,
+          maxLength: 256,
+          decoration: const InputDecoration(labelText: '设备名'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(input.text.trim()),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (newName == null || newName.isEmpty || !context.mounted) return;
+    final error = await onRename(newName);
+    if (!context.mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
+    }
   }
 }
 

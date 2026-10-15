@@ -45,6 +45,19 @@ class TestSyncSecureStorage extends FlutterSecureStorage {
     }
     values[key] = value!;
   }
+
+  @override
+  Future<void> delete({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    values.remove(key);
+  }
 }
 
 api.LocalSyncStateDto testSyncState(String state) => api.LocalSyncStateDto(
@@ -133,5 +146,32 @@ class TestSyncSetupApi implements SyncSetupApi {
   Future<api.LocalSyncStateDto> lock() async {
     operation = null;
     return current = testSyncState('locked');
+  }
+
+  String? renameError;
+  final List<(String, String)> renames = [];
+
+  @override
+  Future<int> renameDevice(
+    String deviceId,
+    String name,
+    int vaultRevision,
+  ) async {
+    if (renameError != null) throw Exception(renameError);
+    renames.add((deviceId, name));
+    final next = testSyncState(current.state);
+    current = api.LocalSyncStateDto(
+      state: next.state,
+      installationId: next.installationId,
+      vaultRevision: next.vaultRevision + 1,
+      datasetId: next.datasetId,
+      deviceId: next.deviceId,
+      deviceName: name,
+      isOwner: next.isOwner,
+      isProcessor: next.isProcessor,
+      activePeers: next.activePeers,
+      pendingOperations: next.pendingOperations,
+    );
+    return current.vaultRevision;
   }
 }

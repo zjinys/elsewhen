@@ -160,6 +160,27 @@ class SyncJoinController extends ChangeNotifier {
     notice = pending.isEmpty ? '没有未完成的加入暂存项。' : '恢复只读取原安装的密钥，不会创建替代密钥。';
   });
 
+  /// 删除一个可恢复的加入暂存项：Rust 端只受理 staging（ready 数据集
+  /// fail-closed），本机密钥随后从安全存储抹除。成功后刷新列表。
+  Future<void> discardStaging(api.SyncJoinEntryDto entry) => _action(() async {
+    await _bridge.discardStaging(entry.entryId);
+    _requireOpen();
+    try {
+      await _keys.deleteInstallation(entry.installationId);
+    } catch (_) {
+      // 密钥抹除失败不回滚 staging 删除：数据目录已清，残键无害孤儿。
+      notice = '暂存项已删除，但本机密钥清理失败，可稍后在密钥健康里检查。';
+      final pending = await _bridge.pending();
+      _requireOpen();
+      entries = pending;
+      return;
+    }
+    final pending = await _bridge.pending();
+    _requireOpen();
+    entries = pending;
+    notice = '已删除暂存项「${entry.name}」。';
+  });
+
   Future<void> resume(api.SyncJoinEntryDto entry) => _action(() async {
     if (active) throw StateError('sync_join_already_open');
     final request = await _bridge.resume(entry.entryId);

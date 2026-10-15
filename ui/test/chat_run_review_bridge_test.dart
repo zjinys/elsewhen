@@ -91,7 +91,11 @@ void main() {
             runId: run.id,
           );
           if (finished != null &&
-              !['preparing', 'running', 'cancelling'].contains(finished.status)) {
+              ![
+                'preparing',
+                'running',
+                'cancelling',
+              ].contains(finished.status)) {
             break;
           }
           await Future<void>.delayed(const Duration(milliseconds: 25));

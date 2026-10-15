@@ -23,9 +23,15 @@ Future<void> settleFrames(WidgetTester tester) async {
   }
 }
 
-Widget app(RunTestRepository repo, Widget child, {RustBridgeRepository? wikiBridge}) => ProviderScope(
+Widget app(
+  RunTestRepository repo,
+  Widget child, {
+  RustBridgeRepository? wikiBridge,
+}) => ProviderScope(
   overrides: [
-    storageRepositoryProvider.overrideWithValue(wikiBridge ?? _WikiBridge(repo)),
+    storageRepositoryProvider.overrideWithValue(
+      wikiBridge ?? _WikiBridge(repo),
+    ),
     conversationRepositoryProvider.overrideWithValue(repo),
     selectedConversationIdProvider.overrideWith(() => StateHolder('conv-1')),
     messagesProvider.overrideWith((ref) async => List.of(repo.messages)),

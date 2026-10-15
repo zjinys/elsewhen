@@ -138,7 +138,7 @@ const Map<String, String> _handoffErrors = {
   'sync_membership_not_processor': '本机当前不是加工设备，无需让出。',
   'sync_membership_owner_required': '只有 owner 设备才能审批移交证明。',
   'sync_background_processing_must_finish_before_enable':
-      '本机仍有进行中的后台任务，必须等它们完成后才能让出加工权。',
+      '本机仍有进行中的后台任务，必须等它们完成后才能让出 AI 分析职责。',
   'sync_frontier_lagging': '本机尚未同步到移交边界，请先等待同步追平再确认接管。',
   'sync_processor_not_in_pending_takeover': '本机没有待确认的加工接管。',
   'sync_handoff_signature_invalid': '移交证明签名无效，可能已被篡改。',
@@ -148,7 +148,7 @@ const Map<String, String> _handoffErrors = {
   'sync_handoff_target_missing': '移交目标不是当前名册中的活跃设备。',
   'sync_handoff_old_processor_inactive': '原加工设备已不在名册中，无法审批此证明。',
   'sync_handoff_dataset_mismatch': '移交证明与当前数据集不符。',
-  'sync_handoff_self_transfer_invalid': '加工权不能移交给本机自己。',
+  'sync_handoff_self_transfer_invalid': 'AI 分析职责不能移交给本机自己。',
   'sync_handoff_proof_target_mismatch': '移交证明与本机状态不符。',
   'sync_handoff_proof_required': '缺少移交证明，无法应用此设备变更。',
   'sync_handoff_proof_source_mismatch': '移交证明来源与本机状态不符。',

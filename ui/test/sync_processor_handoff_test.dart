@@ -110,7 +110,7 @@ Future<void> _yieldViaDropdown(WidgetTester tester, String deviceName) async {
   await tester.pumpAndSettle();
   await tester.tap(find.textContaining(deviceName).last);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('让出加工权'));
+  await tester.tap(find.text('让出 AI 分析职责'));
   await tester.pumpAndSettle();
   await tester.tap(find.widgetWithText(FilledButton, '让出'));
   await tester.pumpAndSettle();
@@ -132,7 +132,7 @@ void main() {
     expect(bridge.approveCalls, 1, reason: 'owner 同机时必须自动审批');
     expect(bridge.yieldedTo, 'b');
     expect(bridge.approvedProof, isNotNull);
-    expect(find.text('本机已让出加工权，等待目标设备确认接管。'), findsOneWidget);
+    expect(find.text('本机已让出 AI 分析职责，等待目标设备确认接管。'), findsOneWidget);
     expect(
       find.byType(DropdownButtonFormField<String>),
       findsNothing,
@@ -151,10 +151,10 @@ void main() {
 
     expect(bridge.yieldCalls, 1);
     expect(bridge.approveCalls, 0, reason: '证明生成失败绝不能继续审批');
-    expect(find.text('本机仍有进行中的后台任务，必须等它们完成后才能让出加工权。'), findsOneWidget);
+    expect(find.text('本机仍有进行中的后台任务，必须等它们完成后才能让出 AI 分析职责。'), findsOneWidget);
   });
 
-  testWidgets('非 owner 本机让出后不自动审批并提示等待 owner', (tester) async {
+  testWidgets('非主设备本机让出后不自动审批并提示等待主设备', (tester) async {
     final bridge = FakeHandoffApi([
       _state(state: 'idle', from: null),
       _state(state: 'relinquished', to: 'b', finalSequence: 1),
@@ -180,7 +180,7 @@ void main() {
 
     expect(bridge.yieldCalls, 1);
     expect(bridge.approveCalls, 0, reason: '非 owner 本机绝不能自动审批');
-    expect(find.text('等待 owner 审批移交证明。'), findsOneWidget);
+    expect(find.text('等待主设备审批移交证明。'), findsOneWidget);
   });
 
   testWidgets('接管：仅 frontier 追平（canConfirm）展示确认按钮且成功后刷新', (tester) async {
@@ -206,7 +206,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(bridge.confirmCalls, 1);
-    expect(find.text('本机正在加工（此前的一次接管已完成）。'), findsOneWidget);
+    expect(find.text('本机正在负责 AI 分析（此前的一次接管已完成）。'), findsOneWidget);
   });
 
   testWidgets('确认被 sync_frontier_lagging 拦下时展示可读文案', (tester) async {

@@ -183,15 +183,30 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          CircularProgressIndicator(
-                            color: AppTheme.accentPrimary,
-                          ),
-                          const SizedBox(height: 16),
                           Text(
-                            'Initializing Elsewhen...',
+                            'Elsewhen',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 22,
+                              letterSpacing: 1.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.accentPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            '正在启动…',
                             style: TextStyle(
                               color: AppTheme.textSecondary,
-                              fontSize: 14,
+                              fontSize: 12,
                             ),
                           ),
                         ],

@@ -258,37 +258,37 @@ void main() {
     },
   );
 
-// 扫码流程注入缝在 JoinerQrScanPage.scannerBuilder；本测试不打开相机。
-testWidgets(
-  'scanning a QR fills the invitation code and previews without pasting',
-  (tester) async {
-    final f = Fixture();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: JoinerSyncPairingSettings(
-              controller: f.controller,
-              scannerBuilder: (context, onCode) => TextButton(
-                onPressed: () => onCode('SYNTHETIC_INVITATION'),
-                child: const Text('模拟检测到二维码'),
+  // 扫码流程注入缝在 JoinerQrScanPage.scannerBuilder；本测试不打开相机。
+  testWidgets(
+    'scanning a QR fills the invitation code and previews without pasting',
+    (tester) async {
+      final f = Fixture();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: JoinerSyncPairingSettings(
+                controller: f.controller,
+                scannerBuilder: (context, onCode) => TextButton(
+                  onPressed: () => onCode('SYNTHETIC_INVITATION'),
+                  child: const Text('模拟检测到二维码'),
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.ensureVisible(find.text('扫码'));
-    await tester.tap(find.text('扫码'));
-    await tester.pumpAndSettle();
-    expect(find.text('模拟检测到二维码'), findsOneWidget);
-    await tester.tap(find.text('模拟检测到二维码'));
-    await tester.pumpAndSettle();
-    expect(f.bridge.previews, 1);
-    expect(f.controller.state, isNotNull);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-    await f.close();
-  },
-);
+      );
+      await tester.ensureVisible(find.text('扫码'));
+      await tester.tap(find.text('扫码'));
+      await tester.pumpAndSettle();
+      expect(find.text('模拟检测到二维码'), findsOneWidget);
+      await tester.tap(find.text('模拟检测到二维码'));
+      await tester.pumpAndSettle();
+      expect(f.bridge.previews, 1);
+      expect(f.controller.state, isNotNull);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await f.close();
+    },
+  );
 }

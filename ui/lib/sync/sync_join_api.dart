@@ -9,6 +9,9 @@ abstract interface class SyncJoinApi {
     bool consent,
   );
   Future<List<api.SyncJoinEntryDto>> pending();
+
+  /// 删除一个未完成的加入暂存项（rediscovery 列表用）。
+  Future<void> discardStaging(String entryId);
   Future<api.SyncJoinStateDto> resume(String entryId);
   Future<api.SyncJoinStateDto> install(
     String token,
@@ -41,6 +44,9 @@ class FrbSyncJoinApi implements SyncJoinApi {
   );
   @override
   Future<List<api.SyncJoinEntryDto>> pending() => api.listPendingSyncJoins();
+  @override
+  Future<void> discardStaging(String entryId) =>
+      api.discardSyncJoinStaging(entryId: entryId);
   @override
   Future<api.SyncJoinStateDto> resume(String entryId) =>
       api.prepareSyncJoinResume(entryId: entryId);

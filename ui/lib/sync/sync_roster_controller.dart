@@ -118,7 +118,7 @@ String rosterErrorText(String raw) {
 }
 
 const Map<String, String> _rosterErrors = {
-  'sync_membership_handoff_required': '该设备是当前加工设备，必须先移交加工权才能撤销。',
+  'sync_membership_handoff_required': '该设备当前负责 AI 分析，必须先移交职责才能撤销。',
   'sync_membership_revision_changed': '名册刚被其他设备更新，请刷新后重新审阅撤销。',
   'sync_membership_owner_required': '只有 owner 设备才能撤销成员。',
   'sync_membership_already_revoked': '该设备已被撤销。',

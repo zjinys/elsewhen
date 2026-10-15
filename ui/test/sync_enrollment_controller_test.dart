@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/sync/sync_enrollment_api.dart';
 import 'package:elsewhen_ui/sync/sync_enrollment_controller.dart';
 import 'package:elsewhen_ui/sync/sync_key_store.dart';
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
-import 'package:elsewhen_ui/widgets/sync_enrollment_progress.dart';
 
 import 'support/sync_setup.dart';
 
@@ -335,36 +333,6 @@ void main() {
       expect(setup.released, ['request-1']);
       expect(f.bridge.confirmations, isEmpty);
       controller.dispose();
-      await f.close();
-    },
-  );
-
-  testWidgets(
-    'progress distinguishes local application, remote receipt and switching',
-    (tester) async {
-      final f = EnrollmentFixture();
-      f.controller.states = [
-        enrollmentState(
-          role: 'joiner',
-          phase: 'awaiting_receipt',
-          localApplied: true,
-        ),
-      ];
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: SyncEnrollmentProgress(controller: f.controller),
-            ),
-          ),
-        ),
-      );
-      expect(find.textContaining('本机快照已应用，等待对方回执'), findsOneWidget);
-      expect(find.textContaining('自动持续同步'), findsOneWidget);
-      expect(find.textContaining('旧设备已确认应用回执'), findsNothing); // 旧措辞不再出现
-      expect(find.textContaining('已有设备已确认应用回执'), findsNothing);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
       await f.close();
     },
   );

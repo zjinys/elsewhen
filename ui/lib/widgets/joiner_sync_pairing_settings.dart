@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../bridge/api.dart' as api;
 import '../sync/sync_join_controller.dart';
+import '../utils/device_name.dart';
 import 'joiner_qr_scan_page.dart';
 import 'sync_pairing_steps.dart';
 
@@ -27,6 +29,17 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
   final _code = TextEditingController();
   final _name = TextEditingController(text: '这台设备');
   bool _consent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 缺省设备名用真机器名；用户已改过名将保持原值。
+    defaultDeviceName().then((name) {
+      if (name != null && mounted && _name.text == '这台设备') {
+        setState(() => _name.text = name);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -246,11 +259,22 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                 subtitle: Text(
                   '数据集：${entry.datasetId}\n仅恢复已审批检查点；未审批状态重启后需新邀请。',
                 ),
-                trailing: TextButton(
-                  onPressed: controller.busy
-                      ? null
-                      : () => controller.resume(entry),
-                  child: const Text('解锁恢复'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(
+                      onPressed: controller.busy
+                          ? null
+                          : () => controller.resume(entry),
+                      child: const Text('解锁恢复'),
+                    ),
+                    TextButton(
+                      onPressed: controller.busy
+                          ? null
+                          : () => _discardStaging(context, controller, entry),
+                      child: const Text('删除'),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -258,4 +282,35 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
       );
     },
   );
+}
+
+/// 删除前确认：不可恢复（暂存数据 + 本机密钥一并抹除）。
+Future<void> _discardStaging(
+  BuildContext context,
+  SyncJoinController controller,
+  api.SyncJoinEntryDto entry,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('删除这条暂存项？'),
+      content: Text(
+        '「${entry.name}」的暂存数据和本机密钥会被删除，且不可恢复。'
+        '如果还想加入这个数据集，之后需要重新扫码并经对方批准。',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('删除'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true && context.mounted) {
+    await controller.discardStaging(entry);
+  }
 }

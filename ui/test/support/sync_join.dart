@@ -94,6 +94,14 @@ class TestSyncJoinApi implements SyncJoinApi {
   @override
   Future<List<api.SyncJoinEntryDto>> pending() async => [testJoinEntry];
   @override
+  @override
+  Future<void> discardStaging(String entryId) async {
+    discards.add(entryId);
+  }
+
+  final List<String> discards = [];
+
+  @override
   Future<api.SyncJoinStateDto> resume(String entryId) async {
     if (!checkpoint || entryId != testJoinEntry.entryId) {
       throw StateError('sync_join_requires_new_invitation');

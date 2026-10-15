@@ -101,8 +101,8 @@ void main() {
 
     // 只有非 owner/非加工/非本机的设备 c 有撤销按钮。
     expect(find.text('撤销'), findsOneWidget);
-    expect(find.text('需先移交加工权'), findsOneWidget);
-    expect(find.text('设备 a（owner · 加工 · 本机）'), findsOneWidget);
+    expect(find.text('需先移交 AI 分析职责后再撤销'), findsOneWidget);
+    expect(find.text('设备 a（主设备 · 负责 AI 分析 · 本机）'), findsOneWidget);
 
     // 预置撤销成功后的名册（confirmRevoke 末尾的刷新会消费）。
     bridge.subsequent.add(
@@ -119,7 +119,8 @@ void main() {
     expect(bridge.revocations, hasLength(1));
     expect(bridge.revocations.single.deviceId, 'c');
     expect(bridge.revocations.single.revision, 4);
-    expect(find.text('设备 c（已撤销）'), findsOneWidget);
+    // 已撤销成员不再显示。
+    expect(find.textContaining('已撤销'), findsNothing);
     expect(find.text('撤销'), findsNothing);
   });
   testWidgets('非 owner 本机不可撤销任何设备', (tester) async {
@@ -156,9 +157,9 @@ void main() {
     await _revokeDevice(tester, '设备 c');
 
     expect(bridge.revocations, hasLength(1));
-    expect(find.text('该设备是当前加工设备，必须先移交加工权才能撤销。'), findsOneWidget);
+    expect(find.text('该设备当前负责 AI 分析，必须先移交职责才能撤销。'), findsOneWidget);
     // 名册视图保留（不清空）。
-    expect(find.text('设备 a（owner · 加工 · 本机）'), findsOneWidget);
+    expect(find.text('设备 a（主设备 · 负责 AI 分析 · 本机）'), findsOneWidget);
   });
 
   testWidgets('修订号被并发更新时提示重新审阅', (tester) async {
@@ -177,7 +178,7 @@ void main() {
 
     expect(find.text('名册刚被其他设备更新，请刷新后重新审阅撤销。'), findsOneWidget);
     expect(
-      find.text('设备 a（owner · 加工 · 本机）'),
+      find.text('设备 a（主设备 · 负责 AI 分析 · 本机）'),
       findsOneWidget,
       reason: '失败不清空视图',
     );

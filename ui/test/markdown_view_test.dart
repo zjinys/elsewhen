@@ -71,7 +71,9 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(child: MarkdownView(markdown: tableSample)),
+          body: SingleChildScrollView(
+            child: MarkdownView(markdown: tableSample),
+          ),
         ),
       ),
     );
@@ -117,9 +119,7 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
-            child: MarkdownView(
-              markdown: '**能用的部分：**\n- 甲\n- 乙\n\n后续段落。',
-            ),
+            child: MarkdownView(markdown: '**能用的部分：**\n- 甲\n- 乙\n\n后续段落。'),
           ),
         ),
       ),
@@ -139,7 +139,8 @@ void main() {
         home: Scaffold(
           body: SingleChildScrollView(
             child: MarkdownView(
-              markdown: '结论如下：\n| 名称 | 数量 |\n| --- | --- |\n| 苹果 | 3 |\n\n后续段落。',
+              markdown:
+                  '结论如下：\n| 名称 | 数量 |\n| --- | --- |\n| 苹果 | 3 |\n\n后续段落。',
             ),
           ),
         ),

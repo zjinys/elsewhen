@@ -61,11 +61,7 @@ void main() {
   testWidgets('三对象并列展示双端状态并按对象种类标注，采纳后冲突消失', (tester) async {
     final api_ = FakeObjectConflictApi([
       _conflict(opId: 'stream-a:12'),
-      _conflict(
-        opId: 'stream-a:13',
-        kind: 'goal',
-        reason: 'goal_active_limit',
-      ),
+      _conflict(opId: 'stream-a:13', kind: 'goal', reason: 'goal_active_limit'),
     ]);
     final controller = SyncObjectConflictsController(bridge: api_);
     addTearDown(controller.dispose);
@@ -130,10 +126,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(controller.conflicts, hasLength(1), reason: '失败不清列表');
-    expect(
-      find.text('本端活跃目标已满，无法直接采纳对端；请先归档目标或选择保留本端。'),
-      findsOneWidget,
-    );
+    expect(find.text('本端活跃目标已满，无法直接采纳对端；请先归档目标或选择保留本端。'), findsOneWidget);
     expect(find.text('本端版主文本'), findsOneWidget);
   });
 

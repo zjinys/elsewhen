@@ -60,40 +60,53 @@ void main() {
     for (final url in ['http://0.0.0.0:8080', 'http://[::]:8080']) {
       expect(providerEndpointNotice(url), contains('未指定地址'));
     }
-    for (final url in ['', 'not-a-url', 'file:///SYNTHETIC_SECRET', 'http://[']) {
+    for (final url in [
+      '',
+      'not-a-url',
+      'file:///SYNTHETIC_SECRET',
+      'http://[',
+    ]) {
       final notice = providerEndpointNotice(url);
       expect(notice, contains('格式需要检查'));
       expect(notice, isNot(contains('SYNTHETIC_SECRET')));
     }
   });
 
-  testWidgets('notice wraps on a narrow screen and offers no automatic action', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(320, 640);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    const url = 'http://localhost:11434/v1';
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: Padding(
-            padding: EdgeInsets.all(16),
-            child: ProviderEndpointNotice(baseUrl: url),
+  testWidgets(
+    'notice wraps on a narrow screen and offers no automatic action',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      const url = 'http://localhost:11434/v1';
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Padding(
+              padding: EdgeInsets.all(16),
+              child: ProviderEndpointNotice(baseUrl: url),
+            ),
           ),
         ),
-      ),
-    );
-    expect(find.textContaining('保留原地址'), findsOneWidget);
-    expect(find.textContaining('不会自动探测'), findsOneWidget);
-    expect(find.byType(TextButton), findsNothing);
-    expect(find.byType(FilledButton), findsNothing);
-    expect(tester.widget<ProviderEndpointNotice>(find.byType(ProviderEndpointNotice)).baseUrl, url);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(
-      const MaterialApp(home: ProviderEndpointNotice(baseUrl: 'https://model.invalid/v1')),
-    );
-    expect(find.byIcon(Icons.info_outline), findsNothing);
-  });
+      );
+      expect(find.textContaining('保留原地址'), findsOneWidget);
+      expect(find.textContaining('不会自动探测'), findsOneWidget);
+      expect(find.byType(TextButton), findsNothing);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(
+        tester
+            .widget<ProviderEndpointNotice>(find.byType(ProviderEndpointNotice))
+            .baseUrl,
+        url,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ProviderEndpointNotice(baseUrl: 'https://model.invalid/v1'),
+        ),
+      );
+      expect(find.byIcon(Icons.info_outline), findsNothing);
+    },
+  );
 }

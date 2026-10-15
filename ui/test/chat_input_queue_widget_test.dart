@@ -33,13 +33,22 @@ class QueueRepository extends RunTestRepository {
       for (final item in [...queued, ...injected]) item.inputMessageId,
     };
     return messages
-        .where((message) => message.isUser && message.conversationId == conversationId && !associated.contains(message.id))
-        .skip(offset).take(20)
-        .map((message) => UnscheduledChatInputDto(
-          inputMessageId: message.id,
-          preview: message.content,
-          createdAt: message.createdAt.toIso8601String(),
-        )).toList();
+        .where(
+          (message) =>
+              message.isUser &&
+              message.conversationId == conversationId &&
+              !associated.contains(message.id),
+        )
+        .skip(offset)
+        .take(20)
+        .map(
+          (message) => UnscheduledChatInputDto(
+            inputMessageId: message.id,
+            preview: message.content,
+            createdAt: message.createdAt.toIso8601String(),
+          ),
+        )
+        .toList();
   }
 
   @override

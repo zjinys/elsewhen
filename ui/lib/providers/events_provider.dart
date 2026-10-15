@@ -26,16 +26,19 @@ final recentEventsProvider = FutureProvider<List<api.EventSummaryDto>>((
 /// 单事件分析详情（含 guidance/emotion/项目人物等派生面）。
 final eventAnalysisDetailProvider =
     FutureProvider.family<api.EventAnalysisDetailDto?, String>((ref, eventId) {
-      final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final bridge =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
       return bridge.getEventAnalysisDetail(eventId);
     });
 
 /// 事件旁标记（D1 旧账）：该事件的未拒绝规则命中行。
-final eventRuleHitsProvider =
-    FutureProvider.family<List<RuleHit>, String>((ref, eventId) {
-      final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      return bridge.listEventRuleHits(eventId);
-    });
+final eventRuleHitsProvider = FutureProvider.family<List<RuleHit>, String>((
+  ref,
+  eventId,
+) {
+  final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+  return bridge.listEventRuleHits(eventId);
+});
 
 /// 供 wiki 页「来源事件记录」跳转（D2 旧账）：切到事件域并选中。
 void openEventDetail(WidgetRef ref, String eventId) {

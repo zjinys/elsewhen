@@ -27,6 +27,7 @@ import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
 import '../utils/window_service.dart';
 import '../theme/app_theme.dart';
+import '../app_update.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -43,6 +44,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   /// 应用版本（pubspec version），宽屏在左 tab 栏底部、窄屏在 tab 条下方。
   String _version = '';
+
+  /// 「检查更新」在途标记。runFromSettings 自身弹窗闭环，本页只防重入。
+  bool _checkingUpdate = false;
 
   late TextEditingController _maxMessagesController;
 
@@ -928,13 +932,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                             Expanded(child: content),
                             if (_version.isNotEmpty)
                               Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Text(
-                                  _version,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: AppTheme.textTertiary,
-                                  ),
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        _version,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: AppTheme.textTertiary,
+                                        ),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: _checkingUpdate
+                                          ? null
+                                          : () => AppUpdate.runFromSettings(
+                                              context,
+                                            ),
+                                      child: Text(
+                                        _checkingUpdate ? '检查中…' : '检查更新',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: AppTheme.accentPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                  ],
                                 ),
                               ),
                           ],
@@ -992,16 +1017,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 padding: const EdgeInsets.only(
                   top: AppTheme.space2,
                   left: AppTheme.space3,
+                  right: AppTheme.space3,
                 ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _version,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textTertiary,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _version,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textTertiary,
+                      ),
                     ),
-                  ),
+                    GestureDetector(
+                      onTap: _checkingUpdate
+                          ? null
+                          : () => AppUpdate.runFromSettings(context),
+                      child: Text(
+                        _checkingUpdate ? '检查中…' : '检查更新',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.accentPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],

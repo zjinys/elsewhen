@@ -88,7 +88,14 @@ class LeftSidebar extends ConsumerWidget {
   Widget _buildConversationTab(BuildContext context, WidgetRef ref) {
     final main = ref.watch(mainConversationProvider);
     return main.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      // 启动期左栏占位：默认 spinner 直径太大，视觉粗糙；收敛为小圈。
+      loading: () => const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
       error: (error, stack) => Center(child: Text('对话加载失败')),
       data: (conversation) {
         if (ref.read(selectedConversationIdProvider) != conversation.id) {
@@ -391,7 +398,13 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                 ],
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
             error: (error, stack) => Center(
               child: Text(
                 '加载失败',

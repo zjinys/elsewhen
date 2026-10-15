@@ -61,21 +61,26 @@ class _SyncMembersSettingsState extends State<SyncMembersSettings> {
               )
             else if (roster == null)
               const Text('正在读取设备列表…')
-            else
-              ...roster.members.map(
-                (member) => _MemberRow(
-                  key: ValueKey(member.deviceId),
-                  member: member,
-                  revocable: memberRevocable(roster, member),
-                  needsHandoffOffFirst:
-                      localIsOwner &&
-                      member.active &&
-                      member.isProcessor &&
-                      !member.isLocal,
-                  busy: controller.busy,
-                  onRevoke: () => _revoke(context, controller, member),
-                ),
-              ),
+            else ...[
+              // 已撤销设备保留在后端有防重入语义（旧密饼拒接），但
+              // 视觉上折叠，避免历史条目把活跃设备 hammam掉。
+              ...roster.members
+                  .where((member) => member.active)
+                  .map(
+                    (member) => _MemberRow(
+                      key: ValueKey(member.deviceId),
+                      member: member,
+                      revocable: memberRevocable(roster, member),
+                      needsHandoffOffFirst:
+                          localIsOwner &&
+                          member.active &&
+                          member.isProcessor &&
+                          !member.isLocal,
+                      busy: controller.busy,
+                      onRevoke: () => _revoke(context, controller, member),
+                    ),
+                  ),
+            ],
           ],
         );
       },
@@ -129,9 +134,10 @@ class _MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // 用户语言，与状态头卡一致；内部行话（owner/加工）不出现在成员行。
     final roles = <String>[
-      if (member.isOwner) 'owner',
-      if (member.isProcessor) '加工',
+      if (member.isOwner) '主设备',
+      if (member.isProcessor) '负责 AI 分析',
       if (member.isLocal) '本机',
     ];
     final title = member.active
@@ -176,7 +182,7 @@ class _MemberRow extends StatelessWidget {
           ] else if (needsHandoffOffFirst)
             Padding(
               padding: const EdgeInsets.only(left: 8),
-              child: Text('需先移交加工权', style: theme.textTheme.bodySmall),
+              child: Text('需先移交 AI 分析职责后再撤销', style: theme.textTheme.bodySmall),
             ),
         ],
       ),

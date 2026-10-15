@@ -43,9 +43,8 @@ void main() {
 
     test('未知取值 → 回退默认', () {
       final store = DesktopPrefsStore(directoryOverride: dir.path);
-      File(
-        '${dir.path}/desktop.json',
-      ).writeAsStringSync('{"closeAction":"banana"}');
+      File('${dir.path}/desktop.json')
+          .writeAsStringSync('{"closeAction":"banana"}');
       expect(store.loadCloseAction(), CloseAction.minimizeToTray);
     });
   });

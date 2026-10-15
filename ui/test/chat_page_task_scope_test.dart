@@ -27,32 +27,62 @@ class MaterialRepository extends RustBridgeRepository {
 }
 
 void main() {
-  test('reopening restores task identity and selection without new tokens', () async {
-    final original = material('😀原文尾部', 'v1');
-    final task = ChatPageTask('local_edit', [original], startChar: 1, endChar: 3);
-    final restored = await ChatPageTask.restore(task.json, (_) async => original);
-    expect(jsonDecode(restored.json), jsonDecode(task.json));
-    expect(restored.startChar, 1);
-    expect(restored.endChar, 3);
-  });
+  test(
+    'reopening restores task identity and selection without new tokens',
+    () async {
+      final original = material('😀原文尾部', 'v1');
+      final task = ChatPageTask(
+        'local_edit',
+        [original],
+        startChar: 1,
+        endChar: 3,
+      );
+      final restored = await ChatPageTask.restore(
+        task.json,
+        (_) async => original,
+      );
+      expect(jsonDecode(restored.json), jsonDecode(task.json));
+      expect(restored.startChar, 1);
+      expect(restored.endChar, 3);
+    },
+  );
 
-  test('reopening compare preserves both bases and rejects a changed second page', () async {
-    final first = material('first', 'v1');
-    final second = WikiChatMaterialDto(
-      slug: 'topic/second', title: 'Second', contentMd: 'second',
-      basisJson: jsonEncode({'slug': 'topic/second', 'revision': {'hash': 'v1'}}),
-    );
-    final task = ChatPageTask('compare', [first, second]);
-    final restored = await ChatPageTask.restore(task.json,
-        (slug) async => slug == first.slug ? first : second);
-    expect(jsonDecode(restored.json), jsonDecode(task.json));
-    await expectLater(ChatPageTask.restore(task.json, (slug) async {
-      if (slug == first.slug) return first;
-      return WikiChatMaterialDto(slug: second.slug, title: second.title,
-        contentMd: 'changed',
-        basisJson: jsonEncode({'slug': second.slug, 'revision': {'hash': 'v2'}}));
-    }), throwsStateError);
-  });
+  test(
+    'reopening compare preserves both bases and rejects a changed second page',
+    () async {
+      final first = material('first', 'v1');
+      final second = WikiChatMaterialDto(
+        slug: 'topic/second',
+        title: 'Second',
+        contentMd: 'second',
+        basisJson: jsonEncode({
+          'slug': 'topic/second',
+          'revision': {'hash': 'v1'},
+        }),
+      );
+      final task = ChatPageTask('compare', [first, second]);
+      final restored = await ChatPageTask.restore(
+        task.json,
+        (slug) async => slug == first.slug ? first : second,
+      );
+      expect(jsonDecode(restored.json), jsonDecode(task.json));
+      await expectLater(
+        ChatPageTask.restore(task.json, (slug) async {
+          if (slug == first.slug) return first;
+          return WikiChatMaterialDto(
+            slug: second.slug,
+            title: second.title,
+            contentMd: 'changed',
+            basisJson: jsonEncode({
+              'slug': second.slug,
+              'revision': {'hash': 'v2'},
+            }),
+          );
+        }),
+        throwsStateError,
+      );
+    },
+  );
 
   test('reopening independent task does not load an old page', () async {
     final task = ChatPageTask('none', []);

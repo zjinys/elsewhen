@@ -66,16 +66,16 @@ class _SyncProcessorHandoffSettingsState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            Text('加工移交', style: theme.textTheme.titleSmall),
+            Text('AI 分析职责移交', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             Text(switch (phase) {
               'idle' => '本机状态：未参与移交。',
-              'relinquished' => '本机已让出加工权，等待目标设备确认接管。',
+              'relinquished' => '本机已让出 AI 分析职责，等待目标设备确认接管。',
               'pending_takeover' =>
                 handoff!.canConfirm
                     ? '有移交等待本机确认（同步已追平）。'
                     : '有移交等待本机确认，但本机尚未同步到移交边界。',
-              'active' => '本机正在加工（此前的一次接管已完成）。',
+              'active' => '本机正在负责 AI 分析（此前的一次接管已完成）。',
               _ => '正在读取移交状态…',
             }),
             if (phase == 'pending_takeover' && handoff!.canConfirm) ...[
@@ -117,7 +117,7 @@ class _SyncProcessorHandoffSettingsState
                 const SizedBox(height: 8),
                 FilledButton.icon(
                   icon: const Icon(Icons.logout),
-                  label: const Text('让出加工权'),
+                  label: const Text('让出 AI 分析职责'),
                   onPressed: controller.busy || _targetDevice == null
                       ? null
                       : () => _confirmYield(context, controller),
@@ -126,7 +126,7 @@ class _SyncProcessorHandoffSettingsState
             ],
             if (phase == 'relinquished' && !widget.isOwner) ...[
               const SizedBox(height: 8),
-              Text('等待 owner 审批移交证明。', style: theme.textTheme.bodySmall),
+              Text('等待主设备审批移交证明。', style: theme.textTheme.bodySmall),
             ],
             if (controller.error != null) ...[
               const SizedBox(height: 8),
@@ -171,11 +171,11 @@ class _SyncProcessorHandoffSettingsState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('让出加工权？'),
+        title: const Text('让出 AI 分析职责？'),
         content: Text(
-          '将把加工权移交给 "$targetLabel"（$target）。\n\n'
+          '将把 AI 分析职责移交给 "$targetLabel"（$target）。\n\n'
           '本机会立即停止认领后台任务；目标设备需同步到移交边界并显式确认后'
-          '才开始加工。确认后本机不能单方面恢复加工。',
+          '才开始 AI 分析。确认后本机不能单方面恢复。',
         ),
         actions: [
           TextButton(

@@ -164,23 +164,36 @@ class SyncEnrollmentController extends ChangeNotifier {
         _armed = false;
         return;
       }
+      // 备选原始规则总是先取第一条 awaiting_proof；留有多条交接时
+      //（例如换邀请重试后旧的还挂着）旧记录永远占住队首，新的会被
+      // 饿死。改为：提交确认最优先，其余按游标轮转，卡住的记录只
+      // 消耗少量轮次。
       target = pending.firstWhere(
         (state) => state.confirmationToken != null,
-        orElse: () => pending.firstWhere(
-          (state) => state.phase == 'awaiting_proof',
-          orElse: () => pending[_cursor++ % pending.length],
-        ),
+        orElse: () => pending[_cursor++ % pending.length],
       );
       var next = target;
       if (next.confirmationToken == null) {
+        debugPrint(
+          '[sync-pairing] enrollment: advance role=${next.role} '
+          'inv=${next.invitationId} phase=${next.phase}',
+        );
         next = await _bridge.advance(target);
         _requireCurrent(epoch);
         _validate(target, next);
         _replace(next);
+        debugPrint(
+          '[sync-pairing] enrollment: advanced role=${next.role} '
+          'inv=${next.invitationId} phase=${next.phase}',
+        );
       }
       if (next.confirmationToken != null) {
         final commit = next;
         _requireCurrent(epoch);
+        debugPrint(
+          '[sync-pairing] enrollment: commit-invite role=${commit.role} '
+          'inv=${commit.invitationId} rev=${commit.revision}',
+        );
         await _keys.saveRevision(commit.installationId, commit.revision);
         final protected = await _keys.readRevision(commit.installationId);
         _requireCurrent(epoch);
@@ -201,6 +214,7 @@ class SyncEnrollmentController extends ChangeNotifier {
     } on _EnrollmentCancelled {
       // Parent pause/close waits for native writes, then releases its own session.
     } catch (failure) {
+      debugPrint('[sync-pairing] enrollment: tick failed: $failure');
       final nativeFailure =
           failure is SyncKeyStoreException ||
           failure is _EnrollmentStateChanged;

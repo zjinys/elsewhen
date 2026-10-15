@@ -85,6 +85,25 @@ void main() {
       expect(find.text('同步已开启'), findsOneWidget);
       expect(find.text('锁定本机密钥'), findsOneWidget);
       expect(find.textContaining('同步完成'), findsNothing);
+      // 本机信息卡：owner 可重命名（ready 态才有入口）；保存后显示新名。
+      await tester.ensureVisible(find.text('重命名'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('重命名'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        '书桌主机',
+      );
+      await tester.tap(find.widgetWithText(TextButton, '保存'));
+      await tester.pumpAndSettle();
+      expect(bridge.renames.single.$2, '书桌主机');
+      expect(find.text('设备名：书桌主机'), findsOneWidget);
+      // 本机信息卡加高管理 tab：按钮可能落到测试视口外，先滚到可见再点。
+      await tester.ensureVisible(find.text('锁定本机密钥'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('锁定本机密钥'));
       await tester.pumpAndSettle();
       expect(find.text('解锁本机密钥'), findsOneWidget);

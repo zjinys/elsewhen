@@ -14,17 +14,17 @@ void main() {
     bool rosterConverged = false,
     bool acknowledgementFailed = false,
   }) => api.SyncTickResultDto(
-        ran: ran,
-        stagedOperations: 0,
-        uploaded: uploaded,
-        pulledAccepted: pulledAccepted,
-        pulledWaiting: pulledWaiting,
-        pulledRejected: pulledRejected,
-        pulledVersionMismatch: pulledVersionMismatch,
-        rosterConverged: rosterConverged,
-        acknowledgementFailed: acknowledgementFailed,
-        resnapshotPending: const [],
-      );
+    ran: ran,
+    stagedOperations: 0,
+    uploaded: uploaded,
+    pulledAccepted: pulledAccepted,
+    pulledWaiting: pulledWaiting,
+    pulledRejected: pulledRejected,
+    pulledVersionMismatch: pulledVersionMismatch,
+    rosterConverged: rosterConverged,
+    acknowledgementFailed: acknowledgementFailed,
+    resnapshotPending: const [],
+  );
 
   Future<void> pump(
     WidgetTester tester, {
@@ -42,7 +42,12 @@ void main() {
 
   testWidgets('shows P4e diagnostic signals when present', (tester) async {
     final ticks = ValueNotifier<api.SyncTickResultDto?>(
-      tick(uploaded: 2, pulledAccepted: 5, rosterConverged: true, pulledVersionMismatch: 3),
+      tick(
+        uploaded: 2,
+        pulledAccepted: 5,
+        rosterConverged: true,
+        pulledVersionMismatch: 3,
+      ),
     );
     final errors = ValueNotifier<Object?>(null);
     await pump(tester, ticks: ticks, errors: errors);
