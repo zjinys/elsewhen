@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -447074343;
+  int get rustContentHash => 410758342;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -901,6 +901,13 @@ abstract class RustLibApi extends BaseApi {
   Future<MessageRecordabilityDto> crateApiSetEventRecordability({
     required String eventId,
     required bool recordable,
+  });
+
+  Future<bool> crateApiSetGuidanceFeedback({
+    required String analysisId,
+    required String slug,
+    String? note,
+    String? feedback,
   });
 
   Future<void> crateApiKnowledgeWorkflowsSetKnowledgeReadingState({
@@ -6810,6 +6817,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiSetGuidanceFeedback({
+    required String analysisId,
+    required String slug,
+    String? note,
+    String? feedback,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(analysisId);
+          var arg1 = cst_encode_String(slug);
+          var arg2 = cst_encode_opt_String(note);
+          var arg3 = cst_encode_opt_String(feedback);
+          return wire.wire__crate__api__set_guidance_feedback(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetGuidanceFeedbackConstMeta,
+        argValues: [analysisId, slug, note, feedback],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetGuidanceFeedbackConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_guidance_feedback",
+        argNames: ["analysisId", "slug", "note", "feedback"],
+      );
+
+  @override
   Future<void> crateApiKnowledgeWorkflowsSetKnowledgeReadingState({
     required String slug,
     required String state,
@@ -9561,14 +9607,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return PageGuidanceDto(
-      eventId: dco_decode_String(arr[0]),
-      recordedAt: dco_decode_String(arr[1]),
-      note: dco_decode_opt_String(arr[2]),
-      lessons: dco_decode_list_String(arr[3]),
-      followUpsRefined: dco_decode_list_String(arr[4]),
+      analysisId: dco_decode_String(arr[0]),
+      eventId: dco_decode_String(arr[1]),
+      recordedAt: dco_decode_String(arr[2]),
+      note: dco_decode_opt_String(arr[3]),
+      lessons: dco_decode_list_String(arr[4]),
+      followUpsRefined: dco_decode_list_String(arr[5]),
+      feedback: dco_decode_opt_String(arr[6]),
     );
   }
 
@@ -12805,17 +12853,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_analysisId = sse_decode_String(deserializer);
     var var_eventId = sse_decode_String(deserializer);
     var var_recordedAt = sse_decode_String(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
     var var_lessons = sse_decode_list_String(deserializer);
     var var_followUpsRefined = sse_decode_list_String(deserializer);
+    var var_feedback = sse_decode_opt_String(deserializer);
     return PageGuidanceDto(
+      analysisId: var_analysisId,
       eventId: var_eventId,
       recordedAt: var_recordedAt,
       note: var_note,
       lessons: var_lessons,
       followUpsRefined: var_followUpsRefined,
+      feedback: var_feedback,
     );
   }
 
@@ -15767,11 +15819,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.analysisId, serializer);
     sse_encode_String(self.eventId, serializer);
     sse_encode_String(self.recordedAt, serializer);
     sse_encode_opt_String(self.note, serializer);
     sse_encode_list_String(self.lessons, serializer);
     sse_encode_list_String(self.followUpsRefined, serializer);
+    sse_encode_opt_String(self.feedback, serializer);
   }
 
   @protected

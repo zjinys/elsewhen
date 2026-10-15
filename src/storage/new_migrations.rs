@@ -153,6 +153,7 @@ mod tests {
                 "35-rule-triggers",
                 "36-rule-hit-feedback",
                 "37-companion-revisit",
+                "38-guidance-feedback",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -184,7 +185,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 37, "三十七条迁移跑完，user_version 应为 37");
+        assert_eq!(version, 38, "三十八条迁移跑完，user_version 应为 38");
         assert_eq!(
             latest_version().unwrap(),
             version,

@@ -2112,6 +2112,87 @@ fn resolve_entity_slug_normalizes_title_and_alias() {
 }
 
 #[test]
+fn guidance_feedback_records_clears_and_fails_closed() {
+    let store = Store::open(&temporary_database()).unwrap();
+    let event_id = store.insert_event(NewEvent::now("复购节点的教训")).unwrap();
+    store
+        .connection
+        .execute(
+            "INSERT INTO event_analyses(id,event_id,prompt_version,result_json,created_at) \
+             VALUES('an-1',?1,'v1',?2,'2026-01-01T00:00:00Z')",
+            rusqlite::params![
+                event_id,
+                r#"{"guidance":{"related":[{"slug":"topic/fb","note":"复购前先看库存"}]}}"#
+            ],
+        )
+        .unwrap();
+
+    // 读面初始：analysis_id 暴露、feedback None。
+    let items = store.page_guidance_items("topic/fb").unwrap();
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].analysis_id, "an-1");
+    assert_eq!(items[0].feedback, None);
+
+    // 未知值 fail-closed；analysis 不存在 → false。
+    assert!(
+        store
+            .set_guidance_feedback("an-1", "topic/fb", Some("复购前先看库存"), Some("自动推断"))
+            .is_err()
+    );
+    assert!(
+        !store
+            .set_guidance_feedback("an-none", "topic/fb", Some("x"), Some("helpful"))
+            .unwrap()
+    );
+
+    // 记录 → 覆盖 → 读面注入；清除 → None 且行删净。
+    assert!(
+        store
+            .set_guidance_feedback("an-1", "topic/fb", Some("复购前先看库存"), Some("helpful"))
+            .unwrap()
+    );
+    assert_eq!(
+        store.page_guidance_items("topic/fb").unwrap()[0]
+            .feedback
+            .as_deref(),
+        Some("helpful")
+    );
+    assert!(
+        store
+            .set_guidance_feedback(
+                "an-1",
+                "topic/fb",
+                Some("复购前先看库存"),
+                Some("not_relevant")
+            )
+            .unwrap()
+    );
+    assert_eq!(
+        store.page_guidance_items("topic/fb").unwrap()[0]
+            .feedback
+            .as_deref(),
+        Some("not_relevant")
+    );
+    assert!(
+        store
+            .set_guidance_feedback("an-1", "topic/fb", Some("复购前先看库存"), None)
+            .unwrap()
+    );
+    assert_eq!(
+        store.page_guidance_items("topic/fb").unwrap()[0].feedback,
+        None
+    );
+    assert_eq!(
+        store
+            .connection
+            .query_row("SELECT count(*) FROM guidance_feedback", [], |r| r
+                .get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+}
+
+#[test]
 fn list_wiki_page_metas_bounded_and_derivative_free() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();

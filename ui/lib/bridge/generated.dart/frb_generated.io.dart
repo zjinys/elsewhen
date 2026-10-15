@@ -3718,6 +3718,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     PageGuidanceDto apiObj,
     wire_cst_page_guidance_dto wireObj,
   ) {
+    wireObj.analysis_id = cst_encode_String(apiObj.analysisId);
     wireObj.event_id = cst_encode_String(apiObj.eventId);
     wireObj.recorded_at = cst_encode_String(apiObj.recordedAt);
     wireObj.note = cst_encode_opt_String(apiObj.note);
@@ -3725,6 +3726,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.follow_ups_refined = cst_encode_list_String(
       apiObj.followUpsRefined,
     );
+    wireObj.feedback = cst_encode_opt_String(apiObj.feedback);
   }
 
   @protected
@@ -10493,6 +10495,46 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
+  void wire__crate__api__set_guidance_feedback(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> analysis_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> feedback,
+  ) {
+    return _wire__crate__api__set_guidance_feedback(
+      port_,
+      analysis_id,
+      slug,
+      note,
+      feedback,
+    );
+  }
+
+  late final _wire__crate__api__set_guidance_feedbackPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__set_guidance_feedback');
+  late final _wire__crate__api__set_guidance_feedback =
+      _wire__crate__api__set_guidance_feedbackPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__submit_conversation_input(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
@@ -15629,6 +15671,8 @@ final class wire_cst_organized_topic extends ffi.Struct {
 }
 
 final class wire_cst_page_guidance_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> analysis_id;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at;
@@ -15639,19 +15683,25 @@ final class wire_cst_page_guidance_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_String> follow_ups_refined;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> feedback;
+
   static ffi.Pointer<wire_cst_page_guidance_dto> $allocate(
     ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> analysis_id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
     required ffi.Pointer<wire_cst_list_String> lessons,
     required ffi.Pointer<wire_cst_list_String> follow_ups_refined,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> feedback,
   }) => $allocator<wire_cst_page_guidance_dto>()
+    ..ref.analysis_id = analysis_id
     ..ref.event_id = event_id
     ..ref.recorded_at = recorded_at
     ..ref.note = note
     ..ref.lessons = lessons
-    ..ref.follow_ups_refined = follow_ups_refined;
+    ..ref.follow_ups_refined = follow_ups_refined
+    ..ref.feedback = feedback;
 }
 
 final class wire_cst_pending_action_dto extends ffi.Struct {

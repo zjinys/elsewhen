@@ -92,6 +92,20 @@ Future<DailyReviewResult> generateDailyReview({required String date}) =>
 Future<List<PageGuidanceDto>> listPageGuidance({required String slug}) =>
     RustLib.instance.api.crateApiListPageGuidance(slug: slug);
 
+/// 设置单条 guidance 条目的采纳反馈（遗留收口切片 B，只记录不推断）；
+/// feedback None = 清除（toggle off）。未知值 fail-closed 报错。
+Future<bool> setGuidanceFeedback({
+  required String analysisId,
+  required String slug,
+  String? note,
+  String? feedback,
+}) => RustLib.instance.api.crateApiSetGuidanceFeedback(
+  analysisId: analysisId,
+  slug: slug,
+  note: note,
+  feedback: feedback,
+);
+
 /// 情绪标注列表（D5 用户模型面板）：最近分析的 emotion 派生。
 Future<List<EventEmotionDto>> listEventEmotions() =>
     RustLib.instance.api.crateApiListEventEmotions();
@@ -904,36 +918,44 @@ class MessageRecordabilityDto {
 
 /// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
 class PageGuidanceDto {
+  final String analysisId;
   final String eventId;
   final String recordedAt;
   final String? note;
   final List<String> lessons;
   final List<String> followUpsRefined;
+  final String? feedback;
 
   const PageGuidanceDto({
+    required this.analysisId,
     required this.eventId,
     required this.recordedAt,
     this.note,
     required this.lessons,
     required this.followUpsRefined,
+    this.feedback,
   });
 
   @override
   int get hashCode =>
+      analysisId.hashCode ^
       eventId.hashCode ^
       recordedAt.hashCode ^
       note.hashCode ^
       lessons.hashCode ^
-      followUpsRefined.hashCode;
+      followUpsRefined.hashCode ^
+      feedback.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is PageGuidanceDto &&
           runtimeType == other.runtimeType &&
+          analysisId == other.analysisId &&
           eventId == other.eventId &&
           recordedAt == other.recordedAt &&
           note == other.note &&
           lessons == other.lessons &&
-          followUpsRefined == other.followUpsRefined;
+          followUpsRefined == other.followUpsRefined &&
+          feedback == other.feedback;
 }

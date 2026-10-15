@@ -928,23 +928,29 @@ impl Store {
 
     pub fn page_guidance_items(&self, slug: &str) -> Result<Vec<PageGuidanceItem>> {
         let mut statement = self.connection.prepare(
-            "SELECT a.event_id, e.recorded_at,
+            "SELECT a.id, a.event_id, e.recorded_at,
                     json_extract(je.value, '$.note'),
                     COALESCE(json_extract(a.result_json, '$.guidance.lessons'), '[]'),
-                    COALESCE(json_extract(a.result_json, '$.guidance.follow_ups_refined'), '[]')
+                    COALESCE(json_extract(a.result_json, '$.guidance.follow_ups_refined'), '[]'),
+                    gf.feedback
              FROM event_analyses a
              JOIN json_each(a.result_json, '$.guidance.related') je ON json_extract(je.value, '$.slug') = ?1
              JOIN events e ON e.id = a.event_id
+             LEFT JOIN guidance_feedback gf ON gf.analysis_id = a.id
+                 AND gf.slug = ?1
+                 AND gf.note = COALESCE(json_extract(je.value, '$.note'), '')
              ORDER BY e.recorded_at DESC, a.created_at DESC
              LIMIT 50",
         )?;
-        let mut mapped = match statement.query_map(params![slug], |row| {
+        let mapped = match statement.query_map(params![slug], |row| {
             Ok(PageGuidanceItem {
-                event_id: row.get(0)?,
-                recorded_at: row.get(1)?,
-                note: row.get(2)?,
-                lessons: parse_json_string_array(row.get::<_, String>(3)?.as_str()),
-                follow_ups_refined: parse_json_string_array(row.get::<_, String>(4)?.as_str()),
+                analysis_id: row.get(0)?,
+                event_id: row.get(1)?,
+                recorded_at: row.get(2)?,
+                note: row.get(3)?,
+                lessons: parse_json_string_array(row.get::<_, String>(4)?.as_str()),
+                follow_ups_refined: parse_json_string_array(row.get::<_, String>(5)?.as_str()),
+                feedback: row.get(6)?,
             })
         }) {
             Ok(mapped) => mapped,
@@ -960,7 +966,7 @@ impl Store {
 
     fn page_guidance_items_fallback(&self, slug: &str) -> Result<Vec<PageGuidanceItem>> {
         let mut statement = self.connection.prepare(
-            "SELECT a.event_id, e.recorded_at, a.result_json
+            "SELECT a.id, a.event_id, e.recorded_at, a.result_json
              FROM event_analyses a JOIN events e ON e.id = a.event_id
              ORDER BY e.recorded_at DESC, a.created_at DESC LIMIT 200",
         )?;
@@ -971,10 +977,11 @@ impl Store {
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
                 ))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
-        for (event_id, recorded_at, raw) in rows {
+        for (analysis_id, event_id, recorded_at, raw) in rows {
             let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
                 continue;
             };
@@ -987,6 +994,7 @@ impl Store {
             for r in related {
                 if r.get("slug").and_then(|v| v.as_str()) == Some(slug) {
                     items.push(PageGuidanceItem {
+                        analysis_id: analysis_id.clone(),
                         event_id: event_id.clone(),
                         recorded_at: recorded_at.clone(),
                         note: r.get("note").and_then(|v| v.as_str()).map(str::to_owned),
@@ -1008,12 +1016,83 @@ impl Store {
                                     .collect()
                             })
                             .unwrap_or_default(),
+                        feedback: None,
                     });
                     break;
                 }
             }
         }
+        // 降级路径逐行解析得知 note 后，批量补 feedback（一次查询）。
+        if !items.is_empty() {
+            let mut statement = self.connection.prepare(
+                "SELECT analysis_id, note, feedback FROM guidance_feedback WHERE slug=?1",
+            )?;
+            let feedbacks: std::collections::HashMap<(String, String), String> = statement
+                .query_map(params![slug], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                })?
+                .collect::<rusqlite::Result<Vec<(String, String, String)>>>()?
+                .into_iter()
+                .map(|(a, n, f)| ((a, n), f))
+                .collect();
+            for item in items.iter_mut() {
+                let key = (
+                    item.analysis_id.clone(),
+                    item.note.clone().unwrap_or_default(),
+                );
+                if let Some(feedback) = feedbacks.get(&key) {
+                    item.feedback = Some(feedback.clone());
+                }
+            }
+        }
         Ok(items)
+    }
+
+    /// 设置单条 guidance 条目的采纳反馈（遗留收口切片 B，只记录不推断）。
+    /// 定位键（analysis_id, slug, note）与读面 JOIN 键一致；None = 清除
+    /// （toggle off，删行）。analysis 不存在 → false（与 rule_hit 同语义）。
+    pub fn set_guidance_feedback(
+        &self,
+        analysis_id: &str,
+        slug: &str,
+        note: Option<&str>,
+        feedback: Option<&str>,
+    ) -> Result<bool> {
+        if let Some(feedback) = feedback {
+            anyhow::ensure!(
+                matches!(feedback, "helpful" | "not_relevant"),
+                "feedback 只能是 helpful 或 not_relevant"
+            );
+        }
+        let exists: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM event_analyses WHERE id=?1)",
+            [analysis_id],
+            |r| r.get(0),
+        )?;
+        if !exists {
+            return Ok(false);
+        }
+        let note = note.unwrap_or_default();
+        let changed =
+            match feedback {
+                Some(value) => {
+                    self.connection.execute(
+                        "INSERT INTO guidance_feedback(analysis_id,slug,note,feedback,created_at) \
+                     VALUES(?1,?2,?3,?4,strftime('%Y-%m-%dT%H:%M:%fZ','now')) \
+                     ON CONFLICT(analysis_id,slug,note) DO UPDATE SET feedback=excluded.feedback",
+                        params![analysis_id, slug, note, value],
+                    )? > 0
+                }
+                None => self.connection.execute(
+                    "DELETE FROM guidance_feedback WHERE analysis_id=?1 AND slug=?2 AND note=?3",
+                    params![analysis_id, slug, note],
+                )? > 0,
+            };
+        Ok(changed)
     }
 
     pub fn recent_events(&self, days: i64, limit: usize) -> Result<Vec<EventSummary>> {

@@ -111,6 +111,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("rule_trigger_settings", "local-event-reminders"),
     // 情感回访偏好与记账：本机提醒体验状态，不属于跨设备数据集。
     ("companion_settings", "local-event-reminders"),
+    // guidance 采纳反馈（遗留收口切片 B）：只记不外推的本机度量，
+    // analysis 随快照走但反馈不跨设备复制（与 rule_hits feedback 同纪律）。
+    ("guidance_feedback", "local-event-reminders"),
     // 本机应用配置（含 web_search 凭据），不是数据集内容。
     ("app_meta", "local-app-config"),
     ("network_settings", "local-app-config"),

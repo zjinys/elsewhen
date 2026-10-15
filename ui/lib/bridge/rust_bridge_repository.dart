@@ -978,6 +978,21 @@ class RustBridgeRepository implements StorageRepository {
   Future<List<api.PageGuidanceDto>> listPageGuidance(String slug) =>
       api.listPageGuidance(slug: slug);
 
+  /// guidance 采纳反馈（遗留收口切片 B）：只记不外推；feedback null = 清
+  /// 除（toggle off）。与 rule_hit feedback 同纪律，未知值 fail-closed。
+  Future<bool> setGuidanceFeedback({
+    required String analysisId,
+    required String slug,
+    String? note,
+    String? feedback,
+  }) =>
+      api.setGuidanceFeedback(
+        analysisId: analysisId,
+        slug: slug,
+        note: note,
+        feedback: feedback,
+      );
+
   /// 情绪标注列表（D5 用户模型面板）：分析产物派生，文本无数值。
   Future<List<api.EventEmotionDto>> listEventEmotions() =>
       api.listEventEmotions();

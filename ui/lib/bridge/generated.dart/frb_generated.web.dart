@@ -3158,11 +3158,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_page_guidance_dto(PageGuidanceDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
+      cst_encode_String(raw.analysisId),
       cst_encode_String(raw.eventId),
       cst_encode_String(raw.recordedAt),
       cst_encode_opt_String(raw.note),
       cst_encode_list_String(raw.lessons),
       cst_encode_list_String(raw.followUpsRefined),
+      cst_encode_opt_String(raw.feedback),
     ].jsify()!;
   }
 
@@ -6413,6 +6415,20 @@ class RustLibWire implements BaseWire {
     recordable,
   );
 
+  void wire__crate__api__set_guidance_feedback(
+    NativePortType port_,
+    String analysis_id,
+    String slug,
+    String? note,
+    String? feedback,
+  ) => wasmModule.wire__crate__api__set_guidance_feedback(
+    port_,
+    analysis_id,
+    slug,
+    note,
+    feedback,
+  );
+
   void wire__crate__api__knowledge_workflows__set_knowledge_reading_state(
     NativePortType port_,
     String slug,
@@ -7756,6 +7772,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String event_id,
     bool recordable,
+  );
+
+  external void wire__crate__api__set_guidance_feedback(
+    NativePortType port_,
+    String analysis_id,
+    String slug,
+    String? note,
+    String? feedback,
   );
 
   external void

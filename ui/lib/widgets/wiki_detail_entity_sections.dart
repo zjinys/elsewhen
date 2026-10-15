@@ -564,12 +564,58 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
                 dense: true,
                 title: ContentFontScope(
                   child: SelectableText(
-                    item.note ?? item.lessons.firstOrNull ?? '查看指导',
+                    item.note ??
+                        item.lessons.firstOrNull ??
+                        '查看指导',
                   ),
                 ),
                 subtitle: Text(
                   '${_guidanceDate(item.recordedAt)} - 点击查看要点',
                   style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 30,
+                      height: 26,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        iconSize: 14,
+                        tooltip: '有用（再点一次清除）',
+                        icon: Icon(
+                          item.feedback == 'helpful'
+                              ? Icons.thumb_up
+                              : Icons.thumb_up_outlined,
+                        ),
+                        color: item.feedback == 'helpful'
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textTertiary,
+                        onPressed: () =>
+                            _setFeedback(item, 'helpful'),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    SizedBox(
+                      width: 30,
+                      height: 26,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        iconSize: 14,
+                        tooltip: '不相关（再点一次清除）',
+                        icon: Icon(
+                          item.feedback == 'not_relevant'
+                              ? Icons.thumb_down
+                              : Icons.thumb_down_outlined,
+                        ),
+                        color: item.feedback == 'not_relevant'
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textTertiary,
+                        onPressed: () =>
+                            _setFeedback(item, 'not_relevant'),
+                      ),
+                    ),
+                  ],
                 ),
                 onTap: () => _showGuidance(context, item),
               ),
@@ -578,6 +624,49 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
       ),
     );
   }
+
+  /// guidance 采纳反馈（遗留收口切片 B）：只记录不外推，无任何自动消费；
+  /// 再点一次已选项即清除（null 反馈）。乐观本地更新 + 失败回滚。
+  Future<void> _setFeedback(PageGuidanceDto item, String feedback) async {
+    final previous = item.feedback;
+    final next = previous == feedback ? null : feedback;
+    final index = _items!.indexWhere((i) => i.analysisId == item.analysisId);
+    setState(() {
+      _items = List<PageGuidanceDto>.from(_items!);
+      _items![index] = _copyWithFeedback(item, next);
+    });
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.setGuidanceFeedback(
+        analysisId: item.analysisId,
+        slug: widget.slug,
+        note: item.note,
+        feedback: next,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _items = List<PageGuidanceDto>.from(_items!);
+        _items![index] = _copyWithFeedback(item, previous);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('反馈失败: $e')),
+        );
+      }
+    }
+  }
+
+  PageGuidanceDto _copyWithFeedback(PageGuidanceDto item, String? feedback) =>
+      PageGuidanceDto(
+        analysisId: item.analysisId,
+        eventId: item.eventId,
+        recordedAt: item.recordedAt,
+        note: item.note,
+        lessons: item.lessons,
+        followUpsRefined: item.followUpsRefined,
+        feedback: feedback,
+      );
 
   /// 单条指导详情（派生层只读，不写任何真源）。
   void _showGuidance(BuildContext context, PageGuidanceDto item) {

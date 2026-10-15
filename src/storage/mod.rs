@@ -515,11 +515,14 @@ pub struct EventAnalysisDetail {
 
 #[derive(Debug, Clone)]
 pub struct PageGuidanceItem {
+    pub analysis_id: String,
     pub event_id: String,
     pub recorded_at: String,
     pub note: Option<String>,
     pub lessons: Vec<String>,
     pub follow_ups_refined: Vec<String>,
+    /// 本机采纳反馈（guidance_feedback 表注入；None = 未反馈）。
+    pub feedback: Option<String>,
 }
 
 /// 情绪标注面（D5）：从 event_analyses.result_json 的 `$.emotion` 派生。

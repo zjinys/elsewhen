@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -447074343;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 410758342;
 
 // Section: executor
 
@@ -4950,6 +4950,40 @@ fn wire__crate__api__set_event_recordability_impl(
         },
     )
 }
+fn wire__crate__api__set_guidance_feedback_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    analysis_id: impl CstDecode<String>,
+    slug: impl CstDecode<String>,
+    note: impl CstDecode<Option<String>>,
+    feedback: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_guidance_feedback",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_analysis_id = analysis_id.cst_decode();
+            let api_slug = slug.cst_decode();
+            let api_note = note.cst_decode();
+            let api_feedback = feedback.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::set_guidance_feedback(
+                            api_analysis_id,
+                            api_slug,
+                            api_note,
+                            api_feedback,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge_workflows__set_knowledge_reading_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     slug: impl CstDecode<String>,
@@ -8232,17 +8266,21 @@ impl SseDecode for crate::knowledge::organization::OrganizedTopic {
 impl SseDecode for crate::api::PageGuidanceDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_analysisId = <String>::sse_decode(deserializer);
         let mut var_eventId = <String>::sse_decode(deserializer);
         let mut var_recordedAt = <String>::sse_decode(deserializer);
         let mut var_note = <Option<String>>::sse_decode(deserializer);
         let mut var_lessons = <Vec<String>>::sse_decode(deserializer);
         let mut var_followUpsRefined = <Vec<String>>::sse_decode(deserializer);
+        let mut var_feedback = <Option<String>>::sse_decode(deserializer);
         return crate::api::PageGuidanceDto {
+            analysis_id: var_analysisId,
             event_id: var_eventId,
             recorded_at: var_recordedAt,
             note: var_note,
             lessons: var_lessons,
             follow_ups_refined: var_followUpsRefined,
+            feedback: var_feedback,
         };
     }
 }
@@ -10629,11 +10667,13 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::organization::Organized
 impl flutter_rust_bridge::IntoDart for crate::api::PageGuidanceDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.analysis_id.into_into_dart().into_dart(),
             self.event_id.into_into_dart().into_dart(),
             self.recorded_at.into_into_dart().into_dart(),
             self.note.into_into_dart().into_dart(),
             self.lessons.into_into_dart().into_dart(),
             self.follow_ups_refined.into_into_dart().into_dart(),
+            self.feedback.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -13236,11 +13276,13 @@ impl SseEncode for crate::knowledge::organization::OrganizedTopic {
 impl SseEncode for crate::api::PageGuidanceDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.analysis_id, serializer);
         <String>::sse_encode(self.event_id, serializer);
         <String>::sse_encode(self.recorded_at, serializer);
         <Option<String>>::sse_encode(self.note, serializer);
         <Vec<String>>::sse_encode(self.lessons, serializer);
         <Vec<String>>::sse_encode(self.follow_ups_refined, serializer);
+        <Option<String>>::sse_encode(self.feedback, serializer);
     }
 }
 
@@ -15488,11 +15530,13 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::PageGuidanceDto {
             crate::api::PageGuidanceDto {
+                analysis_id: self.analysis_id.cst_decode(),
                 event_id: self.event_id.cst_decode(),
                 recorded_at: self.recorded_at.cst_decode(),
                 note: self.note.cst_decode(),
                 lessons: self.lessons.cst_decode(),
                 follow_ups_refined: self.follow_ups_refined.cst_decode(),
+                feedback: self.feedback.cst_decode(),
             }
         }
     }
@@ -17091,11 +17135,13 @@ mod io {
     impl NewWithNullPtr for wire_cst_page_guidance_dto {
         fn new_with_null_ptr() -> Self {
             Self {
+                analysis_id: core::ptr::null_mut(),
                 event_id: core::ptr::null_mut(),
                 recorded_at: core::ptr::null_mut(),
                 note: core::ptr::null_mut(),
                 lessons: core::ptr::null_mut(),
                 follow_ups_refined: core::ptr::null_mut(),
+                feedback: core::ptr::null_mut(),
             }
         }
     }
@@ -19578,6 +19624,17 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__set_guidance_feedback(
+        port_: i64,
+        analysis_id: *mut wire_cst_list_prim_u_8_strict,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        note: *mut wire_cst_list_prim_u_8_strict,
+        feedback: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__set_guidance_feedback_impl(port_, analysis_id, slug, note, feedback)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__set_knowledge_reading_state(
         port_: i64,
         slug: *mut wire_cst_list_prim_u_8_strict,
@@ -21938,11 +21995,13 @@ mod io {
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_page_guidance_dto {
+        analysis_id: *mut wire_cst_list_prim_u_8_strict,
         event_id: *mut wire_cst_list_prim_u_8_strict,
         recorded_at: *mut wire_cst_list_prim_u_8_strict,
         note: *mut wire_cst_list_prim_u_8_strict,
         lessons: *mut wire_cst_list_String,
         follow_ups_refined: *mut wire_cst_list_String,
+        feedback: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -24589,16 +24648,18 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                5,
-                "Expected 5 elements, got {}",
+                7,
+                "Expected 7 elements, got {}",
                 self_.length()
             );
             crate::api::PageGuidanceDto {
-                event_id: self_.get(0).cst_decode(),
-                recorded_at: self_.get(1).cst_decode(),
-                note: self_.get(2).cst_decode(),
-                lessons: self_.get(3).cst_decode(),
-                follow_ups_refined: self_.get(4).cst_decode(),
+                analysis_id: self_.get(0).cst_decode(),
+                event_id: self_.get(1).cst_decode(),
+                recorded_at: self_.get(2).cst_decode(),
+                note: self_.get(3).cst_decode(),
+                lessons: self_.get(4).cst_decode(),
+                follow_ups_refined: self_.get(5).cst_decode(),
+                feedback: self_.get(6).cst_decode(),
             }
         }
     }
@@ -27428,6 +27489,17 @@ mod web {
         recordable: bool,
     ) {
         wire__crate__api__set_event_recordability_impl(port_, event_id, recordable)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__set_guidance_feedback(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        analysis_id: String,
+        slug: String,
+        note: Option<String>,
+        feedback: Option<String>,
+    ) {
+        wire__crate__api__set_guidance_feedback_impl(port_, analysis_id, slug, note, feedback)
     }
 
     #[wasm_bindgen]

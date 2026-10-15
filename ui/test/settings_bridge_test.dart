@@ -107,6 +107,21 @@ void main() {
     expect(hits, isA<List<dynamic>>());
   });
 
+  test('遗留收口 B：guidance 反馈面可调用，不存在的 analysis 返回 false', () async {
+    // 接口可用性：不存在 analysis（fail-soft 返回 false，与 rule_hit 的
+    // bail 语义不同——guidance 条目来自派生视图，键可能已随分析淘汰）。
+    final applied = await repo.setGuidanceFeedback(
+      analysisId: 'no-such-analysis',
+      slug: 'topic/none',
+      note: '示例',
+      feedback: 'helpful',
+    );
+    expect(applied, isFalse);
+    // 读面可用（隔离库可能空，只验证结构）。
+    final items = await repo.listPageGuidance('__无此页__');
+    expect(items, isA<List<dynamic>>());
+  });
+
   test('D6 情感回访：偏好读写往返 + 检查面可用', () async {
     try {
       await repo.setCompanionPrefs(enabled: false, intervalDays: 9);
