@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 766872020;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1842486401;
 
 // Section: executor
 
@@ -3034,6 +3034,29 @@ fn wire__crate__api__sync__list_object_conflicts_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::sync::list_object_conflicts()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__list_page_guidance_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_page_guidance",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::list_page_guidance(api_slug)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6165,6 +6188,7 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
         let mut var_projects = <Vec<String>>::sse_decode(deserializer);
         let mut var_activities = <Vec<String>>::sse_decode(deserializer);
         let mut var_followUps = <Vec<String>>::sse_decode(deserializer);
+        let mut var_guidance = <Option<crate::api::GuidanceDto>>::sse_decode(deserializer);
         let mut var_recordable = <Option<bool>>::sse_decode(deserializer);
         let mut var_kind = <Option<String>>::sse_decode(deserializer);
         let mut var_effectiveRecordable = <bool>::sse_decode(deserializer);
@@ -6191,6 +6215,7 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
             projects: var_projects,
             activities: var_activities,
             follow_ups: var_followUps,
+            guidance: var_guidance,
             recordable: var_recordable,
             kind: var_kind,
             effective_recordable: var_effectiveRecordable,
@@ -6245,6 +6270,32 @@ impl SseDecode for crate::api::goals::GoalDto {
             created_at: var_createdAt,
             updated_at: var_updatedAt,
             superseded_at: var_supersededAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::GuidanceDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_related = <Vec<crate::api::GuidanceRefDto>>::sse_decode(deserializer);
+        let mut var_lessons = <Vec<String>>::sse_decode(deserializer);
+        let mut var_followUpsRefined = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::GuidanceDto {
+            related: var_related,
+            lessons: var_lessons,
+            follow_ups_refined: var_followUpsRefined,
+        };
+    }
+}
+
+impl SseDecode for crate::api::GuidanceRefDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_slug = <String>::sse_decode(deserializer);
+        let mut var_note = <String>::sse_decode(deserializer);
+        return crate::api::GuidanceRefDto {
+            slug: var_slug,
+            note: var_note,
         };
     }
 }
@@ -6994,6 +7045,18 @@ impl SseDecode for Vec<crate::api::goals::GoalDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::GuidanceRefDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::GuidanceRefDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7195,6 +7258,18 @@ impl SseDecode for Vec<crate::knowledge::organization::OrganizedTopic> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::knowledge::organization::OrganizedTopic>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::PageGuidanceDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::PageGuidanceDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -7711,6 +7786,17 @@ impl SseDecode for Option<f64> {
     }
 }
 
+impl SseDecode for Option<crate::api::GuidanceDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::GuidanceDto>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<i64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7823,6 +7909,24 @@ impl SseDecode for crate::knowledge::organization::OrganizedTopic {
             applicable_when: var_applicableWhen,
             snapshot_ids: var_snapshotIds,
             event_ids: var_eventIds,
+        };
+    }
+}
+
+impl SseDecode for crate::api::PageGuidanceDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_eventId = <String>::sse_decode(deserializer);
+        let mut var_recordedAt = <String>::sse_decode(deserializer);
+        let mut var_note = <Option<String>>::sse_decode(deserializer);
+        let mut var_lessons = <Vec<String>>::sse_decode(deserializer);
+        let mut var_followUpsRefined = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::PageGuidanceDto {
+            event_id: var_eventId,
+            recorded_at: var_recordedAt,
+            note: var_note,
+            lessons: var_lessons,
+            follow_ups_refined: var_followUpsRefined,
         };
     }
 }
@@ -9264,6 +9368,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventAnalysisDetailDto {
             self.projects.into_into_dart().into_dart(),
             self.activities.into_into_dart().into_dart(),
             self.follow_ups.into_into_dart().into_dart(),
+            self.guidance.into_into_dart().into_dart(),
             self.recordable.into_into_dart().into_dart(),
             self.kind.into_into_dart().into_dart(),
             self.effective_recordable.into_into_dart().into_dart(),
@@ -9322,6 +9427,39 @@ impl flutter_rust_bridge::IntoDart for crate::api::goals::GoalDto {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::goals::GoalDto {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::goals::GoalDto> for crate::api::goals::GoalDto {
     fn into_into_dart(self) -> crate::api::goals::GoalDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::GuidanceDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.related.into_into_dart().into_dart(),
+            self.lessons.into_into_dart().into_dart(),
+            self.follow_ups_refined.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::GuidanceDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::GuidanceDto> for crate::api::GuidanceDto {
+    fn into_into_dart(self) -> crate::api::GuidanceDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::GuidanceRefDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.slug.into_into_dart().into_dart(),
+            self.note.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::GuidanceRefDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::GuidanceRefDto> for crate::api::GuidanceRefDto {
+    fn into_into_dart(self) -> crate::api::GuidanceRefDto {
         self
     }
 }
@@ -10032,6 +10170,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::organization::Organized
     for crate::knowledge::organization::OrganizedTopic
 {
     fn into_into_dart(self) -> crate::knowledge::organization::OrganizedTopic {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::PageGuidanceDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.event_id.into_into_dart().into_dart(),
+            self.recorded_at.into_into_dart().into_dart(),
+            self.note.into_into_dart().into_dart(),
+            self.lessons.into_into_dart().into_dart(),
+            self.follow_ups_refined.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::PageGuidanceDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::PageGuidanceDto>
+    for crate::api::PageGuidanceDto
+{
+    fn into_into_dart(self) -> crate::api::PageGuidanceDto {
         self
     }
 }
@@ -11287,6 +11446,7 @@ impl SseEncode for crate::api::EventAnalysisDetailDto {
         <Vec<String>>::sse_encode(self.projects, serializer);
         <Vec<String>>::sse_encode(self.activities, serializer);
         <Vec<String>>::sse_encode(self.follow_ups, serializer);
+        <Option<crate::api::GuidanceDto>>::sse_encode(self.guidance, serializer);
         <Option<bool>>::sse_encode(self.recordable, serializer);
         <Option<String>>::sse_encode(self.kind, serializer);
         <bool>::sse_encode(self.effective_recordable, serializer);
@@ -11324,6 +11484,23 @@ impl SseEncode for crate::api::goals::GoalDto {
         <String>::sse_encode(self.created_at, serializer);
         <String>::sse_encode(self.updated_at, serializer);
         <Option<String>>::sse_encode(self.superseded_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::GuidanceDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::GuidanceRefDto>>::sse_encode(self.related, serializer);
+        <Vec<String>>::sse_encode(self.lessons, serializer);
+        <Vec<String>>::sse_encode(self.follow_ups_refined, serializer);
+    }
+}
+
+impl SseEncode for crate::api::GuidanceRefDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.slug, serializer);
+        <String>::sse_encode(self.note, serializer);
     }
 }
 
@@ -11818,6 +11995,16 @@ impl SseEncode for Vec<crate::api::goals::GoalDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::GuidanceRefDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::GuidanceRefDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11964,6 +12151,16 @@ impl SseEncode for Vec<crate::knowledge::organization::OrganizedTopic> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::knowledge::organization::OrganizedTopic>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::PageGuidanceDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::PageGuidanceDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -12340,6 +12537,16 @@ impl SseEncode for Option<f64> {
     }
 }
 
+impl SseEncode for Option<crate::api::GuidanceDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::GuidanceDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<i64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12428,6 +12635,17 @@ impl SseEncode for crate::knowledge::organization::OrganizedTopic {
         <String>::sse_encode(self.applicable_when, serializer);
         <Vec<String>>::sse_encode(self.snapshot_ids, serializer);
         <Vec<String>>::sse_encode(self.event_ids, serializer);
+    }
+}
+
+impl SseEncode for crate::api::PageGuidanceDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.event_id, serializer);
+        <String>::sse_encode(self.recorded_at, serializer);
+        <Option<String>>::sse_encode(self.note, serializer);
+        <Vec<String>>::sse_encode(self.lessons, serializer);
+        <Vec<String>>::sse_encode(self.follow_ups_refined, serializer);
     }
 }
 
@@ -13112,6 +13330,13 @@ mod io {
             unsafe { *flutter_rust_bridge::for_generated::box_from_leak_ptr(self) }
         }
     }
+    impl CstDecode<crate::api::GuidanceDto> for *mut wire_cst_guidance_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::GuidanceDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::GuidanceDto>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<i64> for *mut i64 {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> i64 {
@@ -13445,6 +13670,7 @@ mod io {
                 projects: self.projects.cst_decode(),
                 activities: self.activities.cst_decode(),
                 follow_ups: self.follow_ups.cst_decode(),
+                guidance: self.guidance.cst_decode(),
                 recordable: self.recordable.cst_decode(),
                 kind: self.kind.cst_decode(),
                 effective_recordable: self.effective_recordable.cst_decode(),
@@ -13477,6 +13703,25 @@ mod io {
                 created_at: self.created_at.cst_decode(),
                 updated_at: self.updated_at.cst_decode(),
                 superseded_at: self.superseded_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::GuidanceDto> for wire_cst_guidance_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::GuidanceDto {
+            crate::api::GuidanceDto {
+                related: self.related.cst_decode(),
+                lessons: self.lessons.cst_decode(),
+                follow_ups_refined: self.follow_ups_refined.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::GuidanceRefDto> for wire_cst_guidance_ref_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::GuidanceRefDto {
+            crate::api::GuidanceRefDto {
+                slug: self.slug.cst_decode(),
+                note: self.note.cst_decode(),
             }
         }
     }
@@ -14000,6 +14245,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::GuidanceRefDto>> for *mut wire_cst_list_guidance_ref_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::GuidanceRefDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::knowledge::KnowledgeBackgroundRunDto>>
         for *mut wire_cst_list_knowledge_background_run_dto
     {
@@ -14169,6 +14424,16 @@ mod io {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::knowledge::organization::OrganizedTopic> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::PageGuidanceDto>> for *mut wire_cst_list_page_guidance_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::PageGuidanceDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -14499,6 +14764,18 @@ mod io {
                 applicable_when: self.applicable_when.cst_decode(),
                 snapshot_ids: self.snapshot_ids.cst_decode(),
                 event_ids: self.event_ids.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::PageGuidanceDto> for wire_cst_page_guidance_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::PageGuidanceDto {
+            crate::api::PageGuidanceDto {
+                event_id: self.event_id.cst_decode(),
+                recorded_at: self.recorded_at.cst_decode(),
+                note: self.note.cst_decode(),
+                lessons: self.lessons.cst_decode(),
+                follow_ups_refined: self.follow_ups_refined.cst_decode(),
             }
         }
     }
@@ -15440,6 +15717,7 @@ mod io {
                 projects: core::ptr::null_mut(),
                 activities: core::ptr::null_mut(),
                 follow_ups: core::ptr::null_mut(),
+                guidance: core::ptr::null_mut(),
                 recordable: core::ptr::null_mut(),
                 kind: core::ptr::null_mut(),
                 effective_recordable: Default::default(),
@@ -15484,6 +15762,33 @@ mod io {
         }
     }
     impl Default for wire_cst_goal_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_guidance_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                related: core::ptr::null_mut(),
+                lessons: core::ptr::null_mut(),
+                follow_ups_refined: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_guidance_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_guidance_ref_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                slug: core::ptr::null_mut(),
+                note: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_guidance_ref_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -15966,6 +16271,22 @@ mod io {
         }
     }
     impl Default for wire_cst_organized_topic {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_page_guidance_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                event_id: core::ptr::null_mut(),
+                recorded_at: core::ptr::null_mut(),
+                note: core::ptr::null_mut(),
+                lessons: core::ptr::null_mut(),
+                follow_ups_refined: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_page_guidance_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -17706,6 +18027,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_page_guidance(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__list_page_guidance_impl(port_, slug)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__list_pending_actions(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -18739,6 +19068,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_guidance_dto()
+    -> *mut wire_cst_guidance_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_guidance_dto::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_i_64(value: i64) -> *mut i64 {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
     }
@@ -19057,6 +19394,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_guidance_ref_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_guidance_ref_dto {
+        let wrap = wire_cst_list_guidance_ref_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_guidance_ref_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_knowledge_background_run_dto(
         len: i32,
     ) -> *mut wire_cst_list_knowledge_background_run_dto {
@@ -19259,6 +19610,20 @@ mod io {
         let wrap = wire_cst_list_organized_topic {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_organized_topic>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_page_guidance_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_page_guidance_dto {
+        let wrap = wire_cst_list_page_guidance_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_page_guidance_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -19849,6 +20214,7 @@ mod io {
         projects: *mut wire_cst_list_String,
         activities: *mut wire_cst_list_String,
         follow_ups: *mut wire_cst_list_String,
+        guidance: *mut wire_cst_guidance_dto,
         recordable: *mut bool,
         kind: *mut wire_cst_list_prim_u_8_strict,
         effective_recordable: bool,
@@ -19875,6 +20241,19 @@ mod io {
         created_at: *mut wire_cst_list_prim_u_8_strict,
         updated_at: *mut wire_cst_list_prim_u_8_strict,
         superseded_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_guidance_dto {
+        related: *mut wire_cst_list_guidance_ref_dto,
+        lessons: *mut wire_cst_list_String,
+        follow_ups_refined: *mut wire_cst_list_String,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_guidance_ref_dto {
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        note: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -20238,6 +20617,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_guidance_ref_dto {
+        ptr: *mut wire_cst_guidance_ref_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_knowledge_background_run_dto {
         ptr: *mut wire_cst_knowledge_background_run_dto,
         len: i32,
@@ -20324,6 +20709,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_organized_topic {
         ptr: *mut wire_cst_organized_topic,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_page_guidance_dto {
+        ptr: *mut wire_cst_page_guidance_dto,
         len: i32,
     }
     #[repr(C)]
@@ -20526,6 +20917,15 @@ mod io {
         applicable_when: *mut wire_cst_list_prim_u_8_strict,
         snapshot_ids: *mut wire_cst_list_String,
         event_ids: *mut wire_cst_list_String,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_page_guidance_dto {
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+        recorded_at: *mut wire_cst_list_prim_u_8_strict,
+        note: *mut wire_cst_list_prim_u_8_strict,
+        lessons: *mut wire_cst_list_String,
+        follow_ups_refined: *mut wire_cst_list_String,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -21533,8 +21933,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                25,
-                "Expected 25 elements, got {}",
+                26,
+                "Expected 26 elements, got {}",
                 self_.length()
             );
             crate::api::EventAnalysisDetailDto {
@@ -21558,11 +21958,12 @@ mod web {
                 projects: self_.get(17).cst_decode(),
                 activities: self_.get(18).cst_decode(),
                 follow_ups: self_.get(19).cst_decode(),
-                recordable: self_.get(20).cst_decode(),
-                kind: self_.get(21).cst_decode(),
-                effective_recordable: self_.get(22).cst_decode(),
-                effective_kind: self_.get(23).cst_decode(),
-                recordability_source: self_.get(24).cst_decode(),
+                guidance: self_.get(20).cst_decode(),
+                recordable: self_.get(21).cst_decode(),
+                kind: self_.get(22).cst_decode(),
+                effective_recordable: self_.get(23).cst_decode(),
+                effective_kind: self_.get(24).cst_decode(),
+                recordability_source: self_.get(25).cst_decode(),
             }
         }
     }
@@ -21610,6 +22011,47 @@ mod web {
                 created_at: self_.get(4).cst_decode(),
                 updated_at: self_.get(5).cst_decode(),
                 superseded_at: self_.get(6).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::GuidanceDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::GuidanceDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                3,
+                "Expected 3 elements, got {}",
+                self_.length()
+            );
+            crate::api::GuidanceDto {
+                related: self_.get(0).cst_decode(),
+                lessons: self_.get(1).cst_decode(),
+                follow_ups_refined: self_.get(2).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::GuidanceRefDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::GuidanceRefDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::GuidanceRefDto {
+                slug: self_.get(0).cst_decode(),
+                note: self_.get(1).cst_decode(),
             }
         }
     }
@@ -22341,6 +22783,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::GuidanceRefDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::GuidanceRefDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::knowledge::KnowledgeBackgroundRunDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -22514,6 +22968,18 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::knowledge::organization::OrganizedTopic> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::PageGuidanceDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::PageGuidanceDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -22917,6 +23383,29 @@ mod web {
                 applicable_when: self_.get(2).cst_decode(),
                 snapshot_ids: self_.get(3).cst_decode(),
                 event_ids: self_.get(4).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::PageGuidanceDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::PageGuidanceDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::PageGuidanceDto {
+                event_id: self_.get(0).cst_decode(),
+                recorded_at: self_.get(1).cst_decode(),
+                note: self_.get(2).cst_decode(),
+                lessons: self_.get(3).cst_decode(),
+                follow_ups_refined: self_.get(4).cst_decode(),
             }
         }
     }
@@ -24983,6 +25472,14 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__sync__list_object_conflicts_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__list_page_guidance(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+    ) {
+        wire__crate__api__list_page_guidance_impl(port_, slug)
     }
 
     #[wasm_bindgen]

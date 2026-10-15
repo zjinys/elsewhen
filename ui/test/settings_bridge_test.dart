@@ -188,6 +188,12 @@ void main() {
     expect(cleared.fontSize, 16);
   });
 
+  test('listPageGuidance returns empty (not error) on unknown slug', () async {
+    // D4 聚合视图桥面：未知 slug 空结果、不抛错——空库不劣化契约。
+    final items = await repo.listPageGuidance('person/nonexistent-slug');
+    expect(items, isEmpty);
+  });
+
   test('analysis job stats expose durable queue statuses', () async {
     final before = await repo.getAnalysisJobStats();
     expect(before.pending, 0);

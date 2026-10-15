@@ -115,6 +115,50 @@ pub fn run_automatic_insights(store: &Store, provider: &dyn AiProvider) -> Resul
     }
 }
 
+/// 近期事件分析给出的指导要点（罗盘衔接素材）：去重取 10 条；任何
+/// 读取/解析失败静默返回空——缺失素材不能阻断洞察生成。
+fn recent_guidance_lessons(store: &Store) -> String {
+    let Ok(mut stmt) = store.connection.prepare(
+        "SELECT result_json FROM event_analyses WHERE result_json IS NOT NULL ORDER BY created_at DESC LIMIT 30",
+    ) else {
+        return String::new();
+    };
+    let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) else {
+        return String::new();
+    };
+    let mut lessons: Vec<String> = Vec::new();
+    for raw in rows.flatten() {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+            continue;
+        };
+        let Some(items) = value
+            .pointer("/guidance/lessons")
+            .and_then(|v| v.as_array())
+        else {
+            continue;
+        };
+        for item in items {
+            if let Some(text) = item.as_str() {
+                if !lessons.iter().any(|e| e == text) {
+                    lessons.push(text.to_owned());
+                }
+            }
+        }
+    }
+    lessons.truncate(10);
+    if lessons.is_empty() {
+        return String::new();
+    }
+    format!(
+        "\n近期事件分析已给出的指导要点（可吸收提炼，不得原样照抄）：\n{}",
+        lessons
+            .iter()
+            .map(|l| format!("- {l}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    )
+}
+
 fn generate(
     store: &Store,
     provider: &dyn AiProvider,
@@ -129,10 +173,13 @@ fn generate(
         .take(20)
         .map(|i| i.title)
         .collect::<Vec<_>>();
+    // 罗盘衔接（D4）：把近期事件分析给出的指导要点作为素材挂进洞察窗口；
+    // 只挂接不重写——insight 生成路径本身不变，空段整体省略。
+    let guidance_material = recent_guidance_lessons(store);
     let prompt=format!("从近期事件与知识材料中提出最多三条认知洞察，允许空数组，不重复既有洞察。方法库适用时优先使用，否则以四透镜兜底：反复固定成本、闲置产能、在已有动作上增加收益、案例类比。
 仅依据给定来源，外部观点不能变成用户经历；不得评价目标偏差。返回严格 JSON 数组：
 [{{\"lens\":\"1|2|3|4\",\"title\":string,\"observation\":string,\"source_slugs\":[引用候选页面slug],\"related_events\":[输入的真实事件ID],\"action\":string}}]
-每条必须有真实来源；事件用 ID，不用片段。既有洞察：{}\n事件：{}\n{}",serde_json::to_string(&past)?,input,context_text(&candidates)?);
+每条必须有真实来源；事件用 ID，不用片段。既有洞察：{}\n事件：{}\n{}{guidance_material}",serde_json::to_string(&past)?,input,context_text(&candidates)?);
     let reply = provider.generate_reply(vec![
         ContextMessage::new(
             "system",

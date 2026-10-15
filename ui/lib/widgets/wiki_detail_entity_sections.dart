@@ -462,6 +462,196 @@ class _EntityRelatedTodos extends ConsumerWidget {
   }
 }
 
+/// 相关指导（D4 聚合视图）：guidance 里引用本页的事件分析要点。
+/// 派生层只读——原始事件与页面真源都不动。
+class _EntityGuidance extends ConsumerStatefulWidget {
+  final String slug;
+  const _EntityGuidance({required this.slug});
+
+  @override
+  ConsumerState<_EntityGuidance> createState() => _EntityGuidanceState();
+}
+
+class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
+  List<PageGuidanceDto>? _items;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final items = await repo.listPageGuidance(widget.slug);
+      if (!mounted) return;
+      setState(() => _items = items);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    }
+  }
+
+  String _guidanceDate(String value) {
+    final parsed = DateTime.tryParse(value)?.toLocal();
+    if (parsed == null) return value;
+    final m = parsed.month.toString().padLeft(2, '0');
+    final d = parsed.day.toString().padLeft(2, '0');
+    return '${parsed.year}-$m-$d';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _items;
+    if (_error != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: AppTheme.space4),
+        child: Row(
+          children: [
+            Text(
+              '相关指导加载失败',
+              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _error = null;
+                  _items = null;
+                });
+                _load();
+              },
+              child: Text(
+                '重试',
+                style: TextStyle(fontSize: 12, color: AppTheme.accentPrimary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (items == null) {
+      return const Padding(
+        padding: EdgeInsets.only(top: AppTheme.space4),
+        child: SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.space4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '相关指导',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textTertiary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final item in items)
+            Card(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: ListTile(
+                dense: true,
+                title: ContentFontScope(
+                  child: SelectableText(
+                    item.note ?? item.lessons.firstOrNull ?? '查看指导',
+                  ),
+                ),
+                subtitle: Text(
+                  '${_guidanceDate(item.recordedAt)} - 点击查看要点',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                ),
+                onTap: () => _showGuidance(context, item),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 单条指导详情（派生层只读，不写任何真源）。
+  void _showGuidance(BuildContext context, PageGuidanceDto item) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('相关指导'),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '记录于 ${_guidanceDate(item.recordedAt)}',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                ),
+                if (item.note?.isNotEmpty ?? false) ...[
+                  const SizedBox(height: 10),
+                  ContentFontScope(child: SelectableText(item.note!)),
+                ],
+                if (item.lessons.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    '可复用经验',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  for (final lesson in item.lessons)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: ContentFontScope(
+                        child: SelectableText('- $lesson'),
+                      ),
+                    ),
+                ],
+                if (item.followUpsRefined.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    '待办精炼',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  for (final followUp in item.followUpsRefined)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: ContentFontScope(
+                        child: SelectableText('- $followUp'),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EntityFacts extends ConsumerWidget {
   final String slug;
   const _EntityFacts({required this.slug});
@@ -679,6 +869,35 @@ class _EntityFacts extends ConsumerWidget {
                   const SizedBox(height: 6),
                   ContentFontScope(child: SelectableText(detail.summary!)),
                 ],
+                if (detail.guidance != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'AI 指导（派生层）',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  for (final ref in detail.guidance!.related)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: ContentFontScope(
+                        child: SelectableText('相关：${ref.slug} — ${ref.note}'),
+                      ),
+                    ),
+                  for (final lesson in detail.guidance!.lessons)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: ContentFontScope(child: SelectableText(lesson)),
+                    ),
+                  for (final followUp in detail.guidance!.followUpsRefined)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: ContentFontScope(child: SelectableText(followUp)),
+                    ),
+                ],
                 const SizedBox(height: 16),
                 Text(
                   '记录于 ${_factDate(detail.recordedAt)} · 分析状态 ${detail.jobStatus}',
@@ -698,4 +917,3 @@ class _EntityFacts extends ConsumerWidget {
     );
   }
 }
-

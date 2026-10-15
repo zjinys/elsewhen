@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 766872020;
+  int get rustContentHash => -1842486401;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -583,6 +583,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<ObjectConflictDto>> crateApiSyncListObjectConflicts();
+
+  Future<List<PageGuidanceDto>> crateApiListPageGuidance({
+    required String slug,
+  });
 
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
@@ -4542,6 +4546,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_object_conflicts", argNames: []);
 
   @override
+  Future<List<PageGuidanceDto>> crateApiListPageGuidance({
+    required String slug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          return wire.wire__crate__api__list_page_guidance(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_page_guidance_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListPageGuidanceConstMeta,
+        argValues: [slug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListPageGuidanceConstMeta =>
+      const TaskConstMeta(debugName: "list_page_guidance", argNames: ["slug"]);
+
+  @override
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
   }) {
@@ -7739,6 +7767,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuidanceDto dco_decode_box_autoadd_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_guidance_dto(raw);
+  }
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_i_64(raw);
@@ -8095,8 +8129,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 25)
-      throw Exception('unexpected arr length: expect 25 but see ${arr.length}');
+    if (arr.length != 26)
+      throw Exception('unexpected arr length: expect 26 but see ${arr.length}');
     return EventAnalysisDetailDto(
       eventId: dco_decode_String(arr[0]),
       rawText: dco_decode_String(arr[1]),
@@ -8118,11 +8152,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       projects: dco_decode_list_String(arr[17]),
       activities: dco_decode_list_String(arr[18]),
       followUps: dco_decode_list_String(arr[19]),
-      recordable: dco_decode_opt_box_autoadd_bool(arr[20]),
-      kind: dco_decode_opt_String(arr[21]),
-      effectiveRecordable: dco_decode_bool(arr[22]),
-      effectiveKind: dco_decode_String(arr[23]),
-      recordabilitySource: dco_decode_String(arr[24]),
+      guidance: dco_decode_opt_box_autoadd_guidance_dto(arr[20]),
+      recordable: dco_decode_opt_box_autoadd_bool(arr[21]),
+      kind: dco_decode_opt_String(arr[22]),
+      effectiveRecordable: dco_decode_bool(arr[23]),
+      effectiveKind: dco_decode_String(arr[24]),
+      recordabilitySource: dco_decode_String(arr[25]),
     );
   }
 
@@ -8162,6 +8197,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       createdAt: dco_decode_String(arr[4]),
       updatedAt: dco_decode_String(arr[5]),
       supersededAt: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
+  GuidanceDto dco_decode_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return GuidanceDto(
+      related: dco_decode_list_guidance_ref_dto(arr[0]),
+      lessons: dco_decode_list_String(arr[1]),
+      followUpsRefined: dco_decode_list_String(arr[2]),
+    );
+  }
+
+  @protected
+  GuidanceRefDto dco_decode_guidance_ref_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return GuidanceRefDto(
+      slug: dco_decode_String(arr[0]),
+      note: dco_decode_String(arr[1]),
     );
   }
 
@@ -8659,6 +8719,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<GuidanceRefDto> dco_decode_list_guidance_ref_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_guidance_ref_dto).toList();
+  }
+
+  @protected
   List<KnowledgeBackgroundRunDto> dco_decode_list_knowledge_background_run_dto(
     dynamic raw,
   ) {
@@ -8760,6 +8826,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_organized_topic).toList();
+  }
+
+  @protected
+  List<PageGuidanceDto> dco_decode_list_page_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_page_guidance_dto).toList();
   }
 
   @protected
@@ -9076,6 +9148,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_guidance_dto(raw);
+  }
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
@@ -9147,6 +9225,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       applicableWhen: dco_decode_String(arr[2]),
       snapshotIds: dco_decode_list_String(arr[3]),
       eventIds: dco_decode_list_String(arr[4]),
+    );
+  }
+
+  @protected
+  PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return PageGuidanceDto(
+      eventId: dco_decode_String(arr[0]),
+      recordedAt: dco_decode_String(arr[1]),
+      note: dco_decode_opt_String(arr[2]),
+      lessons: dco_decode_list_String(arr[3]),
+      followUpsRefined: dco_decode_list_String(arr[4]),
     );
   }
 
@@ -9993,6 +10086,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuidanceDto sse_decode_box_autoadd_guidance_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_guidance_dto(deserializer));
+  }
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
@@ -10455,6 +10556,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_projects = sse_decode_list_String(deserializer);
     var var_activities = sse_decode_list_String(deserializer);
     var var_followUps = sse_decode_list_String(deserializer);
+    var var_guidance = sse_decode_opt_box_autoadd_guidance_dto(deserializer);
     var var_recordable = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_kind = sse_decode_opt_String(deserializer);
     var var_effectiveRecordable = sse_decode_bool(deserializer);
@@ -10481,6 +10583,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       projects: var_projects,
       activities: var_activities,
       followUps: var_followUps,
+      guidance: var_guidance,
       recordable: var_recordable,
       kind: var_kind,
       effectiveRecordable: var_effectiveRecordable,
@@ -10533,6 +10636,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       updatedAt: var_updatedAt,
       supersededAt: var_supersededAt,
     );
+  }
+
+  @protected
+  GuidanceDto sse_decode_guidance_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_related = sse_decode_list_guidance_ref_dto(deserializer);
+    var var_lessons = sse_decode_list_String(deserializer);
+    var var_followUpsRefined = sse_decode_list_String(deserializer);
+    return GuidanceDto(
+      related: var_related,
+      lessons: var_lessons,
+      followUpsRefined: var_followUpsRefined,
+    );
+  }
+
+  @protected
+  GuidanceRefDto sse_decode_guidance_ref_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_slug = sse_decode_String(deserializer);
+    var var_note = sse_decode_String(deserializer);
+    return GuidanceRefDto(slug: var_slug, note: var_note);
   }
 
   @protected
@@ -11281,6 +11405,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<GuidanceRefDto> sse_decode_list_guidance_ref_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GuidanceRefDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_guidance_ref_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<KnowledgeBackgroundRunDto> sse_decode_list_knowledge_background_run_dto(
     SseDeserializer deserializer,
   ) {
@@ -11484,6 +11622,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <OrganizedTopic>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_organized_topic(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<PageGuidanceDto> sse_decode_list_page_guidance_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PageGuidanceDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_page_guidance_dto(deserializer));
     }
     return ans_;
   }
@@ -12001,6 +12153,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuidanceDto? sse_decode_opt_box_autoadd_guidance_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_guidance_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -12116,6 +12281,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       applicableWhen: var_applicableWhen,
       snapshotIds: var_snapshotIds,
       eventIds: var_eventIds,
+    );
+  }
+
+  @protected
+  PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_eventId = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_note = sse_decode_opt_String(deserializer);
+    var var_lessons = sse_decode_list_String(deserializer);
+    var var_followUpsRefined = sse_decode_list_String(deserializer);
+    return PageGuidanceDto(
+      eventId: var_eventId,
+      recordedAt: var_recordedAt,
+      note: var_note,
+      lessons: var_lessons,
+      followUpsRefined: var_followUpsRefined,
     );
   }
 
@@ -13144,6 +13326,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_guidance_dto(
+    GuidanceDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_guidance_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -13502,6 +13693,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.projects, serializer);
     sse_encode_list_String(self.activities, serializer);
     sse_encode_list_String(self.followUps, serializer);
+    sse_encode_opt_box_autoadd_guidance_dto(self.guidance, serializer);
     sse_encode_opt_box_autoadd_bool(self.recordable, serializer);
     sse_encode_opt_String(self.kind, serializer);
     sse_encode_bool(self.effectiveRecordable, serializer);
@@ -13536,6 +13728,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.createdAt, serializer);
     sse_encode_String(self.updatedAt, serializer);
     sse_encode_opt_String(self.supersededAt, serializer);
+  }
+
+  @protected
+  void sse_encode_guidance_dto(GuidanceDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_guidance_ref_dto(self.related, serializer);
+    sse_encode_list_String(self.lessons, serializer);
+    sse_encode_list_String(self.followUpsRefined, serializer);
+  }
+
+  @protected
+  void sse_encode_guidance_ref_dto(
+    GuidanceRefDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.slug, serializer);
+    sse_encode_String(self.note, serializer);
   }
 
   @protected
@@ -14085,6 +14295,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_guidance_ref_dto(
+    List<GuidanceRefDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_guidance_ref_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_knowledge_background_run_dto(
     List<KnowledgeBackgroundRunDto> self,
     SseSerializer serializer,
@@ -14261,6 +14483,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_organized_topic(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_page_guidance_dto(
+    List<PageGuidanceDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_page_guidance_dto(item, serializer);
     }
   }
 
@@ -14704,6 +14938,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_guidance_dto(
+    GuidanceDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_guidance_dto(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -14815,6 +15062,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.applicableWhen, serializer);
     sse_encode_list_String(self.snapshotIds, serializer);
     sse_encode_list_String(self.eventIds, serializer);
+  }
+
+  @protected
+  void sse_encode_page_guidance_dto(
+    PageGuidanceDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_opt_String(self.note, serializer);
+    sse_encode_list_String(self.lessons, serializer);
+    sse_encode_list_String(self.followUpsRefined, serializer);
   }
 
   @protected

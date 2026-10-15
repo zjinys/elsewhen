@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../bridge/rust_bridge_repository.dart';
-import '../bridge/api.dart' show EntityFactDto;
+import '../bridge/api.dart' show EntityFactDto, PageGuidanceDto;
 import '../utils/error_report.dart';
 import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
@@ -1136,6 +1136,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
                   _EntityMergeControls(page: widget.page),
                   _EntityFacts(slug: widget.page.slug),
                   _EntityRelatedTodos(page: widget.page),
+                  _EntityGuidance(slug: widget.page.slug),
                 ],
               ),
             ),

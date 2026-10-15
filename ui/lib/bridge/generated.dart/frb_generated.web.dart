@@ -113,6 +113,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GuidanceDto dco_decode_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -212,6 +215,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GoalDto dco_decode_goal_dto(dynamic raw);
+
+  @protected
+  GuidanceDto dco_decode_guidance_dto(dynamic raw);
+
+  @protected
+  GuidanceRefDto dco_decode_guidance_ref_dto(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -340,6 +349,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
 
   @protected
+  List<GuidanceRefDto> dco_decode_list_guidance_ref_dto(dynamic raw);
+
+  @protected
   List<KnowledgeBackgroundRunDto> dco_decode_list_knowledge_background_run_dto(
     dynamic raw,
   );
@@ -395,6 +407,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw);
+
+  @protected
+  List<PageGuidanceDto> dco_decode_list_page_guidance_dto(dynamic raw);
 
   @protected
   List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
@@ -520,6 +535,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -551,6 +569,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   OrganizedTopic dco_decode_organized_topic(dynamic raw);
+
+  @protected
+  PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw);
 
   @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
@@ -747,6 +768,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GuidanceDto sse_decode_box_autoadd_guidance_dto(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -872,6 +896,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GoalDto sse_decode_goal_dto(SseDeserializer deserializer);
+
+  @protected
+  GuidanceDto sse_decode_guidance_dto(SseDeserializer deserializer);
+
+  @protected
+  GuidanceRefDto sse_decode_guidance_ref_dto(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -1044,6 +1074,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer);
 
   @protected
+  List<GuidanceRefDto> sse_decode_list_guidance_ref_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<KnowledgeBackgroundRunDto> sse_decode_list_knowledge_background_run_dto(
     SseDeserializer deserializer,
   );
@@ -1113,6 +1148,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<OrganizedTopic> sse_decode_list_organized_topic(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PageGuidanceDto> sse_decode_list_page_guidance_dto(
     SseDeserializer deserializer,
   );
 
@@ -1272,6 +1312,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GuidanceDto? sse_decode_opt_box_autoadd_guidance_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -1311,6 +1356,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   OrganizedTopic sse_decode_organized_topic(SseDeserializer deserializer);
+
+  @protected
+  PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer);
 
   @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
@@ -1620,6 +1668,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double cst_encode_box_autoadd_f_64(double raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_f_64(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_guidance_dto(GuidanceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_guidance_dto(raw);
   }
 
   @protected
@@ -1948,6 +2002,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_String(raw.projects),
       cst_encode_list_String(raw.activities),
       cst_encode_list_String(raw.followUps),
+      cst_encode_opt_box_autoadd_guidance_dto(raw.guidance),
       cst_encode_opt_box_autoadd_bool(raw.recordable),
       cst_encode_opt_String(raw.kind),
       cst_encode_bool(raw.effectiveRecordable),
@@ -1981,6 +2036,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.updatedAt),
       cst_encode_opt_String(raw.supersededAt),
     ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_guidance_dto(GuidanceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_list_guidance_ref_dto(raw.related),
+      cst_encode_list_String(raw.lessons),
+      cst_encode_list_String(raw.followUpsRefined),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_guidance_ref_dto(GuidanceRefDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [cst_encode_String(raw.slug), cst_encode_String(raw.note)].jsify()!;
   }
 
   @protected
@@ -2411,6 +2482,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_guidance_ref_dto(List<GuidanceRefDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_guidance_ref_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_knowledge_background_run_dto(
     List<KnowledgeBackgroundRunDto> raw,
   ) {
@@ -2508,6 +2585,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_organized_topic(List<OrganizedTopic> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_organized_topic).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_page_guidance_dto(List<PageGuidanceDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_page_guidance_dto).toList().jsify()!;
   }
 
   @protected
@@ -2794,6 +2877,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny? cst_encode_opt_box_autoadd_guidance_dto(GuidanceDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_guidance_dto(raw);
+  }
+
+  @protected
   JSAny? cst_encode_opt_box_autoadd_i_64(PlatformInt64? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_i_64(raw);
@@ -2864,6 +2953,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.applicableWhen),
       cst_encode_list_String(raw.snapshotIds),
       cst_encode_list_String(raw.eventIds),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_page_guidance_dto(PageGuidanceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_opt_String(raw.note),
+      cst_encode_list_String(raw.lessons),
+      cst_encode_list_String(raw.followUpsRefined),
     ].jsify()!;
   }
 
@@ -3482,6 +3583,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_guidance_dto(
+    GuidanceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -3645,6 +3752,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_goal_dto(GoalDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_guidance_dto(GuidanceDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_guidance_ref_dto(
+    GuidanceRefDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -3863,6 +3979,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_guidance_ref_dto(
+    List<GuidanceRefDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_knowledge_background_run_dto(
     List<KnowledgeBackgroundRunDto> self,
     SseSerializer serializer,
@@ -3949,6 +4071,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_organized_topic(
     List<OrganizedTopic> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_page_guidance_dto(
+    List<PageGuidanceDto> self,
     SseSerializer serializer,
   );
 
@@ -4148,6 +4276,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_guidance_dto(
+    GuidanceDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -4195,6 +4329,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_organized_topic(
     OrganizedTopic self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_page_guidance_dto(
+    PageGuidanceDto self,
     SseSerializer serializer,
   );
 
@@ -5357,6 +5497,11 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__sync__list_object_conflicts(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__list_object_conflicts(port_);
+
+  void wire__crate__api__list_page_guidance(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__list_page_guidance(port_, slug);
 
   void wire__crate__api__conversations__list_pending_actions(
     NativePortType port_,
@@ -6861,6 +7006,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__sync__list_object_conflicts(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__list_page_guidance(
+    NativePortType port_,
+    String slug,
   );
 
   external void wire__crate__api__conversations__list_pending_actions(

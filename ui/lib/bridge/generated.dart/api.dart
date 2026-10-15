@@ -10,9 +10,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `decision_support_material`, `default_event_kind`, `default_recordable`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`
+// These functions are ignored because they are not marked as `pub`: `decision_support_material`, `default_event_kind`, `default_recordable`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`, `try_auto_upsert_annotated_relation`, `wash_guidance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`, `EventEmotionTag`, `EventGuidanceRef`, `EventGuidance`, `EventRuleConfirmation`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -87,6 +87,9 @@ Future<String> saveDailyReview({
 
 Future<DailyReviewResult> generateDailyReview({required String date}) =>
     RustLib.instance.api.crateApiGenerateDailyReview(date: date);
+
+Future<List<PageGuidanceDto>> listPageGuidance({required String slug}) =>
+    RustLib.instance.api.crateApiListPageGuidance(slug: slug);
 
 Future<EventAnalysisDetailDto?> getEventAnalysisDetail({
   required String eventId,
@@ -426,6 +429,7 @@ class EventAnalysisDetailDto {
   final List<String> projects;
   final List<String> activities;
   final List<String> followUps;
+  final GuidanceDto? guidance;
   final bool? recordable;
   final String? kind;
   final bool effectiveRecordable;
@@ -453,6 +457,7 @@ class EventAnalysisDetailDto {
     required this.projects,
     required this.activities,
     required this.followUps,
+    this.guidance,
     this.recordable,
     this.kind,
     required this.effectiveRecordable,
@@ -482,6 +487,7 @@ class EventAnalysisDetailDto {
       projects.hashCode ^
       activities.hashCode ^
       followUps.hashCode ^
+      guidance.hashCode ^
       recordable.hashCode ^
       kind.hashCode ^
       effectiveRecordable.hashCode ^
@@ -513,6 +519,7 @@ class EventAnalysisDetailDto {
           projects == other.projects &&
           activities == other.activities &&
           followUps == other.followUps &&
+          guidance == other.guidance &&
           recordable == other.recordable &&
           kind == other.kind &&
           effectiveRecordable == other.effectiveRecordable &&
@@ -558,6 +565,51 @@ class EventDto {
           occurredAt == other.occurredAt &&
           source == other.source &&
           status == other.status;
+}
+
+/// guidance 派生层展示（D4）：related 指知识库页，lessons/精炼待办是纯文本。
+/// 只从 event_analyses.result_json 派生，不写事件真源。
+class GuidanceDto {
+  final List<GuidanceRefDto> related;
+  final List<String> lessons;
+  final List<String> followUpsRefined;
+
+  const GuidanceDto({
+    required this.related,
+    required this.lessons,
+    required this.followUpsRefined,
+  });
+
+  @override
+  int get hashCode =>
+      related.hashCode ^ lessons.hashCode ^ followUpsRefined.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GuidanceDto &&
+          runtimeType == other.runtimeType &&
+          related == other.related &&
+          lessons == other.lessons &&
+          followUpsRefined == other.followUpsRefined;
+}
+
+class GuidanceRefDto {
+  final String slug;
+  final String note;
+
+  const GuidanceRefDto({required this.slug, required this.note});
+
+  @override
+  int get hashCode => slug.hashCode ^ note.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GuidanceRefDto &&
+          runtimeType == other.runtimeType &&
+          slug == other.slug &&
+          note == other.note;
 }
 
 class InputRecordDto {
@@ -660,4 +712,40 @@ class MessageRecordabilityDto {
           source == other.source &&
           jobStatus == other.jobStatus &&
           summary == other.summary;
+}
+
+/// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
+class PageGuidanceDto {
+  final String eventId;
+  final String recordedAt;
+  final String? note;
+  final List<String> lessons;
+  final List<String> followUpsRefined;
+
+  const PageGuidanceDto({
+    required this.eventId,
+    required this.recordedAt,
+    this.note,
+    required this.lessons,
+    required this.followUpsRefined,
+  });
+
+  @override
+  int get hashCode =>
+      eventId.hashCode ^
+      recordedAt.hashCode ^
+      note.hashCode ^
+      lessons.hashCode ^
+      followUpsRefined.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PageGuidanceDto &&
+          runtimeType == other.runtimeType &&
+          eventId == other.eventId &&
+          recordedAt == other.recordedAt &&
+          note == other.note &&
+          lessons == other.lessons &&
+          followUpsRefined == other.followUpsRefined;
 }

@@ -43,7 +43,7 @@ pub use wiki::*;
 pub use wiki_chat::*;
 
 /// 现行分析结果契约标识（D1 起升 v3：新增 rule_confirmations；
-/// guidance/emotion 结构就位但 prompt 分片启用——D4/D5 再写入）。
+/// guidance 段已在 D4 启用（prompt 可选要求 + wash 护栏）；emotion 分片待 D5）。
 /// v1/v2 为历史读兼容标识；「event-analysis」（无后缀）为 v3 之前的现行写法。
 const EVENT_ANALYSIS_VERSION: &str = "event-analysis-v3";
 const PRE_V3_EVENT_ANALYSIS: &str = "event-analysis";
@@ -309,6 +309,21 @@ pub struct DailyEntryDto {
     pub recorded_at: String,
 }
 
+/// guidance 派生层展示（D4）：related 指知识库页，lessons/精炼待办是纯文本。
+/// 只从 event_analyses.result_json 派生，不写事件真源。
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct GuidanceDto {
+    pub related: Vec<GuidanceRefDto>,
+    pub lessons: Vec<String>,
+    pub follow_ups_refined: Vec<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct GuidanceRefDto {
+    pub slug: String,
+    pub note: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct EventAnalysisDetailDto {
     pub event_id: String,
@@ -331,6 +346,7 @@ pub struct EventAnalysisDetailDto {
     pub projects: Vec<String>,
     pub activities: Vec<String>,
     pub follow_ups: Vec<String>,
+    pub guidance: Option<GuidanceDto>,
     pub recordable: Option<bool>,
     pub kind: Option<String>,
     pub effective_recordable: bool,
@@ -817,6 +833,32 @@ fn generate_daily_review_with_provider(
     Ok(DailyReviewResult::Created { id })
 }
 
+/// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
+#[derive(Debug, serde::Serialize)]
+pub struct PageGuidanceDto {
+    pub event_id: String,
+    pub recorded_at: String,
+    pub note: Option<String>,
+    pub lessons: Vec<String>,
+    pub follow_ups_refined: Vec<String>,
+}
+
+pub fn list_page_guidance(slug: String) -> Result<Vec<PageGuidanceDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store
+        .page_guidance_items(slug.trim())?
+        .into_iter()
+        .map(|item| PageGuidanceDto {
+            event_id: item.event_id,
+            recorded_at: item.recorded_at,
+            note: item.note,
+            lessons: item.lessons,
+            follow_ups_refined: item.follow_ups_refined,
+        })
+        .collect())
+}
+
 pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysisDetailDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
@@ -860,6 +902,20 @@ pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysi
         follow_ups: analysis
             .as_ref()
             .map_or_else(Vec::new, |value| value.follow_ups.clone()),
+        guidance: analysis.as_ref().and_then(|value| {
+            value.guidance.as_ref().map(|g| GuidanceDto {
+                related: g
+                    .related
+                    .iter()
+                    .map(|r| GuidanceRefDto {
+                        slug: r.slug.clone(),
+                        note: r.note.clone(),
+                    })
+                    .collect(),
+                lessons: g.lessons.clone(),
+                follow_ups_refined: g.follow_ups_refined.clone(),
+            })
+        }),
         recordable: analysis.as_ref().map(|value| value.recordable),
         kind: analysis.as_ref().map(|value| value.kind.clone()),
         effective_recordable,
@@ -1059,7 +1115,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
             )
         };
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v3。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)；仅当下方附有规则命中时才包含 rule_confirmations(array of {{rule_id: string, applicable: boolean, confidence: number 0..1}})。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}{}",
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v3。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)；仅当下方附有规则命中时才包含 rule_confirmations(array of {{rule_id: string, applicable: boolean, confidence: number 0..1}})。只有当决策辅助上下文与你确有关联时才可选包含 guidance 对象：{{\"related\":[{{\"slug\":string,\"note\":string}}],\"lessons\":[string],\"follow_ups_refined\":[string]}}：related[].slug 只能取自决策辅助上下文中出现的知识库页 slug，note 写为什么相关/可复用什么（一句话）；lessons 写可复用经验（不是重复记录内容）；follow_ups_refined 是对 follow_ups 的精炼合并；无关联时整个省略 guidance 字段，不得杜撰 slug。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}{}",
             context, job.raw_text, rules_section
         );
         let mut analysis_context = vec![
@@ -1073,6 +1129,9 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
         match provider.generate_reply(analysis_context) {
             Ok(reply) => match EventAnalysisV1::parse(&reply.content) {
                 Ok(mut value) => {
+                    // guidance 护栏（D4）：杜撰 slug 丢弃、条数与文本封顶；
+                    // 清洗后为空则整字段省略——派生层不存垃圾。
+                    wash_guidance(store, &mut value);
                     let current = crate::knowledge::current_candidates(store, &candidates)?;
                     let mut cited = Vec::new();
                     for field in std::iter::once(&mut value.summary)
@@ -1237,6 +1296,9 @@ fn try_auto_upsert_annotated_relation(
 /// Build bounded, read-only context for Phase 4C. This makes existing rules and
 /// knowledge visible at the decision point while leaving all writes behind the
 /// existing confirmation gates.
+/// 决策辅助上下文（D4 扩展：用户模型关系边 + 近期记录条目）。
+/// 段级 fail-soft：任何一段检索失败只省略该段，绝不把已入库记录拒之分析门外；
+/// 知识库主材料组装失败（select_knowledge 本身）仍向上报错。
 fn decision_support_material(
     store: &Store,
     query: &str,
@@ -1250,7 +1312,70 @@ fn decision_support_material(
     }
     let candidates = crate::knowledge::select_knowledge(store, query, "analysis", 2500)?;
     lines.push(crate::knowledge::context_text(&candidates)?);
-    Ok((lines.join("\n"), candidates))
+    // 用户模型关系边（D2 累积）：最多 10 条，条目本身短语级不截断。
+    if let Ok(relations) = store.list_relations() {
+        let edges = relations
+            .iter()
+            .take(10)
+            .map(|r| format!("- 关系：{} ——{}—— {}", r.from_slug, r.relation, r.to_slug))
+            .collect::<Vec<_>>();
+        if !edges.is_empty() {
+            lines.push(format!("你的既有关系账本：\n{}", edges.join("\n")));
+        }
+    }
+    // 近期记录条目：最多 5 条、每条 120 字，供「这和最近的事有什么关系」参照。
+    if let Ok(recent) = store.recent_events(7, 5) {
+        let entries = recent
+            .iter()
+            .map(|e| {
+                format!(
+                    "- 近期记录（{}）：{}",
+                    e.recorded_at.chars().take(16).collect::<String>(),
+                    e.raw_text.chars().take(120).collect::<String>()
+                )
+            })
+            .collect::<Vec<_>>();
+        if !entries.is_empty() {
+            lines.push(format!("近期记录：\n{}", entries.join("\n")));
+        }
+    }
+    Ok((lines.join("\n\n"), candidates))
+}
+
+/// guidance 清洗与护栏（D4）：相关页 slug 必须真实存在，否则丢弃该项；
+/// 每类条数封顶 10、每条文本 500 字——分析输出不得无限膨胀。
+fn wash_guidance(store: &Store, value: &mut EventAnalysisV1) {
+    let Some(guidance) = value.guidance.as_mut() else {
+        return;
+    };
+    guidance.related.retain(|r| {
+        store
+            .get_wiki_page(r.slug.trim())
+            .map(|page| page.is_some())
+            .unwrap_or(false)
+    });
+    guidance.related.truncate(10);
+    for r in &mut guidance.related {
+        r.note = r.note.chars().take(500).collect();
+    }
+    guidance.lessons = guidance
+        .lessons
+        .iter()
+        .take(10)
+        .map(|l| l.chars().take(500).collect())
+        .collect();
+    guidance.follow_ups_refined = guidance
+        .follow_ups_refined
+        .iter()
+        .take(10)
+        .map(|f| f.chars().take(500).collect())
+        .collect();
+    if guidance.related.is_empty()
+        && guidance.lessons.is_empty()
+        && guidance.follow_ups_refined.is_empty()
+    {
+        value.guidance = None;
+    }
 }
 
 #[cfg(test)]
@@ -1689,6 +1814,147 @@ mod daily_review_tests {
         );
         drop(store);
         let _ = std::fs::remove_file(path);
+    }
+}
+
+#[cfg(test)]
+mod guidance_tests {
+    use super::*;
+    use crate::event::NewEvent;
+    use crate::storage::Store;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temporary_database() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "elsewhen-guidance-test-{}.db",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    fn page_for_test(store: &Store, kind: &str, title: &str) {
+        let slug = crate::wiki::slugify(title);
+        store
+            .upsert_wiki_page(
+                &crate::storage::WikiPageDraft {
+                    slug,
+                    kind: kind.to_string(),
+                    title: title.to_string(),
+                    summary: String::new(),
+                    content_md: format!("# {title}"),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".to_string(),
+                    reason: "test".to_string(),
+                    source_url: None,
+                },
+                crate::storage::ContentPolicy::Always,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn wash_guidance_drops_invented_slugs_and_caps_counts() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        page_for_test(&store, "topic", "网站改版");
+        let mut value =
+            EventAnalysisV1::parse(r#"{"schema_version":"event-analysis-v3","recordable":true,"kind":"event","event_type":"note","confidence":0.9,"summary":"s","clarifications":[],"people":[],"projects":[],"activities":[],"follow_ups":[],"guidance":{"related":[{"slug":"网站改版","note":"相关经验"},{"slug":"杜撰页","note":"不存在的页"}],"lessons":["经验一"],"follow_ups_refined":["精炼待办"]}}"#).unwrap();
+        wash_guidance(&store, &mut value);
+        let guidance = value.guidance.as_ref().unwrap();
+        assert_eq!(guidance.related.len(), 1, "杜撰 slug 必须被丢弃");
+        assert_eq!(guidance.related[0].slug, "网站改版");
+        assert_eq!(guidance.lessons[0], "经验一");
+        // 全空后整字段清除
+        let mut empty =
+            EventAnalysisV1::parse(r#"{"schema_version":"event-analysis-v3","recordable":true,"kind":"event","event_type":"note","confidence":0.9,"summary":"s","clarifications":[],"people":[],"projects":[],"activities":[],"follow_ups":[],"guidance":{"related":[{"slug":"杜撰页","note":"n"}],"lessons":[],"follow_ups_refined":[]}}"#).unwrap();
+        wash_guidance(&store, &mut empty);
+        assert!(empty.guidance.is_none(), "清洗后为空应整字段省略");
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn decision_material_includes_relations_and_recent_entries() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        page_for_test(&store, "person", "李四");
+        page_for_test(&store, "topic", "网站改版");
+        store
+            .upsert_relation(&crate::storage::RelationDraft {
+                from_slug: crate::wiki::slugify("李四"),
+                from_kind: "person".to_string(),
+                to_slug: crate::wiki::slugify("网站改版"),
+                to_kind: "topic".to_string(),
+                relation: "参与".to_string(),
+                note: None,
+                confidence: 3,
+                source_conversation_id: None,
+                source_event_id: None,
+            })
+            .unwrap();
+        store
+            .insert_event(NewEvent::now("和李四讨论网站改版"))
+            .unwrap();
+        let (context, _) = decision_support_material(&store, "网站改版").unwrap();
+        assert!(context.contains("关系："), "决策材料应含用户模型关系边");
+        assert!(context.contains("近期记录："), "决策材料应含近期记录条目");
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn guidance_flows_to_detail_and_page_aggregation() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        page_for_test(&store, "topic", "网站改版");
+        store.insert_event(NewEvent::now("网站改版上线了")).unwrap();
+        // 直接注入带 guidance 的分析结果（绕过 provider，聚焦派生层读面）
+        let value =
+            EventAnalysisV1::parse(r#"{"schema_version":"event-analysis-v3","recordable":true,"kind":"event","event_type":"note","confidence":0.9,"summary":"上线","clarifications":[],"people":[],"projects":[],"activities":[],"follow_ups":[],"guidance":{"related":[{"slug":"网站改版","note":"此前联调经验可复用"}],"lessons":["先灰度再全量"],"follow_ups_refined":["观察一周报错率"]}}"#).unwrap();
+        let detail = store
+            .event_analysis_detail(&sqlite_event_id(&store))
+            .unwrap()
+            .unwrap();
+        store
+            .complete_analysis(
+                &crate::storage::AnalysisJob {
+                    id: job_id(&store),
+                    event_id: detail.event_id.clone(),
+                    raw_text: String::new(),
+                    attempts: 0,
+                },
+                &value.schema_version,
+                &serde_json::to_string(&value).unwrap(),
+            )
+            .unwrap();
+        let items = store
+            .page_guidance_items(&crate::wiki::slugify("网站改版"))
+            .unwrap();
+        assert_eq!(items.len(), 1, "页聚合应引用到 guidance");
+        assert_eq!(items[0].lessons, vec!["先灰度再全量".to_string()]);
+        assert_eq!(
+            items[0].follow_ups_refined,
+            vec!["观察一周报错率".to_string()]
+        );
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    fn sqlite_event_id(store: &Store) -> String {
+        store
+            .connection
+            .query_row("SELECT id FROM events LIMIT 1", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    fn job_id(store: &Store) -> String {
+        store
+            .connection
+            .query_row("SELECT id FROM analysis_jobs LIMIT 1", [], |r| r.get(0))
+            .unwrap()
     }
 }
 

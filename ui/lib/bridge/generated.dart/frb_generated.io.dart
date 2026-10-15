@@ -111,6 +111,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GuidanceDto dco_decode_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -210,6 +213,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GoalDto dco_decode_goal_dto(dynamic raw);
+
+  @protected
+  GuidanceDto dco_decode_guidance_dto(dynamic raw);
+
+  @protected
+  GuidanceRefDto dco_decode_guidance_ref_dto(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -338,6 +347,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
 
   @protected
+  List<GuidanceRefDto> dco_decode_list_guidance_ref_dto(dynamic raw);
+
+  @protected
   List<KnowledgeBackgroundRunDto> dco_decode_list_knowledge_background_run_dto(
     dynamic raw,
   );
@@ -393,6 +405,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<OrganizedTopic> dco_decode_list_organized_topic(dynamic raw);
+
+  @protected
+  List<PageGuidanceDto> dco_decode_list_page_guidance_dto(dynamic raw);
 
   @protected
   List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
@@ -518,6 +533,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -549,6 +567,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   OrganizedTopic dco_decode_organized_topic(dynamic raw);
+
+  @protected
+  PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw);
 
   @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
@@ -745,6 +766,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GuidanceDto sse_decode_box_autoadd_guidance_dto(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -870,6 +894,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GoalDto sse_decode_goal_dto(SseDeserializer deserializer);
+
+  @protected
+  GuidanceDto sse_decode_guidance_dto(SseDeserializer deserializer);
+
+  @protected
+  GuidanceRefDto sse_decode_guidance_ref_dto(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -1042,6 +1072,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer);
 
   @protected
+  List<GuidanceRefDto> sse_decode_list_guidance_ref_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<KnowledgeBackgroundRunDto> sse_decode_list_knowledge_background_run_dto(
     SseDeserializer deserializer,
   );
@@ -1111,6 +1146,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<OrganizedTopic> sse_decode_list_organized_topic(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PageGuidanceDto> sse_decode_list_page_guidance_dto(
     SseDeserializer deserializer,
   );
 
@@ -1270,6 +1310,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GuidanceDto? sse_decode_opt_box_autoadd_guidance_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -1309,6 +1354,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   OrganizedTopic sse_decode_organized_topic(SseDeserializer deserializer);
+
+  @protected
+  PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer);
 
   @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
@@ -1556,6 +1604,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Double> cst_encode_box_autoadd_f_64(double raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return wire.cst_new_box_autoadd_f_64(cst_encode_f_64(raw));
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_guidance_dto> cst_encode_box_autoadd_guidance_dto(
+    GuidanceDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_guidance_dto();
+    cst_api_fill_to_wire_guidance_dto(raw, ptr.ref);
+    return ptr;
   }
 
   @protected
@@ -1855,6 +1913,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_guidance_ref_dto> cst_encode_list_guidance_ref_dto(
+    List<GuidanceRefDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_guidance_ref_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_guidance_ref_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_knowledge_background_run_dto>
   cst_encode_list_knowledge_background_run_dto(
     List<KnowledgeBackgroundRunDto> raw,
@@ -2021,6 +2091,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_organized_topic(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_organized_topic(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_page_guidance_dto>
+  cst_encode_list_page_guidance_dto(List<PageGuidanceDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_page_guidance_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_page_guidance_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -2361,6 +2442,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_guidance_dto> cst_encode_opt_box_autoadd_guidance_dto(
+    GuidanceDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? ffi.nullptr : cst_encode_box_autoadd_guidance_dto(raw);
+  }
+
+  @protected
   ffi.Pointer<ffi.Int64> cst_encode_opt_box_autoadd_i_64(PlatformInt64? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_i_64(raw);
@@ -2575,6 +2664,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_event_analysis_detail_dto> wireObj,
   ) {
     cst_api_fill_to_wire_event_analysis_detail_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_guidance_dto(
+    GuidanceDto apiObj,
+    ffi.Pointer<wire_cst_guidance_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_guidance_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -2917,6 +3014,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.projects = cst_encode_list_String(apiObj.projects);
     wireObj.activities = cst_encode_list_String(apiObj.activities);
     wireObj.follow_ups = cst_encode_list_String(apiObj.followUps);
+    wireObj.guidance = cst_encode_opt_box_autoadd_guidance_dto(apiObj.guidance);
     wireObj.recordable = cst_encode_opt_box_autoadd_bool(apiObj.recordable);
     wireObj.kind = cst_encode_opt_String(apiObj.kind);
     wireObj.effective_recordable = cst_encode_bool(apiObj.effectiveRecordable);
@@ -2951,6 +3049,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
     wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
     wireObj.superseded_at = cst_encode_opt_String(apiObj.supersededAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_guidance_dto(
+    GuidanceDto apiObj,
+    wire_cst_guidance_dto wireObj,
+  ) {
+    wireObj.related = cst_encode_list_guidance_ref_dto(apiObj.related);
+    wireObj.lessons = cst_encode_list_String(apiObj.lessons);
+    wireObj.follow_ups_refined = cst_encode_list_String(
+      apiObj.followUpsRefined,
+    );
+  }
+
+  @protected
+  void cst_api_fill_to_wire_guidance_ref_dto(
+    GuidanceRefDto apiObj,
+    wire_cst_guidance_ref_dto wireObj,
+  ) {
+    wireObj.slug = cst_encode_String(apiObj.slug);
+    wireObj.note = cst_encode_String(apiObj.note);
   }
 
   @protected
@@ -3361,6 +3480,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.applicable_when = cst_encode_String(apiObj.applicableWhen);
     wireObj.snapshot_ids = cst_encode_list_String(apiObj.snapshotIds);
     wireObj.event_ids = cst_encode_list_String(apiObj.eventIds);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_page_guidance_dto(
+    PageGuidanceDto apiObj,
+    wire_cst_page_guidance_dto wireObj,
+  ) {
+    wireObj.event_id = cst_encode_String(apiObj.eventId);
+    wireObj.recorded_at = cst_encode_String(apiObj.recordedAt);
+    wireObj.note = cst_encode_opt_String(apiObj.note);
+    wireObj.lessons = cst_encode_list_String(apiObj.lessons);
+    wireObj.follow_ups_refined = cst_encode_list_String(
+      apiObj.followUpsRefined,
+    );
   }
 
   @protected
@@ -4006,6 +4139,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_guidance_dto(
+    GuidanceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -4169,6 +4308,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_goal_dto(GoalDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_guidance_dto(GuidanceDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_guidance_ref_dto(
+    GuidanceRefDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -4387,6 +4535,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_guidance_ref_dto(
+    List<GuidanceRefDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_knowledge_background_run_dto(
     List<KnowledgeBackgroundRunDto> self,
     SseSerializer serializer,
@@ -4473,6 +4627,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_organized_topic(
     List<OrganizedTopic> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_page_guidance_dto(
+    List<PageGuidanceDto> self,
     SseSerializer serializer,
   );
 
@@ -4672,6 +4832,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_guidance_dto(
+    GuidanceDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -4719,6 +4885,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_organized_topic(
     OrganizedTopic self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_page_guidance_dto(
+    PageGuidanceDto self,
     SseSerializer serializer,
   );
 
@@ -5073,6 +5245,18 @@ class RustLibWire implements BaseWire {
       );
   late final _cst_new_box_autoadd_f_64 = _cst_new_box_autoadd_f_64Ptr
       .asFunction<ffi.Pointer<ffi.Double> Function(double)>();
+
+  ffi.Pointer<wire_cst_guidance_dto> cst_new_box_autoadd_guidance_dto() {
+    return _cst_new_box_autoadd_guidance_dto();
+  }
+
+  late final _cst_new_box_autoadd_guidance_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_guidance_dto> Function()>
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_guidance_dto');
+  late final _cst_new_box_autoadd_guidance_dto =
+      _cst_new_box_autoadd_guidance_dtoPtr
+          .asFunction<ffi.Pointer<wire_cst_guidance_dto> Function()>();
 
   ffi.Pointer<ffi.Int64> cst_new_box_autoadd_i_64(int value) {
     return _cst_new_box_autoadd_i_64(value);
@@ -5484,6 +5668,21 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_goal_dto = _cst_new_list_goal_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_goal_dto> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_guidance_ref_dto> cst_new_list_guidance_ref_dto(
+    int len,
+  ) {
+    return _cst_new_list_guidance_ref_dto(len);
+  }
+
+  late final _cst_new_list_guidance_ref_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_guidance_ref_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_guidance_ref_dto');
+  late final _cst_new_list_guidance_ref_dto = _cst_new_list_guidance_ref_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_guidance_ref_dto> Function(int)>();
+
   ffi.Pointer<wire_cst_list_knowledge_background_run_dto>
   cst_new_list_knowledge_background_run_dto(int len) {
     return _cst_new_list_knowledge_background_run_dto(len);
@@ -5736,6 +5935,24 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_organized_topic');
   late final _cst_new_list_organized_topic = _cst_new_list_organized_topicPtr
       .asFunction<ffi.Pointer<wire_cst_list_organized_topic> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_page_guidance_dto> cst_new_list_page_guidance_dto(
+    int len,
+  ) {
+    return _cst_new_list_page_guidance_dto(len);
+  }
+
+  late final _cst_new_list_page_guidance_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_page_guidance_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_page_guidance_dto');
+  late final _cst_new_list_page_guidance_dto =
+      _cst_new_list_page_guidance_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_page_guidance_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_pending_action_dto> cst_new_list_pending_action_dto(
     int len,
@@ -9167,6 +9384,28 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__list_events = _wire__crate__api__list_eventsPtr
       .asFunction<void Function(int)>();
+
+  void wire__crate__api__list_page_guidance(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__list_page_guidance(port_, slug);
+  }
+
+  late final _wire__crate__api__list_page_guidancePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__list_page_guidance');
+  late final _wire__crate__api__list_page_guidance =
+      _wire__crate__api__list_page_guidancePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void wire__crate__api__provider_config__delete_ai_provider_config(
     int port_,
@@ -12718,6 +12957,8 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_String> follow_ups;
 
+  external ffi.Pointer<wire_cst_guidance_dto> guidance;
+
   external ffi.Pointer<ffi.Bool> recordable;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
@@ -12751,6 +12992,7 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_String> projects,
     required ffi.Pointer<wire_cst_list_String> activities,
     required ffi.Pointer<wire_cst_list_String> follow_ups,
+    required ffi.Pointer<wire_cst_guidance_dto> guidance,
     required ffi.Pointer<ffi.Bool> recordable,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
     required bool effective_recordable,
@@ -12777,6 +13019,7 @@ final class wire_cst_event_analysis_detail_dto extends ffi.Struct {
     ..ref.projects = projects
     ..ref.activities = activities
     ..ref.follow_ups = follow_ups
+    ..ref.guidance = guidance
     ..ref.recordable = recordable
     ..ref.kind = kind
     ..ref.effective_recordable = effective_recordable
@@ -12846,6 +13089,38 @@ final class wire_cst_goal_dto extends ffi.Struct {
     ..ref.created_at = created_at
     ..ref.updated_at = updated_at
     ..ref.superseded_at = superseded_at;
+}
+
+final class wire_cst_guidance_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_guidance_ref_dto> related;
+
+  external ffi.Pointer<wire_cst_list_String> lessons;
+
+  external ffi.Pointer<wire_cst_list_String> follow_ups_refined;
+
+  static ffi.Pointer<wire_cst_guidance_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_guidance_ref_dto> related,
+    required ffi.Pointer<wire_cst_list_String> lessons,
+    required ffi.Pointer<wire_cst_list_String> follow_ups_refined,
+  }) => $allocator<wire_cst_guidance_dto>()
+    ..ref.related = related
+    ..ref.lessons = lessons
+    ..ref.follow_ups_refined = follow_ups_refined;
+}
+
+final class wire_cst_guidance_ref_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> note;
+
+  static ffi.Pointer<wire_cst_guidance_ref_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+  }) => $allocator<wire_cst_guidance_ref_dto>()
+    ..ref.slug = slug
+    ..ref.note = note;
 }
 
 final class wire_cst_import_url_dto extends ffi.Struct {
@@ -13840,6 +14115,21 @@ final class wire_cst_list_goal_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_guidance_ref_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_guidance_ref_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_guidance_ref_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_guidance_ref_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_guidance_ref_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_knowledge_background_run_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_knowledge_background_run_dto> ptr;
 
@@ -14061,6 +14351,21 @@ final class wire_cst_list_organized_topic extends ffi.Struct {
     required ffi.Pointer<wire_cst_organized_topic> ptr,
     required int len,
   }) => $allocator<wire_cst_list_organized_topic>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_page_guidance_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_page_guidance_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_page_guidance_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_page_guidance_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_page_guidance_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }
@@ -14617,6 +14922,32 @@ final class wire_cst_organized_topic extends ffi.Struct {
     ..ref.applicable_when = applicable_when
     ..ref.snapshot_ids = snapshot_ids
     ..ref.event_ids = event_ids;
+}
+
+final class wire_cst_page_guidance_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> note;
+
+  external ffi.Pointer<wire_cst_list_String> lessons;
+
+  external ffi.Pointer<wire_cst_list_String> follow_ups_refined;
+
+  static ffi.Pointer<wire_cst_page_guidance_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> recorded_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+    required ffi.Pointer<wire_cst_list_String> lessons,
+    required ffi.Pointer<wire_cst_list_String> follow_ups_refined,
+  }) => $allocator<wire_cst_page_guidance_dto>()
+    ..ref.event_id = event_id
+    ..ref.recorded_at = recorded_at
+    ..ref.note = note
+    ..ref.lessons = lessons
+    ..ref.follow_ups_refined = follow_ups_refined;
 }
 
 final class wire_cst_pending_action_dto extends ffi.Struct {

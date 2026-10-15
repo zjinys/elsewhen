@@ -464,6 +464,20 @@ pub struct EventAnalysisDetail {
     pub analysis_created_at: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct PageGuidanceItem {
+    pub event_id: String,
+    pub recorded_at: String,
+    pub note: Option<String>,
+    pub lessons: Vec<String>,
+    pub follow_ups_refined: Vec<String>,
+}
+
+/// 宽容解析 JSON 字符串数组：坏类型/坏 JSON 一律空数组（派生层不因展示瑕疵报错）。
+pub(crate) fn parse_json_string_array(raw: &str) -> Vec<String> {
+    serde_json::from_str::<Vec<String>>(raw).unwrap_or_default()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventRecordabilityDecision {
     pub event_id: String,

@@ -938,6 +938,10 @@ class RustBridgeRepository implements StorageRepository {
     return WikiPage.fromDto(dto);
   }
 
+  /// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
+  Future<List<api.PageGuidanceDto>> listPageGuidance(String slug) =>
+      api.listPageGuidance(slug: slug);
+
   // ── 人物关系 ──
 
   /// 与某页相关的人物关系（双向：作为人物方或作为事情/项目方）

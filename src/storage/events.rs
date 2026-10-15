@@ -11,10 +11,11 @@ use uuid::Uuid;
 
 use super::adapter::AnalysisJob;
 use super::digest::enqueue_digest_job_on;
+use super::parse_json_string_array;
 use super::{
     AnalysisJobStats, DailyEntry, DailyReviewRecord, EventAnalysisDetail,
-    EventRecordabilityDecision, EventSummary, InputRecord, InsightSummary, NewEvent, Store,
-    map_input_record,
+    EventRecordabilityDecision, EventSummary, InputRecord, InsightSummary, NewEvent,
+    PageGuidanceItem, Store, map_input_record,
 };
 
 /// Shared raw-event write used by capture and authenticated replication inside
@@ -807,6 +808,99 @@ impl Store {
     }
 
     /// 最近 N 天内的最多 limit 条事件（按记录时间倒序）
+    /// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
+    /// 从 event_analyses.result_json 派生（fail-soft：坏 JSON 行跳过），
+    /// 只读不写——事件与页面真源都不动。
+    pub fn page_guidance_items(&self, slug: &str) -> Result<Vec<PageGuidanceItem>> {
+        let mut statement = self.connection.prepare(
+            "SELECT a.event_id, e.recorded_at,
+                    json_extract(je.value, '$.note'),
+                    COALESCE(json_extract(a.result_json, '$.guidance.lessons'), '[]'),
+                    COALESCE(json_extract(a.result_json, '$.guidance.follow_ups_refined'), '[]')
+             FROM event_analyses a
+             JOIN json_each(a.result_json, '$.guidance.related') je ON json_extract(je.value, '$.slug') = ?1
+             JOIN events e ON e.id = a.event_id
+             ORDER BY e.recorded_at DESC, a.created_at DESC
+             LIMIT 50",
+        )?;
+        let mut mapped = match statement.query_map(params![slug], |row| {
+            Ok(PageGuidanceItem {
+                event_id: row.get(0)?,
+                recorded_at: row.get(1)?,
+                note: row.get(2)?,
+                lessons: parse_json_string_array(row.get::<_, String>(3)?.as_str()),
+                follow_ups_refined: parse_json_string_array(row.get::<_, String>(4)?.as_str()),
+            })
+        }) {
+            Ok(mapped) => mapped,
+            // prepare/绑定层面就失败（如 JSON1 不可用）：降级逐行解析。
+            Err(_) => return self.page_guidance_items_fallback(slug),
+        };
+        // json_each 遇坏 JSON 行时在迭代中报错——同样的降级。
+        match mapped.collect::<rusqlite::Result<Vec<_>>>() {
+            Ok(list) => Ok(list),
+            Err(_) => self.page_guidance_items_fallback(slug),
+        }
+    }
+
+    fn page_guidance_items_fallback(&self, slug: &str) -> Result<Vec<PageGuidanceItem>> {
+        let mut statement = self.connection.prepare(
+            "SELECT a.event_id, e.recorded_at, a.result_json
+             FROM event_analyses a JOIN events e ON e.id = a.event_id
+             ORDER BY e.recorded_at DESC, a.created_at DESC LIMIT 200",
+        )?;
+        let mut items = Vec::new();
+        let rows = statement
+            .query_map(params![], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for (event_id, recorded_at, raw) in rows {
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+                continue;
+            };
+            let Some(guidance) = value.get("guidance") else {
+                continue;
+            };
+            let Some(related) = guidance.get("related").and_then(|v| v.as_array()) else {
+                continue;
+            };
+            for r in related {
+                if r.get("slug").and_then(|v| v.as_str()) == Some(slug) {
+                    items.push(PageGuidanceItem {
+                        event_id: event_id.clone(),
+                        recorded_at: recorded_at.clone(),
+                        note: r.get("note").and_then(|v| v.as_str()).map(str::to_owned),
+                        lessons: guidance
+                            .get("lessons")
+                            .and_then(|v| v.as_array())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|l| l.as_str().map(str::to_owned))
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
+                        follow_ups_refined: guidance
+                            .get("follow_ups_refined")
+                            .and_then(|v| v.as_array())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|l| l.as_str().map(str::to_owned))
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
+                    });
+                    break;
+                }
+            }
+        }
+        Ok(items)
+    }
+
     pub fn recent_events(&self, days: i64, limit: usize) -> Result<Vec<EventSummary>> {
         let since = (chrono::Utc::now() - chrono::Duration::days(days)).to_rfc3339();
         let mut statement = self.connection.prepare(

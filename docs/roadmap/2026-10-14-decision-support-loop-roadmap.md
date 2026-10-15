@@ -12,7 +12,7 @@
 
 - **建立日期：** 2026-10-14，基于用户确认「转成 roadmap，从增量维护闭环 + 分层确认起步」。
 - **代码基线：** `f7f6e74`（迁移 34；Rust 711 / Flutter 372 / analyze 0 error/warning）。
-- **当前阶段：** D0–D3 已完成（同日）；下一步 D4（分析升级「提取 + 指导」，MVP 缺口）
+- **当前阶段：** D0–D4 已完成（MVP = D1+D2+D4 齐）；下一步 D5（情绪维度与陪伴扩展）
 
 | 切片 | 内容 | 依赖 | 状态 |
 |---|---|---|---|
@@ -20,7 +20,7 @@
 | D1 | 规则触发引擎 + 分级提醒 | D0 | **完成（2026-10-14，`2aaa174`）** |
 | D2 | 用户模型增量维护 + 分层确认 | D0 | ✅ 已完成（`7d77a96`） |
 | D3 | 实体消歧与别名归一 | D2 | ✅ 已完成（`0b8a41e`） |
-| D4 | 分析升级「提取 + 指导」（挂知识库与用户模型） | D2 | 未开始 |
+| D4 | 分析升级「提取 + 指导」（挂知识库与用户模型） | D2 | ✅ 已完成（2026-10-15，见 D4 节实现锚点） |
 | D5 | 情绪维度与陪伴扩展 | D2 | 未开始 |
 | D6 | 闭环度量与「被记得」（主动回引 + 今日记忆检索合并） | D1、D4 | 未开始 |
 
@@ -105,11 +105,11 @@ note（2026-09-19）的三个缺口判断有两条已随管线演进过期，以
 
 **收益：** 每条新记录得到「这和你的哪些积累有关、可复用什么经验」的回答。
 
-- [ ] v3 契约 `guidance` 字段落地（检索上下文已就位——2026-10-14 核实见「现状底座」）；追加检索面：人物关系（D2 模型）与近期相关事件条目；遵守输入预算口径（预算不足整体省略，必要材料不截断——既有预算纪律）。
-- [ ] `guidance` 输出落地为事件旁的派生层内容（事件详情可见 + 知识库聚合视图），不写事件真源。
-- [ ] insight 引擎衔接：guidance 高价值项可被罗盘吸收（只挂接，不重写 insight）。
-- [ ] 成本护栏：单事件检索条数上限、超限省略并计数；对照 token 口径回归在门禁内。
-- [ ] 测试：无知识库设备（空库）分析路径不劣化不报错；检索失败降级为纯提取。
+- [x] v3 契约 `guidance` 字段落地（检索上下文已就位——2026-10-14 核实见「现状底座」）；追加检索面：人物关系（D2 模型）与近期相关事件条目；遵守输入预算口径（预算不足整体省略，必要材料不截断——既有预算纪律）。→ **实现（2026-10-15）：** `decision_support_material` 段级 fail-soft（规则段 8 条 → select_knowledge（2500 预算，唯一向上报错段）→ 新增关系账本段 `list_relations` take 10 → 新增近期记录段 `recent_events(7,5)` 每条截 120）；prompt 挂 guidance 可选段（slug 只取上下文出现页、无关联整字段省略）；worker 成功分支接 `wash_guidance`（`src/api/mod.rs:1134`）：杜撰 slug（`get_wiki_page` 不存在）丢弃、related/lessons/follow_ups_refined 各封 10 条 / 每条 500 字、三相全空整字段清除。
+- [x] `guidance` 输出落地为事件旁的派生层内容（事件详情可见 + 知识库聚合视图），不写事件真源。→ **实现：** 只入 `event_analyses.result_json`（LEFT JOIN 最新一条派生，不改 events 真源）；读面 `EventAnalysisDetailDto.guidance`（FRB regen）；wiki 页详情实体区新 `_EntityGuidance` 聚合 section（`page_guidance_items` SQL json_each 匹配 `$.guidance.related[].slug` LIMIT 50 + 坏 JSON 降级 Rust 逐行解析 `page_guidance_items_fallback`，src/storage/events.rs）；来源事件 dialog 展示 guidance 区（wiki_detail_entity_sections.dart）。
+- [x] insight 引擎衔接：guidance 高价值项可被罗盘吸收（只挂接，不重写 insight）。→ **实现：** `recent_guidance_lessons`（src/knowledge_background.rs）读最近 30 条分析的 lessons 去重取 10，追加进 `generate()` prompt 末尾（「可吸收提炼，不得原样照抄」）；任何失败静默返回空，生成路径不变。
+- [x] 成本护栏：单事件检索条数上限、超限省略；对照 token 口径回归在门禁内。→ 实现：检索面 take 硬上限（规则 8 / 关系 10 / 近期 5×120 字）；wash 封顶 10×500；select_knowledge 2500 预算纪律不变；全量门禁绿。
+- [x] 测试：无知识库设备（空库）分析路径不劣化不报错；检索失败降级为纯提取。→ **实现（Rust 723 / Flutter 375）：** `wash_guidance_drops_invented_slugs_and_caps_counts`（杜撰 slug 丢弃、全空整字段省略）；`decision_material_includes_relations_and_recent_entries`（关系段+近期段）；`guidance_flows_to_detail_and_page_aggregation`（detail 读面 + 页聚合构造数据走 complete_analysis）；既有 queue_persists 空库不劣化承托；空库决策材料段级返回空（fail-soft）。Flutter 桥面 `listPageGuidance` 未知 slug 空结果不报错（settings_bridge_test）。**遗留：** ①段级 fail-soft 已结构化承托「检索段故障降级为纯提取」，但除 select_knowledge 外段落单独故障无专测；②契约标识仍 `event-analysis-v3`（v3 内挂段未升版，读兼容无影响）；③guidance 无独立「采纳」度量入口（D6 回引时自然覆盖）。
 
 ## D5 — 情绪维度与陪伴扩展
 
