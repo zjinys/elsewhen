@@ -1,0 +1,52 @@
+# macOS DMG 打包（GitHub Actions 托管 macOS runner）。
+#
+# 触发：手动（workflow_dispatch）或推 v* tag。
+# 产物：dist/Elsewhen-<version>.dmg，作为 workflow artifact 上传（保留 14 天）。
+#
+# 签名：无证书环境走 package-dmg.sh 默认 ad-hoc（codesign --sign -）。
+#       安装侧 Gatekeeper 会拦首次打开：右键 → 打开，或
+#       xattr -cr /Applications/Elsewhen.app。
+#       有 Developer ID 时注入 secrets 三个变量并改跑公证：
+#         CODESIGN_IDENTITY / APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
+#
+# 架构：macos-latest = Apple Silicon（arm64）。Intel 机器跑不了 arm64 的
+#       原生 Rust dylib（Rosetta 不翻译 dylib 加载），需另行 x86_64 构建。
+#
+# ⚠ private 仓库 macOS 分钟按 10× 计费（免费额度折合 200 分钟/月）；
+#   本任务含 cargo release + flutter macos build，约 15-25 分钟/次。
+
+name: release-macos-dmg
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  dmg:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: 桥接一致性前置检查（防 CI 里 codegen 漂移）
+        run: cargo build --release --lib
+
+      - name: 打包 DMG（构建 + dylib 内嵌 + ad-hoc 签名 + 压制）
+        run: ./scripts/package-dmg.sh dist
+
+      - name: 上传 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: elsewhen-macos-dmg
+          path: dist/*.dmg
+          retention-days: 14
+          if-no-files-found: error
