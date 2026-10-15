@@ -869,6 +869,29 @@ class _EntityFacts extends ConsumerWidget {
                   const SizedBox(height: 6),
                   ContentFontScope(child: SelectableText(detail.summary!)),
                 ],
+                if (detail.emotion?.isNotEmpty ?? false) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    '情绪标注（文本，无数值）',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  for (final tag in detail.emotion!)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: ContentFontScope(
+                        child: SelectableText(
+                          tag.target == null || tag.target!.isEmpty
+                              ? '对这件事：${tag.feeling}'
+                              : '对 ${tag.target}：${tag.feeling}',
+                        ),
+                      ),
+                    ),
+                ],
                 if (detail.guidance != null) ...[
                   const SizedBox(height: 16),
                   Text(

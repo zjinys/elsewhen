@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1842486401;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1951429955;
 
 // Section: executor
 
@@ -972,6 +972,34 @@ fn wire__crate__api__entities__delete_entity_fact_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::entities::delete_entity_fact(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__delete_event_emotion_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    target: impl CstDecode<Option<String>>,
+    feeling: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "delete_event_emotion",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_target = target.cst_decode();
+            let api_feeling = feeling.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::delete_event_emotion(api_id, api_target, api_feeling)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2707,6 +2735,27 @@ fn wire__crate__api__entities__list_entity_facts_impl(
                             api_entity_kind,
                             api_entity_slug,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__list_event_emotions_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_event_emotions",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::list_event_emotions()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6123,6 +6172,18 @@ impl SseDecode for crate::api::conversations::DailyTokenUsageDto {
     }
 }
 
+impl SseDecode for crate::api::EmotionTagDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_target = <Option<String>>::sse_decode(deserializer);
+        let mut var_feeling = <String>::sse_decode(deserializer);
+        return crate::api::EmotionTagDto {
+            target: var_target,
+            feeling: var_feeling,
+        };
+    }
+}
+
 impl SseDecode for crate::api::EntityFactDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6189,6 +6250,7 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
         let mut var_activities = <Vec<String>>::sse_decode(deserializer);
         let mut var_followUps = <Vec<String>>::sse_decode(deserializer);
         let mut var_guidance = <Option<crate::api::GuidanceDto>>::sse_decode(deserializer);
+        let mut var_emotion = <Option<Vec<crate::api::EmotionTagDto>>>::sse_decode(deserializer);
         let mut var_recordable = <Option<bool>>::sse_decode(deserializer);
         let mut var_kind = <Option<String>>::sse_decode(deserializer);
         let mut var_effectiveRecordable = <bool>::sse_decode(deserializer);
@@ -6216,6 +6278,7 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
             activities: var_activities,
             follow_ups: var_followUps,
             guidance: var_guidance,
+            emotion: var_emotion,
             recordable: var_recordable,
             kind: var_kind,
             effective_recordable: var_effectiveRecordable,
@@ -6241,6 +6304,24 @@ impl SseDecode for crate::api::EventDto {
             occurred_at: var_occurredAt,
             source: var_source,
             status: var_status,
+        };
+    }
+}
+
+impl SseDecode for crate::api::EventEmotionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_eventId = <String>::sse_decode(deserializer);
+        let mut var_recordedAt = <String>::sse_decode(deserializer);
+        let mut var_target = <Option<String>>::sse_decode(deserializer);
+        let mut var_feeling = <String>::sse_decode(deserializer);
+        return crate::api::EventEmotionDto {
+            id: var_id,
+            event_id: var_eventId,
+            recorded_at: var_recordedAt,
+            target: var_target,
+            feeling: var_feeling,
         };
     }
 }
@@ -7009,6 +7090,18 @@ impl SseDecode for Vec<crate::api::conversations::DailyTokenUsageDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::EmotionTagDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::EmotionTagDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::EntityFactDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7028,6 +7121,18 @@ impl SseDecode for Vec<crate::api::EventDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::EventDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::EventEmotionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::EventEmotionDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -7889,6 +7994,17 @@ impl SseDecode for Option<crate::api::wiki::WikiPageDto> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::wiki::WikiPageDto>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<Vec<crate::api::EmotionTagDto>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<Vec<crate::api::EmotionTagDto>>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -9299,6 +9415,22 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversations::DailyTokenUsag
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::EmotionTagDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.target.into_into_dart().into_dart(),
+            self.feeling.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EmotionTagDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::EmotionTagDto> for crate::api::EmotionTagDto {
+    fn into_into_dart(self) -> crate::api::EmotionTagDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::EntityFactDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -9369,6 +9501,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventAnalysisDetailDto {
             self.activities.into_into_dart().into_dart(),
             self.follow_ups.into_into_dart().into_dart(),
             self.guidance.into_into_dart().into_dart(),
+            self.emotion.into_into_dart().into_dart(),
             self.recordable.into_into_dart().into_dart(),
             self.kind.into_into_dart().into_dart(),
             self.effective_recordable.into_into_dart().into_dart(),
@@ -9406,6 +9539,27 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventDto {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EventDto {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::EventDto> for crate::api::EventDto {
     fn into_into_dart(self) -> crate::api::EventDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::EventEmotionDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.event_id.into_into_dart().into_dart(),
+            self.recorded_at.into_into_dart().into_dart(),
+            self.target.into_into_dart().into_dart(),
+            self.feeling.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EventEmotionDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::EventEmotionDto>
+    for crate::api::EventEmotionDto
+{
+    fn into_into_dart(self) -> crate::api::EventEmotionDto {
         self
     }
 }
@@ -11398,6 +11552,14 @@ impl SseEncode for crate::api::conversations::DailyTokenUsageDto {
     }
 }
 
+impl SseEncode for crate::api::EmotionTagDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.target, serializer);
+        <String>::sse_encode(self.feeling, serializer);
+    }
+}
+
 impl SseEncode for crate::api::EntityFactDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11447,6 +11609,7 @@ impl SseEncode for crate::api::EventAnalysisDetailDto {
         <Vec<String>>::sse_encode(self.activities, serializer);
         <Vec<String>>::sse_encode(self.follow_ups, serializer);
         <Option<crate::api::GuidanceDto>>::sse_encode(self.guidance, serializer);
+        <Option<Vec<crate::api::EmotionTagDto>>>::sse_encode(self.emotion, serializer);
         <Option<bool>>::sse_encode(self.recordable, serializer);
         <Option<String>>::sse_encode(self.kind, serializer);
         <bool>::sse_encode(self.effective_recordable, serializer);
@@ -11464,6 +11627,17 @@ impl SseEncode for crate::api::EventDto {
         <String>::sse_encode(self.occurred_at, serializer);
         <String>::sse_encode(self.source, serializer);
         <String>::sse_encode(self.status, serializer);
+    }
+}
+
+impl SseEncode for crate::api::EventEmotionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.event_id, serializer);
+        <String>::sse_encode(self.recorded_at, serializer);
+        <Option<String>>::sse_encode(self.target, serializer);
+        <String>::sse_encode(self.feeling, serializer);
     }
 }
 
@@ -11965,6 +12139,16 @@ impl SseEncode for Vec<crate::api::conversations::DailyTokenUsageDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::EmotionTagDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::EmotionTagDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::EntityFactDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11981,6 +12165,16 @@ impl SseEncode for Vec<crate::api::EventDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::EventDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::EventEmotionDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::EventEmotionDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -12623,6 +12817,16 @@ impl SseEncode for Option<crate::api::wiki::WikiPageDto> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::wiki::WikiPageDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<Vec<crate::api::EmotionTagDto>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <Vec<crate::api::EmotionTagDto>>::sse_encode(value, serializer);
         }
     }
 }
@@ -13619,6 +13823,15 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::EmotionTagDto> for wire_cst_emotion_tag_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EmotionTagDto {
+            crate::api::EmotionTagDto {
+                target: self.target.cst_decode(),
+                feeling: self.feeling.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::EntityFactDto> for wire_cst_entity_fact_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::EntityFactDto {
@@ -13671,6 +13884,7 @@ mod io {
                 activities: self.activities.cst_decode(),
                 follow_ups: self.follow_ups.cst_decode(),
                 guidance: self.guidance.cst_decode(),
+                emotion: self.emotion.cst_decode(),
                 recordable: self.recordable.cst_decode(),
                 kind: self.kind.cst_decode(),
                 effective_recordable: self.effective_recordable.cst_decode(),
@@ -13689,6 +13903,18 @@ mod io {
                 occurred_at: self.occurred_at.cst_decode(),
                 source: self.source.cst_decode(),
                 status: self.status.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::EventEmotionDto> for wire_cst_event_emotion_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EventEmotionDto {
+            crate::api::EventEmotionDto {
+                id: self.id.cst_decode(),
+                event_id: self.event_id.cst_decode(),
+                recorded_at: self.recorded_at.cst_decode(),
+                target: self.target.cst_decode(),
+                feeling: self.feeling.cst_decode(),
             }
         }
     }
@@ -14215,6 +14441,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::EmotionTagDto>> for *mut wire_cst_list_emotion_tag_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::EmotionTagDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::EntityFactDto>> for *mut wire_cst_list_entity_fact_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::EntityFactDto> {
@@ -14228,6 +14464,16 @@ mod io {
     impl CstDecode<Vec<crate::api::EventDto>> for *mut wire_cst_list_event_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::EventDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::EventEmotionDto>> for *mut wire_cst_list_event_emotion_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::EventEmotionDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -15659,6 +15905,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_emotion_tag_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                target: core::ptr::null_mut(),
+                feeling: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_emotion_tag_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_entity_fact_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -15718,6 +15977,7 @@ mod io {
                 activities: core::ptr::null_mut(),
                 follow_ups: core::ptr::null_mut(),
                 guidance: core::ptr::null_mut(),
+                emotion: core::ptr::null_mut(),
                 recordable: core::ptr::null_mut(),
                 kind: core::ptr::null_mut(),
                 effective_recordable: Default::default(),
@@ -15744,6 +16004,22 @@ mod io {
         }
     }
     impl Default for wire_cst_event_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_event_emotion_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                event_id: core::ptr::null_mut(),
+                recorded_at: core::ptr::null_mut(),
+                target: core::ptr::null_mut(),
+                feeling: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_event_emotion_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -17317,6 +17593,16 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__delete_event_emotion(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        target: *mut wire_cst_list_prim_u_8_strict,
+        feeling: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__delete_event_emotion_impl(port_, id, target, feeling)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__relations__delete_relation(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
@@ -17918,6 +18204,11 @@ mod io {
         entity_slug: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__entities__list_entity_facts_impl(port_, entity_kind, entity_slug)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_event_emotions(port_: i64) {
+        wire__crate__api__list_event_emotions_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -19352,6 +19643,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_emotion_tag_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_emotion_tag_dto {
+        let wrap = wire_cst_list_emotion_tag_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_emotion_tag_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_entity_fact_dto(
         len: i32,
     ) -> *mut wire_cst_list_entity_fact_dto {
@@ -19372,6 +19677,20 @@ mod io {
         let wrap = wire_cst_list_event_dto {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_event_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_event_emotion_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_event_emotion_dto {
+        let wrap = wire_cst_list_event_emotion_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_event_emotion_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -20172,6 +20491,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_emotion_tag_dto {
+        target: *mut wire_cst_list_prim_u_8_strict,
+        feeling: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_entity_fact_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         entity_kind: *mut wire_cst_list_prim_u_8_strict,
@@ -20215,6 +20540,7 @@ mod io {
         activities: *mut wire_cst_list_String,
         follow_ups: *mut wire_cst_list_String,
         guidance: *mut wire_cst_guidance_dto,
+        emotion: *mut wire_cst_list_emotion_tag_dto,
         recordable: *mut bool,
         kind: *mut wire_cst_list_prim_u_8_strict,
         effective_recordable: bool,
@@ -20230,6 +20556,15 @@ mod io {
         occurred_at: *mut wire_cst_list_prim_u_8_strict,
         source: *mut wire_cst_list_prim_u_8_strict,
         status: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_event_emotion_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+        recorded_at: *mut wire_cst_list_prim_u_8_strict,
+        target: *mut wire_cst_list_prim_u_8_strict,
+        feeling: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -20599,6 +20934,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_emotion_tag_dto {
+        ptr: *mut wire_cst_emotion_tag_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_entity_fact_dto {
         ptr: *mut wire_cst_entity_fact_dto,
         len: i32,
@@ -20607,6 +20948,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_event_dto {
         ptr: *mut wire_cst_event_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_event_emotion_dto {
+        ptr: *mut wire_cst_event_emotion_dto,
         len: i32,
     }
     #[repr(C)]
@@ -21874,6 +22221,26 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::EmotionTagDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EmotionTagDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::EmotionTagDto {
+                target: self_.get(0).cst_decode(),
+                feeling: self_.get(1).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::EntityFactDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -21933,8 +22300,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                26,
-                "Expected 26 elements, got {}",
+                27,
+                "Expected 27 elements, got {}",
                 self_.length()
             );
             crate::api::EventAnalysisDetailDto {
@@ -21959,11 +22326,12 @@ mod web {
                 activities: self_.get(18).cst_decode(),
                 follow_ups: self_.get(19).cst_decode(),
                 guidance: self_.get(20).cst_decode(),
-                recordable: self_.get(21).cst_decode(),
-                kind: self_.get(22).cst_decode(),
-                effective_recordable: self_.get(23).cst_decode(),
-                effective_kind: self_.get(24).cst_decode(),
-                recordability_source: self_.get(25).cst_decode(),
+                emotion: self_.get(21).cst_decode(),
+                recordable: self_.get(22).cst_decode(),
+                kind: self_.get(23).cst_decode(),
+                effective_recordable: self_.get(24).cst_decode(),
+                effective_kind: self_.get(25).cst_decode(),
+                recordability_source: self_.get(26).cst_decode(),
             }
         }
     }
@@ -21986,6 +22354,29 @@ mod web {
                 occurred_at: self_.get(3).cst_decode(),
                 source: self_.get(4).cst_decode(),
                 status: self_.get(5).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::EventEmotionDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::EventEmotionDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::EventEmotionDto {
+                id: self_.get(0).cst_decode(),
+                event_id: self_.get(1).cst_decode(),
+                recorded_at: self_.get(2).cst_decode(),
+                target: self_.get(3).cst_decode(),
+                feeling: self_.get(4).cst_decode(),
             }
         }
     }
@@ -22747,6 +23138,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::EmotionTagDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::EmotionTagDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::EntityFactDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -22764,6 +23167,18 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::EventDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::EventEmotionDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::EventEmotionDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -24751,6 +25166,16 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__delete_event_emotion(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        target: Option<String>,
+        feeling: String,
+    ) {
+        wire__crate__api__delete_event_emotion_impl(port_, id, target, feeling)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__relations__delete_relation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
@@ -25364,6 +25789,13 @@ mod web {
         entity_slug: String,
     ) {
         wire__crate__api__entities__list_entity_facts_impl(port_, entity_kind, entity_slug)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__list_event_emotions(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__list_event_emotions_impl(port_)
     }
 
     #[wasm_bindgen]

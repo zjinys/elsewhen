@@ -324,6 +324,23 @@ pub struct GuidanceRefDto {
     pub note: String,
 }
 
+/// 情绪标注展示（D5）：文本标注、无数值（红线：不是情绪分析报告）。
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct EmotionTagDto {
+    pub target: Option<String>,
+    pub feeling: String,
+}
+
+/// 情绪条目列表行（面板用）：analysis_id 是删除定位键。
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct EventEmotionDto {
+    pub id: String,
+    pub event_id: String,
+    pub recorded_at: String,
+    pub target: Option<String>,
+    pub feeling: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct EventAnalysisDetailDto {
     pub event_id: String,
@@ -347,6 +364,7 @@ pub struct EventAnalysisDetailDto {
     pub activities: Vec<String>,
     pub follow_ups: Vec<String>,
     pub guidance: Option<GuidanceDto>,
+    pub emotion: Option<Vec<EmotionTagDto>>,
     pub recordable: Option<bool>,
     pub kind: Option<String>,
     pub effective_recordable: bool,
@@ -859,6 +877,32 @@ pub fn list_page_guidance(slug: String) -> Result<Vec<PageGuidanceDto>> {
         .collect())
 }
 
+/// 情绪标注列表（D5 用户模型面板）：最近分析的 emotion 派生。
+pub fn list_event_emotions() -> Result<Vec<EventEmotionDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store
+        .list_event_emotions(100)?
+        .into_iter()
+        .map(|item| EventEmotionDto {
+            id: item.analysis_id,
+            event_id: item.event_id,
+            recorded_at: item.recorded_at,
+            target: item.target,
+            feeling: item.feeling,
+        })
+        .collect())
+}
+
+/// 删除一条情绪标注：只编辑分析产物的 emotion 字段，事件真源不动。
+pub fn delete_event_emotion(id: String, target: Option<String>, feeling: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let removed = store.delete_event_emotion(id.trim(), target.as_deref(), feeling.trim())?;
+    anyhow::ensure!(removed, "情绪标注不存在或已被删除");
+    Ok(())
+}
+
 pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysisDetailDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
@@ -914,6 +958,16 @@ pub fn get_event_analysis_detail(event_id: String) -> Result<Option<EventAnalysi
                     .collect(),
                 lessons: g.lessons.clone(),
                 follow_ups_refined: g.follow_ups_refined.clone(),
+            })
+        }),
+        emotion: analysis.as_ref().and_then(|value| {
+            value.emotion.as_ref().map(|tags| {
+                tags.iter()
+                    .map(|tag| EmotionTagDto {
+                        target: tag.target.clone(),
+                        feeling: tag.feeling.clone(),
+                    })
+                    .collect()
             })
         }),
         recordable: analysis.as_ref().map(|value| value.recordable),
@@ -1115,7 +1169,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
             )
         };
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v3。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)；仅当下方附有规则命中时才包含 rule_confirmations(array of {{rule_id: string, applicable: boolean, confidence: number 0..1}})。只有当决策辅助上下文与你确有关联时才可选包含 guidance 对象：{{\"related\":[{{\"slug\":string,\"note\":string}}],\"lessons\":[string],\"follow_ups_refined\":[string]}}：related[].slug 只能取自决策辅助上下文中出现的知识库页 slug，note 写为什么相关/可复用什么（一句话）；lessons 写可复用经验（不是重复记录内容）；follow_ups_refined 是对 follow_ups 的精炼合并；无关联时整个省略 guidance 字段，不得杜撰 slug。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}{}",
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v3。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)；仅当下方附有规则命中时才包含 rule_confirmations(array of {{rule_id: string, applicable: boolean, confidence: number 0..1}})。情绪走红线：仅当记录客观存在对具体人或事的情绪反应时才可选包含 emotion 数组：[{{\"target\": string, \"feeling\": string}}]——feeling 用简短文本描述感受（如「被理解」「焦虑」「挫败」），绝对禁止打分或生成情绪分析报告；target 填相关的人或事（与 people/projects 一致，对事件本身的感受填空字符串）；没有则整个省略 emotion 字段。只有当决策辅助上下文与你确有关联时才可选包含 guidance 对象：{{\"related\":[{{\"slug\":string,\"note\":string}}],\"lessons\":[string],\"follow_ups_refined\":[string]}}：related[].slug 只能取自决策辅助上下文中出现的知识库页 slug，note 写为什么相关/可复用什么（一句话）；lessons 写可复用经验（不是重复记录内容）；follow_ups_refined 是对 follow_ups 的精炼合并；无关联时整个省略 guidance 字段，不得杜撰 slug。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}{}",
             context, job.raw_text, rules_section
         );
         let mut analysis_context = vec![
@@ -1132,6 +1186,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
                     // guidance 护栏（D4）：杜撰 slug 丢弃、条数与文本封顶；
                     // 清洗后为空则整字段省略——派生层不存垃圾。
                     wash_guidance(store, &mut value);
+                    wash_emotion(&mut value);
                     let current = crate::knowledge::current_candidates(store, &candidates)?;
                     let mut cited = Vec::new();
                     for field in std::iter::once(&mut value.summary)
@@ -1344,6 +1399,41 @@ fn decision_support_material(
 
 /// guidance 清洗与护栏（D4）：相关页 slug 必须真实存在，否则丢弃该项；
 /// 每类条数封顶 10、每条文本 500 字——分析输出不得无限膨胀。
+/// 情绪标注护栏（D5）：只有文本无数值；空 feeling 丢弃、重复归并、
+/// 每条 200 字封顶、条数封 8。清洗后为空则整字段省略。
+fn wash_emotion(value: &mut EventAnalysisV1) {
+    let Some(tags) = value.emotion.as_mut() else {
+        return;
+    };
+    tags.retain(|tag| !tag.feeling.trim().is_empty());
+    let mut seen: Vec<(Option<String>, String)> = Vec::new();
+    tags.retain(|tag| {
+        let feeling: String = tag.feeling.trim().chars().take(200).collect();
+        let target = tag
+            .target
+            .as_ref()
+            .map(|t| t.trim().to_owned())
+            .filter(|t| !t.is_empty());
+        if seen.iter().any(|(t, f)| *t == target && f == &feeling) {
+            return false;
+        }
+        seen.push((target.clone(), feeling.clone()));
+        true
+    });
+    for tag in tags.iter_mut() {
+        tag.feeling = tag.feeling.trim().chars().take(200).collect();
+        tag.target = tag
+            .target
+            .as_ref()
+            .map(|t| t.trim().chars().take(200).collect::<String>())
+            .filter(|t| !t.is_empty());
+    }
+    tags.truncate(8);
+    if tags.is_empty() {
+        value.emotion = None;
+    }
+}
+
 fn wash_guidance(store: &Store, value: &mut EventAnalysisV1) {
     let Some(guidance) = value.guidance.as_mut() else {
         return;
@@ -1915,7 +2005,7 @@ mod guidance_tests {
         let value =
             EventAnalysisV1::parse(r#"{"schema_version":"event-analysis-v3","recordable":true,"kind":"event","event_type":"note","confidence":0.9,"summary":"上线","clarifications":[],"people":[],"projects":[],"activities":[],"follow_ups":[],"guidance":{"related":[{"slug":"网站改版","note":"此前联调经验可复用"}],"lessons":["先灰度再全量"],"follow_ups_refined":["观察一周报错率"]}}"#).unwrap();
         let detail = store
-            .event_analysis_detail(&sqlite_event_id(&store))
+            .event_analysis_detail(&guidance_event_id(&store))
             .unwrap()
             .unwrap();
         store
@@ -1943,7 +2033,83 @@ mod guidance_tests {
         let _ = std::fs::remove_file(path);
     }
 
-    fn sqlite_event_id(store: &Store) -> String {
+    #[test]
+    fn emotion_flows_list_and_delete_leaves_event_untouched() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        store
+            .insert_event(NewEvent::now("和家长会老师聊了成绩"))
+            .unwrap();
+        let value =
+            EventAnalysisV1::parse(r#"{"schema_version":"event-analysis-v3","recordable":true,"kind":"event","event_type":"note","confidence":0.9,"summary":"s","clarifications":[],"people":[],"projects":[],"activities":[],"follow_ups":[],"emotion":[{"target":"家长会老师","feeling":"被理解"},{"target":"","feeling":"焦虑"}]}"#).unwrap();
+        store
+            .complete_analysis(
+                &crate::storage::AnalysisJob {
+                    id: job_id(&store),
+                    event_id: guidance_event_id(&store),
+                    raw_text: String::new(),
+                    attempts: 0,
+                },
+                &value.schema_version,
+                &serde_json::to_string(&value).unwrap(),
+            )
+            .unwrap();
+        // 列表面（派生读，target 空串归一为 None=对事件本身）
+        let items = store.list_event_emotions(100).unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].target.as_deref(), Some("家长会老师"));
+        assert_eq!(items[0].feeling, "被理解");
+        assert_eq!(items[1].target, None, "空 target = 对事件本身");
+
+        // 删除只动 result_json 的 emotion 字段：事件原文与其它分析字段不动
+        let before: String = store
+            .connection
+            .query_row(
+                "SELECT raw_text FROM events WHERE id=?1",
+                [guidance_event_id(&store)],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let removed = store
+            .delete_event_emotion(&items[0].analysis_id, Some("家长会老师"), "被理解")
+            .unwrap();
+        assert!(removed);
+        let after_raw: String = store
+            .connection
+            .query_row(
+                "SELECT raw_text FROM events WHERE id=?1",
+                [guidance_event_id(&store)],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(before, after_raw, "事件真源必须分毫不动");
+        let detail = store
+            .event_analysis_detail(&guidance_event_id(&store))
+            .unwrap()
+            .unwrap();
+        let value = EventAnalysisV1::parse(&detail.result_json.unwrap()).unwrap();
+        let emotions = value.emotion.unwrap();
+        assert_eq!(emotions.len(), 1);
+        assert_eq!(emotions[0].feeling, "焦虑");
+        // 清空后整字段移除（避免残留空数组垃圾）
+        store
+            .delete_event_emotion(&items[0].analysis_id, Some(""), "焦虑")
+            .unwrap();
+        let value = EventAnalysisV1::parse(
+            &store
+                .event_analysis_detail(&guidance_event_id(&store))
+                .unwrap()
+                .unwrap()
+                .result_json
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(value.emotion.is_none(), "空数组应整字段省略");
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    fn guidance_event_id(store: &Store) -> String {
         store
             .connection
             .query_row("SELECT id FROM events LIMIT 1", [], |r| r.get(0))
@@ -1955,6 +2121,41 @@ mod guidance_tests {
             .connection
             .query_row("SELECT id FROM analysis_jobs LIMIT 1", [], |r| r.get(0))
             .unwrap()
+    }
+}
+
+#[cfg(test)]
+mod emotion_wash_tests {
+    use super::*;
+
+    #[test]
+    fn wash_emotion_drops_empty_merges_duplicates_and_caps() {
+        let mut value =
+            EventAnalysisV1::parse(r#"{"schema_version":"event-analysis-v3","recordable":true,"kind":"event","event_type":"note","confidence":0.9,"summary":"s","clarifications":[],"people":[],"projects":[],"activities":[],"follow_ups":[],"emotion":[{"target":"甲","feeling":"焦虑"},{"target":"甲","feeling":"焦虑"},{"feeling":"挫败"},{"target":"乙","feeling":"被理解"}]}"#).unwrap();
+        wash_emotion(&mut value);
+        let tags = value.emotion.unwrap();
+        assert_eq!(tags.len(), 3, "重复归并、其余保留");
+        assert_eq!(
+            tags[1].target.as_deref(),
+            None,
+            "缺 target 保留为对事件本身"
+        );
+        assert_eq!(tags[1].feeling, "挫败");
+        // 全空 → 整字段清空
+        // 条数封顶 8
+        let mut many_json = String::from(
+            r#"{"schema_version":"event-analysis-v3","recordable":true,"kind":"event","event_type":"note","confidence":0.9,"summary":"s","clarifications":[],"people":[],"projects":[],"activities":[],"follow_ups":[],"emotion":["#,
+        );
+        for i in 0..10 {
+            if i > 0 {
+                many_json.push(',');
+            }
+            many_json.push_str(&format!(r#"{{"target":"person{i}","feeling":"感受{i}"}}"#));
+        }
+        many_json.push_str("]}");
+        let mut many = EventAnalysisV1::parse(&many_json).unwrap();
+        wash_emotion(&mut many);
+        assert_eq!(many.emotion.unwrap().len(), 8, "条数封顶 8");
     }
 }
 

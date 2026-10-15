@@ -12,7 +12,7 @@
 
 - **建立日期：** 2026-10-14，基于用户确认「转成 roadmap，从增量维护闭环 + 分层确认起步」。
 - **代码基线：** `f7f6e74`（迁移 34；Rust 711 / Flutter 372 / analyze 0 error/warning）。
-- **当前阶段：** D0–D4 已完成（MVP = D1+D2+D4 齐）；下一步 D5（情绪维度与陪伴扩展）
+- **当前阶段：** D0–D5 已完成；下一步 D6（闭环度量与「被记得」，MVP 后首轮扩展收官）
 
 | 切片 | 内容 | 依赖 | 状态 |
 |---|---|---|---|
@@ -21,7 +21,7 @@
 | D2 | 用户模型增量维护 + 分层确认 | D0 | ✅ 已完成（`7d77a96`） |
 | D3 | 实体消歧与别名归一 | D2 | ✅ 已完成（`0b8a41e`） |
 | D4 | 分析升级「提取 + 指导」（挂知识库与用户模型） | D2 | ✅ 已完成（2026-10-15，见 D4 节实现锚点） |
-| D5 | 情绪维度与陪伴扩展 | D2 | 未开始 |
+| D5 | 情绪维度与陪伴扩展 | D2 | ✅ 已完成（2026-10-15，见 D5 节实现锚点；含 D0 情绪存储映射修订） |
 | D6 | 闭环度量与「被记得」（主动回引 + 今日记忆检索合并） | D1、D4 | 未开始 |
 
 ## 不变式（继承 note 红线，实现必须逐一可达）
@@ -63,7 +63,7 @@ note（2026-09-19）的三个缺口判断有两条已随管线演进过期，以
   | 人物/项目/关系 | `relations`（已存在） | D2 增量管道专写 |
   | 别名 | `entity_aliases`（D3 新表） | alias↔canonical slug |
   | 目标 | `goals` 表引用 | 不重复建模 |
-  | 情绪 | `event_emotions`（D5 新表：event_id, target_slug?, feeling, created_at） | 独立表（附着事件而非关系图），从 v3 `emotion` 字段落库 |
+  | 情绪 | ~~`event_emotions` 独立表~~ **D5 修订：不建独立表**——情绪作为 v3 `emotion` 字段随 `event_analyses.result_json` 落库（快照同步自动携带、跨设备删除一致）；面板读/删直接派生/编辑该字段，事件真源不动 | D5 落实时回写本表（已回，2026-10-15） |
   | 承诺/复盘/节奏/偏好红线/健康/财务/地点/身份/创作线 | **wiki network 页型约定**（新 kind 页） | 零新表；透明可改可删天然满足，检索走 `select_knowledge`；发现语义冲突回本表修订而非硬塞 |
   每维度「查看/改/删」UI 面在 D2（只读面板起步）与 D5（全维度）交付。
 - [x] API 面（按切片）：D1 `list_rule_hits`/`set_rule_reminder_prefs`（事件旁标记走既有事件详情）；D2 `list_user_model_entries`/`delete_relation_edge`/增量确认入口；D3 `merge_entities`/`split_entity`/`list_alias_suggestions`；D4 guidance 进既有 `event_analysis_detail`；D6 `list_reminder_feedback`/回访偏好。
@@ -115,10 +115,10 @@ note（2026-09-19）的三个缺口判断有两条已随管线演进过期，以
 
 **收益：** 从「帮你做决定」扩到「接得住你」——2026-09-19 定位校准的落地。
 
-- [ ] 情绪标注落地：事件分析 `emotion` 字段（对谁/对什么事/情绪标注）→ `relations` 情绪边或独立标注表（按 D0 设计）；**绝不生成情绪分析报告**。
-- [ ] 其余维度按 D0 映射逐个轻量落地：财务/健康/地点/身份角色/创作主题线——先只做「事件承载 + 可见可删」，不做量化模型；发现语义冲突即回 D0 修订而非硬塞。
-- [ ] 维度全集面板收口（D2 只读面板扩为全维度）。
-- [ ] 测试：情绪边与普通边互不污染；删除维度条目不影响事件真源。
+- [x] 情绪标注落地：事件分析 `emotion` 字段（对谁/对什么事/情绪标注）→ ~~`relations` 情绪边或独立标注表~~ **D5 修订：随 `event_analyses.result_json` 落库**（理由见上方 D0 映射表修订行）；**绝不生成情绪分析报告**。→ **实现（2026-10-15）：** prompt 挂 emotion 可选段（feeling 简短文本、禁止打分/生成报告、无则整字段省略）；worker 成功分支接 `wash_emotion`（空 feeling 丢弃、重复合并、每条/条数封顶 200 字×8、全空整字段清除，src/api/mod.rs）；读面 `list_event_emotions`（SQL json_each 扫 `$.emotion`，坏行静默跳过）+ `EventAnalysisDetailDto.emotion`；删除 `delete_event_emotion` = 编辑 result_json 的 emotion 字段（数组清空则整字段移除；定位键 analysis_id+target+feeling；**灰色语义：target 空串/缺失均归一为「对事件本身」**）。跨设备一致性：result_json 随 event_analyses 快照同步（snapshot.rs carried 清单），零新增同步接线。
+- [x] 其余维度按 D0 映射逐个轻量落地：财务/健康/地点/身份角色/创作主题线——先只做「事件承载 + 可见可删」，不做量化模型；发现语义冲突即回 D0 修订而非硬塞。→ **实现：** D0 映射本就是「wiki network 页型约定（零新表）」——知识库详情/合并/别名/编辑 UI 已全套在位（D3 实体区）；用户模型面板补维度全集提示行（列明九个页型维度、指向知识库）即完成收口，无发现语义冲突。
+- [x] 维度全集面板收口（D2 只读面板扩为全维度）。→ **实现：** 设置页「用户模型」区 = 关系账本（D2）+ 情绪标注小节（D5，可删单条；emotion 拉取失败独立降级不拖垮关系展示）+ 其余维度的知识库承载提示行。
+- [x] 测试：情绪边与普通边互不污染；删除维度条目不影响事件真源。→ **实现（Rust 725 / Flutter 377）：** `emotion_flows_list_and_delete_leaves_event_untouched`（删除前后 events.raw_text 逐字节相等断言 + 数组清空整字段移除 + 空串 target→「对事件本身」）；`wash_emotion_drops_duplicates_and_caps`（重复合并、缺 target 保留、封顶 8）；Flutter 桥面空库空列表不报错、删除不存在 id fail-closed 报错。**遗留：** ①情绪标注与 relations 完全同字段隔离（emotion 独立字段、不动关系图）由结构保证，无「边互写」专测（结构上不可能）；②reanalyze 会重建 emotion（显式用户动作，D2 已确立接受重建，与 guidance 同口径）；③target 目前存原文不 resolve 实体 slug（用户模型面板直接展示原文，无歧义归一需求——多义场景若出现再回 D0）。
 
 ## D6 — 闭环度量与「被记得」
 

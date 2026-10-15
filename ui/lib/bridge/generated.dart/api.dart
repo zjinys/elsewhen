@@ -10,9 +10,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `decision_support_material`, `default_event_kind`, `default_recordable`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`, `try_auto_upsert_annotated_relation`, `wash_guidance`
+// These functions are ignored because they are not marked as `pub`: `decision_support_material`, `default_event_kind`, `default_recordable`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`, `try_auto_upsert_annotated_relation`, `wash_emotion`, `wash_guidance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`, `EventEmotionTag`, `EventGuidanceRef`, `EventGuidance`, `EventRuleConfirmation`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -90,6 +90,21 @@ Future<DailyReviewResult> generateDailyReview({required String date}) =>
 
 Future<List<PageGuidanceDto>> listPageGuidance({required String slug}) =>
     RustLib.instance.api.crateApiListPageGuidance(slug: slug);
+
+/// 情绪标注列表（D5 用户模型面板）：最近分析的 emotion 派生。
+Future<List<EventEmotionDto>> listEventEmotions() =>
+    RustLib.instance.api.crateApiListEventEmotions();
+
+/// 删除一条情绪标注：只编辑分析产物的 emotion 字段，事件真源不动。
+Future<void> deleteEventEmotion({
+  required String id,
+  String? target,
+  required String feeling,
+}) => RustLib.instance.api.crateApiDeleteEventEmotion(
+  id: id,
+  target: target,
+  feeling: feeling,
+);
 
 Future<EventAnalysisDetailDto?> getEventAnalysisDetail({
   required String eventId,
@@ -357,6 +372,25 @@ sealed class DailyReviewResult with _$DailyReviewResult {
       DailyReviewResult_Created;
 }
 
+/// 情绪标注展示（D5）：文本标注、无数值（红线：不是情绪分析报告）。
+class EmotionTagDto {
+  final String? target;
+  final String feeling;
+
+  const EmotionTagDto({this.target, required this.feeling});
+
+  @override
+  int get hashCode => target.hashCode ^ feeling.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EmotionTagDto &&
+          runtimeType == other.runtimeType &&
+          target == other.target &&
+          feeling == other.feeling;
+}
+
 class EntityFactDto {
   final String id;
   final String entityKind;
@@ -430,6 +464,7 @@ class EventAnalysisDetailDto {
   final List<String> activities;
   final List<String> followUps;
   final GuidanceDto? guidance;
+  final List<EmotionTagDto>? emotion;
   final bool? recordable;
   final String? kind;
   final bool effectiveRecordable;
@@ -458,6 +493,7 @@ class EventAnalysisDetailDto {
     required this.activities,
     required this.followUps,
     this.guidance,
+    this.emotion,
     this.recordable,
     this.kind,
     required this.effectiveRecordable,
@@ -488,6 +524,7 @@ class EventAnalysisDetailDto {
       activities.hashCode ^
       followUps.hashCode ^
       guidance.hashCode ^
+      emotion.hashCode ^
       recordable.hashCode ^
       kind.hashCode ^
       effectiveRecordable.hashCode ^
@@ -520,6 +557,7 @@ class EventAnalysisDetailDto {
           activities == other.activities &&
           followUps == other.followUps &&
           guidance == other.guidance &&
+          emotion == other.emotion &&
           recordable == other.recordable &&
           kind == other.kind &&
           effectiveRecordable == other.effectiveRecordable &&
@@ -565,6 +603,42 @@ class EventDto {
           occurredAt == other.occurredAt &&
           source == other.source &&
           status == other.status;
+}
+
+/// 情绪条目列表行（面板用）：analysis_id 是删除定位键。
+class EventEmotionDto {
+  final String id;
+  final String eventId;
+  final String recordedAt;
+  final String? target;
+  final String feeling;
+
+  const EventEmotionDto({
+    required this.id,
+    required this.eventId,
+    required this.recordedAt,
+    this.target,
+    required this.feeling,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      eventId.hashCode ^
+      recordedAt.hashCode ^
+      target.hashCode ^
+      feeling.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EventEmotionDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          eventId == other.eventId &&
+          recordedAt == other.recordedAt &&
+          target == other.target &&
+          feeling == other.feeling;
 }
 
 /// guidance 派生层展示（D4）：related 指知识库页，lessons/精炼待办是纯文本。

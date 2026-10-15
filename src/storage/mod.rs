@@ -473,6 +473,20 @@ pub struct PageGuidanceItem {
     pub follow_ups_refined: Vec<String>,
 }
 
+/// 情绪标注面（D5）：从 event_analyses.result_json 的 `$.emotion` 派生。
+/// D0 原定的 `event_emotions` 独立表不建——result_json 本身就是分析产物真源
+/// 且随快照同步，独立转写表会引入跨设备删除不一致；编辑情绪 = 编辑
+/// result_json 里的 emotion 字段，事件真源（events 表）不动。
+pub struct EventEmotionItem {
+    /// 所属分析结果 id（删除定位键）。
+    pub analysis_id: String,
+    pub event_id: String,
+    pub recorded_at: String,
+    /// None = 对事件本身的感受（D0 语义）。
+    pub target: Option<String>,
+    pub feeling: String,
+}
+
 /// 宽容解析 JSON 字符串数组：坏类型/坏 JSON 一律空数组（派生层不因展示瑕疵报错）。
 pub(crate) fn parse_json_string_array(raw: &str) -> Vec<String> {
     serde_json::from_str::<Vec<String>>(raw).unwrap_or_default()

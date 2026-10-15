@@ -199,6 +199,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
 
   @protected
+  EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw);
+
+  @protected
   EntityFactDto dco_decode_entity_fact_dto(dynamic raw);
 
   @protected
@@ -209,6 +212,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EventDto dco_decode_event_dto(dynamic raw);
+
+  @protected
+  EventEmotionDto dco_decode_event_emotion_dto(dynamic raw);
 
   @protected
   double dco_decode_f_64(dynamic raw);
@@ -340,10 +346,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw);
 
   @protected
+  List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw);
+
+  @protected
   List<EntityFactDto> dco_decode_list_entity_fact_dto(dynamic raw);
 
   @protected
   List<EventDto> dco_decode_list_event_dto(dynamic raw);
+
+  @protected
+  List<EventEmotionDto> dco_decode_list_event_emotion_dto(dynamic raw);
 
   @protected
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
@@ -566,6 +578,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw);
+
+  @protected
+  List<EmotionTagDto>? dco_decode_opt_list_emotion_tag_dto(dynamic raw);
 
   @protected
   OrganizedTopic dco_decode_organized_topic(dynamic raw);
@@ -876,6 +891,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer);
+
+  @protected
   EntityFactDto sse_decode_entity_fact_dto(SseDeserializer deserializer);
 
   @protected
@@ -890,6 +908,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EventDto sse_decode_event_dto(SseDeserializer deserializer);
+
+  @protected
+  EventEmotionDto sse_decode_event_emotion_dto(SseDeserializer deserializer);
 
   @protected
   double sse_decode_f_64(SseDeserializer deserializer);
@@ -1063,12 +1084,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<EmotionTagDto> sse_decode_list_emotion_tag_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<EntityFactDto> sse_decode_list_entity_fact_dto(
     SseDeserializer deserializer,
   );
 
   @protected
   List<EventDto> sse_decode_list_event_dto(SseDeserializer deserializer);
+
+  @protected
+  List<EventEmotionDto> sse_decode_list_event_emotion_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer);
@@ -1351,6 +1382,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto? sse_decode_opt_box_autoadd_wiki_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<EmotionTagDto>? sse_decode_opt_list_emotion_tag_dto(
     SseDeserializer deserializer,
   );
 
@@ -1952,6 +1988,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_emotion_tag_dto(EmotionTagDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_opt_String(raw.target),
+      cst_encode_String(raw.feeling),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_entity_fact_dto(EntityFactDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2003,6 +2048,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_String(raw.activities),
       cst_encode_list_String(raw.followUps),
       cst_encode_opt_box_autoadd_guidance_dto(raw.guidance),
+      cst_encode_opt_list_emotion_tag_dto(raw.emotion),
       cst_encode_opt_box_autoadd_bool(raw.recordable),
       cst_encode_opt_String(raw.kind),
       cst_encode_bool(raw.effectiveRecordable),
@@ -2021,6 +2067,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.occurredAt),
       cst_encode_String(raw.source),
       cst_encode_String(raw.status),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_event_emotion_dto(EventEmotionDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.eventId),
+      cst_encode_String(raw.recordedAt),
+      cst_encode_opt_String(raw.target),
+      cst_encode_String(raw.feeling),
     ].jsify()!;
   }
 
@@ -2464,6 +2522,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_emotion_tag_dto(List<EmotionTagDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_emotion_tag_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_entity_fact_dto(List<EntityFactDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_entity_fact_dto).toList().jsify()!;
@@ -2473,6 +2537,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_event_dto(List<EventDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_event_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_event_emotion_dto(List<EventEmotionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_event_emotion_dto).toList().jsify()!;
   }
 
   @protected
@@ -2942,6 +3012,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_wiki_page_dto(WikiPageDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_list_emotion_tag_dto(List<EmotionTagDto>? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_list_emotion_tag_dto(raw);
   }
 
   @protected
@@ -3730,6 +3806,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_emotion_tag_dto(EmotionTagDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_entity_fact_dto(EntityFactDto self, SseSerializer serializer);
 
   @protected
@@ -3746,6 +3825,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_event_dto(EventDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_event_emotion_dto(
+    EventEmotionDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
@@ -3967,6 +4052,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_emotion_tag_dto(
+    List<EmotionTagDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_entity_fact_dto(
     List<EntityFactDto> self,
     SseSerializer serializer,
@@ -3974,6 +4065,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_event_dto(List<EventDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_event_emotion_dto(
+    List<EventEmotionDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer);
@@ -4323,6 +4420,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_wiki_page_dto(
     WikiPageDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_list_emotion_tag_dto(
+    List<EmotionTagDto>? self,
     SseSerializer serializer,
   );
 
@@ -4889,6 +4992,18 @@ class RustLibWire implements BaseWire {
     String id,
   ) => wasmModule.wire__crate__api__entities__delete_entity_fact(port_, id);
 
+  void wire__crate__api__delete_event_emotion(
+    NativePortType port_,
+    String id,
+    String? target,
+    String feeling,
+  ) => wasmModule.wire__crate__api__delete_event_emotion(
+    port_,
+    id,
+    target,
+    feeling,
+  );
+
   void wire__crate__api__relations__delete_relation(
     NativePortType port_,
     String id,
@@ -5398,6 +5513,9 @@ class RustLibWire implements BaseWire {
     entity_kind,
     entity_slug,
   );
+
+  void wire__crate__api__list_event_emotions(NativePortType port_) =>
+      wasmModule.wire__crate__api__list_event_emotions(port_);
 
   void wire__crate__api__rules__list_event_rule_hits(
     NativePortType port_,
@@ -6582,6 +6700,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__delete_event_emotion(
+    NativePortType port_,
+    String id,
+    String? target,
+    String feeling,
+  );
+
   external void wire__crate__api__relations__delete_relation(
     NativePortType port_,
     String id,
@@ -6941,6 +7066,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String entity_kind,
     String entity_slug,
   );
+
+  external void wire__crate__api__list_event_emotions(NativePortType port_);
 
   external void wire__crate__api__rules__list_event_rule_hits(
     NativePortType port_,

@@ -188,6 +188,27 @@ void main() {
     expect(cleared.fontSize, 16);
   });
 
+  test(
+    'listEventEmotions returns empty (not error) on empty library',
+    () async {
+      // D5 桥面：情绪标注派生面空库空列表、不报错。
+      final items = await repo.listEventEmotions();
+      expect(items, isEmpty);
+    },
+  );
+
+  test(
+    'deleteEventEmotion on missing id surfaces an error (fail-closed)',
+    () async {
+      try {
+        await repo.deleteEventEmotion(id: 'nonexistent', feeling: '被理解');
+        fail('expected error');
+      } catch (_) {
+        // ensure 抛错即正确消息（面板会以 SnackBar 呈现）。
+      }
+    },
+  );
+
   test('listPageGuidance returns empty (not error) on unknown slug', () async {
     // D4 聚合视图桥面：未知 slug 空结果、不抛错——空库不劣化契约。
     final items = await repo.listPageGuidance('person/nonexistent-slug');

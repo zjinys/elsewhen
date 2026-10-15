@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1842486401;
+  int get rustContentHash => 1951429955;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -278,6 +278,12 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<bool> crateApiEntitiesDeleteEntityFact({required String id});
+
+  Future<void> crateApiDeleteEventEmotion({
+    required String id,
+    String? target,
+    required String feeling,
+  });
 
   Future<bool> crateApiRelationsDeleteRelation({required String id});
 
@@ -533,6 +539,8 @@ abstract class RustLibApi extends BaseApi {
     required String entityKind,
     required String entitySlug,
   });
+
+  Future<List<EventEmotionDto>> crateApiListEventEmotions();
 
   Future<List<RuleHitDto>> crateApiRulesListEventRuleHits({
     required String eventId,
@@ -2149,6 +2157,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiEntitiesDeleteEntityFactConstMeta =>
       const TaskConstMeta(debugName: "delete_entity_fact", argNames: ["id"]);
+
+  @override
+  Future<void> crateApiDeleteEventEmotion({
+    required String id,
+    String? target,
+    required String feeling,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_opt_String(target);
+          var arg2 = cst_encode_String(feeling);
+          return wire.wire__crate__api__delete_event_emotion(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDeleteEventEmotionConstMeta,
+        argValues: [id, target, feeling],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDeleteEventEmotionConstMeta => const TaskConstMeta(
+    debugName: "delete_event_emotion",
+    argNames: ["id", "target", "feeling"],
+  );
 
   @override
   Future<bool> crateApiRelationsDeleteRelation({required String id}) {
@@ -4146,6 +4189,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "list_entity_facts",
         argNames: ["entityKind", "entitySlug"],
       );
+
+  @override
+  Future<List<EventEmotionDto>> crateApiListEventEmotions() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__list_event_emotions(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_event_emotion_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiListEventEmotionsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiListEventEmotionsConstMeta =>
+      const TaskConstMeta(debugName: "list_event_emotions", argNames: []);
 
   @override
   Future<List<RuleHitDto>> crateApiRulesListEventRuleHits({
@@ -8093,6 +8157,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return EmotionTagDto(
+      target: dco_decode_opt_String(arr[0]),
+      feeling: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
   EntityFactDto dco_decode_entity_fact_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -8129,8 +8205,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EventAnalysisDetailDto dco_decode_event_analysis_detail_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 26)
-      throw Exception('unexpected arr length: expect 26 but see ${arr.length}');
+    if (arr.length != 27)
+      throw Exception('unexpected arr length: expect 27 but see ${arr.length}');
     return EventAnalysisDetailDto(
       eventId: dco_decode_String(arr[0]),
       rawText: dco_decode_String(arr[1]),
@@ -8153,11 +8229,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       activities: dco_decode_list_String(arr[18]),
       followUps: dco_decode_list_String(arr[19]),
       guidance: dco_decode_opt_box_autoadd_guidance_dto(arr[20]),
-      recordable: dco_decode_opt_box_autoadd_bool(arr[21]),
-      kind: dco_decode_opt_String(arr[22]),
-      effectiveRecordable: dco_decode_bool(arr[23]),
-      effectiveKind: dco_decode_String(arr[24]),
-      recordabilitySource: dco_decode_String(arr[25]),
+      emotion: dco_decode_opt_list_emotion_tag_dto(arr[21]),
+      recordable: dco_decode_opt_box_autoadd_bool(arr[22]),
+      kind: dco_decode_opt_String(arr[23]),
+      effectiveRecordable: dco_decode_bool(arr[24]),
+      effectiveKind: dco_decode_String(arr[25]),
+      recordabilitySource: dco_decode_String(arr[26]),
     );
   }
 
@@ -8174,6 +8251,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       occurredAt: dco_decode_String(arr[3]),
       source: dco_decode_String(arr[4]),
       status: dco_decode_String(arr[5]),
+    );
+  }
+
+  @protected
+  EventEmotionDto dco_decode_event_emotion_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return EventEmotionDto(
+      id: dco_decode_String(arr[0]),
+      eventId: dco_decode_String(arr[1]),
+      recordedAt: dco_decode_String(arr[2]),
+      target: dco_decode_opt_String(arr[3]),
+      feeling: dco_decode_String(arr[4]),
     );
   }
 
@@ -8701,6 +8793,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_emotion_tag_dto).toList();
+  }
+
+  @protected
   List<EntityFactDto> dco_decode_list_entity_fact_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_entity_fact_dto).toList();
@@ -8710,6 +8808,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<EventDto> dco_decode_list_event_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_event_dto).toList();
+  }
+
+  @protected
+  List<EventEmotionDto> dco_decode_list_event_emotion_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_event_emotion_dto).toList();
   }
 
   @protected
@@ -9211,6 +9315,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WikiPageDto? dco_decode_opt_box_autoadd_wiki_page_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_wiki_page_dto(raw);
+  }
+
+  @protected
+  List<EmotionTagDto>? dco_decode_opt_list_emotion_tag_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_emotion_tag_dto(raw);
   }
 
   @protected
@@ -10490,6 +10600,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_target = sse_decode_opt_String(deserializer);
+    var var_feeling = sse_decode_String(deserializer);
+    return EmotionTagDto(target: var_target, feeling: var_feeling);
+  }
+
+  @protected
   EntityFactDto sse_decode_entity_fact_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -10557,6 +10675,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_activities = sse_decode_list_String(deserializer);
     var var_followUps = sse_decode_list_String(deserializer);
     var var_guidance = sse_decode_opt_box_autoadd_guidance_dto(deserializer);
+    var var_emotion = sse_decode_opt_list_emotion_tag_dto(deserializer);
     var var_recordable = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_kind = sse_decode_opt_String(deserializer);
     var var_effectiveRecordable = sse_decode_bool(deserializer);
@@ -10584,6 +10703,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       activities: var_activities,
       followUps: var_followUps,
       guidance: var_guidance,
+      emotion: var_emotion,
       recordable: var_recordable,
       kind: var_kind,
       effectiveRecordable: var_effectiveRecordable,
@@ -10608,6 +10728,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       occurredAt: var_occurredAt,
       source: var_source,
       status: var_status,
+    );
+  }
+
+  @protected
+  EventEmotionDto sse_decode_event_emotion_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_eventId = sse_decode_String(deserializer);
+    var var_recordedAt = sse_decode_String(deserializer);
+    var var_target = sse_decode_opt_String(deserializer);
+    var var_feeling = sse_decode_String(deserializer);
+    return EventEmotionDto(
+      id: var_id,
+      eventId: var_eventId,
+      recordedAt: var_recordedAt,
+      target: var_target,
+      feeling: var_feeling,
     );
   }
 
@@ -11367,6 +11504,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<EmotionTagDto> sse_decode_list_emotion_tag_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EmotionTagDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_emotion_tag_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<EntityFactDto> sse_decode_list_entity_fact_dto(
     SseDeserializer deserializer,
   ) {
@@ -11388,6 +11539,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <EventDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_event_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<EventEmotionDto> sse_decode_list_event_emotion_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EventEmotionDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_event_emotion_dto(deserializer));
     }
     return ans_;
   }
@@ -12262,6 +12427,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_wiki_page_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  List<EmotionTagDto>? sse_decode_opt_list_emotion_tag_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_emotion_tag_dto(deserializer));
     } else {
       return null;
     }
@@ -13639,6 +13817,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_emotion_tag_dto(
+    EmotionTagDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.target, serializer);
+    sse_encode_String(self.feeling, serializer);
+  }
+
+  @protected
   void sse_encode_entity_fact_dto(
     EntityFactDto self,
     SseSerializer serializer,
@@ -13694,6 +13882,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.activities, serializer);
     sse_encode_list_String(self.followUps, serializer);
     sse_encode_opt_box_autoadd_guidance_dto(self.guidance, serializer);
+    sse_encode_opt_list_emotion_tag_dto(self.emotion, serializer);
     sse_encode_opt_box_autoadd_bool(self.recordable, serializer);
     sse_encode_opt_String(self.kind, serializer);
     sse_encode_bool(self.effectiveRecordable, serializer);
@@ -13710,6 +13899,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.occurredAt, serializer);
     sse_encode_String(self.source, serializer);
     sse_encode_String(self.status, serializer);
+  }
+
+  @protected
+  void sse_encode_event_emotion_dto(
+    EventEmotionDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.eventId, serializer);
+    sse_encode_String(self.recordedAt, serializer);
+    sse_encode_opt_String(self.target, serializer);
+    sse_encode_String(self.feeling, serializer);
   }
 
   @protected
@@ -14262,6 +14464,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_emotion_tag_dto(
+    List<EmotionTagDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_emotion_tag_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_entity_fact_dto(
     List<EntityFactDto> self,
     SseSerializer serializer,
@@ -14282,6 +14496,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_event_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_event_emotion_dto(
+    List<EventEmotionDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_event_emotion_dto(item, serializer);
     }
   }
 
@@ -15048,6 +15274,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_wiki_page_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_list_emotion_tag_dto(
+    List<EmotionTagDto>? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_emotion_tag_dto(self, serializer);
     }
   }
 

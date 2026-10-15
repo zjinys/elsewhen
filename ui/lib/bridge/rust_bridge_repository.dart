@@ -942,6 +942,17 @@ class RustBridgeRepository implements StorageRepository {
   Future<List<api.PageGuidanceDto>> listPageGuidance(String slug) =>
       api.listPageGuidance(slug: slug);
 
+  /// 情绪标注列表（D5 用户模型面板）：分析产物派生，文本无数值。
+  Future<List<api.EventEmotionDto>> listEventEmotions() =>
+      api.listEventEmotions();
+
+  /// 删除一条情绪标注：只编辑分析产物 emotion 字段，事件真源不动。
+  Future<void> deleteEventEmotion({
+    required String id,
+    String? target,
+    required String feeling,
+  }) => api.deleteEventEmotion(id: id, target: target, feeling: feeling);
+
   // ── 人物关系 ──
 
   /// 与某页相关的人物关系（双向：作为人物方或作为事情/项目方）

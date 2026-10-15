@@ -11,12 +11,12 @@ use uuid::Uuid;
 
 use super::adapter::AnalysisJob;
 use super::digest::enqueue_digest_job_on;
-use super::parse_json_string_array;
 use super::{
     AnalysisJobStats, DailyEntry, DailyReviewRecord, EventAnalysisDetail,
     EventRecordabilityDecision, EventSummary, InputRecord, InsightSummary, NewEvent,
     PageGuidanceItem, Store, map_input_record,
 };
+use super::{EventEmotionItem, parse_json_string_array};
 
 /// Shared raw-event write used by capture and authenticated replication inside
 /// their caller-owned transaction. Job scheduling is a separate local concern.
@@ -811,6 +811,102 @@ impl Store {
     /// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
     /// 从 event_analyses.result_json 派生（fail-soft：坏 JSON 行跳过），
     /// 只读不写——事件与页面真源都不动。
+    /// 情绪标注列表（D5 派生层）：扫最近分析的 `$.emotion`。任何单行坏 JSON
+    /// 静默跳过；读面故障降级为空列表（面板不因展示瑕疵报错）。
+    pub fn list_event_emotions(&self, limit: i64) -> Result<Vec<EventEmotionItem>> {
+        let mut statement = self.connection.prepare(
+            "SELECT a.id, a.event_id, e.recorded_at,
+                    json_extract(je.value, '$.target'),
+                    COALESCE(json_extract(je.value, '$.feeling'), '')
+             FROM event_analyses a
+             JOIN events e ON e.id = a.event_id
+             JOIN json_each(a.result_json, '$.emotion') je
+             ORDER BY e.recorded_at DESC, a.created_at DESC
+             LIMIT ?1",
+        )?;
+        let mut items = Vec::new();
+        let rows = statement.query_map(params![limit], |row| {
+            let target: Option<String> = row.get(3)?;
+            let target = target
+                .map(|t| t.trim().to_owned())
+                .filter(|t| !t.is_empty());
+            Ok(EventEmotionItem {
+                analysis_id: row.get(0)?,
+                event_id: row.get(1)?,
+                recorded_at: row.get(2)?,
+                target,
+                feeling: row.get::<_, String>(4)?.trim().to_owned(),
+            })
+        });
+        match rows {
+            Ok(mapped) => {
+                // json_each 遇坏 JSON 行会在迭代中报错：丢掉整段（fail-soft）。
+                for item in mapped.flatten() {
+                    items.push(item);
+                }
+            }
+            Err(_) => return Ok(Vec::new()),
+        }
+        items.retain(|item| !item.feeling.is_empty());
+        Ok(items)
+    }
+
+    /// 删除一条情绪标注：只有 result_json 的 emotion 数组被动（事件真源不动）。
+    /// 返回是否找到并移除；数组清空后整字段移除。找不到/解析失败返回 Ok(false)。
+    pub fn delete_event_emotion(
+        &self,
+        analysis_id: &str,
+        target: Option<&str>,
+        feeling: &str,
+    ) -> Result<bool> {
+        let raw: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT result_json FROM event_analyses WHERE id=?1",
+                params![analysis_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(raw) = raw else {
+            return Ok(false);
+        };
+        let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+            return Ok(false);
+        };
+        let Some(emotions) = value.pointer_mut("/emotion").and_then(|v| v.as_array_mut()) else {
+            return Ok(false);
+        };
+        let wanted = target
+            .map(|t| t.trim().to_owned())
+            .filter(|t| !t.is_empty());
+        let feeling = feeling.trim();
+        let position = emotions.iter().position(|tag| {
+            tag.get("feeling").and_then(|f| f.as_str()) == Some(feeling)
+                && tag
+                    .get("target")
+                    .and_then(|t| t.as_str())
+                    .map(|t| t.trim().to_owned())
+                    .filter(|t| !t.is_empty())
+                    == wanted
+        });
+        let Some(position) = position else {
+            return Ok(false);
+        };
+        emotions.remove(position);
+        if emotions.is_empty() {
+            value
+                .as_object_mut()
+                .map(|obj| obj.remove("emotion"))
+                .context("移除空 emotion 字段")?;
+        }
+        let updated = serde_json::to_string(&value)?;
+        let changed = self.connection.execute(
+            "UPDATE event_analyses SET result_json=?1 WHERE id=?2",
+            params![updated, analysis_id],
+        )?;
+        Ok(changed > 0)
+    }
+
     pub fn page_guidance_items(&self, slug: &str) -> Result<Vec<PageGuidanceItem>> {
         let mut statement = self.connection.prepare(
             "SELECT a.event_id, e.recorded_at,

@@ -57,8 +57,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   // 规则触发提醒（决策辅助 D1)：偏好模式 + 最近提醒列表
   String _ruleTriggerMode = 'instant';
   List<RuleHit> _recentRuleHits = [];
-  // 用户模型面板（决策辅助 D2，只读先行）：全部人物/项目关系边
+  // 用户模型面板（决策辅助 D2 + D5 全维度收口）：关系边 + 情绪标注。
+  // 其余维度（承诺/复盘/节奏/健康/财务/地点/身份/创作线）按 D0 映射
+  // 以知识库页型承载，在知识库中查看/编辑（面板只给入口提示）。
   List<Relation> _userModelRelations = [];
+  List<api.EventEmotionDto> _userModelEmotions = [];
   bool _userModelLoading = true;
 
   // AI provider 多配置（仅一个激活）
@@ -238,15 +241,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final relations = await repo.listRelations();
+      // 情绪标注读取失败不拖垮关系边展示（D5：陪伴面拉取独立降级）。
+      List<api.EventEmotionDto> emotions;
+      try {
+        emotions = await repo.listEventEmotions();
+      } catch (e) {
+        debugPrint('loadEventEmotions failed: $e');
+        emotions = const [];
+      }
       if (!mounted) return;
       setState(() {
         _userModelRelations = relations;
+        _userModelEmotions = emotions;
         _userModelLoading = false;
       });
     } catch (e) {
       debugPrint('loadUserModel failed: $e');
       if (!mounted) return;
       setState(() => _userModelLoading = false);
+    }
+  }
+
+  Future<void> _deleteEmotion(api.EventEmotionDto item) async {
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.deleteEventEmotion(
+        id: item.id,
+        target: item.target,
+        feeling: item.feeling,
+      );
+      if (!mounted) return;
+      setState(() => _userModelEmotions.remove(item));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('删除情绪标注', e))));
     }
   }
 
@@ -297,9 +326,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ),
       );
     }
-    if (_userModelRelations.isEmpty) {
+    if (_userModelRelations.isEmpty && _userModelEmotions.isEmpty) {
       return Text(
-        '还没有积累。对话或快录里提到的人物与项目，经你确认（或 @/# 标注的权威组合）后会在这里长成一份可查可删的关系账本；删掉一条不会动原始记录。',
+        '还没有积累。对话或快录里提到的人物与项目，经你确认（或 @/# 标注的权威组合）后会在这里长成一份可查可删的关系账本；有客观情绪反应的记录会给出简短文字标注（无数值、不是情绪分析报告）。删掉任何一条都不会动原始记录。',
         style: TextStyle(
           color: AppTheme.textSecondary,
           fontSize: 13,
@@ -368,6 +397,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ],
           ),
         ],
+        // ── 情绪标注（D5）：文本无数值，跨维度独立，用户可删 ──
+        if (_userModelEmotions.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Divider(height: 1, color: AppTheme.surface3),
+          const SizedBox(height: 8),
+          Text(
+            '情绪标注',
+            style: TextStyle(
+              color: AppTheme.textTertiary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          for (final item in _userModelEmotions)
+            Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.target == null || item.target!.isEmpty
+                              ? '对这件事'
+                              : '对 ${item.target}',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                        Text(
+                          '${item.feeling} · ${DateFormat('MM-dd HH:mm').format(DateTime.tryParse(item.recordedAt)?.toLocal() ?? DateTime.now())}',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  color: AppTheme.textTertiary,
+                  tooltip: '删除这条情绪标注（原始记录不动）',
+                  onPressed: () => _deleteEmotion(item),
+                ),
+              ],
+            ),
+        ],
+        // ── 维度全集收口（D5）：其余维度按 D0 映射以知识库页承载 ──
+        const SizedBox(height: 12),
+        Text(
+          '其余维度（承诺、复盘、节奏、偏好红线、健康、财务、地点、身份、创作线）以知识库页面承载，在知识库中查看与编辑。',
+          style: TextStyle(
+            color: AppTheme.textTertiary,
+            fontSize: 11,
+            height: 1.5,
+          ),
+        ),
       ],
     );
   }
