@@ -76,7 +76,7 @@ class LeftSidebar extends ConsumerWidget {
               SidebarTab.conversation => _buildConversationTab(context, ref),
               SidebarTab.wiki => const _WikiTab(),
               // 事件域左栏：精简最近事件列表，点击即选中（主工作区显示详情）
-              SidebarTab.events => const EventsNavList(),
+              SidebarTab.events => const EventsNavSummary(),
             },
           ),
           _buildFooter(context, ref),

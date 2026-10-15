@@ -21,32 +21,104 @@ class EventsView extends ConsumerWidget {
     final selectedId = ref.watch(selectedEventIdProvider);
     final compact = MediaQuery.of(context).size.width < 760;
     if (compact) {
-      return selectedId == null
-          ? const _EventList()
-          : const _EventDetail();
+      return selectedId == null ? const _EventList() : const _EventDetail();
     }
-    // 宽屏：列表只在侧栏（EventsNavList）一处，主区只显示详情——
-    // 不再重复渲染第二份列表（曾与侧栏完全同内容，纯负担）。
-    if (selectedId == null) {
-      return Center(
+    // 宽屏：事件流是主体——进入本域即见内容铺开（默认选中最近一条），
+    // 右侧常驻详情面板；不是「空面板等用户去侧栏挑」。
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: _EventStream(autoSelect: selectedId == null)),
+        VerticalDivider(width: 1, color: AppTheme.surface3),
+        SizedBox(
+          width: 460,
+          child: selectedId == null
+              ? Center(
+                  child: Text(
+                    '左侧选择事件查看详情',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                )
+              : const _EventDetail(),
+        ),
+      ],
+    );
+  }
+}
+
+/// 宽屏事件卡流：主体内容面。autoSelect 时默认选中最近一条，
+/// 用户一进域就看到「有什么 + 详情」，不需要先做一次点击。
+class _EventStream extends ConsumerWidget {
+  const _EventStream({required this.autoSelect});
+
+  final bool autoSelect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedId = ref.watch(selectedEventIdProvider);
+    final events = ref.watch(recentEventsProvider);
+    return events.when(
+      loading: () =>
+          const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      error: (e, _) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.history_edu_outlined,
-              size: 36,
-              color: AppTheme.textTertiary.withValues(alpha: 0.6),
-            ),
+            Text('事件加载失败', style: TextStyle(color: AppTheme.textTertiary)),
             const SizedBox(height: AppTheme.space2),
-            const Text(
-              '从左侧选择一个事件查看详情',
-              style: TextStyle(fontSize: 12.5),
+            TextButton(
+              onPressed: () => ref.invalidate(recentEventsProvider),
+              child: const Text('重试'),
             ),
           ],
         ),
-      );
-    }
-    return const _EventDetail();
+      ),
+      data: (list) {
+        if (list.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.space4),
+              child: Text(
+                '还没有记录过事件\n和 AI 的对话会自动作为事件记录在这里',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppTheme.textTertiary,
+                  height: 1.6,
+                ),
+              ),
+            ),
+          );
+        }
+        if (autoSelect && list.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final current = ref.read(selectedEventIdProvider);
+            if (current == null) {
+              ref.read(selectedEventIdProvider.notifier).set(list.first.id);
+            }
+          });
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(AppTheme.space3),
+          itemCount: list.length,
+          itemBuilder: (context, index) {
+            final event = list[index];
+            return _EventCard(
+              event: event,
+              selected: event.id == selectedId,
+              onTap: () {
+                ref.read(selectedEventIdProvider.notifier).set(event.id);
+                ref.invalidate(eventAnalysisDetailProvider(event.id));
+                ref.invalidate(eventRuleHitsProvider(event.id));
+              },
+            );
+          },
+        );
+      },
+    );
   }
 }
 
@@ -58,7 +130,8 @@ class _EventList extends ConsumerWidget {
     final selectedId = ref.watch(selectedEventIdProvider);
     final events = ref.watch(recentEventsProvider);
     return events.when(
-      loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      loading: () =>
+          const Center(child: CircularProgressIndicator(strokeWidth: 2)),
       error: (e, _) => Padding(
         padding: EdgeInsets.all(AppTheme.space4),
         child: Column(
@@ -132,11 +205,15 @@ class _EventCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
-        color: selected ? AppTheme.accentPrimary.withValues(alpha: 0.08) : AppTheme.surface1,
+        color: selected
+            ? AppTheme.accentPrimary.withValues(alpha: 0.08)
+            : AppTheme.surface1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
           side: BorderSide(
-            color: selected ? AppTheme.accentPrimary.withValues(alpha: 0.4) : AppTheme.surface3,
+            color: selected
+                ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                : AppTheme.surface3,
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -167,7 +244,11 @@ class _EventCard extends StatelessWidget {
                     if (event.status == 'pending')
                       Tooltip(
                         message: '已记录，待分析',
-                        child: Icon(Icons.schedule, size: 14, color: AppTheme.textTertiary),
+                        child: Icon(
+                          Icons.schedule,
+                          size: 14,
+                          color: AppTheme.textTertiary,
+                        ),
                       ),
                   ],
                 ),
@@ -200,12 +281,16 @@ class _EventDetail extends ConsumerWidget {
         if (compact)
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppTheme.space2, AppTheme.space2, AppTheme.space2, 0,
+              AppTheme.space2,
+              AppTheme.space2,
+              AppTheme.space2,
+              0,
             ),
             child: Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () => ref.read(selectedEventIdProvider.notifier).set(null),
+                onPressed: () =>
+                    ref.read(selectedEventIdProvider.notifier).set(null),
                 icon: const Icon(Icons.arrow_back, size: 16),
                 label: const Text('返回列表'),
               ),
@@ -213,7 +298,8 @@ class _EventDetail extends ConsumerWidget {
           ),
         Expanded(
           child: detail.when(
-            loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            loading: () =>
+                const Center(child: CircularProgressIndicator(strokeWidth: 2)),
             error: (e, _) => Center(
               child: Padding(
                 padding: EdgeInsets.all(AppTheme.space4),
@@ -226,7 +312,10 @@ class _EventDetail extends ConsumerWidget {
             data: (value) {
               if (value == null) {
                 return Center(
-                  child: Text('事件不存在', style: TextStyle(color: AppTheme.textTertiary)),
+                  child: Text(
+                    '事件不存在',
+                    style: TextStyle(color: AppTheme.textTertiary),
+                  ),
                 );
               }
               return _EventDetailBody(eventId: eventId, detail: value);
@@ -264,7 +353,11 @@ class _EventDetailBody extends ConsumerWidget {
           title: '事件记录',
           child: SelectableText(
             detail.rawText,
-            style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary, height: 1.6),
+            style: TextStyle(
+              fontSize: 13.5,
+              color: AppTheme.textPrimary,
+              height: 1.6,
+            ),
           ),
         ),
         _kv('记录时间', _date(detail.recordedAt)),
@@ -284,15 +377,17 @@ class _EventDetailBody extends ConsumerWidget {
             title: '分析摘要',
             child: SelectableText(
               detail.summary!,
-              style: TextStyle(fontSize: 13, color: AppTheme.textPrimary, height: 1.6),
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textPrimary,
+                height: 1.6,
+              ),
             ),
           ),
         ],
         if (detail.eventType != null) _kv('类型', detail.eventType!),
-        if (detail.people.isNotEmpty)
-          _kv('人物', detail.people.join('、')),
-        if (detail.projects.isNotEmpty)
-          _kv('项目', detail.projects.join('、')),
+        if (detail.people.isNotEmpty) _kv('人物', detail.people.join('、')),
+        if (detail.projects.isNotEmpty) _kv('项目', detail.projects.join('、')),
         if (detail.followUps.isNotEmpty)
           _Section(
             title: '跟进建议',
@@ -304,7 +399,10 @@ class _EventDetailBody extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: SelectableText(
                       '- $followUp',
-                      style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                   ),
               ],
@@ -323,7 +421,10 @@ class _EventDetailBody extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: SelectableText(
                       '- $lesson',
-                      style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                   ),
                 for (final guidanceRef in detail.guidance!.related)
@@ -331,7 +432,10 @@ class _EventDetailBody extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: SelectableText(
                       '- ${guidanceRef.note}（wiki:${guidanceRef.slug}）',
-                      style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                   ),
               ],
@@ -415,9 +519,8 @@ class _EventRuleHitsState extends ConsumerState<_EventRuleHits> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _optimistic = undo);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('反馈失败: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('反馈失败: $e')));
     }
   }
 
@@ -534,49 +637,90 @@ class _Section extends StatelessWidget {
   );
 }
 
-
-/// 左栏事件域精简列表：与主工作区列表共用 provider，选中态同步。
-class EventsNavList extends ConsumerWidget {
-  const EventsNavList({super.key});
+/// 左栏事件域概览：计数 + 引导，不放列表（宽屏主区有完整卡流，
+/// 窄屏主区自带列表——侧栏再放一份就是用户看到的「两个一样的列表」）。
+class EventsNavSummary extends ConsumerWidget {
+  const EventsNavSummary({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedId = ref.watch(selectedEventIdProvider);
     final events = ref.watch(recentEventsProvider);
     return events.when(
-      loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      loading: () =>
+          const Center(child: CircularProgressIndicator(strokeWidth: 2)),
       error: (e, _) => const Center(
-        child: Text('事件加载失败', style: TextStyle(fontSize: 12.5)),
+        child: Padding(
+          padding: EdgeInsets.all(AppTheme.space4),
+          child: Text('事件加载失败', style: TextStyle(fontSize: 12.5)),
+        ),
       ),
       data: (list) {
-        if (list.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppTheme.space4),
+        final now = DateTime.now();
+        var today = 0;
+        var week = 0;
+        var pending = 0;
+        for (final event in list) {
+          final recorded = DateTime.tryParse(event.recordedAt)?.toLocal();
+          if (recorded != null) {
+            if (recorded.year == now.year &&
+                recorded.month == now.month &&
+                recorded.day == now.day) {
+              today++;
+            }
+            if (now.difference(recorded).inDays < 7) week++;
+          }
+          if (event.status == 'pending') pending++;
+        }
+        return ListView(
+          padding: const EdgeInsets.all(AppTheme.space3),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppTheme.space2),
               child: Text(
-                '最近没有记录的事件',
-                style: TextStyle(fontSize: 12.5, color: AppTheme.textTertiary),
+                '和 AI 的对话会被记录为事件，用于回顾与知识沉淀。',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textTertiary,
+                  height: 1.5,
+                ),
               ),
             ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(AppTheme.space2),
-          itemCount: list.length,
-          itemBuilder: (context, index) {
-            final event = list[index];
-            return _EventCard(
-              event: event,
-              selected: event.id == selectedId,
-              onTap: () {
-                ref.read(selectedEventIdProvider.notifier).set(event.id);
-                ref.invalidate(eventAnalysisDetailProvider(event.id));
-                ref.invalidate(eventRuleHitsProvider(event.id));
-              },
-            );
-          },
+            _navStat('$today', '今天记录'),
+            _navStat('$week', '最近 7 天'),
+            if (pending > 0) _navStat('$pending', '待分析'),
+          ],
         );
       },
     );
   }
+
+  Widget _navStat(String value, String label) => Container(
+    margin: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppTheme.space3,
+      vertical: AppTheme.space2,
+    ),
+    decoration: BoxDecoration(
+      color: AppTheme.surface1,
+      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+      border: Border.all(color: AppTheme.surface3),
+    ),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 32,
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+          ),
+        ),
+      ],
+    ),
+  );
 }
