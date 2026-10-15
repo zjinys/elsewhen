@@ -511,6 +511,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
 
   @protected
+  List<WikiPageMetaDto> dco_decode_list_wiki_page_meta_dto(dynamic raw);
+
+  @protected
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw);
 
   @protected
@@ -727,6 +730,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw);
+
+  @protected
+  WikiPageMetaDto dco_decode_wiki_page_meta_dto(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -1321,6 +1327,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
 
   @protected
+  List<WikiPageMetaDto> sse_decode_list_wiki_page_meta_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LocalSyncStateDto sse_decode_local_sync_state_dto(
     SseDeserializer deserializer,
   );
@@ -1601,6 +1612,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto sse_decode_wiki_page_dto(SseDeserializer deserializer);
+
+  @protected
+  WikiPageMetaDto sse_decode_wiki_page_meta_dto(SseDeserializer deserializer);
 
   @protected
   String cst_encode_AnyhowException(AnyhowException raw) {
@@ -2888,6 +2902,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_wiki_page_meta_dto(List<WikiPageMetaDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_wiki_page_meta_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_local_sync_state_dto(LocalSyncStateDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -3647,6 +3667,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_opt_String(raw.contentType),
       cst_encode_opt_String(raw.humanEditedAt),
       cst_encode_opt_String(raw.opinion),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_wiki_page_meta_dto(WikiPageMetaDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.summary),
+      cst_encode_list_String(raw.tags),
+      cst_encode_i_64(raw.evidenceCount),
+      cst_encode_String(raw.firstSeenAt),
+      cst_encode_String(raw.lastSeenAt),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
+      cst_encode_opt_String(raw.sourceUrl),
+      cst_encode_String(raw.area),
     ].jsify()!;
   }
 
@@ -4428,6 +4469,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_wiki_page_meta_dto(
+    List<WikiPageMetaDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_local_sync_state_dto(
     LocalSyncStateDto self,
     SseSerializer serializer,
@@ -4777,6 +4824,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_wiki_page_dto(WikiPageDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_wiki_page_meta_dto(
+    WikiPageMetaDto self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class
@@ -5841,6 +5894,11 @@ class RustLibWire implements BaseWire {
     port_,
     slug,
   );
+
+  void wire__crate__api__wiki__list_wiki_page_metas(
+    NativePortType port_,
+    JSAny? limit,
+  ) => wasmModule.wire__crate__api__wiki__list_wiki_page_metas(port_, limit);
 
   void wire__crate__api__wiki__list_wiki_pages(
     NativePortType port_,
@@ -7371,6 +7429,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
     String slug,
+  );
+
+  external void wire__crate__api__wiki__list_wiki_page_metas(
+    NativePortType port_,
+    JSAny? limit,
   );
 
   external void wire__crate__api__wiki__list_wiki_pages(

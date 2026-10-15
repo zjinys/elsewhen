@@ -1,22 +1,56 @@
 import '../bridge/api.dart' as api;
 
+/// 知识页的元数据字段面：全页对象（WikiPage）与列表元数据（WikiPageMeta）
+/// 共同实现。openWikiPageTab 两态通用；展示 getter（kindLabel 等）在
+/// WikiPageRefX extension 上，两态共享一份实现。
+abstract class WikiPageRef {
+  String get id;
+  String get slug;
+  String get kind;
+  String get title;
+  String get summary;
+  List<String> get tags;
+  int get evidenceCount;
+  DateTime get firstSeenAt;
+  DateTime get lastSeenAt;
+  String get status;
+  DateTime get createdAt;
+  DateTime get updatedAt;
+  String? get sourceUrl;
+  String get area;
+}
+
 /// Wiki page model（知识库页面，LLM wiki 的编译产物）
-class WikiPage {
+class WikiPage implements WikiPageRef {
+  @override
   final String id;
+  @override
   final String slug;
+  @override
   final String kind;
+  @override
   final String title;
+  @override
   final String summary;
   final String contentMd;
+  @override
   final List<String> tags;
   final List<String> sourceEventIds;
+  @override
   final int evidenceCount;
+  @override
   final DateTime firstSeenAt;
+  @override
   final DateTime lastSeenAt;
+  @override
   final String status;
+  @override
   final DateTime createdAt;
+  @override
   final DateTime updatedAt;
+  @override
   final String? sourceUrl;
+  @override
   final String area;
   final String? basedOn;
   final String? contentType;
@@ -64,7 +98,89 @@ class WikiPage {
       contentType: dto.contentType,
     );
   }
+}
 
+/// 列表元数据视图（无正文）：左栏/列表场景专用。
+///
+/// 刻意与 [WikiPage] 分开而不是给它塞个空 contentMd——空正文对象一旦被当成
+/// 全页用（详情/保存路径）就是一致性炸弹。明细一律按 slug 经
+/// `wikiPageProvider(slug)` 单页读取。openWikiPageTab 只需要 slug+title，
+/// 由共同接口 [WikiPageRef] 承载。
+class WikiPageMeta implements WikiPageRef {
+  @override
+  final String id;
+  @override
+  final String slug;
+  @override
+  final String kind;
+  @override
+  final String title;
+  @override
+  final String summary;
+  @override
+  final List<String> tags;
+  @override
+  final int evidenceCount;
+  @override
+  final DateTime firstSeenAt;
+  @override
+  final DateTime lastSeenAt;
+  @override
+  final String status;
+  @override
+  final DateTime createdAt;
+  @override
+  final DateTime updatedAt;
+  @override
+  final String? sourceUrl;
+  @override
+  final String area;
+
+  const WikiPageMeta({
+    required this.id,
+    required this.slug,
+    required this.kind,
+    required this.title,
+    required this.summary,
+    required this.tags,
+    required this.evidenceCount,
+    required this.firstSeenAt,
+    required this.lastSeenAt,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    this.sourceUrl,
+    required this.area,
+  });
+
+  factory WikiPageMeta.fromDto(api.WikiPageMetaDto dto) {
+    return WikiPageMeta(
+      id: dto.id,
+      slug: dto.slug,
+      kind: dto.kind,
+      title: dto.title,
+      summary: dto.summary,
+      tags: dto.tags,
+      evidenceCount: dto.evidenceCount.toInt(),
+      firstSeenAt: DateTime.parse(dto.firstSeenAt).toLocal(),
+      lastSeenAt: DateTime.parse(dto.lastSeenAt).toLocal(),
+      status: dto.status,
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
+      updatedAt: DateTime.parse(dto.updatedAt).toLocal(),
+      sourceUrl: dto.sourceUrl,
+      area: dto.area,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) => other is WikiPageMeta && other.slug == slug;
+
+  @override
+  int get hashCode => slug.hashCode;
+}
+
+/// 展示 helper（两态共用）：只依赖元数据字段面。
+extension WikiPageRefX on WikiPageRef {
   /// kind 的中文展示名
   String get kindLabel {
     const labels = {

@@ -509,6 +509,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WikiPageDto> dco_decode_list_wiki_page_dto(dynamic raw);
 
   @protected
+  List<WikiPageMetaDto> dco_decode_list_wiki_page_meta_dto(dynamic raw);
+
+  @protected
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw);
 
   @protected
@@ -725,6 +728,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto dco_decode_wiki_page_dto(dynamic raw);
+
+  @protected
+  WikiPageMetaDto dco_decode_wiki_page_meta_dto(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -1319,6 +1325,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WikiPageDto> sse_decode_list_wiki_page_dto(SseDeserializer deserializer);
 
   @protected
+  List<WikiPageMetaDto> sse_decode_list_wiki_page_meta_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LocalSyncStateDto sse_decode_local_sync_state_dto(
     SseDeserializer deserializer,
   );
@@ -1599,6 +1610,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiPageDto sse_decode_wiki_page_dto(SseDeserializer deserializer);
+
+  @protected
+  WikiPageMetaDto sse_decode_wiki_page_meta_dto(SseDeserializer deserializer);
 
   @protected
   ffi.Pointer<wire_cst_list_prim_u_8_strict> cst_encode_AnyhowException(
@@ -2488,6 +2502,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_wiki_page_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_wiki_page_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_wiki_page_meta_dto>
+  cst_encode_list_wiki_page_meta_dto(List<WikiPageMetaDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_wiki_page_meta_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_wiki_page_meta_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -4235,6 +4260,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_wiki_page_meta_dto(
+    WikiPageMetaDto apiObj,
+    wire_cst_wiki_page_meta_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.slug = cst_encode_String(apiObj.slug);
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.summary = cst_encode_String(apiObj.summary);
+    wireObj.tags = cst_encode_list_String(apiObj.tags);
+    wireObj.evidence_count = cst_encode_i_64(apiObj.evidenceCount);
+    wireObj.first_seen_at = cst_encode_String(apiObj.firstSeenAt);
+    wireObj.last_seen_at = cst_encode_String(apiObj.lastSeenAt);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
+    wireObj.source_url = cst_encode_opt_String(apiObj.sourceUrl);
+    wireObj.area = cst_encode_String(apiObj.area);
+  }
+
+  @protected
   bool cst_encode_bool(bool raw);
 
   @protected
@@ -5012,6 +5058,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_wiki_page_meta_dto(
+    List<WikiPageMetaDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_local_sync_state_dto(
     LocalSyncStateDto self,
     SseSerializer serializer,
@@ -5361,6 +5413,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_wiki_page_dto(WikiPageDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_wiki_page_meta_dto(
+    WikiPageMetaDto self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class
@@ -6639,6 +6697,24 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_wiki_page_dto');
   late final _cst_new_list_wiki_page_dto = _cst_new_list_wiki_page_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_wiki_page_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_wiki_page_meta_dto> cst_new_list_wiki_page_meta_dto(
+    int len,
+  ) {
+    return _cst_new_list_wiki_page_meta_dto(len);
+  }
+
+  late final _cst_new_list_wiki_page_meta_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_wiki_page_meta_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_wiki_page_meta_dto');
+  late final _cst_new_list_wiki_page_meta_dto =
+      _cst_new_list_wiki_page_meta_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_wiki_page_meta_dto> Function(int)
+          >();
 
   int dummy_method_to_enforce_bundling() {
     return _dummy_method_to_enforce_bundling();
@@ -12202,6 +12278,21 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__wiki__list_wiki_page_metas(
+    int port_,
+    ffi.Pointer<ffi.Int64> limit,
+  ) {
+    return _wire__crate__api__wiki__list_wiki_page_metas(port_, limit);
+  }
+
+  late final _wire__crate__api__wiki__list_wiki_page_metasPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Pointer<ffi.Int64>)>
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__list_wiki_page_metas');
+  late final _wire__crate__api__wiki__list_wiki_page_metas =
+      _wire__crate__api__wiki__list_wiki_page_metasPtr
+          .asFunction<void Function(int, ffi.Pointer<ffi.Int64>)>();
+
   void wire__crate__api__wiki__list_wiki_pages(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
@@ -15280,6 +15371,21 @@ final class wire_cst_list_wiki_page_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_wiki_page_meta_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_wiki_page_meta_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_wiki_page_meta_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_wiki_page_meta_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_wiki_page_meta_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_local_sync_state_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> state;
 
@@ -16813,4 +16919,67 @@ final class wire_cst_wiki_page_dto extends ffi.Struct {
     ..ref.content_type = content_type
     ..ref.human_edited_at = human_edited_at
     ..ref.opinion = opinion;
+}
+
+final class wire_cst_wiki_page_meta_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> summary;
+
+  external ffi.Pointer<wire_cst_list_String> tags;
+
+  @ffi.Int64()
+  external int evidence_count;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> first_seen_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_seen_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_url;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> area;
+
+  static ffi.Pointer<wire_cst_wiki_page_meta_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> summary,
+    required ffi.Pointer<wire_cst_list_String> tags,
+    required int evidence_count,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> first_seen_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_seen_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_url,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> area,
+  }) => $allocator<wire_cst_wiki_page_meta_dto>()
+    ..ref.id = id
+    ..ref.slug = slug
+    ..ref.kind = kind
+    ..ref.title = title
+    ..ref.summary = summary
+    ..ref.tags = tags
+    ..ref.evidence_count = evidence_count
+    ..ref.first_seen_at = first_seen_at
+    ..ref.last_seen_at = last_seen_at
+    ..ref.status = status
+    ..ref.created_at = created_at
+    ..ref.updated_at = updated_at
+    ..ref.source_url = source_url
+    ..ref.area = area;
 }

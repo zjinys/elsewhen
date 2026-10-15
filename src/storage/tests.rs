@@ -2110,3 +2110,68 @@ fn resolve_entity_slug_normalizes_title_and_alias() {
     assert_eq!(store.resolve_entity_slug("person", "不存在").unwrap(), None);
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn list_wiki_page_metas_bounded_and_derivative_free() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+
+    let page = |slug: &str, kind: &str, content: &str| {
+        store
+            .upsert_wiki_page(&wiki_draft(slug, kind, content), ContentPolicy::Always)
+            .unwrap();
+    };
+    page("topic/old", "topic", "旧内容 long body");
+    page("topic/new", "topic", "新内容 long body");
+    page("topic/raw", "source", "素材页 long body");
+    // 派生产物：meta 列表必须排除（同主列表语义）
+    page("topic/derived", "topic", "派生 long body");
+    store
+        .connection
+        .execute(
+            "UPDATE wiki_pages SET area='derivative' WHERE slug='topic/derived'",
+            [],
+        )
+        .unwrap();
+    // 排序锚：updated_at 是文本 RFC3339，手动拉开差距
+    store
+        .connection
+        .execute(
+            "UPDATE wiki_pages SET updated_at='1999-01-01T00:00:00Z' WHERE slug='topic/old'",
+            [],
+        )
+        .unwrap();
+    store
+        .connection
+        .execute(
+            "UPDATE wiki_pages SET updated_at='2999-01-01T00:00:00Z' WHERE slug='topic/new'",
+            [],
+        )
+        .unwrap();
+
+    // 排序：updated_at 倒序
+    let metas = store.list_wiki_page_metas(500).unwrap();
+    let slugs: Vec<_> = metas.iter().map(|m| m.slug.as_str()).collect();
+    assert_eq!(
+        slugs,
+        vec!["topic/new", "topic/raw", "topic/old"],
+        "updated_at 倒序、area=derivative 排除"
+    );
+
+    // LIMIT 生效
+    assert_eq!(store.list_wiki_page_metas(1).unwrap().len(), 1);
+
+    // 列表面没有正文（这是它存在的意义——列表不背全量 content_md 过 FFI）
+    // meta struct 本身无 content_md 字段，这里锁定列清单不随列新增而回填正文：
+    let mut stmt = store
+        .connection
+        .prepare(&format!(
+            "SELECT {WIKI_PAGE_META_COLS} FROM wiki_pages WHERE slug='topic/new'"
+        ))
+        .unwrap();
+    let count: i64 = stmt.column_count().try_into().unwrap();
+    stmt.finalize().unwrap();
+    assert_eq!(count, 14, "meta 列清单 = 14 列（无 content_md）");
+
+    let _ = std::fs::remove_file(path);
+}

@@ -11,8 +11,10 @@ import '../theme/app_theme.dart';
 
 /// 「最近使用」最多显示的页面数。
 ///
-/// 只是渲染截断：数据源是全量 `wikiPagesProvider`（`listWikiPages()` 不带
-/// limit），排序也在客户端完成，所以调大不需要配合任何后端或查询改动。
+/// 数据源是 `wikiPagesProvider` → `listWikiPageMetas()`：Rust 侧已按
+/// updated_at 倒序截断（默认 500，单查询无正文无图片解析），这里再取前 20。
+/// Rust 的截断上限内的排序语义与本处一致，所以「500 条之外不可能进入
+/// 最近 20」，不会出现截断导致的排序错漏。
 const int _kRecentVisiblePages = 20;
 
 /// AI 从素材**自动消化**出的知识页类型：不进左侧「最近」列表。
@@ -35,8 +37,8 @@ const String _kAiGeneratedTopicSlugPrefix = 'knowledge-topic/';
 /// 2. AI 自动整合生成的主题（slug 带 _kAiGeneratedTopicSlugPrefix 前缀）。
 /// 其余都保留——imported 素材（抓取/导入）、network（联系人/项目）、以及用户
 /// **主动存的主题（topic）**等人工意图产物。派生产物（derivative）后端
-/// list_wiki_pages 已默认排除。
-bool _isSidebarVisiblePage(WikiPage page) {
+/// list_wiki_page_metas 已默认排除。
+bool _isSidebarVisiblePage(WikiPageMeta page) {
   if (_kAiDigestedKinds.contains(page.kind)) return false;
   if (page.slug.startsWith(_kAiGeneratedTopicSlugPrefix)) return false;
   return true;
@@ -462,7 +464,7 @@ class _KindBadge extends StatelessWidget {
 }
 
 class _WikiPageItem extends StatelessWidget {
-  final WikiPage page;
+  final WikiPageMeta page;
   final bool isSelected;
   final VoidCallback onTap;
 

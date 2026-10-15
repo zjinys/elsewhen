@@ -1322,12 +1322,12 @@ class _PendingRelationsBanner extends ConsumerWidget {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<WikiPage?> _pickPage(
+  Future<WikiPageRef?> _pickPage(
     BuildContext context,
     String title,
-    List<WikiPage> pages,
+    List<WikiPageRef> pages,
   ) {
-    return showDialog<WikiPage>(
+    return showDialog<WikiPageRef>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
@@ -2637,7 +2637,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
   Future<void> _enterTopic(String title) async {
     final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
     final pages = ref.read(wikiPagesProvider).value ?? const [];
-    WikiPage? existing;
+    WikiPageRef? existing;
     for (final page in pages) {
       if (page.kind == 'topic' &&
           page.title.toLowerCase() == title.toLowerCase()) {
@@ -2744,7 +2744,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     final busy = _isSubmitting || (isGenerating && !queueEnabled);
     final pages = ref.watch(wikiPagesProvider).value ?? const [];
     final completionPages = _completionMarker == null
-        ? const <WikiPage>[]
+        ? const <WikiPageRef>[]
         : pages
               .where((page) {
                 final allowed = _completionMarker == '@'
@@ -2962,7 +2962,7 @@ class _InputGuidePanel extends StatelessWidget {
 
 class _InputCompletionPanel extends StatelessWidget {
   final String marker;
-  final List<WikiPage> pages;
+  final List<WikiPageRef> pages;
   final ValueChanged<String> onSelected;
 
   const _InputCompletionPanel({

@@ -891,6 +891,13 @@ class RustBridgeRepository implements StorageRepository {
     return dtos.map(WikiPage.fromDto).toList();
   }
 
+  /// 页面列表元数据（sidebar 专用）：无正文、无图片解析、SQL 级有界
+  /// （默认 500 条，Rust 侧按 updated_at 倒序）。明细按 slug 单页读。
+  Future<List<WikiPageMeta>> listWikiPageMetas({int? limit}) async {
+    final dtos = await api.listWikiPageMetas(limit: limit);
+    return dtos.map(WikiPageMeta.fromDto).toList();
+  }
+
   /// 某页的派生产物列表（AI 加工成果：总结/提炼/文案…）
   Future<List<WikiPage>> listWikiPageDerivatives(String slug) async {
     final dtos = await api.listWikiPageDerivatives(slug: slug);

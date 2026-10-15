@@ -9,8 +9,8 @@ use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use super::{
-    ContentPolicy, RenameWikiOutcome, Store, WIKI_PAGE_COLS, WikiPage, WikiPageDraft,
-    WikiUpsertOutcome, map_wiki_page,
+    ContentPolicy, RenameWikiOutcome, Store, WIKI_PAGE_COLS, WIKI_PAGE_META_COLS, WikiPage,
+    WikiPageDraft, WikiPageMeta, WikiUpsertOutcome, map_wiki_page, map_wiki_page_meta,
 };
 
 impl Store {
@@ -106,6 +106,21 @@ impl Store {
     /// - `kind`：按内容类型过滤；`area`：按来源/用途分区过滤（imported/network/insight）。
     /// - 默认排除派生产物（area=derivative，它们只经 `list_derivatives` 按原文展开读取）。
     /// - 顺序：有来源 URL 的（素材）在前，其余按最近更新时间倒序。
+    /// 列表元数据视图（sidebar/列表专用）：无 content_md、无图片解析、
+    /// SQL 级排序 + LIMIT 有界。与 `list_wiki_pages` 同款派生产物排除；
+    /// 语义装饰（AI 提炼 kind 排除、slug 前缀过滤、archived 状态）留在
+    /// Dart 侧 `_isSidebarVisiblePage`——单一真源不过双写。
+    pub fn list_wiki_page_metas(&self, limit: i64) -> Result<Vec<WikiPageMeta>> {
+        let mut statement = self.connection.prepare_cached(&format!(
+            "SELECT {WIKI_PAGE_META_COLS} FROM wiki_pages \
+             WHERE COALESCE(area, 'insight') != 'derivative' \
+             ORDER BY updated_at DESC, rowid DESC LIMIT ?1"
+        ))?;
+        let rows = statement.query_map([limit], map_wiki_page_meta)?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     pub fn list_wiki_pages(&self, kind: Option<&str>, area: Option<&str>) -> Result<Vec<WikiPage>> {
         let mut sql = String::from("SELECT ");
         sql.push_str(WIKI_PAGE_COLS);

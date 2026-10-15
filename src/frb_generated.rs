@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1273475220;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -447074343;
 
 // Section: executor
 
@@ -3484,6 +3484,29 @@ fn wire__crate__api__wiki__list_wiki_page_derivatives_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::wiki::list_wiki_page_derivatives(api_slug)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__wiki__list_wiki_page_metas_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    limit: impl CstDecode<Option<i64>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_wiki_page_metas",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_limit = limit.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::wiki::list_wiki_page_metas(api_limit)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -7800,6 +7823,20 @@ impl SseDecode for Vec<crate::api::wiki::WikiPageDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::wiki::WikiPageMetaDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::wiki::WikiPageMetaDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for crate::api::sync::LocalSyncStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9012,6 +9049,42 @@ impl SseDecode for crate::api::wiki::WikiPageDto {
             content_type: var_contentType,
             human_edited_at: var_humanEditedAt,
             opinion: var_opinion,
+        };
+    }
+}
+
+impl SseDecode for crate::api::wiki::WikiPageMetaDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_slug = <String>::sse_decode(deserializer);
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_summary = <String>::sse_decode(deserializer);
+        let mut var_tags = <Vec<String>>::sse_decode(deserializer);
+        let mut var_evidenceCount = <i64>::sse_decode(deserializer);
+        let mut var_firstSeenAt = <String>::sse_decode(deserializer);
+        let mut var_lastSeenAt = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_updatedAt = <String>::sse_decode(deserializer);
+        let mut var_sourceUrl = <Option<String>>::sse_decode(deserializer);
+        let mut var_area = <String>::sse_decode(deserializer);
+        return crate::api::wiki::WikiPageMetaDto {
+            id: var_id,
+            slug: var_slug,
+            kind: var_kind,
+            title: var_title,
+            summary: var_summary,
+            tags: var_tags,
+            evidence_count: var_evidenceCount,
+            first_seen_at: var_firstSeenAt,
+            last_seen_at: var_lastSeenAt,
+            status: var_status,
+            created_at: var_createdAt,
+            updated_at: var_updatedAt,
+            source_url: var_sourceUrl,
+            area: var_area,
         };
     }
 }
@@ -11468,6 +11541,39 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::wiki::WikiPageDto>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::wiki::WikiPageMetaDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.slug.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.summary.into_into_dart().into_dart(),
+            self.tags.into_into_dart().into_dart(),
+            self.evidence_count.into_into_dart().into_dart(),
+            self.first_seen_at.into_into_dart().into_dart(),
+            self.last_seen_at.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.updated_at.into_into_dart().into_dart(),
+            self.source_url.into_into_dart().into_dart(),
+            self.area.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::wiki::WikiPageMetaDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::wiki::WikiPageMetaDto>
+    for crate::api::wiki::WikiPageMetaDto
+{
+    fn into_into_dart(self) -> crate::api::wiki::WikiPageMetaDto {
+        self
+    }
+}
 
 impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -12827,6 +12933,16 @@ impl SseEncode for Vec<crate::api::wiki::WikiPageDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::wiki::WikiPageMetaDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::wiki::WikiPageMetaDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for crate::api::sync::LocalSyncStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -13617,6 +13733,26 @@ impl SseEncode for crate::api::wiki::WikiPageDto {
         <Option<String>>::sse_encode(self.content_type, serializer);
         <Option<String>>::sse_encode(self.human_edited_at, serializer);
         <Option<String>>::sse_encode(self.opinion, serializer);
+    }
+}
+
+impl SseEncode for crate::api::wiki::WikiPageMetaDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.slug, serializer);
+        <String>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.summary, serializer);
+        <Vec<String>>::sse_encode(self.tags, serializer);
+        <i64>::sse_encode(self.evidence_count, serializer);
+        <String>::sse_encode(self.first_seen_at, serializer);
+        <String>::sse_encode(self.last_seen_at, serializer);
+        <String>::sse_encode(self.status, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+        <String>::sse_encode(self.updated_at, serializer);
+        <Option<String>>::sse_encode(self.source_url, serializer);
+        <String>::sse_encode(self.area, serializer);
     }
 }
 
@@ -15241,6 +15377,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::wiki::WikiPageMetaDto>> for *mut wire_cst_list_wiki_page_meta_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::wiki::WikiPageMetaDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<crate::api::sync::LocalSyncStateDto> for wire_cst_local_sync_state_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::sync::LocalSyncStateDto {
@@ -15856,6 +16002,27 @@ mod io {
                 content_type: self.content_type.cst_decode(),
                 human_edited_at: self.human_edited_at.cst_decode(),
                 opinion: self.opinion.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::wiki::WikiPageMetaDto> for wire_cst_wiki_page_meta_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::wiki::WikiPageMetaDto {
+            crate::api::wiki::WikiPageMetaDto {
+                id: self.id.cst_decode(),
+                slug: self.slug.cst_decode(),
+                kind: self.kind.cst_decode(),
+                title: self.title.cst_decode(),
+                summary: self.summary.cst_decode(),
+                tags: self.tags.cst_decode(),
+                evidence_count: self.evidence_count.cst_decode(),
+                first_seen_at: self.first_seen_at.cst_decode(),
+                last_seen_at: self.last_seen_at.cst_decode(),
+                status: self.status.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+                updated_at: self.updated_at.cst_decode(),
+                source_url: self.source_url.cst_decode(),
+                area: self.area.cst_decode(),
             }
         }
     }
@@ -17581,6 +17748,31 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_wiki_page_meta_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                slug: core::ptr::null_mut(),
+                kind: core::ptr::null_mut(),
+                title: core::ptr::null_mut(),
+                summary: core::ptr::null_mut(),
+                tags: core::ptr::null_mut(),
+                evidence_count: Default::default(),
+                first_seen_at: core::ptr::null_mut(),
+                last_seen_at: core::ptr::null_mut(),
+                status: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+                updated_at: core::ptr::null_mut(),
+                source_url: core::ptr::null_mut(),
+                area: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_wiki_page_meta_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
 
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__accept_knowledge_proposal_parts(
@@ -18813,6 +19005,14 @@ mod io {
         slug: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__wiki__list_wiki_page_derivatives_impl(port_, slug)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__wiki__list_wiki_page_metas(
+        port_: i64,
+        limit: *mut i64,
+    ) {
+        wire__crate__api__wiki__list_wiki_page_metas_impl(port_, limit)
     }
 
     #[unsafe(no_mangle)]
@@ -20670,6 +20870,20 @@ mod io {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
     }
 
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_wiki_page_meta_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_wiki_page_meta_dto {
+        let wrap = wire_cst_list_wiki_page_meta_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_wiki_page_meta_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_ai_provider_config_dto {
@@ -21641,6 +21855,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_wiki_page_meta_dto {
+        ptr: *mut wire_cst_wiki_page_meta_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_local_sync_state_dto {
         state: *mut wire_cst_list_prim_u_8_strict,
         installation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -22115,6 +22335,24 @@ mod io {
         content_type: *mut wire_cst_list_prim_u_8_strict,
         human_edited_at: *mut wire_cst_list_prim_u_8_strict,
         opinion: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_wiki_page_meta_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        kind: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        summary: *mut wire_cst_list_prim_u_8_strict,
+        tags: *mut wire_cst_list_String,
+        evidence_count: i64,
+        first_seen_at: *mut wire_cst_list_prim_u_8_strict,
+        last_seen_at: *mut wire_cst_list_prim_u_8_strict,
+        status: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+        updated_at: *mut wire_cst_list_prim_u_8_strict,
+        source_url: *mut wire_cst_list_prim_u_8_strict,
+        area: *mut wire_cst_list_prim_u_8_strict,
     }
 }
 #[cfg(not(target_family = "wasm"))]
@@ -24149,6 +24387,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::wiki::WikiPageMetaDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::wiki::WikiPageMetaDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<crate::api::sync::LocalSyncStateDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -25242,6 +25492,38 @@ mod web {
                 content_type: self_.get(17).cst_decode(),
                 human_edited_at: self_.get(18).cst_decode(),
                 opinion: self_.get(19).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::wiki::WikiPageMetaDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::wiki::WikiPageMetaDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                14,
+                "Expected 14 elements, got {}",
+                self_.length()
+            );
+            crate::api::wiki::WikiPageMetaDto {
+                id: self_.get(0).cst_decode(),
+                slug: self_.get(1).cst_decode(),
+                kind: self_.get(2).cst_decode(),
+                title: self_.get(3).cst_decode(),
+                summary: self_.get(4).cst_decode(),
+                tags: self_.get(5).cst_decode(),
+                evidence_count: self_.get(6).cst_decode(),
+                first_seen_at: self_.get(7).cst_decode(),
+                last_seen_at: self_.get(8).cst_decode(),
+                status: self_.get(9).cst_decode(),
+                created_at: self_.get(10).cst_decode(),
+                updated_at: self_.get(11).cst_decode(),
+                source_url: self_.get(12).cst_decode(),
+                area: self_.get(13).cst_decode(),
             }
         }
     }
@@ -26574,6 +26856,14 @@ mod web {
         slug: String,
     ) {
         wire__crate__api__wiki__list_wiki_page_derivatives_impl(port_, slug)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__wiki__list_wiki_page_metas(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        limit: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__wiki__list_wiki_page_metas_impl(port_, limit)
     }
 
     #[wasm_bindgen]

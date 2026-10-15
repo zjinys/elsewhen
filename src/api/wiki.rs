@@ -2,6 +2,47 @@
 
 use super::*;
 
+/// 页面列表元数据 DTO（列表/sidebar 专用，无正文）。
+/// 字段面与 WikiPageMeta 一致；明细页走 get_wiki_page。
+#[derive(Clone, Debug)]
+pub struct WikiPageMetaDto {
+    pub id: String,
+    pub slug: String,
+    pub kind: String,
+    pub title: String,
+    pub summary: String,
+    pub tags: Vec<String>,
+    pub evidence_count: i64,
+    pub first_seen_at: String,
+    pub last_seen_at: String,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub source_url: Option<String>,
+    pub area: String,
+}
+
+impl From<crate::storage::WikiPageMeta> for WikiPageMetaDto {
+    fn from(m: crate::storage::WikiPageMeta) -> Self {
+        Self {
+            id: m.id,
+            slug: m.slug,
+            kind: m.kind,
+            title: m.title,
+            summary: m.summary,
+            tags: m.tags,
+            evidence_count: m.evidence_count,
+            first_seen_at: m.first_seen_at,
+            last_seen_at: m.last_seen_at,
+            status: m.status,
+            created_at: m.created_at,
+            updated_at: m.updated_at,
+            source_url: m.source_url,
+            area: m.area,
+        }
+    }
+}
+
 /// Wiki page data transfer object for Flutter（知识库浏览）
 #[derive(Clone, Debug)]
 pub struct WikiPageDto {
@@ -82,6 +123,18 @@ pub fn list_wiki_pages(kind: Option<String>, area: Option<String>) -> Result<Vec
         .into_iter()
         .map(|p| WikiPageDto::serve(&store, p))
         .collect())
+}
+
+/// 页面列表元数据（sidebar/列表专用）：无 content_md、无图片解析、SQL 级有界。
+/// 语义装饰（AI 提炼 kind 排除、slug 前缀、archived）在 Dart 侧
+/// `_isSidebarVisiblePage`——单一真源不过双写。明细按 slug 单页读。
+pub fn list_wiki_page_metas(limit: Option<i64>) -> Result<Vec<WikiPageMetaDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let limit = limit.unwrap_or(500).clamp(1, 2000);
+    store
+        .list_wiki_page_metas(limit)
+        .map(|rows| rows.into_iter().map(Into::into).collect())
 }
 
 /// 某页的派生产物列表（AI 加工成果，挂在该页详情下，不进主列表）。

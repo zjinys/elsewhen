@@ -913,11 +913,39 @@ impl Store {
             all.extend(self.list_wiki_pages(None, Some("derivative"))?);
             all
         };
+        // 批量预取点（原为 O(N) 逐条查询）：已审指纹集合、事件可记录性映射。
+        // 页数增长时这里是维护面板打开成本的大头——两条 SQL 换掉循环里的
+        // 每指纹一条 EXISTS、每事件一条 recordable。
+        let reviewed: std::collections::HashSet<String> = {
+            let mut stmt = self
+                .connection
+                .prepare("SELECT fingerprint FROM knowledge_maintenance_reviews")?;
+            let rows = stmt
+                .query_map([], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            rows.into_iter().collect()
+        };
+        let recordable: std::collections::HashMap<String, bool> = {
+            let mut map = std::collections::HashMap::new();
+            let mut stmt = self.connection.prepare(
+                "SELECT e.id, COALESCE(
+                    (SELECT d.recordable FROM event_recordability_decisions d WHERE d.event_id=e.id ORDER BY d.created_at DESC,d.rowid DESC LIMIT 1),
+                    (SELECT json_extract(a.result_json,'$.recordable') FROM event_analyses a WHERE a.event_id=e.id ORDER BY a.created_at DESC,a.id DESC LIMIT 1),1)
+                 FROM events e",
+            )?;
+            let rows = stmt
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, bool>(1)?)))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            for (id, ok) in rows {
+                map.insert(id, ok);
+            }
+            map
+        };
         let mut issues = Vec::new();
         for page in pages.into_iter().filter(|p| p.status != "archived") {
             let mut add = |kind: &str, detail: String, key: String| -> Result<()> {
                 let fingerprint = content_hash(&format!("{}|{kind}|{key}", page.id));
-                let reviewed:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM knowledge_maintenance_reviews WHERE fingerprint=?1)",[&fingerprint],|r|r.get(0))?;
+                let reviewed = reviewed.contains(&fingerprint);
                 if !reviewed {
                     issues.push(KnowledgeIssue {
                         fingerprint,
@@ -944,7 +972,7 @@ impl Store {
                 )?;
             }
             for id in &page.source_event_ids {
-                if !self.recordable_event(id)? {
+                if !recordable.get(id).copied().unwrap_or(false) {
                     add(
                         "invalid_event",
                         format!("来源事件 {id} 不存在或已标为讨论。"),

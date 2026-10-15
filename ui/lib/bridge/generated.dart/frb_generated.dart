@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1273475220;
+  int get rustContentHash => -447074343;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -643,6 +643,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<WikiPageDto>> crateApiWikiListWikiPageDerivatives({
     required String slug,
+  });
+
+  Future<List<WikiPageMetaDto>> crateApiWikiListWikiPageMetas({
+    PlatformInt64? limit,
   });
 
   Future<List<WikiPageDto>> crateApiWikiListWikiPages({
@@ -5073,6 +5077,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<WikiPageMetaDto>> crateApiWikiListWikiPageMetas({
+    PlatformInt64? limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_box_autoadd_i_64(limit);
+          return wire.wire__crate__api__wiki__list_wiki_page_metas(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_wiki_page_meta_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiListWikiPageMetasConstMeta,
+        argValues: [limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiListWikiPageMetasConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_wiki_page_metas",
+        argNames: ["limit"],
+      );
+
+  @override
   Future<List<WikiPageDto>> crateApiWikiListWikiPages({
     String? kind,
     String? area,
@@ -9255,6 +9286,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<WikiPageMetaDto> dco_decode_list_wiki_page_meta_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_wiki_page_meta_dto).toList();
+  }
+
+  @protected
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -10162,6 +10199,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       contentType: dco_decode_opt_String(arr[17]),
       humanEditedAt: dco_decode_opt_String(arr[18]),
       opinion: dco_decode_opt_String(arr[19]),
+    );
+  }
+
+  @protected
+  WikiPageMetaDto dco_decode_wiki_page_meta_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return WikiPageMetaDto(
+      id: dco_decode_String(arr[0]),
+      slug: dco_decode_String(arr[1]),
+      kind: dco_decode_String(arr[2]),
+      title: dco_decode_String(arr[3]),
+      summary: dco_decode_String(arr[4]),
+      tags: dco_decode_list_String(arr[5]),
+      evidenceCount: dco_decode_i_64(arr[6]),
+      firstSeenAt: dco_decode_String(arr[7]),
+      lastSeenAt: dco_decode_String(arr[8]),
+      status: dco_decode_String(arr[9]),
+      createdAt: dco_decode_String(arr[10]),
+      updatedAt: dco_decode_String(arr[11]),
+      sourceUrl: dco_decode_opt_String(arr[12]),
+      area: dco_decode_String(arr[13]),
     );
   }
 
@@ -12323,6 +12384,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<WikiPageMetaDto> sse_decode_list_wiki_page_meta_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WikiPageMetaDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_wiki_page_meta_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   LocalSyncStateDto sse_decode_local_sync_state_dto(
     SseDeserializer deserializer,
   ) {
@@ -13549,6 +13624,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       contentType: var_contentType,
       humanEditedAt: var_humanEditedAt,
       opinion: var_opinion,
+    );
+  }
+
+  @protected
+  WikiPageMetaDto sse_decode_wiki_page_meta_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_slug = sse_decode_String(deserializer);
+    var var_kind = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_summary = sse_decode_String(deserializer);
+    var var_tags = sse_decode_list_String(deserializer);
+    var var_evidenceCount = sse_decode_i_64(deserializer);
+    var var_firstSeenAt = sse_decode_String(deserializer);
+    var var_lastSeenAt = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_updatedAt = sse_decode_String(deserializer);
+    var var_sourceUrl = sse_decode_opt_String(deserializer);
+    var var_area = sse_decode_String(deserializer);
+    return WikiPageMetaDto(
+      id: var_id,
+      slug: var_slug,
+      kind: var_kind,
+      title: var_title,
+      summary: var_summary,
+      tags: var_tags,
+      evidenceCount: var_evidenceCount,
+      firstSeenAt: var_firstSeenAt,
+      lastSeenAt: var_lastSeenAt,
+      status: var_status,
+      createdAt: var_createdAt,
+      updatedAt: var_updatedAt,
+      sourceUrl: var_sourceUrl,
+      area: var_area,
     );
   }
 
@@ -15291,6 +15401,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_wiki_page_meta_dto(
+    List<WikiPageMetaDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_wiki_page_meta_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_local_sync_state_dto(
     LocalSyncStateDto self,
     SseSerializer serializer,
@@ -16197,5 +16319,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.contentType, serializer);
     sse_encode_opt_String(self.humanEditedAt, serializer);
     sse_encode_opt_String(self.opinion, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_page_meta_dto(
+    WikiPageMetaDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.slug, serializer);
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.summary, serializer);
+    sse_encode_list_String(self.tags, serializer);
+    sse_encode_i_64(self.evidenceCount, serializer);
+    sse_encode_String(self.firstSeenAt, serializer);
+    sse_encode_String(self.lastSeenAt, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.updatedAt, serializer);
+    sse_encode_opt_String(self.sourceUrl, serializer);
+    sse_encode_String(self.area, serializer);
   }
 }

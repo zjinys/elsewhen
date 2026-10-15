@@ -17,11 +17,14 @@ final sidebarTabProvider =
       () => StateHolder(SidebarTab.conversation),
     );
 
-/// wiki 页面列表（全部，UI 按 kind 分组展示）
-final wikiPagesProvider = FutureProvider<List<WikiPage>>((ref) async {
+/// wiki 页面列表元数据（无正文、SQL 级有界，Rust 侧按 updated_at 倒序截断）。
+/// 列表/左栏专用——语义过滤（AI 提炼 kind / slug 前缀 / archived）在
+/// left_sidebar 的 `_isSidebarVisiblePage`，与 Rust 约定单真源不过双写。
+/// 明细一律按 slug 经 wikiPageProvider 单页读取。
+final wikiPagesProvider = FutureProvider<List<WikiPageMeta>>((ref) async {
   ref.watch(knowledgeRevisionProvider);
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-  return await bridge.listWikiPages();
+  return await bridge.listWikiPageMetas();
 });
 
 /// 与某页相关的人物关系（双向；页面详情头部的人物关系区块用）
@@ -213,7 +216,7 @@ void openWikiTab(WidgetRef ref, WikiTabEntry entry) {
 /// 从左侧列表打开知识库页面 tab（同时更新左侧高亮）。
 /// 每次都使 family provider 失效，确保重新从数据库读取最新内容
 /// （否则同一 slug 一旦被解析过一次就缓存旧内容，保存再打开会看到旧页）。
-void openWikiPageTab(WidgetRef ref, WikiPage page) {
+void openWikiPageTab(WidgetRef ref, WikiPageRef page) {
   ref.read(selectedWikiSlugProvider.notifier).set(page.slug);
   ref.invalidate(wikiPageProvider(page.slug));
   ref.invalidate(pageRelationsProvider(page.slug));

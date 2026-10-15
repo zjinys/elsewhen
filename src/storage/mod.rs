@@ -268,6 +268,54 @@ pub struct InsightSummary {
     pub status: String,
 }
 
+/// wiki_pages 的列表元数据视图：刻意**不含 content_md**。
+/// 左侧栏/列表场景只需要元数据——全量正文随 FFI 传输 + 每页图片引用解析
+/// （WikiPageDto::serve 的 N+1）是页数增长后的首要成本。明细一律按 slug
+/// 经 wiki_pageProvider 单页读取。
+#[derive(Debug, Clone)]
+pub struct WikiPageMeta {
+    pub id: String,
+    pub slug: String,
+    pub kind: String,
+    pub title: String,
+    pub summary: String,
+    pub tags: Vec<String>,
+    pub evidence_count: i64,
+    pub first_seen_at: String,
+    pub last_seen_at: String,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub source_url: Option<String>,
+    pub area: String,
+}
+
+pub(crate) fn map_wiki_page_meta(row: &rusqlite::Row) -> rusqlite::Result<WikiPageMeta> {
+    let tags_raw: String = row.get(5)?;
+    Ok(WikiPageMeta {
+        id: row.get(0)?,
+        slug: row.get(1)?,
+        kind: row.get(2)?,
+        title: row.get(3)?,
+        summary: row.get(4)?,
+        tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
+        evidence_count: row.get(6)?,
+        first_seen_at: row.get(7)?,
+        last_seen_at: row.get(8)?,
+        status: row.get(9)?,
+        created_at: row.get(10)?,
+        updated_at: row.get(11)?,
+        source_url: row.get(12)?,
+        area: row.get(13)?,
+    })
+}
+
+/// wiki_pages 行 → WikiPageMeta 的公共列清单（无 content_md）。
+/// 顺序必须与 `map_wiki_page_meta` 的按位取值（0..=13）严格一致。
+pub(crate) const WIKI_PAGE_META_COLS: &str = "id, slug, kind, title, summary, tags, \
+     evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at, source_url, \
+     COALESCE(area, 'insight')";
+
 /// wiki 页面（LLM wiki 知识库的一页，markdown 正文，derived data）
 #[derive(Debug, Clone)]
 pub struct WikiPage {
