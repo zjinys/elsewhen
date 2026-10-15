@@ -4,7 +4,8 @@
 #       workflow_dispatch = 只构建、传 artifact（不发 Release，用于试跑）。
 #
 # 产物矩阵：
-#   linux   → elsewhen_<ver>_amd64.deb + Elsewhen-<ver>-x86_64.AppImage
+#   linux   → elsewhen_<ver>_amd64.deb + elsewhen-<ver>-1.*.rpm（宿主
+#             rpmbuild）+ Elsewhen-<ver>-x86_64.AppImage
 #             + elsewhen-<ver>-<rel>-x86_64.pkg.tar.zst（pacman，Arch 容器
 #             只做打包：PKGBUILD 收割宿主构建的 bundle，不重编）
 #   macos   → Elsewhen-<ver>-arm64.dmg（Apple Silicon；Intel 机器不支持——
@@ -57,10 +58,17 @@ jobs:
         run: ./scripts/package-deb.sh dist
       - name: AppImage
         run: ./scripts/package-appimage.sh dist
+      # rpmbuild 由 Debian 的「rpm」包提供；spec 是收割型（@ROOT@ 指向
+      # 已构建 bundle），脚本内 rust/flutter 为增量重建，成本近零。
+      - name: RPM
+        run: |
+          sudo apt-get install -y rpm
+          ./scripts/package-rpm.sh dist
       - name: 归集产物
         run: |
           mkdir -p out
           cp dist/*.deb out/
+          cp dist/*.rpm out/
           cp dist/*.AppImage out/
           # pacman job 只收割 bundle（PKGBUILD 无 build()），共享这次构建。
           # 注意 upload-artifact 丢失执行位：pacman 侧需给主可执行补 +x。
@@ -72,6 +80,7 @@ jobs:
           name: dist-linux
           path: |
             out/*.deb
+            out/*.rpm
             out/*.AppImage
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
@@ -229,6 +238,7 @@ jobs:
         with:
           files: |
             artifacts/*.deb
+            artifacts/*.rpm
             artifacts/*.AppImage
             artifacts/*.pkg.tar.zst
             artifacts/*.dmg
