@@ -43,7 +43,11 @@
 
 ### 决策辅助子路线（2026-10-14）
 
-用户确认把[决策辅助闭环 Agent Note](../notes/proposed/architecture/2026-09-19-decision-support-loop.md)（决策辅助 + 情绪陪伴定位）转为实施：规则触发引擎、用户模型增量维护、分析「提取+指导」、情绪维度与闭环度量，切片 D0–D6 见[决策辅助闭环 Roadmap](2026-10-14-decision-support-loop-roadmap.md)。全部未开工；首个可用范围为 D1+D2+D4 真人验收。
+用户确认把[决策辅助闭环 Agent Note](../notes/proposed/architecture/2026-09-19-decision-support-loop.md)（决策辅助 + 情绪陪伴定位）转为实施：规则触发引擎、用户模型增量维护、分析「提取+指导」、情绪维度与闭环度量，切片 D0–D6 见[决策辅助闭环 Roadmap](2026-10-14-decision-support-loop-roadmap.md)。**D0–D6 全部完成（2026-10-14/15，工程与测试证据见该 roadmap 完成记录）**；遗留的真人验收项（规则偏好三态、最近提醒、用户模型面板、情感回访横幅等）各自留在切片内待真人执行。
+
+### 评估与偏差子路线（2026-10-15）
+
+决策支持的呈现层切片：R1 回顾页（三粒度统计）、R2 query_event_stats（对话统计工具）、R3 周期报告管道与偏差检测、R4 报告可观察性，见[回顾与目标偏差 Roadmap](2026-10-15-review-and-goal-deviation-roadmap.md)。R1–R4 全部完成待真人验收；R5（周/月 AI 总结）被裁决门拦住（R1 使用 ≥2 周 + R3 运行 ≥1 周期前不开工）。Phase 3 UI（Today 工作台）的解锁条件随 R1 三粒度回顾就绪而接近满足，动工时机仍待真人观感签收后裁决。
 
 ### 多设备同步子路线（2026-10-03）
 
