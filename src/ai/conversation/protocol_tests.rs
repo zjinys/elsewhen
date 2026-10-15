@@ -61,9 +61,12 @@ fn short_new_conversation_fits_conservative_32k_budget() {
         .any(|m| m["role"] == "user" && m["content"] == question));
     drop(store);
     let _ = std::fs::remove_file(path);
+    // 派生式而非硬编码快照：跟随 input_limit 公式（窗 - 输出 - margin），
+    // 公式微调时这里自动对齐；工具清单膨胀破线仍是显式失败。
+    let limit = crate::ai::budget::input_limit(32768, 4096).unwrap();
     assert!(
-        count <= 27034,
-        "short input exceeds 32K request budget: {count}"
+        count <= limit,
+        "short input exceeds 32K request budget: {count} > {limit}"
     );
     assert!(!request.to_string().contains("可用工具（name：用途）"));
     let messages = request["messages"].as_array().unwrap();
