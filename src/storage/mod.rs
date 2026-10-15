@@ -16,6 +16,7 @@ mod new_migrations;
 mod provider;
 mod provider_keys;
 mod records;
+mod review;
 pub(crate) mod rule_triggers;
 pub(crate) mod sync;
 mod web_search;

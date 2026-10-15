@@ -6,7 +6,7 @@ import '../models/wiki_page.dart';
 import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
-import '../widgets/events_view.dart';
+import '../providers/review_provider.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -75,8 +75,8 @@ class LeftSidebar extends ConsumerWidget {
             child: switch (tab) {
               SidebarTab.conversation => _buildConversationTab(context, ref),
               SidebarTab.wiki => const _WikiTab(),
-              // 事件域左栏：精简最近事件列表，点击即选中（主工作区显示详情）
-              SidebarTab.events => const EventsNavSummary(),
+              // 回顾页左栏：近 7 天入口，点击切换日期与日粒度
+              SidebarTab.review => const _ReviewNavSummary(),
             },
           ),
           _buildFooter(context, ref),
@@ -217,10 +217,18 @@ class LeftSidebar extends ConsumerWidget {
               ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
             },
           ),
-          // 事件域入口已隐藏（2026-10-15 需求复盘判定方向不对）：
-          // SidebarTab.events 与 EventsView 实现保留，待需求重新定
-          // 义后再挂回入口。见 roadmap 遗留收口段 C 行标注。
+          // 回顾入口（R1）：原「事件」域并入回顾——日视图承载当天
+          // 事件明细，周/月为实时统计拼装。见
+          // docs/roadmap/2026-10-15-review-and-goal-deviation-roadmap.md。
           const SizedBox(height: 2),
+          _FooterAction(
+            icon: Icons.auto_awesome_outlined,
+            label: '回顾',
+            isActive: activeTab == SidebarTab.review,
+            onTap: () {
+              ref.read(sidebarTabProvider.notifier).set(SidebarTab.review);
+            },
+          ),
           // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与
           // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。
           _FooterAction(
@@ -650,3 +658,68 @@ class _EmptyState extends StatelessWidget {
 }
 
 /// 待办 tab：手写待办视图（列表按进行中/已完成分组）
+
+/// 回顾页左栏：近 7 天日期入口（含今天）。点击即切换锚点日期到该日并
+/// 落到日粒度——是与日视图最自然的联动，周/月切换在主工作区顶部完成。
+class _ReviewNavSummary extends ConsumerWidget {
+  const _ReviewNavSummary();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final anchor = ref.watch(reviewAnchorDateProvider);
+    final today = DateTime.now();
+    final days = List<DateTime>.generate(
+      7,
+      (i) => today.subtract(Duration(days: i)),
+    );
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.space2),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Text(
+            '近 7 天',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              color: AppTheme.textTertiary,
+            ),
+          ),
+        ),
+        for (final day in days)
+          Builder(
+            builder: (context) {
+              final key =
+                  '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+              final selected = key == anchor;
+              return ListTile(
+                dense: true,
+                selected: selected,
+                selectedTileColor: AppTheme.surface2,
+                title: Text(
+                  key ==
+                          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}'
+                      ? '今天'
+                      : key,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: selected
+                        ? AppTheme.textPrimary
+                        : AppTheme.textSecondary,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                onTap: () {
+                  ref.read(reviewAnchorDateProvider.notifier).set(key);
+                  ref
+                      .read(reviewGranularityProvider.notifier)
+                      .set(ReviewGranularity.day);
+                },
+              );
+            },
+          ),
+      ],
+    );
+  }
+}

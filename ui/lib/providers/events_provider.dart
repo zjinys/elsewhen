@@ -43,5 +43,5 @@ final eventRuleHitsProvider = FutureProvider.family<List<RuleHit>, String>((
 /// 供 wiki 页「来源事件记录」跳转（D2 旧账）：切到事件域并选中。
 void openEventDetail(WidgetRef ref, String eventId) {
   ref.read(selectedEventIdProvider.notifier).set(eventId);
-  ref.read(sidebarTabProvider.notifier).set(SidebarTab.events);
+  ref.read(sidebarTabProvider.notifier).set(SidebarTab.review);
 }

@@ -664,6 +664,148 @@ fn effective_event_recordability(
     Ok((true, "event".to_string(), "default".to_string()))
 }
 
+/// 回顾页周/月拼装统计（R1）：本地 SQL 实时聚合，无 AI、无持久化。
+/// 口径：窗口内事件按 recordability 判定（manual 决策覆盖），与
+/// daily_overview 的 entries 同口径；待办完成日以 updated_at 为准
+/// （todos 无 completed_at，如实近似，见 storage::review）。
+#[derive(Clone, Debug)]
+pub struct NamedCountDto {
+    pub label: String,
+    pub count: i64,
+}
+
+#[derive(Clone, Debug)]
+pub struct DayCountDto {
+    pub date: String,
+    pub count: i64,
+}
+
+#[derive(Clone, Debug)]
+pub struct PeriodStatsDto {
+    pub period_type: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub event_count: i64,
+    pub todo_done_count: i64,
+    pub by_event_type: Vec<NamedCountDto>,
+    pub by_person: Vec<NamedCountDto>,
+    pub by_project: Vec<NamedCountDto>,
+    pub by_activity: Vec<NamedCountDto>,
+    pub daily_counts: Vec<DayCountDto>,
+}
+
+/// 聚合列表上限（确定性排序后截断；UI 层如需可再收）。
+const PERIOD_TOP_N: usize = 12;
+
+pub fn get_period_stats(period_type: String, date: String) -> Result<PeriodStatsDto> {
+    use chrono::Datelike;
+    let period_type = period_type.trim().to_string();
+    anyhow::ensure!(
+        period_type == "week" || period_type == "month",
+        "不支持的时间粒度：仅 week / month"
+    );
+    let date = chrono::NaiveDate::parse_from_str(date.trim(), "%Y-%m-%d")
+        .map_err(|_| anyhow::anyhow!("日期必须是 YYYY-MM-DD"))?;
+    let (start, end) = if period_type == "week" {
+        (
+            date - chrono::Duration::days(date.weekday().num_days_from_monday() as i64),
+            date + chrono::Duration::days(6 - date.weekday().num_days_from_monday() as i64),
+        )
+    } else {
+        let next_month = if date.month() == 12 {
+            chrono::NaiveDate::from_ymd_opt(date.year() + 1, 1, 1).unwrap()
+        } else {
+            chrono::NaiveDate::from_ymd_opt(date.year(), date.month() + 1, 1).unwrap()
+        };
+        (
+            chrono::NaiveDate::from_ymd_opt(date.year(), date.month(), 1).unwrap(),
+            next_month.pred_opt().unwrap(),
+        )
+    };
+    let days = (end - start).num_days() + 1;
+    anyhow::ensure!(days <= 62, "统计窗口不得超过 62 天");
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+
+    let mut per_type: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    let mut per_person: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    let mut per_project: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    let mut per_activity: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    let mut per_day: std::collections::BTreeMap<String, i64> = std::collections::BTreeMap::new();
+    for day in 0..days {
+        per_day.insert((start + chrono::Duration::days(day)).to_string(), 0);
+    }
+
+    let mut event_count = 0i64;
+    for event in store.events_between(start, end)? {
+        // 与 daily_overview 的 entries 同一判定链（manual 决策 → 分析 → 默认）。
+        if !entry_is_recordable(&store, &event.id) {
+            continue;
+        }
+        event_count += 1;
+        // 本地日界归属：rfc3339 转本地时区取日期；解析失败取头 10 字符兜底。
+        let day = chrono::DateTime::parse_from_rfc3339(&event.recorded_at)
+            .map(|dt| dt.with_timezone(&chrono::Local).date_naive().to_string())
+            .unwrap_or_else(|_| event.recorded_at.chars().take(10).collect());
+        *per_day.entry(day).or_insert(0) += 1;
+        let parsed = store
+            .event_analysis_detail(&event.id)?
+            .and_then(|detail| detail.result_json)
+            .and_then(|raw| EventAnalysisV1::parse(&raw).ok());
+        if let Some(analysis) = parsed {
+            if !analysis.event_type.trim().is_empty() {
+                *per_type
+                    .entry(analysis.event_type.trim().to_string())
+                    .or_insert(0) += 1;
+            }
+            for person in analysis.people {
+                let key = person.trim();
+                if !key.is_empty() {
+                    *per_person.entry(key.to_string()).or_insert(0) += 1;
+                }
+            }
+            for project in analysis.projects {
+                let key = project.trim();
+                if !key.is_empty() {
+                    *per_project.entry(key.to_string()).or_insert(0) += 1;
+                }
+            }
+            for activity in analysis.activities {
+                let key = activity.trim();
+                if !key.is_empty() {
+                    *per_activity.entry(key.to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+
+    let rank = |map: std::collections::HashMap<String, i64>| {
+        let mut rows: Vec<(String, i64)> = map.into_iter().collect();
+        // 确定性排序：次数降序、同次数字典序；top N 截断。
+        rows.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        rows.truncate(PERIOD_TOP_N);
+        rows.into_iter()
+            .map(|(label, count)| NamedCountDto { label, count })
+            .collect::<Vec<_>>()
+    };
+
+    Ok(PeriodStatsDto {
+        period_type,
+        start_date: start.to_string(),
+        end_date: end.to_string(),
+        event_count,
+        todo_done_count: store.todos_done_between(start, end)?,
+        by_event_type: rank(per_type),
+        by_person: rank(per_person),
+        by_project: rank(per_project),
+        by_activity: rank(per_activity),
+        daily_counts: per_day
+            .into_iter()
+            .map(|(date, count)| DayCountDto { date, count })
+            .collect(),
+    })
+}
+
 pub fn get_daily_overview(date: String) -> Result<DailyOverviewDto> {
     let date = chrono::NaiveDate::parse_from_str(date.trim(), "%Y-%m-%d")
         .map_err(|_| anyhow::anyhow!("日期必须是 YYYY-MM-DD"))?;
@@ -2537,5 +2679,278 @@ mod record_event_tests {
 
         drop(guard);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod period_stats_tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    /// 与 record_event_tests 同款：pin 数据目录使 AppConfig::load 指向临时库。
+    struct DataDirGuard {
+        _lock: std::sync::MutexGuard<'static, ()>,
+    }
+    impl DataDirGuard {
+        fn set(dir: &std::path::Path) -> Self {
+            let lock = crate::config::test_env_guard();
+            crate::config::unpin();
+            crate::config::AppConfig::pin(Some(dir.to_str().unwrap())).unwrap();
+            Self { _lock: lock }
+        }
+    }
+    impl Drop for DataDirGuard {
+        fn drop(&mut self) {
+            crate::config::unpin();
+        }
+    }
+
+    /// 本地日历日正午（归属唯一、不贴边），转 UTC 供 event 插入。
+    fn local_noon_utc(date: chrono::NaiveDate) -> chrono::DateTime<chrono::Utc> {
+        use chrono::TimeZone;
+        let naive = date.and_hms_opt(12, 0, 0).unwrap();
+        chrono::Local
+            .from_local_datetime(&naive)
+            .single()
+            .expect("本地正午无 DST 歧义")
+            .with_timezone(&chrono::Utc)
+    }
+
+    fn analysis_json(
+        event_type: &str,
+        people: &[&str],
+        projects: &[&str],
+        activities: &[&str],
+        recordable: bool,
+    ) -> String {
+        // parse 校验：不可记录结果不能标 kind=event（真实链路里默认弃记
+        // 的闲聊就是 chitchat），造数必须同律，否则 parse 失败口径会漂。
+        let kind = if recordable { "event" } else { "chitchat" };
+        format!(
+            r#"{{"schema_version":"{EVENT_ANALYSIS_VERSION}","event_type":"{event_type}",
+             "confidence":0.9,"summary":"s","clarifications":[],
+             "people":{people},"projects":{projects},"activities":{activities},
+             "follow_ups":[],"recordable":{recordable},"kind":"{kind}"}}"#,
+            people = serde_json::to_string(people).unwrap(),
+            projects = serde_json::to_string(projects).unwrap(),
+            activities = serde_json::to_string(activities).unwrap(),
+        )
+    }
+
+    /// 造一条带分析结果的事件，返回 event_id。
+    fn seed_event(
+        store: &Store,
+        text: &str,
+        recorded_at: chrono::DateTime<chrono::Utc>,
+        result_json: &str,
+    ) -> String {
+        let id = store
+            .insert_event(crate::event::NewEvent {
+                raw_text: text,
+                occurred_at: recorded_at,
+                recorded_at,
+                source: "capture",
+            })
+            .unwrap();
+        store
+            .connection
+            .execute(
+                "INSERT INTO event_analyses (id, event_id, prompt_version, result_json, created_at)
+                 VALUES (?1, ?2, 'p', ?3, ?4)",
+                rusqlite::params![
+                    format!("analysis-{id}"),
+                    id,
+                    result_json,
+                    recorded_at.to_rfc3339()
+                ],
+            )
+            .unwrap();
+        id
+    }
+
+    /// 手动可记录性决策（覆盖口径用的最高优先级源）。
+    fn seed_decision(store: &Store, event_id: &str, recordable: bool) {
+        store
+            .connection
+            .execute(
+                "INSERT INTO event_recordability_decisions
+                 (id,event_id,recordable,kind,reason,created_at)
+                 VALUES (?1,?2,?3,'event','manual',?4)",
+                rusqlite::params![
+                    format!("decision-{event_id}"),
+                    event_id,
+                    recordable as i64,
+                    chrono::Utc::now().to_rfc3339()
+                ],
+            )
+            .unwrap();
+    }
+
+    fn open_pinned_store() -> (DataDirGuard, Store) {
+        let dir = std::env::temp_dir().join(format!(
+            "elsewhen-period-stats-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let guard = DataDirGuard::set(&dir);
+        let config = crate::config::AppConfig::load().unwrap();
+        (guard, Store::open(&config.database_path).unwrap())
+    }
+
+    #[test]
+    fn period_stats_rejects_invalid_input() {
+        let (_guard, _store) = open_pinned_store();
+        assert!(get_period_stats("year".into(), "2026-10-14".into()).is_err());
+        assert!(get_period_stats("week".into(), "2026/10/14".into()).is_err());
+    }
+
+    #[test]
+    fn week_and_month_windows_are_calendar_aligned() {
+        let (_guard, store) = open_pinned_store();
+        // 2026-10-12 是周一：锚定周三（10-14）的周窗口应为 10-12..10-18。
+        let monday = chrono::NaiveDate::from_ymd_opt(2026, 10, 12).unwrap();
+        seed_events_with_dates(
+            &store,
+            &[
+                ("周五", monday + chrono::Duration::days(4)),
+                ("下周一", monday + chrono::Duration::days(7)),
+            ],
+            true,
+        );
+        let week = get_period_stats("week".into(), "2026-10-14".into()).unwrap();
+        assert_eq!(week.start_date, "2026-10-12");
+        assert_eq!(week.end_date, "2026-10-18");
+        assert_eq!(week.event_count, 1, "下周一的事件不得混入本周");
+        assert_eq!(week.daily_counts.len(), 7, "日分布必须铺满整周");
+
+        // 月窗口：10 月锚点 → 10-01..10-31，跨月事件隔离。
+        let oct1 = chrono::NaiveDate::from_ymd_opt(2026, 10, 1).unwrap();
+        let sep30 = chrono::NaiveDate::from_ymd_opt(2026, 9, 30).unwrap();
+        seed_events_with_dates(&store, &[("九月末", sep30), ("月初", oct1)], true);
+        let month = get_period_stats("month".into(), "2026-10-14".into()).unwrap();
+        assert_eq!(month.start_date, "2026-10-01");
+        assert_eq!(month.end_date, "2026-10-31");
+        assert_eq!(month.daily_counts.len(), 31, "日分布必须铺满整月");
+        assert_eq!(
+            month.event_count, 3,
+            "周五/下周一(10-19)/月初 属十月；九月末不属于"
+        );
+    }
+
+    #[test]
+    fn aggregation_ranks_and_counts_deterministically() {
+        let (_guard, store) = open_pinned_store();
+        let monday = chrono::NaiveDate::from_ymd_opt(2026, 10, 12).unwrap();
+        let seed = |store: &Store, text: &str, json: String| {
+            seed_event(store, text, local_noon_utc(monday), &json)
+        };
+        seed(
+            &store,
+            "a",
+            analysis_json("work", &["amma"], &["p1"], &["coding"], true),
+        );
+        seed(
+            &store,
+            "b",
+            analysis_json("work", &["zoe", "amma"], &["p1"], &["coding"], true),
+        );
+        seed(
+            &store,
+            "c",
+            analysis_json("idea", &["amma"], &["p2"], &["coding"], true),
+        );
+        // 待办两件本周完成。
+        for tid in ["t1", "t2"] {
+            store
+                .connection
+                .execute(
+                    "INSERT INTO todos (id,title,status,updated_at,created_at)
+                     VALUES (?1,'t','done',?2,?2)",
+                    rusqlite::params![
+                        tid,
+                        local_noon_utc(monday + chrono::Duration::days(1)).to_rfc3339()
+                    ],
+                )
+                .unwrap();
+        }
+        store
+            .connection
+            .execute(
+                "INSERT INTO todos (id,title,status,updated_at,created_at)
+                 VALUES ('t-todo-open','t','open',?1,?1)",
+                rusqlite::params![local_noon_utc(monday).to_rfc3339()],
+            )
+            .unwrap();
+
+        let stats = get_period_stats("week".into(), "2026-10-14".into()).unwrap();
+        assert_eq!(stats.event_count, 3);
+        assert_eq!(stats.todo_done_count, 2, "open 待办不属于完成数");
+        // 次数降序、同次数字典序（work=2 先于 idea=1；amma=3 稳居首）。
+        assert_eq!(stats.by_event_type[0].label, "work");
+        assert_eq!(stats.by_event_type[0].count, 2);
+        assert_eq!(stats.by_event_type[1].label, "idea");
+        assert_eq!(stats.by_person[0].label, "amma");
+        assert_eq!(stats.by_person[0].count, 3);
+        assert_eq!(stats.by_project[0].label, "p1");
+        assert_eq!(stats.by_activity[0].label, "coding");
+        assert_eq!(stats.by_activity[0].count, 3);
+        // 同次数字典序：zoe(1) 排 amma 之外尾段
+        let zoe = stats
+            .by_person
+            .iter()
+            .find(|r| r.label == "zoe")
+            .expect("zoe 应在榜内");
+        assert_eq!(zoe.count, 1);
+        let day_key = monday.to_string();
+        let day_count = &stats
+            .daily_counts
+            .iter()
+            .find(|d| d.date == day_key)
+            .expect("当日必有分布条目")
+            .count;
+        assert_eq!(*day_count, 3, "三件事都是本地周一 → 当日分布=3");
+    }
+
+    #[test]
+    fn non_recordable_events_are_excluded_from_stats() {
+        let (_guard, store) = open_pinned_store();
+        let monday = chrono::NaiveDate::from_ymd_opt(2026, 10, 12).unwrap();
+        // 分析判定不可记录 → 排除。
+        seed_event(
+            &store,
+            "chitchat 默认不记",
+            local_noon_utc(monday),
+            &analysis_json("chitchat", &["zoe"], &[], &[], false),
+        );
+        // 分析判不可记录但手动决策翻案 → 计入（manual 覆盖）。
+        let revived = seed_event(
+            &store,
+            "手动翻案",
+            local_noon_utc(monday),
+            &analysis_json("work", &["amma"], &["p1"], &["coding"], false),
+        );
+        seed_decision(&store, &revived, true);
+        let stats = get_period_stats("week".into(), "2026-10-14".into()).unwrap();
+        assert_eq!(stats.event_count, 1, "只有翻案事件计入");
+        assert_eq!(stats.by_person.len(), 1);
+        assert_eq!(stats.by_person[0].label, "amma");
+    }
+
+    fn seed_events_with_dates(
+        store: &Store,
+        events: &[(&str, chrono::NaiveDate)],
+        recordable: bool,
+    ) {
+        for (text, date) in events {
+            seed_event(
+                store,
+                text,
+                local_noon_utc(*date),
+                &analysis_json("work", &[], &[], &[], recordable),
+            );
+        }
     }
 }

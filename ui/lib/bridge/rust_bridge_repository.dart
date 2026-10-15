@@ -213,6 +213,10 @@ class RustBridgeRepository implements StorageRepository {
   Future<api.DailyOverviewDto> getDailyOverview(String date) =>
       api.getDailyOverview(date: date);
 
+  /// 回顾页周/月拼装统计（R1：本地实时聚合，无 AI、无持久化）。
+  Future<api.PeriodStatsDto> getPeriodStats(String periodType, String date) =>
+      api.getPeriodStats(periodType: periodType, date: date);
+
   Future<api.DailyReviewResult> generateDailyReview(String date) =>
       api.generateDailyReview(date: date);
 

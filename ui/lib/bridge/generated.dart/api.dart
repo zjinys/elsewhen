@@ -13,7 +13,7 @@ part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `decision_support_material`, `default_event_kind`, `default_recordable`, `effective_event_recordability`, `entry_is_recordable`, `generate_daily_review_with_provider`, `normalize_strings`, `parse`, `parse`, `process_analysis_queue`, `try_auto_upsert_annotated_relation`, `wash_emotion`, `wash_guidance`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DailyReviewItemV1`, `DailyReviewV1`, `EventAnalysisV1`, `EventEmotionTag`, `EventGuidanceRef`, `EventGuidance`, `EventRuleConfirmation`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Initialize the bridge with database path
 Future<String> initBridge({String? databasePath}) =>
@@ -70,6 +70,14 @@ Future<InputRecordDto> submitConversationInput({
 /// List one local calendar day's complete personal record stream.
 Future<List<DailyEntryDto>> listDailyEntries({required String date}) =>
     RustLib.instance.api.crateApiListDailyEntries(date: date);
+
+Future<PeriodStatsDto> getPeriodStats({
+  required String periodType,
+  required String date,
+}) => RustLib.instance.api.crateApiGetPeriodStats(
+  periodType: periodType,
+  date: date,
+);
 
 Future<DailyOverviewDto> getDailyOverview({required String date}) =>
     RustLib.instance.api.crateApiGetDailyOverview(date: date);
@@ -483,6 +491,24 @@ sealed class DailyReviewResult with _$DailyReviewResult {
   const factory DailyReviewResult.noEntries() = DailyReviewResult_NoEntries;
   const factory DailyReviewResult.created({required String id}) =
       DailyReviewResult_Created;
+}
+
+class DayCountDto {
+  final String date;
+  final PlatformInt64 count;
+
+  const DayCountDto({required this.date, required this.count});
+
+  @override
+  int get hashCode => date.hashCode ^ count.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DayCountDto &&
+          runtimeType == other.runtimeType &&
+          date == other.date &&
+          count == other.count;
 }
 
 /// 情绪标注展示（D5）：文本标注、无数值（红线：不是情绪分析报告）。
@@ -963,6 +989,28 @@ class MessageRecordabilityDto {
           summary == other.summary;
 }
 
+/// 回顾页周/月拼装统计（R1）：本地 SQL 实时聚合，无 AI、无持久化。
+/// 口径：窗口内事件按 recordability 判定（manual 决策覆盖），与
+/// daily_overview 的 entries 同口径；待办完成日以 updated_at 为准
+/// （todos 无 completed_at，如实近似，见 storage::review）。
+class NamedCountDto {
+  final String label;
+  final PlatformInt64 count;
+
+  const NamedCountDto({required this.label, required this.count});
+
+  @override
+  int get hashCode => label.hashCode ^ count.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NamedCountDto &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          count == other.count;
+}
+
 /// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
 class PageGuidanceDto {
   final String analysisId;
@@ -1005,4 +1053,59 @@ class PageGuidanceDto {
           lessons == other.lessons &&
           followUpsRefined == other.followUpsRefined &&
           feedback == other.feedback;
+}
+
+class PeriodStatsDto {
+  final String periodType;
+  final String startDate;
+  final String endDate;
+  final PlatformInt64 eventCount;
+  final PlatformInt64 todoDoneCount;
+  final List<NamedCountDto> byEventType;
+  final List<NamedCountDto> byPerson;
+  final List<NamedCountDto> byProject;
+  final List<NamedCountDto> byActivity;
+  final List<DayCountDto> dailyCounts;
+
+  const PeriodStatsDto({
+    required this.periodType,
+    required this.startDate,
+    required this.endDate,
+    required this.eventCount,
+    required this.todoDoneCount,
+    required this.byEventType,
+    required this.byPerson,
+    required this.byProject,
+    required this.byActivity,
+    required this.dailyCounts,
+  });
+
+  @override
+  int get hashCode =>
+      periodType.hashCode ^
+      startDate.hashCode ^
+      endDate.hashCode ^
+      eventCount.hashCode ^
+      todoDoneCount.hashCode ^
+      byEventType.hashCode ^
+      byPerson.hashCode ^
+      byProject.hashCode ^
+      byActivity.hashCode ^
+      dailyCounts.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PeriodStatsDto &&
+          runtimeType == other.runtimeType &&
+          periodType == other.periodType &&
+          startDate == other.startDate &&
+          endDate == other.endDate &&
+          eventCount == other.eventCount &&
+          todoDoneCount == other.todoDoneCount &&
+          byEventType == other.byEventType &&
+          byPerson == other.byPerson &&
+          byProject == other.byProject &&
+          byActivity == other.byActivity &&
+          dailyCounts == other.dailyCounts;
 }

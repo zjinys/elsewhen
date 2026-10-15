@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -34621763;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1433112879;
 
 // Section: executor
 
@@ -2112,6 +2112,31 @@ fn wire__crate__api__web_search__get_network_settings_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::web_search::get_network_settings()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__get_period_stats_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    period_type: impl CstDecode<String>,
+    date: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_period_stats",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_period_type = period_type.cst_decode();
+            let api_date = date.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::get_period_stats(api_period_type, api_date)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6554,6 +6579,18 @@ impl SseDecode for crate::api::conversations::DailyTokenUsageDto {
     }
 }
 
+impl SseDecode for crate::api::DayCountDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_date = <String>::sse_decode(deserializer);
+        let mut var_count = <i64>::sse_decode(deserializer);
+        return crate::api::DayCountDto {
+            date: var_date,
+            count: var_count,
+        };
+    }
+}
+
 impl SseDecode for crate::api::EmotionTagDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7490,6 +7527,18 @@ impl SseDecode for Vec<crate::api::conversations::DailyTokenUsageDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::DayCountDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::DayCountDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::EmotionTagDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7761,6 +7810,18 @@ impl SseDecode for Vec<crate::api::conversations::MessageDto> {
             ans_.push(<crate::api::conversations::MessageDto>::sse_decode(
                 deserializer,
             ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::NamedCountDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::NamedCountDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -8186,6 +8247,18 @@ impl SseDecode for crate::api::MessageRecordabilityDto {
     }
 }
 
+impl SseDecode for crate::api::NamedCountDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_count = <i64>::sse_decode(deserializer);
+        return crate::api::NamedCountDto {
+            label: var_label,
+            count: var_count,
+        };
+    }
+}
+
 impl SseDecode for crate::api::web_search::NetworkSettingsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8534,6 +8607,34 @@ impl SseDecode for crate::api::conversations::PendingActionDto {
             version: var_version,
             approval_token: var_approvalToken,
             target_basis_json: var_targetBasisJson,
+        };
+    }
+}
+
+impl SseDecode for crate::api::PeriodStatsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_periodType = <String>::sse_decode(deserializer);
+        let mut var_startDate = <String>::sse_decode(deserializer);
+        let mut var_endDate = <String>::sse_decode(deserializer);
+        let mut var_eventCount = <i64>::sse_decode(deserializer);
+        let mut var_todoDoneCount = <i64>::sse_decode(deserializer);
+        let mut var_byEventType = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byPerson = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byProject = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byActivity = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_dailyCounts = <Vec<crate::api::DayCountDto>>::sse_decode(deserializer);
+        return crate::api::PeriodStatsDto {
+            period_type: var_periodType,
+            start_date: var_startDate,
+            end_date: var_endDate,
+            event_count: var_eventCount,
+            todo_done_count: var_todoDoneCount,
+            by_event_type: var_byEventType,
+            by_person: var_byPerson,
+            by_project: var_byProject,
+            by_activity: var_byActivity,
+            daily_counts: var_dailyCounts,
         };
     }
 }
@@ -9993,6 +10094,22 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversations::DailyTokenUsag
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::DayCountDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.date.into_into_dart().into_dart(),
+            self.count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::DayCountDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::DayCountDto> for crate::api::DayCountDto {
+    fn into_into_dart(self) -> crate::api::DayCountDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::EmotionTagDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -10866,6 +10983,22 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::MessageRecordabilityDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::NamedCountDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.label.into_into_dart().into_dart(),
+            self.count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::NamedCountDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::NamedCountDto> for crate::api::NamedCountDto {
+    fn into_into_dart(self) -> crate::api::NamedCountDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::web_search::NetworkSettingsDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -10990,6 +11123,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversations::PendingActionD
     for crate::api::conversations::PendingActionDto
 {
     fn into_into_dart(self) -> crate::api::conversations::PendingActionDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::PeriodStatsDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.period_type.into_into_dart().into_dart(),
+            self.start_date.into_into_dart().into_dart(),
+            self.end_date.into_into_dart().into_dart(),
+            self.event_count.into_into_dart().into_dart(),
+            self.todo_done_count.into_into_dart().into_dart(),
+            self.by_event_type.into_into_dart().into_dart(),
+            self.by_person.into_into_dart().into_dart(),
+            self.by_project.into_into_dart().into_dart(),
+            self.by_activity.into_into_dart().into_dart(),
+            self.daily_counts.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::PeriodStatsDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::PeriodStatsDto> for crate::api::PeriodStatsDto {
+    fn into_into_dart(self) -> crate::api::PeriodStatsDto {
         self
     }
 }
@@ -12240,6 +12397,14 @@ impl SseEncode for crate::api::conversations::DailyTokenUsageDto {
     }
 }
 
+impl SseEncode for crate::api::DayCountDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.date, serializer);
+        <i64>::sse_encode(self.count, serializer);
+    }
+}
+
 impl SseEncode for crate::api::EmotionTagDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12838,6 +13003,16 @@ impl SseEncode for Vec<crate::api::conversations::DailyTokenUsageDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::DayCountDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::DayCountDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::EmotionTagDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -13044,6 +13219,16 @@ impl SseEncode for Vec<crate::api::conversations::MessageDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::conversations::MessageDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::NamedCountDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::NamedCountDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -13351,6 +13536,14 @@ impl SseEncode for crate::api::MessageRecordabilityDto {
     }
 }
 
+impl SseEncode for crate::api::NamedCountDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.label, serializer);
+        <i64>::sse_encode(self.count, serializer);
+    }
+}
+
 impl SseEncode for crate::api::web_search::NetworkSettingsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -13614,6 +13807,22 @@ impl SseEncode for crate::api::conversations::PendingActionDto {
         <i64>::sse_encode(self.version, serializer);
         <String>::sse_encode(self.approval_token, serializer);
         <String>::sse_encode(self.target_basis_json, serializer);
+    }
+}
+
+impl SseEncode for crate::api::PeriodStatsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.period_type, serializer);
+        <String>::sse_encode(self.start_date, serializer);
+        <String>::sse_encode(self.end_date, serializer);
+        <i64>::sse_encode(self.event_count, serializer);
+        <i64>::sse_encode(self.todo_done_count, serializer);
+        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_event_type, serializer);
+        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_person, serializer);
+        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_project, serializer);
+        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_activity, serializer);
+        <Vec<crate::api::DayCountDto>>::sse_encode(self.daily_counts, serializer);
     }
 }
 
@@ -14640,6 +14849,15 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::DayCountDto> for wire_cst_day_count_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::DayCountDto {
+            crate::api::DayCountDto {
+                date: self.date.cst_decode(),
+                count: self.count.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::EmotionTagDto> for wire_cst_emotion_tag_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::EmotionTagDto {
@@ -15270,6 +15488,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::DayCountDto>> for *mut wire_cst_list_day_count_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::DayCountDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::EmotionTagDto>> for *mut wire_cst_list_emotion_tag_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::EmotionTagDto> {
@@ -15495,6 +15723,16 @@ mod io {
     impl CstDecode<Vec<crate::api::conversations::MessageDto>> for *mut wire_cst_list_message_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::conversations::MessageDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::NamedCountDto>> for *mut wire_cst_list_named_count_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::NamedCountDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -15840,6 +16078,15 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::NamedCountDto> for wire_cst_named_count_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::NamedCountDto {
+            crate::api::NamedCountDto {
+                label: self.label.cst_decode(),
+                count: self.count.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::web_search::NetworkSettingsDto> for wire_cst_network_settings_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::web_search::NetworkSettingsDto {
@@ -15908,6 +16155,23 @@ mod io {
                 version: self.version.cst_decode(),
                 approval_token: self.approval_token.cst_decode(),
                 target_basis_json: self.target_basis_json.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::PeriodStatsDto> for wire_cst_period_stats_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::PeriodStatsDto {
+            crate::api::PeriodStatsDto {
+                period_type: self.period_type.cst_decode(),
+                start_date: self.start_date.cst_decode(),
+                end_date: self.end_date.cst_decode(),
+                event_count: self.event_count.cst_decode(),
+                todo_done_count: self.todo_done_count.cst_decode(),
+                by_event_type: self.by_event_type.cst_decode(),
+                by_person: self.by_person.cst_decode(),
+                by_project: self.by_project.cst_decode(),
+                by_activity: self.by_activity.cst_decode(),
+                daily_counts: self.daily_counts.cst_decode(),
             }
         }
     }
@@ -16849,6 +17113,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_day_count_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                date: core::ptr::null_mut(),
+                count: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_day_count_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_emotion_tag_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -17471,6 +17748,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_named_count_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                label: core::ptr::null_mut(),
+                count: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_named_count_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_network_settings_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -17558,6 +17848,27 @@ mod io {
         }
     }
     impl Default for wire_cst_pending_action_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_period_stats_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                period_type: core::ptr::null_mut(),
+                start_date: core::ptr::null_mut(),
+                end_date: core::ptr::null_mut(),
+                event_count: Default::default(),
+                todo_done_count: Default::default(),
+                by_event_type: core::ptr::null_mut(),
+                by_person: core::ptr::null_mut(),
+                by_project: core::ptr::null_mut(),
+                by_activity: core::ptr::null_mut(),
+                daily_counts: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_period_stats_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -18991,6 +19302,15 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__web_search__get_network_settings_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_period_stats(
+        port_: i64,
+        period_type: *mut wire_cst_list_prim_u_8_strict,
+        date: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__get_period_stats_impl(port_, period_type, date)
     }
 
     #[unsafe(no_mangle)]
@@ -20765,6 +21085,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_day_count_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_day_count_dto {
+        let wrap = wire_cst_list_day_count_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_day_count_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_emotion_tag_dto(
         len: i32,
     ) -> *mut wire_cst_list_emotion_tag_dto {
@@ -21051,6 +21385,20 @@ mod io {
         let wrap = wire_cst_list_message_dto {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_message_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_named_count_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_named_count_dto {
+        let wrap = wire_cst_list_named_count_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_named_count_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -21684,6 +22032,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_day_count_dto {
+        date: *mut wire_cst_list_prim_u_8_strict,
+        count: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_emotion_tag_dto {
         target: *mut wire_cst_list_prim_u_8_strict,
         feeling: *mut wire_cst_list_prim_u_8_strict,
@@ -22136,6 +22490,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_day_count_dto {
+        ptr: *mut wire_cst_day_count_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_emotion_tag_dto {
         ptr: *mut wire_cst_emotion_tag_dto,
         len: i32,
@@ -22258,6 +22618,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_message_dto {
         ptr: *mut wire_cst_message_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_named_count_dto {
+        ptr: *mut wire_cst_named_count_dto,
         len: i32,
     }
     #[repr(C)]
@@ -22461,6 +22827,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_named_count_dto {
+        label: *mut wire_cst_list_prim_u_8_strict,
+        count: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_network_settings_dto {
         doh_uri: *mut wire_cst_list_prim_u_8_strict,
         doh_scope: *mut wire_cst_list_prim_u_8_strict,
@@ -22514,6 +22886,20 @@ mod io {
         version: i64,
         approval_token: *mut wire_cst_list_prim_u_8_strict,
         target_basis_json: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_period_stats_dto {
+        period_type: *mut wire_cst_list_prim_u_8_strict,
+        start_date: *mut wire_cst_list_prim_u_8_strict,
+        end_date: *mut wire_cst_list_prim_u_8_strict,
+        event_count: i64,
+        todo_done_count: i64,
+        by_event_type: *mut wire_cst_list_named_count_dto,
+        by_person: *mut wire_cst_list_named_count_dto,
+        by_project: *mut wire_cst_list_named_count_dto,
+        by_activity: *mut wire_cst_list_named_count_dto,
+        daily_counts: *mut wire_cst_list_day_count_dto,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -23541,6 +23927,26 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::DayCountDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::DayCountDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::DayCountDto {
+                date: self_.get(0).cst_decode(),
+                count: self_.get(1).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::EmotionTagDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -24481,6 +24887,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::DayCountDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::DayCountDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::EmotionTagDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -24726,6 +25144,18 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::conversations::MessageDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::NamedCountDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::NamedCountDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -25120,6 +25550,26 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::NamedCountDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::NamedCountDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::NamedCountDto {
+                label: self_.get(0).cst_decode(),
+                count: self_.get(1).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::web_search::NetworkSettingsDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -25249,6 +25699,34 @@ mod web {
                 version: self_.get(4).cst_decode(),
                 approval_token: self_.get(5).cst_decode(),
                 target_basis_json: self_.get(6).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::PeriodStatsDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::PeriodStatsDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                10,
+                "Expected 10 elements, got {}",
+                self_.length()
+            );
+            crate::api::PeriodStatsDto {
+                period_type: self_.get(0).cst_decode(),
+                start_date: self_.get(1).cst_decode(),
+                end_date: self_.get(2).cst_decode(),
+                event_count: self_.get(3).cst_decode(),
+                todo_done_count: self_.get(4).cst_decode(),
+                by_event_type: self_.get(5).cst_decode(),
+                by_person: self_.get(6).cst_decode(),
+                by_project: self_.get(7).cst_decode(),
+                by_activity: self_.get(8).cst_decode(),
+                daily_counts: self_.get(9).cst_decode(),
             }
         }
     }
@@ -27007,6 +27485,15 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__web_search__get_network_settings_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__get_period_stats(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        period_type: String,
+        date: String,
+    ) {
+        wire__crate__api__get_period_stats_impl(port_, period_type, date)
     }
 
     #[wasm_bindgen]

@@ -10,7 +10,7 @@ import '../bridge/rust_bridge_repository.dart';
 import '../bridge/api.dart' show EntityFactDto, EntityMergeStatusDto;
 
 /// 一级导航内容域。待办使用主工作区承载，避免在弹窗里维护持续讨论。
-enum SidebarTab { conversation, wiki, events }
+enum SidebarTab { conversation, wiki, review }
 
 final sidebarTabProvider =
     NotifierProvider<StateHolder<SidebarTab>, SidebarTab>(

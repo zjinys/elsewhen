@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -34621763;
+  int get rustContentHash => -1433112879;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -445,6 +445,11 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<NetworkSettingsDto> crateApiWebSearchGetNetworkSettings();
+
+  Future<PeriodStatsDto> crateApiGetPeriodStats({
+    required String periodType,
+    required String date,
+  });
 
   Future<ProcessorHandoffStateDto> crateApiSyncGetProcessorHandoffState();
 
@@ -3531,6 +3536,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiWebSearchGetNetworkSettingsConstMeta =>
       const TaskConstMeta(debugName: "get_network_settings", argNames: []);
+
+  @override
+  Future<PeriodStatsDto> crateApiGetPeriodStats({
+    required String periodType,
+    required String date,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(periodType);
+          var arg1 = cst_encode_String(date);
+          return wire.wire__crate__api__get_period_stats(port_, arg0, arg1);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_period_stats_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGetPeriodStatsConstMeta,
+        argValues: [periodType, date],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetPeriodStatsConstMeta => const TaskConstMeta(
+    debugName: "get_period_stats",
+    argNames: ["periodType", "date"],
+  );
 
   @override
   Future<ProcessorHandoffStateDto> crateApiSyncGetProcessorHandoffState() {
@@ -8633,6 +8666,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DayCountDto dco_decode_day_count_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DayCountDto(
+      date: dco_decode_String(arr[0]),
+      count: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
   EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -9284,6 +9329,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DayCountDto> dco_decode_list_day_count_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_day_count_dto).toList();
+  }
+
+  @protected
   List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_emotion_tag_dto).toList();
@@ -9421,6 +9472,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<MessageDto> dco_decode_list_message_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_message_dto).toList();
+  }
+
+  @protected
+  List<NamedCountDto> dco_decode_list_named_count_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_named_count_dto).toList();
   }
 
   @protected
@@ -9672,6 +9729,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  NamedCountDto dco_decode_named_count_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return NamedCountDto(
+      label: dco_decode_String(arr[0]),
+      count: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
   NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -9902,6 +9971,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       version: dco_decode_i_64(arr[4]),
       approvalToken: dco_decode_String(arr[5]),
       targetBasisJson: dco_decode_String(arr[6]),
+    );
+  }
+
+  @protected
+  PeriodStatsDto dco_decode_period_stats_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return PeriodStatsDto(
+      periodType: dco_decode_String(arr[0]),
+      startDate: dco_decode_String(arr[1]),
+      endDate: dco_decode_String(arr[2]),
+      eventCount: dco_decode_i_64(arr[3]),
+      todoDoneCount: dco_decode_i_64(arr[4]),
+      byEventType: dco_decode_list_named_count_dto(arr[5]),
+      byPerson: dco_decode_list_named_count_dto(arr[6]),
+      byProject: dco_decode_list_named_count_dto(arr[7]),
+      byActivity: dco_decode_list_named_count_dto(arr[8]),
+      dailyCounts: dco_decode_list_day_count_dto(arr[9]),
     );
   }
 
@@ -11227,6 +11316,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_date = sse_decode_String(deserializer);
+    var var_count = sse_decode_i_64(deserializer);
+    return DayCountDto(date: var_date, count: var_count);
+  }
+
+  @protected
   EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_target = sse_decode_opt_String(deserializer);
@@ -12148,6 +12245,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DayCountDto> sse_decode_list_day_count_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DayCountDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_day_count_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<EmotionTagDto> sse_decode_list_emotion_tag_dto(
     SseDeserializer deserializer,
   ) {
@@ -12431,6 +12542,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <MessageDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_message_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<NamedCountDto> sse_decode_list_named_count_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NamedCountDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_named_count_dto(deserializer));
     }
     return ans_;
   }
@@ -12856,6 +12981,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  NamedCountDto sse_decode_named_count_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_label = sse_decode_String(deserializer);
+    var var_count = sse_decode_i_64(deserializer);
+    return NamedCountDto(label: var_label, count: var_count);
+  }
+
+  @protected
   NetworkSettingsDto sse_decode_network_settings_dto(
     SseDeserializer deserializer,
   ) {
@@ -13215,6 +13348,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       version: var_version,
       approvalToken: var_approvalToken,
       targetBasisJson: var_targetBasisJson,
+    );
+  }
+
+  @protected
+  PeriodStatsDto sse_decode_period_stats_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_periodType = sse_decode_String(deserializer);
+    var var_startDate = sse_decode_String(deserializer);
+    var var_endDate = sse_decode_String(deserializer);
+    var var_eventCount = sse_decode_i_64(deserializer);
+    var var_todoDoneCount = sse_decode_i_64(deserializer);
+    var var_byEventType = sse_decode_list_named_count_dto(deserializer);
+    var var_byPerson = sse_decode_list_named_count_dto(deserializer);
+    var var_byProject = sse_decode_list_named_count_dto(deserializer);
+    var var_byActivity = sse_decode_list_named_count_dto(deserializer);
+    var var_dailyCounts = sse_decode_list_day_count_dto(deserializer);
+    return PeriodStatsDto(
+      periodType: var_periodType,
+      startDate: var_startDate,
+      endDate: var_endDate,
+      eventCount: var_eventCount,
+      todoDoneCount: var_todoDoneCount,
+      byEventType: var_byEventType,
+      byPerson: var_byPerson,
+      byProject: var_byProject,
+      byActivity: var_byActivity,
+      dailyCounts: var_dailyCounts,
     );
   }
 
@@ -14619,6 +14779,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_day_count_dto(DayCountDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.date, serializer);
+    sse_encode_i_64(self.count, serializer);
+  }
+
+  @protected
   void sse_encode_emotion_tag_dto(
     EmotionTagDto self,
     SseSerializer serializer,
@@ -15279,6 +15446,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_day_count_dto(
+    List<DayCountDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_day_count_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_emotion_tag_dto(
     List<EmotionTagDto> self,
     SseSerializer serializer,
@@ -15524,6 +15703,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_message_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_named_count_dto(
+    List<NamedCountDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_named_count_dto(item, serializer);
     }
   }
 
@@ -15886,6 +16077,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_named_count_dto(
+    NamedCountDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.label, serializer);
+    sse_encode_i_64(self.count, serializer);
+  }
+
+  @protected
   void sse_encode_network_settings_dto(
     NetworkSettingsDto self,
     SseSerializer serializer,
@@ -16207,6 +16408,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.version, serializer);
     sse_encode_String(self.approvalToken, serializer);
     sse_encode_String(self.targetBasisJson, serializer);
+  }
+
+  @protected
+  void sse_encode_period_stats_dto(
+    PeriodStatsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.periodType, serializer);
+    sse_encode_String(self.startDate, serializer);
+    sse_encode_String(self.endDate, serializer);
+    sse_encode_i_64(self.eventCount, serializer);
+    sse_encode_i_64(self.todoDoneCount, serializer);
+    sse_encode_list_named_count_dto(self.byEventType, serializer);
+    sse_encode_list_named_count_dto(self.byPerson, serializer);
+    sse_encode_list_named_count_dto(self.byProject, serializer);
+    sse_encode_list_named_count_dto(self.byActivity, serializer);
+    sse_encode_list_day_count_dto(self.dailyCounts, serializer);
   }
 
   @protected

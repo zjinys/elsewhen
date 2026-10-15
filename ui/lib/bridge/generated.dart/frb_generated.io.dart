@@ -209,6 +209,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
 
   @protected
+  DayCountDto dco_decode_day_count_dto(dynamic raw);
+
+  @protected
   EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw);
 
   @protected
@@ -359,6 +362,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw);
 
   @protected
+  List<DayCountDto> dco_decode_list_day_count_dto(dynamic raw);
+
+  @protected
   List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw);
 
   @protected
@@ -432,6 +438,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
+
+  @protected
+  List<NamedCountDto> dco_decode_list_named_count_dto(dynamic raw);
 
   @protected
   List<ObjectConflictDto> dco_decode_list_object_conflict_dto(dynamic raw);
@@ -533,6 +542,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MessageRecordabilityDto dco_decode_message_recordability_dto(dynamic raw);
 
   @protected
+  NamedCountDto dco_decode_named_count_dto(dynamic raw);
+
+  @protected
   NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw);
 
   @protected
@@ -620,6 +632,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
+
+  @protected
+  PeriodStatsDto dco_decode_period_stats_dto(dynamic raw);
 
   @protected
   ProcessingYieldProofDto dco_decode_processing_yield_proof_dto(dynamic raw);
@@ -942,6 +957,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer);
+
+  @protected
   EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer);
 
   @protected
@@ -1138,6 +1156,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DayCountDto> sse_decode_list_day_count_dto(SseDeserializer deserializer);
+
+  @protected
   List<EmotionTagDto> sse_decode_list_emotion_tag_dto(
     SseDeserializer deserializer,
   );
@@ -1235,6 +1256,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
+
+  @protected
+  List<NamedCountDto> sse_decode_list_named_count_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ObjectConflictDto> sse_decode_list_object_conflict_dto(
@@ -1366,6 +1392,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  NamedCountDto sse_decode_named_count_dto(SseDeserializer deserializer);
+
+  @protected
   NetworkSettingsDto sse_decode_network_settings_dto(
     SseDeserializer deserializer,
   );
@@ -1475,6 +1504,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
+
+  @protected
+  PeriodStatsDto sse_decode_period_stats_dto(SseDeserializer deserializer);
 
   @protected
   ProcessingYieldProofDto sse_decode_processing_yield_proof_dto(
@@ -2004,6 +2036,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_day_count_dto> cst_encode_list_day_count_dto(
+    List<DayCountDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_day_count_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_day_count_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_emotion_tag_dto> cst_encode_list_emotion_tag_dto(
     List<EmotionTagDto> raw,
   ) {
@@ -2241,6 +2285,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_message_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_message_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_named_count_dto> cst_encode_list_named_count_dto(
+    List<NamedCountDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_named_count_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_named_count_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3207,6 +3263,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_day_count_dto(
+    DayCountDto apiObj,
+    wire_cst_day_count_dto wireObj,
+  ) {
+    wireObj.date = cst_encode_String(apiObj.date);
+    wireObj.count = cst_encode_i_64(apiObj.count);
+  }
+
+  @protected
   void cst_api_fill_to_wire_emotion_tag_dto(
     EmotionTagDto apiObj,
     wire_cst_emotion_tag_dto wireObj,
@@ -3731,6 +3796,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_named_count_dto(
+    NamedCountDto apiObj,
+    wire_cst_named_count_dto wireObj,
+  ) {
+    wireObj.label = cst_encode_String(apiObj.label);
+    wireObj.count = cst_encode_i_64(apiObj.count);
+  }
+
+  @protected
   void cst_api_fill_to_wire_network_settings_dto(
     NetworkSettingsDto apiObj,
     wire_cst_network_settings_dto wireObj,
@@ -3801,6 +3875,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.version = cst_encode_i_64(apiObj.version);
     wireObj.approval_token = cst_encode_String(apiObj.approvalToken);
     wireObj.target_basis_json = cst_encode_String(apiObj.targetBasisJson);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_period_stats_dto(
+    PeriodStatsDto apiObj,
+    wire_cst_period_stats_dto wireObj,
+  ) {
+    wireObj.period_type = cst_encode_String(apiObj.periodType);
+    wireObj.start_date = cst_encode_String(apiObj.startDate);
+    wireObj.end_date = cst_encode_String(apiObj.endDate);
+    wireObj.event_count = cst_encode_i_64(apiObj.eventCount);
+    wireObj.todo_done_count = cst_encode_i_64(apiObj.todoDoneCount);
+    wireObj.by_event_type = cst_encode_list_named_count_dto(apiObj.byEventType);
+    wireObj.by_person = cst_encode_list_named_count_dto(apiObj.byPerson);
+    wireObj.by_project = cst_encode_list_named_count_dto(apiObj.byProject);
+    wireObj.by_activity = cst_encode_list_named_count_dto(apiObj.byActivity);
+    wireObj.daily_counts = cst_encode_list_day_count_dto(apiObj.dailyCounts);
   }
 
   @protected
@@ -4622,6 +4713,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_day_count_dto(DayCountDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_emotion_tag_dto(EmotionTagDto self, SseSerializer serializer);
 
   @protected
@@ -4874,6 +4968,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_day_count_dto(
+    List<DayCountDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_emotion_tag_dto(
     List<EmotionTagDto> self,
     SseSerializer serializer,
@@ -4990,6 +5090,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_message_dto(
     List<MessageDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_named_count_dto(
+    List<NamedCountDto> self,
     SseSerializer serializer,
   );
 
@@ -5159,6 +5265,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_named_count_dto(NamedCountDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_network_settings_dto(
     NetworkSettingsDto self,
     SseSerializer serializer,
@@ -5293,6 +5402,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_pending_action_dto(
     PendingActionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_period_stats_dto(
+    PeriodStatsDto self,
     SseSerializer serializer,
   );
 
@@ -6044,6 +6159,19 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_daily_token_usage_dto> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_day_count_dto> cst_new_list_day_count_dto(int len) {
+    return _cst_new_list_day_count_dto(len);
+  }
+
+  late final _cst_new_list_day_count_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_day_count_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_day_count_dto');
+  late final _cst_new_list_day_count_dto = _cst_new_list_day_count_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_day_count_dto> Function(int)>();
+
   ffi.Pointer<wire_cst_list_emotion_tag_dto> cst_new_list_emotion_tag_dto(
     int len,
   ) {
@@ -6386,6 +6514,21 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_message_dto');
   late final _cst_new_list_message_dto = _cst_new_list_message_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_message_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_named_count_dto> cst_new_list_named_count_dto(
+    int len,
+  ) {
+    return _cst_new_list_named_count_dto(len);
+  }
+
+  late final _cst_new_list_named_count_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_named_count_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_named_count_dto');
+  late final _cst_new_list_named_count_dto = _cst_new_list_named_count_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_named_count_dto> Function(int)>();
 
   ffi.Pointer<wire_cst_list_object_conflict_dto>
   cst_new_list_object_conflict_dto(int len) {
@@ -8427,6 +8570,34 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__get_message_recordabilityPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__get_period_stats(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> period_type,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> date,
+  ) {
+    return _wire__crate__api__get_period_stats(port_, period_type, date);
+  }
+
+  late final _wire__crate__api__get_period_statsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__get_period_stats');
+  late final _wire__crate__api__get_period_stats =
+      _wire__crate__api__get_period_statsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__goals__archive_goal(
@@ -13771,6 +13942,21 @@ final class wire_cst_daily_token_usage_dto extends ffi.Struct {
     ..ref.call_count = call_count;
 }
 
+final class wire_cst_day_count_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> date;
+
+  @ffi.Int64()
+  external int count;
+
+  static ffi.Pointer<wire_cst_day_count_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> date,
+    required int count,
+  }) => $allocator<wire_cst_day_count_dto>()
+    ..ref.date = date
+    ..ref.count = count;
+}
+
 final class wire_cst_emotion_tag_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> target;
 
@@ -15061,6 +15247,21 @@ final class wire_cst_list_daily_token_usage_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_day_count_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_day_count_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_day_count_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_day_count_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_day_count_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_emotion_tag_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_emotion_tag_dto> ptr;
 
@@ -15372,6 +15573,21 @@ final class wire_cst_list_message_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_message_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_message_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_named_count_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_named_count_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_named_count_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_named_count_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_named_count_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }
@@ -15904,6 +16120,21 @@ final class wire_cst_message_recordability_dto extends ffi.Struct {
     ..ref.summary = summary;
 }
 
+final class wire_cst_named_count_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> label;
+
+  @ffi.Int64()
+  external int count;
+
+  static ffi.Pointer<wire_cst_named_count_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> label,
+    required int count,
+  }) => $allocator<wire_cst_named_count_dto>()
+    ..ref.label = label
+    ..ref.count = count;
+}
+
 final class wire_cst_network_settings_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_uri;
 
@@ -16079,6 +16310,54 @@ final class wire_cst_pending_action_dto extends ffi.Struct {
     ..ref.version = version
     ..ref.approval_token = approval_token
     ..ref.target_basis_json = target_basis_json;
+}
+
+final class wire_cst_period_stats_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> period_type;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> start_date;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> end_date;
+
+  @ffi.Int64()
+  external int event_count;
+
+  @ffi.Int64()
+  external int todo_done_count;
+
+  external ffi.Pointer<wire_cst_list_named_count_dto> by_event_type;
+
+  external ffi.Pointer<wire_cst_list_named_count_dto> by_person;
+
+  external ffi.Pointer<wire_cst_list_named_count_dto> by_project;
+
+  external ffi.Pointer<wire_cst_list_named_count_dto> by_activity;
+
+  external ffi.Pointer<wire_cst_list_day_count_dto> daily_counts;
+
+  static ffi.Pointer<wire_cst_period_stats_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> period_type,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> start_date,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> end_date,
+    required int event_count,
+    required int todo_done_count,
+    required ffi.Pointer<wire_cst_list_named_count_dto> by_event_type,
+    required ffi.Pointer<wire_cst_list_named_count_dto> by_person,
+    required ffi.Pointer<wire_cst_list_named_count_dto> by_project,
+    required ffi.Pointer<wire_cst_list_named_count_dto> by_activity,
+    required ffi.Pointer<wire_cst_list_day_count_dto> daily_counts,
+  }) => $allocator<wire_cst_period_stats_dto>()
+    ..ref.period_type = period_type
+    ..ref.start_date = start_date
+    ..ref.end_date = end_date
+    ..ref.event_count = event_count
+    ..ref.todo_done_count = todo_done_count
+    ..ref.by_event_type = by_event_type
+    ..ref.by_person = by_person
+    ..ref.by_project = by_project
+    ..ref.by_activity = by_activity
+    ..ref.daily_counts = daily_counts;
 }
 
 final class wire_cst_processing_yield_proof_dto extends ffi.Struct {

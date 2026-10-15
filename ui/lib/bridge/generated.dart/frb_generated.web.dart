@@ -211,6 +211,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
 
   @protected
+  DayCountDto dco_decode_day_count_dto(dynamic raw);
+
+  @protected
   EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw);
 
   @protected
@@ -361,6 +364,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DailyTokenUsageDto> dco_decode_list_daily_token_usage_dto(dynamic raw);
 
   @protected
+  List<DayCountDto> dco_decode_list_day_count_dto(dynamic raw);
+
+  @protected
   List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw);
 
   @protected
@@ -434,6 +440,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<MessageDto> dco_decode_list_message_dto(dynamic raw);
+
+  @protected
+  List<NamedCountDto> dco_decode_list_named_count_dto(dynamic raw);
 
   @protected
   List<ObjectConflictDto> dco_decode_list_object_conflict_dto(dynamic raw);
@@ -535,6 +544,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MessageRecordabilityDto dco_decode_message_recordability_dto(dynamic raw);
 
   @protected
+  NamedCountDto dco_decode_named_count_dto(dynamic raw);
+
+  @protected
   NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw);
 
   @protected
@@ -622,6 +634,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
+
+  @protected
+  PeriodStatsDto dco_decode_period_stats_dto(dynamic raw);
 
   @protected
   ProcessingYieldProofDto dco_decode_processing_yield_proof_dto(dynamic raw);
@@ -944,6 +959,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer);
+
+  @protected
   EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer);
 
   @protected
@@ -1140,6 +1158,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DayCountDto> sse_decode_list_day_count_dto(SseDeserializer deserializer);
+
+  @protected
   List<EmotionTagDto> sse_decode_list_emotion_tag_dto(
     SseDeserializer deserializer,
   );
@@ -1237,6 +1258,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<MessageDto> sse_decode_list_message_dto(SseDeserializer deserializer);
+
+  @protected
+  List<NamedCountDto> sse_decode_list_named_count_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ObjectConflictDto> sse_decode_list_object_conflict_dto(
@@ -1368,6 +1394,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  NamedCountDto sse_decode_named_count_dto(SseDeserializer deserializer);
+
+  @protected
   NetworkSettingsDto sse_decode_network_settings_dto(
     SseDeserializer deserializer,
   );
@@ -1477,6 +1506,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
+
+  @protected
+  PeriodStatsDto sse_decode_period_stats_dto(SseDeserializer deserializer);
 
   @protected
   ProcessingYieldProofDto sse_decode_processing_yield_proof_dto(
@@ -2114,6 +2146,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_day_count_dto(DayCountDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [cst_encode_String(raw.date), cst_encode_i_64(raw.count)].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_emotion_tag_dto(EmotionTagDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2660,6 +2698,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_day_count_dto(List<DayCountDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_day_count_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_emotion_tag_dto(List<EmotionTagDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_emotion_tag_dto).toList().jsify()!;
@@ -2793,6 +2837,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_message_dto(List<MessageDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_message_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_named_count_dto(List<NamedCountDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_named_count_dto).toList().jsify()!;
   }
 
   @protected
@@ -3017,6 +3067,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_named_count_dto(NamedCountDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [cst_encode_String(raw.label), cst_encode_i_64(raw.count)].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_network_settings_dto(NetworkSettingsDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -3234,6 +3290,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_64(raw.version),
       cst_encode_String(raw.approvalToken),
       cst_encode_String(raw.targetBasisJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_period_stats_dto(PeriodStatsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.periodType),
+      cst_encode_String(raw.startDate),
+      cst_encode_String(raw.endDate),
+      cst_encode_i_64(raw.eventCount),
+      cst_encode_i_64(raw.todoDoneCount),
+      cst_encode_list_named_count_dto(raw.byEventType),
+      cst_encode_list_named_count_dto(raw.byPerson),
+      cst_encode_list_named_count_dto(raw.byProject),
+      cst_encode_list_named_count_dto(raw.byActivity),
+      cst_encode_list_day_count_dto(raw.dailyCounts),
     ].jsify()!;
   }
 
@@ -4028,6 +4101,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_day_count_dto(DayCountDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_emotion_tag_dto(EmotionTagDto self, SseSerializer serializer);
 
   @protected
@@ -4280,6 +4356,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_day_count_dto(
+    List<DayCountDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_emotion_tag_dto(
     List<EmotionTagDto> self,
     SseSerializer serializer,
@@ -4396,6 +4478,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_message_dto(
     List<MessageDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_named_count_dto(
+    List<NamedCountDto> self,
     SseSerializer serializer,
   );
 
@@ -4565,6 +4653,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_named_count_dto(NamedCountDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_network_settings_dto(
     NetworkSettingsDto self,
     SseSerializer serializer,
@@ -4699,6 +4790,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_pending_action_dto(
     PendingActionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_period_stats_dto(
+    PeriodStatsDto self,
     SseSerializer serializer,
   );
 
@@ -5588,6 +5685,12 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__web_search__get_network_settings(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__web_search__get_network_settings(port_);
+
+  void wire__crate__api__get_period_stats(
+    NativePortType port_,
+    String period_type,
+    String date,
+  ) => wasmModule.wire__crate__api__get_period_stats(port_, period_type, date);
 
   void wire__crate__api__sync__get_processor_handoff_state(
     NativePortType port_,
@@ -7293,6 +7396,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__web_search__get_network_settings(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__get_period_stats(
+    NativePortType port_,
+    String period_type,
+    String date,
   );
 
   external void wire__crate__api__sync__get_processor_handoff_state(
