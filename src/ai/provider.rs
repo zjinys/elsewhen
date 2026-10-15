@@ -40,7 +40,7 @@ pub(crate) fn shared_blocking_client(timeout_secs: u64) -> Result<reqwest::block
     if let Some((_, client)) = clients.iter().find(|(t, _)| *t == timeout_secs) {
         return Ok(client.clone());
     }
-    let client = reqwest::blocking::Client::builder()
+    let client = crate::http_proxy::with_env_proxy(reqwest::blocking::Client::builder())
         .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
         .context("Failed to create HTTP client")?;

@@ -806,12 +806,15 @@ pub fn get_sync_roster() -> Result<SyncRosterDto> {
 /// 名册 owner 撤销成员设备（需本机已解锁）。修订号必须与 UI 审阅时所见一致；
 /// 撤销 owner/加工设备会被 sync_membership_handoff_required 硬拦。
 pub fn revoke_sync_member(device_id: String, expected_revision: i64) -> Result<()> {
-    ensure!(
-        expected_revision > 0 && expected_revision <= i64::MAX,
-        "sync_membership_revision_invalid"
-    );
+    ensure!(expected_revision > 0, "sync_membership_revision_invalid");
+    // 期望修订号恒为正，i64 上限无需再比（clippy::absurd_extreme_comparisons）。
     let config = AppConfig::load()?;
-    runtime::handoff::revoke_member(&config, &device_id, expected_revision as u64)
+    runtime::handoff::revoke_member(
+        &config,
+        &device_id,
+        u64::try_from(expected_revision)
+            .map_err(|_| anyhow::anyhow!("sync_membership_revision_invalid"))?,
+    )
 }
 
 /// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。

@@ -592,7 +592,11 @@ fn join_commit_and_membership_finalization_are_atomic_and_do_not_execute_work() 
     // A new invitation is necessary after consuming an in-memory Noise result.
     let (approved, join) = a.approve(&b, NOW + 24 * 60 * 60 * 1000 + 1);
     let pair = join
-        .finish(&a.frame(&approved, NOW + 24 * 60 * 60 * 1000 + 1), 0, NOW + 24 * 60 * 60 * 1000 + 1)
+        .finish(
+            &a.frame(&approved, NOW + 24 * 60 * 60 * 1000 + 1),
+            0,
+            NOW + 24 * 60 * 60 * 1000 + 1,
+        )
         .unwrap();
     assert_eq!(pair.key_version, 2);
     let committed = b
@@ -736,7 +740,13 @@ fn pending_journal_is_encrypted_bounded_and_cannot_use_a_rolled_back_floor() {
     assert!(a.store.load_sync_vault("install", &a.master, 11).is_err());
     assert!(
         a.store
-            .sync_pairing_frame("install", &a.master, 9, &commit.invitation_id, NOW + 24 * 60 * 60 * 1000 + 1)
+            .sync_pairing_frame(
+                "install",
+                &a.master,
+                9,
+                &commit.invitation_id,
+                NOW + 24 * 60 * 60 * 1000 + 1
+            )
             .is_err()
     );
 }

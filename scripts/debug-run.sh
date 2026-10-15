@@ -72,6 +72,22 @@ rotate_if_oversized() {
     echo "已轮转：上一份 $(human_size "$LOG.1") → $LOG.1"
 }
 
+# relay 出站走代理：relay 是 Cloudflare Workers，直连优选 IP 的 TLS 握手
+# 抖动可达数秒，配对链路（多个串行往返）会因此失败。reqwest 不读系统
+# 代理，这里探测本机常见代理端口并导出标准变量（src/http_proxy.rs 消费）。
+# 已显式设置 HTTPS_PROXY/ALL_PROXY 时完全尊重用户；全没探测到则直连。
+if [ -z "${HTTPS_PROXY:-}" ] && [ -z "${https_proxy:-}" ] && [ -z "${ALL_PROXY:-}" ] && [ -z "${all_proxy:-}" ]; then
+    for port in 7897 7890 7891 1080; do
+        if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
+            exec 3>&- 3<&- || true
+            export HTTPS_PROXY="http://127.0.0.1:$port"
+            export ALL_PROXY="$HTTPS_PROXY"
+            echo "已探测到本机代理端口 $port，relay/AI 出站将走该代理（ALL_PROXY=$ALL_PROXY）"
+            break
+        fi
+    done
+fi
+
 rotate_if_oversized
 
 echo "调试模式已开启（ELSEWHEN_DEBUG=1）"
