@@ -125,6 +125,14 @@ class RustBridgeRepository implements StorageRepository {
     // Resume durable work after process restart. The timer also covers retry
     // backoff expiry and the Rust-side 50-job invocation bound.
     _analysisTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      // 空转退避：连续空闲时每 6 拍（≈30s）才做一次完整序列（开库+vault+
+      // 同步 tick+洞察 tick），其余拍零 FFI 直接返回。实测（release 空转）
+      // 每 5s 整序列贡献 ~5% CPU 毛刺，退避后抹平。显式唤醒（记事件/配
+      // key/同步到达/rerun）走 _wakeAnalysisWorker，会清零计数恢复 5s 跟拍。
+      // 已知代价（如实记）：重试 backoff 到期后最多等到下一拍完整序列，
+      // 即空闲期重试延迟从 ≤5s 变 ≤30s（重回活跃后立即恢复）。
+      _idleWakes++;
+      if (_idleWakes % _idleWakeFullEvery != 0) return;
       _wakeAnalysisWorker();
     });
     _wakeAnalysisWorker();
@@ -312,7 +320,14 @@ class RustBridgeRepository implements StorageRepository {
 
   /// Schedule analysis without making input persistence wait for the network.
   /// Multiple saves coalesce into one in-flight invocation.
+  /// 空转退避参数：每 _idleWakeFullEvery 拍（每拍 5s，6 拍≈30s）做一次完整
+  /// 后台序列（分析排空+知识消化+网络同步+洞察 tick）。序列本身每次都是全量的
+  /// （开 store、解密 vault、roster 校验），空闲期白烧——这是唯一的省法。
+  static const int _idleWakeFullEvery = 6;
+  int _idleWakes = 0;
+
   void _wakeAnalysisWorker() {
+    _idleWakes = 0;
     if (!_initialized || _disposed || !runBackgroundWorker) return;
     if (_analysisWorkerRunning) {
       _analysisRerunRequested = true;
