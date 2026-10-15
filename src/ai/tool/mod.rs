@@ -93,6 +93,7 @@ pub enum ToolPolicy {
 }
 
 mod history;
+mod stats;
 
 /// 工具运行上下文
 pub struct ToolContext<'a> {
@@ -139,6 +140,7 @@ impl Default for ToolRegistry {
             Box::new(ProposePeopleRelationsTool),
             Box::new(BatchExtractPeopleRelationsTool),
             Box::new(ListEventsByDateTool),
+            Box::new(stats::QueryEventStatsTool),
             Box::new(ArchiveConversationsByTitleTool),
             Box::new(RenameWikiPageTool),
             Box::new(ImportUrlToWikiTool),

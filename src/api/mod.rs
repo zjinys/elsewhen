@@ -2,6 +2,7 @@ pub mod chat_proposals;
 pub mod chat_runs;
 pub mod conversations;
 pub mod entities;
+pub mod event_stats;
 pub mod fonts;
 pub mod goals;
 pub mod import;
@@ -1457,7 +1458,7 @@ fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i6
             )
         };
         let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v3。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)；仅当下方附有规则命中时才包含 rule_confirmations(array of {{rule_id: string, applicable: boolean, confidence: number 0..1}})。情绪走红线：仅当记录客观存在对具体人或事的情绪反应时才可选包含 emotion 数组：[{{\"target\": string, \"feeling\": string}}]——feeling 用简短文本描述感受（如「被理解」「焦虑」「挫败」），绝对禁止打分或生成情绪分析报告；target 填相关的人或事（与 people/projects 一致，对事件本身的感受填空字符串）；没有则整个省略 emotion 字段。只有当决策辅助上下文与你确有关联时才可选包含 guidance 对象：{{\"related\":[{{\"slug\":string,\"note\":string}}],\"lessons\":[string],\"follow_ups_refined\":[string]}}：related[].slug 只能取自决策辅助上下文中出现的知识库页 slug，note 写为什么相关/可复用什么（一句话）；lessons 写可复用经验（不是重复记录内容）；follow_ups_refined 是对 follow_ups 的精炼合并；无关联时整个省略 guidance 字段，不得杜撰 slug。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}{}",
+            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v3。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)；仅当下方附有规则命中时才包含 rule_confirmations(array of {{rule_id: string, applicable: boolean, confidence: number 0..1}})。情绪走红线：仅当记录客观存在对具体人或事的情绪反应时才可选包含 emotion 数组：[{{\"target\": string, \"feeling\": string}}]——feeling 用简短文本描述感受（如「被理解」「焦虑」「挫败」），绝对禁止打分或生成情绪分析报告；target 填相关的人或事（与 people/projects 一致，对事件本身的感受填空字符串）；没有则整个省略 emotion 字段。只有当决策辅助上下文与你确有关联时才可选包含 guidance 对象：{{\"related\":[{{\"slug\":string,\"note\":string}}],\"lessons\":[string],\"follow_ups_refined\":[string]}}：related[].slug 只能取自决策辅助上下文中出现的知识库页 slug，note 写为什么相关/可复用什么（一句话）；lessons 写可复用经验（不是重复记录内容）；follow_ups_refined 是对 follow_ups 的精炼合并；无关联时整个省略 guidance 字段，不得杜撰 slug。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。activities 提取简短常见的动词短语（如 散步、跑步、阅读、写代码），不要用描述性长句——统计按词匹配，词汇不一致就数不到。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}{}",
             context, job.raw_text, rules_section
         );
         let mut analysis_context = vec![

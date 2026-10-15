@@ -7,7 +7,13 @@ fn natural_replies_never_execute_or_discard_unbound_proposals() {
             "choices":[{"message":{"content":"待审内容已保留，请在审阅卡选择具体操作。"},"finish_reason":"stop"}]
         }))]);
         let (store, path) = temporary_database();
-        store.upsert_ai_provider_config(&url, "fixture", "fixture-key").unwrap();
+        // 模型名用 kimi 前缀 → 默认窗 131k：本测试验「短回复不得授权」的行为
+        // 纪律，不是预算装载（那条护栏由 short_new_conversation_fits_..
+        // 单独看守）。R2 上线全工具清单后，规则命中+待确认动作的重上下文
+        // 在 unknown 的 32k 保守窗下已无余量，不在本测试里叠加那个边缘约束。
+        store
+            .upsert_ai_provider_config(&url, "kimi-fixture", "fixture-key")
+            .unwrap();
         let conv = store.create_conversation(Some("explicit review"), None).unwrap();
         for title in ["A", "B"] {
             store.create_pending_action(&conv, "create_todo", &json!({"title":title}).to_string()).unwrap();

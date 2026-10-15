@@ -20,7 +20,7 @@
 | 切片 | 内容 | 依赖 | 状态 |
 |---|---|---|---|
 | R1 | 回顾页第一刀：日/周/月三粒度（无 AI） | 无 | **已实现，待真人验收** |
-| R2 | `query_event_stats` 通用统计工具（对话内精确统计） | 无 | 未开工 |
+| R2 | `query_event_stats` 通用统计工具（对话内精确统计） | 无 | 已实现，待真人验收 |
 | R3 | 周期报告管道 + 偏差检测（-04） | R1（呈现面）；R0 契约冻结 | 未开工 |
 | R4 | 评估可观察性（-05）：已读记账、反馈、报告详情 | R3 | 未开工 |
 | R5 | 第二刀：周/月 AI 总结生成管道 | R1 验证后裁决 | 需验证后再议 |
@@ -74,12 +74,14 @@
 
 **收益：** 「这个月散步几次」得到精确数字与日期分布，AI 不再估算。
 
-- [ ] Rust 工具 `QueryEventStatsTool`：参数 `date_range/event_type/activity_contains/person/project/text_contains/group_by`（可组合）；SQL `json_extract` 聚合 `event_analyses.result_json`，**不改 schema**。
-- [ ] 参数校验 fail-closed：未知 `date_range`/`group_by` 值报错不猜；`person/project/activity` 匹配大小写折叠（与 D1 预筛同款手写扫描，无 regex 依赖）。
-- [ ] 返回 `total/period/grouped/samples`；samples 只带截断后的原文片段（复用现有上下文转义纪律）。
-- [ ] 对话内注册工具：主对话可用；知识页对话不必（口径同 today-memory 段）。
-- [ ] 分析 prompt 加 activities 词汇引导（见裁决表）。
-- [ ] 测试：分组正确性、组合过滤、大小写折叠、空结果合法返回。
+- [x] Rust 工具 `QueryEventStatsTool`（`api/event_stats.rs` 聚合层 + `ai/tool/stats.rs` 工具壳）：参数 `date_range/event_type/person/project/activity/text_contains/group_by`（可组合）；窗口 + V1 解析在内存过滤聚合（与 R1 周期拼装同源口径），**不改 schema**。聚合层独立成模块，R3 报告管道复用同一消费面。
+- [x] 参数校验 fail-closed：未知 `date_range`/`group_by` 值报错不猜；`person/project/activity` 大小写折叠「包含」匹配、`event_type` 折叠精确（手写扫描，无 regex）；窗口 ≤366 天。
+- [x] 返回 `total（过滤前）/matched/grouped（确定性排序+top50）/samples（最新 12 条，原文截 240）`；空结果合法返回并明说「没命中」（AI 不许估算）。
+- [x] 工具清单注册：`ToolPolicy::Read` 走既有 registry（知识页对话顺势获得只读工具，不做第二套过滤面）。**工具描述极限压缩**：预算引擎按字节估 token（unknown 模型 1B=1t），工具清单每字节都是全体对话固定开销。
+- [x] 分析 prompt 加 activities 词汇引导（api/mod.rs 分析 prompt：「简短常见的动词短语……统计按词匹配，词汇不一致就数不到」）。
+- [x] 测试 7 项：分组计数 + chitchat/manual 决策排除、组合过滤 + 大小写折叠、text_contains、空结果、fail-closed（未知 group_by / 反转窗 / 超长窗 / 未知 date_range）、date_range 边界（ISO 周界、跨年）、samples 截断。
+- ⚠ **已知限制（工具清单预算）**：对话请求注入全量 24 工具 JSON ≈14KB，unknown 32k 默认窗下预算 = 32768−4096−5% margin ≈ 27.0k 字节估 token。短对话场景已极限压缩后刚好合规（护栏测试 green）；
+  「规则命中 + 待确认动作」重上下文 + 32k 长尾模型会保护性拒绝（报「减小窗口/上下文」）。deepseek/qwen/kimi/glm/claude/gemini 等 64k+ 主流均不受影响。解法方向（后续刀）：对话场景分层工具清单或清单参数瘦身，单独立项，本刀不扩 budget margin。
 
 ## R3 — 周期报告管道 + 偏差检测（FR-PES-005-04）
 
