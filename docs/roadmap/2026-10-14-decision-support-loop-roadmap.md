@@ -130,6 +130,12 @@ note（2026-09-19）的三个缺口判断有两条已随管线演进过期，以
 - [x] 主动回访：低打扰情感性回访（可关）；触发面仅限回顾/打开应用时，**绝不做系统级推送轰炸**。→ **实现：** `companion_settings` singleton（migration 37：开关默认开 + 间隔天数下限默认 7 可配 3/7/14/30 + `last_revisit_at` 展示即记账）；`check_companion_revisit` 只在主界面挂载时调用一次（CompanionRevisitHint 横幅，fail-safe 收缩，点掉当次不再现）；关闭则**零查询零成本**（enabled 短路是最先的一行代码）；素材=间隔期外带情绪标注的旧记忆优先、否则最新一般事件（确定性取数，无权重推断）；排除于快照（local-event-reminders 域）；永不注册系统级推送/通知通道/后台唤醒。
 - [x] 测试：度量只记不外发；回访频率上限可配；关闭回访后零侵入验证。→ **实现（Rust 732 / Flutter 379）：** `companion_revisit_gates_and_prefers_emotion`（无素材不记账、情绪候选优先、记录时间窗红线）；`companion_interval_is_enforceable`（3 天间隔未满不吃回访——频率上限可配）；`companion_disabled_returns_none_and_is_untouched`（关闭后即便素材与间隔都满足也 None 且 last_revisit 不动——零侵入）；`rule_hit_feedback_records_clears_and_fails_closed`（记录/清除/未知值报错/pending 不可反馈/不存在 id false）；`today_memory_background_is_real_retrieval`（当日事件注入为可选背景、无记录不注入）；`daily_overview_parts_available_from_store`（当日命中隔离昨日）；`memory_echo_and_day_hits_are_store_level_queries`；Flutter 桥面 fail-closed + 回访偏好往返。**遗留：** api 层 `set_rule_hit_feedback` 的 trim/空串校验与 `get/set_companion_prefs`、`check_companion_revisit` 无独立测试（该层薄且会经 AppConfig::load 打真实库，测试一律走 store 层——D6 起 api 层测试纪律固化为「逻辑下沉 storage、api 只转发」，故 D4 legacy 提到的「段落级故障无专测」同口径处理）；回访横幅无 widget 测试（桥面已覆盖）；「只记不外发」由无任何外发代码路径 + 反馈字段排除于快照（rule_hits 本就 excluded）双重保证，无专测（结构性事实）。
 
+## 遗留收口（2026-10-15 起；主线外三件真实遗留，用户拍板「总是需要解决」）
+
+- [x] **A：用户语义知识状态入同步集**——`knowledge_maintenance_reviews`（append-only，fingerprint 幂等键，收端 `INSERT OR IGNORE`，无 head/CAS）+ `knowledge_reading_states`（五态选择字段，LWW by updated_at，不上 CAS）入 op 增量同步与快照 carried 集；孤儿 page fail-closed；管道产物（jobs/runs/snapshots/metrics/topic_plans）永久排除写入门禁纪律。→ **完成（`78ef76b`）：** `KnowledgeReviewAppended`/`KnowledgeReadingStateChanged` 两个 mutation + 快照两种 kind 标签；测试覆盖双端各自关同一 issue 收敛一行、LWW 双向传播、快照往返 bootstrap 后增量续流（Rust 735 全绿）。**留二刀（如实挂账）：** `knowledge_review_decisions` 的 `proposal_id→knowledge_proposals` 外键使它必须连带 proposals（含 original_content 草拟正文，快照变重）后续入集，本轮不动。
+- [ ] **B：guidance 采纳度量**——复用 D6 rule_hit feedback 纪律（只记不外推）：独立 append-only 反馈表（analysis_id + 条目定位键 + helpful/not_relevant + created_at），wiki 详情页 guidance 条目加有用/不相关按钮；未消费即无自动行为。
+- [ ] **C：事件详情视图**——事件列表（最近 N，EventCard）+ 详情页（`EventAnalysisDetailDto` 读面已有；顺带闭 D1 事件旁规则命中标记与 D2 `source_event_id` 跳转两笔旧账）；挂载点待拍板（主工作区新 tab / 设置页入口 / 左栏 conversation tab）。
+
 ## 首个可用范围与暂不做
 
 - **首个可用：** D1 + D2 + D4 通过真人验收后，规则触发与事件指导构成可感知的决策辅助 MVP；D5/D6 属体验深化，不阻塞 MVP 发布判断。
