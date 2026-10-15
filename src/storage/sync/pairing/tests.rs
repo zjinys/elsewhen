@@ -310,7 +310,7 @@ fn expired_or_tampered_proof_does_not_consume_pending_approval() {
                 2,
                 &approved.invitation_id,
                 &proof,
-                NOW + 60_000
+                NOW + 24 * 60 * 60 * 1000
             )
             .is_err()
     );
@@ -321,7 +321,7 @@ fn expired_or_tampered_proof_does_not_consume_pending_approval() {
                 &a.master,
                 2,
                 &approved.invitation_id,
-                NOW + 60_000
+                NOW + 24 * 60 * 60 * 1000
             )
             .is_err()
     );
@@ -467,7 +467,7 @@ fn temporary_direction_capabilities_survive_reopen_without_the_invitation_psk() 
         response.delivery.recipient_mailbox,
         RelayClient::mailbox_key(b.vault.mailbox_owner())
     );
-    assert_eq!(response.delivery.expires_at_ms, NOW + 60_000);
+    assert_eq!(response.delivery.expires_at_ms, NOW + 24 * 60 * 60 * 1000);
     assert_eq!(
         format!("{:?}", response.delivery),
         "PairingDelivery([REDACTED])"
@@ -495,7 +495,7 @@ fn temporary_direction_capabilities_survive_reopen_without_the_invitation_psk() 
                 &b.master,
                 2,
                 &committed.invitation_id,
-                NOW + 60_000
+                NOW + 24 * 60 * 60 * 1000
             )
             .is_err()
     );
@@ -590,16 +590,16 @@ fn join_commit_and_membership_finalization_are_atomic_and_do_not_execute_work() 
         .execute_batch("DROP TRIGGER fail_pair_commit")
         .unwrap();
     // A new invitation is necessary after consuming an in-memory Noise result.
-    let (approved, join) = a.approve(&b, NOW + 60_001);
+    let (approved, join) = a.approve(&b, NOW + 24 * 60 * 60 * 1000 + 1);
     let pair = join
-        .finish(&a.frame(&approved, NOW + 60_001), 0, NOW + 60_001)
+        .finish(&a.frame(&approved, NOW + 24 * 60 * 60 * 1000 + 1), 0, NOW + 24 * 60 * 60 * 1000 + 1)
         .unwrap();
     assert_eq!(pair.key_version, 2);
     let committed = b
         .store
-        .install_sync_pairing_join("install", &b.master, 1, pair, NOW + 60_001)
+        .install_sync_pairing_join("install", &b.master, 1, pair, NOW + 24 * 60 * 60 * 1000 + 1)
         .unwrap();
-    let proof = b.frame(&committed, NOW + 60_001);
+    let proof = b.frame(&committed, NOW + 24 * 60 * 60 * 1000 + 1);
     let committed_a = a
         .store
         .confirm_sync_pairing_installation(
@@ -608,7 +608,7 @@ fn join_commit_and_membership_finalization_are_atomic_and_do_not_execute_work() 
             approved.vault_revision,
             &approved.invitation_id,
             &proof,
-            NOW + 60_001,
+            NOW + 24 * 60 * 60 * 1000 + 1,
         )
         .unwrap();
     let roster = a
@@ -630,7 +630,7 @@ fn join_commit_and_membership_finalization_are_atomic_and_do_not_execute_work() 
     );
     assert!(!b.active(&b));
     assert!(!b.store.provider_keys_sealed().unwrap());
-    assert_eq!(b.frame(&committed, NOW + 60_001), proof);
+    assert_eq!(b.frame(&committed, NOW + 24 * 60 * 60 * 1000 + 1), proof);
     b.store
         .connection
         .execute_batch("DROP TRIGGER fail_pair_commit")
@@ -731,12 +731,12 @@ fn pending_journal_is_encrypted_bounded_and_cannot_use_a_rolled_back_floor() {
             .contains("pending_limit")
     );
     assert_eq!(a.revision(), 9);
-    let (commit, _) = a.approve(&ninth, NOW + 60_001);
+    let (commit, _) = a.approve(&ninth, NOW + 24 * 60 * 60 * 1000 + 1);
     assert_eq!(commit.vault_revision, 10);
     assert!(a.store.load_sync_vault("install", &a.master, 11).is_err());
     assert!(
         a.store
-            .sync_pairing_frame("install", &a.master, 9, &commit.invitation_id, NOW + 60_001)
+            .sync_pairing_frame("install", &a.master, 9, &commit.invitation_id, NOW + 24 * 60 * 60 * 1000 + 1)
             .is_err()
     );
 }

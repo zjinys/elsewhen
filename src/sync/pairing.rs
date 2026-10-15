@@ -21,7 +21,10 @@ use super::protocol::validate_id;
 
 const NOISE: &str = "Noise_NNpsk0_25519_ChaChaPoly_SHA256";
 const INVITATION_PREFIX: &str = "elsewhen-pair-v1:";
-const TTL_MS: i64 = 60_000;
+/// 邀请有效期。曾经只有 60 秒，导致真人双设备配对两次都超时失败
+/// （输码+确认+审批远不止 60s）。邀请码本身不授权——加入必须另行
+/// 经过 owner 批准关守，且一次性消费，泄露窗口宽一点也不致命。
+const TTL_MS: i64 = 24 * 60 * 60 * 1000;
 const FRAME_LIMIT: usize = 16 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

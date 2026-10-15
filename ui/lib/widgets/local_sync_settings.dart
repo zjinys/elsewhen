@@ -51,7 +51,14 @@ class LocalSyncSettings extends StatefulWidget {
   State<LocalSyncSettings> createState() => _LocalSyncSettingsState();
 }
 
+/// 同步域的两个独立关切：「绑定」（准备本机/邀请/加入，一次性流程）与
+/// 「管理」（状态/设备列表/移交/密钥/冲突，日常运维）。曾挤在一列里，
+/// 用户反馈绑定流程找不到重点——拆成 tab。
+enum _SyncTab { bind, manage }
+
 class _LocalSyncSettingsState extends State<LocalSyncSettings> {
+  _SyncTab _tab = _SyncTab.bind;
+  bool _tabTouched = false;
   final _name = TextEditingController(text: '这台设备');
   bool _consent = false;
   late final SyncProviderConflictsController _conflicts;
@@ -106,6 +113,11 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         final state = controller.state;
         final theme = Theme.of(context);
         final configured = state != null && state.state != 'not_configured';
+        // 未配置时落在「绑定」tab（当前要办事的地方），配置后默认「管理」；
+        // 用户主动点过后以用户选择为准。
+        final tab = _tabTouched
+            ? _tab
+            : (configured ? _SyncTab.manage : _SyncTab.bind);
         final installation = state?.installationId;
         final ready = state?.state == 'local_ready';
 
@@ -119,13 +131,15 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
           'not_configured' => '同步未开启',
           _ => controller.error == null ? '正在读取同步状态' : '同步状态暂不可用',
         };
+        // 角色用用户语言：主设备=创建数据集的设备；「负责后台 AI 分析」
+        // 是 processor 的职责说明（内部术语「发起/加工」曾让用户看不懂）。
         final roleLabel = switch ((
           state?.isOwner ?? false,
           state?.isProcessor ?? false,
         )) {
-          (true, true) => '发起设备（当前加工）',
-          (true, false) => '发起设备',
-          (false, true) => '加工设备',
+          (true, true) => '主设备 · 负责后台 AI 分析',
+          (true, false) => '主设备',
+          (false, true) => '成员设备 · 负责后台 AI 分析',
           (false, false) => '成员设备',
         };
 
@@ -205,137 +219,199 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                   errors: widget.repository!.lastSyncTickError,
                 ),
               ),
-            if (!configured && state != null && controller.previewEnabled) ...[
-              const SizedBox(height: 16),
-              TextField(
-                controller: _name,
-                enabled: !controller.busy,
-                maxLength: 64,
-                decoration: const InputDecoration(
-                  labelText: '设备名称',
-                  border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            SegmentedButton<_SyncTab>(
+              segments: const [
+                ButtonSegment(
+                  value: _SyncTab.bind,
+                  label: Text('绑定'),
+                  icon: Icon(Icons.link_outlined),
                 ),
-              ),
-              CheckboxListTile(
-                value: _consent,
-                enabled: !controller.busy,
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('我理解：后续授权设备加入时，会共享所有 Provider 配置和 API Key。'),
-                onChanged: controller.busy
-                    ? null
-                    : (value) => setState(() => _consent = value ?? false),
-              ),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                icon: const Icon(Icons.key_outlined),
-                label: const Text('准备本机'),
-                onPressed: controller.busy || !_consent
-                    ? null
-                    : () => controller.createOwner(
-                        _name.text,
-                        Platform.operatingSystem,
-                        consent: _consent,
-                      ),
-              ),
-            ] else if (!configured && state != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-            if (state == null && !controller.busy)
-              TextButton(
-                onPressed: controller.refresh,
-                child: const Text('刷新状态'),
-              ),
-            if (configured) ...[
-              const SizedBox(height: 16),
-              if (ready)
-                SyncMembersSettings(controller: _roster)
-              else
-                Text('授权其他设备后，这里会显示设备列表。', style: theme.textTheme.bodySmall),
-              const SizedBox(height: 16),
-              if (ready)
-                SyncProcessorHandoffSettings(
-                  controller: _handoff,
-                  isProcessor: state.isProcessor,
-                  isOwner: state.isOwner,
-                  candidates: _handoffCandidates(),
-                  onChanged: _roster.refresh,
+                ButtonSegment(
+                  value: _SyncTab.manage,
+                  label: Text('管理'),
+                  icon: Icon(Icons.tune_outlined),
                 ),
-              if (ready && installation != null)
-                SyncKeyHealthSettings(
-                  api: FrbSyncKeyHealthApi(controller.keys),
-                  installationId: installation,
-                ),
-              if (ready) SyncProviderConflictsSettings(controller: _conflicts),
-              if (ready) SyncWikiConflictsSettings(controller: _wikiConflicts),
-              if (ready)
-                SyncObjectConflictsSettings(controller: _objectConflicts),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (ready)
-                    OutlinedButton.icon(
-                      onPressed: controller.busy ? null : controller.lock,
-                      icon: const Icon(Icons.lock_outline),
-                      label: const Text('锁定本机密钥'),
-                    )
-                  else if (state.state == 'locked')
-                    FilledButton.icon(
-                      onPressed: controller.busy ? null : controller.unlock,
-                      icon: const Icon(Icons.lock_open_outlined),
-                      label: const Text('解锁本机密钥'),
-                    ),
-                  TextButton(
-                    onPressed: controller.busy ? null : controller.refresh,
-                    child: const Text('刷新状态'),
-                  ),
-                ],
+              ],
+              selected: {tab},
+              onSelectionChanged: (selection) => setState(() {
+                _tab = selection.first;
+                _tabTouched = true;
+              }),
+            ),
+            const SizedBox(height: 12),
+            if (tab == _SyncTab.bind)
+              _buildBindContent(theme, controller, state, configured)
+            else
+              _buildManageContent(
+                theme,
+                controller,
+                state,
+                configured,
+                installation,
               ),
-              const SizedBox(height: 16),
-              // 诊断细节折叠：对排障有用，但不是日常要看的。
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                childrenPadding: const EdgeInsets.only(bottom: 8),
-                title: Text('诊断信息', style: theme.textTheme.titleSmall),
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '待确认同步操作：${state.pendingOperations}',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                        if (state.datasetId != null) ...[
-                          const SizedBox(height: 4),
-                          Text('数据集标识', style: theme.textTheme.bodySmall),
-                          SelectableText(
-                            state.datasetId!,
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (ready && state?.isOwner == true && controller.previewEnabled)
-              OwnerSyncPairingSettings(controller: controller),
-            if (controller.autoEnrollment)
-              SyncEnrollmentProgress(controller: controller.enrollment),
-            if (controller.previewEnabled)
-              JoinerSyncPairingSettings(controller: controller.joiner),
           ],
         );
       },
+    );
+  }
+
+  /// 绑定 tab——一次性流程：准备本机、邀请新设备、本机加入既有数据集。
+  /// 与「管理」是两个独立关切（用户反馈：挤在一列里找不到绑定流程的重点）。
+  Widget _buildBindContent(
+    ThemeData theme,
+    SyncSetupController controller,
+    api.LocalSyncStateDto? state,
+    bool configured,
+  ) {
+    final ready = state?.state == 'local_ready';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!configured && state != null && controller.previewEnabled) ...[
+          const SizedBox(height: 16),
+          TextField(
+            controller: _name,
+            enabled: !controller.busy,
+            maxLength: 64,
+            decoration: const InputDecoration(
+              labelText: '设备名称',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          CheckboxListTile(
+            value: _consent,
+            enabled: !controller.busy,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: const Text('我理解：后续授权设备加入时，会共享所有 Provider 配置和 API Key。'),
+            onChanged: controller.busy
+                ? null
+                : (value) => setState(() => _consent = value ?? false),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            icon: const Icon(Icons.key_outlined),
+            label: const Text('准备本机'),
+            onPressed: controller.busy || !_consent
+                ? null
+                : () => controller.createOwner(
+                    _name.text,
+                    Platform.operatingSystem,
+                    consent: _consent,
+                  ),
+          ),
+        ] else if (!configured && state != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (ready && state?.isOwner == true && controller.previewEnabled)
+          OwnerSyncPairingSettings(controller: controller),
+        if (controller.autoEnrollment)
+          SyncEnrollmentProgress(controller: controller.enrollment),
+        if (controller.previewEnabled)
+          JoinerSyncPairingSettings(controller: controller.joiner),
+      ],
+    );
+  }
+
+  /// 管理 tab——日常运维：设备列表、加工权移交、密钥健康、冲突、锁定。
+  Widget _buildManageContent(
+    ThemeData theme,
+    SyncSetupController controller,
+    api.LocalSyncStateDto? state,
+    bool configured,
+    String? installation,
+  ) {
+    // 未完成绑定时管理面无事可做——在这里提前返回，恢复 state 的非空提升。
+    if (!configured || state == null) {
+      return Text('完成绑定后，这里会显示设备列表与同步管理。', style: theme.textTheme.bodySmall);
+    }
+    final ready = state.state == 'local_ready';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (configured) ...[
+          const SizedBox(height: 16),
+          if (ready)
+            SyncMembersSettings(controller: _roster)
+          else
+            Text('授权其他设备后，这里会显示设备列表。', style: theme.textTheme.bodySmall),
+          const SizedBox(height: 16),
+          if (ready)
+            SyncProcessorHandoffSettings(
+              controller: _handoff,
+              isProcessor: state.isProcessor,
+              isOwner: state.isOwner,
+              candidates: _handoffCandidates(),
+              onChanged: _roster.refresh,
+            ),
+          if (ready && installation != null)
+            SyncKeyHealthSettings(
+              api: FrbSyncKeyHealthApi(controller.keys),
+              installationId: installation,
+            ),
+          if (ready) SyncProviderConflictsSettings(controller: _conflicts),
+          if (ready) SyncWikiConflictsSettings(controller: _wikiConflicts),
+          if (ready) SyncObjectConflictsSettings(controller: _objectConflicts),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (ready)
+                OutlinedButton.icon(
+                  onPressed: controller.busy ? null : controller.lock,
+                  icon: const Icon(Icons.lock_outline),
+                  label: const Text('锁定本机密钥'),
+                )
+              else if (state.state == 'locked')
+                FilledButton.icon(
+                  onPressed: controller.busy ? null : controller.unlock,
+                  icon: const Icon(Icons.lock_open_outlined),
+                  label: const Text('解锁本机密钥'),
+                ),
+              TextButton(
+                onPressed: controller.busy ? null : controller.refresh,
+                child: const Text('刷新状态'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // 诊断细节折叠：对排障有用，但不是日常要看的。
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 8),
+            title: Text('诊断信息', style: theme.textTheme.titleSmall),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '待确认同步操作：${state.pendingOperations}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    if (state.datasetId != null) ...[
+                      const SizedBox(height: 4),
+                      Text('数据集标识', style: theme.textTheme.bodySmall),
+                      SelectableText(
+                        state.datasetId!,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -362,8 +438,10 @@ class _RelayLine extends StatelessWidget {
     final theme = Theme.of(context);
     final relay = relayUrl;
     if (relay == null || relay.isEmpty) {
+      // 「未连接」曾是误导（用户读作「连了但断了」）：值为空的真实含义
+      // 是还没有已配对成员经中继交换过路由信息，不是链路故障。
       return Text(
-        locked ? '中继服务：解锁本机密钥后可见' : '中继服务：未连接',
+        locked ? '中继服务：解锁本机密钥后可见' : '尚未配置中继（首次邀请成员时填写）',
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.outline,
         ),

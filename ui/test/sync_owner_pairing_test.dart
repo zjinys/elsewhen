@@ -277,6 +277,9 @@ void main() {
           ),
         ),
       );
+      // 邀请面板住在「绑定」tab（拆分后默认落在管理 tab）。
+      await tester.tap(find.text('绑定'));
+      await tester.pumpAndSettle();
       // 邀请出示即渲染二维码（扫描通道），原文与复制仍是回退通道。
       // QrImageView 的 data 字段是私有的；存在性断言 + 同行 data: offer.code。
       expect(find.byType(QrImageView), findsOneWidget);
