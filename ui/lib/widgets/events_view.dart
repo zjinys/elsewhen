@@ -25,14 +25,28 @@ class EventsView extends ConsumerWidget {
           ? const _EventList()
           : const _EventDetail();
     }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(width: 300, child: _EventList()),
-        VerticalDivider(width: 1, color: AppTheme.surface3),
-        Expanded(child: selectedId == null ? const SizedBox.shrink() : const _EventDetail()),
-      ],
-    );
+    // 宽屏：列表只在侧栏（EventsNavList）一处，主区只显示详情——
+    // 不再重复渲染第二份列表（曾与侧栏完全同内容，纯负担）。
+    if (selectedId == null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.history_edu_outlined,
+              size: 36,
+              color: AppTheme.textTertiary.withValues(alpha: 0.6),
+            ),
+            const SizedBox(height: AppTheme.space2),
+            const Text(
+              '从左侧选择一个事件查看详情',
+              style: TextStyle(fontSize: 12.5),
+            ),
+          ],
+        ),
+      );
+    }
+    return const _EventDetail();
   }
 }
 
