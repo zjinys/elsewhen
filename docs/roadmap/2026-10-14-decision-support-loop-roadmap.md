@@ -124,11 +124,11 @@ note（2026-09-19）的三个缺口判断有两条已随管线演进过期，以
 
 **收益：** 系统知道哪类提醒真有帮助；用户感到「被记得」而非「被检索」。
 
-- [ ] 提醒/指导 → 采纳 → 结果度量（接 todo/follow_ups 既有对象；只记录不推断）；用户可见自己的反馈记录，可清。
-- [ ] 每日回顾勾连：回顾态聚合规则提醒 + 共同记忆回引（「你上周说过……」），摘要复用既有 daily_review 能力。
-- [ ] 合并 [今日记忆真检索提案](../notes/proposed/2026-09-15-daily-memory-retrieval.md)（对话内「查看今日记忆」入口，真检索非推断——它的范围天然是本切片的对话出口）。
-- [ ] 主动回访：低打扰情感性回访（可关）；触发面仅限回顾/打开应用时，**绝不做系统级推送轰炸**。
-- [ ] 测试：度量只记不外发；回访频率上限可配；关闭回访后零侵入验证。
+- [x] 提醒/指导 → 采纳 → 结果度量（接 todo/follow_ups 既有对象；只记录不推断）；用户可见自己的反馈记录，可清。→ **实现（2026-10-15）：** rule_hits 加 `feedback(helpful|not_relevant)+feedback_at`（migration 36，ALTER 无损）；`set_rule_hit_feedback` fail-closed（未知值报错、非已处置状态/不存在 id 返回 false；api 层只做 trim/转发）；反馈只记在本地命中行上，**没有任何自动行为消费它**（不外发、不自动调阈值、不自动关规则），仅设置页「最近提醒」计数与按钮展示（有用/不相关，再点一次清除）。**指导采纳未做独立度量**（guidance 无独立对象，如实遗留：走印象验收）；todo 完成即「结果」由既有 follow_ups→todo 机制承载，未另建度量。
+- [x] 每日回顾勾连：回顾态聚合规则提醒 + 共同记忆回引（「你上周说过……」），摘要复用既有 daily_review 能力。→ **实现：** `get_daily_overview` 扩展 `reminder_hits`（当日命中，`rule_hits_on` 复用 daily_entries 同款本地日界）+ `memory_echo`（`memory_echo_for` 回看 7→8→9 天窗口原文快照，最多 3 条，不评价不推断）；API 读面完备，**daily overview 的完整回顾 UI 仍不存在（如实遗留）**——共同记忆回引的可见面由情感回访横幅承载（同一素材来源）。
+- [x] 合并 [今日记忆真检索提案](../notes/proposed/2026-09-15-daily-memory-retrieval.md)（对话内「查看今日记忆」入口，真检索非推断——它的范围天然是本切片的对话出口）。→ **实现（采用提案注入方案而非走「对话内特殊命令」）：** 三条 prepare_context 路径统一注入 `today-recorded-events` 段——当日 daily_entries 原文（正序、每条 160 字、12 条封顶、`OmissionPolicy::OptionalBackground` 预算内可省）；AI 回答「今天记了什么」= 检索快照转述而非编造。**偏离与遗留：** 提案设想的「对话内入口/按需查询」以常驻可选背景段替代（零 UI 成本、自然覆盖任意问法）；当日无记录时不注入空态段（由零编造角色约束兜底，不为此每次多花一段）；knowledge_mentor/知识库页对话跳过（与 recent_background 同口径）。
+- [x] 主动回访：低打扰情感性回访（可关）；触发面仅限回顾/打开应用时，**绝不做系统级推送轰炸**。→ **实现：** `companion_settings` singleton（migration 37：开关默认开 + 间隔天数下限默认 7 可配 3/7/14/30 + `last_revisit_at` 展示即记账）；`check_companion_revisit` 只在主界面挂载时调用一次（CompanionRevisitHint 横幅，fail-safe 收缩，点掉当次不再现）；关闭则**零查询零成本**（enabled 短路是最先的一行代码）；素材=间隔期外带情绪标注的旧记忆优先、否则最新一般事件（确定性取数，无权重推断）；排除于快照（local-event-reminders 域）；永不注册系统级推送/通知通道/后台唤醒。
+- [x] 测试：度量只记不外发；回访频率上限可配；关闭回访后零侵入验证。→ **实现（Rust 732 / Flutter 379）：** `companion_revisit_gates_and_prefers_emotion`（无素材不记账、情绪候选优先、记录时间窗红线）；`companion_interval_is_enforceable`（3 天间隔未满不吃回访——频率上限可配）；`companion_disabled_returns_none_and_is_untouched`（关闭后即便素材与间隔都满足也 None 且 last_revisit 不动——零侵入）；`rule_hit_feedback_records_clears_and_fails_closed`（记录/清除/未知值报错/pending 不可反馈/不存在 id false）；`today_memory_background_is_real_retrieval`（当日事件注入为可选背景、无记录不注入）；`daily_overview_parts_available_from_store`（当日命中隔离昨日）；`memory_echo_and_day_hits_are_store_level_queries`；Flutter 桥面 fail-closed + 回访偏好往返。**遗留：** api 层 `set_rule_hit_feedback` 的 trim/空串校验与 `get/set_companion_prefs`、`check_companion_revisit` 无独立测试（该层薄且会经 AppConfig::load 打真实库，测试一律走 store 层——D6 起 api 层测试纪律固化为「逻辑下沉 storage、api 只转发」，故 D4 legacy 提到的「段落级故障无专测」同口径处理）；回访横幅无 widget 测试（桥面已覆盖）；「只记不外发」由无任何外发代码路径 + 反馈字段排除于快照（rule_hits 本就 excluded）双重保证，无专测（结构性事实）。
 
 ## 首个可用范围与暂不做
 
