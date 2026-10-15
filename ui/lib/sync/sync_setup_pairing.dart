@@ -16,7 +16,7 @@ extension OwnerSyncPairing on SyncSetupController {
       invitation = offer;
       pairingPreview = null;
       pendingPairingId = null;
-      pairingNotice = '邀请码短期有效，仅通过可信渠道交给要加入的设备。';
+      pairingNotice = '邀请码 24 小时内有效。新设备扫码发起加入后，这里会自动收到请求，核对设备与指纹后批准即可。';
     });
   }
 

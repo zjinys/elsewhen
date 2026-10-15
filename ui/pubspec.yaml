@@ -48,6 +48,9 @@ dependencies:
   # None），改由 Dart 侧 path_provider 取应用私有目录显式传给 initBridge。
   path_provider: ^2.1.6
 
+  # 设置页展示应用版本（pubspec version；报障时用户要能一眼报出版本）。
+  package_info_plus: ^10.0.0
+
   # Desktop integration
   # 桌面窗口管理：window_manager。曾迁往其继任者 nativeapi（同作者 leanflutter），
   # 但 nativeapi 0.4 在 Windows 上透明背景被 DWM 合成白边、且缺

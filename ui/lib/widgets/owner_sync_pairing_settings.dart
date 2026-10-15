@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart';
@@ -18,10 +20,19 @@ class OwnerSyncPairingSettings extends StatefulWidget {
 class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
   final _relay = TextEditingController();
   bool _consent = false;
+  Timer? _joinPoll;
 
   @override
   void initState() {
     super.initState();
+    // 新设备扫码后自行发起加入请求；owner 端不必手动点「检查」——
+    // 邀请存续期间自动收件（收审批界面上可见即停）。
+    _joinPoll = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted) return;
+      final c = widget.controller;
+      if (c.busy || c.invitation == null || c.pairingPreview != null) return;
+      c.inspectInvitation();
+    });
     try {
       final prefs = const DesktopPrefsStore();
       final last = prefs.loadLastOwnerRelayUrl();
@@ -33,6 +44,7 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
 
   @override
   void dispose() {
+    _joinPoll?.cancel();
     _relay.dispose();
     super.dispose();
   }
@@ -160,12 +172,6 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
                     ? null
                     : () => Clipboard.setData(ClipboardData(text: offer.code)),
                 child: const Text('复制邀请'),
-              ),
-              OutlinedButton(
-                onPressed: controller.busy
-                    ? null
-                    : controller.inspectInvitation,
-                child: const Text('检查加入请求'),
               ),
               TextButton(
                 onPressed: controller.busy ? null : controller.cancelInvitation,

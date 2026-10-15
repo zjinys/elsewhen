@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/app_provider.dart';
@@ -39,6 +40,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   final _formKey = GlobalKey<FormState>();
 
   late final TabController _tabController;
+
+  /// 应用版本（pubspec version），宽屏在左 tab 栏底部、窄屏在 tab 条下方。
+  String _version = '';
 
   late TextEditingController _maxMessagesController;
 
@@ -126,6 +130,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
+    _loadVersion();
     final settings = ref.read(settingsProvider);
     // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
     _closeAction = ref.read(windowServiceProvider).closeAction;
@@ -817,6 +822,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _version = 'elsewhen v${info.version}');
+    } catch (_) {
+      // 版本读取失败不影响设置页；留空即可。
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -929,19 +943,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       ),
       child: AnimatedBuilder(
         animation: _tabController,
-        builder: (context, _) => ListView(
+        builder: (context, _) => Column(
           children: [
-            _buildSettingsTabItem(0, '模型', Icons.smart_toy_outlined),
-            const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(1, '外观', Icons.palette_outlined),
-            const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(2, '服务', Icons.cloud_outlined),
-            const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(3, '同步', Icons.devices_outlined),
-            const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(4, '数据', Icons.dataset_outlined),
-            const SizedBox(height: AppTheme.space1),
-            _buildSettingsTabItem(5, '规则', Icons.rule_outlined),
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildSettingsTabItem(0, '模型', Icons.smart_toy_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(1, '外观', Icons.palette_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(2, '服务', Icons.cloud_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(3, '同步', Icons.devices_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(4, '数据', Icons.dataset_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(5, '规则', Icons.rule_outlined),
+                ],
+              ),
+            ),
+            if (_version.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: AppTheme.space2,
+                  left: AppTheme.space3,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _version,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -951,21 +988,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget _buildCompactTabBar() {
     return Material(
       color: AppTheme.surface1,
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        labelColor: AppTheme.accentPrimary,
-        unselectedLabelColor: AppTheme.textTertiary,
-        indicatorColor: AppTheme.accentPrimary,
-        labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-        tabs: const [
-          Tab(text: '模型', icon: Icon(Icons.smart_toy_outlined, size: 17)),
-          Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
-          Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
-          Tab(text: '同步', icon: Icon(Icons.devices_outlined, size: 17)),
-          Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
-          Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: AppTheme.accentPrimary,
+            unselectedLabelColor: AppTheme.textTertiary,
+            indicatorColor: AppTheme.accentPrimary,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+            tabs: const [
+              Tab(text: '模型', icon: Icon(Icons.smart_toy_outlined, size: 17)),
+              Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
+              Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
+              Tab(text: '同步', icon: Icon(Icons.devices_outlined, size: 17)),
+              Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
+              Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),
+            ],
+          ),
+          if (_version.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 12, bottom: 4),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  _version,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
