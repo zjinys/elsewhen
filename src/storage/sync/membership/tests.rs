@@ -12,6 +12,8 @@ struct Db {
     signer: DeviceIdentity,
     device: PairingDevice,
     dir: std::path::PathBuf,
+    /// 改名测试用：owner vault 的内容密钥字节。
+    vault_key: Option<[u8; 32]>,
 }
 impl Db {
     fn new(id: &str) -> Self {
@@ -39,6 +41,7 @@ impl Db {
             signer,
             device,
             dir,
+            vault_key: None,
         }
     }
     fn owner() -> Self {
@@ -1233,4 +1236,133 @@ fn protocol_version_mismatch_rejects_as_version_mismatch() {
         .unwrap();
     assert_eq!(state, "isolated");
     assert_eq!(error_code.as_deref(), Some("sync_protocol_unsupported"));
+}
+
+// ---------------------------------------------------------------------------
+// owner 改设备显示名：vault + 签名 roster + 锚三处原子更新。
+// ---------------------------------------------------------------------------
+
+/// joiner 侧 replica 的 processor 指向真实 owner 设备（等价于配对确认后的
+/// 视角）；vault 化 owner 的 device_id 是随机 UUID，固定值断言不再适用。
+fn align_joiner_replica(joiner: &Db, owner_device_id: &str) {
+    joiner
+        .store
+        .connection
+        .execute(
+            "UPDATE sync_replica SET processor_device_id=?1 WHERE singleton=1",
+            [owner_device_id],
+        )
+        .unwrap();
+}
+
+fn owner_with_vault() -> Db {
+    // 顺序与 runtime init 相同：先 vault，再 replica，再 authority；设备身份
+    // 直接取 vault 生成的 identity，保证 signer/device 与 vault 三方一致。
+    let dir = std::env::temp_dir().join(format!("elsewhen-authority-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let store = Store::open(&dir.join("test.db")).unwrap();
+    let key = ContentKey::generate().unwrap().to_bytes();
+    let vault = store
+        .create_sync_vault("owner-install", &key, "owner", "test")
+        .unwrap();
+    store
+        .initialize_sync_replica(&crate::storage::sync::ReplicaIdentity {
+            dataset_id: "dataset".into(),
+            device_id: vault.device().device_id.clone(),
+            stream_id: vault.device().stream_id.clone(),
+            processor_device_id: vault.device().device_id.clone(),
+        })
+        .unwrap();
+    store
+        .initialize_sync_authority(vault.device(), vault.identity())
+        .unwrap();
+    Db {
+        store,
+        // DeviceIdentity 无 Clone（防私钥外泄）：经 pkcs8 往返恢复测试副本。
+        signer: DeviceIdentity::from_pkcs8(&vault.identity().to_pkcs8()).unwrap(),
+        device: vault.device().clone(),
+        dir,
+        vault_key: Some(key),
+    }
+}
+
+#[test]
+fn rename_local_device_updates_vault_roster_and_anchor() {
+    let owner = owner_with_vault();
+    let key = owner.vault_key.as_ref().unwrap();
+    let local_id = owner.device.device_id.clone();
+
+    let revision = owner
+        .store
+        .rename_sync_vault_device("owner-install", key, 1, &local_id, "主机甲")
+        .unwrap();
+    assert_eq!(revision, 2);
+    let vault = owner.store.load_sync_vault("owner-install", key, 2).unwrap();
+    assert_eq!(vault.device().name, "主机甲");
+    let roster = owner.store.current_signed_roster().unwrap().unwrap();
+    assert_eq!(roster.roster.revision, 2);
+    assert_eq!(roster.roster.owner.name, "主机甲");
+    assert!(roster
+        .roster
+        .members
+        .iter()
+        .any(|m| m.device.device_id == local_id && m.device.name == "主机甲"));
+    // 锚同步更新，本机后续 decode/apply 不因名字失配而炸。
+    let anchor = owner.store.sync_roster_anchor().unwrap();
+    assert_eq!(anchor.owner.name, "主机甲");
+}
+
+#[test]
+fn rename_member_only_touches_roster_name() {
+    let owner = owner_with_vault();
+    let joiner = Db::new("b");
+    align_joiner_replica(&joiner, &owner.device.device_id);
+    let (approved, _joining, roster) = enroll(&owner, &joiner);
+    assert_eq!(roster.roster.revision, 2);
+    let key = owner.vault_key.as_ref().unwrap();
+    let b_id = joiner.device.device_id.clone();
+    let revision = owner
+        .store
+        .rename_sync_vault_device("owner-install", key, 1, &b_id, "手机改名")
+        .unwrap();
+    assert_eq!(revision, 3);
+    // 本机 vault 名不变（member 改名不触发 vault 重存，revision 仍为 1）。
+    let vault = owner.store.load_sync_vault("owner-install", key, 1).unwrap();
+    assert_eq!(vault.device().name, "owner");
+    let current = owner.store.current_signed_roster().unwrap().unwrap();
+    assert!(current
+        .roster
+        .members
+        .iter()
+        .any(|m| m.device.device_id == b_id && m.device.name == "手机改名"));
+    assert_eq!(current.roster.owner.name, "owner");
+}
+
+#[test]
+fn rename_rejects_non_owner_invalid_name_and_unknown_device() {
+    let owner = owner_with_vault();
+    let joiner = Db::new("b");
+    align_joiner_replica(&joiner, &owner.device.device_id);
+    let (_approved, _joining, _roster) = enroll(&owner, &joiner);
+    let key = owner.vault_key.as_ref().unwrap();
+    let local_id = owner.device.device_id.clone();
+    // 空白名。
+    assert!(owner
+        .store
+        .rename_sync_vault_device("owner-install", key, 1, &local_id, "   ")
+        .is_err());
+    // 未知设备。
+    assert!(owner
+        .store
+        .rename_sync_vault_device("owner-install", key, 1, "zz", "新名")
+        .is_err());
+    // 修订被并发推进后拒绝盲写。
+    owner
+        .store
+        .rename_sync_vault_device("owner-install", key, 1, &local_id, "第一版")
+        .unwrap();
+    assert!(owner
+        .store
+        .rename_sync_vault_device("owner-install", key, 1, &local_id, "第二版")
+        .is_err());
 }

@@ -373,3 +373,65 @@ fn symlinked_catalog_and_dataset_files_are_not_followed() {
     assert!(catalog.path_for(&entry.id).is_err());
     assert!(!outside.0.join("absent.db").exists());
 }
+
+#[test]
+fn discard_staging_removes_row_and_folder() {
+    let workspace = Workspace::new();
+    let catalog = DatasetCatalog::open(&workspace.0).unwrap();
+    let entry = catalog
+        .create_staging("shared-dataset", "installation", "joined")
+        .unwrap();
+    let folder = workspace.0.join("datasets").join(&entry.id);
+    assert!(folder.is_dir());
+
+    catalog.discard_staging(&entry.id).unwrap();
+    assert!(!folder.exists());
+    assert!(catalog
+        .list()
+        .unwrap()
+        .iter()
+        .all(|e| e.id != entry.id));
+    // 幂等重试：目录行已删，再删报 unknown。
+    assert!(catalog.discard_staging(&entry.id).is_err());
+}
+
+#[test]
+fn discard_refuses_ready_datasets_and_unknown_ids() {
+    let workspace = Workspace::new();
+    let catalog = DatasetCatalog::open(&workspace.0).unwrap();
+    let entry = catalog
+        .create_staging("dataset", "installation", "staged")
+        .unwrap();
+    // ready 数据集永不可删：手工把状态推到 ready 模拟完成切换。
+    catalog
+        .connection
+        .execute(
+            "UPDATE datasets SET state='ready' WHERE id=?1",
+            [entry.id.as_str()],
+        )
+        .unwrap();
+    assert!(catalog.discard_staging(&entry.id).is_err());
+    assert!(catalog.list().unwrap().iter().any(|e| e.id == entry.id));
+    assert!(catalog.discard_staging("not-a-uuid").is_err());
+    assert!(catalog
+        .discard_staging(&uuid::Uuid::new_v4().to_string())
+        .is_err());
+}
+
+#[test]
+fn discard_refuses_selected_entry() {
+    let workspace = Workspace::new();
+    let catalog = DatasetCatalog::open(&workspace.0).unwrap();
+    let entry = catalog
+        .create_staging("dataset", "installation", "staged")
+        .unwrap();
+    catalog
+        .connection
+        .execute(
+            "UPDATE workspace SET selected_id=?1 WHERE singleton=1",
+            [entry.id.as_str()],
+        )
+        .unwrap();
+    assert!(catalog.discard_staging(&entry.id).is_err());
+    assert!(catalog.list().unwrap().iter().any(|e| e.id == entry.id));
+}

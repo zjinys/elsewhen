@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'provider_reachability.dart';
 
 // These functions are ignored because they are not marked as `pub`: `conflict_profile_dto`, `enrollment_dto`, `join_dto`, `wiki_page_conflict_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<SyncInvitationOfferDto> createOwnerSyncInvitation({
   required String relayUrl,
@@ -112,6 +112,11 @@ Future<List<SyncJoinEntryDto>> listPendingSyncJoins() =>
 
 Future<SyncJoinStateDto> prepareSyncJoinResume({required String entryId}) =>
     RustLib.instance.api.crateApiSyncPrepareSyncJoinResume(entryId: entryId);
+
+/// 删除一个未完成的加入暂存项（仅 staging；ready 数据集永不受理）。
+/// 对应的本机密钥由 Dart 侧 SyncKeyStore 在同一动作里删除。
+Future<void> discardSyncJoinStaging({required String entryId}) =>
+    RustLib.instance.api.crateApiSyncDiscardSyncJoinStaging(entryId: entryId);
 
 Future<SyncJoinStateDto> installSyncJoinKey({
   required String token,
@@ -245,6 +250,18 @@ Future<void> revokeSyncMember({
   expectedRevision: expectedRevision,
 );
 
+/// owner 改设备显示名（含本机）：vault + 签名 roster + 锚原子更新，
+/// 广播由 membership tick 接管。仅 owner 本机可调（签名权所在）。
+Future<PlatformInt64> renameSyncDevice({
+  required String deviceId,
+  required String newName,
+  required PlatformInt64 expectedVaultRevision,
+}) => RustLib.instance.api.crateApiSyncRenameSyncDevice(
+  deviceId: deviceId,
+  newName: newName,
+  expectedVaultRevision: expectedVaultRevision,
+);
+
 /// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。
 Future<ProcessorHandoffStateDto> getProcessorHandoffState() =>
     RustLib.instance.api.crateApiSyncGetProcessorHandoffState();
@@ -300,6 +317,83 @@ Future<void> resolveObjectConflict({
   expectedLocalUpdatedAt: expectedLocalUpdatedAt,
   acceptRemote: acceptRemote,
 );
+
+/// 本地构建序号（build.rs 注入的 git 提交计数；tarball 降级为 0）。
+Future<PlatformInt64> buildSeq() => RustLib.instance.api.crateApiSyncBuildSeq();
+
+/// 检查应用更新。走与同步相同的 relay（同域名分发，附完整性校验）。
+/// relayUrl 由 Dart 传入（设置页已有来源），本函数不依赖 vault 解锁。
+Future<AppUpdateDto> checkAppUpdate({required String relayUrl}) =>
+    RustLib.instance.api.crateApiSyncCheckAppUpdate(relayUrl: relayUrl);
+
+/// 下载更新 APK（destDir 由 Dart 用 path_provider 取缓存目录后传入），
+/// 完成后本函数内部已通过 sha256 校验并原子改名；返回最终文件路径。
+Future<String> downloadUpdateApk({
+  required String relayUrl,
+  required String buildHash,
+  required String apkSha256,
+  required PlatformInt64 apkSize,
+  required String destDir,
+}) => RustLib.instance.api.crateApiSyncDownloadUpdateApk(
+  relayUrl: relayUrl,
+  buildHash: buildHash,
+  apkSha256: apkSha256,
+  apkSize: apkSize,
+  destDir: destDir,
+);
+
+/// 应用升级检查结果。has_update 只在远端提交序号**严格大于**本地时为
+/// 真——hash 相同/不同都不足以分辨方向，`git rev-list --count` 才单调。
+class AppUpdateDto {
+  final bool hasUpdate;
+  final String latestHash;
+  final PlatformInt64 latestSeq;
+  final String localHash;
+  final PlatformInt64 localSeq;
+  final String version;
+  final String changelog;
+  final PlatformInt64 apkSize;
+  final String apkSha256;
+
+  const AppUpdateDto({
+    required this.hasUpdate,
+    required this.latestHash,
+    required this.latestSeq,
+    required this.localHash,
+    required this.localSeq,
+    required this.version,
+    required this.changelog,
+    required this.apkSize,
+    required this.apkSha256,
+  });
+
+  @override
+  int get hashCode =>
+      hasUpdate.hashCode ^
+      latestHash.hashCode ^
+      latestSeq.hashCode ^
+      localHash.hashCode ^
+      localSeq.hashCode ^
+      version.hashCode ^
+      changelog.hashCode ^
+      apkSize.hashCode ^
+      apkSha256.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppUpdateDto &&
+          runtimeType == other.runtimeType &&
+          hasUpdate == other.hasUpdate &&
+          latestHash == other.latestHash &&
+          latestSeq == other.latestSeq &&
+          localHash == other.localHash &&
+          localSeq == other.localSeq &&
+          version == other.version &&
+          changelog == other.changelog &&
+          apkSize == other.apkSize &&
+          apkSha256 == other.apkSha256;
+}
 
 class LocalSyncStateDto {
   final String state;

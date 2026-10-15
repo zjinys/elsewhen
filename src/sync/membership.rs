@@ -240,8 +240,10 @@ impl MembershipRoster {
 
     pub(crate) fn validate_successor(&self, previous: &Self) -> Result<()> {
         self.validate()?;
+        // 名字/平台不参与根身份（与 decode 一致）：改名产生的新版本允许通过。
         ensure!(
-            self.dataset_id == previous.dataset_id && self.owner == previous.owner,
+            self.dataset_id == previous.dataset_id
+                && same_identity(&self.owner, &previous.owner),
             "sync_membership_root_changed"
         );
         ensure!(
@@ -327,8 +329,11 @@ impl SignedRoster {
         let signed: Self = serde_json::from_slice(bytes)
             .map_err(|_| anyhow::anyhow!("sync_membership_record_invalid"))?;
         signed.roster.validate()?;
+        // 名字/平台不参与根身份：device_id/stream_id/signing_key 才是同一性
+        // （same_identity）。改名只换显示名，不动根。
         ensure!(
-            signed.roster.dataset_id == anchor.dataset_id && signed.roster.owner == anchor.owner,
+            signed.roster.dataset_id == anchor.dataset_id
+                && same_identity(&signed.roster.owner, &anchor.owner),
             "sync_membership_root_changed"
         );
         verify_membership_signature(

@@ -532,12 +532,12 @@ class RustBridgeRepository implements StorageRepository {
   Future<List<api.EventSummaryDto>> listRecentEvents({
     int days = 3650,
     int limit = 50,
-  }) =>
-      api.listRecentEvents(days: days, limit: limit);
+  }) => api.listRecentEvents(days: days, limit: limit);
 
   /// 事件旁标记（D1 旧账）：某事件的未拒绝命中。
-  Future<List<RuleHit>> listEventRuleHits(String eventId) =>
-      api.listEventRuleHits(eventId: eventId).then(
+  Future<List<RuleHit>> listEventRuleHits(String eventId) => api
+      .listEventRuleHits(eventId: eventId)
+      .then(
         (dtos) => dtos
             .map(
               (dto) => RuleHit(
@@ -1009,13 +1009,12 @@ class RustBridgeRepository implements StorageRepository {
     required String slug,
     String? note,
     String? feedback,
-  }) =>
-      api.setGuidanceFeedback(
-        analysisId: analysisId,
-        slug: slug,
-        note: note,
-        feedback: feedback,
-      );
+  }) => api.setGuidanceFeedback(
+    analysisId: analysisId,
+    slug: slug,
+    note: note,
+    feedback: feedback,
+  );
 
   /// 情绪标注列表（D5 用户模型面板）：分析产物派生，文本无数值。
   Future<List<api.EventEmotionDto>> listEventEmotions() =>

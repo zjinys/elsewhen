@@ -15,6 +15,7 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use rusqlite::OptionalExtension;
+use std::path::Path;
 
 #[derive(Clone, Debug)]
 pub struct LocalSyncStateDto {
@@ -377,6 +378,14 @@ pub fn prepare_sync_join_resume(entry_id: String) -> Result<SyncJoinStateDto> {
         &AppConfig::load()?,
         &entry_id,
     )?))
+}
+
+/// 删除一个未完成的加入暂存项（仅 staging；ready 数据集永不受理）。
+/// 对应的本机密钥由 Dart 侧 SyncKeyStore 在同一动作里删除。
+pub fn discard_sync_join_staging(entry_id: String) -> Result<()> {
+    crate::sync::protocol::validate_id(&entry_id)?;
+    crate::sync::datasets::DatasetCatalog::open(&AppConfig::load()?.data_dir)?
+        .discard_staging(&entry_id)
 }
 
 pub fn install_sync_join_key(
@@ -817,6 +826,40 @@ pub fn revoke_sync_member(device_id: String, expected_revision: i64) -> Result<(
     )
 }
 
+/// owner 改设备显示名（含本机）：vault + 签名 roster + 锚原子更新，
+/// 广播由 membership tick 接管。仅 owner 本机可调（签名权所在）。
+pub fn rename_sync_device(
+    device_id: String,
+    new_name: String,
+    expected_vault_revision: i64,
+) -> Result<i64> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let vault: (String, i64) = store
+        .connection
+        .query_row(
+            "SELECT installation_id,revision FROM sync_local_vault WHERE singleton=1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?
+        .context("sync_not_configured")?;
+    ensure!(
+        vault.1 == expected_vault_revision,
+        "sync_vault_revision_changed"
+    );
+    let master = runtime::session_master(&config, vault.1)
+        .context("sync_rename_requires_unlock")?;
+    ensure!(
+        !new_name.trim().is_empty()
+            && new_name.len() <= 256
+            && !new_name.chars().any(char::is_control),
+        "pairing_device_name_invalid"
+    );
+    let revision = store.rename_sync_vault_device(&vault.0, &master, vault.1, &device_id, &new_name)?;
+    i64::try_from(revision).map_err(|_| anyhow::anyhow!("sync_membership_revision_invalid"))
+}
+
 /// 查询本机加工移交状态（独立 DTO，不影响 LocalSyncStateDto）。
 pub fn get_processor_handoff_state() -> Result<ProcessorHandoffStateDto> {
     let config = AppConfig::load()?;
@@ -1033,4 +1076,64 @@ pub fn resolve_object_conflict(
     let config = AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     store.resolve_object_conflict(&op_id, expected_local_updated_at.as_deref(), accept_remote)
+}
+
+/// 应用升级检查结果。has_update 只在远端提交序号**严格大于**本地时为
+/// 真——hash 相同/不同都不足以分辨方向，`git rev-list --count` 才单调。
+#[derive(Clone, Debug)]
+pub struct AppUpdateDto {
+    pub has_update: bool,
+    pub latest_hash: String,
+    pub latest_seq: i64,
+    pub local_hash: String,
+    pub local_seq: i64,
+    pub version: String,
+    pub changelog: String,
+    pub apk_size: i64,
+    pub apk_sha256: String,
+}
+
+/// 本地构建序号（build.rs 注入的 git 提交计数；tarball 降级为 0）。
+pub fn build_seq() -> i64 {
+    env!("ELSEWHEN_BUILD_SEQ", "build.rs 未注入构建序号")
+        .parse()
+        .unwrap_or(0)
+}
+
+/// 检查应用更新。走与同步相同的 relay（同域名分发，附完整性校验）。
+/// relayUrl 由 Dart 传入（设置页已有来源），本函数不依赖 vault 解锁。
+pub fn check_app_update(relay_url: String) -> Result<AppUpdateDto> {
+    let client = crate::sync::transport_relay::RelayClient::new(relay_url.trim())?;
+    let manifest = client.fetch_release_manifest()?;
+    let local_seq = build_seq();
+    Ok(AppUpdateDto {
+        has_update: manifest.build_seq > local_seq,
+        latest_hash: manifest.build_hash,
+        latest_seq: manifest.build_seq,
+        local_hash: crate::api::build_hash(),
+        local_seq,
+        version: manifest.version,
+        changelog: manifest.changelog,
+        apk_size: manifest.apk_size,
+        apk_sha256: manifest.apk_sha256,
+    })
+}
+
+/// 下载更新 APK（destDir 由 Dart 用 path_provider 取缓存目录后传入），
+/// 完成后本函数内部已通过 sha256 校验并原子改名；返回最终文件路径。
+pub fn download_update_apk(
+    relay_url: String,
+    build_hash: String,
+    apk_sha256: String,
+    apk_size: i64,
+    dest_dir: String,
+) -> Result<String> {
+    let client = crate::sync::transport_relay::RelayClient::new(relay_url.trim())?;
+    let path = client.download_release_apk(
+        build_hash.trim(),
+        apk_sha256.trim(),
+        apk_size,
+        Path::new(dest_dir.trim()),
+    )?;
+    Ok(path.display().to_string())
 }

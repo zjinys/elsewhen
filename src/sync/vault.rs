@@ -95,6 +95,16 @@ impl LocalVault {
     pub(crate) fn device(&self) -> &PairingDevice {
         &self.material.device
     }
+
+    /// 改本机显示名（owner 本机限定；名字不参与加密身份，只改展示字段）。
+    /// 调用方负责在同一事务里重签 roster 并更新 pinned anchor。
+    pub(crate) fn rename_device(&mut self, name: &str) -> Result<()> {
+        let mut device = self.material.device.clone();
+        device.name = name.trim().to_string();
+        device.validate()?;
+        self.material.device = device;
+        Ok(())
+    }
     pub(crate) fn identity(&self) -> &DeviceIdentity {
         &self.identity
     }

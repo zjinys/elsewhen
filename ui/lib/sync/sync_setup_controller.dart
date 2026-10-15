@@ -27,6 +27,9 @@ abstract interface class SyncSetupApi {
   Future<api.LocalSyncStateDto> confirm(String token, int revision);
   Future<bool> release(String token);
   Future<api.LocalSyncStateDto> lock();
+
+  /// owner 改设备显示名（vault 修订号由调用方在改前读取，失败关闭）。
+  Future<int> renameDevice(String deviceId, String name, int vaultRevision);
 }
 
 class FrbSyncSetupApi implements SyncSetupApi {
@@ -55,6 +58,19 @@ class FrbSyncSetupApi implements SyncSetupApi {
   Future<bool> release(String token) => api.releaseSyncKeyRequest(token: token);
   @override
   Future<api.LocalSyncStateDto> lock() => api.lockLocalSync();
+  @override
+  Future<int> renameDevice(
+    String deviceId,
+    String name,
+    int vaultRevision,
+  ) async {
+    final revision = await api.renameSyncDevice(
+      deviceId: deviceId,
+      newName: name,
+      expectedVaultRevision: vaultRevision,
+    );
+    return revision;
+  }
 }
 
 /// Settings and startup share one controller; closing an old screen cannot
@@ -174,6 +190,32 @@ class SyncSetupController extends ChangeNotifier {
   Future<void> restoreIfConfigured() async {
     await refresh();
     if (!_disposed && !_closed && state?.state == 'locked') await unlock();
+  }
+
+  /// owner 改设备显示名。成功返回 null 并刷新状态；失败返回可读原因。
+  /// 修订号在改前读取，由 Rust 端失败关闭防盲写。
+  Future<String?> renameLocalDevice(String deviceId, String name) async {
+    final current = state;
+    if (current == null || _disposed || _closed) return '本机同步尚未就绪。';
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed.length > 256) return '设备名需为 1–256 个字符。';
+    try {
+      await _bridge.renameDevice(deviceId, trimmed, current.vaultRevision);
+    } catch (error) {
+      final text = error.toString();
+      if (text.contains('sync_vault_revision_changed')) {
+        return '状态刚被其他操作更新，请刷新后重试。';
+      }
+      if (text.contains('sync_rename_requires_unlock')) {
+        return '本机密钥已锁定，请先解锁再改名。';
+      }
+      if (text.contains('pairing_device_name_invalid')) {
+        return '设备名包含无效字符，请换一个。';
+      }
+      return '改名失败：$text';
+    }
+    await refresh();
+    return null;
   }
 
   Future<void> createOwner(

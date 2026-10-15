@@ -96,7 +96,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1230750797;
+  int get rustContentHash => -34621763;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -176,6 +176,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiBuildHash();
 
+  Future<PlatformInt64> crateApiSyncBuildSeq();
+
   Future<ChatRunDto?> crateApiChatRunsCancelChatRun({
     required String conversationId,
     required String runId,
@@ -184,6 +186,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiSyncCancelOwnerSyncInvitation({
     required String invitationId,
   });
+
+  Future<AppUpdateDto> crateApiSyncCheckAppUpdate({required String relayUrl});
 
   Future<CompanionRevisitDto?> crateApiCheckCompanionRevisit();
 
@@ -297,12 +301,22 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiWikiDeleteWikiPage({required String slug});
 
+  Future<void> crateApiSyncDiscardSyncJoinStaging({required String entryId});
+
   Future<void> crateApiKnowledgeDismissKnowledgeIssue({
     required String fingerprint,
   });
 
   Future<ChatRunDto?> crateApiChatRunsDispatchChatInputQueue({
     required String conversationId,
+  });
+
+  Future<String> crateApiSyncDownloadUpdateApk({
+    required String relayUrl,
+    required String buildHash,
+    required String apkSha256,
+    required PlatformInt64 apkSize,
+    required String destDir,
   });
 
   Future<ChatProposalDto> crateApiChatProposalsEditChatProposal({
@@ -741,6 +755,12 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiConversationsRenameConversation({
     required String conversationId,
     required String title,
+  });
+
+  Future<PlatformInt64> crateApiSyncRenameSyncDevice({
+    required String deviceId,
+    required String newName,
+    required PlatformInt64 expectedVaultRevision,
   });
 
   Future<List<BatchReviewResult>>
@@ -1526,6 +1546,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "build_hash", argNames: []);
 
   @override
+  Future<PlatformInt64> crateApiSyncBuildSeq() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__build_seq(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_64,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSyncBuildSeqConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncBuildSeqConstMeta =>
+      const TaskConstMeta(debugName: "build_seq", argNames: []);
+
+  @override
   Future<ChatRunDto?> crateApiChatRunsCancelChatRun({
     required String conversationId,
     required String runId,
@@ -1587,6 +1628,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "cancel_owner_sync_invitation",
         argNames: ["invitationId"],
       );
+
+  @override
+  Future<AppUpdateDto> crateApiSyncCheckAppUpdate({required String relayUrl}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(relayUrl);
+          return wire.wire__crate__api__sync__check_app_update(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_app_update_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncCheckAppUpdateConstMeta,
+        argValues: [relayUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncCheckAppUpdateConstMeta => const TaskConstMeta(
+    debugName: "check_app_update",
+    argNames: ["relayUrl"],
+  );
 
   @override
   Future<CompanionRevisitDto?> crateApiCheckCompanionRevisit() {
@@ -2356,6 +2421,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "delete_wiki_page", argNames: ["slug"]);
 
   @override
+  Future<void> crateApiSyncDiscardSyncJoinStaging({required String entryId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entryId);
+          return wire.wire__crate__api__sync__discard_sync_join_staging(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncDiscardSyncJoinStagingConstMeta,
+        argValues: [entryId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncDiscardSyncJoinStagingConstMeta =>
+      const TaskConstMeta(
+        debugName: "discard_sync_join_staging",
+        argNames: ["entryId"],
+      );
+
+  @override
   Future<void> crateApiKnowledgeDismissKnowledgeIssue({
     required String fingerprint,
   }) {
@@ -2413,6 +2506,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "dispatch_chat_input_queue",
         argNames: ["conversationId"],
+      );
+
+  @override
+  Future<String> crateApiSyncDownloadUpdateApk({
+    required String relayUrl,
+    required String buildHash,
+    required String apkSha256,
+    required PlatformInt64 apkSize,
+    required String destDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(relayUrl);
+          var arg1 = cst_encode_String(buildHash);
+          var arg2 = cst_encode_String(apkSha256);
+          var arg3 = cst_encode_i_64(apkSize);
+          var arg4 = cst_encode_String(destDir);
+          return wire.wire__crate__api__sync__download_update_apk(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncDownloadUpdateApkConstMeta,
+        argValues: [relayUrl, buildHash, apkSha256, apkSize, destDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncDownloadUpdateApkConstMeta =>
+      const TaskConstMeta(
+        debugName: "download_update_apk",
+        argNames: ["relayUrl", "buildHash", "apkSha256", "apkSize", "destDir"],
       );
 
   @override
@@ -5827,6 +5962,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<PlatformInt64> crateApiSyncRenameSyncDevice({
+    required String deviceId,
+    required String newName,
+    required PlatformInt64 expectedVaultRevision,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_String(newName);
+          var arg2 = cst_encode_i_64(expectedVaultRevision);
+          return wire.wire__crate__api__sync__rename_sync_device(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_64,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncRenameSyncDeviceConstMeta,
+        argValues: [deviceId, newName, expectedVaultRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncRenameSyncDeviceConstMeta =>
+      const TaskConstMeta(
+        debugName: "rename_sync_device",
+        argNames: ["deviceId", "newName", "expectedVaultRevision"],
+      );
+
+  @override
   Future<List<BatchReviewResult>>
   crateApiKnowledgeWorkflowsResolveKnowledgeBatch({
     required List<String> ids,
@@ -7979,6 +8150,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw Exception("unreachable");
     }
+  }
+
+  @protected
+  AppUpdateDto dco_decode_app_update_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return AppUpdateDto(
+      hasUpdate: dco_decode_bool(arr[0]),
+      latestHash: dco_decode_String(arr[1]),
+      latestSeq: dco_decode_i_64(arr[2]),
+      localHash: dco_decode_String(arr[3]),
+      localSeq: dco_decode_i_64(arr[4]),
+      version: dco_decode_String(arr[5]),
+      changelog: dco_decode_String(arr[6]),
+      apkSize: dco_decode_i_64(arr[7]),
+      apkSha256: dco_decode_String(arr[8]),
+    );
   }
 
   @protected
@@ -10449,6 +10639,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  AppUpdateDto sse_decode_app_update_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hasUpdate = sse_decode_bool(deserializer);
+    var var_latestHash = sse_decode_String(deserializer);
+    var var_latestSeq = sse_decode_i_64(deserializer);
+    var var_localHash = sse_decode_String(deserializer);
+    var var_localSeq = sse_decode_i_64(deserializer);
+    var var_version = sse_decode_String(deserializer);
+    var var_changelog = sse_decode_String(deserializer);
+    var var_apkSize = sse_decode_i_64(deserializer);
+    var var_apkSha256 = sse_decode_String(deserializer);
+    return AppUpdateDto(
+      hasUpdate: var_hasUpdate,
+      latestHash: var_latestHash,
+      latestSeq: var_latestSeq,
+      localHash: var_localHash,
+      localSeq: var_localSeq,
+      version: var_version,
+      changelog: var_changelog,
+      apkSize: var_apkSize,
+      apkSha256: var_apkSha256,
+    );
   }
 
   @protected
@@ -13931,6 +14146,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(1, serializer);
         sse_encode_i_64(count, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_app_update_dto(AppUpdateDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.hasUpdate, serializer);
+    sse_encode_String(self.latestHash, serializer);
+    sse_encode_i_64(self.latestSeq, serializer);
+    sse_encode_String(self.localHash, serializer);
+    sse_encode_i_64(self.localSeq, serializer);
+    sse_encode_String(self.version, serializer);
+    sse_encode_String(self.changelog, serializer);
+    sse_encode_i_64(self.apkSize, serializer);
+    sse_encode_String(self.apkSha256, serializer);
   }
 
   @protected

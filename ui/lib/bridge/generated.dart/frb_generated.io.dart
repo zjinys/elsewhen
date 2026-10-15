@@ -69,6 +69,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw);
 
   @protected
+  AppUpdateDto dco_decode_app_update_dto(dynamic raw);
+
+  @protected
   ArtifactVersion dco_decode_artifact_version(dynamic raw);
 
   @protected
@@ -761,6 +764,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisTriggerResult sse_decode_analysis_trigger_result(
     SseDeserializer deserializer,
   );
+
+  @protected
+  AppUpdateDto sse_decode_app_update_dto(SseDeserializer deserializer);
 
   @protected
   ArtifactVersion sse_decode_artifact_version(SseDeserializer deserializer);
@@ -2778,6 +2784,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_app_update_dto(
+    AppUpdateDto apiObj,
+    wire_cst_app_update_dto wireObj,
+  ) {
+    wireObj.has_update = cst_encode_bool(apiObj.hasUpdate);
+    wireObj.latest_hash = cst_encode_String(apiObj.latestHash);
+    wireObj.latest_seq = cst_encode_i_64(apiObj.latestSeq);
+    wireObj.local_hash = cst_encode_String(apiObj.localHash);
+    wireObj.local_seq = cst_encode_i_64(apiObj.localSeq);
+    wireObj.version = cst_encode_String(apiObj.version);
+    wireObj.changelog = cst_encode_String(apiObj.changelog);
+    wireObj.apk_size = cst_encode_i_64(apiObj.apkSize);
+    wireObj.apk_sha256 = cst_encode_String(apiObj.apkSha256);
+  }
+
+  @protected
   void cst_api_fill_to_wire_artifact_version(
     ArtifactVersion apiObj,
     wire_cst_artifact_version wireObj,
@@ -4367,6 +4389,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     AnalysisTriggerResult self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_app_update_dto(AppUpdateDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_artifact_version(
@@ -10794,6 +10819,17 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_processing_yield_proof_dto>)
           >();
 
+  void wire__crate__api__sync__build_seq(int port_) {
+    return _wire__crate__api__sync__build_seq(port_);
+  }
+
+  late final _wire__crate__api__sync__build_seqPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__build_seq',
+      );
+  late final _wire__crate__api__sync__build_seq =
+      _wire__crate__api__sync__build_seqPtr.asFunction<void Function(int)>();
+
   void wire__crate__api__sync__cancel_owner_sync_invitation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
@@ -10817,6 +10853,28 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__sync__cancel_owner_sync_invitation =
       _wire__crate__api__sync__cancel_owner_sync_invitationPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__check_app_update(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> relay_url,
+  ) {
+    return _wire__crate__api__sync__check_app_update(port_, relay_url);
+  }
+
+  late final _wire__crate__api__sync__check_app_updatePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__check_app_update');
+  late final _wire__crate__api__sync__check_app_update =
+      _wire__crate__api__sync__check_app_updatePtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -10961,6 +11019,72 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__create_owner_sync_invitationPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
+  void wire__crate__api__sync__discard_sync_join_staging(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id,
+  ) {
+    return _wire__crate__api__sync__discard_sync_join_staging(port_, entry_id);
+  }
+
+  late final _wire__crate__api__sync__discard_sync_join_stagingPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__discard_sync_join_staging');
+  late final _wire__crate__api__sync__discard_sync_join_staging =
+      _wire__crate__api__sync__discard_sync_join_stagingPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__download_update_apk(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> relay_url,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> build_hash,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> apk_sha256,
+    int apk_size,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> dest_dir,
+  ) {
+    return _wire__crate__api__sync__download_update_apk(
+      port_,
+      relay_url,
+      build_hash,
+      apk_sha256,
+      apk_size,
+      dest_dir,
+    );
+  }
+
+  late final _wire__crate__api__sync__download_update_apkPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__download_update_apk');
+  late final _wire__crate__api__sync__download_update_apk =
+      _wire__crate__api__sync__download_update_apkPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__sync__get_local_sync_state(int port_) {
@@ -11393,6 +11517,42 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__release_sync_key_requestPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__sync__rename_sync_device(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> new_name,
+    int expected_vault_revision,
+  ) {
+    return _wire__crate__api__sync__rename_sync_device(
+      port_,
+      device_id,
+      new_name,
+      expected_vault_revision,
+    );
+  }
+
+  late final _wire__crate__api__sync__rename_sync_devicePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__sync__rename_sync_device');
+  late final _wire__crate__api__sync__rename_sync_device =
+      _wire__crate__api__sync__rename_sync_devicePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+            )
           >();
 
   void wire__crate__api__sync__resolve_object_conflict(
@@ -12969,6 +13129,52 @@ final class wire_cst_analysis_trigger_result extends ffi.Struct {
   external int tag;
 
   external AnalysisTriggerResultKind kind;
+}
+
+final class wire_cst_app_update_dto extends ffi.Struct {
+  @ffi.Bool()
+  external bool has_update;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> latest_hash;
+
+  @ffi.Int64()
+  external int latest_seq;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_hash;
+
+  @ffi.Int64()
+  external int local_seq;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> version;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> changelog;
+
+  @ffi.Int64()
+  external int apk_size;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> apk_sha256;
+
+  static ffi.Pointer<wire_cst_app_update_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required bool has_update,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> latest_hash,
+    required int latest_seq,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_hash,
+    required int local_seq,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> version,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> changelog,
+    required int apk_size,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> apk_sha256,
+  }) => $allocator<wire_cst_app_update_dto>()
+    ..ref.has_update = has_update
+    ..ref.latest_hash = latest_hash
+    ..ref.latest_seq = latest_seq
+    ..ref.local_hash = local_hash
+    ..ref.local_seq = local_seq
+    ..ref.version = version
+    ..ref.changelog = changelog
+    ..ref.apk_size = apk_size
+    ..ref.apk_sha256 = apk_sha256;
 }
 
 final class wire_cst_artifact_version extends ffi.Struct {

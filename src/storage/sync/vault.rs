@@ -5,7 +5,11 @@ use anyhow::{Context, Result, ensure};
 use rusqlite::{OptionalExtension, params};
 
 use crate::storage::Store;
-use crate::sync::{pairing::ApprovedPair, vault::LocalVault};
+use crate::sync::{
+    membership::{RosterAnchor, SignedRoster},
+    pairing::{ApprovedPair, PairingDevice},
+    vault::LocalVault,
+};
 
 impl Store {
     pub(crate) fn create_sync_vault(
@@ -134,6 +138,95 @@ impl Store {
             tx.commit()?;
         }
         Ok(vault.revision)
+    }
+
+    /// owner 本机改名：本机 vault 显示名、签名 roster、pinned anchor 三处
+    /// 原子更新；广播交给 membership tick。仅 owner 本机（签名权在那里）。
+    /// `target` 可为 owner 自己或任意成员（给新设备改个可读名字）。
+    pub(crate) fn rename_sync_vault_device(
+        &self,
+        installation_id: &str,
+        master: &[u8; 32],
+        expected_revision: i64,
+        target_device: &str,
+        new_name: &str,
+    ) -> Result<u64> {
+        let tx = self.begin_write_transaction()?;
+        let mut vault = self.load_sync_vault(installation_id, master, expected_revision)?;
+        ensure!(
+            vault.revision == expected_revision,
+            "sync_vault_revision_changed"
+        );
+        let local_device_id = vault.device().device_id.clone();
+        let current = self
+            .current_signed_roster()?
+            .context("sync_authority_not_ready")?;
+        ensure!(
+            current.roster.owner.device_id == local_device_id,
+            "sync_rename_requires_owner"
+        );
+        ensure!(
+            current
+                .roster
+                .members
+                .iter()
+                .any(|m| m.active && m.device.device_id == target_device),
+            "sync_device_unknown"
+        );
+        let trimmed = new_name.trim().to_string();
+        if target_device == local_device_id {
+            vault.rename_device(&trimmed)?;
+            self.save_sync_vault(&mut vault, master)?;
+        }
+        let mut roster = current.roster.clone();
+        roster.revision = roster
+            .revision
+            .checked_add(1)
+            .context("sync_membership_revision_exhausted")?;
+        for member in &mut roster.members {
+            if member.device.device_id == target_device {
+                member.device.name = trimmed.clone();
+            }
+        }
+        if roster.owner.device_id == target_device {
+            roster.owner.name = trimmed.clone();
+        }
+        let renames_owner = roster.owner.device_id == target_device;
+        let signed = SignedRoster::sign(roster, vault.identity())?;
+        // pin 的锚里 owner 名参与完整比较：同步放宽后的 decode 只看加密身份，
+        // 但锚本身也要反映新名，免得本机后续读回时展示陈旧名字。
+        if renames_owner {
+            let anchor_json: String = self.connection.query_row(
+                "SELECT anchor FROM sync_authority WHERE singleton=1",
+                [],
+                |r| r.get(0),
+            )?;
+            let mut anchor: RosterAnchor = serde_json::from_str(&anchor_json)
+                .map_err(|_| anyhow::anyhow!("sync_authority_record_invalid"))?;
+            anchor.owner.name = trimmed.clone();
+            self.connection.execute(
+                "UPDATE sync_authority SET anchor=?1 WHERE singleton=1",
+                [serde_json::to_string(&anchor)?],
+            )?;
+            // local_device 与 vault.device 同源，一并改名保持一致。
+            let local_json: String = self.connection.query_row(
+                "SELECT local_device FROM sync_authority WHERE singleton=1",
+                [],
+                |r| r.get(0),
+            )?;
+            let mut local: PairingDevice = serde_json::from_str(&local_json)
+                .map_err(|_| anyhow::anyhow!("sync_authority_record_invalid"))?;
+            local.name = trimmed.clone();
+            self.connection.execute(
+                "UPDATE sync_authority SET local_device=?1 WHERE singleton=1",
+                [serde_json::to_string(&local)?],
+            )?;
+        }
+        self.apply_signed_roster(&signed.encode()?)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(signed.roster.revision)
     }
 
     pub(super) fn save_sync_vault(&self, vault: &mut LocalVault, master: &[u8; 32]) -> Result<()> {

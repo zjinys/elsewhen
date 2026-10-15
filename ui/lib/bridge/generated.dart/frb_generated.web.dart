@@ -71,6 +71,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw);
 
   @protected
+  AppUpdateDto dco_decode_app_update_dto(dynamic raw);
+
+  @protected
   ArtifactVersion dco_decode_artifact_version(dynamic raw);
 
   @protected
@@ -763,6 +766,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisTriggerResult sse_decode_analysis_trigger_result(
     SseDeserializer deserializer,
   );
+
+  @protected
+  AppUpdateDto sse_decode_app_update_dto(SseDeserializer deserializer);
 
   @protected
   ArtifactVersion sse_decode_artifact_version(SseDeserializer deserializer);
@@ -1695,6 +1701,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
 
     throw Exception('unreachable');
+  }
+
+  @protected
+  JSAny cst_encode_app_update_dto(AppUpdateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_bool(raw.hasUpdate),
+      cst_encode_String(raw.latestHash),
+      cst_encode_i_64(raw.latestSeq),
+      cst_encode_String(raw.localHash),
+      cst_encode_i_64(raw.localSeq),
+      cst_encode_String(raw.version),
+      cst_encode_String(raw.changelog),
+      cst_encode_i_64(raw.apkSize),
+      cst_encode_String(raw.apkSha256),
+    ].jsify()!;
   }
 
   @protected
@@ -3775,6 +3797,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_app_update_dto(AppUpdateDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_artifact_version(
     ArtifactVersion self,
     SseSerializer serializer,
@@ -5023,6 +5048,9 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__build_hash(NativePortType port_) =>
       wasmModule.wire__crate__api__build_hash(port_);
 
+  void wire__crate__api__sync__build_seq(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__build_seq(port_);
+
   void wire__crate__api__chat_runs__cancel_chat_run(
     NativePortType port_,
     String conversation_id,
@@ -5040,6 +5068,11 @@ class RustLibWire implements BaseWire {
     port_,
     invitation_id,
   );
+
+  void wire__crate__api__sync__check_app_update(
+    NativePortType port_,
+    String relay_url,
+  ) => wasmModule.wire__crate__api__sync__check_app_update(port_, relay_url);
 
   void wire__crate__api__check_companion_revisit(NativePortType port_) =>
       wasmModule.wire__crate__api__check_companion_revisit(port_);
@@ -5264,6 +5297,14 @@ class RustLibWire implements BaseWire {
     String slug,
   ) => wasmModule.wire__crate__api__wiki__delete_wiki_page(port_, slug);
 
+  void wire__crate__api__sync__discard_sync_join_staging(
+    NativePortType port_,
+    String entry_id,
+  ) => wasmModule.wire__crate__api__sync__discard_sync_join_staging(
+    port_,
+    entry_id,
+  );
+
   void wire__crate__api__knowledge__dismiss_knowledge_issue(
     NativePortType port_,
     String fingerprint,
@@ -5278,6 +5319,22 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__chat_runs__dispatch_chat_input_queue(
     port_,
     conversation_id,
+  );
+
+  void wire__crate__api__sync__download_update_apk(
+    NativePortType port_,
+    String relay_url,
+    String build_hash,
+    String apk_sha256,
+    JSAny apk_size,
+    String dest_dir,
+  ) => wasmModule.wire__crate__api__sync__download_update_apk(
+    port_,
+    relay_url,
+    build_hash,
+    apk_sha256,
+    apk_size,
+    dest_dir,
   );
 
   void wire__crate__api__chat_proposals__edit_chat_proposal(
@@ -6132,6 +6189,18 @@ class RustLibWire implements BaseWire {
     title,
   );
 
+  void wire__crate__api__sync__rename_sync_device(
+    NativePortType port_,
+    String device_id,
+    String new_name,
+    JSAny expected_vault_revision,
+  ) => wasmModule.wire__crate__api__sync__rename_sync_device(
+    port_,
+    device_id,
+    new_name,
+    expected_vault_revision,
+  );
+
   void wire__crate__api__knowledge_workflows__resolve_knowledge_batch(
     NativePortType port_,
     JSAny ids,
@@ -6864,6 +6933,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__build_hash(NativePortType port_);
 
+  external void wire__crate__api__sync__build_seq(NativePortType port_);
+
   external void wire__crate__api__chat_runs__cancel_chat_run(
     NativePortType port_,
     String conversation_id,
@@ -6873,6 +6944,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__sync__cancel_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
+  );
+
+  external void wire__crate__api__sync__check_app_update(
+    NativePortType port_,
+    String relay_url,
   );
 
   external void wire__crate__api__check_companion_revisit(NativePortType port_);
@@ -7021,6 +7097,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
+  external void wire__crate__api__sync__discard_sync_join_staging(
+    NativePortType port_,
+    String entry_id,
+  );
+
   external void wire__crate__api__knowledge__dismiss_knowledge_issue(
     NativePortType port_,
     String fingerprint,
@@ -7029,6 +7110,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__chat_runs__dispatch_chat_input_queue(
     NativePortType port_,
     String conversation_id,
+  );
+
+  external void wire__crate__api__sync__download_update_apk(
+    NativePortType port_,
+    String relay_url,
+    String build_hash,
+    String apk_sha256,
+    JSAny apk_size,
+    String dest_dir,
   );
 
   external void wire__crate__api__chat_proposals__edit_chat_proposal(
@@ -7634,6 +7724,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String conversation_id,
     String title,
+  );
+
+  external void wire__crate__api__sync__rename_sync_device(
+    NativePortType port_,
+    String device_id,
+    String new_name,
+    JSAny expected_vault_revision,
   );
 
   external void wire__crate__api__knowledge_workflows__resolve_knowledge_batch(

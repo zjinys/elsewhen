@@ -5,7 +5,7 @@
 use super::protocol::validate_id;
 use crate::storage::Store;
 use anyhow::{Context, Result, ensure};
-use rusqlite::{Connection, OpenFlags, TransactionBehavior, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, params};
 use std::path::{Path, PathBuf};
 
 const CATALOG: &str = "sync-workspace.db";
@@ -179,6 +179,51 @@ impl DatasetCatalog {
     pub(crate) fn list(&self) -> Result<Vec<DatasetEntry>> {
         Ok(self.connection.prepare("SELECT id,dataset_id,installation_id,name,state FROM datasets ORDER BY rowid LIMIT 32")?
             .query_map([],entry_row)?.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// 删除一个未完成的加入暂存项：目录先删（失败可重试，孤儿目录无害），
+    /// 再删目录行并推进 catalog 修订。fail-closed：只允许 staging；已就绪
+    /// 的数据集与当前选中项永不可删。
+    pub(crate) fn discard_staging(&self, entry_id: &str) -> Result<()> {
+        uuid::Uuid::parse_str(entry_id).map_err(|_| anyhow::anyhow!("sync_dataset_id_invalid"))?;
+        let tx =
+            rusqlite::Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        let state: Option<String> = tx
+            .query_row(
+                "SELECT state FROM datasets WHERE id=?1",
+                [entry_id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let state = state.context("sync_dataset_unknown")?;
+        ensure!(state == "staging", "sync_dataset_not_staging");
+        let selected: Option<String> = tx
+            .query_row(
+                "SELECT selected_id FROM workspace WHERE singleton=1",
+                [],
+                |r| r.get(0),
+            )
+            .optional()?.flatten();
+        if selected.as_deref() == Some(entry_id) {
+            anyhow::bail!("sync_dataset_not_staging");
+        }
+        let folder = self.root.join("datasets").join(entry_id);
+        match std::fs::symlink_metadata(&folder) {
+            Ok(meta) => {
+                // 只删目录，绝不跟符号链接。错误的我们不动。
+                ensure!(meta.is_dir(), "sync_dataset_invalid_staging_folder");
+                std::fs::remove_dir_all(&folder)?;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        tx.execute("DELETE FROM datasets WHERE id=?1 AND state='staging'", [entry_id])?;
+        tx.execute(
+            "UPDATE workspace SET revision=revision+1 WHERE singleton=1",
+            [],
+        )?;
+        tx.commit()?;
+        Ok(())
     }
     pub(crate) fn path_for(&self, id: &str) -> Result<PathBuf> {
         let exists: bool = self.connection.query_row(
