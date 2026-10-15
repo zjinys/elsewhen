@@ -11,7 +11,10 @@ use anyhow::{Context, Result, ensure};
 use rusqlite::{OptionalExtension, params};
 
 use super::{Apply, Store};
-use crate::sync::protocol::{GoalRecord, RuleRecord, SyncMutation, SyncOperation, TodoRecord};
+use crate::sync::protocol::{
+    GoalRecord, KnowledgeReadingStateRecord, KnowledgeReviewRecord, RuleRecord, SyncMutation,
+    SyncOperation, TodoRecord,
+};
 
 fn todo_record_from_row(
     id: String,
@@ -367,6 +370,129 @@ impl Store {
             ],
         )?;
         self.sync_set_head("rule", &rule.id, &op.op_id, false)?;
+        Ok(Apply::Applied)
+    }
+}
+
+impl Store {
+    // —— knowledge 用户语义状态（切片：maintenance_reviews / reading_states）——
+    // 纪律：业务写后同事务捕获；调用方必须包 begin_write_transaction。
+
+    /// 维护评审行回读（dismiss 已 INSERT 后调用）。
+    fn sync_knowledge_review_record(
+        row: &rusqlite::Row,
+    ) -> rusqlite::Result<KnowledgeReviewRecord> {
+        Ok(KnowledgeReviewRecord {
+            fingerprint: row.get(0)?,
+            page_id: row.get(1)?,
+            resolution: row.get(2)?,
+            created_at: row.get(3)?,
+            issue_description: row.get(4)?,
+        })
+    }
+
+    /// 知识维护评审捕获点。append-only：无 head/CAS，行只随流到达；收端
+    /// INSERT OR IGNORE（fingerprint 幂等，重复 op 与双端各自关同一 issue 都
+    /// 收敛为一行）。
+    pub(crate) fn sync_record_knowledge_review(&self, fingerprint: &str) -> Result<()> {
+        if self.sync_identity()?.is_none() {
+            return Ok(());
+        }
+        let review = self
+            .connection
+            .query_row(
+                "SELECT fingerprint,page_id,resolution,created_at,issue_description \
+             FROM knowledge_maintenance_reviews WHERE fingerprint=?1",
+                [fingerprint],
+                Self::sync_knowledge_review_record,
+            )
+            .optional()?
+            .context("sync_knowledge_review_missing")?;
+        self.append_sync_mutation(SyncMutation::KnowledgeReviewAppended { review })?;
+        Ok(())
+    }
+
+    /// 阅读状态捕获点。整行复制 + updated_at 随行，收端 LWW 决胜（不设 head）。
+    pub(crate) fn sync_record_reading_state(&self, page_id: &str) -> Result<()> {
+        if self.sync_identity()?.is_none() {
+            return Ok(());
+        }
+        let state = self
+            .connection
+            .query_row(
+                "SELECT page_id,state,updated_at FROM knowledge_reading_states WHERE page_id=?1",
+                [page_id],
+                |r| {
+                    Ok(KnowledgeReadingStateRecord {
+                        page_id: r.get(0)?,
+                        state: r.get(1)?,
+                        updated_at: r.get(2)?,
+                    })
+                },
+            )
+            .optional()?
+            .context("sync_knowledge_reading_state_missing")?;
+        self.append_sync_mutation(SyncMutation::KnowledgeReadingStateChanged { state })?;
+        Ok(())
+    }
+
+    /// 评审行收端应用：append-only 幂等合并。页面未同步到（op 先于页到达）时
+    /// fail-closed 挂起等待，绝不造悬空引用。
+    pub(super) fn apply_sync_knowledge_review(
+        &self,
+        review: &KnowledgeReviewRecord,
+    ) -> Result<Apply> {
+        let page: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT id FROM wiki_pages WHERE id=?1",
+                [&review.page_id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        ensure!(
+            page.as_deref() == Some(review.page_id.as_str()),
+            "sync_knowledge_review_orphaned_page"
+        );
+        self.connection.execute(
+            "INSERT OR IGNORE INTO knowledge_maintenance_reviews\
+         (fingerprint,page_id,resolution,created_at,issue_description)\
+         VALUES(?1,?2,?3,?4,?5)",
+            params![
+                review.fingerprint,
+                review.page_id,
+                review.resolution,
+                review.created_at,
+                review.issue_description
+            ],
+        )?;
+        Ok(Apply::Applied)
+    }
+
+    /// 阅读状态收端应用：updated_at 新者胜（重放同一 op 时同值再写，幂等）。
+    pub(super) fn apply_sync_knowledge_reading_state(
+        &self,
+        record: &KnowledgeReadingStateRecord,
+    ) -> Result<Apply> {
+        let page: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT id FROM wiki_pages WHERE id=?1",
+                [&record.page_id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        ensure!(
+            page.as_deref() == Some(record.page_id.as_str()),
+            "sync_knowledge_state_orphaned_page"
+        );
+        self.connection.execute(
+            "INSERT INTO knowledge_reading_states(page_id,state,updated_at)\
+         VALUES(?1,?2,?3)\
+         ON CONFLICT(page_id) DO UPDATE SET state=excluded.state,updated_at=excluded.updated_at \
+         WHERE excluded.updated_at > knowledge_reading_states.updated_at",
+            params![record.page_id, record.state, record.updated_at],
+        )?;
         Ok(Apply::Applied)
     }
 }

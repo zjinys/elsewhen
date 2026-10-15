@@ -1084,6 +1084,7 @@ impl Store {
     }
 
     pub fn dismiss_knowledge_issue(&self, fingerprint: &str) -> Result<()> {
+        let tx = self.begin_write_transaction()?;
         let issue = self
             .knowledge_issues(None)?
             .into_iter()
@@ -1092,8 +1093,16 @@ impl Store {
         let page = self
             .get_wiki_page(&issue.page_slug)?
             .context("页面不存在")?;
-        self.connection.execute("INSERT OR IGNORE INTO knowledge_maintenance_reviews(fingerprint,page_id,resolution,created_at,issue_description)
+        let changed = self.connection.execute("INSERT OR IGNORE INTO knowledge_maintenance_reviews(fingerprint,page_id,resolution,created_at,issue_description)
             VALUES (?1,?2,'dismissed',?3,?4)",params![fingerprint,page.id,chrono::Utc::now().to_rfc3339(),issue.description])?;
+        // 已阅行是跨设备语义（B 设备不再重复弹同一 issue）：本端首次落行
+        // 时同事务广播；重复 dismiss 幂等，不再产生 op。
+        if changed > 0 {
+            self.sync_record_knowledge_review(fingerprint)?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(())
     }
 }

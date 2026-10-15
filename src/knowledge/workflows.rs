@@ -72,7 +72,13 @@ pub fn reading_state(store: &Store, slug: &str) -> Result<String> {
 pub fn set_reading_state(store: &Store, slug: &str, state: &str) -> Result<()> {
     valid_state(state)?;
     let p = store.get_wiki_page(slug)?.context("知识页不存在")?;
+    let tx = store.begin_write_transaction()?;
     store.connection.execute("INSERT INTO knowledge_reading_states VALUES(?1,?2,?3) ON CONFLICT(page_id) DO UPDATE SET state=excluded.state,updated_at=excluded.updated_at",params![p.id,state,chrono::Utc::now().to_rfc3339()])?;
+    // 阅读状态是跨设备语义（素材库已读/已收藏两端一致）：同事务 broadcast。
+    store.sync_record_reading_state(&p.id)?;
+    if let Some(tx) = tx {
+        tx.commit()?;
+    }
     Ok(())
 }
 

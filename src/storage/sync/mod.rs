@@ -865,6 +865,12 @@ impl Store {
                 base_revision,
                 deleted,
             } => self.apply_sync_rule(op, rule, base_revision, *deleted),
+            SyncMutation::KnowledgeReviewAppended { review } => {
+                self.apply_sync_knowledge_review(review)
+            }
+            SyncMutation::KnowledgeReadingStateChanged { state } => {
+                self.apply_sync_knowledge_reading_state(state)
+            }
         }
     }
 

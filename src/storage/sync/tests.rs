@@ -2003,3 +2003,101 @@ fn goal_active_limit_accept_is_rejected_and_keep_local_clears() {
     assert_eq!(b.store.list_object_conflicts().unwrap().len(), 0);
     assert_eq!(b.count("goals"), 3, "越限目标不得静默落行");
 }
+
+#[test]
+fn knowledge_review_and_reading_state_propagate() {
+    use crate::storage::{ContentPolicy, WikiPageDraft};
+
+    fn wiki_page(store: &Store, slug: &str) {
+        store
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: slug.into(),
+                    kind: "topic".into(),
+                    title: slug.into(),
+                    summary: "s".into(),
+                    content_md: "正文".into(),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".into(),
+                    reason: "test".into(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
+            .unwrap();
+    }
+    let page_id = |db: &Database| -> String {
+        db.store
+            .connection
+            .query_row(
+                "SELECT id FROM wiki_pages WHERE slug='topic/sync'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap()
+    };
+
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    // 页先行：用户语义行引用的 wiki_pages 必须先到（无悬空引用）。
+    // 页只在 a 建立并同步给 b——双端各自创建同一 slug 正文页会触发页级
+    // 双创建冲突（既有设计），会冻结同 stream 后续 op（真实场景为单写多读）。
+    wiki_page(&a.store, "topic/sync");
+    deliver(&a, &b);
+
+    // —— 评审行：append-only 捕获 → 收端 INSERT OR IGNORE 幂等合并 ——
+    let insert_review = |db: &Database, fp: &str| {
+        let tx = db.store.begin_write_transaction().unwrap();
+        db.store
+            .connection
+            .execute(
+                "INSERT OR IGNORE INTO knowledge_maintenance_reviews\
+                 (fingerprint,page_id,resolution,created_at,issue_description)\
+                 VALUES(?1,?2,'dismissed','2026-01-01T00:00:00Z','上游已变更')",
+                params![fp, page_id(db)],
+            )
+            .unwrap();
+        db.store.sync_record_knowledge_review(fp).unwrap();
+        if let Some(tx) = tx {
+            tx.commit().unwrap();
+        }
+    };
+    insert_review(&a, "fp-1");
+    deliver(&a, &b);
+    assert_eq!(a.count("knowledge_maintenance_reviews"), 1);
+    assert_eq!(b.count("knowledge_maintenance_reviews"), 1);
+    // 双端各自关同一 issue（同 fingerprint）：收敛为一行，不翻倍。
+    insert_review(&b, "fp-1");
+    deliver(&b, &a);
+    assert_eq!(a.count("knowledge_maintenance_reviews"), 1);
+    assert_eq!(b.count("knowledge_maintenance_reviews"), 1);
+
+    // —— 阅读状态：业务写直达传播 ——
+    crate::knowledge::workflows::set_reading_state(&a.store, "topic/sync", "read").unwrap();
+    deliver(&a, &b);
+    let b_state: String = b
+        .store
+        .connection
+        .query_row(
+            "SELECT state FROM knowledge_reading_states WHERE page_id=?1",
+            [&page_id(&b)],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(b_state, "read");
+    // 反向：b 改 valuable（更新更晚），a 收敛到 b 的值。
+    crate::knowledge::workflows::set_reading_state(&b.store, "topic/sync", "valuable").unwrap();
+    deliver(&b, &a);
+    let a_state: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT state FROM knowledge_reading_states WHERE page_id=?1",
+            [&page_id(&a)],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(a_state, "valuable");
+}

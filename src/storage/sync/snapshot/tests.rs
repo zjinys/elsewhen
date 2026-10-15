@@ -700,6 +700,112 @@ fn snapshot_carries_wiki_todos_goals_rules_and_continues_incremental() {
 }
 
 #[test]
+fn snapshot_carries_knowledge_reviews_and_reading_states() {
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    // ---- 源端：一个知识页 + 评审行 + 阅读状态 ----
+    a.store
+        .connection
+        .execute(
+            "INSERT INTO wiki_pages(id,slug,kind,title,summary,content_md,tags,source_event_ids,evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,area) VALUES('wpage-k','topic/snap','topic','快照知识页','','正文','[]','[]',1,'t1','t1','active','t1','t1','insight')",
+            [],
+        )
+        .unwrap();
+    {
+        let tx = a.store.begin_write_transaction().unwrap();
+        a.store.sync_record_wiki_page("wpage-k", false).unwrap();
+        a.store
+            .connection
+            .execute(
+                "INSERT INTO knowledge_maintenance_reviews(fingerprint,page_id,resolution,created_at,issue_description) VALUES('fp-snap','wpage-k','dismissed','2026-01-01T00:00:00Z','上游已变更')",
+                [],
+            )
+            .unwrap();
+        a.store.sync_record_knowledge_review("fp-snap").unwrap();
+        a.store
+            .connection
+            .execute(
+                "INSERT INTO knowledge_reading_states(page_id,state,updated_at) VALUES('wpage-k','valuable','2026-01-02T00:00:00Z')",
+                [],
+            )
+            .unwrap();
+        a.store.sync_record_reading_state("wpage-k").unwrap();
+        if let Some(tx) = tx {
+            tx.commit().unwrap();
+        }
+    }
+    // ---- 快照导出 → 空库导入 ----
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let id = Uuid::new_v4().to_string();
+    let (chunks, manifest) = export(&a.store, "b", &id, &key, &signer);
+    b.store.begin_snapshot_import(&id, "a", 1).unwrap();
+    stage(&b.store, &id, "a", &chunks, &key, &signer.public_key());
+    assert!(
+        b.store
+            .publish_snapshot(&id, "a", 1, &manifest, &key, &signer.public_key())
+            .unwrap()
+    );
+    assert_eq!(b.count("wiki_pages"), 1);
+    assert_eq!(b.count("knowledge_maintenance_reviews"), 1);
+    assert_eq!(b.count("knowledge_reading_states"), 1);
+    let review: (String, String) = b
+        .store
+        .connection
+        .query_row(
+            "SELECT page_id,resolution FROM knowledge_maintenance_reviews WHERE fingerprint='fp-snap'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(review, ("wpage-k".into(), "dismissed".into()));
+    let reading: (String, String) = b
+        .store
+        .connection
+        .query_row(
+            "SELECT state,updated_at FROM knowledge_reading_states WHERE page_id='wpage-k'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(reading, ("valuable".into(), "2026-01-02T00:00:00Z".into()));
+
+    // ---- 快照 bootstrap 后增量继续：A 端新评审 B 正常收到 ----
+    let reopened = Store::open(&b.store.path).unwrap();
+    {
+        let tx = a.store.begin_write_transaction().unwrap();
+        a.store
+            .connection
+            .execute(
+                "INSERT INTO knowledge_maintenance_reviews(fingerprint,page_id,resolution,created_at,issue_description) VALUES('fp-snap-2','wpage-k','acknowledged','2026-01-03T00:00:00Z',NULL)",
+                [],
+            )
+            .unwrap();
+        a.store.sync_record_knowledge_review("fp-snap-2").unwrap();
+        if let Some(tx) = tx {
+            tx.commit().unwrap();
+        }
+    }
+    for operation in a.store.pending_sync_operations("b", 100).unwrap() {
+        reopened
+            .receive_sync_operation("a", &serde_json::to_vec(&operation).unwrap())
+            .unwrap();
+    }
+    let incremental: i64 = reopened
+        .connection
+        .query_row(
+            "SELECT count(*) FROM knowledge_maintenance_reviews",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(incremental, 2, "评审行随流到达，无冲突立案");
+}
+
+#[test]
 fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
     let a = Database::new();
     let b = Database::new();

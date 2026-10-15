@@ -169,6 +169,16 @@ pub enum SyncMutation {
         base_revision: Option<String>,
         deleted: bool,
     },
+    /// 知识维护评审行追加（issue 已阅/处置）。append-only：fingerprint 为
+    /// 幂等键，收端 INSERT OR IGNORE，不参与 head/CAS，不存在冲突语义。
+    KnowledgeReviewAppended {
+        review: KnowledgeReviewRecord,
+    },
+    /// 阅读状态（五态选择型字段）最终写胜。字段是纯选择不存在语义合并，
+    /// 丢弃旧值的代价=重复点一次，不值得 CAS 立案 UI——updated_at 决胜。
+    KnowledgeReadingStateChanged {
+        state: KnowledgeReadingStateRecord,
+    },
 }
 
 impl SyncMutation {
@@ -385,6 +395,36 @@ impl SyncMutation {
                 if let Some(conversation_id) = &rule.conversation_id {
                     validate_id(conversation_id)?;
                 }
+            }
+            Self::KnowledgeReviewAppended { review } => {
+                validate_id(&review.page_id)?;
+                ensure!(
+                    !review.fingerprint.trim().is_empty() && review.fingerprint.len() <= 128,
+                    "sync_knowledge_review_field_invalid"
+                );
+                ensure!(
+                    review.resolution.len() <= 64
+                        && !review.created_at.trim().is_empty()
+                        && review.created_at.len() <= 64,
+                    "sync_knowledge_review_field_invalid"
+                );
+                if let Some(desc) = &review.issue_description {
+                    ensure!(desc.len() <= 4096, "sync_knowledge_review_field_invalid");
+                }
+            }
+            Self::KnowledgeReadingStateChanged { state } => {
+                validate_id(&state.page_id)?;
+                ensure!(
+                    matches!(
+                        state.state.as_str(),
+                        "unread" | "read" | "valuable" | "adopted" | "archived"
+                    ),
+                    "sync_knowledge_state_invalid"
+                );
+                ensure!(
+                    !state.updated_at.trim().is_empty() && state.updated_at.len() <= 64,
+                    "sync_knowledge_state_field_invalid"
+                );
             }
         }
         Ok(())
@@ -701,4 +741,22 @@ impl std::fmt::Debug for ProviderProfile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProviderProfile").finish_non_exhaustive()
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KnowledgeReviewRecord {
+    pub fingerprint: String,
+    pub page_id: String,
+    pub resolution: String,
+    pub created_at: String,
+    pub issue_description: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KnowledgeReadingStateRecord {
+    pub page_id: String,
+    pub state: String,
+    pub updated_at: String,
 }

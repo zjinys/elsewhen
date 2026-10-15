@@ -39,6 +39,8 @@ pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
     "events",
     "wiki_pages",
     "wiki_revisions",
+    "knowledge_maintenance_reviews",
+    "knowledge_reading_states",
     "conversations",
     "messages",
     "message_response_links",
@@ -126,7 +128,10 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("chat_summary_nodes", "local-chat-execution-state"),
     ("pending_actions", "local-chat-execution-state"),
     ("suggestion_feedback", "local-chat-execution-state"),
-    // knowledge 管线本地产物，尚不在同步数据集（不产生 op）。
+    // knowledge 管线本地产物，不在同步数据集（不产生 op）。用户语义状态
+    // （maintenance_reviews 评审行 / reading_states 阅读状态）已入快照
+    // carried 集——双设备 issue 关闭与已读/收藏互见；其余管道过程产物
+    // （jobs/runs/snapshots/metrics/topic_plans…）每设备本地重算，永久排除。
     ("knowledge_artifact_adoptions", "local-knowledge-pipeline"),
     ("knowledge_artifact_versions", "local-knowledge-pipeline"),
     ("knowledge_background_runs", "local-knowledge-pipeline"),
@@ -134,11 +139,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("knowledge_digest_jobs", "local-knowledge-pipeline"),
     ("knowledge_digest_runs", "local-knowledge-pipeline"),
     ("knowledge_generations", "local-knowledge-pipeline"),
-    ("knowledge_maintenance_reviews", "local-knowledge-pipeline"),
     ("knowledge_metadata", "local-knowledge-pipeline"),
     ("knowledge_page_sources", "local-knowledge-pipeline"),
     ("knowledge_proposals", "local-knowledge-pipeline"),
-    ("knowledge_reading_states", "local-knowledge-pipeline"),
     ("knowledge_refresh_jobs", "local-knowledge-pipeline"),
     ("knowledge_review_decisions", "local-knowledge-pipeline"),
     ("knowledge_semantic_issues", "local-knowledge-pipeline"),
@@ -237,6 +240,18 @@ enum Record {
         event_kind: String,
         reason: String,
         created_at: String,
+    },
+    KnowledgeReview {
+        fingerprint: String,
+        page_id: String,
+        resolution: String,
+        created_at: String,
+        issue_description: Option<String>,
+    },
+    KnowledgeReadingState {
+        page_id: String,
+        state: String,
+        updated_at: String,
     },
     Head {
         object_kind: String,
@@ -367,6 +382,8 @@ const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','event','value',json_object('id',id,'occurred_at',occurred_at,'recorded_at',recorded_at,'raw_text',raw_text,'source',source,'created_at',created_at),'status',status,'processed_at',processed_at,'updated_at',updated_at) FROM events WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','wiki_page','id',id,'slug',slug,'page_kind',kind,'title',title,'summary',summary,'content_md',content_md,'tags',tags,'source_event_ids',source_event_ids,'evidence_count',evidence_count,'first_seen_at',first_seen_at,'last_seen_at',last_seen_at,'status',status,'created_at',created_at,'updated_at',updated_at,'source_url',source_url,'area',area,'based_on',based_on,'content_type',content_type,'human_edited_at',human_edited_at,'opinion',opinion,'knowledge_epoch',knowledge_epoch) FROM wiki_pages WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','wiki_revision','id',id,'page_id',page_id,'content_md',content_md,'reason',reason,'source_event_id',source_event_id,'created_at',created_at) FROM wiki_revisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','knowledge_review','fingerprint',fingerprint,'page_id',page_id,'resolution',resolution,'created_at',created_at,'issue_description',issue_description) FROM knowledge_maintenance_reviews WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','knowledge_reading_state','page_id',page_id,'state',state,'updated_at',updated_at) FROM knowledge_reading_states WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','wiki_asset','rel',rel,'sha256',sha256,'mime',mime,'size',size) FROM wiki_assets WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','conversation','value',json_object('id',id,'title',title,'tag',tag,'archived',json(CASE WHEN archived=1 THEN 'true' ELSE 'false' END),'wiki_page_slug',wiki_page_slug,'assistant_mode',assistant_mode,'created_at',created_at,'updated_at',updated_at)) FROM conversations WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT m.rowid,json_object('kind','message','value',json_object('id',m.id,'conversation_id',m.conversation_id,'parent_message_id',m.parent_message_id,'role',m.role,'content',m.content,'created_at',m.created_at,'input_message_id',(SELECT input_message_id FROM message_response_links WHERE message_id=m.id)),'order',CASE WHEN s.message_id IS NULL THEN NULL ELSE json_object('origin_stream_id',s.origin_stream_id,'origin_sequence',s.origin_sequence,'logical_clock',s.logical_clock,'input_message_id',s.input_message_id) END) FROM messages m JOIN conversations c ON c.id=m.conversation_id LEFT JOIN sync_message_order s ON s.message_id=m.id WHERE m.rowid>?1 ORDER BY m.rowid LIMIT 1",
@@ -1194,6 +1211,87 @@ impl Store {
                     "sync_snapshot_wiki_revision_orphaned"
                 );
                 self.connection.execute("INSERT INTO wiki_revisions(id,page_id,content_md,reason,source_event_id,created_at) VALUES(?1,?2,?3,?4,?5,?6)",params![id,page_id,content_md,reason,source_event_id,created_at])?;
+            }
+            Record::KnowledgeReview {
+                fingerprint,
+                page_id,
+                resolution,
+                created_at,
+                issue_description,
+            } => {
+                validate_id(page_id)?;
+                ensure!(
+                    !fingerprint.trim().is_empty()
+                        && fingerprint.len() <= 128
+                        && !created_at.trim().is_empty()
+                        && created_at.len() <= 64
+                        && resolution.len() <= 64,
+                    "sync_snapshot_knowledge_review_invalid"
+                );
+                if let Some(desc) = issue_description {
+                    ensure!(desc.len() <= 4096, "sync_snapshot_knowledge_review_invalid");
+                }
+                // 快照流顺序保证 wiki_pages 行先于评审行（QUERIES 序）；孤儿
+                // 指纹 fail-closed，绝不落悬空引用。
+                let page: Option<String> = self
+                    .connection
+                    .query_row(
+                        "SELECT id FROM wiki_pages WHERE id=?1",
+                        [page_id.as_str()],
+                        |r| r.get(0),
+                    )
+                    .optional()?;
+                ensure!(
+                    page.as_deref() == Some(page_id.as_str()),
+                    "sync_snapshot_knowledge_review_orphaned"
+                );
+                self.connection.execute(
+                    "INSERT OR IGNORE INTO knowledge_maintenance_reviews\
+                     (fingerprint,page_id,resolution,created_at,issue_description)\
+                     VALUES(?1,?2,?3,?4,?5)",
+                    params![
+                        fingerprint,
+                        page_id,
+                        resolution,
+                        created_at,
+                        issue_description
+                    ],
+                )?;
+            }
+            Record::KnowledgeReadingState {
+                page_id,
+                state,
+                updated_at,
+            } => {
+                validate_id(page_id)?;
+                ensure!(
+                    matches!(
+                        state.as_str(),
+                        "unread" | "read" | "valuable" | "adopted" | "archived"
+                    ),
+                    "sync_snapshot_knowledge_state_invalid"
+                );
+                ensure!(
+                    !updated_at.trim().is_empty() && updated_at.len() <= 64,
+                    "sync_snapshot_knowledge_state_invalid"
+                );
+                let page: Option<String> = self
+                    .connection
+                    .query_row(
+                        "SELECT id FROM wiki_pages WHERE id=?1",
+                        [page_id.as_str()],
+                        |r| r.get(0),
+                    )
+                    .optional()?;
+                ensure!(
+                    page.as_deref() == Some(page_id.as_str()),
+                    "sync_snapshot_knowledge_state_orphaned"
+                );
+                self.connection.execute(
+                    "INSERT OR IGNORE INTO knowledge_reading_states(page_id,state,updated_at)\
+                     VALUES(?1,?2,?3)",
+                    params![page_id, state, updated_at],
+                )?;
             }
             Record::Todo {
                 id,
