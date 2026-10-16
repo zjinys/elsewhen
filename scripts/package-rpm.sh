@@ -13,7 +13,8 @@ bundle="$root/ui/build/linux/x64/release/bundle"
 [ -x "$bundle/elsewhen_ui" ] || { echo "未找到 $bundle/elsewhen_ui" >&2; exit 1; }
 cp "$root/target/release/libelsewhen.so" "$bundle/lib/"
 top="$(mktemp -d)"; trap 'rm -rf "$top"' EXIT
-mkdir -p "$top"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+# 不能用 {BUILD,...} 大括号展开：shebang 是 sh（CI 上为 dash），那是 bash 语法。
+mkdir -p "$top/BUILD" "$top/RPMS" "$top/SOURCES" "$top/SPECS" "$top/SRPMS"
 sed "s/@VERSION@/$version/g; s|@ROOT@|$root|g" "$root/packaging/linux/elsewhen.spec.in" > "$top/SPECS/elsewhen.spec"
 rpmbuild --define "_topdir $top" -bb "$top/SPECS/elsewhen.spec" >/dev/null
 find "$top/RPMS" -name '*.rpm' -exec cp {} "$output_dir/" \;
