@@ -13,10 +13,9 @@ cp -a @ROOT@/ui/build/linux/x64/release/bundle/. %{buildroot}/usr/lib/elsewhen/
 printf '%s\n' '#!/bin/sh' 'export LD_LIBRARY_PATH="/usr/lib/elsewhen/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' 'exec /usr/lib/elsewhen/elsewhen_ui "$@"' > %{buildroot}/usr/bin/elsewhen
 chmod 0755 %{buildroot}/usr/bin/elsewhen
 install -m 0644 @ROOT@/packaging/linux/io.github.elsewhen.Elsewhen.desktop %{buildroot}/usr/share/applications/
-if [ -f @ROOT@/assets/brand/elsewhen-icon-v2-256.png ]; then
-  install -m 0644 @ROOT@/assets/brand/elsewhen-icon-v2-256.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/io.github.elsewhen.Elsewhen.png
-fi
+install -m 0644 @ROOT@/assets/brand/elsewhen-icon-v2-256.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/io.github.elsewhen.Elsewhen.png
 %files
 /usr/bin/elsewhen
 /usr/lib/elsewhen/
 /usr/share/applications/io.github.elsewhen.Elsewhen.desktop
+/usr/share/icons/hicolor/256x256/apps/io.github.elsewhen.Elsewhen.png
