@@ -100,7 +100,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 507618911;
+  int get rustContentHash => 1711022148;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -512,6 +512,18 @@ abstract class RustLibApi extends BaseApi {
 
   Future<SyncJoinStateDto> crateApiSyncInspectSyncJoinApproval({
     required String operationId,
+  });
+
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromDirectory({
+    required String source,
+  });
+
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromGit({
+    required String url,
+  });
+
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromZip({
+    required String zipPath,
   });
 
   Future<SyncJoinStateDto> crateApiSyncInstallSyncJoinKey({
@@ -1114,6 +1126,8 @@ abstract class RustLibApi extends BaseApi {
     required String slug,
     required List<String> tags,
   });
+
+  Future<String> crateApiUserSkillsUserSkillsDirectoryPath();
 
   Future<VacuumResultDto> crateApiDbMaintenanceVacuumDatabase();
 
@@ -4117,6 +4131,97 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "inspect_sync_join_approval",
         argNames: ["operationId"],
+      );
+
+  @override
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromDirectory({
+    required String source,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(source);
+          return wire
+              .wire__crate__api__user_skills__install_skill_from_directory(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_user_skill_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsInstallSkillFromDirectoryConstMeta,
+        argValues: [source],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsInstallSkillFromDirectoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "install_skill_from_directory",
+        argNames: ["source"],
+      );
+
+  @override
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromGit({
+    required String url,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(url);
+          return wire.wire__crate__api__user_skills__install_skill_from_git(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_user_skill_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsInstallSkillFromGitConstMeta,
+        argValues: [url],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsInstallSkillFromGitConstMeta =>
+      const TaskConstMeta(
+        debugName: "install_skill_from_git",
+        argNames: ["url"],
+      );
+
+  @override
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromZip({
+    required String zipPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(zipPath);
+          return wire.wire__crate__api__user_skills__install_skill_from_zip(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_user_skill_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsInstallSkillFromZipConstMeta,
+        argValues: [zipPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsInstallSkillFromZipConstMeta =>
+      const TaskConstMeta(
+        debugName: "install_skill_from_zip",
+        argNames: ["zipPath"],
       );
 
   @override
@@ -8364,6 +8469,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "update_wiki_tags",
     argNames: ["slug", "tags"],
   );
+
+  @override
+  Future<String> crateApiUserSkillsUserSkillsDirectoryPath() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__user_skills__user_skills_directory_path(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsUserSkillsDirectoryPathConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsUserSkillsDirectoryPathConstMeta =>
+      const TaskConstMeta(
+        debugName: "user_skills_directory_path",
+        argNames: [],
+      );
 
   @override
   Future<VacuumResultDto> crateApiDbMaintenanceVacuumDatabase() {

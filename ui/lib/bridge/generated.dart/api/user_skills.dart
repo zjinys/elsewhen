@@ -7,6 +7,9 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `copy_dir_recursive`, `install_staged`, `staging_dir`, `unique_skill_subdir`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `install_skill_from_directory_at`, `install_skill_from_git_at`, `install_skill_from_zip_at`
+
 Future<List<UserSkillDto>> listUserSkills() =>
     RustLib.instance.api.crateApiUserSkillsListUserSkills();
 
@@ -15,6 +18,30 @@ Future<void> setUserSkillEnabled({required String id, required bool enabled}) =>
       id: id,
       enabled: enabled,
     );
+
+/// 技能目录绝对路径（供前端"打开技能目录"），目录不存在则创建。
+Future<String> userSkillsDirectoryPath() =>
+    RustLib.instance.api.crateApiUserSkillsUserSkillsDirectoryPath();
+
+/// 安装本地目录：FilePicker 选目录后传绝对路径。
+/// 所选目录无 SKILL.md 但一级子目录里恰好唯一一个含 SKILL.md 的，自动下钻
+/// （clone 的仓库外壳 / 用户多选了上层目录都很常见）。
+Future<UserSkillDto> installSkillFromDirectory({required String source}) =>
+    RustLib.instance.api.crateApiUserSkillsInstallSkillFromDirectory(
+      source: source,
+    );
+
+/// 安装 zip：内部做 zip-slip 防御；根有 SKILL.md 视为技能本体，
+/// 否则下钻唯一含 SKILL.md 的顶层子目录。
+Future<UserSkillDto> installSkillFromZip({required String zipPath}) => RustLib
+    .instance
+    .api
+    .crateApiUserSkillsInstallSkillFromZip(zipPath: zipPath);
+
+/// 从 git 仓库安装（`git clone --depth 1`）。桌面端依赖系统 git；手机端报错。
+/// url 仅接受 https:// 或本地路径，禁止 file: 与:`其它 scheme 的超级歧义形式。
+Future<UserSkillDto> installSkillFromGit({required String url}) =>
+    RustLib.instance.api.crateApiUserSkillsInstallSkillFromGit(url: url);
 
 class UserSkillDto {
   /// 目录名，同时是 enable_tools 的技能 id。

@@ -92,17 +92,15 @@ pub fn discover(data_dir: &Path) -> Result<Vec<UserSkill>> {
         if !skill_md.is_file() {
             continue;
         }
-        if let Some(skill) =
-            parse_skill_md(&skill_md).with_context(|| format!("解析技能 {}", skill_md.display()))?
-        {
-            skills.push(skill);
-        }
+        let skill = parse_skill_md(&skill_md)
+            .with_context(|| format!("解析技能 {}", skill_md.display()))?;
+        skills.push(skill);
     }
     Ok(skills)
 }
 
-/// 解析 SKILL.md：frontmatter 的 name/description + 正文之外的文件清单。
-fn parse_skill_md(skill_md: &Path) -> Result<Option<UserSkill>> {
+/// 解析 SKILL.md：frontmatter 的 name/description（discover 与安装流程共用）。
+pub fn parse_skill_md(skill_md: &Path) -> Result<UserSkill> {
     let id = skill_md
         .parent()
         .and_then(|p| p.file_name())
@@ -130,13 +128,13 @@ fn parse_skill_md(skill_md: &Path) -> Result<Option<UserSkill>> {
         .chars()
         .take(200)
         .collect();
-    Ok(Some(UserSkill {
+    Ok(UserSkill {
         id,
         title,
         brief,
         description_full,
         skill_md: skill_md.to_path_buf(),
-    }))
+    })
 }
 
 /// 把 `---` frontmatter 与正文切开；无 frontmatter 时返回 (None, 全文)。

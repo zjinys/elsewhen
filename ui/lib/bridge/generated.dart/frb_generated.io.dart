@@ -13044,6 +13044,84 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__user_skills__install_skill_from_directory(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source,
+  ) {
+    return _wire__crate__api__user_skills__install_skill_from_directory(
+      port_,
+      source,
+    );
+  }
+
+  late final _wire__crate__api__user_skills__install_skill_from_directoryPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__user_skills__install_skill_from_directory',
+      );
+  late final _wire__crate__api__user_skills__install_skill_from_directory =
+      _wire__crate__api__user_skills__install_skill_from_directoryPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__user_skills__install_skill_from_git(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
+  ) {
+    return _wire__crate__api__user_skills__install_skill_from_git(port_, url);
+  }
+
+  late final _wire__crate__api__user_skills__install_skill_from_gitPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__user_skills__install_skill_from_git',
+      );
+  late final _wire__crate__api__user_skills__install_skill_from_git =
+      _wire__crate__api__user_skills__install_skill_from_gitPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__user_skills__install_skill_from_zip(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> zip_path,
+  ) {
+    return _wire__crate__api__user_skills__install_skill_from_zip(
+      port_,
+      zip_path,
+    );
+  }
+
+  late final _wire__crate__api__user_skills__install_skill_from_zipPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__user_skills__install_skill_from_zip',
+      );
+  late final _wire__crate__api__user_skills__install_skill_from_zip =
+      _wire__crate__api__user_skills__install_skill_from_zipPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__user_skills__list_user_skills(int port_) {
     return _wire__crate__api__user_skills__list_user_skills(port_);
   }
@@ -13085,6 +13163,18 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
+
+  void wire__crate__api__user_skills__user_skills_directory_path(int port_) {
+    return _wire__crate__api__user_skills__user_skills_directory_path(port_);
+  }
+
+  late final _wire__crate__api__user_skills__user_skills_directory_pathPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__user_skills__user_skills_directory_path',
+      );
+  late final _wire__crate__api__user_skills__user_skills_directory_path =
+      _wire__crate__api__user_skills__user_skills_directory_pathPtr
+          .asFunction<void Function(int)>();
 
   void wire__crate__api__web_search__get_network_settings(int port_) {
     return _wire__crate__api__web_search__get_network_settings(port_);

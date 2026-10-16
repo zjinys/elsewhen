@@ -6110,6 +6110,30 @@ class RustLibWire implements BaseWire {
     operation_id,
   );
 
+  void wire__crate__api__user_skills__install_skill_from_directory(
+    NativePortType port_,
+    String source,
+  ) => wasmModule.wire__crate__api__user_skills__install_skill_from_directory(
+    port_,
+    source,
+  );
+
+  void wire__crate__api__user_skills__install_skill_from_git(
+    NativePortType port_,
+    String url,
+  ) => wasmModule.wire__crate__api__user_skills__install_skill_from_git(
+    port_,
+    url,
+  );
+
+  void wire__crate__api__user_skills__install_skill_from_zip(
+    NativePortType port_,
+    String zip_path,
+  ) => wasmModule.wire__crate__api__user_skills__install_skill_from_zip(
+    port_,
+    zip_path,
+  );
+
   void wire__crate__api__sync__install_sync_join_key(
     NativePortType port_,
     String token,
@@ -7293,6 +7317,12 @@ class RustLibWire implements BaseWire {
     JSAny tags,
   ) => wasmModule.wire__crate__api__wiki__update_wiki_tags(port_, slug, tags);
 
+  void wire__crate__api__user_skills__user_skills_directory_path(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__user_skills__user_skills_directory_path(
+    port_,
+  );
+
   void wire__crate__api__db_maintenance__vacuum_database(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__db_maintenance__vacuum_database(port_);
@@ -7864,6 +7894,21 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__sync__inspect_sync_join_approval(
     NativePortType port_,
     String operation_id,
+  );
+
+  external void wire__crate__api__user_skills__install_skill_from_directory(
+    NativePortType port_,
+    String source,
+  );
+
+  external void wire__crate__api__user_skills__install_skill_from_git(
+    NativePortType port_,
+    String url,
+  );
+
+  external void wire__crate__api__user_skills__install_skill_from_zip(
+    NativePortType port_,
+    String zip_path,
   );
 
   external void wire__crate__api__sync__install_sync_join_key(
@@ -8643,6 +8688,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     JSAny tags,
+  );
+
+  external void wire__crate__api__user_skills__user_skills_directory_path(
+    NativePortType port_,
   );
 
   external void wire__crate__api__db_maintenance__vacuum_database(

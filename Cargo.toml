@@ -20,6 +20,7 @@ base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 fontdb = "0.23"
 directories = "5"
+zip = { version = "9", default-features = false, features = ["deflate"] }
 rusqlite = { version = "0.39", features = ["bundled"] }
 # `from-directory`：按官方约定加载 migrations/ 下的 *.sql（配合 include_dir! 编译期嵌入）
 rusqlite_migration = { version = "2.5", features = ["from-directory"] }

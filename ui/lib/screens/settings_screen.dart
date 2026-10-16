@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, Process;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
@@ -66,6 +66,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   String? _dbStatsError;
   List<api.UserSkillDto>? _userSkills;
   String? _userSkillsError;
+  bool _installingSkill = false;
   bool _vacuuming = false;
 
   // 个人经验规则库
@@ -1543,6 +1544,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.6),
         ),
         const SizedBox(height: AppTheme.space3),
+        Wrap(
+          spacing: AppTheme.space2,
+          runSpacing: AppTheme.space2,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _installingSkill
+                  ? null
+                  : () => _pickInstallSkill(false),
+              icon: const Icon(Icons.folder_open_outlined, size: 18),
+              label: const Text('从文件夹安装'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _installingSkill
+                  ? null
+                  : () => _pickInstallSkill(true),
+              icon: const Icon(Icons.archive_outlined, size: 18),
+              label: const Text('从 zip 安装'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _installingSkill ? null : _promptGitInstall,
+              icon: const Icon(Icons.commit_outlined, size: 18),
+              label: const Text('从 Git 安装'),
+            ),
+            if (!Platform.isAndroid && !Platform.isIOS)
+              TextButton.icon(
+                onPressed: _openSkillsDirectory,
+                icon: const Icon(Icons.output_outlined, size: 18),
+                label: const Text('打开技能目录'),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppTheme.space3),
         if (skills == null)
           Text(
             _userSkillsError ?? '读取中…',
@@ -1597,6 +1630,103 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (mounted) setState(() { _userSkills = skills; _userSkillsError = null; });
     } catch (e) {
       if (mounted) setState(() => _userSkillsError = reportUiError('读取用户技能', e));
+    }
+  }
+
+  Future<void> _pickInstallSkill(bool asZip) async {
+    final path = asZip
+        ? (await FilePicker.pickFiles(
+            dialogTitle: '选择技能 zip 包',
+            type: FileType.custom,
+            allowedExtensions: ['zip'],
+          ))
+            ?.first.path
+        : await FilePicker.getDirectoryPath(
+            dialogTitle: '选择包含 SKILL.md 的技能目录',
+          );
+    if (path == null) return;
+    final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    await _installSkill(
+      asZip
+          ? () => repository.installUserSkillFromZip(path)
+          : () => repository.installUserSkillFromDirectory(path),
+      what: asZip ? 'zip 安装' : '目录安装',
+    );
+  }
+
+  Future<void> _promptGitInstall() async {
+    final controller = TextEditingController();
+    final url = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('从 Git 仓库安装技能'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'https://github.com/user/skill-repo.git',
+            labelText: '仓库地址（https 或本地路径）',
+          ),
+          onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('安装'),
+          ),
+        ],
+      ),
+    );
+    if (url == null || url.isEmpty) return;
+    final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    await _installSkill(
+      () => repository.installUserSkillFromGit(url),
+      what: 'Git 安装',
+    );
+  }
+
+  Future<void> _installSkill(
+    Future<api.UserSkillDto> Function() install, {
+    required String what,
+  }) async {
+    setState(() => _installingSkill = true);
+    try {
+      final dto = await install();
+      await _loadUserSkills();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已安装 ${dto.title}，默认启用')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(reportUiError(what, e))),
+      );
+    } finally {
+      if (mounted) setState(() => _installingSkill = false);
+    }
+  }
+
+  Future<void> _openSkillsDirectory() async {
+    final repository = ref.read(storageRepositoryProvider);
+    if (repository is! RustBridgeRepository) return;
+    try {
+      final dir = await repository.userSkillsDirectoryPath();
+      final binary = Platform.isMacOS
+          ? 'open'
+          : Platform.isWindows
+              ? 'explorer'
+              : 'xdg-open';
+      await Process.run(binary, [dir]);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(reportUiError('打开技能目录', e))),
+      );
     }
   }
 

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 507618911;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1711022148;
 
 // Section: executor
 
@@ -2590,6 +2590,77 @@ fn wire__crate__api__sync__inspect_sync_join_approval_impl(
                     (move || {
                         let output_ok =
                             crate::api::sync::inspect_sync_join_approval(api_operation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__user_skills__install_skill_from_directory_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    source: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "install_skill_from_directory",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_source = source.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::user_skills::install_skill_from_directory(api_source)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__user_skills__install_skill_from_git_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    url: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "install_skill_from_git",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_url = url.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::user_skills::install_skill_from_git(api_url)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__user_skills__install_skill_from_zip_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    zip_path: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "install_skill_from_zip",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_zip_path = zip_path.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::user_skills::install_skill_from_zip(api_zip_path)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6176,6 +6247,27 @@ fn wire__crate__api__wiki__update_wiki_tags_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::wiki::update_wiki_tags(api_slug, api_tags)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__user_skills__user_skills_directory_path_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "user_skills_directory_path",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::user_skills::user_skills_directory_path()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -20626,6 +20718,30 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__user_skills__install_skill_from_directory(
+        port_: i64,
+        source: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__user_skills__install_skill_from_directory_impl(port_, source)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__user_skills__install_skill_from_git(
+        port_: i64,
+        url: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__user_skills__install_skill_from_git_impl(port_, url)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__user_skills__install_skill_from_zip(
+        port_: i64,
+        zip_path: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__user_skills__install_skill_from_zip_impl(port_, zip_path)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__install_sync_join_key(
         port_: i64,
         token: *mut wire_cst_list_prim_u_8_strict,
@@ -21949,6 +22065,13 @@ mod io {
         tags: *mut wire_cst_list_String,
     ) {
         wire__crate__api__wiki__update_wiki_tags_impl(port_, slug, tags)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__user_skills__user_skills_directory_path(
+        port_: i64,
+    ) {
+        wire__crate__api__user_skills__user_skills_directory_path_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -29292,6 +29415,30 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__user_skills__install_skill_from_directory(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        source: String,
+    ) {
+        wire__crate__api__user_skills__install_skill_from_directory_impl(port_, source)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__user_skills__install_skill_from_git(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        url: String,
+    ) {
+        wire__crate__api__user_skills__install_skill_from_git_impl(port_, url)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__user_skills__install_skill_from_zip(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        zip_path: String,
+    ) {
+        wire__crate__api__user_skills__install_skill_from_zip_impl(port_, zip_path)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__sync__install_sync_join_key(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         token: String,
@@ -30639,6 +30786,13 @@ mod web {
         tags: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
         wire__crate__api__wiki__update_wiki_tags_impl(port_, slug, tags)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__user_skills__user_skills_directory_path(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__user_skills__user_skills_directory_path_impl(port_)
     }
 
     #[wasm_bindgen]

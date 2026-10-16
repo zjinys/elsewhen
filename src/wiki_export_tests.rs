@@ -145,7 +145,10 @@ fn source_url_and_tags_render_into_frontmatter() {
         "topic/imported",
         "导入页",
         "正文",
-        &[("source_url", "https://example.com/a"), ("tags", "[\"a\",\"b\"]")],
+        &[
+            ("source_url", "https://example.com/a"),
+            ("tags", "[\"a\",\"b\"]"),
+        ],
     );
     let out = temp_out_dir("meta");
     store.export_wiki_markdown(&out).unwrap();

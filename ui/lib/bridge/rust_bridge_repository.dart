@@ -1010,6 +1010,21 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> setUserSkillEnabled({required String id, required bool enabled}) =>
       api.setUserSkillEnabled(id: id, enabled: enabled);
 
+  /// 技能目录绝对路径（供"打开技能目录"）。
+  Future<String> userSkillsDirectoryPath() => api.userSkillsDirectoryPath();
+
+  /// 安装：本地目录（含仓库外壳自动下钻）。
+  Future<api.UserSkillDto> installUserSkillFromDirectory(String source) =>
+      api.installSkillFromDirectory(source: source);
+
+  /// 安装：zip（内含 zip-slip 防御）。
+  Future<api.UserSkillDto> installUserSkillFromZip(String zipPath) =>
+      api.installSkillFromZip(zipPath: zipPath);
+
+  /// 安装：git 仓库（depth 1，https 或本地路径）。
+  Future<api.UserSkillDto> installUserSkillFromGit(String url) =>
+      api.installSkillFromGit(url: url);
+
   /// VACUUM 整理（独占写，被并发阻塞时抛错由前端提示重试）。
   Future<api.VacuumResultDto> vacuumDatabase() => api.vacuumDatabase();
 

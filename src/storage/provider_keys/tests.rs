@@ -514,7 +514,10 @@ fn duplicate_clones_fields_and_key_without_activation_or_colliding_names() {
         assert!(!dup.is_active);
         let dup2 = configs.iter().find(|c| c.id == second).unwrap();
         assert_eq!(dup2.name, "主用 GPT 副本 2");
-        assert_eq!(f.store.read_provider_key(&dup2.id).unwrap().as_deref(), Some("SECRET_KEY"));
+        assert_eq!(
+            f.store.read_provider_key(&dup2.id).unwrap().as_deref(),
+            Some("SECRET_KEY")
+        );
 
         // 原配置保持激活，复制不打扰运行中的对话。
         let active = f.store.active_ai_provider_config().unwrap().unwrap();
