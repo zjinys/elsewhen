@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'package:flutter/foundation.dart';
@@ -58,6 +59,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   bool _analysisJobStatsLoading = true;
   api.KnowledgeDigestStatsDto? _digestStats;
   bool _digestStatsLoading = true;
+
+  bool _exportingWiki = false;
 
   // 个人经验规则库
   List<Rule> _rules = [];
@@ -1245,6 +1248,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
+  Widget _buildWikiExportContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '把知识页导出为带元数据的 Markdown 文件（Obsidian 等通用工具可直接打开）；'
+          '派生产物与归档/拒绝页不导出，同名覆盖可重复执行。',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+            height: 1.6,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        OutlinedButton.icon(
+          onPressed: _exportingWiki ? null : _exportWikiMarkdown,
+          icon: _exportingWiki
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.ios_share_outlined, size: 18),
+          label: Text(_exportingWiki ? '导出中…' : '选择目录并导出'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _exportWikiMarkdown() async {
+    final directory = await FilePicker.getDirectoryPath(dialogTitle: '选择导出目录');
+    if (!mounted || directory == null || directory.trim().isEmpty) return;
+    setState(() => _exportingWiki = true);
+    try {
+      final repository = ref.read(storageRepositoryProvider);
+      if (repository is! RustBridgeRepository) {
+        throw StateError('当前存储后端不支持导出');
+      }
+      final result = await repository.exportWikiMarkdown(outDir: directory);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已导出 ${result.exported} 个知识页到 ${result.outDir}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(reportUiError('导出知识库', e))),
+      );
+    } finally {
+      if (mounted) setState(() => _exportingWiki = false);
+    }
+  }
+
   Widget _buildAppearanceTab(AppSettings settings) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
@@ -1425,6 +1481,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: '知识消化',
             icon: Icons.auto_stories_outlined,
             child: _buildDigestStatsContent(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '知识导出',
+            icon: Icons.ios_share_outlined,
+            child: _buildWikiExportContent(),
           ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(

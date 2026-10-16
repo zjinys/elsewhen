@@ -770,6 +770,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
 
   @protected
+  WikiExportResultDto dco_decode_wiki_export_result_dto(dynamic raw);
+
+  @protected
   WikiPageConflictDto dco_decode_wiki_page_conflict_dto(dynamic raw);
 
   @protected
@@ -1701,6 +1704,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiChatMaterialDto sse_decode_wiki_chat_material_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiExportResultDto sse_decode_wiki_export_result_dto(
     SseDeserializer deserializer,
   );
 
@@ -3893,6 +3901,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_wiki_export_result_dto(WikiExportResultDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.outDir),
+      cst_encode_i_64(raw.exported),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_wiki_page_conflict_dto(WikiPageConflictDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -5170,6 +5187,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_wiki_export_result_dto(
+    WikiExportResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_wiki_page_conflict_dto(
     WikiPageConflictDto self,
     SseSerializer serializer,
@@ -5690,6 +5713,11 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__event_stats__event_stats_query_default(
     port_,
   );
+
+  void wire__crate__api__wiki__export_wiki_markdown(
+    NativePortType port_,
+    String out_dir,
+  ) => wasmModule.wire__crate__api__wiki__export_wiki_markdown(port_, out_dir);
 
   void wire__crate__api__import__fetch_import_url(
     NativePortType port_,
@@ -7499,6 +7527,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__event_stats__event_stats_query_default(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__wiki__export_wiki_markdown(
+    NativePortType port_,
+    String out_dir,
   );
 
   external void wire__crate__api__import__fetch_import_url(

@@ -768,6 +768,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
 
   @protected
+  WikiExportResultDto dco_decode_wiki_export_result_dto(dynamic raw);
+
+  @protected
   WikiPageConflictDto dco_decode_wiki_page_conflict_dto(dynamic raw);
 
   @protected
@@ -1699,6 +1702,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiChatMaterialDto sse_decode_wiki_chat_material_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiExportResultDto sse_decode_wiki_export_result_dto(
     SseDeserializer deserializer,
   );
 
@@ -4514,6 +4522,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_wiki_export_result_dto(
+    WikiExportResultDto apiObj,
+    wire_cst_wiki_export_result_dto wireObj,
+  ) {
+    wireObj.out_dir = cst_encode_String(apiObj.outDir);
+    wireObj.exported = cst_encode_i_64(apiObj.exported);
+  }
+
+  @protected
   void cst_api_fill_to_wire_wiki_page_conflict_dto(
     WikiPageConflictDto apiObj,
     wire_cst_wiki_page_conflict_dto wireObj,
@@ -5793,6 +5810,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_wiki_chat_material_dto(
     WikiChatMaterialDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_export_result_dto(
+    WikiExportResultDto self,
     SseSerializer serializer,
   );
 
@@ -13074,6 +13097,28 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__wiki__export_wiki_markdown(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> out_dir,
+  ) {
+    return _wire__crate__api__wiki__export_wiki_markdown(port_, out_dir);
+  }
+
+  late final _wire__crate__api__wiki__export_wiki_markdownPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__export_wiki_markdown');
+  late final _wire__crate__api__wiki__export_wiki_markdown =
+      _wire__crate__api__wiki__export_wiki_markdownPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__wiki__get_wiki_page(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
@@ -18012,6 +18057,21 @@ final class wire_cst_wiki_chat_material_dto extends ffi.Struct {
     ..ref.title = title
     ..ref.content_md = content_md
     ..ref.basis_json = basis_json;
+}
+
+final class wire_cst_wiki_export_result_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> out_dir;
+
+  @ffi.Int64()
+  external int exported;
+
+  static ffi.Pointer<wire_cst_wiki_export_result_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> out_dir,
+    required int exported,
+  }) => $allocator<wire_cst_wiki_export_result_dto>()
+    ..ref.out_dir = out_dir
+    ..ref.exported = exported;
 }
 
 final class wire_cst_wiki_page_conflict_dto extends ffi.Struct {

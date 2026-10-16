@@ -98,7 +98,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1388820506;
+  int get rustContentHash => -1350231074;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -352,6 +352,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<EventStatsQuery> crateApiEventStatsEventStatsQueryDefault();
+
+  Future<WikiExportResultDto> crateApiWikiExportWikiMarkdown({
+    required String outDir,
+  });
 
   Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url});
 
@@ -2800,6 +2804,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiEventStatsEventStatsQueryDefaultConstMeta =>
       const TaskConstMeta(debugName: "event_stats_query_default", argNames: []);
+
+  @override
+  Future<WikiExportResultDto> crateApiWikiExportWikiMarkdown({
+    required String outDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(outDir);
+          return wire.wire__crate__api__wiki__export_wiki_markdown(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_export_result_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiExportWikiMarkdownConstMeta,
+        argValues: [outDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiExportWikiMarkdownConstMeta =>
+      const TaskConstMeta(
+        debugName: "export_wiki_markdown",
+        argNames: ["outDir"],
+      );
 
   @override
   Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url}) {
@@ -10841,6 +10872,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WikiExportResultDto dco_decode_wiki_export_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return WikiExportResultDto(
+      outDir: dco_decode_String(arr[0]),
+      exported: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
   WikiPageConflictDto dco_decode_wiki_page_conflict_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -14511,6 +14554,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WikiExportResultDto sse_decode_wiki_export_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_outDir = sse_decode_String(deserializer);
+    var var_exported = sse_decode_i_64(deserializer);
+    return WikiExportResultDto(outDir: var_outDir, exported: var_exported);
+  }
+
+  @protected
   WikiPageConflictDto sse_decode_wiki_page_conflict_dto(
     SseDeserializer deserializer,
   ) {
@@ -17459,6 +17512,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.title, serializer);
     sse_encode_String(self.contentMd, serializer);
     sse_encode_String(self.basisJson, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_export_result_dto(
+    WikiExportResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.outDir, serializer);
+    sse_encode_i_64(self.exported, serializer);
   }
 
   @protected

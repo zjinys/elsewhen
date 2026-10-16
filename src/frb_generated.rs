@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1388820506;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1350231074;
 
 // Section: executor
 
@@ -1465,6 +1465,29 @@ fn wire__crate__api__event_stats__event_stats_query_default_impl(
                         Ok::<_, ()>(crate::api::event_stats::EventStatsQuery::default())?;
                     std::result::Result::Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__wiki__export_wiki_markdown_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    out_dir: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "export_wiki_markdown",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_out_dir = out_dir.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::wiki::export_wiki_markdown(api_out_dir)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -9625,6 +9648,18 @@ impl SseDecode for crate::api::wiki_chat::WikiChatMaterialDto {
     }
 }
 
+impl SseDecode for crate::api::wiki::WikiExportResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_outDir = <String>::sse_decode(deserializer);
+        let mut var_exported = <i64>::sse_decode(deserializer);
+        return crate::api::wiki::WikiExportResultDto {
+            out_dir: var_outDir,
+            exported: var_exported,
+        };
+    }
+}
+
 impl SseDecode for crate::api::sync::WikiPageConflictDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12366,6 +12401,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::wiki_chat::WikiChatMaterialDt
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::wiki::WikiExportResultDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.out_dir.into_into_dart().into_dart(),
+            self.exported.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::wiki::WikiExportResultDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::wiki::WikiExportResultDto>
+    for crate::api::wiki::WikiExportResultDto
+{
+    fn into_into_dart(self) -> crate::api::wiki::WikiExportResultDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sync::WikiPageConflictDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -14799,6 +14855,14 @@ impl SseEncode for crate::api::wiki_chat::WikiChatMaterialDto {
         <String>::sse_encode(self.title, serializer);
         <String>::sse_encode(self.content_md, serializer);
         <String>::sse_encode(self.basis_json, serializer);
+    }
+}
+
+impl SseEncode for crate::api::wiki::WikiExportResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.out_dir, serializer);
+        <i64>::sse_encode(self.exported, serializer);
     }
 }
 
@@ -17268,6 +17332,15 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::wiki::WikiExportResultDto> for wire_cst_wiki_export_result_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::wiki::WikiExportResultDto {
+            crate::api::wiki::WikiExportResultDto {
+                out_dir: self.out_dir.cst_decode(),
+                exported: self.exported.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::sync::WikiPageConflictDto> for wire_cst_wiki_page_conflict_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::sync::WikiPageConflictDto {
@@ -19157,6 +19230,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_wiki_export_result_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                out_dir: core::ptr::null_mut(),
+                exported: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_wiki_export_result_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_wiki_page_conflict_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -19807,6 +19893,14 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__event_stats__event_stats_query_default_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__wiki__export_wiki_markdown(
+        port_: i64,
+        out_dir: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__wiki__export_wiki_markdown_impl(port_, out_dir)
     }
 
     #[unsafe(no_mangle)]
@@ -24121,6 +24215,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_wiki_export_result_dto {
+        out_dir: *mut wire_cst_list_prim_u_8_strict,
+        exported: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_wiki_page_conflict_dto {
         op_id: *mut wire_cst_list_prim_u_8_strict,
         object_id: *mut wire_cst_list_prim_u_8_strict,
@@ -27522,6 +27622,26 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::wiki::WikiExportResultDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::wiki::WikiExportResultDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::wiki::WikiExportResultDto {
+                out_dir: self_.get(0).cst_decode(),
+                exported: self_.get(1).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::sync::WikiPageConflictDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -28277,6 +28397,14 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__event_stats__event_stats_query_default_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__wiki__export_wiki_markdown(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        out_dir: String,
+    ) {
+        wire__crate__api__wiki__export_wiki_markdown_impl(port_, out_dir)
     }
 
     #[wasm_bindgen]

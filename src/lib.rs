@@ -27,3 +27,5 @@ mod digest_tests;
 mod knowledge_tests;
 #[cfg(test)]
 mod storage_tests;
+#[cfg(test)]
+mod wiki_export_tests;

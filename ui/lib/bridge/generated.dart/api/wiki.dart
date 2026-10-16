@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `serve`
 
 /// List wiki pages（主列表）。kind/area 均为 None 时列出全部（不含派生产物）。
@@ -92,6 +92,30 @@ Future<WikiPageDto> setWikiOpinion({required String slug, String? opinion}) =>
 /// false（幂等）。
 Future<bool> deleteWikiPage({required String slug}) =>
     RustLib.instance.api.crateApiWikiDeleteWikiPage(slug: slug);
+
+/// 把知识库页面导出为 Markdown（用户选定的目录）。与主列表同口径：
+/// 不含派生产物与已归档/拒绝页；同名覆盖可重复执行。
+Future<WikiExportResultDto> exportWikiMarkdown({required String outDir}) =>
+    RustLib.instance.api.crateApiWikiExportWikiMarkdown(outDir: outDir);
+
+/// 知识库 Markdown 导出结果。
+class WikiExportResultDto {
+  final String outDir;
+  final PlatformInt64 exported;
+
+  const WikiExportResultDto({required this.outDir, required this.exported});
+
+  @override
+  int get hashCode => outDir.hashCode ^ exported.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WikiExportResultDto &&
+          runtimeType == other.runtimeType &&
+          outDir == other.outDir &&
+          exported == other.exported;
+}
 
 /// Wiki page data transfer object for Flutter（知识库浏览）
 class WikiPageDto {

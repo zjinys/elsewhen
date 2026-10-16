@@ -1003,6 +1003,10 @@ class RustBridgeRepository implements StorageRepository {
   Future<bool> deleteWikiPage({required String slug}) =>
       api.deleteWikiPage(slug: slug);
 
+  /// 导出知识页为 Markdown（用户选定目录；与主列表同口径，同名覆盖可重复）。
+  Future<api.WikiExportResultDto> exportWikiMarkdown({required String outDir}) =>
+      api.exportWikiMarkdown(outDir: outDir);
+
   /// 按项目页记录的本地目录重新扫描，并更新原知识页。
   Future<WikiPage> refreshProjectPage(String slug) async {
     final dto = await api.refreshProjectPage(slug: slug);
