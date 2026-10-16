@@ -10455,6 +10455,33 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__provider_config__duplicate_ai_provider_config(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__provider_config__duplicate_ai_provider_config(
+      port_,
+      id,
+    );
+  }
+
+  late final _wire__crate__api__provider_config__duplicate_ai_provider_configPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__provider_config__duplicate_ai_provider_config',
+      );
+  late final _wire__crate__api__provider_config__duplicate_ai_provider_config =
+      _wire__crate__api__provider_config__duplicate_ai_provider_configPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__provider_config__get_ai_provider(int port_) {
     return _wire__crate__api__provider_config__get_ai_provider(port_);
   }

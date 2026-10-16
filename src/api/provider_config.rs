@@ -99,6 +99,15 @@ pub fn list_ai_provider_configs() -> Result<Vec<AiProviderConfigDto>> {
     Ok(result)
 }
 
+/// 复制（duplicate）一个 AI provider 配置：字段连同 API Key 一起克隆到新
+/// 配置，返回新 id。Key 明文只在 Rust 内解密并重新密封到新 id，不进 Dart/日志。
+/// 新配置永不激活；名称接「X 副本」，撞名自动递增序号。
+pub fn duplicate_ai_provider_config(id: String) -> Result<String> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.duplicate_ai_provider_config(&id)
+}
+
 /// 新增或编辑 AI provider 配置；返回配置 id。
 /// provider.id 为空表示新建；api_key 传空串表示保留原 key 不变（新建则必填）。
 pub fn save_ai_provider_config(provider: AiProviderConfigDto) -> Result<String> {

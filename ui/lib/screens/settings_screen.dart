@@ -1837,6 +1837,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 onPressed: () => _openProviderEditor(p),
               ),
               IconButton(
+                tooltip: '复制配置（API Key 需重新输入）',
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                color: AppTheme.textSecondary,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _openProviderEditor(p, duplicate: true),
+              ),
+              IconButton(
                 tooltip: '删除',
                 icon: const Icon(Icons.delete_outline, size: 18),
                 color: AppTheme.error,
@@ -1925,14 +1932,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
-  Future<void> _openProviderEditor(api.AiProviderConfigDto? existing) async {
-    final isNew = existing == null;
+  Future<void> _openProviderEditor(
+    api.AiProviderConfigDto? existing, {
+    bool duplicate = false,
+  }) async {
+    final isNew = existing == null || duplicate;
+    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    // 保存动作在对话框内部执行：失败时错误留在对话框里，用户输入不丢。
+    // （此前保存发生在 pop 之后，校验失败时对话框已关闭，填了一半的表单全没。）
+    Future<void> onSave(_ProviderDraft draft) async {
+      final target = duplicate ? null : existing;
+      await repo.saveAiProviderConfig(
+        api.AiProviderConfigDto(
+          id: target?.id ?? '',
+          name: draft.name,
+          providerType: draft.providerType,
+          baseUrl: draft.baseUrl,
+          model: draft.model,
+          apiKeySource: target?.apiKeySource ?? '',
+          apiKey: draft.apiKey,
+          // 复制出的配置不继承激活态：避免出现两个同时激活。
+          isActive: duplicate ? false : target?.isActive ?? false,
+          temperature: draft.temperature,
+          maxTokens: draft.maxTokens,
+          contextWindow: draft.contextWindow,
+          // revisionToken 仅编辑原配置时携带；duplicate 是新建，不带锁令牌。
+          revisionToken: (target != null && !duplicate)
+              ? target.revisionToken
+              : null,
+        ),
+      );
+    }
 
     final saved = await showDialog<_ProviderDraft>(
       context: context,
       builder: (_) => _ProviderEditorDialog(
         isNew: isNew,
-        initialName: existing?.name ?? '',
+        isDuplicate: duplicate,
+        onSave: onSave,
+        initialName: duplicate ? '${existing!.name} 副本' : existing?.name ?? '',
         initialBaseUrl: existing?.baseUrl ?? '',
         initialModel: existing?.model ?? '',
         initialTemperature: existing?.temperature ?? 0.7,
@@ -1941,42 +1979,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         initialProviderType: existing?.providerType ?? 'openai-compatible',
       ),
     );
-    // 控制器归 _ProviderEditorDialog 的 State 所有，随对话框真正卸载时释放；
-    // 此处不得再 dispose —— showDialog 在 pop 那一刻就返回，退出动画期间
-    // 对话框 widget 树仍挂载，重建会打到已释放的 controller 上。
+    // 保存成功时由对话框 pop；失败时对话框保持打开，此处只处理取消。
     if (saved == null || !mounted) return;
-    try {
-      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      await repo.saveAiProviderConfig(
-        api.AiProviderConfigDto(
-          id: existing?.id ?? '',
-          name: saved.name,
-          providerType: saved.providerType,
-          baseUrl: saved.baseUrl,
-          model: saved.model,
-          apiKeySource: existing?.apiKeySource ?? '',
-          apiKey: saved.apiKey,
-          isActive: existing?.isActive ?? false,
-          temperature: saved.temperature,
-          maxTokens: saved.maxTokens,
-          contextWindow: saved.contextWindow,
-          revisionToken: existing?.revisionToken,
-        ),
-      );
-      await _loadProviders();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            // save_ai_provider_config 的三条校验是刻意写给用户看的
-            // （配置名称不能为空 / base_url 和 model 均不能为空 /
-            // 新建配置时必须填写 API Key），隐藏它们等于让用户瞎猜。
-            reportUiError('保存 Provider', e, showDetail: true),
-          ),
-        ),
-      );
-    }
+    await _loadProviders();
   }
 
   Widget _buildMemorySettings(AppSettings settings) {
@@ -2548,6 +2553,8 @@ class _ProviderDraft {
 class _ProviderEditorDialog extends StatefulWidget {
   const _ProviderEditorDialog({
     required this.isNew,
+    required this.onSave,
+    this.isDuplicate = false,
     required this.initialName,
     required this.initialBaseUrl,
     required this.initialModel,
@@ -2558,7 +2565,14 @@ class _ProviderEditorDialog extends StatefulWidget {
   });
 
   final bool isNew;
+  final bool isDuplicate;
   final String initialName;
+
+  /// 保存动作由对话框自己执行并由原生校验：失败时错误留在本框内，
+  /// 输入不丢；成功时才 pop。此前保存发生在 pop 之后，校验失败
+  /// 会让半填的表单整个消失。
+  final Future<void> Function(_ProviderDraft draft) onSave;
+
   final String initialBaseUrl;
   final String initialModel;
   final double initialTemperature;
@@ -2580,6 +2594,8 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
   late final TextEditingController _contextWindow;
   late final TextEditingController _maxTokens;
   late String _providerType;
+  bool _saving = false;
+  String? _error;
 
   @override
   void initState() {
@@ -2611,7 +2627,11 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.isNew ? '添加 AI Provider' : '编辑 Provider'),
+      title: Text(
+        widget.isNew
+            ? (widget.isDuplicate ? '复制 AI Provider' : '添加 AI Provider')
+            : '编辑 Provider',
+      ),
       content: SingleChildScrollView(
         child: SizedBox(
           width: 440,
@@ -2694,25 +2714,65 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
         ),
       ),
       actions: [
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ),
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _saving ? null : () => Navigator.pop(context),
           child: const Text('取消'),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(
-            context,
-            _ProviderDraft(
-              name: _name.text.trim(),
-              providerType: _providerType,
-              baseUrl: _baseUrl.text.trim(),
-              model: _model.text.trim(),
-              apiKey: _apiKey.text.trim(),
-              temperature: double.tryParse(_temperature.text) ?? 0.7,
-              maxTokens: int.tryParse(_maxTokens.text),
-              contextWindow: int.tryParse(_contextWindow.text),
-            ),
-          ),
-          child: const Text('保存'),
+          onPressed: _saving
+              ? null
+              : () async {
+                  final draft = _ProviderDraft(
+                    name: _name.text.trim(),
+                    providerType: _providerType,
+                    baseUrl: _baseUrl.text.trim(),
+                    model: _model.text.trim(),
+                    apiKey: _apiKey.text.trim(),
+                    temperature: double.tryParse(_temperature.text) ?? 0.7,
+                    maxTokens: int.tryParse(_maxTokens.text),
+                    contextWindow: int.tryParse(_contextWindow.text),
+                  );
+                  setState(() {
+                    _saving = true;
+                    _error = null;
+                  });
+                  try {
+                    await widget.onSave(draft);
+                    if (!context.mounted) return;
+                    Navigator.pop(context, draft);
+                  } catch (e) {
+                    if (!mounted) return;
+                    setState(() {
+                      _saving = false;
+                      // save_ai_provider_config 的三条校验是刻意写给用户看的
+                      // （配置名称不能为空 / base_url 和 model 均不能为空 /
+                      // 新建配置时必须填写 API Key），隐藏它们等于让用户瞎猜。
+                      _error = reportUiError(
+                        '保存 Provider',
+                        e,
+                        showDetail: true,
+                      );
+                    });
+                  }
+                },
+          child: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('保存'),
         ),
       ],
     );

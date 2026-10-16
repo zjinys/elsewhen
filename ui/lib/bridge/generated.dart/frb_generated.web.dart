@@ -5634,6 +5634,15 @@ class RustLibWire implements BaseWire {
     dest_dir,
   );
 
+  void wire__crate__api__provider_config__duplicate_ai_provider_config(
+    NativePortType port_,
+    String id,
+  ) => wasmModule
+      .wire__crate__api__provider_config__duplicate_ai_provider_config(
+        port_,
+        id,
+      );
+
   void wire__crate__api__chat_proposals__edit_chat_proposal(
     NativePortType port_,
     JSAny request,
@@ -7456,6 +7465,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String apk_sha256,
     JSAny apk_size,
     String dest_dir,
+  );
+
+  external void wire__crate__api__provider_config__duplicate_ai_provider_config(
+    NativePortType port_,
+    String id,
   );
 
   external void wire__crate__api__chat_proposals__edit_chat_proposal(

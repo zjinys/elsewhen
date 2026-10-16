@@ -226,6 +226,82 @@ impl Store {
         Ok(new_id)
     }
 
+    /// 复制（duplicate）一条配置：全部字段连同 API Key 一起克隆。
+    /// Key 明文只在事务内解密并立即重新密封到新 id（context 绑定新 id），
+    /// 不出进程、不落日志。新配置永不激活（is_active=0）。
+    /// 名称接「X 副本」起名，撞 UNIQUE 约束时自动递增序号。
+    pub fn duplicate_ai_provider_config(&self, id: &str) -> Result<String> {
+        let transaction = self.begin_write_transaction()?;
+        let (name, provider_type, base_url, model, temperature, max_tokens, context_window): (
+            String,
+            String,
+            String,
+            String,
+            f64,
+            Option<i64>,
+            Option<i64>,
+        ) = self
+            .connection
+            .query_row(
+                "SELECT name,provider_type,base_url,model,temperature,max_tokens,context_window
+                 FROM ai_provider_configs WHERE id=?1",
+                [id],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                    ))
+                },
+            )
+            .map_err(|_| anyhow::anyhow!("未找到要复制的配置（id={id}）"))?;
+        let key = self.read_provider_key(id)?.unwrap_or_default();
+        // 撞名自动递增：X 副本、X 副本 2、X 副本 3 …必须与 INSERT 同事务，
+        // 并发复制才会被 IMMEDIATE 锁串行化。
+        let mut candidate = format!("{name} 副本");
+        let mut n = 2;
+        loop {
+            let taken: bool = self.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM ai_provider_configs WHERE name=?1)",
+                [&candidate],
+                |r| r.get(0),
+            )?;
+            if !taken {
+                break;
+            }
+            candidate = format!("{name} 副本 {n}");
+            n += 1;
+        }
+        let new_id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "INSERT INTO ai_provider_configs
+             (id,name,provider_type,base_url,model,api_key_source,api_key,is_active,temperature,max_tokens,context_window,created_at,updated_at)
+             VALUES (?1,?2,?3,?4,?5,'database',NULL,0,?6,?7,?8,?9,?9)",
+            params![
+                new_id,
+                candidate,
+                provider_type,
+                base_url,
+                model,
+                temperature,
+                max_tokens,
+                context_window,
+                now
+            ],
+        )?;
+        self.write_provider_key_on(&new_id, if key.is_empty() { None } else { Some(&key) })?;
+        self.sync_mark_provider_dirty()?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
+        Ok(new_id)
+    }
+
     /// 把指定配置设为激活（其余全部取消激活），保证有且仅有一个激活项
     pub fn set_active_ai_provider_config(&self, id: &str) -> Result<()> {
         // IMMEDIATE：先置全零再点亮目标行，两步写必须在拿到写锁后一次性完成，

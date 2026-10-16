@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 844878033;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1388820506;
 
 // Section: executor
 
@@ -1304,6 +1304,30 @@ fn wire__crate__api__sync__download_update_apk_impl(
                             api_apk_size,
                             api_dest_dir,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__provider_config__duplicate_ai_provider_config_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "duplicate_ai_provider_config",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::provider_config::duplicate_ai_provider_config(api_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -19724,6 +19748,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__provider_config__duplicate_ai_provider_config(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__provider_config__duplicate_ai_provider_config_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__chat_proposals__edit_chat_proposal(
         port_: i64,
         request: *mut wire_cst_chat_review_request,
@@ -28183,6 +28215,14 @@ mod web {
         wire__crate__api__sync__download_update_apk_impl(
             port_, relay_url, build_hash, apk_sha256, apk_size, dest_dir,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__provider_config__duplicate_ai_provider_config(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__provider_config__duplicate_ai_provider_config_impl(port_, id)
     }
 
     #[wasm_bindgen]

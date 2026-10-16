@@ -98,7 +98,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 844878033;
+  int get rustContentHash => 1388820506;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -324,6 +324,10 @@ abstract class RustLibApi extends BaseApi {
     required String apkSha256,
     required PlatformInt64 apkSize,
     required String destDir,
+  });
+
+  Future<String> crateApiProviderConfigDuplicateAiProviderConfig({
+    required String id,
   });
 
   Future<ChatProposalDto> crateApiChatProposalsEditChatProposal({
@@ -2606,6 +2610,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "download_update_apk",
         argNames: ["relayUrl", "buildHash", "apkSha256", "apkSize", "destDir"],
+      );
+
+  @override
+  Future<String> crateApiProviderConfigDuplicateAiProviderConfig({
+    required String id,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire
+              .wire__crate__api__provider_config__duplicate_ai_provider_config(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiProviderConfigDuplicateAiProviderConfigConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiProviderConfigDuplicateAiProviderConfigConstMeta =>
+      const TaskConstMeta(
+        debugName: "duplicate_ai_provider_config",
+        argNames: ["id"],
       );
 
   @override

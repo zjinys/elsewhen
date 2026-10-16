@@ -65,6 +65,12 @@ class RustBridgeRepository implements StorageRepository {
   /// Changes produced by the background worker invalidate visible knowledge views.
   final ValueNotifier<int> knowledgeRevision = ValueNotifier(0);
 
+  /// 仅在同步 tick 真正拉到对端数据（pulledAccepted>0）时递增。会话/消息
+  /// 列表只挂这个信号——分析/消化产出的 bump 与会话视图无关，挂到
+  /// knowledgeRevision 上会让聊天页被无关重查反复拆装（列表闪跳、滚动
+  /// 位置丢失）。
+  final ValueNotifier<int> syncArrivalRevision = ValueNotifier(0);
+
   /// 打包成 .app（macOS DMG）后，frb 默认加载路径（CWD 相对的 ioDirectory /
   /// elsewhen.framework）在 Finder 启动时找不到 dylib——CWD 是 `/`。
   /// 这里显式从 app 包内 Frameworks 目录加载（打包脚本会把 libelsewhen.dylib
@@ -433,8 +439,10 @@ class RustBridgeRepository implements StorageRepository {
       lastSyncTick.value = result;
       lastSyncTickError.value = null;
       if (result.ran && (result.pulledAccepted > 0 || result.uploaded > 0)) {
-        // 有新事件到达：唤醒分析队列并让知识视图在消化后刷新。
+        // 有新事件到达：唤醒分析队列并让知识视图在消化后刷新。会话/消息
+        // 视图只订阅 syncArrivalRevision（拉到东西就即时上台，不等消化）。
         knowledgeRevision.value++;
+        if (result.pulledAccepted > 0) syncArrivalRevision.value++;
         _wakeAnalysisWorker();
       }
     } catch (e) {
@@ -1367,6 +1375,18 @@ final knowledgeRevisionProvider = Provider<int>((ref) {
   final repo = ref.watch(storageRepositoryProvider);
   if (repo is! RustBridgeRepository) return 0;
   final revision = repo.knowledgeRevision;
+  void onChange() => ref.invalidateSelf();
+  revision.addListener(onChange);
+  ref.onDispose(() => revision.removeListener(onChange));
+  return revision.value;
+});
+
+/// 同步到达修订号：仅对端数据真正拉到时递增（见 syncArrivalRevision）。
+/// 会话列表/消息列表订阅它，而不是知识修订号。
+final syncArrivalRevisionProvider = Provider<int>((ref) {
+  final repo = ref.watch(storageRepositoryProvider);
+  if (repo is! RustBridgeRepository) return 0;
+  final revision = repo.syncArrivalRevision;
   void onChange() => ref.invalidateSelf();
   revision.addListener(onChange);
   ref.onDispose(() => revision.removeListener(onChange));

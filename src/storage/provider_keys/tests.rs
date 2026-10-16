@@ -482,3 +482,53 @@ fn snapshot_read_view_preserves_local_key_capability_and_receiver_sealing_policy
     assert_eq!(b.count("provider_key_secrets"), 1);
     assert!(b.store.provider_keys_sealed().unwrap());
 }
+
+/// 复制 = 字段 + Key 全量克隆到新 id；不改变激活态；撞名自动递增。
+/// sealed/明文两种存储态都要成立：sealed 下 Key 经解密后按新 id 重新密封。
+#[test]
+fn duplicate_clones_fields_and_key_without_activation_or_colliding_names() {
+    for sealed in [false, true] {
+        let f = Fixture::new(sealed);
+        let id = f.save("主用 GPT", "SECRET_KEY");
+        f.store
+            .connection
+            .execute(
+                "UPDATE ai_provider_configs SET context_window=65536 WHERE id=?1",
+                [&id],
+            )
+            .unwrap();
+
+        let first = f.store.duplicate_ai_provider_config(&id).unwrap();
+        let second = f.store.duplicate_ai_provider_config(&id).unwrap();
+
+        let configs = f.store.list_ai_provider_configs().unwrap();
+        assert_eq!(configs.len(), 3);
+        let dup = configs.iter().find(|c| c.id == first).unwrap();
+        assert_eq!(dup.name, "主用 GPT 副本");
+        assert_eq!(
+            f.store.read_provider_key(&dup.id).unwrap().as_deref(),
+            Some("SECRET_KEY")
+        );
+        assert_eq!(dup.base_url, "https://synthetic.invalid/v1");
+        assert_eq!(dup.context_window, Some(65536));
+        assert!(!dup.is_active);
+        let dup2 = configs.iter().find(|c| c.id == second).unwrap();
+        assert_eq!(dup2.name, "主用 GPT 副本 2");
+        assert_eq!(f.store.read_provider_key(&dup2.id).unwrap().as_deref(), Some("SECRET_KEY"));
+
+        // 原配置保持激活，复制不打扰运行中的对话。
+        let active = f.store.active_ai_provider_config().unwrap().unwrap();
+        assert_eq!(active.id, id);
+        if sealed {
+            assert_eq!(f.count("provider_key_secrets"), 3);
+        }
+    }
+}
+
+/// 复制不存在的配置直接报错，不产生空壳行。
+#[test]
+fn duplicate_missing_config_fails_without_side_effects() {
+    let f = Fixture::new(true);
+    assert!(f.store.duplicate_ai_provider_config("missing").is_err());
+    assert_eq!(f.count("ai_provider_configs"), 0);
+}
