@@ -484,7 +484,7 @@ fn generate_with_provider_configs(
                     return Err(error);
                 }
                 errors.push(format!("[{provider_name}] {error}"));
-                debug_eprintln!("[agent] provider「{provider_name}」失败：{error}");
+                debug_eprintln!("[agent] provider「{provider_name}」失败：{error:#}");
                 // 全部 provider 可能临时不可用（网关抖动/限流）：轮换前加
                 // jittered backoff，避免每次会话请求都同一瞬间锤向这批端点
                 // （P2 retry backoff；Dart 侧 5s timer 只控制 tick，拦不住
@@ -897,7 +897,7 @@ fn run_agent_loop_inner(
                 // 直接交给外层 provider 轮换，避免重复请求和协议状态污染。
                 if is_transient_provider_error(&e) {
                     debug_eprintln!(
-                        "[agent] provider「{provider_name}」上游暂时失败，交给下一个 provider：{e}"
+                        "[agent] provider「{provider_name}」上游暂时失败，交给下一个 provider：{e:#}"
                     );
                     return Err(e);
                 }
@@ -908,7 +908,7 @@ fn run_agent_loop_inner(
                     protocol = Some(ToolProtocol::Text);
                     context.push(ContextMessage::new("system", TEXT_PROTOCOL_NUDGE));
                     debug_eprintln!(
-                        "[agent] provider「{provider_name}」round={_round} 请求失败({e})，下一轮使用文本工具协议"
+                        "[agent] provider「{provider_name}」round={_round} 请求失败({e:#})，下一轮使用文本工具协议"
                     );
                     // 回退前小退避：原生协议刚软失败，紧随的文本重试可能命中
                     // 同一瞬限流；仅首次硬失败后触发，成功路径零开销（P2 backoff）。
@@ -918,7 +918,7 @@ fn run_agent_loop_inner(
                     )?;
                     continue;
                 } else {
-                    debug_eprintln!("[agent] provider「{provider_name}」纯文本协议请求也失败：{e}");
+                    debug_eprintln!("[agent] provider「{provider_name}」纯文本协议请求也失败：{e:#}");
                     return Err(e);
                 }
             }

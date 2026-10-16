@@ -349,7 +349,25 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         // Messages list
         Expanded(
           child: messagesAsync.when(
+            // reload（同步到达重查/本地 invalidate）时沿用旧数据继续渲染：
+            // 否则列表被拆成 loading 再装回，滚动位置丢到顶部——
+            // 「多端同步后对话定位丢失/跳一下」的元凶之一。跨会话的
+            // 残留数据由下方 stale 守卫识别降级。
+            skipLoadingOnReload: true,
             data: (messages) {
+              // 切会话时 provider 会先短暂携带上一个会话的消息：按
+              // conversationId 识别并降级为 loading，且不在假数据上白白
+              // 消耗 _pendingScrollToBottom。
+              // 例外：「主对话流」的消息列表本就是**全部普通会话的合并时
+              // 间线**（见 ConversationRepository.getMessages 主会话特例），
+              // 消息的 conversation_id 天然各不相同，不能套此判定。
+              final mainConvId = ref.watch(mainConversationProvider).value?.id;
+              final isMainConversation = selectedId == mainConvId;
+              if (!isMainConversation &&
+                  messages.isNotEmpty &&
+                  messages.first.conversationId != selectedId) {
+                return const Center(child: CircularProgressIndicator());
+              }
               // 当前会话是否正在生成 AI 回复（渲染尾部占位气泡）
               final legacyTyping = generatingIds.contains(selectedId);
               final isAiTyping = legacyTyping || durableBusy;

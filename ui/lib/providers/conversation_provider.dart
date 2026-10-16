@@ -259,7 +259,14 @@ final showArchivedProvider = NotifierProvider<StateHolder<bool>, bool>(
 );
 
 /// Conversations list provider（跟随归档视图切换）
+///
+/// 盯住同步到达修订号（syncArrivalRevision）：对端新增的对话/消息在
+/// 线程 tick 拉到后（ pulledAccepted>0）列表重查，≤5s 自动上台，不需
+/// 重启。为什么不盯 knowledgeRevision：那个号每次分析/消化产出都 bump，
+/// 与会话视图无关的重查会引发列表闪跳。本地发消息/撤回等走显式
+/// invalidate（chat_run_provider / message_area）。
 final conversationsProvider = FutureProvider<List<Conversation>>((ref) async {
+  ref.watch(syncArrivalRevisionProvider);
   final repo = ref.read(conversationRepositoryProvider);
   final showArchived = ref.watch(showArchivedProvider);
   return showArchived
@@ -406,10 +413,16 @@ void setAiGenerating(WidgetRef ref, String conversationId, bool generating) {
 }
 
 /// Messages for selected conversation provider
+///
+/// 盯住同步到达修订号：在另一台设备上对同一会话新增的消息，同步 tick
+/// 拉到后（pulledAccepted>0）自动重查，正在看的会话内容实时追上，不依赖
+/// 重启。不盯 knowledgeRevision：分析/消化产出与会话无关，重查会让消息
+/// 列表被反复拆装（闪烁、滚动位置丢失）。
 final messagesProvider = FutureProvider<List<Message>>((ref) async {
   final conversationId = ref.watch(selectedConversationIdProvider);
   if (conversationId == null) return [];
 
+  ref.watch(syncArrivalRevisionProvider);
   final repo = ref.read(conversationRepositoryProvider);
   return await repo.getMessages(conversationId);
 });
