@@ -2,16 +2,41 @@
 
 > 本地优先的个人认知主循环 —— 记录此刻，复利此生。
 
-Personal Event System 的 Rust 本地核心 + Flutter 跨平台 GUI。
-
-项目当前正从“事件、对话、知识库、待办的功能集合”收敛为个人认知主循环：
+**Elsewhen 是一个跑在你自己电脑上的个人认知系统**：把随手记录、对话和网页剪藏沉淀为"关于你的持久知识"，而不是一堆一次性聊天记录。Rust 本地核心 + Flutter 跨平台界面，数据 100% 存在本机（SQLite 单文件），AI 只经你配置的接口访问；多设备间端到端加密同步，中继只中转密文。
 
 ```text
 随手记录 → AI 理解 → 人物 / 项目 / 认识沉淀 → 每日回顾 / 后续行动
 保存内容 → 阅读理解 → 观点 / 灵感 / 创作素材 → 采用或归档
 ```
 
+## 核心亮点
+
+- **原生速度，本地优先** —— SQLite 单文件本地库，无云端账号、无遥测，离线可用；`ELSEWHEN_DATA_DIR` 环境变量即可便携携带
+- **知识复利，不是聊天碎片** —— 采用 LLM Wiki 模式（"编译一次，持续更新"）：AI 把事件消化成持久知识页（成本 / 能力 / 资产 / 项目 / 关系 / 决策 / 习惯…），同一事实被 N 条事件支持时证据计数=N，页面向"更懂你"累积
+- **原始事件不可变** —— 你的记录是你的日记，永不被 AI 覆盖；知识页全部是派生数据，可随时重新消化重建
+- **AI 只提议，核心决定** —— 页面合并规则由 Rust 核心执行（kind/slug 校验、证据并集、`evidence_count` 等事实数字 AI 改不了）；人工编辑过的页面受保护；AI 的修订建议走审阅卡，你点头才入库
+- **端到端加密多设备同步** —— 设备配对后差量追平，中继只中转密文读不到任何明文；支持同一设备临时挂载另一数据集
+- **多 Provider 容错接入** —— 任意 OpenAI 兼容上游，多配置故障转移；API 密钥 AEAD 密封在本机（同步内容不含明文 Key）
+- **无感后台自动化** —— 事件分析与知识消化由后台 worker 完成，失败自动指数退避，队列与运行日志全量只读可查
+
 实施进度见 [`docs/roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md`](docs/roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md)。
+
+## 快速上手
+
+构建与启动（桌面，以 Linux 为例）：
+
+```bash
+cargo build --release                 # Rust 桥接库
+cd ui && fvm flutter pub get
+cd .. && ./scripts/debug-run.sh       # 或 flutter build linux 后运行
+                                      # ui/build/linux/x64/release/bundle/elsewhen_ui
+```
+
+1. **配 AI**（设置 → AI Provider）：填 Base URL / API Key / 模型，保存即生效。未配置时记录与分析照常入库，仅 AI 环节排队等待；
+2. **随手记录**：主对话流直接说，或用 Capture 浮窗速记（`--dart-entrypoint-args "--mode=capture"`）；
+3. **知识库**：记录约 10 分钟沉淀后由 AI 自动消化成知识页；修订建议在审阅卡里逐条采纳；
+4. **回顾**：每日回顾与 AI 给出的后续行动；
+5. **多设备**（可选）：设置 → 同步，Owner 出示配对码、Joiner 扫码，之后新数据自动双向追平。
 
 ## 架构
 
