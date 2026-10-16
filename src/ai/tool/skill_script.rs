@@ -66,20 +66,32 @@ impl Tool for RunSkillScriptTool {
         let skill = arg_str(args, "skill")?;
         let script = arg_str(args, "script")?;
         let extra_args = arg_str_opt(args, "args").unwrap_or_default();
-        let data_dir = crate::config::AppConfig::load()?.data_dir;
-        let resolved = resolve_script(&data_dir, &skill, &script)?;
-        let command = build_command_display(&resolved, &extra_args);
-        // 待确认动作：确认时按 args_json 原样执行，杜绝确认前后偷换内容
-        let action_args = json!({
-            "skill": skill,
-            "script": script,
-            "args": extra_args,
-        });
-        super::store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
-        let excerpt = resolved.body_chars.take(400).collect::<String>();
-        Ok(format!(
-            "脚本已通过校验，等待你确认后执行：\n{command}\n\n脚本开头：\n{excerpt}\n\n在审阅卡点击接受后执行。"
-        ))
+        // 移动端诚实降级（roadmap P2）：正文照常加载（方法论仍有价值），
+        // 脚本执行直接明说需要桌面环境——不假装、不静默失败。
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        {
+            let _ = (&skill, &script);
+            bail!(
+                "脚本执行需要桌面环境（此设备无法运行本地脚本）。该技能的方法论部分仍可通过 enable_tools 加载参考。"
+            );
+        }
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        {
+            let data_dir = crate::config::AppConfig::load()?.data_dir;
+            let resolved = resolve_script(&data_dir, &skill, &script)?;
+            let command = build_command_display(&resolved, &extra_args);
+            // 待确认动作：确认时按 args_json 原样执行，杜绝确认前后偷换内容
+            let action_args = json!({
+                "skill": skill,
+                "script": script,
+                "args": extra_args,
+            });
+            super::store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
+            let excerpt = resolved.body_chars.take(400).collect::<String>();
+            Ok(format!(
+                "脚本已通过校验，等待你确认后执行：\n{command}\n\n脚本开头：\n{excerpt}\n\n在审阅卡点击接受后执行。"
+            ))
+        }
     }
 }
 

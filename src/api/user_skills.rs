@@ -103,6 +103,12 @@ fn install_staged(data_dir: &Path, staged: &Path, staging_root: &Path) -> Result
         !target.exists(),
         "技能 {id} 已安装；如需覆盖请先在技能目录里删除旧版"
     );
+    let existing = crate::ai::skills::discover(data_dir)?;
+    anyhow::ensure!(
+        existing.len() < crate::ai::skills::USER_SKILL_LIMIT,
+        "用户技能已达上限 {} 个；请先在技能目录里移除不用的技能再安装",
+        crate::ai::skills::USER_SKILL_LIMIT
+    );
     std::fs::create_dir_all(target.parent().unwrap())?;
     std::fs::rename(staged_ref, &target).or_else(|_| {
         // rename 跨文件系统会失败（staging 与数据目录可能不同挂载点）
@@ -124,6 +130,7 @@ fn install_staged(data_dir: &Path, staged: &Path, staging_root: &Path) -> Result
     };
     match reload() {
         Ok(dto) => {
+            crate::ai::skills::record_audit(data_dir, "install", &dto.id);
             std::fs::remove_dir_all(staging_root).ok();
             Ok(dto)
         }
@@ -391,6 +398,46 @@ mod install_tests {
             .expect("zip-slip 应当失败");
         assert!(format!("{err:#}").contains("非法路径"));
         assert!(!cfg_data.join("pwned.txt").exists(), "zip-slip 得手了！");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn install_limit_is_enforced() {
+        let dir = workdir("limit30");
+        let cfg_data = dir.join("data");
+        std::fs::create_dir_all(&cfg_data).unwrap();
+        let mut last = None;
+        for i in 0..crate::ai::skills::USER_SKILL_LIMIT {
+            let repo = dir.join(format!("repo-{i}"));
+            write_skill(&repo, "pick-{i}", &format!("pick-{i}"), "填量");
+            last = Some(install_skill_from_directory_at(
+                &cfg_data,
+                repo.to_string_lossy().to_string(),
+            ));
+        }
+        assert!(last.unwrap().is_ok(), "前 30 个应当装满");
+        let over = dir.join("repo-over");
+        write_skill(&over, "pick-over", "pick-over", "第 31 个");
+        let err = install_skill_from_directory_at(&cfg_data, over.to_string_lossy().to_string())
+            .err()
+            .expect("超过上限应当拒绝");
+        assert!(format!("{err:#}").contains("上限"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn install_writes_audit_log() {
+        let dir = workdir("audit");
+        let cfg_data = dir.join("data");
+        std::fs::create_dir_all(&cfg_data).unwrap();
+        let repo = dir.join("repo");
+        write_skill(&repo, "audited", "audited", "审计验证");
+        install_skill_from_directory_at(&cfg_data, repo.to_string_lossy().to_string()).unwrap();
+        crate::ai::skills::set_enabled(&cfg_data, "audited", false).unwrap();
+        let log = std::fs::read_to_string(cfg_data.join("skills/.audit.log")).unwrap();
+        assert!(log.contains("\"install\""));
+        assert!(log.contains("\"disable\""));
+        assert!(log.contains("audited"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -71,6 +71,28 @@ run_skill_script(skill: "proxy-pick", script: "templates/clash-pick",
 | P3 同步 | skills 作为同步 dataset，跨设备分发 | 桌面装、手机同步可见；启停状态按设备独立 |
 | P2 之外（存疑） | mihomo 等"宿主环境代理"类工具原生实现 | 仅当某 skill 的脚本依赖宿主机常驻服务且用户高频使用时再议 |
 
+## 实施记录（2026-10-17 更新）
+
+| 项 | 状态 | 提交 |
+|---|---|---|
+| 目录发现/frontmatter 解析/L1 清单/L2 enable 回传 | ✅ | `9df521b` |
+| run_skill_script（WriteConfirm + canonical 防穿越 + env 白名单 + 120s/8KB） | ✅ | `9df521b` |
+| 设置页管理（清单/开关/打开目录） | ✅ | `9df521b` |
+| 安装：本地目录 / zip / git clone（重名拒绝、zip-slip 防御、失败回滚） | ✅ | `8be7032` |
+| 用户技能上限 30（install 拒绝 + roster 截断提示） | ✅ | 本提交 |
+| 审计：install/enable/disable → `skills/.audit.log`（JSONL，不进用户事件流） | ✅ | 本提交 |
+| 移动端脚本降级：Android/iOS 执行返回明确"需要桌面环境"，正文照常加载 | ✅ | 本提交 |
+
+**信任墙 #2（AI 写保护）审计结论**：不靠"禁令守卫"而是**结构上不存在**任意路径写——
+盘点全部 AI 可触发的落盘点：wiki 正文/修订/图片台账全在 SQLite（`ingest_wiki_page_assets`
+只读盘做台账，不写文件；`resolve_wiki_image_refs` 的 `data_dir.join` 仅为 exists 读检查）；
+tweet_images 落盘的目录名是外部平台纯数字 id；run_skill_script 有 canonical 守卫。
+未来新增写工具时，本条是 review 必检项：AI 参数不得直接拼文件系统路径。
+
+**待验证**：`9df521b` 起的装机清单（同明天 arm64 装机一起）：真机装 proxy-pick
+全流程（install → enable → run 前确认 → 节点切换）。P2 剩余仅真机回归；
+P3 同步 dataset 在性能数据出来后排期。
+
 ## 关联
 
 - 工具懒加载与内建技能包：`a86ea79`、`c54367f`（feature/wiki-retrieval）

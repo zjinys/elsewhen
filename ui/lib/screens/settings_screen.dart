@@ -1562,11 +1562,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               icon: const Icon(Icons.archive_outlined, size: 18),
               label: const Text('从 zip 安装'),
             ),
-            OutlinedButton.icon(
-              onPressed: _installingSkill ? null : _promptGitInstall,
-              icon: const Icon(Icons.commit_outlined, size: 18),
-              label: const Text('从 Git 安装'),
-            ),
+            if (!Platform.isAndroid && !Platform.isIOS)
+              OutlinedButton.icon(
+                onPressed: _installingSkill ? null : _promptGitInstall,
+                icon: const Icon(Icons.commit_outlined, size: 18),
+                label: const Text('从 Git 安装'),
+              ),
             if (!Platform.isAndroid && !Platform.isIOS)
               TextButton.icon(
                 onPressed: _openSkillsDirectory,

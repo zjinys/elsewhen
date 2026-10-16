@@ -435,11 +435,20 @@ fn user_skills_roster() -> String {
     };
     match crate::ai::skills::discover(&cfg.data_dir) {
         Ok(skills) => {
+            let active: Vec<_> = skills
+                .iter()
+                .filter(|s| crate::ai::skills::is_enabled(&cfg.data_dir, &s.id))
+                .collect();
+            let total = active.len();
             let mut out = String::new();
-            for skill in skills {
-                if crate::ai::skills::is_enabled(&cfg.data_dir, &skill.id) {
-                    out.push_str(&format!("- {}（用户技能）：{}\n", skill.id, skill.brief));
-                }
+            for skill in active.iter().take(crate::ai::skills::USER_SKILL_LIMIT) {
+                out.push_str(&format!("- {}（用户技能）：{}\n", skill.id, skill.brief));
+            }
+            if total > crate::ai::skills::USER_SKILL_LIMIT {
+                out.push_str(&format!(
+                    "（用户技能共 {total} 个，仅列出前 {} 个；其余仍可按名称 enable，但请在设置页建议用户清理不用的技能）\n",
+                    crate::ai::skills::USER_SKILL_LIMIT
+                ));
             }
             out
         }

@@ -29,9 +29,35 @@ pub struct UserSkill {
     pub skill_md: PathBuf,
 }
 
+/// 用户技能数量上限：超过后安装拒绝、L1 清单截断（防 schema 描述随安装数无限膨胀）。
+/// 上限本身也写进清单提示，便于模型建议用户清理。
+pub const USER_SKILL_LIMIT: usize = 30;
+
 /// skills 状态文件：记录被用户手动停用的技能 id（默认全部启用）。
 fn state_file(data_dir: &Path) -> PathBuf {
     data_dir.join("skills_state.json")
+}
+
+/// 技能操作审计（信任墙 #4）：安装/启停追加到 skills/.audit.log（JSONL）。
+/// 故意不进用户事件流——那是个人记录，不应混入系统操作。
+pub fn record_audit(data_dir: &Path, action: &str, detail: &str) {
+    use std::io::Write;
+    let dir = skills_dir(data_dir);
+    if std::fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+    let line = serde_json::json!({
+        "ts": chrono::Utc::now().to_rfc3339(),
+        "action": action,
+        "detail": detail,
+    });
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join(".audit.log"))
+    {
+        let _ = writeln!(f, "{line}");
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -65,7 +91,9 @@ pub fn set_enabled(data_dir: &Path, id: &str, enabled: bool) -> Result<()> {
     } else if !state.disabled.iter().any(|x| x == id) {
         state.disabled.push(id.to_string());
     }
-    save_state(data_dir, &state)
+    save_state(data_dir, &state)?;
+    record_audit(data_dir, if enabled { "enable" } else { "disable" }, id);
+    Ok(())
 }
 
 /// 平台 skills 目录：`<data_dir>/skills`。

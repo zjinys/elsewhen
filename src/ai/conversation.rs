@@ -167,7 +167,6 @@ fn generate_with_provider_configs(
             })
             .unwrap_or(32768);
         let output = provider.as_ref().and_then(|p| p.max_tokens).unwrap_or(4096) as usize;
-        let output = provider.as_ref().and_then(|p| p.max_tokens).unwrap_or(4096) as usize;
         // 注意：不要在此处加“总预算上限”——历史预算 = 上限 - tool_reserve，
         // 在 21 个工具定义 ≈16k tokens 的现状下，20k 上限会把历史预算挤到
         // 负值，记忆整体失效（实测：全部历史被“较早对话已省略”替代）。
