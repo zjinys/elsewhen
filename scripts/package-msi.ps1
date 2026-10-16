@@ -35,7 +35,11 @@ try {
     cargo build --release
 
     Write-Host "[2/4] 构建 Flutter Windows release ..."
-    & $flutter build windows --release --target=lib/main_desktop.dart
+    # flutter 需在 ui/ 内运行（pubspec 所在）；cargo 已在 $root 完成。
+    Push-Location (Join-Path $root "ui")
+    try {
+        & $flutter build windows --release --target=lib/main_desktop.dart
+    } finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) { throw "flutter build windows 失败" }
 
     $releaseDir = Join-Path $root "ui\build\windows\x64\runner\Release"
