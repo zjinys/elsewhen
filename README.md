@@ -17,6 +17,7 @@ Personal Event System 的 Rust 本地核心 + Flutter 跨平台 GUI。
 
 - **Rust 核心** (项目根目录)：事件存储、AI 分析、知识消化、SQLite 数据库；只构建为 Flutter 桥接库（不再提供 CLI）
 - **Flutter UI** (`ui/` 目录)：现代化跨平台 GUI，支持 Linux/macOS/Windows 桌面和 Android/iOS 移动端
+- **端到端加密同步** (`src/sync/`)：多设备点对点差量同步，中继服务器只过密文
 
 目前 Flutter UI 已包含对话、知识库、待办、Capture、AI Provider 设置、网页/文本导入、人物关系和知识页 AI 加工。知识页支持标签、来源分区和派生产物关联。
 
@@ -27,12 +28,15 @@ Flutter UI 提供更现代的体验，支持两种模式：
 ```bash
 cd ui/
 
-# 主应用模式：完整的事件时间线
-fvm flutter run -d linux
+# 主应用模式：完整的事件时间线（桌面入口在 lib/main_desktop.dart）
+fvm flutter run -d linux --target=lib/main_desktop.dart
 
 # Capture 模式：快速录入浮动窗口
-fvm flutter run -d linux --dart-entrypoint-args "--mode=capture"
+fvm flutter run -d linux --target=lib/main_desktop.dart \
+  --dart-entrypoint-args "--mode=capture"
 ```
+
+也可以用 `scripts/debug-run.sh`（日志同时写入 `~/.local/share/elsewhen/agent-debug.log`）；日常使用建议直接运行 release bundle：`ui/build/linux/x64/release/bundle/elsewhen_ui`（需先 `cargo build --release` + `flutter build linux`，见下文构建）。
 
 详细文档见 [`ui/README.md`](ui/README.md)。
 
@@ -90,16 +94,18 @@ Linux 上安装一次桌面元数据，使窗口合成器能解析应用 ID 到�
 ./scripts/install-linux-desktop.sh
 ```
 
-发行版安装包：
+发行版安装包（均从源码构建后打包，不会安装到打包容器的系统）：
 
 ```sh
-./scripts/package-deb.sh       # Debian/Ubuntu，生成 dist/*.deb
-./scripts/package-rpm.sh       # Fedora/RHEL，生成 dist/*.rpm
-./scripts/package-pacman.sh    # Arch，生成 dist/*.pkg.tar.*
+./scripts/package-deb.sh        # Debian/Ubuntu，dist/*.deb
+./scripts/package-rpm.sh        # Fedora/RHEL，dist/*.rpm
+./scripts/package-pacman.sh     # Arch，从源码构建（CI 走另外的快路径，见下）
+./scripts/package-appimage.sh   # AppImage
+scripts/package-msi.ps1         # Windows MSI（WiX v3.x）
+./scripts/package-dmg.sh        # macOS DMG（Apple Silicon）
 ```
 
-三个脚本都会先构建 release 版本；分别需要系统提供 `dpkg-deb`、`rpmbuild` 或 `makepkg`。
-这些脚本只用于从源码生成安装包，不会被安装到用户系统。安装包本身包含 Flutter 应用、桥接库、桌面入口和正式品牌图标（`assets/brand/elsewhen-icon-v2-256.png`）。
+安装包包含 Flutter 应用、桥接库、桌面入口和正式品牌图标（`assets/brand/elsewhen-icon-v2-256.png`）。
 
 也可以通过 Makefile 调用：
 
@@ -113,6 +119,16 @@ make package          # 构建全部格式（要求三种打包工具都已安�
 
 所有记录入口都不能绕过 `Store::insert_event` 的本地提交边界。
 
+## 多设备同步
+
+数据在设备间端到端加密同步：中继只中转密文信封，Service 端读不到任何明文；本地库仍是唯一真相源，同步是差量追平而非镜像替换。
+
+- **配对**：设置 → 同步里发起，Owner 出示配对码、Joiner 扫码加入，双方互存设备身份；
+- **实时追平**：对端写入的数据在数秒内到达本端，会话/知识页就地刷新，无需重启；
+- **数据集切换**：支持在同一设备上切换/临时挂载另一数据集（迁移试运行等场景）。
+
+设计细节与当前进度见 [`docs/roadmap/2026-10-03-multi-device-sync-roadmap.md`](docs/roadmap/2026-10-03-multi-device-sync-roadmap.md) 与手工测试清单 [`docs/roadmap/2026-10-14-sync-manual-test-roadmap.md`](docs/roadmap/2026-10-14-sync-manual-test-roadmap.md)。
+
 ## 开发
 
 ### Flutter UI 开发
@@ -125,6 +141,11 @@ fvm flutter analyze            # 代码分析
 fvm flutter test               # 运行测试
 fvm flutter run -d linux       # 运行应用
 ```
+
+### CI 与发布
+
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml)：push 时三平台编译与测试；
+- [`.github/workflows/release.yml`](.github/workflows/release.yml)：`workflow_dispatch` 手动验证全平台构建；推送 `v*` tag 时正式发布——Linux（deb/RPM/AppImage/pacman）、macOS（DMG）、Windows（MSI）、Android（APK）自动构建并附到 GitHub Release。
 
 ### Rust 核心开发
 
