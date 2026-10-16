@@ -213,6 +213,14 @@ npm test
 
 ## 完成记录
 
+### 2026-10-16 — 配对死锁排查与手动解锁（S06 验收中的实证发现，修复未落地）
+
+- **现象：** 手机（joiner）扫码后永远停在「等待成员授权与初始同步」`phase=receiving_snapshot`（每 2s advance 空转）；桌面 owner 永远 `sending_snapshot`/`awaiting_roster`。本机局域网 relay 健康（1ms 响应，`/health` 正常），排除网络。
+- **根因（数据实证）：** owner 端 `sync_members`/`sync_member_keys` 中该手机设备 `active=0`，而 `storage/sync/wire.rs::due_enrollment_wires` 硬条件要求收件人 `active=1` → 164 条快照消息 `attempts=0` 从未被推送（同一条 membership 控制消息除外，重试 13 次）。历史五次配对尝试中同型死锁至少两起（设备 `430369be` 一条 membership 消息重试 **850 次**、`59559318` 全部 0 次从未出门）。**且 outbox 无放弃语义**：`state` CHECK 仅 `pending/acknowledged`，无ack 消息按退避无限重试。
+- **手动解锁（用户同意，库已备份 `elsewhen.db.bak-20261016`）：** ① 置位手机设备 `sync_members.active=1` 与 `sync_member_keys.active=1`；② 删除三个死设备（`430369be`/`59559318`/`bcef5dfd`）共 492 条 pending 信封及孤儿 `sync_snapshot_export_wires`，死设备导出记录标 `aborted`；③ 设备 `47c8af9e` 为真实完成同步的成员（165 条全部 acknowledged），保留。解锁后待验证：手机应收到快照推进至 `awaiting_receipt`/`complete`。
+- **待修工程项（两件，未开工）：** ① **死锁修复**：查「roster pin 时 `UPDATE sync_members SET active=0` 全员清零后由 `apply_signed_roster` 重置」路径的投影失步（新成员被丢在 0，`storage/sync/membership.rs:161`），以及 `due_enrollment_wires` 是否应豁免 enrollment 载荷的 `active=1` 前置（enrollment 是建立 active 的仪式，被前置卡死互为死锁）；② **outbox 生命周期**：信封过期（`GRANT_LIFETIME_MS`）后本地不可达标记/成员撤销与邀请过期时的批量清理，消除无限重试与悬空流量（与 S02「悬空邀请清理入口」缺口同属清理面）。
+- **边界：** 本次仅数据侧手动处置与文档记录；`active=1` 为诊断性 workaround，vault 内签名名册的本源状态未验证（UI 成员页只读 vault，后续修复需核对投影与本源一致性）。没有代码变更、没有跑测试门禁、未提交。
+
 ### 2026-10-11 — P2 工程与自动化验收完成（原生/真人门禁单列）
 
 - **收尾复验（本 session 逐条实际执行）：** P2 Rust 定向 **16 passed**、全量 Rust **640 passed / 16 ignored**（`--all-targets` 另含示例目标 0 tests）、配置环境定向 **5 passed**、实际 Worker **15 passed / 0 failed / 0 skipped**；桥接两侧 hash 均为 **233902080**（10-10 重生成/release 产物）。Flutter P2 定向 analyze（9 个目标）**No issues found**、同步相关定向（10 个测试文件）**48 passed**、全量 **345 passed / 0 failed**；`git diff --check` 通过。
