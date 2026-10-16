@@ -7198,6 +7198,12 @@ class RustLibWire implements BaseWire {
         id,
       );
 
+  void wire__crate__api__user_skills__uninstall_user_skill(
+    NativePortType port_,
+    String id,
+  ) =>
+      wasmModule.wire__crate__api__user_skills__uninstall_user_skill(port_, id);
+
   void wire__crate__api__provider_config__update_ai_provider_config(
     NativePortType port_,
     String base_url,
@@ -8613,6 +8619,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__knowledge_workflows__undo_topic_organization(
+    NativePortType port_,
+    String id,
+  );
+
+  external void wire__crate__api__user_skills__uninstall_user_skill(
     NativePortType port_,
     String id,
   );

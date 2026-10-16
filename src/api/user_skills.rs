@@ -40,6 +40,32 @@ pub fn set_user_skill_enabled(id: String, enabled: bool) -> Result<()> {
     crate::ai::skills::set_enabled(&cfg.data_dir, &id, enabled)
 }
 
+/// 卸载用户技能：删目录 + 记删除墓碑（同步语义：其他设备收到墓碑后删除）。
+/// 这是删除的唯一合法入口——手动 rm 目录会被分发复活。
+pub fn uninstall_user_skill(id: String) -> Result<()> {
+    let cfg = crate::config::AppConfig::load()?;
+    let store = Store::open(&cfg.database_path)?;
+    uninstall_user_skill_at(&cfg.data_dir, &store, &id)
+}
+
+#[flutter_rust_bridge::frb(ignore)]
+pub fn uninstall_user_skill_at(data_dir: &std::path::Path, store: &Store, id: &str) -> Result<()> {
+    let skill_dir = crate::ai::skills::skills_dir(data_dir).join(id);
+    anyhow::ensure!(
+        !id.contains('/') && !id.contains('\\') && id != "." && id != "..",
+        "非法技能名：{id}"
+    );
+    if skill_dir.exists() {
+        std::fs::remove_dir_all(&skill_dir)
+            .with_context(|| format!("删除技能目录 {skill_dir:?}"))?;
+    }
+    crate::storage::skills::tombstone_skill(store, id)?;
+    // 启停状态一并清掉（本地文件，不在同步范围）
+    crate::ai::skills::set_enabled(data_dir, id, true)?;
+    crate::ai::skills::record_audit(data_dir, "uninstall", id);
+    Ok(())
+}
+
 /// 技能目录绝对路径（供前端"打开技能目录"），目录不存在则创建。
 pub fn user_skills_directory_path() -> Result<String> {
     let cfg = crate::config::AppConfig::load()?;
@@ -131,6 +157,29 @@ fn install_staged(data_dir: &Path, staged: &Path, staging_root: &Path) -> Result
     match reload() {
         Ok(dto) => {
             crate::ai::skills::record_audit(data_dir, "install", &dto.id);
+            // 即时写分发台账（P3）：安装即全屋可见（其他设备下次启动对账接住）。
+            // 失败不回滚安装——本地已可用，下次启动 reconcile 会补上行。
+            let db_path = crate::config::AppConfig::load()
+                .map(|c| c.database_path)
+                .ok();
+            if let Some(db_path) = db_path {
+                let bundle = crate::ai::skills::collect_bundle_files(&target);
+                if let Ok(files) = bundle {
+                    if let Ok(store) = Store::open(&db_path) {
+                        let rows = files
+                            .iter()
+                            .map(|(rel, bytes, sha)| crate::storage::skills::SkillFileRow {
+                                rel: rel.clone(),
+                                bytes: bytes.clone(),
+                                sha256: sha.clone(),
+                                size: bytes.len() as i64,
+                            })
+                            .collect::<Vec<_>>();
+                        crate::storage::skills::replace_skill_files(&store, &dto.id, &rows)
+                            .unwrap_or_else(|e| eprintln!("[skills] bundle write failed: {e:#}"));
+                    }
+                }
+            }
             std::fs::remove_dir_all(staging_root).ok();
             Ok(dto)
         }

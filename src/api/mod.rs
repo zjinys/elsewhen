@@ -497,6 +497,11 @@ pub fn init_bridge(database_path: Option<String>) -> Result<String> {
             }
             store.recover_chat_proposal_decisions()?;
             store.recover_expired_chat_runs()?;
+            // 用户技能对账（P3 分发）：远端到达的落盘、本地领先的回写台账。
+            // 放在 init 同一层——db 已迁移完毕，失败不阻断启动（技能非核心路径）。
+            if let Err(e) = crate::ai::skills::reconcile_with_store(&config.data_dir, &store) {
+                eprintln!("[skills] reconcile failed: {e:#}");
+            }
             Store::mark_initialized(&config.database_path)?;
             Ok(())
         })

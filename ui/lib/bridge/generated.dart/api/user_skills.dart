@@ -8,7 +8,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `copy_dir_recursive`, `install_staged`, `staging_dir`, `unique_skill_subdir`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `install_skill_from_directory_at`, `install_skill_from_git_at`, `install_skill_from_zip_at`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `install_skill_from_directory_at`, `install_skill_from_git_at`, `install_skill_from_zip_at`, `uninstall_user_skill_at`
 
 Future<List<UserSkillDto>> listUserSkills() =>
     RustLib.instance.api.crateApiUserSkillsListUserSkills();
@@ -18,6 +18,11 @@ Future<void> setUserSkillEnabled({required String id, required bool enabled}) =>
       id: id,
       enabled: enabled,
     );
+
+/// 卸载用户技能：删目录 + 记删除墓碑（同步语义：其他设备收到墓碑后删除）。
+/// 这是删除的唯一合法入口——手动 rm 目录会被分发复活。
+Future<void> uninstallUserSkill({required String id}) =>
+    RustLib.instance.api.crateApiUserSkillsUninstallUserSkill(id: id);
 
 /// 技能目录绝对路径（供前端"打开技能目录"），目录不存在则创建。
 Future<String> userSkillsDirectoryPath() =>

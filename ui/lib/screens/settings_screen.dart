@@ -1612,6 +1612,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       ],
                     ),
                   ),
+                  IconButton(
+                    tooltip: '卸载（全设备同步删除）',
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    onPressed: () => _uninstallUserSkill(skill.id),
+                  ),
                   Switch(
                     value: skill.enabled,
                     onChanged: (value) =>
@@ -1727,6 +1732,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(reportUiError('打开技能目录', e))),
+      );
+    }
+  }
+
+  Future<void> _uninstallUserSkill(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('卸载技能'),
+        content: Text('$id 将从本机删除；若已同步，其他设备也会一并删除。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('卸载'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repository.uninstallUserSkill(id);
+      await _loadUserSkills();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(reportUiError('卸载技能', e))),
       );
     }
   }

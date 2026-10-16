@@ -100,7 +100,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1711022148;
+  int get rustContentHash => 1803629858;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1065,6 +1065,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiKnowledgeWorkflowsUndoTopicOrganization({
     required String id,
   });
+
+  Future<void> crateApiUserSkillsUninstallUserSkill({required String id});
 
   Future<void> crateApiProviderConfigUpdateAiProviderConfig({
     required String baseUrl,
@@ -8075,6 +8077,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "undo_topic_organization",
         argNames: ["id"],
       );
+
+  @override
+  Future<void> crateApiUserSkillsUninstallUserSkill({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__user_skills__uninstall_user_skill(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsUninstallUserSkillConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsUninstallUserSkillConstMeta =>
+      const TaskConstMeta(debugName: "uninstall_user_skill", argNames: ["id"]);
 
   @override
   Future<void> crateApiProviderConfigUpdateAiProviderConfig({

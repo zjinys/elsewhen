@@ -89,6 +89,24 @@ run_skill_script(skill: "proxy-pick", script: "templates/clash-pick",
 tweet_images 落盘的目录名是外部平台纯数字 id；run_skill_script 有 canonical 守卫。
 未来新增写工具时，本条是 review 必检项：AI 参数不得直接拼文件系统路径。
 
+### P3 分发（本提交，`b16f83f` 之后）
+
+**落法**：不动同步协议——技能文件字节进 db 表，随整库同步自然跨设备。
+
+- 表：`skill_files`（skill_id × rel 主键，bytes/sha/size/updated_at）+
+  `skill_tombstones`（删除墓碑）。
+- 写入：安装成功即时写台账；启动 reconcile 对"目录领先于表"的技能回写
+  （含 P1 时代手动 cp 进目录的技能——启动后自动纳入分发）。
+- 读取：启动 reconcile 把表领先于目录的技能落盘（新设备接住分发，上限 30 内）。
+- **冲突语义："目录是用户此刻意图，目录获胜"**——同 id 内容不同时目录回写表；
+  **删除是显式动作**：`uninstall_user_skill`（UI 卸载按钮）立即记墓碑并清行，
+  其他设备 reconcile 按墓碑删除。绕过 API 手动 rm 目录会被分发复活
+  （分发语义优先，测试已文档化该边界）。
+- 启停状态（skills_state.json）按设备独立，不同步 ✓（roadmap 原始要求）。
+- reconcile 钩在 init_bridge（迁移完毕后），失败只打日志不阻断启动。
+- 测试 +4：发布→接收全链路、卸载墓碑→拦复活→重装覆盖、同内容免写、
+  越界 rel 拒落盘。
+
 **待验证**：`9df521b` 起的装机清单（同明天 arm64 装机一起）：真机装 proxy-pick
 全流程（install → enable → run 前确认 → 节点切换）。P2 剩余仅真机回归；
 P3 同步 dataset 在性能数据出来后排期。

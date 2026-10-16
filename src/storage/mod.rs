@@ -18,6 +18,7 @@ mod provider_keys;
 mod records;
 mod review;
 pub(crate) mod rule_triggers;
+pub(crate) mod skills;
 pub(crate) mod sync;
 mod web_search;
 mod wiki;

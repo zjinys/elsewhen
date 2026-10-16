@@ -1025,6 +1025,10 @@ class RustBridgeRepository implements StorageRepository {
   Future<api.UserSkillDto> installUserSkillFromGit(String url) =>
       api.installSkillFromGit(url: url);
 
+  /// 卸载：删目录 + 记删除墓碑（其他设备同步后一并删除）。
+  /// 删除的唯一合法入口——手动 rm 目录会被分发复活。
+  Future<void> uninstallUserSkill(String id) => api.uninstallUserSkill(id: id);
+
   /// VACUUM 整理（独占写，被并发阻塞时抛错由前端提示重试）。
   Future<api.VacuumResultDto> vacuumDatabase() => api.vacuumDatabase();
 

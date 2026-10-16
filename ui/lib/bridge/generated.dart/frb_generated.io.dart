@@ -13164,6 +13164,30 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
+  void wire__crate__api__user_skills__uninstall_user_skill(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__user_skills__uninstall_user_skill(port_, id);
+  }
+
+  late final _wire__crate__api__user_skills__uninstall_user_skillPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__user_skills__uninstall_user_skill',
+      );
+  late final _wire__crate__api__user_skills__uninstall_user_skill =
+      _wire__crate__api__user_skills__uninstall_user_skillPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__user_skills__user_skills_directory_path(int port_) {
     return _wire__crate__api__user_skills__user_skills_directory_path(port_);
   }
@@ -13828,6 +13852,8 @@ final class PeriodReportTickResultKind extends ffi.Union {
 const int SAMPLE_MAX = 12;
 
 const int SAMPLE_TEXT_CHARS = 240;
+
+const int USER_SKILL_LIMIT = 30;
 
 final class wire_cst_AnalysisTriggerResult_Processed extends ffi.Struct {
   @ffi.Int64()
