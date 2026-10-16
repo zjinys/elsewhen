@@ -116,11 +116,6 @@ pub fn generate_conversation_reply(
     super::generation::generate_sync(conversation_id, store, config)
 }
 
-/// 滑窗自动挡上限（见 generate_with_provider_configs 内注释）。
-/// 主对话每轮上下文曾涨到 43-58k，deepseek 首字 20s+；压到 20k 预计
-/// 首字减半。长期记忆由翻篇摘要与知识库按需检索承担。
-pub(crate) const SLIDING_WINDOW_CAP: usize = 20_000;
-
 pub(crate) fn generate_conversation_reply_core(
     conversation_id: &str,
     store: &Store,
@@ -170,12 +165,13 @@ fn generate_with_provider_configs(
             })
             .unwrap_or(32768);
         let output = provider.as_ref().and_then(|p| p.max_tokens).unwrap_or(4096) as usize;
-        // 速度优化见 SLIDING_WINDOW_CAP 注释；留 ~4k 余量给不受本预算
-        // 管的固定段（时间上下文/followup/引用规范等），避免顶穿校验线。
+        let output = provider.as_ref().and_then(|p| p.max_tokens).unwrap_or(4096) as usize;
+        // 注意：不要在此处加“总预算上限”——历史预算 = 上限 - tool_reserve，
+        // 在 21 个工具定义 ≈16k tokens 的现状下，20k 上限会把历史预算挤到
+        // 负值，记忆整体失效（实测：全部历史被“较早对话已省略”替代）。
+        // 提速走：时间戳尾部化吃 provider 前缀缓存 + 工具瘦身腾预算。
         config.memory_type = MemoryType::SlidingWindow {
-            max_tokens: window
-                .saturating_sub(output + window / 20)
-                .min(SLIDING_WINDOW_CAP),
+            max_tokens: window.saturating_sub(output + window / 20),
         };
     }
 
