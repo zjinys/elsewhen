@@ -119,15 +119,23 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
     );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // Android 状态栏图标跟随主题亮度：深色界面白图标、浅色界面深图标。
+      // Android 状态栏背景与 App 首屏背景同色（surface0，已在上行
+      // AppTheme.apply 按 brightness 更新），否则浅色模式下系统状态栏
+      // 仍是 styles.xml 的原厂色，与界面断开。图标跟随亮度。
       // 只影响移动端（桌面端无系统状态栏概念），iOS 由系统自动处理。
       value: SystemUiOverlayStyle(
+        statusBarColor: AppTheme.surface0,
         statusBarIconBrightness: brightness == Brightness.dark
             ? Brightness.light
             : Brightness.dark,
         statusBarBrightness: brightness == Brightness.dark
             ? Brightness.dark
             : Brightness.light,
+        // 底部导航栏同背景：状态栏对齐了再露一条异色底栏同样难看。
+        systemNavigationBarColor: AppTheme.surface0,
+        systemNavigationBarIconBrightness: brightness == Brightness.dark
+            ? Brightness.light
+            : Brightness.dark,
       ),
       child: ContentFont(
         family: contentFamily,
@@ -176,8 +184,14 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
                 body: LayoutBuilder(
                   builder: (context, constraints) => SingleChildScrollView(
                     child: ConstrainedBox(
+                      // Column 横轴会收缩到最宽子项宽度，而滚动视口把窄于
+                      // 视口的内容贴左放——不加 minWidth splash 就永远挂
+                      // 在左边。minWidth 撑满宽度后 crossAxisAlignment
+                      // .center 才真正居中；高度方向沿用 minHeight+滚动
+                      // 防 0 高度约束下的溢出。
                       constraints: BoxConstraints(
                         minHeight: constraints.maxHeight,
+                        minWidth: constraints.maxWidth,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,

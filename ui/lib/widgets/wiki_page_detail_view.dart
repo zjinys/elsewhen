@@ -562,7 +562,11 @@ class _PageTabBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pageAsync = ref.watch(wikiPageProvider(slug));
+    // 知识号 bump（分析/消化/对端同步产出）会让本 provider reload；reload 必须
+    // 沿用旧页面数据原地重建，否则整页闪 loading、页面内挂载的 AI 对话框等
+    // 有状态浮层会被连根卸载（表现为"AI 回复一到，聊天窗自动关闭"）。
     return pageAsync.when(
+      skipLoadingOnReload: true,
       data: (page) {
         if (page == null) {
           return Center(

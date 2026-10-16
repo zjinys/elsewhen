@@ -327,6 +327,9 @@ class KnowledgeSourcesSection extends ConsumerWidget {
     return ref
         .watch(knowledgeDetailsProvider(page.slug))
         .when(
+          // 知识号 bump 的 reload 不重回 loading（同 wiki_page_detail_view，
+          // 防止分析/消化/同步产出的例行重查把面板内容闪成进度条）。
+          skipLoadingOnReload: true,
           loading: () => const LinearProgressIndicator(),
           error: (error, _) => Text(_error(error, context: '读取来源与修订')),
           data: (data) => ListView(
@@ -648,6 +651,8 @@ class KnowledgeOriginLinks extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => ref
       .watch(knowledgeDetailsProvider(slug))
       .when(
+        // 知识号 bump 的 reload 不重回 loading（同 wiki_page_detail_view）。
+        skipLoadingOnReload: true,
         loading: () => const SizedBox.shrink(),
         error: (_, _) => const Text('来源暂时无法读取'),
         data: (data) => Column(
@@ -769,6 +774,8 @@ class _KnowledgeOutputsSectionState
         ref
             .watch(knowledgeDetailsProvider(page.slug))
             .when(
+              // 知识号 bump 的 reload 不重回 loading（同 wiki_page_detail_view）。
+              skipLoadingOnReload: true,
               loading: () => const LinearProgressIndicator(),
               error: (error, _) => Text(_error(error, context: '读取知识产出')),
               data: (data) {

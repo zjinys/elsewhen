@@ -123,8 +123,16 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
 
-  // Show the window when Flutter renders.
-  // Requires the view to be realized so we can start rendering.
+  // 窗口必须在把视图装进去后**立即显示**。此前是等首帧才 show：隐藏态
+  // 下 realize 的 FlView 拿到的是初始小尺寸分配，首帧按小尺寸布局，
+  // 随后窗口才铺开到 1920x1080，首帧内容钉死在左上角一小块（表现为
+  // “启动 splash 卡在左侧列表区域，四周全黑”）。现在底色是不透明暗
+  // 色（上面），提前 show 不会白闪；Flutter 首帧到来前窗口尺寸已是
+  // 终值，splash 从第一帧起就居中。first-frame 回调保留：只负责
+  // X11 下重贴无边框装饰。
+  gtk_widget_show(GTK_WIDGET(window));
+
+  // first-frame 回调只负责 X11 下重贴无边框装饰（窗口显示已提前）。
   g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb),
                            self);
   gtk_widget_realize(GTK_WIDGET(view));

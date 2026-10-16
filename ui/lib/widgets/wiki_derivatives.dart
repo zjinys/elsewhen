@@ -20,7 +20,9 @@ class WikiSourceLink extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final source = ref.watch(wikiPageProvider(slug));
+    // 同 wiki_page_detail_view：知识号 bump 触发的 reload 不重回 loading。
     return source.when(
+      skipLoadingOnReload: true,
       loading: () => const Text('正在读取来源…'),
       error: (_, _) => TextButton(
         onPressed: () => ref.invalidate(wikiPageProvider(slug)),
