@@ -516,7 +516,8 @@ impl Tool for SearchKnowledgeBaseTool {
         "search_knowledge_base"
     }
     fn description(&self) -> &'static str {
-        "在知识库页面与个人事件记录中按关键词搜索，返回相关片段。"
+        "在知识库页面与个人事件记录中按关键词搜索，返回相关片段（带引用 slug）。\
+         涉及用户过往细节或约定时先检索，闲聊不必检索。"
     }
     fn parameters_schema(&self) -> Value {
         json!({

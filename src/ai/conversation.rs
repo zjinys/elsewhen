@@ -116,6 +116,11 @@ pub fn generate_conversation_reply(
     super::generation::generate_sync(conversation_id, store, config)
 }
 
+/// 滑窗自动挡上限（见 generate_with_provider_configs 内注释）。
+/// 主对话每轮上下文曾涨到 43-58k，deepseek 首字 20s+；压到 20k 预计
+/// 首字减半。长期记忆由翻篇摘要与知识库按需检索承担。
+pub(crate) const SLIDING_WINDOW_CAP: usize = 20_000;
+
 pub(crate) fn generate_conversation_reply_core(
     conversation_id: &str,
     store: &Store,
@@ -165,8 +170,12 @@ fn generate_with_provider_configs(
             })
             .unwrap_or(32768);
         let output = provider.as_ref().and_then(|p| p.max_tokens).unwrap_or(4096) as usize;
+        // 速度优化见 SLIDING_WINDOW_CAP 注释；留 ~4k 余量给不受本预算
+        // 管的固定段（时间上下文/followup/引用规范等），避免顶穿校验线。
         config.memory_type = MemoryType::SlidingWindow {
-            max_tokens: window.saturating_sub(output + window / 20),
+            max_tokens: window
+                .saturating_sub(output + window / 20)
+                .min(SLIDING_WINDOW_CAP),
         };
     }
 
@@ -292,26 +301,14 @@ fn generate_with_provider_configs(
             .replace(Some((input.id.clone(), task.clone())));
     }
 
-    let knowledge_candidates = match query {
-        Some(query) => crate::knowledge::select_knowledge(store, query, "conversation", 3200)?,
-        None => Vec::new(),
-    };
+    // 速度优化（2026-10）：知识不再每轮预载（Candidates 曾固定占 3.2k
+    // tokens，对闲聊纯浪费），按需检索的引导写进 search_knowledge_base
+    // 的工具描述（消除单独 system 段的 token 开销）；引用规范仍常驻，
+    // 保证检索结果可溯源。
     context.push(ContextMessage::new(
         "system",
         crate::knowledge::CITATION_INSTRUCTIONS,
     ));
-    context.push(
-        ContextMessage::new(
-            "system",
-            crate::knowledge::context_text(&knowledge_candidates)?,
-        )
-        .with_segment(
-            SegmentPurpose::SelectedEvidence,
-            SegmentOrigin::KnowledgeSelection,
-            None,
-            OmissionPolicy::Required,
-        ),
-    );
 
     // The provider budgets the complete request, including dynamic context and tools.
     // Recover the original task from persisted history even if the memory window
