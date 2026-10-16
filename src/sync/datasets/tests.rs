@@ -308,6 +308,21 @@ fn startup_never_falls_back_when_selected_data_is_missing_or_wrong() {
     );
 }
 
+/// 曾在真实机器上发生：某次失败的调用留下 0 字节 catalog，
+/// 只读启动路径把它当成 schema 损坏直接拒化，整个应用起不来。
+/// 空文件等价于“没有数据集”，应回落主库；真正有表的才报错。
+#[test]
+fn empty_catalog_file_at_startup_falls_back_to_main_database() {
+    let workspace = Workspace::new();
+    let _original = workspace.original();
+    std::fs::write(workspace.0.join("sync-workspace.db"), b"").unwrap();
+    assert!(selected_database_path(&workspace.0).unwrap().is_none());
+
+    // 有内容但不符 schema 的文件仍然报错，不静默忽略。
+    std::fs::write(workspace.0.join("sync-workspace.db"), b"not a database").unwrap();
+    assert!(selected_database_path(&workspace.0).is_err());
+}
+
 #[test]
 fn catalog_limits_names_ids_installations_and_refuses_unrelated_files() {
     let workspace = Workspace::new();

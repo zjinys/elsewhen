@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
+import '../sync/sync_dataset_switch_api.dart';
 import '../sync/sync_join_controller.dart';
 import '../utils/device_name.dart';
 import 'joiner_qr_scan_page.dart';
+import 'dataset_switch_card.dart';
 import 'sync_pairing_steps.dart';
 
 class JoinerSyncPairingSettings extends StatefulWidget {
@@ -13,12 +15,16 @@ class JoinerSyncPairingSettings extends StatefulWidget {
     super.key,
     required this.controller,
     this.scannerBuilder,
+    this.datasetApi = const FrbSyncDatasetSwitchApi(),
   });
   final SyncJoinController controller;
 
   /// 扫码页取景器注入缝（测试替换相机）；见 JoinerQrScanPage。
   final Widget Function(BuildContext context, void Function(String code))?
   scannerBuilder;
+
+  /// 数据集目录切换注入缝（测试替换原生调用）。
+  final SyncDatasetSwitchApi datasetApi;
 
   @override
   State<JoinerSyncPairingSettings> createState() =>
@@ -65,11 +71,19 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
+    listenable: Listenable.merge([widget.controller]),
     builder: (context, _) {
       final controller = widget.controller;
       final state = controller.state;
       final phase = state?.phase;
+      final enrollment = controller.enrollment;
+      final receiving =
+          enrollment?.states
+              .where(
+                (s) => s.role == 'joiner' && s.phase == 'receiving_snapshot',
+              )
+              .toList() ??
+          const <api.SyncEnrollmentStateDto>[];
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -92,6 +106,17 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               current: joinerStageFor(phase),
             ),
             const SizedBox(height: 8),
+            for (final snapshotState in receiving) ...[
+              SyncSnapshotProgress(
+                received: snapshotState.receivedChunks,
+                total: snapshotState.totalChunks,
+                label: '正在接收初始快照',
+              ),
+              const SizedBox(height: 8),
+            ],
+          ],
+          if (phase == 'complete') ...[
+            DatasetSwitchCard(api: widget.datasetApi),
           ],
           if (!controller.active) ...[
             const SizedBox(height: 12),

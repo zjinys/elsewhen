@@ -783,3 +783,119 @@ fn snapshot_preserves_keys_and_waits_for_the_authenticated_final_receipt() {
         "SYNTHETIC_ORIGINAL_KEY"
     );
 }
+
+#[test]
+fn snapshot_transfer_surfaces_progress_to_both_sides() {
+    let f = Pair::new();
+    f.channels();
+    // 只有本测试需要跨多个 256KB 分片的快照体；其余用例依赖单事件 fixture。
+    for i in 0..700 {
+        let payload = format!("bulk-{}-{}", i, "x".repeat(1024));
+        f.owner
+            .store
+            .submit_input_as_event(&payload, "capture", None)
+            .unwrap();
+    }
+    let offer = f.export();
+    f.select(&offer);
+
+    // 真实流程：joiner 收到 roster/offer 后产生回执，owner 收到回执后
+    // roster/offer 置为 acknowledged，phase 才推进到 sending_snapshot。
+    let receipts: Vec<String> = {
+        let joiner = f.loan("joiner");
+        let stage = joiner.store().unwrap();
+        let vault = stage
+            .load_sync_vault(&joiner.installation, &joiner.master, joiner.revision)
+            .unwrap();
+        let record = joiner.record.as_ref().unwrap();
+        let (send, _, _) = vault
+            .peer_keys(&record.dataset_id, &record.peer.device_id)
+            .unwrap();
+        transfer::stage_receipts(&stage, record, &send, vault.identity()).unwrap();
+        let owner_device: String = record.peer.device_id.clone();
+        let receipts: Vec<(String, Vec<u8>)> = stage
+            .connection
+            .prepare(
+                "SELECT message_id,encrypted_envelope FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id LIKE 'envelope-receipt-%'",
+            )
+            .unwrap()
+            .query_map([&owner_device], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, Vec<u8>>(1)?))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert!(!receipts.is_empty(), "joiner 应已为 roster/offer 诗回执");
+        drop(stage);
+        drop(joiner);
+        receipts
+            .into_iter()
+            .map(|(_, bytes)| STANDARD.encode(bytes))
+            .collect::<Vec<String>>()
+    };
+    for wire in &receipts {
+        f.receive("owner", wire);
+    }
+    assert_eq!(f.state("owner").phase, "sending_snapshot");
+
+    // Owner 端：分片全部入 outbox 但都未回执 → 进度 0/total。
+    assert_eq!(f.state("owner").total_chunks, offer.chunks);
+    assert_eq!(f.state("owner").received_chunks, 0);
+    assert!(offer.chunks >= 2, "测试至少需要两个分片");
+
+    // 收集 chunk 信封（message_id 形如 snapshot:{id}:{index}，不含 snapshot-end）。
+    let (peer, chunk_ids): (String, Vec<String>) = {
+        let owner = f.loan("owner");
+        let store = owner.store().unwrap();
+        let peer: String = store
+            .connection
+            .query_row(
+                "SELECT recipient_device_id FROM sync_snapshot_exports WHERE id=?1",
+                [&offer.snapshot_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let ids: Vec<String> = store
+            .connection
+            .prepare(
+                "SELECT message_id FROM sync_snapshot_export_wires WHERE snapshot_id=?1 AND message_id LIKE 'snapshot:%' ORDER BY message_id",
+            )
+            .unwrap()
+            .query_map([&offer.snapshot_id], |r| r.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        (peer, ids)
+    };
+    assert_eq!(chunk_ids.len() as i64, offer.chunks);
+    let half = chunk_ids.len() / 2;
+    {
+        let owner = f.loan("owner");
+        let store = owner.store().unwrap();
+        for id in &chunk_ids[..half] {
+            store
+                .connection
+                .execute(
+                    "UPDATE sync_wire_outbox SET state='acknowledged' WHERE recipient_device_id=?1 AND message_id=?2 AND state='pending'",
+                    rusqlite::params![peer, id],
+                )
+                .unwrap();
+        }
+    }
+
+    // Owner 视图：已回执分片数即发送进度，仍小于总数。
+    let mid = f.state("owner");
+    assert_eq!(mid.total_chunks, offer.chunks);
+    assert_eq!(mid.received_chunks as usize, half);
+    assert!(mid.received_chunks < mid.total_chunks);
+
+    // Joiner 端：实际接收一半分片 → received_chunks 等量增长。
+    for id in &chunk_ids[..half] {
+        f.receive("joiner", &f.wire(id));
+    }
+    let joiner_view = f.state("joiner");
+    assert_eq!(joiner_view.phase, "receiving_snapshot");
+    assert_eq!(joiner_view.total_chunks, offer.chunks);
+    assert_eq!(joiner_view.received_chunks as usize, half);
+    assert!(!joiner_view.local_applied);
+}

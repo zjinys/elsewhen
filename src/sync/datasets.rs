@@ -391,6 +391,18 @@ pub(crate) fn selected_database_path(root: &Path) -> Result<Option<PathBuf>> {
     }
     let connection = Connection::open_with_flags(&catalog, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     connection.busy_timeout(std::time::Duration::from_secs(5))?;
+    // 0 字节 / 未初始化的 catalog 不是损坏：曾在某次失败的调用里被
+    // SQLite 创建后未及建表（进程中途被杀）。完整入口 `open()` 能把它
+    // 初始化到 version=1，但本函数是只读启动路径，不能写；当作
+    // “没有数据集”回落主库。有表的才严格校验 schema。
+    let populated: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%')",
+        [],
+        |r| r.get(0),
+    )?;
+    if !populated {
+        return Ok(None);
+    }
     check_schema(&connection)?;
     let transaction = connection.unchecked_transaction()?;
     let selected: Option<String> = connection.query_row(

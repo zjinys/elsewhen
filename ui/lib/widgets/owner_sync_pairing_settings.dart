@@ -104,9 +104,27 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
-    final offer = controller.invitation;
-    final preview = controller.pairingPreview;
-    return Column(
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        controller,
+        controller.enrollment,
+      ]),
+      builder: (context, _) {
+        final offer = controller.invitation;
+        final preview = controller.pairingPreview;
+        final sending = controller.enrollment.states
+            .where(
+              (s) =>
+                  s.role == 'owner' &&
+                  const [
+                    'preparing_snapshot',
+                    'awaiting_snapshot_selection',
+                    'sending_snapshot',
+                  ].contains(s.phase) &&
+                  s.totalChunks > 0,
+            )
+            .toList();
+        return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Divider(height: 32),
@@ -168,6 +186,18 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
             ),
           ),
           const SizedBox(height: 8),
+          for (final snapshotState in sending) ...[
+            SyncSnapshotProgress(
+              received: snapshotState.receivedChunks,
+              total: snapshotState.totalChunks,
+              label: switch (snapshotState.phase) {
+                'preparing_snapshot' => '正在准备初始快照',
+                'awaiting_snapshot_selection' => '等待选择初始快照',
+                _ => '正在发送初始快照',
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
           const Text('邀请码仅交给可信设备。'),
           Text(
             '到期时间：${DateTime.fromMillisecondsSinceEpoch(offer.expiresAtMs).toLocal()}',
@@ -225,6 +255,8 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
           Text(controller.pairingNotice!),
         ],
       ],
+        );
+      },
     );
   }
 }

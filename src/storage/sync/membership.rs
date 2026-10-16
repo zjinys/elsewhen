@@ -571,6 +571,13 @@ impl Store {
             .context("sync_membership_revision_exhausted")?;
         let signed = SignedRoster::sign(roster, owner)?;
         self.apply_signed_roster(&signed.encode()?)?;
+        // S02 清理缺口：撤销成员时清除发往该设备的在途信封（pending），
+        // 否则 outbox 会对一个永远无法回执的收件人反复重试（悬空流量）。
+        // 已回执（acknowledged）的历史记录保留。
+        self.connection.execute(
+            "DELETE FROM sync_wire_outbox WHERE recipient_device_id=?1 AND state='pending'",
+            [device],
+        )?;
         if let Some(tx) = tx {
             tx.commit()?;
         }

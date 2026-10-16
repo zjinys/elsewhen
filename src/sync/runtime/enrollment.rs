@@ -147,6 +147,14 @@ fn view(config: &AppConfig, session: &Session, invitation: &str) -> Result<Enrol
             }
             if result.remote_applied {
                 result.received_chunks = result.total_chunks;
+            } else if result.total_chunks > 0 {
+                // Owner 端发送进度：对端已回执的快照分片信封数量（消息 id 形如
+                // snapshot:{snapshot_id}:{index}，见 storage/sync/delivery.rs）。
+                result.received_chunks = store.connection.query_row(
+                    "SELECT COUNT(*) FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id LIKE 'snapshot:'||?2||':%' AND state='acknowledged'",
+                    rusqlite::params![record.peer.device_id, snapshot.id],
+                    |r| r.get(0),
+                )?;
             }
             if record.owner_confirmed {
                 result.notification_pending = !store

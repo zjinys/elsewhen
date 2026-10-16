@@ -96,3 +96,52 @@ int joinerStageFor(String phase) => switch (phase) {
   'awaiting_membership' || 'enrollment' || 'enrollment_confirmation' => 4,
   _ => -1,
 };
+
+/// 初始快照传输进度条：owner「正在发送」与 joiner「正在接收」共用。
+/// 数据源：enrollment 视图的 received/total chunks（快照分片级进度）。
+/// 进度值必须确定性（value 非 null），否则测试 pumpAndSettle 永 idle。
+class SyncSnapshotProgress extends StatelessWidget {
+  const SyncSnapshotProgress({
+    super.key,
+    required this.received,
+    required this.total,
+    this.label = '初始快照传输',
+  });
+
+  final int received;
+  final int total;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final value = total > 0 ? (received / total).clamp(0.0, 1.0) : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '$received/$total',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(value: value, minHeight: 6),
+        ),
+      ],
+    );
+  }
+}

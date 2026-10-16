@@ -7,7 +7,9 @@ import '../bridge/rust_bridge_repository.dart';
 import '../utils/device_name.dart';
 import '../bridge/api.dart' as api;
 import '../sync/sync_processor_handoff_controller.dart';
+import '../sync/sync_dataset_switch_api.dart';
 import '../sync/sync_roster_controller.dart';
+import 'dataset_switch_card.dart';
 import '../sync/sync_provider_conflicts_controller.dart';
 import '../sync/sync_wiki_conflicts_controller.dart';
 import '../sync/sync_setup_controller.dart';
@@ -32,8 +34,12 @@ class LocalSyncSettings extends StatefulWidget {
     this.objectConflictsController,
     this.handoffController,
     this.rosterController,
+    this.datasetApi,
   });
   final SyncSetupController? controller;
+
+  /// 数据集切换注入缝；为空用默认原生实现（见 DatasetSwitchCard）。
+  final SyncDatasetSwitchApi? datasetApi;
   final RustBridgeRepository? repository;
 
   /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
@@ -244,6 +250,9 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 _tab = selection.first;
                 _tabTouched = true;
               }),
+            ),
+            DatasetSwitchCard(
+              api: widget.datasetApi ?? const FrbSyncDatasetSwitchApi(),
             ),
             const SizedBox(height: 12),
             if (tab == _SyncTab.bind)
