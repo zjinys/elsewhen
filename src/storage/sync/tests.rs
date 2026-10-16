@@ -2101,3 +2101,48 @@ fn knowledge_review_and_reading_state_propagate() {
         .unwrap();
     assert_eq!(a_state, "valuable");
 }
+
+#[test]
+fn wiki_revision_oversize_reason_is_clamped_in_envelope_not_rejected() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    seed_wiki_page(&a, "page-1", "topic/p1", "页面一", "v1", &[]);
+    capture_wiki(&a, "page-1");
+    deliver(&a, &b);
+    // AI 生成的长修改理由（>512 字节）曾触发信封校验
+    // sync_wiki_revision_field_invalid，导致接受提案的整个业务事务
+    // 回滚（提案永远无法采纳）。捕获时必须截断而不是拒绝。
+    let long_reason = format!("用户确认知识建议：{}", "矛盾标注".repeat(200));
+    assert!(long_reason.len() > 512);
+    let tx = a.store.begin_write_transaction().unwrap();
+    a.store
+        .record_wiki_revision("page-1", "v2", &long_reason, None)
+        .unwrap();
+    if let Some(tx) = tx {
+        tx.commit().unwrap();
+    }
+    // 本地审计保留全文。
+    let local: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT reason FROM wiki_revisions WHERE page_id='page-1' ORDER BY rowid DESC LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(local, long_reason);
+    deliver(&a, &b);
+    let remote: String = b
+        .store
+        .connection
+        .query_row(
+            "SELECT reason FROM wiki_revisions WHERE page_id='page-1' ORDER BY rowid DESC LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(remote.len() <= 512);
+    assert!(remote.ends_with('…'));
+}

@@ -142,8 +142,14 @@ impl Store {
         if self.sync_identity()?.is_none() {
             return Ok(());
         }
+        // 信封对 reason 限 512 字节，超限会让捕获报错并回滚整个业务事务
+        // （真实案例：接受 AI 知识提案时 reason=AI 长理由+前缀 >512，
+        // 报 sync_wiki_revision_field_invalid，提案永远无法采纳）。
+        // 本地 wiki_revisions 保留全文，仅对外副本截断。
+        let mut revision = revision.clone();
+        revision.reason = clamp_wiki_reason(&revision.reason);
         self.append_sync_mutation(SyncMutation::WikiPageRevisionAppended {
-            revision: revision.clone(),
+            revision,
         })?;
         Ok(())
     }
@@ -542,4 +548,27 @@ impl Store {
         )?;
         Ok(())
     }
+}
+
+/// 同步信封允许的修订理由最大字节数（`protocol.rs` 对 WikiPageRevisionAppended
+/// 的校验同一语义：`reason.len() <= 512`）。
+const WIKI_REASON_ENVELOPE_LIMIT: usize = 512;
+
+/// 把修订理由截断到信封上限内（按字节余量安全截取，尾部加省略号）。
+/// 本地 wiki_revisions 保留全文；只对外副本做截断，避免超限信封让
+/// 捕获失败并回滚整个业务事务。
+pub(super) fn clamp_wiki_reason(reason: &str) -> String {
+    if reason.len() <= WIKI_REASON_ENVELOPE_LIMIT {
+        return reason.to_string();
+    }
+    let limit = WIKI_REASON_ENVELOPE_LIMIT - '…'.len_utf8();
+    let mut out = String::new();
+    for ch in reason.chars() {
+        if out.len() + ch.len_utf8() > limit {
+            break;
+        }
+        out.push(ch);
+    }
+    out.push('…');
+    out
 }

@@ -981,7 +981,7 @@ impl Store {
         })
     }
 
-    fn record_wiki_revision(
+    pub(crate) fn record_wiki_revision(
         &self,
         page_id: &str,
         content_md: &str,
