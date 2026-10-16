@@ -51,6 +51,98 @@ pub struct ToolSpec {
     pub parameters: Value,
 }
 
+/// 技能包：把低频工具按任务场景打包，附方法论说明。
+/// L1（title/tags/brief）常驻在 enable_tools 描述里供模型判断，
+/// L2（instructions + 工具完整 schema）在 load 时才注入。
+/// 不变量：每个 deferred() 工具至少被一个内建 skill 覆盖（有测试断言）。
+pub struct SkillDefinition {
+    pub id: &'static str,
+    pub title: &'static str,
+    pub tags: &'static [&'static str],
+    pub brief: &'static str,
+    pub instructions: &'static str,
+    pub tools: &'static [&'static str],
+}
+
+/// 内建技能包：覆盖全部延迟加载工具。
+/// 后续扩展路径：用户自定义 skill 挂知识页（知识库即存储与同步管道），
+/// 运行时扫描注册；脚本执行型能力仅桌面端、另行评审。
+pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
+    SkillDefinition {
+        id: "web-search",
+        title: "联网检索",
+        tags: &["联网", "搜索", "网页", "抓取", "链接"],
+        brief: "搜索网页、抓取指定 URL 或推文，获取实时信息",
+        instructions: "使用要点：\n\
+            - 优先 web_search 找线索，再 fetch_page 读原文；有具体 URL 或推特链接时直接抓取。\n\
+            - 回答时引用来源（链接/标题），不要凭记忆转述搜索结果。\n\
+            - 抓取失败或页面为空时如实告知，不要编造内容或 URL。\n\
+            - 用户只是问事实而你不确定时，先搜再答；闲聊不需要联网。",
+        tools: &["web_search", "fetch_page", "fetch_tweet"],
+    },
+    SkillDefinition {
+        id: "wiki-maintenance",
+        title: "知识库维护",
+        tags: &["改名", "归档", "整理", "导入网页", "wiki"],
+        brief: "重命名知识页、按标题归档会话、把网页导入知识库",
+        instructions: "使用要点：\n\
+            - rename_wiki_page 会同步到所有设备，改名前告知用户影响。\n\
+            - archive_conversations_by_title 是批量操作：先向用户复述将归档的清单再执行。\n\
+            - import_url_to_wiki 仅在用户明确给出链接并要求保存时使用；导入后提示用户检查内容。\n\
+            - 这些操作不可轻易撤销，宁可多确认一次。",
+        tools: &[
+            "rename_wiki_page",
+            "archive_conversations_by_title",
+            "import_url_to_wiki",
+        ],
+    },
+    SkillDefinition {
+        id: "todo-actions",
+        title: "待办管理",
+        tags: &["待办", "任务", "清单", "备忘"],
+        brief: "创建待办事项",
+        instructions: "使用要点：\n\
+            - 仅在用户明确要求记录待办、或出现明确的承诺性事项（截止日期、应许动作）时创建。\n\
+            - 标题写清动作与对象，避免模糊描述。\n\
+            - 一般疑问、想法、临时话题不要建待办；查询已有待办用常驻的 list_todos。",
+        tools: &["create_todo"],
+    },
+    SkillDefinition {
+        id: "people-graph",
+        title: "人物关系",
+        tags: &["人物", "关系", "人脉"],
+        brief: "从对话或知识页提取人物关系并形成提案",
+        instructions: "使用要点：\n\
+            - propose_people_relations 形成单个提案，batch_extract_people_relations 批量提取。\n\
+            - 只提取有证据支撑的关系（对话中明说、知识页可引用），不臆测。\n\
+            - 结果是提案，需用户确认后才生效；回复中说明提案数量与依据。",
+        tools: &["propose_people_relations", "batch_extract_people_relations"],
+    },
+    SkillDefinition {
+        id: "directory-import",
+        title: "目录导入",
+        tags: &["目录", "项目", "代码", "导入", "桌面"],
+        brief: "把本地目录作为项目或文件导入知识库（桌面端）",
+        instructions: "使用要点：\n\
+            - 仅桌面端可用；移动端调用会失败。\n\
+            - import_directory_as_project 先做有限证据扫描并给出项目分析提案，用户确认后才保存知识页。\n\
+            - 目录文件片段会发送给当前 AI Provider，涉及敏感项目时先提醒用户。\n\
+            - 用户没有明确指定目录路径时，先问清楚再扫。",
+        tools: &["import_directory_as_project", "import_directory_files"],
+    },
+    SkillDefinition {
+        id: "event-record",
+        title: "手动记录",
+        tags: &["记录", "记住", "记一下", "事件"],
+        brief: "把第一人称事实、决定、行动手动记入时间线",
+        instructions: "使用要点：\n\
+            - 仅记录第一人称的事实、决定、行动或进展；AI 的评价、闲聊不记。\n\
+            - 用户说\"记一下/记到知识库/记住这件事\"时使用。\n\
+            - occurred_at 可缺省（默认现在），用户提到过去时间时转换成 ISO 8601。",
+        tools: &["record_event"],
+    },
+];
+
 /// 工具执行结果（回喂给 AI 的消息）
 #[derive(Debug, Clone)]
 pub struct ToolResultMsg {
@@ -223,69 +315,89 @@ impl ToolRegistry {
         Some(ToolSpec {
             name: "enable_tools".to_string(),
             description: format!(
-                "按需启用延迟加载的工具（一次可多个），调用后返回其完整参数定义，\
-                 同一轮稍后即可调用它们。可用延迟工具：\n{}",
-                self.deferred_roster_text()
+                "按需加载技能包（一次可多个），调用后返回技能使用说明与其打包工具的完整参数定义，\
+                 同一轮稍后即可调用这些工具。可用技能包：\n{}",
+                self.skill_roster_text()
             ),
             parameters: serde_json::json!({
                 "type":"object",
                 "properties":{
-                    "tools":{"type":"array","items":{"type":"string"},"description":"要启用的工具名，至少一个，必须来自上面的名单"}
+                    "skills":{"type":"array","items":{"type":"string"},"description":"要启用的技能包 id，至少一个，必须来自上面的名单"}
                 },
-                "required":["tools"],
+                "required":["skills"],
                 "additionalProperties":false
             }),
         })
     }
 
-    /// enable_tools 的模型侧说明：延迟工具的名字+一句话用途。
-    pub fn deferred_roster_text(&self) -> String {
-        let mut out = String::from("延迟加载工具（需要时先调用 enable_tools，一次可启用多个）：\n");
-        for tool in &self.tools {
-            if tool.deferred() {
-                let brief = tool.description().lines().next().unwrap_or("");
-                out.push_str(&format!("- {}：{}\n", tool.name(), brief));
-            }
+    /// enable_tools 的模型侧说明：技能包 id + 标题/tags + 一句话用途。
+    pub fn skill_roster_text(&self) -> String {
+        let mut out = String::new();
+        for skill in BUILTIN_SKILLS {
+            out.push_str(&format!(
+                "- {}（{}）：{}。tags: {}",
+                skill.id,
+                skill.title,
+                skill.brief,
+                skill.tags.join("/")
+            ));
+            out.push('\n');
         }
         out
     }
 
-    /// 处理 enable_tools 调用：登记启用，返回全量参数定义（模型照此构造调用）。
+    /// 处理 enable_tools 调用：按技能包 id 登记（激活包内全部延迟工具），
+    /// 回传方法论说明 + 每个工具的名字/描述/完整参数定义。
     pub fn enable_result(
         &self,
-        names: &[String],
+        skill_ids: &[String],
         enabled: &mut std::collections::HashSet<String>,
     ) -> String {
-        let mut activated = Vec::new();
+        let mut activated_skills = Vec::new();
+        let mut tools_included = Vec::new();
         let mut unknown = Vec::new();
-        for name in names {
-            if self.is_deferred(name) {
-                enabled.insert(name.clone());
-                activated.push(name.clone());
-            } else if self.get(name).is_some() {
-                activated.push(format!("{name}（本就常驻）"));
-            } else {
-                unknown.push(name.clone());
+        for id in skill_ids {
+            match BUILTIN_SKILLS.iter().find(|s| s.id == id) {
+                Some(skill) => {
+                    activated_skills.push(format!("{}（{}）", skill.id, skill.title));
+                    for name in skill.tools {
+                        if self.is_deferred(name) {
+                            enabled.insert((*name).to_string());
+                            tools_included.push(*name);
+                        }
+                    }
+                }
+                None => unknown.push(id.clone()),
             }
         }
         let mut text = String::new();
-        if !activated.is_empty() {
-            text.push_str(&format!("已启用：{}。\n", activated.join("、")));
+        if !activated_skills.is_empty() {
+            text.push_str(&format!(
+                "已启用技能包：{}。\n\n",
+                activated_skills.join("、")
+            ));
         }
-        for name in names {
-            if self.is_deferred(name) {
-                if let Some(tool) = self.get(name) {
-                    text.push_str(&format!(
-                        "{} 参数 JSON Schema：{}\n",
-                        name,
-                        tool.parameters_schema()
-                    ));
+        for id in skill_ids {
+            if let Some(skill) = BUILTIN_SKILLS.iter().find(|s| s.id == id) {
+                text.push_str(&format!(
+                    "== {}（{}）使用说明 ==\n{}\n",
+                    skill.id, skill.title, skill.instructions
+                ));
+                for name in skill.tools {
+                    if let Some(tool) = self.get(name) {
+                        text.push_str(&format!(
+                            "工具 {}: {}\n参数 JSON Schema：{}\n\n",
+                            tool.name(),
+                            tool.description(),
+                            tool.parameters_schema()
+                        ));
+                    }
                 }
             }
         }
         if !unknown.is_empty() {
             text.push_str(&format!(
-                "未知的工具名：{}（可用延迟工具见 enable_tools 描述）。",
+                "未知的技能包：{}（可用技能包见 enable_tools 描述）。",
                 unknown.join("、")
             ));
         }

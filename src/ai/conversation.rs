@@ -1000,7 +1000,7 @@ fn run_agent_loop_inner(
                 if call.name == "enable_tools" {
                     let names: Vec<String> = call
                         .arguments
-                        .get("tools")
+                        .get("skills")
                         .and_then(|v| v.as_array())
                         .map(|arr| {
                             arr.iter()
@@ -1058,7 +1058,7 @@ fn run_agent_loop_inner(
                 if call.name == "enable_tools" {
                     let names: Vec<String> = call
                         .arguments
-                        .get("tools")
+                        .get("skills")
                         .and_then(|v| v.as_array())
                         .map(|arr| {
                             arr.iter()

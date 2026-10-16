@@ -962,28 +962,53 @@ fn deferred_runtime_keeps_eager_tools_and_defers_rest() {
     }
     let meta = registry.meta_spec().expect("延迟模式应有 meta spec");
     assert_eq!(meta.name, "enable_tools");
-    assert!(meta.description.contains("create_todo"));
+    assert!(meta.description.contains("web-search"));
     // 常驻模式不带 meta
     assert!(ToolRegistry::eager().meta_spec().is_none());
 }
 
 #[test]
-fn enable_result_activates_and_returns_schema() {
+fn builtin_skills_cover_every_deferred_tool() {
+    let registry = ToolRegistry::deferred_runtime();
+    let deferred: Vec<&str> = registry
+        .names()
+        .into_iter()
+        .filter(|n| registry.is_deferred(n))
+        .collect();
+    assert!(!deferred.is_empty());
+    let mut uncovered = Vec::new();
+    for name in &deferred {
+        if !BUILTIN_SKILLS.iter().any(|s| s.tools.contains(&name)) {
+            uncovered.push(*name);
+        }
+    }
+    assert!(
+        uncovered.is_empty(),
+        "延迟工具未被任何内建技能包覆盖: {uncovered:?}"
+    );
+}
+
+#[test]
+fn enable_result_activates_skills_and_returns_instructions() {
     let registry = ToolRegistry::deferred_runtime();
     let mut enabled = std::collections::HashSet::new();
     let text = registry.enable_result(
         &[
-            "create_todo".into(),
-            "web_search".into(),
+            "web-search".into(),
+            "todo-actions".into(),
             "nonexistent".into(),
         ],
         &mut enabled,
     );
-    assert!(enabled.contains("create_todo") && enabled.contains("web_search"));
-    assert!(
-        text.contains("已启用") && text.contains("JSON Schema") && text.contains("nonexistent")
-    );
-    // 未启用时 dispatch 拦截；启用后放行由 dispatch 函数带 enabled 参数验证
+    // 技能包激活其打包的全部延迟工具
+    for tool in ["web_search", "fetch_page", "fetch_tweet", "create_todo"] {
+        assert!(enabled.contains(tool), "未激活 {tool}");
+    }
+    assert!(text.contains("已启用技能包"));
+    assert!(text.contains("使用说明"));
+    assert!(text.contains("JSON Schema"));
+    assert!(text.contains("nonexistent"));
+    // 未启用时 dispatch 拦截；启用后放行由 dispatch_for_turn 带enabled参数验证
     assert!(registry.is_deferred("create_todo"));
 }
 
