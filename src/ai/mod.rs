@@ -6,6 +6,7 @@ pub mod insight;
 pub mod memory;
 pub(crate) mod page_tasks;
 pub mod provider;
+pub mod skills;
 pub(crate) mod summary;
 pub(crate) mod supplements;
 pub(crate) mod time_context;

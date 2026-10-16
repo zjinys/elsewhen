@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1612473897;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 507618911;
 
 // Section: executor
 
@@ -3756,6 +3756,27 @@ fn wire__crate__api__chat_runs__list_unscheduled_chat_inputs_impl(
         },
     )
 }
+fn wire__crate__api__user_skills__list_user_skills_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_user_skills",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::user_skills::list_user_skills()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__sync__list_wiki_page_conflicts_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -5449,6 +5470,32 @@ fn wire__crate__api__rules__set_rule_trigger_mode_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::rules::set_rule_trigger_mode(api_mode)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__user_skills__set_user_skill_enabled_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    enabled: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_user_skill_enabled",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_enabled = enabled.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::user_skills::set_user_skill_enabled(api_id, api_enabled)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -8456,6 +8503,20 @@ impl SseDecode for Vec<crate::api::chat_runs::UnscheduledChatInputDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::user_skills::UserSkillDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::user_skills::UserSkillDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::sync::WikiPageConflictDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9661,6 +9722,24 @@ impl SseDecode for crate::api::chat_runs::UnscheduledChatInputDto {
             input_message_id: var_inputMessageId,
             preview: var_preview,
             created_at: var_createdAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::user_skills::UserSkillDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_brief = <String>::sse_decode(deserializer);
+        let mut var_enabled = <bool>::sse_decode(deserializer);
+        let mut var_hasSkillMd = <bool>::sse_decode(deserializer);
+        return crate::api::user_skills::UserSkillDto {
+            id: var_id,
+            title: var_title,
+            brief: var_brief,
+            enabled: var_enabled,
+            has_skill_md: var_hasSkillMd,
         };
     }
 }
@@ -12449,6 +12528,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::chat_runs::UnscheduledChatInp
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::user_skills::UserSkillDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.brief.into_into_dart().into_dart(),
+            self.enabled.into_into_dart().into_dart(),
+            self.has_skill_md.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::user_skills::UserSkillDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::user_skills::UserSkillDto>
+    for crate::api::user_skills::UserSkillDto
+{
+    fn into_into_dart(self) -> crate::api::user_skills::UserSkillDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::db_maintenance::VacuumResultDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -14140,6 +14243,16 @@ impl SseEncode for Vec<crate::api::chat_runs::UnscheduledChatInputDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::user_skills::UserSkillDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::user_skills::UserSkillDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::sync::WikiPageConflictDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -14951,6 +15064,17 @@ impl SseEncode for crate::api::chat_runs::UnscheduledChatInputDto {
         <String>::sse_encode(self.input_message_id, serializer);
         <String>::sse_encode(self.preview, serializer);
         <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::user_skills::UserSkillDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.brief, serializer);
+        <bool>::sse_encode(self.enabled, serializer);
+        <bool>::sse_encode(self.has_skill_md, serializer);
     }
 }
 
@@ -16826,6 +16950,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::user_skills::UserSkillDto>> for *mut wire_cst_list_user_skill_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::user_skills::UserSkillDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::sync::WikiPageConflictDto>>
         for *mut wire_cst_list_wiki_page_conflict_dto
     {
@@ -17453,6 +17587,18 @@ mod io {
                 input_message_id: self.input_message_id.cst_decode(),
                 preview: self.preview.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::user_skills::UserSkillDto> for wire_cst_user_skill_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::user_skills::UserSkillDto {
+            crate::api::user_skills::UserSkillDto {
+                id: self.id.cst_decode(),
+                title: self.title.cst_decode(),
+                brief: self.brief.cst_decode(),
+                enabled: self.enabled.cst_decode(),
+                has_skill_md: self.has_skill_md.cst_decode(),
             }
         }
     }
@@ -19371,6 +19517,22 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_user_skill_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                title: core::ptr::null_mut(),
+                brief: core::ptr::null_mut(),
+                enabled: Default::default(),
+                has_skill_md: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_user_skill_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_vacuum_result_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -20851,6 +21013,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__user_skills__list_user_skills(
+        port_: i64,
+    ) {
+        wire__crate__api__user_skills__list_user_skills_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_wiki_page_conflicts(
         port_: i64,
     ) {
@@ -21508,6 +21677,15 @@ mod io {
         mode: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__rules__set_rule_trigger_mode_impl(port_, mode)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__user_skills__set_user_skill_enabled(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        enabled: bool,
+    ) {
+        wire__crate__api__user_skills__set_user_skill_enabled_impl(port_, id, enabled)
     }
 
     #[unsafe(no_mangle)]
@@ -22819,6 +22997,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_user_skill_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_user_skill_dto {
+        let wrap = wire_cst_list_user_skill_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_user_skill_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_wiki_page_conflict_dto(
         len: i32,
     ) -> *mut wire_cst_list_wiki_page_conflict_dto {
@@ -23923,6 +24115,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_user_skill_dto {
+        ptr: *mut wire_cst_user_skill_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_wiki_page_conflict_dto {
         ptr: *mut wire_cst_wiki_page_conflict_dto,
         len: i32,
@@ -24403,6 +24601,15 @@ mod io {
         input_message_id: *mut wire_cst_list_prim_u_8_strict,
         preview: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_user_skill_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        brief: *mut wire_cst_list_prim_u_8_strict,
+        enabled: bool,
+        has_skill_md: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -26743,6 +26950,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::user_skills::UserSkillDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::user_skills::UserSkillDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::sync::WikiPageConflictDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -27811,6 +28030,29 @@ mod web {
                 input_message_id: self_.get(0).cst_decode(),
                 preview: self_.get(1).cst_decode(),
                 created_at: self_.get(2).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::user_skills::UserSkillDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::user_skills::UserSkillDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                5,
+                "Expected 5 elements, got {}",
+                self_.length()
+            );
+            crate::api::user_skills::UserSkillDto {
+                id: self_.get(0).cst_decode(),
+                title: self_.get(1).cst_decode(),
+                brief: self_.get(2).cst_decode(),
+                enabled: self_.get(3).cst_decode(),
+                has_skill_md: self_.get(4).cst_decode(),
             }
         }
     }
@@ -29455,6 +29697,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__user_skills__list_user_skills(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__user_skills__list_user_skills_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__sync__list_wiki_page_conflicts(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -30114,6 +30363,15 @@ mod web {
         mode: String,
     ) {
         wire__crate__api__rules__set_rule_trigger_mode_impl(port_, mode)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__user_skills__set_user_skill_enabled(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        enabled: bool,
+    ) {
+        wire__crate__api__user_skills__set_user_skill_enabled_impl(port_, id, enabled)
     }
 
     #[wasm_bindgen]

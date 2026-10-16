@@ -978,6 +978,10 @@ fn builtin_skills_cover_every_deferred_tool() {
     assert!(!deferred.is_empty());
     let mut uncovered = Vec::new();
     for name in &deferred {
+        // run_skill_script 是用户技能的执行通道，不打包进内建技能
+        if *name == "run_skill_script" {
+            continue;
+        }
         if !BUILTIN_SKILLS.iter().any(|s| s.tools.contains(&name)) {
             uncovered.push(*name);
         }

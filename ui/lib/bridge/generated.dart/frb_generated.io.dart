@@ -25,6 +25,7 @@ import 'api/sync.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
+import 'api/user_skills.dart';
 import 'api/web_search.dart';
 import 'api/wiki.dart';
 import 'api/wiki_chat.dart';
@@ -542,6 +543,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UserSkillDto> dco_decode_list_user_skill_dto(dynamic raw);
+
+  @protected
   List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(dynamic raw);
 
   @protected
@@ -761,6 +765,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
+
+  @protected
+  UserSkillDto dco_decode_user_skill_dto(dynamic raw);
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
@@ -1420,6 +1427,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UserSkillDto> sse_decode_list_user_skill_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
     SseDeserializer deserializer,
   );
@@ -1701,6 +1713,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  UserSkillDto sse_decode_user_skill_dto(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
@@ -2661,6 +2676,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_unscheduled_chat_input_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_unscheduled_chat_input_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_user_skill_dto> cst_encode_list_user_skill_dto(
+    List<UserSkillDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_user_skill_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_user_skill_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -4523,6 +4550,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_user_skill_dto(
+    UserSkillDto apiObj,
+    wire_cst_user_skill_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.brief = cst_encode_String(apiObj.brief);
+    wireObj.enabled = cst_encode_bool(apiObj.enabled);
+    wireObj.has_skill_md = cst_encode_bool(apiObj.hasSkillMd);
+  }
+
+  @protected
   void cst_api_fill_to_wire_vacuum_result_dto(
     VacuumResultDto apiObj,
     wire_cst_vacuum_result_dto wireObj,
@@ -5482,6 +5521,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_user_skill_dto(
+    List<UserSkillDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_wiki_page_conflict_dto(
     List<WikiPageConflictDto> self,
     SseSerializer serializer,
@@ -5837,6 +5882,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     UnscheduledChatInputDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_user_skill_dto(UserSkillDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
@@ -7214,6 +7262,21 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_list_unscheduled_chat_input_dto> Function(int)
           >();
+
+  ffi.Pointer<wire_cst_list_user_skill_dto> cst_new_list_user_skill_dto(
+    int len,
+  ) {
+    return _cst_new_list_user_skill_dto(len);
+  }
+
+  late final _cst_new_list_user_skill_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_user_skill_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_user_skill_dto');
+  late final _cst_new_list_user_skill_dto = _cst_new_list_user_skill_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_user_skill_dto> Function(int)>();
 
   ffi.Pointer<wire_cst_list_wiki_page_conflict_dto>
   cst_new_list_wiki_page_conflict_dto(int len) {
@@ -12981,6 +13044,48 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__user_skills__list_user_skills(int port_) {
+    return _wire__crate__api__user_skills__list_user_skills(port_);
+  }
+
+  late final _wire__crate__api__user_skills__list_user_skillsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__user_skills__list_user_skills',
+      );
+  late final _wire__crate__api__user_skills__list_user_skills =
+      _wire__crate__api__user_skills__list_user_skillsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__user_skills__set_user_skill_enabled(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    bool enabled,
+  ) {
+    return _wire__crate__api__user_skills__set_user_skill_enabled(
+      port_,
+      id,
+      enabled,
+    );
+  }
+
+  late final _wire__crate__api__user_skills__set_user_skill_enabledPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__user_skills__set_user_skill_enabled',
+      );
+  late final _wire__crate__api__user_skills__set_user_skill_enabled =
+      _wire__crate__api__user_skills__set_user_skill_enabledPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
   void wire__crate__api__web_search__get_network_settings(int port_) {
     return _wire__crate__api__web_search__get_network_settings(port_);
   }
@@ -16668,6 +16773,21 @@ final class wire_cst_list_unscheduled_chat_input_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_user_skill_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_user_skill_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_user_skill_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_user_skill_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_user_skill_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_wiki_page_conflict_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_wiki_page_conflict_dto> ptr;
 
@@ -18102,6 +18222,34 @@ final class wire_cst_unscheduled_chat_input_dto extends ffi.Struct {
     ..ref.input_message_id = input_message_id
     ..ref.preview = preview
     ..ref.created_at = created_at;
+}
+
+final class wire_cst_user_skill_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> brief;
+
+  @ffi.Bool()
+  external bool enabled;
+
+  @ffi.Bool()
+  external bool has_skill_md;
+
+  static ffi.Pointer<wire_cst_user_skill_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> brief,
+    required bool enabled,
+    required bool has_skill_md,
+  }) => $allocator<wire_cst_user_skill_dto>()
+    ..ref.id = id
+    ..ref.title = title
+    ..ref.brief = brief
+    ..ref.enabled = enabled
+    ..ref.has_skill_md = has_skill_md;
 }
 
 final class wire_cst_vacuum_result_dto extends ffi.Struct {

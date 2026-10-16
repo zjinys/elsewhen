@@ -1003,6 +1003,13 @@ class RustBridgeRepository implements StorageRepository {
   /// 数据库体量统计（含 freelist 空闲占比，供维护面板展示）。
   Future<api.DatabaseStatsDto> databaseStats() => api.databaseStats();
 
+  /// 用户技能（skills 目录 + SKILL.md frontmatter）。
+  Future<List<api.UserSkillDto>> listUserSkills() => api.listUserSkills();
+
+  /// 用户技能启停（写 skills_state.json，不影响技能文件）。
+  Future<void> setUserSkillEnabled({required String id, required bool enabled}) =>
+      api.setUserSkillEnabled(id: id, enabled: enabled);
+
   /// VACUUM 整理（独占写，被并发阻塞时抛错由前端提示重试）。
   Future<api.VacuumResultDto> vacuumDatabase() => api.vacuumDatabase();
 

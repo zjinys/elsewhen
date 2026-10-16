@@ -25,6 +25,7 @@ import 'api/sync.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
+import 'api/user_skills.dart';
 import 'api/web_search.dart';
 import 'api/wiki.dart';
 import 'api/wiki_chat.dart';
@@ -99,7 +100,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1612473897;
+  int get rustContentHash => 507618911;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -690,6 +691,8 @@ abstract class RustLibApi extends BaseApi {
     required int limit,
   });
 
+  Future<List<UserSkillDto>> crateApiUserSkillsListUserSkills();
+
   Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts();
 
   Future<List<WikiPageDto>> crateApiWikiListWikiPageDerivatives({
@@ -988,6 +991,11 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiRulesSetRuleTriggerMode({required String mode});
+
+  Future<void> crateApiUserSkillsSetUserSkillEnabled({
+    required String id,
+    required bool enabled,
+  });
 
   Future<WikiPageDto> crateApiWikiSetWikiOpinion({
     required String slug,
@@ -5458,6 +5466,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<UserSkillDto>> crateApiUserSkillsListUserSkills() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__user_skills__list_user_skills(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_user_skill_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsListUserSkillsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsListUserSkillsConstMeta =>
+      const TaskConstMeta(debugName: "list_user_skills", argNames: []);
+
+  @override
   Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts() {
     return handler.executeNormal(
       NormalTask(
@@ -7477,6 +7506,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "set_rule_trigger_mode",
         argNames: ["mode"],
+      );
+
+  @override
+  Future<void> crateApiUserSkillsSetUserSkillEnabled({
+    required String id,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_bool(enabled);
+          return wire.wire__crate__api__user_skills__set_user_skill_enabled(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsSetUserSkillEnabledConstMeta,
+        argValues: [id, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsSetUserSkillEnabledConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_user_skill_enabled",
+        argNames: ["id", "enabled"],
       );
 
   @override
@@ -10000,6 +10062,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<UserSkillDto> dco_decode_list_user_skill_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_user_skill_dto).toList();
+  }
+
+  @protected
   List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(
     dynamic raw,
   ) {
@@ -10894,6 +10962,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       inputMessageId: dco_decode_String(arr[0]),
       preview: dco_decode_String(arr[1]),
       createdAt: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  UserSkillDto dco_decode_user_skill_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return UserSkillDto(
+      id: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      brief: dco_decode_String(arr[2]),
+      enabled: dco_decode_bool(arr[3]),
+      hasSkillMd: dco_decode_bool(arr[4]),
     );
   }
 
@@ -13389,6 +13472,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<UserSkillDto> sse_decode_list_user_skill_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <UserSkillDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_user_skill_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
     SseDeserializer deserializer,
   ) {
@@ -14597,6 +14694,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       inputMessageId: var_inputMessageId,
       preview: var_preview,
       createdAt: var_createdAt,
+    );
+  }
+
+  @protected
+  UserSkillDto sse_decode_user_skill_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_brief = sse_decode_String(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_hasSkillMd = sse_decode_bool(deserializer);
+    return UserSkillDto(
+      id: var_id,
+      title: var_title,
+      brief: var_brief,
+      enabled: var_enabled,
+      hasSkillMd: var_hasSkillMd,
     );
   }
 
@@ -16674,6 +16788,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_user_skill_dto(
+    List<UserSkillDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_user_skill_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_wiki_page_conflict_dto(
     List<WikiPageConflictDto> self,
     SseSerializer serializer,
@@ -17595,6 +17721,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.inputMessageId, serializer);
     sse_encode_String(self.preview, serializer);
     sse_encode_String(self.createdAt, serializer);
+  }
+
+  @protected
+  void sse_encode_user_skill_dto(UserSkillDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.brief, serializer);
+    sse_encode_bool(self.enabled, serializer);
+    sse_encode_bool(self.hasSkillMd, serializer);
   }
 
   @protected

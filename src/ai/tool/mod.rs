@@ -185,6 +185,7 @@ pub enum ToolPolicy {
 }
 
 mod history;
+mod skill_script;
 mod stats;
 
 /// 工具运行上下文
@@ -269,6 +270,7 @@ impl ToolRegistry {
             Box::new(ImportDirectoryProjectTool),
             Box::new(ImportDirectoryFilesTool),
             Box::new(SaveWikiRevisionTool),
+            Box::new(skill_script::RunSkillScriptTool),
         ]
     }
 }
@@ -316,8 +318,9 @@ impl ToolRegistry {
             name: "enable_tools".to_string(),
             description: format!(
                 "按需加载技能包（一次可多个），调用后返回技能使用说明与其打包工具的完整参数定义，\
-                 同一轮稍后即可调用这些工具。可用技能包：\n{}",
-                self.skill_roster_text()
+                 同一轮稍后即可调用这些工具。可用技能包：\n{}{}",
+                self.skill_roster_text(),
+                user_skills_roster(),
             ),
             parameters: serde_json::json!({
                 "type":"object",
@@ -356,6 +359,22 @@ impl ToolRegistry {
         let mut activated_skills = Vec::new();
         let mut tools_included = Vec::new();
         let mut unknown = Vec::new();
+        let mut user_skill_bodies = Vec::new();
+        let data_dir = crate::config::AppConfig::load()
+            .map(|cfg| cfg.data_dir)
+            .ok();
+        for id in skill_ids {
+            // 用户安装的技能：SKILL.md 正文 + 文件清单回传，同时激活脚本执行工具
+            if let Some(dir) = &data_dir {
+                if let Ok(body) = crate::ai::skills::load_body(dir, id) {
+                    if crate::ai::skills::is_enabled(dir, id) {
+                        enabled.insert("run_skill_script".to_string());
+                        user_skill_bodies.push(format!("【用户技能 {id}】\n{body}"));
+                        continue;
+                    }
+                }
+            }
+        }
         for id in skill_ids {
             match BUILTIN_SKILLS.iter().find(|s| s.id == id) {
                 Some(skill) => {
@@ -395,6 +414,10 @@ impl ToolRegistry {
                 }
             }
         }
+        for body in &user_skill_bodies {
+            text.push_str(body);
+            text.push('\n');
+        }
         if !unknown.is_empty() {
             text.push_str(&format!(
                 "未知的技能包：{}（可用技能包见 enable_tools 描述）。",
@@ -402,6 +425,25 @@ impl ToolRegistry {
             ));
         }
         text
+    }
+}
+
+/// 用户安装技能的 L1 清单（禁用的不显示）。
+fn user_skills_roster() -> String {
+    let Ok(cfg) = crate::config::AppConfig::load() else {
+        return String::new();
+    };
+    match crate::ai::skills::discover(&cfg.data_dir) {
+        Ok(skills) => {
+            let mut out = String::new();
+            for skill in skills {
+                if crate::ai::skills::is_enabled(&cfg.data_dir, &skill.id) {
+                    out.push_str(&format!("- {}（用户技能）：{}\n", skill.id, skill.brief));
+                }
+            }
+            out
+        }
+        Err(_) => String::new(),
     }
 }
 
@@ -1950,6 +1992,11 @@ impl Tool for SaveWikiRevisionTool {
 pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<String> {
     let args: Value = serde_json::from_str(&pa.args_json)?;
     match pa.action.as_str() {
+        // 用户技能脚本：路径与环境校验在确认时重做一遍，不信任 pending 时的状态
+        "run_skill_script" => {
+            let data_dir = crate::config::AppConfig::load()?.data_dir;
+            skill_script::execute_confirmed(&data_dir, &args)
+        }
         // 历史遗留的 record_event 待确认动作（改直接入库前的旧数据）仍可执行
         "record_event" => insert_event_from_args(&args, store),
         "save_knowledge_draft" => {

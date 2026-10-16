@@ -28,6 +28,7 @@ import 'api/sync.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
+import 'api/user_skills.dart';
 import 'api/web_search.dart';
 import 'api/wiki.dart';
 import 'api/wiki_chat.dart';
@@ -544,6 +545,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UserSkillDto> dco_decode_list_user_skill_dto(dynamic raw);
+
+  @protected
   List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(dynamic raw);
 
   @protected
@@ -763,6 +767,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
+
+  @protected
+  UserSkillDto dco_decode_user_skill_dto(dynamic raw);
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
@@ -1422,6 +1429,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UserSkillDto> sse_decode_list_user_skill_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
     SseDeserializer deserializer,
   );
@@ -1703,6 +1715,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto sse_decode_unscheduled_chat_input_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  UserSkillDto sse_decode_user_skill_dto(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
@@ -3137,6 +3152,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_user_skill_dto(List<UserSkillDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_user_skill_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_wiki_page_conflict_dto(List<WikiPageConflictDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_wiki_page_conflict_dto).toList().jsify()!;
@@ -3892,6 +3913,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.inputMessageId),
       cst_encode_String(raw.preview),
       cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_user_skill_dto(UserSkillDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.brief),
+      cst_encode_bool(raw.enabled),
+      cst_encode_bool(raw.hasSkillMd),
     ].jsify()!;
   }
 
@@ -4855,6 +4888,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_user_skill_dto(
+    List<UserSkillDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_wiki_page_conflict_dto(
     List<WikiPageConflictDto> self,
     SseSerializer serializer,
@@ -5210,6 +5249,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     UnscheduledChatInputDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_user_skill_dto(UserSkillDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
@@ -6402,6 +6444,9 @@ class RustLibWire implements BaseWire {
     limit,
   );
 
+  void wire__crate__api__user_skills__list_user_skills(NativePortType port_) =>
+      wasmModule.wire__crate__api__user_skills__list_user_skills(port_);
+
   void wire__crate__api__sync__list_wiki_page_conflicts(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__list_wiki_page_conflicts(port_);
 
@@ -7002,6 +7047,16 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String mode,
   ) => wasmModule.wire__crate__api__rules__set_rule_trigger_mode(port_, mode);
+
+  void wire__crate__api__user_skills__set_user_skill_enabled(
+    NativePortType port_,
+    String id,
+    bool enabled,
+  ) => wasmModule.wire__crate__api__user_skills__set_user_skill_enabled(
+    port_,
+    id,
+    enabled,
+  );
 
   void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
@@ -8047,6 +8102,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     int limit,
   );
 
+  external void wire__crate__api__user_skills__list_user_skills(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__sync__list_wiki_page_conflicts(
     NativePortType port_,
   );
@@ -8426,6 +8485,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__rules__set_rule_trigger_mode(
     NativePortType port_,
     String mode,
+  );
+
+  external void wire__crate__api__user_skills__set_user_skill_enabled(
+    NativePortType port_,
+    String id,
+    bool enabled,
   );
 
   external void wire__crate__api__wiki__set_wiki_opinion(

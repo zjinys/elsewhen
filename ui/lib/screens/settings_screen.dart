@@ -64,6 +64,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   api.DatabaseStatsDto? _dbStats;
   String? _dbStatsError;
+  List<api.UserSkillDto>? _userSkills;
+  String? _userSkillsError;
   bool _vacuuming = false;
 
   // 个人经验规则库
@@ -163,6 +165,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       _loadTweetService();
       _loadRules();
       _loadDbStats();
+      _loadUserSkills();
     });
   }
 
@@ -1517,10 +1520,111 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: Icons.shield_outlined,
             child: const DohSettings(),
           ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '用户技能',
+            icon: Icons.extension_outlined,
+            child: _buildUserSkillsContent(),
+          ),
         ],
       ),
     );
   }
+
+  /// 用户技能：skills 目录里每个 SKILL.md 一行，开关控制是否参与对话。
+  Widget _buildUserSkillsContent() {
+    final skills = _userSkills;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '把技能目录放进 <数据目录>/skills（每个技能一个子目录，含 SKILL.md），'
+          '对话中由模型按需加载；脚本执行前会单独向你确认。',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.6),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        if (skills == null)
+          Text(
+            _userSkillsError ?? '读取中…',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          )
+        else if (skills.isEmpty)
+          Text(
+            '尚未安装任何用户技能',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          )
+        else
+          ...skills.map((skill) => Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          skill.title,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        if (skill.brief.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              skill.brief,
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: skill.enabled,
+                    onChanged: (value) =>
+                        _toggleUserSkill(skill.id, value),
+                  ),
+                ],
+              )),
+      ],
+    );
+  }
+
+  Future<void> _loadUserSkills() async {
+    final repository = ref.read(storageRepositoryProvider);
+    if (repository is! RustBridgeRepository) return;
+    try {
+      final skills = await repository.listUserSkills();
+      if (mounted) setState(() { _userSkills = skills; _userSkillsError = null; });
+    } catch (e) {
+      if (mounted) setState(() => _userSkillsError = reportUiError('读取用户技能', e));
+    }
+  }
+
+  Future<void> _toggleUserSkill(String id, bool enabled) async {
+    setState(() {
+      _userSkills = _userSkills
+          ?.map((s) => s.id == id ? _copySkill(s, enabled: enabled) : s)
+          .toList();
+    });
+    try {
+      final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repository.setUserSkillEnabled(id: id, enabled: enabled);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _userSkillsError = reportUiError('切换用户技能', e));
+      }
+      await _loadUserSkills();
+    }
+  }
+
+  api.UserSkillDto _copySkill(api.UserSkillDto s, {required bool enabled}) =>
+      api.UserSkillDto(
+        id: s.id,
+        title: s.title,
+        brief: s.brief,
+        enabled: enabled,
+        hasSkillMd: s.hasSkillMd,
+      );
 
   /// 设备同步独立 tab：本地密钥/移交/名册/冲突态势都聚在区块内。
   Widget _buildSyncTab() {

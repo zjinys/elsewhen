@@ -145,11 +145,8 @@ fn generate_with_provider_configs(
         .first()
         .map(|p| p.model.clone())
         .unwrap_or_else(|| "unknown".into());
-    // 生产走延迟加载（省下的 schema token 让位给历史记忆）；测试保持
-    // 全量常驻，既有 agent-loop 集成测试不感知延迟机制，延迟链路另测。
-    #[cfg(test)]
-    let registry = ToolRegistry::eager();
-    #[cfg(not(test))]
+    // 生产与测试统一走延迟加载：同一套链路，测试直接守护生产行为，
+    // 包括 enable_tools 与请求预算的相互作用（零余量窗口不能被工具化挤爆）。
     let registry = ToolRegistry::deferred_runtime();
     let tool_definitions = registry.eager_specs(true).into_iter().map(|spec| serde_json::json!({
         "type":"function", "function":{"name":spec.name,"description":spec.description,"parameters":spec.parameters}

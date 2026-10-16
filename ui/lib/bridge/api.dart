@@ -37,6 +37,7 @@ export 'generated.dart/api/wiki_chat.dart';
 export 'generated.dart/api/wiki.dart';
 
 export 'generated.dart/api/knowledge_workflows.dart';
+export 'generated.dart/api/user_skills.dart';
 export 'generated.dart/knowledge/workflows.dart';
 
 /// Saving, queueing and steering are distinct, explicit user choices.
