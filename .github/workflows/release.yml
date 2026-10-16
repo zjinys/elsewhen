@@ -94,6 +94,9 @@ jobs:
   # 容器选 base-devel（自带 makepkg/fakeroot/git）；GHA 容器默认 root
   # 而 makepkg 拒绝 root，建 builder 用户代跑。
   linux-pacman:
+    # 必须等 linux job 产出并上传 linux-bundle 后再启动：无 needs 时
+    # 它与构建并行抢跑，download-artifact 只会报 Artifact not found。
+    needs: linux
     runs-on: ubuntu-latest
     timeout-minutes: 15
     container:
