@@ -477,11 +477,12 @@ fn requests_have_individual_usage_and_history_lists_are_metadata_only() {
             "completed",
             Some("model"),
             Some((20, 10)),
+            Some(12),
         )
         .unwrap();
     assert!(
         f.store
-            .finish_chat_request(&run.id, "owner", &request, "completed", None, None)
+            .finish_chat_request(&run.id, "owner", &request, "completed", None, None, None)
             .is_err()
     );
     assert_eq!(f.store.chat_run(&run.id).unwrap().unwrap().request_count, 1);

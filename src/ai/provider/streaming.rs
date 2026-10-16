@@ -93,12 +93,17 @@ impl Decoder {
                 usage["prompt_tokens"].as_u64(),
                 usage["completion_tokens"].as_u64(),
             ) {
+                // deepseek: prompt_cache_hit_tokens；OpenAI: cached_tokens。
+                let cached = usage["prompt_cache_hit_tokens"]
+                    .as_u64()
+                    .or_else(|| usage["prompt_tokens_details"]["cached_tokens"].as_u64());
                 self.usage = Some(TokenUsage {
                     prompt_tokens: prompt,
                     completion_tokens: completion,
                     total_tokens: usage["total_tokens"]
                         .as_u64()
                         .unwrap_or(prompt.saturating_add(completion)),
+                    prompt_cached_tokens: cached,
                 });
             }
         }
@@ -340,6 +345,9 @@ pub(super) fn generate(
                         total_tokens: u
                             .total_tokens
                             .unwrap_or(u.prompt_tokens?.saturating_add(u.completion_tokens?)),
+                        prompt_cached_tokens: u
+                            .prompt_cache_hit_tokens
+                            .or_else(|| u.prompt_tokens_details.and_then(|d| d.cached_tokens)),
                     })
                 }),
                 reasoning_content: choice.message.reasoning_content.clone(),

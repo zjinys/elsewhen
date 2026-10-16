@@ -68,6 +68,9 @@ pub struct TokenUsage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub total_tokens: u64,
+    /// Provider 报告的前缀缓存命中 token 数（deepseek
+    /// prompt_cache_hit_tokens / OpenAI cached_tokens）。None 表示渠道未报。
+    pub prompt_cached_tokens: Option<u64>,
 }
 
 /// AI provider reply: content plus optional tool calls, usage and model metadata
@@ -260,6 +263,15 @@ struct OpenAiUsage {
     prompt_tokens: Option<u64>,
     completion_tokens: Option<u64>,
     total_tokens: Option<u64>,
+    /// deepseek 网关直接报 prompt_cache_hit_tokens。
+    prompt_cache_hit_tokens: Option<u64>,
+    /// OpenAI 报 prompt_tokens_details.cached_tokens。
+    prompt_tokens_details: Option<OpenAiPromptTokensDetails>,
+}
+
+#[derive(Deserialize)]
+struct OpenAiPromptTokensDetails {
+    cached_tokens: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -530,6 +542,9 @@ impl OpenAiCompatibleProvider {
             total_tokens: u
                 .total_tokens
                 .unwrap_or_else(|| u.prompt_tokens.unwrap_or(0) + u.completion_tokens.unwrap_or(0)),
+            prompt_cached_tokens: u
+                .prompt_cache_hit_tokens
+                .or_else(|| u.prompt_tokens_details.and_then(|d| d.cached_tokens)),
         });
 
         Ok(AiReply {
@@ -801,6 +816,7 @@ impl OllamaProvider {
                 prompt_tokens,
                 completion_tokens,
                 total_tokens: prompt_tokens.saturating_add(completion_tokens),
+                prompt_cached_tokens: None,
             }),
             _ => None,
         };

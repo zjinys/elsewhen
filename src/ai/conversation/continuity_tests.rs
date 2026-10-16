@@ -487,6 +487,7 @@ fn empty_retry_preserves_native_protocol_and_counts_both_requests() {
             prompt_tokens: n,
             completion_tokens: 10,
             total_tokens: n + 10,
+            prompt_cached_tokens: None,
         }),
         reasoning_content: None,
         finish_reason: None,

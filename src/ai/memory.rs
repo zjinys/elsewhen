@@ -604,13 +604,14 @@ pub(crate) fn prepare_uncompressed_context(
         .map(ContextMessage::from_record)
         .collect();
     context.splice(0..0, build_system_context(store, conversation_id)?);
-    let mut next_index = 1usize;
+    // 动态背景段推到尾部（历史之后）：它们内容每轮都可能变，若插在
+    // system 与历史之间，任何变化都会使其后的全部 KV 缓存失效——挪到
+    // 尾部后，system+历史成为逐轮可复用的稳定前缀（provider 前缀缓存）。
     if let Some(background) = recent_background(store, conversation_id)? {
-        context.insert(next_index, background);
-        next_index += 1;
+        context.push(background);
     }
     if let Some(today) = today_memory_background(store, conversation_id)? {
-        context.insert(next_index, today);
+        context.push(today);
     }
     Ok(context)
 }
@@ -624,13 +625,12 @@ impl MemoryProvider for SlidingWindowMemory {
             .map(ContextMessage::from_record)
             .collect();
         context.splice(0..0, build_system_context(store, conversation_id)?);
-        let mut next_index = 1usize;
+        // 同 prepare_uncompressed_context：动态背景推尾部，护住前缀缓存。
         if let Some(background) = recent_background(store, conversation_id)? {
-            context.insert(next_index, background);
-            next_index += 1;
+            context.push(background);
         }
         if let Some(today) = today_memory_background(store, conversation_id)? {
-            context.insert(next_index, today);
+            context.push(today);
         }
         compress_context_for_model(&mut context, self.max_tokens, &self.model);
 

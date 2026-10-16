@@ -2014,6 +2014,8 @@ pub fn generate_content_chat(
             prompt_tokens: prompt_tokens_estimate,
             completion_tokens: completion_tokens_estimate,
             total_tokens: prompt_tokens_estimate + completion_tokens_estimate,
+        
+            prompt_cached_tokens: None,
         },
     };
     store.record_token_usage(

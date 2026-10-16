@@ -277,7 +277,8 @@ fn missing_call_reply() -> AiReply {
         prompt_tokens: 200,
         completion_tokens: 43,
         total_tokens: 243,
-    });
+                        prompt_cached_tokens: None,
+        });
     reply
 }
 
