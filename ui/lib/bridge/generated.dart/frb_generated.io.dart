@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/chat_proposals.dart';
 import 'api/chat_runs.dart';
 import 'api/conversations.dart';
+import 'api/db_maintenance.dart';
 import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
@@ -209,6 +210,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
+
+  @protected
+  DatabaseStatsDto dco_decode_database_stats_dto(dynamic raw);
 
   @protected
   DayCountDto dco_decode_day_count_dto(dynamic raw);
@@ -762,6 +766,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  VacuumResultDto dco_decode_vacuum_result_dto(dynamic raw);
+
+  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
@@ -981,6 +988,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyTokenUsageDto sse_decode_daily_token_usage_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DatabaseStatsDto sse_decode_database_stats_dto(SseDeserializer deserializer);
 
   @protected
   DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer);
@@ -1694,6 +1704,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  VacuumResultDto sse_decode_vacuum_result_dto(SseDeserializer deserializer);
 
   @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
@@ -3351,6 +3364,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_database_stats_dto(
+    DatabaseStatsDto apiObj,
+    wire_cst_database_stats_dto wireObj,
+  ) {
+    wireObj.file_bytes = cst_encode_i_64(apiObj.fileBytes);
+    wireObj.allocated_bytes = cst_encode_i_64(apiObj.allocatedBytes);
+    wireObj.free_bytes = cst_encode_i_64(apiObj.freeBytes);
+    wireObj.page_size = cst_encode_i_64(apiObj.pageSize);
+  }
+
+  @protected
   void cst_api_fill_to_wire_day_count_dto(
     DayCountDto apiObj,
     wire_cst_day_count_dto wireObj,
@@ -4499,6 +4523,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_vacuum_result_dto(
+    VacuumResultDto apiObj,
+    wire_cst_vacuum_result_dto wireObj,
+  ) {
+    wireObj.before_bytes = cst_encode_i_64(apiObj.beforeBytes);
+    wireObj.after_bytes = cst_encode_i_64(apiObj.afterBytes);
+  }
+
+  @protected
   void cst_api_fill_to_wire_web_search_config_dto(
     WebSearchConfigDto apiObj,
     wire_cst_web_search_config_dto wireObj,
@@ -4893,6 +4926,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_daily_token_usage_dto(
     DailyTokenUsageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_database_stats_dto(
+    DatabaseStatsDto self,
     SseSerializer serializer,
   );
 
@@ -5801,6 +5840,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_vacuum_result_dto(
+    VacuumResultDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_web_search_config_dto(
@@ -8437,6 +8482,30 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
+
+  void wire__crate__api__db_maintenance__database_stats(int port_) {
+    return _wire__crate__api__db_maintenance__database_stats(port_);
+  }
+
+  late final _wire__crate__api__db_maintenance__database_statsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__db_maintenance__database_stats',
+      );
+  late final _wire__crate__api__db_maintenance__database_stats =
+      _wire__crate__api__db_maintenance__database_statsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__db_maintenance__vacuum_database(int port_) {
+    return _wire__crate__api__db_maintenance__vacuum_database(port_);
+  }
+
+  late final _wire__crate__api__db_maintenance__vacuum_databasePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__db_maintenance__vacuum_database',
+      );
+  late final _wire__crate__api__db_maintenance__vacuum_database =
+      _wire__crate__api__db_maintenance__vacuum_databasePtr
+          .asFunction<void Function(int)>();
 
   void wire__crate__api__delete_event_emotion(
     int port_,
@@ -14423,6 +14492,32 @@ final class wire_cst_daily_token_usage_dto extends ffi.Struct {
     ..ref.call_count = call_count;
 }
 
+final class wire_cst_database_stats_dto extends ffi.Struct {
+  @ffi.Int64()
+  external int file_bytes;
+
+  @ffi.Int64()
+  external int allocated_bytes;
+
+  @ffi.Int64()
+  external int free_bytes;
+
+  @ffi.Int64()
+  external int page_size;
+
+  static ffi.Pointer<wire_cst_database_stats_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required int file_bytes,
+    required int allocated_bytes,
+    required int free_bytes,
+    required int page_size,
+  }) => $allocator<wire_cst_database_stats_dto>()
+    ..ref.file_bytes = file_bytes
+    ..ref.allocated_bytes = allocated_bytes
+    ..ref.free_bytes = free_bytes
+    ..ref.page_size = page_size;
+}
+
 final class wire_cst_day_count_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> date;
 
@@ -18007,6 +18102,22 @@ final class wire_cst_unscheduled_chat_input_dto extends ffi.Struct {
     ..ref.input_message_id = input_message_id
     ..ref.preview = preview
     ..ref.created_at = created_at;
+}
+
+final class wire_cst_vacuum_result_dto extends ffi.Struct {
+  @ffi.Int64()
+  external int before_bytes;
+
+  @ffi.Int64()
+  external int after_bytes;
+
+  static ffi.Pointer<wire_cst_vacuum_result_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required int before_bytes,
+    required int after_bytes,
+  }) => $allocator<wire_cst_vacuum_result_dto>()
+    ..ref.before_bytes = before_bytes
+    ..ref.after_bytes = after_bytes;
 }
 
 final class wire_cst_web_search_config_dto extends ffi.Struct {

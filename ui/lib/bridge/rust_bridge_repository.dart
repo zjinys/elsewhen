@@ -1000,6 +1000,12 @@ class RustBridgeRepository implements StorageRepository {
     return WikiPage.fromDto(dto);
   }
 
+  /// 数据库体量统计（含 freelist 空闲占比，供维护面板展示）。
+  Future<api.DatabaseStatsDto> databaseStats() => api.databaseStats();
+
+  /// VACUUM 整理（独占写，被并发阻塞时抛错由前端提示重试）。
+  Future<api.VacuumResultDto> vacuumDatabase() => api.vacuumDatabase();
+
   /// 删除知识页（同步库先捕获 deleted 变更再物理删除；不存在返回 false）。
   Future<bool> deleteWikiPage({required String slug}) =>
       api.deleteWikiPage(slug: slug);

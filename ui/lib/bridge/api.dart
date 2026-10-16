@@ -29,6 +29,7 @@ export 'generated.dart/api/review_report.dart';
 export 'generated.dart/api/rules.dart';
 export 'generated.dart/api/sync.dart';
 export 'generated.dart/api/theme.dart';
+export 'generated.dart/api/db_maintenance.dart';
 export 'generated.dart/api/todos.dart';
 export 'generated.dart/api/tweet.dart';
 export 'generated.dart/api/web_search.dart';

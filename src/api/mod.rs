@@ -1,6 +1,7 @@
 pub mod chat_proposals;
 pub mod chat_runs;
 pub mod conversations;
+pub mod db_maintenance;
 pub mod entities;
 pub mod event_stats;
 pub mod fonts;

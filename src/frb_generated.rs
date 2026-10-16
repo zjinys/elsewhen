@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1350231074;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1612473897;
 
 // Section: executor
 
@@ -912,6 +912,27 @@ fn wire__crate__api__wiki__create_wiki_derivative_impl(
                             api_title,
                             api_content_md,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__db_maintenance__database_stats_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "database_stats",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::db_maintenance::database_stats()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6115,6 +6136,27 @@ fn wire__crate__api__wiki__update_wiki_tags_impl(
         },
     )
 }
+fn wire__crate__api__db_maintenance__vacuum_database_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "vacuum_database",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::db_maintenance::vacuum_database()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__chat_runs__withdraw_chat_input_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     conversation_id: impl CstDecode<String>,
@@ -6747,6 +6789,22 @@ impl SseDecode for crate::api::conversations::DailyTokenUsageDto {
             completion_tokens: var_completionTokens,
             total_tokens: var_totalTokens,
             call_count: var_callCount,
+        };
+    }
+}
+
+impl SseDecode for crate::api::db_maintenance::DatabaseStatsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_fileBytes = <i64>::sse_decode(deserializer);
+        let mut var_allocatedBytes = <i64>::sse_decode(deserializer);
+        let mut var_freeBytes = <i64>::sse_decode(deserializer);
+        let mut var_pageSize = <i64>::sse_decode(deserializer);
+        return crate::api::db_maintenance::DatabaseStatsDto {
+            file_bytes: var_fileBytes,
+            allocated_bytes: var_allocatedBytes,
+            free_bytes: var_freeBytes,
+            page_size: var_pageSize,
         };
     }
 }
@@ -9614,6 +9672,18 @@ impl SseDecode for usize {
     }
 }
 
+impl SseDecode for crate::api::db_maintenance::VacuumResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_beforeBytes = <i64>::sse_decode(deserializer);
+        let mut var_afterBytes = <i64>::sse_decode(deserializer);
+        return crate::api::db_maintenance::VacuumResultDto {
+            before_bytes: var_beforeBytes,
+            after_bytes: var_afterBytes,
+        };
+    }
+}
+
 impl SseDecode for crate::api::web_search::WebSearchConfigDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10430,6 +10500,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversations::DailyTokenUsag
     for crate::api::conversations::DailyTokenUsageDto
 {
     fn into_into_dart(self) -> crate::api::conversations::DailyTokenUsageDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::db_maintenance::DatabaseStatsDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.file_bytes.into_into_dart().into_dart(),
+            self.allocated_bytes.into_into_dart().into_dart(),
+            self.free_bytes.into_into_dart().into_dart(),
+            self.page_size.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::db_maintenance::DatabaseStatsDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::db_maintenance::DatabaseStatsDto>
+    for crate::api::db_maintenance::DatabaseStatsDto
+{
+    fn into_into_dart(self) -> crate::api::db_maintenance::DatabaseStatsDto {
         self
     }
 }
@@ -12356,6 +12449,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::chat_runs::UnscheduledChatInp
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::db_maintenance::VacuumResultDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.before_bytes.into_into_dart().into_dart(),
+            self.after_bytes.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::db_maintenance::VacuumResultDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::db_maintenance::VacuumResultDto>
+    for crate::api::db_maintenance::VacuumResultDto
+{
+    fn into_into_dart(self) -> crate::api::db_maintenance::VacuumResultDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::web_search::WebSearchConfigDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -12891,6 +13005,16 @@ impl SseEncode for crate::api::conversations::DailyTokenUsageDto {
         <i64>::sse_encode(self.completion_tokens, serializer);
         <i64>::sse_encode(self.total_tokens, serializer);
         <i64>::sse_encode(self.call_count, serializer);
+    }
+}
+
+impl SseEncode for crate::api::db_maintenance::DatabaseStatsDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i64>::sse_encode(self.file_bytes, serializer);
+        <i64>::sse_encode(self.allocated_bytes, serializer);
+        <i64>::sse_encode(self.free_bytes, serializer);
+        <i64>::sse_encode(self.page_size, serializer);
     }
 }
 
@@ -14840,6 +14964,14 @@ impl SseEncode for usize {
     }
 }
 
+impl SseEncode for crate::api::db_maintenance::VacuumResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i64>::sse_encode(self.before_bytes, serializer);
+        <i64>::sse_encode(self.after_bytes, serializer);
+    }
+}
+
 impl SseEncode for crate::api::web_search::WebSearchConfigDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -15467,6 +15599,17 @@ mod io {
                 completion_tokens: self.completion_tokens.cst_decode(),
                 total_tokens: self.total_tokens.cst_decode(),
                 call_count: self.call_count.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::db_maintenance::DatabaseStatsDto> for wire_cst_database_stats_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::db_maintenance::DatabaseStatsDto {
+            crate::api::db_maintenance::DatabaseStatsDto {
+                file_bytes: self.file_bytes.cst_decode(),
+                allocated_bytes: self.allocated_bytes.cst_decode(),
+                free_bytes: self.free_bytes.cst_decode(),
+                page_size: self.page_size.cst_decode(),
             }
         }
     }
@@ -17313,6 +17456,15 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::db_maintenance::VacuumResultDto> for wire_cst_vacuum_result_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::db_maintenance::VacuumResultDto {
+            crate::api::db_maintenance::VacuumResultDto {
+                before_bytes: self.before_bytes.cst_decode(),
+                after_bytes: self.after_bytes.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::web_search::WebSearchConfigDto> for wire_cst_web_search_config_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::web_search::WebSearchConfigDto {
@@ -17844,6 +17996,21 @@ mod io {
         }
     }
     impl Default for wire_cst_daily_token_usage_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_database_stats_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                file_bytes: Default::default(),
+                allocated_bytes: Default::default(),
+                free_bytes: Default::default(),
+                page_size: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_database_stats_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -19204,6 +19371,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_vacuum_result_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                before_bytes: Default::default(),
+                after_bytes: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_vacuum_result_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_web_search_config_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -19697,6 +19877,13 @@ mod io {
             title,
             content_md,
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__db_maintenance__database_stats(
+        port_: i64,
+    ) {
+        wire__crate__api__db_maintenance__database_stats_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -21587,6 +21774,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__db_maintenance__vacuum_database(
+        port_: i64,
+    ) {
+        wire__crate__api__db_maintenance__vacuum_database_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__chat_runs__withdraw_chat_input(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -22937,6 +23131,14 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_database_stats_dto {
+        file_bytes: i64,
+        allocated_bytes: i64,
+        free_bytes: i64,
+        page_size: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_day_count_dto {
         date: *mut wire_cst_list_prim_u_8_strict,
         count: i64,
@@ -24204,6 +24406,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_vacuum_result_dto {
+        before_bytes: i64,
+        after_bytes: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_web_search_config_dto {
         enabled: bool,
         engine: *mut wire_cst_list_prim_u_8_strict,
@@ -24918,6 +25126,28 @@ mod web {
                 completion_tokens: self_.get(2).cst_decode(),
                 total_tokens: self_.get(3).cst_decode(),
                 call_count: self_.get(4).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::db_maintenance::DatabaseStatsDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::db_maintenance::DatabaseStatsDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                4,
+                "Expected 4 elements, got {}",
+                self_.length()
+            );
+            crate::api::db_maintenance::DatabaseStatsDto {
+                file_bytes: self_.get(0).cst_decode(),
+                allocated_bytes: self_.get(1).cst_decode(),
+                free_bytes: self_.get(2).cst_decode(),
+                page_size: self_.get(3).cst_decode(),
             }
         }
     }
@@ -27584,6 +27814,26 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::db_maintenance::VacuumResultDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::db_maintenance::VacuumResultDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::db_maintenance::VacuumResultDto {
+                before_bytes: self_.get(0).cst_decode(),
+                after_bytes: self_.get(1).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::web_search::WebSearchConfigDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -28203,6 +28453,13 @@ mod web {
             title,
             content_md,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__db_maintenance__database_stats(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__db_maintenance__database_stats_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -30124,6 +30381,13 @@ mod web {
         tags: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
         wire__crate__api__wiki__update_wiki_tags_impl(port_, slug, tags)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__db_maintenance__vacuum_database(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__db_maintenance__vacuum_database_impl(port_)
     }
 
     #[wasm_bindgen]

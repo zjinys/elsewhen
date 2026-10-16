@@ -62,6 +62,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   bool _exportingWiki = false;
 
+  api.DatabaseStatsDto? _dbStats;
+  String? _dbStatsError;
+  bool _vacuuming = false;
+
   // 个人经验规则库
   List<Rule> _rules = [];
   bool _rulesLoading = true;
@@ -158,6 +162,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       _loadDigestStats();
       _loadTweetService();
       _loadRules();
+      _loadDbStats();
     });
   }
 
@@ -1301,6 +1306,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  Widget _buildDbMaintenanceContent() {
+    final stats = _dbStats;
+    String mb(int bytes) => (bytes / 1024 / 1024).toStringAsFixed(1);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (stats == null)
+          Text(
+            _dbStatsError ?? '读取中…',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          )
+        else ...[
+          Text(
+            '库文件 ${mb(stats.fileBytes)} MB，其中可回收 ${mb(stats.freeBytes)} MB'
+            '（历史删除残留）${stats.freeBytes > 8 * 1024 * 1024 ? '。建议整理。' : ''}',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.6),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          OutlinedButton.icon(
+            onPressed: _vacuuming ? null : _vacuumDatabase,
+            icon: _vacuuming
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cleaning_services_outlined, size: 18),
+            label: Text(_vacuuming ? '整理中…' : '立即整理'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _loadDbStats() async {
+    final repository = ref.read(storageRepositoryProvider);
+    if (repository is! RustBridgeRepository) return;
+    try {
+      final stats = await repository.databaseStats();
+      if (mounted) setState(() { _dbStats = stats; _dbStatsError = null; });
+    } catch (e) {
+      if (mounted) setState(() => _dbStatsError = reportUiError('读取库体量', e));
+    }
+  }
+
+  Future<void> _vacuumDatabase() async {
+    setState(() => _vacuuming = true);
+    try {
+      final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final result = await repository.vacuumDatabase();
+      await _loadDbStats();
+      if (!mounted) return;
+      final saved = (result.beforeBytes - result.afterBytes) / 1024 / 1024;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(saved >= 0.1
+              ? '整理完成，回收了 ${saved.toStringAsFixed(1)} MB'
+              : '整理完成，库已经很紧凑'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(reportUiError('整理数据库', e))),
+      );
+    } finally {
+      if (mounted) setState(() => _vacuuming = false);
+    }
+  }
+
   Widget _buildAppearanceTab(AppSettings settings) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
@@ -1487,6 +1562,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: '知识导出',
             icon: Icons.ios_share_outlined,
             child: _buildWikiExportContent(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '数据库维护',
+            icon: Icons.cleaning_services_outlined,
+            child: _buildDbMaintenanceContent(),
           ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(

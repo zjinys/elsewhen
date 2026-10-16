@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/chat_proposals.dart';
 import 'api/chat_runs.dart';
 import 'api/conversations.dart';
+import 'api/db_maintenance.dart';
 import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
@@ -98,7 +99,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1350231074;
+  int get rustContentHash => -1612473897;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -265,6 +266,8 @@ abstract class RustLibApi extends BaseApi {
     required String title,
     required String contentMd,
   });
+
+  Future<DatabaseStatsDto> crateApiDbMaintenanceDatabaseStats();
 
   Future<ChatDecisionDto> crateApiChatProposalsDecideChatProposal({
     required ChatReviewRequest request,
@@ -1103,6 +1106,8 @@ abstract class RustLibApi extends BaseApi {
     required String slug,
     required List<String> tags,
   });
+
+  Future<VacuumResultDto> crateApiDbMaintenanceVacuumDatabase();
 
   Future<bool> crateApiChatRunsWithdrawChatInput({
     required String conversationId,
@@ -2162,6 +2167,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "create_wiki_derivative",
         argNames: ["basedOnSlug", "contentType", "title", "contentMd"],
       );
+
+  @override
+  Future<DatabaseStatsDto> crateApiDbMaintenanceDatabaseStats() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__db_maintenance__database_stats(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_database_stats_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDbMaintenanceDatabaseStatsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbMaintenanceDatabaseStatsConstMeta =>
+      const TaskConstMeta(debugName: "database_stats", argNames: []);
 
   @override
   Future<ChatDecisionDto> crateApiChatProposalsDecideChatProposal({
@@ -8278,6 +8304,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<VacuumResultDto> crateApiDbMaintenanceVacuumDatabase() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__db_maintenance__vacuum_database(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_vacuum_result_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDbMaintenanceVacuumDatabaseConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbMaintenanceVacuumDatabaseConstMeta =>
+      const TaskConstMeta(debugName: "vacuum_database", argNames: []);
+
+  @override
   Future<bool> crateApiChatRunsWithdrawChatInput({
     required String conversationId,
     required PlatformInt64 queueId,
@@ -8891,6 +8938,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       completionTokens: dco_decode_i_64(arr[2]),
       totalTokens: dco_decode_i_64(arr[3]),
       callCount: dco_decode_i_64(arr[4]),
+    );
+  }
+
+  @protected
+  DatabaseStatsDto dco_decode_database_stats_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return DatabaseStatsDto(
+      fileBytes: dco_decode_i_64(arr[0]),
+      allocatedBytes: dco_decode_i_64(arr[1]),
+      freeBytes: dco_decode_i_64(arr[2]),
+      pageSize: dco_decode_i_64(arr[3]),
     );
   }
 
@@ -10843,6 +10904,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VacuumResultDto dco_decode_vacuum_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return VacuumResultDto(
+      beforeBytes: dco_decode_i_64(arr[0]),
+      afterBytes: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -11657,6 +11730,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       completionTokens: var_completionTokens,
       totalTokens: var_totalTokens,
       callCount: var_callCount,
+    );
+  }
+
+  @protected
+  DatabaseStatsDto sse_decode_database_stats_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fileBytes = sse_decode_i_64(deserializer);
+    var var_allocatedBytes = sse_decode_i_64(deserializer);
+    var var_freeBytes = sse_decode_i_64(deserializer);
+    var var_pageSize = sse_decode_i_64(deserializer);
+    return DatabaseStatsDto(
+      fileBytes: var_fileBytes,
+      allocatedBytes: var_allocatedBytes,
+      freeBytes: var_freeBytes,
+      pageSize: var_pageSize,
     );
   }
 
@@ -14519,6 +14607,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VacuumResultDto sse_decode_vacuum_result_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_beforeBytes = sse_decode_i_64(deserializer);
+    var var_afterBytes = sse_decode_i_64(deserializer);
+    return VacuumResultDto(
+      beforeBytes: var_beforeBytes,
+      afterBytes: var_afterBytes,
+    );
+  }
+
+  @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
     SseDeserializer deserializer,
   ) {
@@ -15280,6 +15379,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.completionTokens, serializer);
     sse_encode_i_64(self.totalTokens, serializer);
     sse_encode_i_64(self.callCount, serializer);
+  }
+
+  @protected
+  void sse_encode_database_stats_dto(
+    DatabaseStatsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.fileBytes, serializer);
+    sse_encode_i_64(self.allocatedBytes, serializer);
+    sse_encode_i_64(self.freeBytes, serializer);
+    sse_encode_i_64(self.pageSize, serializer);
   }
 
   @protected
@@ -17490,6 +17601,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_vacuum_result_dto(
+    VacuumResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.beforeBytes, serializer);
+    sse_encode_i_64(self.afterBytes, serializer);
   }
 
   @protected

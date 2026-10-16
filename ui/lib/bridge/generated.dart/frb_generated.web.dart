@@ -10,6 +10,7 @@ import 'api.dart';
 import 'api/chat_proposals.dart';
 import 'api/chat_runs.dart';
 import 'api/conversations.dart';
+import 'api/db_maintenance.dart';
 import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
@@ -211,6 +212,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
+
+  @protected
+  DatabaseStatsDto dco_decode_database_stats_dto(dynamic raw);
 
   @protected
   DayCountDto dco_decode_day_count_dto(dynamic raw);
@@ -764,6 +768,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  VacuumResultDto dco_decode_vacuum_result_dto(dynamic raw);
+
+  @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
@@ -983,6 +990,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyTokenUsageDto sse_decode_daily_token_usage_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DatabaseStatsDto sse_decode_database_stats_dto(SseDeserializer deserializer);
 
   @protected
   DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer);
@@ -1698,6 +1708,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
+  VacuumResultDto sse_decode_vacuum_result_dto(SseDeserializer deserializer);
+
+  @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
     SseDeserializer deserializer,
   );
@@ -2202,6 +2215,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_64(raw.completionTokens),
       cst_encode_i_64(raw.totalTokens),
       cst_encode_i_64(raw.callCount),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_database_stats_dto(DatabaseStatsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.fileBytes),
+      cst_encode_i_64(raw.allocatedBytes),
+      cst_encode_i_64(raw.freeBytes),
+      cst_encode_i_64(raw.pageSize),
     ].jsify()!;
   }
 
@@ -3878,6 +3902,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_vacuum_result_dto(VacuumResultDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.beforeBytes),
+      cst_encode_i_64(raw.afterBytes),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_web_search_config_dto(WebSearchConfigDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -4266,6 +4299,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_daily_token_usage_dto(
     DailyTokenUsageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_database_stats_dto(
+    DatabaseStatsDto self,
     SseSerializer serializer,
   );
 
@@ -5176,6 +5215,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_usize(BigInt self, SseSerializer serializer);
 
   @protected
+  void sse_encode_vacuum_result_dto(
+    VacuumResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_web_search_config_dto(
     WebSearchConfigDto self,
     SseSerializer serializer,
@@ -5530,6 +5575,9 @@ class RustLibWire implements BaseWire {
     title,
     content_md,
   );
+
+  void wire__crate__api__db_maintenance__database_stats(NativePortType port_) =>
+      wasmModule.wire__crate__api__db_maintenance__database_stats(port_);
 
   void wire__crate__api__chat_proposals__decide_chat_proposal(
     NativePortType port_,
@@ -7190,6 +7238,10 @@ class RustLibWire implements BaseWire {
     JSAny tags,
   ) => wasmModule.wire__crate__api__wiki__update_wiki_tags(port_, slug, tags);
 
+  void wire__crate__api__db_maintenance__vacuum_database(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__db_maintenance__vacuum_database(port_);
+
   void wire__crate__api__chat_runs__withdraw_chat_input(
     NativePortType port_,
     String conversation_id,
@@ -7407,6 +7459,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content_type,
     String title,
     String content_md,
+  );
+
+  external void wire__crate__api__db_maintenance__database_stats(
+    NativePortType port_,
   );
 
   external void wire__crate__api__chat_proposals__decide_chat_proposal(
@@ -8522,6 +8578,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     JSAny tags,
+  );
+
+  external void wire__crate__api__db_maintenance__vacuum_database(
+    NativePortType port_,
   );
 
   external void wire__crate__api__chat_runs__withdraw_chat_input(
