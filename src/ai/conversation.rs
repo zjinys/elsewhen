@@ -145,8 +145,13 @@ fn generate_with_provider_configs(
         .first()
         .map(|p| p.model.clone())
         .unwrap_or_else(|| "unknown".into());
-    let registry = ToolRegistry::default();
-    let tool_definitions = registry.provider_specs_for(true).into_iter().map(|spec| serde_json::json!({
+    // 生产走延迟加载（省下的 schema token 让位给历史记忆）；测试保持
+    // 全量常驻，既有 agent-loop 集成测试不感知延迟机制，延迟链路另测。
+    #[cfg(test)]
+    let registry = ToolRegistry::eager();
+    #[cfg(not(test))]
+    let registry = ToolRegistry::deferred_runtime();
+    let tool_definitions = registry.eager_specs(true).into_iter().map(|spec| serde_json::json!({
         "type":"function", "function":{"name":spec.name,"description":spec.description,"parameters":spec.parameters}
     })).collect::<Vec<_>>();
     let tool_reserve =
@@ -771,6 +776,8 @@ fn run_agent_loop_inner(
     let mut completion_tokens: u64 = 0;
     let mut model: Option<String> = None;
     let mut results: Vec<crate::ai::tool::ToolResultMsg> = Vec::new();
+    // 延迟加载：本轮 agent 循环内已启用完整 schema 的工具名（enable_tools 登记）。
+    let mut enabled_tools: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut must_finalize = false;
     // 协议修复预算：疑似调用但未知格式时的回炉次数（与轮数上限独立，双保险防死循环）
     let mut repairs_used = 0usize;
@@ -818,7 +825,10 @@ fn run_agent_loop_inner(
             None => true,
         };
         let tools = if wants_native && !finalizing {
-            let mut specs = registry.provider_specs_for(allow_record_event);
+            let mut specs = registry.provider_specs_partitioned(allow_record_event, &enabled_tools);
+            if let Some(meta) = registry.meta_spec() {
+                specs.push(meta);
+            }
             if status_only {
                 specs.retain(|spec| {
                     registry
@@ -833,8 +843,12 @@ fn run_agent_loop_inner(
 
         let mut request_context = context.clone();
         if protocol == Some(ToolProtocol::Text) && !finalizing {
-            let specs: Vec<_> = registry
-                .provider_specs_for(allow_record_event)
+            let mut meta_specs =
+                registry.provider_specs_partitioned(allow_record_event, &enabled_tools);
+            if let Some(meta) = registry.meta_spec() {
+                meta_specs.push(meta);
+            }
+            let specs: Vec<_> = meta_specs
                 .into_iter()
                 .filter(|spec| {
                     !status_only
@@ -911,7 +925,9 @@ fn run_agent_loop_inner(
                     )?;
                     continue;
                 } else {
-                    debug_eprintln!("[agent] provider「{provider_name}」纯文本协议请求也失败：{e:#}");
+                    debug_eprintln!(
+                        "[agent] provider「{provider_name}」纯文本协议请求也失败：{e:#}"
+                    );
                     return Err(e);
                 }
             }
@@ -981,6 +997,22 @@ fn run_agent_loop_inner(
                         reply.model.as_deref(),
                     )?;
                 }
+                if call.name == "enable_tools" {
+                    let names: Vec<String> = call
+                        .arguments
+                        .get("tools")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let text = registry.enable_result(&names, &mut enabled_tools);
+                    context.push(ContextMessage::tool_result(call.id.clone(), text.clone()));
+                    results.push(ToolResultMsg::ok(call, text));
+                    continue;
+                }
                 let result = dispatch_for_turn(
                     call,
                     registry,
@@ -989,6 +1021,7 @@ fn run_agent_loop_inner(
                     status_only,
                     allow_record_event,
                     &crate::knowledge::candidates_in_context(context),
+                    &enabled_tools,
                 )?;
                 debug_eprintln!(
                     "[agent] dispatch tool={} -> {}",
@@ -1022,6 +1055,25 @@ fn run_agent_loop_inner(
                         reply_model.as_deref(),
                     )?;
                 }
+                if call.name == "enable_tools" {
+                    let names: Vec<String> = call
+                        .arguments
+                        .get("tools")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let text = registry.enable_result(&names, &mut enabled_tools);
+                    context.push(ContextMessage::new(
+                        "system",
+                        format!("工具「enable_tools」执行结果：{}", text),
+                    ));
+                    results.push(ToolResultMsg::ok(&call, text));
+                    continue;
+                }
                 let result = dispatch_for_turn(
                     &call,
                     registry,
@@ -1030,6 +1082,7 @@ fn run_agent_loop_inner(
                     status_only,
                     allow_record_event,
                     &crate::knowledge::candidates_in_context(context),
+                    &enabled_tools,
                 )?;
                 debug_eprintln!(
                     "[agent] text-protocol tool={} -> {}",
@@ -1175,8 +1228,22 @@ fn dispatch_for_turn(
     status_only: bool,
     allow_record_event: bool,
     knowledge_candidates: &[crate::knowledge::KnowledgeCitation],
+    enabled_tools: &std::collections::HashSet<String>,
 ) -> Result<ToolResultMsg> {
     super::generation::check(store)?;
+    // 延迟加载守卫：未启用的延迟工具拒绝执行，指引模型先 enable_tools。
+    if registry.defer_tools()
+        && registry.is_deferred(&call.name)
+        && !enabled_tools.contains(&call.name)
+    {
+        return Ok(ToolResultMsg::err(
+            call,
+            format!(
+                "工具「{}」尚未启用：先调用 enable_tools 并把它加入 tools 数组，下一轮即可使用。",
+                call.name
+            ),
+        ));
+    }
     if (call.name == "record_event" && !allow_record_event)
         || (status_only
             && registry
@@ -2014,7 +2081,7 @@ pub fn generate_content_chat(
             prompt_tokens: prompt_tokens_estimate,
             completion_tokens: completion_tokens_estimate,
             total_tokens: prompt_tokens_estimate + completion_tokens_estimate,
-        
+
             prompt_cached_tokens: None,
         },
     };

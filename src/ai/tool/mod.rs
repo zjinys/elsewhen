@@ -112,17 +112,47 @@ pub trait Tool {
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::Read
     }
+    /// 延迟加载：不随请求注入完整定义，模型先 enable_tools 再用。
+    /// 名单依据 chat_run_events 实测零/低频 + 破坏性/平台专属候选。
+    fn deferred(&self) -> bool {
+        false
+    }
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String>;
 }
 
 /// 工具注册表：持有全部可用工具，供分发、清单注入
 pub struct ToolRegistry {
     tools: Vec<Box<dyn Tool>>,
+    defer_tools: bool,
 }
 
 impl Default for ToolRegistry {
     fn default() -> Self {
-        let tools: Vec<Box<dyn Tool>> = vec![
+        Self::eager()
+    }
+}
+
+impl ToolRegistry {
+    /// 全量常驻模式（既旧行为）：所有工具随请求注入；测试与内部工具调用用它。
+    pub fn eager() -> Self {
+        Self::build_with_deferral(false)
+    }
+
+    /// 延迟加载模式（生产默认）：deferred() 工具不注入 schema，模型经
+    /// enable_tools 按需启用；省下的 token 预算让位给历史记忆。
+    pub fn deferred_runtime() -> Self {
+        Self::build_with_deferral(true)
+    }
+
+    fn build_with_deferral(defer_tools: bool) -> Self {
+        Self {
+            tools: Self::all_tools(),
+            defer_tools,
+        }
+    }
+
+    fn all_tools() -> Vec<Box<dyn Tool>> {
+        vec![
             Box::new(ListRulesTool),
             Box::new(history::ReadHistoryTool),
             Box::new(history::SummarySpansTool),
@@ -147,8 +177,119 @@ impl Default for ToolRegistry {
             Box::new(ImportDirectoryProjectTool),
             Box::new(ImportDirectoryFilesTool),
             Box::new(SaveWikiRevisionTool),
-        ];
-        Self { tools }
+        ]
+    }
+}
+
+impl ToolRegistry {
+    /// 按启用状态分区注入：defer_tools=false 时全量（等旧行为）。
+    pub fn provider_specs_partitioned(
+        &self,
+        allow_record_event: bool,
+        enabled: &std::collections::HashSet<String>,
+    ) -> Vec<ToolSpec> {
+        self.tools
+            .iter()
+            .filter(|tool| allow_record_event || tool.name() != "record_event")
+            .filter(|tool| !self.defer_tools || !tool.deferred() || enabled.contains(tool.name()))
+            .map(|t| ToolSpec {
+                name: t.name().to_string(),
+                description: t.description().to_string(),
+                parameters: t.parameters_schema(),
+            })
+            .collect()
+    }
+
+    /// 常驻集（不含延迟工具）——预算预扣与文本协议按此口径。
+    pub fn eager_specs(&self, allow_record_event: bool) -> Vec<ToolSpec> {
+        self.provider_specs_partitioned(allow_record_event, &std::collections::HashSet::new())
+    }
+
+    /// 是否处于延迟加载模式。
+    pub fn defer_tools(&self) -> bool {
+        self.defer_tools
+    }
+
+    pub fn is_deferred(&self, name: &str) -> bool {
+        self.get(name).is_some_and(|t| t.deferred())
+    }
+
+    /// enable_tools 元工具本身：常驻注入，描述里带延迟工具名单。
+    /// 不进 tools 分发表（dispatch 由 conversation 层特判登记）。
+    pub fn meta_spec(&self) -> Option<ToolSpec> {
+        if !self.defer_tools {
+            return None;
+        }
+        Some(ToolSpec {
+            name: "enable_tools".to_string(),
+            description: format!(
+                "按需启用延迟加载的工具（一次可多个），调用后返回其完整参数定义，\
+                 同一轮稍后即可调用它们。可用延迟工具：\n{}",
+                self.deferred_roster_text()
+            ),
+            parameters: serde_json::json!({
+                "type":"object",
+                "properties":{
+                    "tools":{"type":"array","items":{"type":"string"},"description":"要启用的工具名，至少一个，必须来自上面的名单"}
+                },
+                "required":["tools"],
+                "additionalProperties":false
+            }),
+        })
+    }
+
+    /// enable_tools 的模型侧说明：延迟工具的名字+一句话用途。
+    pub fn deferred_roster_text(&self) -> String {
+        let mut out = String::from("延迟加载工具（需要时先调用 enable_tools，一次可启用多个）：\n");
+        for tool in &self.tools {
+            if tool.deferred() {
+                let brief = tool.description().lines().next().unwrap_or("");
+                out.push_str(&format!("- {}：{}\n", tool.name(), brief));
+            }
+        }
+        out
+    }
+
+    /// 处理 enable_tools 调用：登记启用，返回全量参数定义（模型照此构造调用）。
+    pub fn enable_result(
+        &self,
+        names: &[String],
+        enabled: &mut std::collections::HashSet<String>,
+    ) -> String {
+        let mut activated = Vec::new();
+        let mut unknown = Vec::new();
+        for name in names {
+            if self.is_deferred(name) {
+                enabled.insert(name.clone());
+                activated.push(name.clone());
+            } else if self.get(name).is_some() {
+                activated.push(format!("{name}（本就常驻）"));
+            } else {
+                unknown.push(name.clone());
+            }
+        }
+        let mut text = String::new();
+        if !activated.is_empty() {
+            text.push_str(&format!("已启用：{}。\n", activated.join("、")));
+        }
+        for name in names {
+            if self.is_deferred(name) {
+                if let Some(tool) = self.get(name) {
+                    text.push_str(&format!(
+                        "{} 参数 JSON Schema：{}\n",
+                        name,
+                        tool.parameters_schema()
+                    ));
+                }
+            }
+        }
+        if !unknown.is_empty() {
+            text.push_str(&format!(
+                "未知的工具名：{}（可用延迟工具见 enable_tools 描述）。",
+                unknown.join("、")
+            ));
+        }
+        text
     }
 }
 
@@ -162,6 +303,9 @@ impl Tool for ImportDirectoryProjectTool {
     }
     fn parameters_schema(&self) -> Value {
         json!({"type":"object","properties":{"directory":{"type":"string","description":"本地目录绝对路径，必填"}},"required":["directory"],"additionalProperties":false})
+    }
+    fn deferred(&self) -> bool {
+        true
     }
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::WriteConfirm
@@ -203,6 +347,9 @@ impl Tool for ImportDirectoryFilesTool {
     }
     fn parameters_schema(&self) -> Value {
         json!({"type":"object","properties":{"directory":{"type":"string","description":"本地目录绝对路径，必填"}},"required":["directory"],"additionalProperties":false})
+    }
+    fn deferred(&self) -> bool {
+        true
     }
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::WriteConfirm
@@ -571,6 +718,9 @@ impl Tool for FetchTweetTool {
             "additionalProperties":false
         })
     }
+    fn deferred(&self) -> bool {
+        true
+    }
     fn run(&self, args: &Value, _ctx: &ToolContext) -> Result<String> {
         let url = arg_str(args, "url")?;
         let t = crate::wiki::fetch_tweet_text(&url)?;
@@ -604,6 +754,9 @@ impl Tool for WebSearchTool {
             "required":["query"],
             "additionalProperties":false
         })
+    }
+    fn deferred(&self) -> bool {
+        true
     }
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
         let query = arg_str(args, "query")?;
@@ -664,6 +817,9 @@ impl Tool for FetchPageTool {
             "required":["url"],
             "additionalProperties":false
         })
+    }
+    fn deferred(&self) -> bool {
+        true
     }
     fn run(&self, args: &Value, _ctx: &ToolContext) -> Result<String> {
         let url = arg_str(args, "url")?;
@@ -821,6 +977,9 @@ impl Tool for RecordEventTool {
             "required":["raw_text"],
             "additionalProperties":false
         })
+    }
+    fn deferred(&self) -> bool {
+        true
     }
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::WriteDirect
@@ -1036,6 +1195,9 @@ impl Tool for CreateTodoTool {
             "additionalProperties":false
         })
     }
+    fn deferred(&self) -> bool {
+        true
+    }
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::WriteConfirm
     }
@@ -1101,6 +1263,9 @@ impl Tool for ProposePeopleRelationsTool {
             },
             "additionalProperties":false
         })
+    }
+    fn deferred(&self) -> bool {
+        true
     }
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::WriteConfirm
@@ -1176,6 +1341,9 @@ impl Tool for BatchExtractPeopleRelationsTool {
             "properties": {},
             "additionalProperties": false
         })
+    }
+    fn deferred(&self) -> bool {
+        true
     }
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::WriteConfirm
@@ -1298,6 +1466,9 @@ impl Tool for ArchiveConversationsByTitleTool {
             "additionalProperties":false
         })
     }
+    fn deferred(&self) -> bool {
+        true
+    }
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::WriteConfirm
     }
@@ -1386,6 +1557,9 @@ impl Tool for RenameWikiPageTool {
             "additionalProperties":false
         })
     }
+    fn deferred(&self) -> bool {
+        true
+    }
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::WriteConfirm
     }
@@ -1461,6 +1635,9 @@ impl Tool for ImportUrlToWikiTool {
             "required":["url"],
             "additionalProperties":false
         })
+    }
+    fn deferred(&self) -> bool {
+        true
     }
     fn policy(&self) -> ToolPolicy {
         ToolPolicy::WriteConfirm
