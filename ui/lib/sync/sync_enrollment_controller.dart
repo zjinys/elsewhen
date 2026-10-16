@@ -174,18 +174,21 @@ class SyncEnrollmentController extends ChangeNotifier {
       );
       var next = target;
       if (next.confirmationToken == null) {
-        debugPrint(
-          '[sync-pairing] enrollment: advance role=${next.role} '
-          'inv=${next.invitationId} phase=${next.phase}',
-        );
+        final before = next.phase;
         next = await _bridge.advance(target);
         _requireCurrent(epoch);
         _validate(target, next);
         _replace(next);
-        debugPrint(
-          '[sync-pairing] enrollment: advanced role=${next.role} '
-          'inv=${next.invitationId} phase=${next.phase}',
-        );
+        // worker 日志纪律：高频 tick 只在「有事发生」时 debugPrint。
+        // 悬空邀请（如 joiner 永不回 proof 的历史邀请）会让 phase
+        // 原地不动地被无限 advance——实测三个悬空邀请一天墨 1.3 万
+        // 行 advance/advanced。phase 无变化就不打。
+        if (next.phase != before) {
+          debugPrint(
+            '[sync-pairing] enrollment: advanced role=${next.role} '
+            'inv=${next.invitationId} phase=$before -> ${next.phase}',
+          );
+        }
       }
       if (next.confirmationToken != null) {
         final commit = next;
