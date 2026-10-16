@@ -56,8 +56,10 @@ class ConversationRepository {
     for (final conversation in ordinary) {
       batches.add(await _bridge.listMessages(conversation.id));
     }
-    final messages = batches.expand((batch) => batch).toList()
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final messages = batches.expand((batch) => batch).toList();
+    // 桥接层已按展示序返回，但多会话合并需重新编排；锚定比较器保证
+    // 一问一答交错不被 createdAt 重排打碎。
+    messages.sort((a, b) => Message.displayOrder(messages, a, b));
     return messages;
   }
 
@@ -330,7 +332,20 @@ final messageRecordabilityProvider =
     ) async {
       final bridge =
           ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      return bridge.getMessageRecordability(messageId);
+      bool analyzing(MessageRecordabilityDto? v) =>
+          v != null &&
+          const ['pending', 'running', 'retry'].contains(v.jobStatus) &&
+          v.source == 'default';
+      // 分析在后台跑，一次性抓取会永久停留在抓取时的中间态；
+      // 轮询到终态（有上限）后就稳定了。
+      var value = await bridge.getMessageRecordability(messageId);
+      var attempts = 0;
+      while (analyzing(value) && attempts < 20) {
+        attempts++;
+        await Future<void>.delayed(const Duration(seconds: 5));
+        value = await bridge.getMessageRecordability(messageId);
+      }
+      return value;
     });
 
 /// 会话内的临时提示气泡（如 AI 回复失败）。

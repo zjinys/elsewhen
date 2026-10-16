@@ -625,6 +625,7 @@ class RustBridgeRepository implements StorageRepository {
             role: MessageRole.fromString(dto.role),
             content: dto.content,
             createdAt: DateTime.parse(dto.createdAt).toLocal(),
+            inputMessageId: dto.inputMessageId,
           ),
         )
         .toList();

@@ -8491,6 +8491,7 @@ impl SseDecode for crate::api::conversations::MessageDto {
         let mut var_role = <String>::sse_decode(deserializer);
         let mut var_content = <String>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_inputMessageId = <Option<String>>::sse_decode(deserializer);
         return crate::api::conversations::MessageDto {
             id: var_id,
             conversation_id: var_conversationId,
@@ -8498,6 +8499,7 @@ impl SseDecode for crate::api::conversations::MessageDto {
             role: var_role,
             content: var_content,
             created_at: var_createdAt,
+            input_message_id: var_inputMessageId,
         };
     }
 }
@@ -11362,6 +11364,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::conversations::MessageDto {
             self.role.into_into_dart().into_dart(),
             self.content.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
+            self.input_message_id.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -14078,6 +14081,7 @@ impl SseEncode for crate::api::conversations::MessageDto {
         <String>::sse_encode(self.role, serializer);
         <String>::sse_encode(self.content, serializer);
         <String>::sse_encode(self.created_at, serializer);
+        <Option<String>>::sse_encode(self.input_message_id, serializer);
     }
 }
 
@@ -16749,6 +16753,7 @@ mod io {
                 role: self.role.cst_decode(),
                 content: self.content.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+                input_message_id: self.input_message_id.cst_decode(),
             }
         }
     }
@@ -18511,6 +18516,7 @@ mod io {
                 role: core::ptr::null_mut(),
                 content: core::ptr::null_mut(),
                 created_at: core::ptr::null_mut(),
+                input_message_id: core::ptr::null_mut(),
             }
         }
     }
@@ -23762,6 +23768,7 @@ mod io {
         role: *mut wire_cst_list_prim_u_8_strict,
         content: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+        input_message_id: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -26602,8 +26609,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                6,
-                "Expected 6 elements, got {}",
+                7,
+                "Expected 7 elements, got {}",
                 self_.length()
             );
             crate::api::conversations::MessageDto {
@@ -26613,6 +26620,7 @@ mod web {
                 role: self_.get(3).cst_decode(),
                 content: self_.get(4).cst_decode(),
                 created_at: self_.get(5).cst_decode(),
+                input_message_id: self_.get(6).cst_decode(),
             }
         }
     }

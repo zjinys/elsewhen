@@ -103,6 +103,9 @@ pub struct MessageSummary {
     pub role: String,
     pub content: String,
     pub created_at: String,
+    /// 仅展示用：本条 assistant 回复对应的输入消息（message_response_links）。
+    /// AI 链路的因果序仍走 list_messages，不带此字段。
+    pub input_message_id: Option<String>,
 }
 
 /// 用首条用户消息自动生成对话标题：取第一行 → 折叠连续空白 → 截断到 24 字（超出加省略号）。

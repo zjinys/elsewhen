@@ -24,12 +24,15 @@ class ChatRunStatus extends ConsumerWidget {
     }
     final controller = ref.read(chatRunControllerProvider(conversationId));
     final status = run?.status;
+    // 完成即静默：成功终态不再占屏；停止/中断保留条目（挂着重试入口）。
+    if (status == 'completed') {
+      return const SizedBox.shrink();
+    }
     final label = view.starting
         ? '正在启动生成…'
         : view.restoring
         ? '正在读取生成状态…'
         : switch (status) {
-            'completed' => '回复已完成',
             'failed' => '生成失败，输入已保存',
             'cancelled' => '已停止生成',
             'interrupted' => '生成已中断',
@@ -61,11 +64,6 @@ class ChatRunStatus extends ConsumerWidget {
               spacing: 8,
               children: [
                 Text(label, style: const TextStyle(fontSize: 12)),
-                if (run != null && run.requestCount > 0)
-                  Text(
-                    '请求 ${run.requestCount} 次',
-                    style: const TextStyle(fontSize: 11),
-                  ),
                 if (view.active)
                   TextButton.icon(
                     onPressed:
@@ -99,11 +97,6 @@ class ChatRunStatus extends ConsumerWidget {
               ),
             if (run?.errorText != null && !view.active)
               Text(run!.errorText!, style: const TextStyle(fontSize: 12)),
-            if (status == 'cancelled' || status == 'interrupted')
-              const Text(
-                '已提交的操作不会撤销；未完成步骤不会自动重做。',
-                style: TextStyle(fontSize: 11),
-              ),
             if (view.tools.isNotEmpty)
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,

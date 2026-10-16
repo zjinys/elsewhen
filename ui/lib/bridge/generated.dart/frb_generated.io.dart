@@ -3914,6 +3914,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.role = cst_encode_String(apiObj.role);
     wireObj.content = cst_encode_String(apiObj.content);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.input_message_id = cst_encode_opt_String(apiObj.inputMessageId);
   }
 
   @protected
@@ -16703,6 +16704,8 @@ final class wire_cst_message_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id;
+
   static ffi.Pointer<wire_cst_message_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -16711,13 +16714,15 @@ final class wire_cst_message_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> role,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
   }) => $allocator<wire_cst_message_dto>()
     ..ref.id = id
     ..ref.conversation_id = conversation_id
     ..ref.parent_message_id = parent_message_id
     ..ref.role = role
     ..ref.content = content
-    ..ref.created_at = created_at;
+    ..ref.created_at = created_at
+    ..ref.input_message_id = input_message_id;
 }
 
 final class wire_cst_message_recordability_dto extends ffi.Struct {

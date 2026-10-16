@@ -3168,6 +3168,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.role),
       cst_encode_String(raw.content),
       cst_encode_String(raw.createdAt),
+      cst_encode_opt_String(raw.inputMessageId),
     ].jsify()!;
   }
 

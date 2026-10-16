@@ -2164,6 +2164,9 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
     final analyzing =
         const ['pending', 'running', 'retry'].contains(value.jobStatus) &&
         value.source == 'default';
+    // 分析结束前不露头：技术化的中间态（“分析中”）对用户无意义，
+    // staleness 轮询完成后会自然变成 记录/讨论。
+    if (analyzing) return const SizedBox.shrink();
     final label = analyzing ? '分析中' : (value.recordable ? '记录' : '讨论');
     final icon = analyzing
         ? Icons.sync

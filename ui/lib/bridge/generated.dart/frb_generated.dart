@@ -9996,8 +9996,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MessageDto dco_decode_message_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return MessageDto(
       id: dco_decode_String(arr[0]),
       conversationId: dco_decode_String(arr[1]),
@@ -10005,6 +10005,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       role: dco_decode_String(arr[3]),
       content: dco_decode_String(arr[4]),
       createdAt: dco_decode_String(arr[5]),
+      inputMessageId: dco_decode_opt_String(arr[6]),
     );
   }
 
@@ -13394,6 +13395,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_role = sse_decode_String(deserializer);
     var var_content = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_String(deserializer);
+    var var_inputMessageId = sse_decode_opt_String(deserializer);
     return MessageDto(
       id: var_id,
       conversationId: var_conversationId,
@@ -13401,6 +13403,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       role: var_role,
       content: var_content,
       createdAt: var_createdAt,
+      inputMessageId: var_inputMessageId,
     );
   }
 
@@ -16634,6 +16637,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.role, serializer);
     sse_encode_String(self.content, serializer);
     sse_encode_String(self.createdAt, serializer);
+    sse_encode_opt_String(self.inputMessageId, serializer);
   }
 
   @protected

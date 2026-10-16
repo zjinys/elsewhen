@@ -68,7 +68,8 @@ void main() {
     'expanded real tool step shows bounded business evidence, not raw JSON',
     (tester) async {
       final repo = RunTestRepository();
-      repo.runs['conv-1'] = fixtureRun(status: 'completed', sequence: 3);
+      // 完成态已静默收场；工具步骤回顾仅在运行/停止等未完成态展示。
+      repo.runs['conv-1'] = fixtureRun(status: 'cancelled', sequence: 3);
       repo.events.addAll([
         fixtureEvent(
           1,

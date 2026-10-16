@@ -421,8 +421,10 @@ impl Store {
             }
         }
         let mut statement = self.connection.prepare(
-            "SELECT m.id, m.conversation_id, m.parent_message_id, m.role, m.content, m.created_at
-         FROM messages m LEFT JOIN sync_message_order s ON s.message_id=m.id
+            "SELECT m.id, m.conversation_id, m.parent_message_id, m.role, m.content, m.created_at, l.input_message_id
+         FROM messages m
+             LEFT JOIN sync_message_order s ON s.message_id=m.id
+             LEFT JOIN message_response_links l ON l.message_id=m.id
          WHERE m.conversation_id = ?1
          ORDER BY COALESCE(s.logical_clock,0), COALESCE(s.origin_stream_id,''),
              COALESCE(s.origin_sequence,0), m.created_at, m.id",
@@ -435,6 +437,44 @@ impl Store {
                 role: row.get(3)?,
                 content: row.get(4)?,
                 created_at: row.get(5)?,
+                input_message_id: row.get(6)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
+    /// 展示序：assistant 回复锚定到其输入消息（message_response_links），
+    /// 保证队列场景下发两条消息显示为一问一答交错，而不是两个回合的
+    /// 时间线连排（回复提交时刻晚于第二条输入的提交时刻）。AI 因果序仍走
+    /// [`Self::list_messages`]（同步时钟序），本函数只服务 UI。
+    pub fn list_messages_for_display(&self, conversation_id: &str) -> Result<Vec<MessageSummary>> {
+        if let Some(snapshot) = &self.conversation_snapshot {
+            if snapshot.conversation_id == conversation_id {
+                return Ok(snapshot.messages.to_vec());
+            }
+        }
+        let mut statement = self.connection.prepare(
+            "SELECT m.id, m.conversation_id, m.parent_message_id, m.role, m.content, m.created_at, l.input_message_id
+         FROM messages m
+             LEFT JOIN sync_message_order s ON s.message_id=m.id
+             LEFT JOIN message_response_links l ON l.message_id=m.id
+             LEFT JOIN sync_message_order si ON si.message_id=l.input_message_id
+         WHERE m.conversation_id = ?1
+         ORDER BY COALESCE(si.logical_clock, s.logical_clock, 0),
+             CASE WHEN m.role = 'assistant' THEN 1 ELSE 0 END,
+             COALESCE(s.logical_clock,0), COALESCE(s.origin_stream_id,''),
+             COALESCE(s.origin_sequence,0), m.created_at, m.id",
+        )?;
+        let rows = statement.query_map([conversation_id], |row| {
+            Ok(MessageSummary {
+                id: row.get(0)?,
+                conversation_id: row.get(1)?,
+                parent_message_id: row.get(2)?,
+                role: row.get(3)?,
+                content: row.get(4)?,
+                created_at: row.get(5)?,
+                input_message_id: row.get(6)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -444,7 +484,7 @@ impl Store {
     // Get child messages of a specific message (for branching conversations)
     pub fn get_child_messages(&self, parent_id: &str) -> Result<Vec<MessageSummary>> {
         let mut statement = self.connection.prepare(
-            "SELECT id, conversation_id, parent_message_id, role, content, created_at
+            "SELECT id, conversation_id, parent_message_id, role, content, created_at, NULL
          FROM messages
          WHERE parent_message_id = ?1
          ORDER BY created_at ASC, id ASC",
@@ -457,6 +497,7 @@ impl Store {
                 role: row.get(3)?,
                 content: row.get(4)?,
                 created_at: row.get(5)?,
+                input_message_id: row.get(6)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -470,7 +511,7 @@ impl Store {
 
         while let Some(id) = current_id {
             let message: MessageSummary = self.connection.query_row(
-                "SELECT id, conversation_id, parent_message_id, role, content, created_at
+                "SELECT id, conversation_id, parent_message_id, role, content, created_at, NULL
              FROM messages WHERE id = ?1",
                 [&id],
                 |row| {
@@ -481,6 +522,7 @@ impl Store {
                         role: row.get(3)?,
                         content: row.get(4)?,
                         created_at: row.get(5)?,
+                        input_message_id: row.get(6)?,
                     })
                 },
             )?;
@@ -491,5 +533,54 @@ impl Store {
 
         chain.reverse(); // Root to leaf order
         Ok(chain)
+    }
+}
+
+#[cfg(test)]
+mod display_order_tests {
+    use super::*;
+
+    #[test]
+    fn queued_replies_display_interleaved_with_their_inputs() {
+        let dir = std::env::temp_dir()
+            .join(format!("elsewhen-display-order-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let store = Store::open(&dir.join("test.db")).unwrap();
+        store
+            .initialize_sync_replica(&crate::storage::sync::ReplicaIdentity {
+                dataset_id: "dataset".into(),
+                device_id: "device-a".into(),
+                stream_id: "stream-a".into(),
+                processor_device_id: "a".into(),
+            })
+            .unwrap();
+
+        let conversation = store.create_conversation(None, None).unwrap();
+        // 用户连发两条，回复随后逐条生成——提交时钟序为 A、B、答A、答B。
+        let a = store.send_message(&conversation, "user", "问A", None).unwrap();
+        let b = store.send_message(&conversation, "user", "问B", None).unwrap();
+        let reply_a = store
+            .send_message_with_input(&conversation, "assistant", "答A", None, Some(&a))
+            .unwrap();
+        let reply_b = store
+            .send_message_with_input(&conversation, "assistant", "答B", None, Some(&b))
+            .unwrap();
+
+        let ids = |messages: &[MessageSummary]| -> Vec<String> {
+            messages.iter().map(|m| m.id.clone()).collect()
+        };
+
+        // 因果序（AI 上下文）保持提交时钟序不变。
+        assert_eq!(
+            ids(&store.list_messages(&conversation).unwrap()),
+            vec![a.clone(), b.clone(), reply_a.clone(), reply_b.clone()]
+        );
+        // 展示序：回复锚定其输入 → A、答A、B、答B 一问一答交错。
+        assert_eq!(
+            ids(&store.list_messages_for_display(&conversation).unwrap()),
+            vec![a, reply_a, b, reply_b]
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
