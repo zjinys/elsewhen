@@ -24,6 +24,44 @@ impl std::fmt::Display for RequestBudgetError {
 
 impl std::error::Error for RequestBudgetError {}
 
+/// 早期工具结果的占位文本（P1 上下文管理：保留最近 3 次，旧的换占位）。
+/// 工具结果是可再生内容——重新调用即可取回；对白模型要自明发生了什么。
+pub(crate) const PRUNED_TOOL_RESULT_PLACEHOLDER: &str =
+    "[此前的工具结果已因上下文预算省略；如当前回答依赖其中的信息，请重新调用相应工具。]";
+
+/// 服务端"输入超长"的识别：各家网关话术不同，匹配 code 与 message 文本
+/// （吸收 AIcove isContextOverflow 表；200/2xx 显然不算）。
+/// 只在明确的客户端错误码上发表意见，避免把网络错误误判成超长。
+pub(crate) fn is_context_overflow(status: u16, body: &Value) -> bool {
+    if !matches!(status, 400 | 413 | 422) {
+        return false;
+    }
+    let code = body["error"]["code"].as_str().unwrap_or("");
+    let message = body["error"]["message"]
+        .as_str()
+        // 有的网关把整个 error 放成字符串，或把说明放平级 message 字段
+        .or_else(|| body["error"].as_str())
+        .or_else(|| body["message"].as_str())
+        .unwrap_or("");
+    let code = code.to_ascii_lowercase();
+    let message = message.to_ascii_lowercase();
+    code.contains("context_length_exceeded")
+        || [
+            "maximum context length",
+            "prompt is too long",
+            "input token limit",
+            "input tokens exceed",
+            "too many tokens",
+            "exceeds the context",
+            "context window exceeded",
+            "上下文超限",
+            "上下文过长",
+            "上下文长度超过",
+        ]
+        .iter()
+        .any(|needle| message.contains(needle))
+}
+
 pub(crate) fn validate_context_exchanges(messages: &[super::memory::ContextMessage]) -> Result<()> {
     let exchanges: Vec<_> = messages
         .iter()
@@ -41,6 +79,13 @@ pub(crate) fn input_limit(window: usize, output: usize) -> Result<usize> {
         .into());
     }
     Ok(window - output - margin)
+}
+
+/// 一次装配的降级状态：早期工具结果是否已占位化（幂等保护）。
+#[derive(Default)]
+struct PruneState {
+    done: bool,
+    pruned_count: usize,
 }
 
 #[derive(Clone, Default)]
@@ -86,6 +131,9 @@ pub(crate) struct RequestPolicies {
     history_omitted: bool,
     next_report_id: usize,
     selection_omissions: Vec<SelectionOmission>,
+    /// 早期工具结果占位化状态（fit 内幂等，只试一轮防死循环）。
+    pub(crate) pruned_tool_results: usize,
+    tool_results_pruned: bool,
 }
 
 impl RequestPolicies {
@@ -93,6 +141,8 @@ impl RequestPolicies {
         let covered = super::time_context::current_anchor_index(messages);
         let latest_user = messages.iter().rposition(|m| m.role == "user");
         Self {
+            pruned_tool_results: 0,
+            tool_results_pruned: false,
             messages: messages
                 .iter()
                 .enumerate()
@@ -124,6 +174,8 @@ impl RequestPolicies {
             .as_array()
             .and_then(|messages| messages.iter().rposition(|m| m["role"] == "user"));
         Self {
+            pruned_tool_results: 0,
+            tool_results_pruned: false,
             messages: request["messages"]
                 .as_array()
                 .into_iter()
@@ -206,34 +258,55 @@ impl RequestPolicies {
             self.insert(messages, 1.min(messages.len()), serde_json::json!({"role":"system", "content":"可选的跨对话背景因请求预算已省略；不要假装记得未提供的背景。"}), MessagePolicy::default());
         }
         loop {
-            let messages = request["messages"]
-                .as_array_mut()
-                .expect("request messages");
             // History removal may expose a user that previously needed no
             // reminder. Give the first retained user its own true timestamp.
-            if let Some(first) = messages.iter().position(|m| m["role"] == "user") {
-                if !self
-                    .messages
-                    .get(first + 1)
-                    .is_some_and(|m| m.time_reminder)
-                {
-                    if let Some(anchor) = self.messages[first].time_anchor.clone() {
-                        self.insert(
-                            messages,
-                            first + 1,
-                            serde_json::json!({"role":"system", "content":anchor}),
-                            MessagePolicy {
-                                time_reminder: true,
-                                ..Default::default()
-                            },
-                        );
+            // （块作用域：量长度之前释放 request 的可变借用）
+            {
+                let messages = request["messages"]
+                    .as_array_mut()
+                    .expect("request messages");
+                if let Some(first) = messages.iter().position(|m| m["role"] == "user") {
+                    if !self
+                        .messages
+                        .get(first + 1)
+                        .is_some_and(|m| m.time_reminder)
+                    {
+                        if let Some(anchor) = self.messages[first].time_anchor.clone() {
+                            self.insert(
+                                messages,
+                                first + 1,
+                                serde_json::json!({"role":"system", "content":anchor}),
+                                MessagePolicy {
+                                    time_reminder: true,
+                                    ..Default::default()
+                                },
+                            );
+                        }
                     }
                 }
-            }
+            } // 释放 request 可变借用
             let count = input_tokens(model, request);
             if count <= limit {
                 exchanges::validate(self.messages.iter().map(|m| &m.native_exchange))?;
                 return Ok(count);
+            }
+            // 砍轮之前先瘦身可再生内容：早期工具结果换占位（保留最近 3 次）。
+            // 工具结果重新调用即可取回，比丢对话历史便宜；消息本身留在位上，
+            // tool_call_id 配对不动，exchange 校验不受影响。占位后若无净收益
+            // （工具结果本来就小），标记完成并落到砍轮路径，防死循环。
+            if !self.tool_results_pruned {
+                self.tool_results_pruned = true;
+                let before = count;
+                let pruned = {
+                    let messages = request["messages"]
+                        .as_array_mut()
+                        .expect("request messages");
+                    prune_old_tool_results(messages, 3)
+                };
+                self.pruned_tool_results = pruned;
+                if pruned > 0 && input_tokens(model, request) < before {
+                    continue;
+                }
             }
             let messages = request["messages"]
                 .as_array_mut()
@@ -295,6 +368,34 @@ pub fn fit_request_with_background(
     result
 }
 
+/// 把除最近 `keep` 个之外的 role=="tool" 消息内容换成占位文本。
+/// 返回实际替换的数量；替换只针对 string content（OpenAI wire 格式）。
+fn prune_old_tool_results(messages: &mut [Value], keep: usize) -> usize {
+    let tool_indices: Vec<usize> = messages
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m["role"].as_str() == Some("tool"))
+        .map(|(i, _)| i)
+        .collect();
+    if tool_indices.len() <= keep {
+        return 0;
+    }
+    let cut = tool_indices.len() - keep;
+    let mut replaced = 0;
+    for &i in &tool_indices[..cut] {
+        let already_pruned =
+            messages[i]["content"].as_str() == Some(PRUNED_TOOL_RESULT_PLACEHOLDER);
+        if already_pruned {
+            continue;
+        }
+        if let Some(content) = messages[i].get_mut("content").filter(|c| c.is_string()) {
+            *content = Value::String(PRUNED_TOOL_RESULT_PLACEHOLDER.into());
+            replaced += 1;
+        }
+    }
+    replaced
+}
+
 pub fn text_tokens(model: &str, text: &str) -> usize {
     if model.starts_with("gpt-4o")
         || model.starts_with("gpt-5")
@@ -313,6 +414,173 @@ pub fn text_tokens(model: &str, text: &str) -> usize {
         text.len()
     }
 }
+#[cfg(test)]
+mod context_overflow_tests {
+    use super::*;
+
+    #[test]
+    fn recognizes_known_gateway_wordings() {
+        let openai =
+            serde_json::json!({"error":{"code":"context_length_exceeded","message":"..." }});
+        let anthropic = serde_json::json!({"error":{"message":"prompt is too long: 200000 tokens > 100000 maximum"}});
+        let ollamaish = serde_json::json!({"error":"input token limit exceeded"});
+        let chinese = serde_json::json!({"error":{"message":"上下文长度超过限制"}});
+        for body in [openai, anthropic, ollamaish, chinese] {
+            assert!(is_context_overflow(400, &body), "未识别: {body}");
+        }
+    }
+
+    #[test]
+    fn ignores_other_errors_and_statuses() {
+        let rate = serde_json::json!({"error":{"message":"rate limit exceeded"}});
+        let tool_err = serde_json::json!({"error":{"message":"prompt is too long but impossible"}});
+        assert!(!is_context_overflow(400, &rate));
+        // 仅在 400/413/422 判定
+        assert!(!is_context_overflow(
+            500,
+            &serde_json::json!({"error":{"message":"maximum context length"}})
+        ));
+        assert!(!is_context_overflow(429, &tool_err));
+        // 网关 5xx 带超长文案也不误判为重试信号
+        assert!(!is_context_overflow(
+            502,
+            &serde_json::json!({"error":{"message":"maximum context length"}})
+        ));
+    }
+}
+
+#[cfg(test)]
+mod tool_result_prune_tests {
+    use super::*;
+
+    fn tool_msg(id: &str, size: usize) -> Value {
+        serde_json::json!({"role":"tool","tool_call_id":id,"content":"x".repeat(size)})
+    }
+
+    #[test]
+    fn prunes_all_but_recent_three() {
+        let mut messages = vec![
+            serde_json::json!({"role":"user","content":"q"}),
+            tool_msg("c1", 1000),
+            serde_json::json!({"role":"assistant","content":"a1"}),
+            tool_msg("c2", 1000),
+            tool_msg("c3", 10),
+            tool_msg("c4", 10),
+            tool_msg("c5", 10),
+        ];
+        let replaced = prune_old_tool_results(&mut messages, 3);
+        assert_eq!(replaced, 2, "7 条里应替换最早的 2 条工具结果");
+        assert_eq!(
+            messages[1]["content"].as_str().unwrap(),
+            PRUNED_TOOL_RESULT_PLACEHOLDER
+        );
+        assert_eq!(
+            messages[3]["content"].as_str().unwrap(),
+            PRUNED_TOOL_RESULT_PLACEHOLDER
+        );
+        // 最近 3 个原样保留；tool_call_id 配对不动（exchange 校验依赖）
+        assert_eq!(messages[4]["tool_call_id"], "c3");
+        assert_eq!(messages[6]["content"].as_str().map(str::len), Some(10));
+        assert_eq!(
+            prune_old_tool_results(&mut messages, 3),
+            0,
+            "幂等：再跑不再替换"
+        );
+    }
+
+    /// 场景一：早期工具结果占位化即足以回到预算内——第一轮对话必须完整保留。
+    #[test]
+    fn pruning_old_tool_results_keeps_history_intact() {
+        let mut request = serde_json::json!({
+            "messages": [
+                {"role":"user","content":"第一问"},
+                {"role":"assistant","content":"第一答","tool_calls":[{"id":"c0","type":"function","function":{"name":"t","arguments":"{}"}}]},
+                tool_msg("c0", 5000),
+                {"role":"user","content":"第二问"},
+                {"role":"assistant","content":"第二答","tool_calls":[{"id":"c1","type":"function","function":{"name":"t","arguments":"{}"}}]},
+                tool_msg("c1", 6000),
+                {"role":"user","content":"第三问"},
+                {"role":"assistant","content":"第三答","tool_calls":[{"id":"c2","type":"function","function":{"name":"t","arguments":"{}"}}]},
+                tool_msg("c2", 6000),
+                {"role":"user","content":"第四问，当前问题必须完整保留"},
+            ]
+        });
+        let first_user = request["messages"][0]["content"].clone();
+        let last_user = request["messages"][9]["content"].clone();
+        let mut policies = RequestPolicies::plain(&request);
+        let count = policies
+            .fit("unknown", &mut request, 14000, 256)
+            .expect("占位化后应回到预算内");
+        assert!(count > 0);
+        assert_eq!(
+            policies.pruned_tool_results, 1,
+            "只有 c0（最早一条）应被占位化"
+        );
+        let msgs = request["messages"].as_array().unwrap();
+        // 第一轮完整保留（先于砍轮被应用）；当前问题在
+        assert!(
+            msgs.iter()
+                .any(|m| m["role"] == "user" && m["content"] == first_user),
+            "占位化即足够时不得砍历史轮"
+        );
+        assert!(
+            msgs.iter()
+                .any(|m| m["role"] == "user" && m["content"] == last_user)
+        );
+        // 近 3 个身位规则：c1、c2 原样；c0 占位
+        let c0 = msgs.iter().find(|m| m["tool_call_id"] == "c0").unwrap();
+        assert_eq!(c0["content"].as_str(), Some(PRUNED_TOOL_RESULT_PLACEHOLDER));
+        let c1 = msgs.iter().find(|m| m["tool_call_id"] == "c1").unwrap();
+        assert_eq!(c1["content"].as_str().map(str::len), Some(6000));
+        let c2 = msgs.iter().find(|m| m["tool_call_id"] == "c2").unwrap();
+        assert_eq!(c2["content"].as_str().map(str::len), Some(6000));
+    }
+
+    /// 场景二：占位化不够仍超预算 → 回落到整轮删除路径，且如实计数。
+    #[test]
+    fn when_pruning_is_not_enough_turn_dropping_takes_over() {
+        let mut request = serde_json::json!({
+            "messages": [
+                {"role":"user","content":"第一问"},
+                {"role":"assistant","content":"第一答","tool_calls":[{"id":"c0","type":"function","function":{"name":"t","arguments":"{}"}}]},
+                tool_msg("c0", 5000),
+                {"role":"user","content":"第二问"},
+                {"role":"assistant","content":"第二答","tool_calls":[{"id":"c1","type":"function","function":{"name":"t","arguments":"{}"}}]},
+                tool_msg("c1", 6000),
+                {"role":"user","content":"第三问"},
+                {"role":"assistant","content":"第三答","tool_calls":[{"id":"c2","type":"function","function":{"name":"t","arguments":"{}"}}]},
+                tool_msg("c2", 6000),
+                {"role":"user","content":"第四问，当前问题必须完整保留"},
+            ]
+        });
+        let first_user = request["messages"][0]["content"].clone();
+        let last_user = request["messages"][9]["content"].clone();
+        let mut policies = RequestPolicies::plain(&request);
+        policies
+            .fit("unknown", &mut request, 8000, 256)
+            .expect("砍轮后应回到预算内");
+        let msgs = request["messages"].as_array().unwrap();
+        // 第一问被整轮删除（占位不够），当前问题与省略提示在
+        assert!(
+            !msgs
+                .iter()
+                .any(|m| m["role"] == "user" && m["content"] == first_user),
+            "预算太紧时应砍整轮"
+        );
+        assert!(
+            msgs.iter()
+                .any(|m| m["role"] == "user" && m["content"] == last_user)
+        );
+        assert!(msgs.iter().any(|m| {
+            m["role"] == "system"
+                && m["content"]
+                    .as_str()
+                    .unwrap_or("")
+                    .contains("较早对话因请求预算已省略")
+        }));
+    }
+}
+
 /// 上下文窗口的保守默认（provider 未显式配置时）。
 /// 收录门槛与 rikkahub request-dialect 同理：主流模型族 + 官方文档口径，
 /// 宁小勿大（偏小只是预算紧，偏大是请求被拒）。未知模型一律 32768。

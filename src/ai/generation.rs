@@ -183,11 +183,11 @@ fn request_on_channel(
                 &request,
                 "completed",
                 reply.model.as_deref(),
-                reply.usage.as_ref().map(|u| (u.prompt_tokens, u.completion_tokens)),
                 reply
                     .usage
                     .as_ref()
-                    .and_then(|u| u.prompt_cached_tokens),
+                    .map(|u| (u.prompt_tokens, u.completion_tokens)),
+                reply.usage.as_ref().and_then(|u| u.prompt_cached_tokens),
             )?;
         }
         Err(_) => {

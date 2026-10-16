@@ -527,7 +527,6 @@ pub fn tick_periodic_reports() -> Result<PeriodReportTickResult> {
     }
 }
 
-
 // ── R4 报告可观察性（FRB 读面）────────────────────────────────────────
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct StoredDeviation {

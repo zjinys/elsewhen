@@ -100,6 +100,28 @@ CREATE INDEX idx_context_summaries_conv ON context_summaries(conversation_id);
 - AIcove 的教训直接采纳：同步来的摘要可能与本机消息流不配套 → **配套性检查**
   （source_message_sha256 或消息 id 存在性），不配套就触发补整理，不硬带。
 
+## P1 实施记录（本提交，已落地）
+
+源码摸底后的修正：
+
+- **级④已存在**：`streaming.rs` 曾有 400 + `context_length_exceeded` → 砍半 window
+  重触装配（trigger 事件 `upstream_context_window_rejection`）。本轮只把识别抽成
+  纯函数 `is_context_overflow(status, body)` 并扩表：message 文本表
+  （`prompt is too long` / `input token limit` / `上下文超限`…）+
+  `error` 为纯字符串的网关形态；仅 400/413/422 判定，5xx 文案不误判。
+- **级①②④齐了；级③（摘要）没有**：`fit` 的既有降级是直接删整轮——占位化
+  插在它前面。2 个以内的工具结果按"保留最近 3"规则全保留，直落砍轮
+  （有测试固化该边界）。
+- **占位化**（`prune_old_tool_results`，wire 层）：role=="tool" 消息保留最近 3 次，
+  更早的换自明占位文本；消息与 tool_call_id 配对不动（exchange 校验不受影响）；
+  幂等（已占位跳过）；无净收益则标记完成落回砍轮（防死循环）。
+- **观测**：`BudgetReport.pruned_tool_results`（serde default，向后兼容）——
+  明天装机报表可直接看降级构成。
+- 测试 +4：占位即足（历史完整保留）、占位不够回落砍轮（+省略提示在位）、
+  幂等、超长话术表 2 条。Rust 795 / Flutter 400。
+- 报错优于静默、闭合单元（exchange 校验）、retain 概念的等价物（fit 按段裁剪）
+  均为既有管道，未动。
+
 ## 分期
 
 | 期 | 内容 | 验收 |

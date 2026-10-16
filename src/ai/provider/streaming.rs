@@ -298,8 +298,7 @@ pub(super) fn generate(
                     return Err(super::NativeToolsUnsupported.into());
                 }
                 if !budget_retry
-                    && status.as_u16() == 400
-                    && code.as_deref() == Some("context_length_exceeded")
+                    && crate::ai::budget::is_context_overflow(status.as_u16(), &error_body)
                 {
                     let used = crate::ai::budget::input_tokens(&config.model, &payload);
                     window = (used + output).min(window) / 2;
