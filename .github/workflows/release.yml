@@ -163,14 +163,16 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: 安装 WiX Toolset v3.11 并打 MSI
+      - name: 安装 WiX Toolset 并打 MSI
         shell: pwsh
         run: |
           choco install -y wixtoolset
-          # choco 装的是 MSI 包，当前进程不继承新环境变量：直接拼 WiX bin
-          $wix = "C:\Program Files (x86)\WiX Toolset v3.11\bin"
-          if (-not (Test-Path "$wix\candle.exe")) { throw "WiX 安装后未找到 candle.exe" }
-          $env:PATH = "$wix;$env:PATH"
+          # runner 镜像会预装 3.14，choco 可能报 already-installed；
+          # 不硬编码版本号，按 glob 定位（3.11/3.14 均兼容）。
+          $candle = Get-ChildItem "C:\Program Files (x86)\WiX Toolset v*\bin\candle.exe" `
+            -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $candle) { throw "未找到 candle.exe（WiX 未安装）" }
+          $env:PATH = "$($candle.DirectoryName);$env:PATH"
           scripts\package-msi.ps1 dist
       - uses: actions/upload-artifact@v4
         with:
