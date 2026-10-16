@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,22 +30,21 @@ class ChatRunStatus extends ConsumerWidget {
     if (status == 'completed') {
       return const SizedBox.shrink();
     }
-    final label = view.starting
-        ? '正在启动生成…'
-        : view.restoring
-        ? '正在读取生成状态…'
-        : switch (status) {
-            'failed' => '生成失败，输入已保存',
-            'cancelled' => '已停止生成',
-            'interrupted' => '生成已中断',
-            'cancelling' => '正在停止…',
-            _ =>
-              view.phase == 'cancelling'
-                  ? '正在停止…'
-                  : view.phase == 'requesting'
-                  ? '正在等待模型回复…'
-                  : '正在准备上下文…',
-          };
+final label = view.starting
+    ? '正在启动生成…'
+    : view.restoring
+    ? '正在读取生成状态…'
+    : switch (status) {
+        'failed' => '生成失败，输入已保存',
+        'cancelled' => '已停止生成',
+        'interrupted' => '生成已中断',
+        'cancelling' => '正在停止…',
+        _ => ref.watch(
+          _gerundPickProvider(
+            '$conversationId|${run?.id ?? 'pending'}|${_gerundPhase(view)}',
+          ),
+        ),
+      };
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -184,3 +185,36 @@ String _toolLabel(String name) =>
       'save_wiki_revision': '草拟知识页修订',
     }[name] ??
     '处理工具步骤';
+
+/// 生成中状态词。按阶段取随机短语（Claude Code 风），同一 run 内稳定
+/// 不闪变，新一轮生成换词；技术阶段细节不再面向用户。
+const _gerundPreparing = [
+  '翻阅记忆中',
+  '整理思路中',
+  '回顾对话中',
+  '翻检知识库中',
+  '搜集线索中',
+  '梳理上下文中',
+];
+
+const _gerundAwaiting = [
+  '正在酝酿',
+  '正在构思',
+  '正在推敲',
+  '正在斟酌',
+  '灵感涌现中',
+  '编织回复中',
+  '打磨措辞中',
+  '抽丝剥茧中',
+];
+
+String _gerundPhase(ChatRunView view) =>
+    view.phase == 'requesting' ? 'awaiting' : 'preparing';
+
+final _gerundPickProvider = Provider.autoDispose.family<String, String>((
+  ref,
+  key,
+) {
+  final pool = key.endsWith('|awaiting') ? _gerundAwaiting : _gerundPreparing;
+  return '${pool[Random().nextInt(pool.length)]}…';
+});
