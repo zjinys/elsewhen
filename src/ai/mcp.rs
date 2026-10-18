@@ -443,7 +443,7 @@ pub fn list_tools_for_server(server: &crate::storage::McpServerConfig) -> Result
 pub fn available_tools(store: &Store) -> (Vec<McpToolInfo>, Vec<String>) {
     let mut tools = Vec::new();
     let mut errors = Vec::new();
-    match store.list_enabled_mcp_servers() {
+    match store.list_active_mcp_servers() {
         Ok(servers) => {
             for server in servers {
                 match list_tools_for_server(&server) {
@@ -466,10 +466,10 @@ pub fn call_tool(store: &Store, full_name: &str, arguments: &Value) -> Result<St
         .split_once("__")
         .ok_or_else(|| anyhow!("MCP 工具名缺少 server 前缀：{full_name}"))?;
     let server = store
-        .list_enabled_mcp_servers()?
+        .list_active_mcp_servers()?
         .into_iter()
         .find(|s| s.name == server_name)
-        .ok_or_else(|| anyhow!("MCP 服务器「{server_name}」未启用或不存在"))?;
+        .ok_or_else(|| anyhow!("MCP 服务器「{server_name}」未启用或未适用当前平台"))?;
     let mut map = connect(&server)?;
     let conn = map.get_mut(&server.id).expect("connect ensured");
     let result = conn.request(
@@ -549,6 +549,7 @@ for line in sys.stdin:
         let server = crate::storage::McpServerConfig {
             id: "test-server".into(),
             name: "testsrv".to_string(),
+            platform: "all".to_string(),
             transport: "stdio".into(),
             command: python,
             args_json: serde_json::to_string(&[script_path.to_string_lossy().to_string()]).unwrap(),
@@ -643,6 +644,7 @@ for line in sys.stdin:
         let server = crate::storage::McpServerConfig {
             id: "approval-server".into(),
             name: "approvalsrv".to_string(),
+        platform: "all".to_string(),
             transport: "stdio".into(),
             command: python,
             args_json: serde_json::to_string(&[script_path.to_string_lossy().to_string()]).unwrap(),
@@ -659,7 +661,7 @@ for line in sys.stdin:
         let store = crate::storage::Store::open(&db).unwrap();
         crate::storage::Store::mark_initialized(&db).unwrap();
         // call_tool 执行时从 mcp_servers 表查配置，先把 server 落库
-        store.save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, "", "{}", true, false).unwrap();
+        store.save_mcp_server(None, &server.name, "all", &server.transport, &server.command, &server.args_json, &server.env_json, "", "{}", true, false).unwrap();
         let conversation_id = store.create_conversation(None, None).unwrap();
 
         // dispatch 一个 MCP 工具调用（registry 为空 → 走 MCP sidecar 路由）
@@ -737,6 +739,7 @@ for line in sys.stdin:
             .save_mcp_server(
                 None,
                 "trustedsrv",
+                "all",
                 "stdio",
                 &python,
                 &serde_json::to_string(&[script_path.to_string_lossy().to_string()]).unwrap(),
@@ -849,6 +852,7 @@ mod http_transport_tests {
         let server = crate::storage::McpServerConfig {
             id: "http-server".into(),
             name: "httpsrv".to_string(),
+        platform: "all".to_string(),
             transport: "streamable-http".into(),
             command: String::new(),
             args_json: "[]".into(),
@@ -873,7 +877,7 @@ mod http_transport_tests {
         let store = crate::storage::Store::open(&db).unwrap();
         crate::storage::Store::mark_initialized(&db).unwrap();
         store
-            .save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, &server.url, &server.headers_json, true, false)
+            .save_mcp_server(None, &server.name, "all", &server.transport, &server.command, &server.args_json, &server.env_json, &server.url, &server.headers_json, true, false)
             .unwrap();
         let result = call_tool(
             &store,

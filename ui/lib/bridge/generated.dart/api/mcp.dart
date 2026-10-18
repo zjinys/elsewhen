@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `default_true`, `store_from_config`
+// These functions are ignored because they are not marked as `pub`: `default_true`, `record_mcp_audit`, `store_from_config`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`
 
 Future<List<McpServerDto>> listMcpServers() =>
@@ -40,6 +40,9 @@ class McpServerDto {
   final String id;
   final String name;
 
+  /// 平台标签（迁移 48）：all/linux/macos/windows；空串按 all 处理。
+  final String platform;
+
   /// 首期仅 "stdio"；现写死校验，后续演进 streamable-http 再放行。
   final String transport;
   final String command;
@@ -63,6 +66,7 @@ class McpServerDto {
   const McpServerDto({
     required this.id,
     required this.name,
+    required this.platform,
     required this.transport,
     required this.command,
     required this.argsJson,
@@ -77,6 +81,7 @@ class McpServerDto {
   int get hashCode =>
       id.hashCode ^
       name.hashCode ^
+      platform.hashCode ^
       transport.hashCode ^
       command.hashCode ^
       argsJson.hashCode ^
@@ -93,6 +98,7 @@ class McpServerDto {
           runtimeType == other.runtimeType &&
           id == other.id &&
           name == other.name &&
+          platform == other.platform &&
           transport == other.transport &&
           command == other.command &&
           argsJson == other.argsJson &&

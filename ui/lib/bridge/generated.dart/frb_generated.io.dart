@@ -4053,6 +4053,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.id = cst_encode_String(apiObj.id);
     wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.platform = cst_encode_String(apiObj.platform);
     wireObj.transport = cst_encode_String(apiObj.transport);
     wireObj.command = cst_encode_String(apiObj.command);
     wireObj.args_json = cst_encode_String(apiObj.argsJson);
@@ -17620,6 +17621,8 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> platform;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> transport;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> command;
@@ -17642,6 +17645,7 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> platform,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> transport,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> command,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
@@ -17653,6 +17657,7 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
   }) => $allocator<wire_cst_mcp_server_dto>()
     ..ref.id = id
     ..ref.name = name
+    ..ref.platform = platform
     ..ref.transport = transport
     ..ref.command = command
     ..ref.args_json = args_json

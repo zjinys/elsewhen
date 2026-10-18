@@ -10729,19 +10729,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   McpServerDto dco_decode_mcp_server_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return McpServerDto(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
-      transport: dco_decode_String(arr[2]),
-      command: dco_decode_String(arr[3]),
-      argsJson: dco_decode_String(arr[4]),
-      envJson: dco_decode_String(arr[5]),
-      url: dco_decode_String(arr[6]),
-      headersJson: dco_decode_String(arr[7]),
-      enabled: dco_decode_bool(arr[8]),
-      trusted: dco_decode_bool(arr[9]),
+      platform: dco_decode_String(arr[2]),
+      transport: dco_decode_String(arr[3]),
+      command: dco_decode_String(arr[4]),
+      argsJson: dco_decode_String(arr[5]),
+      envJson: dco_decode_String(arr[6]),
+      url: dco_decode_String(arr[7]),
+      headersJson: dco_decode_String(arr[8]),
+      enabled: dco_decode_bool(arr[9]),
+      trusted: dco_decode_bool(arr[10]),
     );
   }
 
@@ -14285,6 +14286,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
     var var_name = sse_decode_String(deserializer);
+    var var_platform = sse_decode_String(deserializer);
     var var_transport = sse_decode_String(deserializer);
     var var_command = sse_decode_String(deserializer);
     var var_argsJson = sse_decode_String(deserializer);
@@ -14296,6 +14298,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return McpServerDto(
       id: var_id,
       name: var_name,
+      platform: var_platform,
       transport: var_transport,
       command: var_command,
       argsJson: var_argsJson,
@@ -17701,6 +17704,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.name, serializer);
+    sse_encode_String(self.platform, serializer);
     sse_encode_String(self.transport, serializer);
     sse_encode_String(self.command, serializer);
     sse_encode_String(self.argsJson, serializer);

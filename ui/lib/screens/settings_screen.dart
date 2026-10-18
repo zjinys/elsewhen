@@ -1699,7 +1699,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(server.name, style: const TextStyle(fontSize: 14)),
+                      Row(
+                        children: [
+                          Text(server.name, style: const TextStyle(fontSize: 14)),
+                          const SizedBox(width: 6),
+                          // 平台徽章：同步分发的适用范围（迁移 48）。
+                          Text(
+                            server.platform == 'all' ? '全部平台' : '仅 ${server.platform}',
+                            style: TextStyle(
+                              color: AppTheme.textTertiary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
@@ -1833,6 +1846,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       text: existing?.headersJson ?? '{}',
     );
     String transport = existing?.transport ?? 'stdio';
+    String platform = existing?.platform ?? 'all';
     final result = await showDialog<_McpServerFormResult>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -1869,6 +1883,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     selected: {transport},
                     onSelectionChanged: (selection) =>
                         setDialogState(() => transport = selection.first),
+                  ),
+                  const SizedBox(height: AppTheme.space3),
+                  // 平台标签：定义随同步走，激活看平台。stdio 命令跨平台不
+                  // 通（npx / npx.cmd），可为同一服务器建各平台变体。
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'all', label: Text('全部')),
+                      ButtonSegment(value: 'linux', label: Text('Linux')),
+                      ButtonSegment(value: 'macos', label: Text('macOS')),
+                      ButtonSegment(value: 'windows', label: Text('Windows')),
+                    ],
+                    selected: {platform},
+                    onSelectionChanged: (selection) =>
+                        setDialogState(() => platform = selection.first),
                   ),
                   const SizedBox(height: AppTheme.space3),
                   if (transport == 'stdio') ...[
@@ -1933,6 +1961,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               onPressed: () => _testMcpConnection(
                 dialogContext,
                 nameController.text,
+                platform,
                 transport,
                 commandController.text,
                 argsController.text,
@@ -1950,6 +1979,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               onPressed: () {
                 Navigator.of(dialogContext).pop(_McpServerFormResult(
                   name: nameController.text,
+                  platform: platform,
                   transport: transport,
                   command: commandController.text,
                   argsJson: argsController.text,
@@ -1972,6 +2002,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       await repository.saveMcpServer(api.McpServerDto(
         id: existing?.id ?? '',
         name: result.name,
+        platform: result.platform,
         transport: result.transport,
         command: result.transport == 'stdio' ? result.command : '',
         argsJson: result.argsJson,
@@ -1994,6 +2025,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Future<void> _testMcpConnection(
     BuildContext dialogContext,
     String name,
+    String platform,
     String transport,
     String command,
     String argsJson,
@@ -2021,6 +2053,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       final tools = await repository.testMcpServer(api.McpServerDto(
         id: 'test-probe',
         name: name.isEmpty ? 'probe' : name,
+        platform: platform,
         transport: transport,
         command: transport == 'stdio' ? command : '',
         argsJson: argsJson,
@@ -3857,6 +3890,9 @@ class _TokenUsageBarChart extends StatelessWidget {
 /// MCP 服务器表单对话框的保存结果。
 class _McpServerFormResult {
   final String name;
+  /// 平台标签（迁移 48）：定义随人走，激活看平台。同一名 server 可有
+  /// 跨平台变体（如 Windows 上 npx.cmd）；远程服务器通常标 all。
+  final String platform;
   final String transport;
   final String command;
   final String argsJson;
@@ -3866,6 +3902,7 @@ class _McpServerFormResult {
   final bool trusted;
   const _McpServerFormResult({
     required this.name,
+    required this.platform,
     required this.transport,
     required this.command,
     required this.argsJson,

@@ -30,7 +30,13 @@ pub(crate) const SNAPSHOT_CARRIED_DIRS: &[&str] = &["tweet_images"];
 /// v3：新增 Record::WikiAsset（图片字节随快照携带）。新增 serde 变体后旧端
 /// 标签分发失败会整份拒收，所以跨 v2/v3 隔离是真实的、必须显式 bump——
 /// 与「wire 枚举加变体不 bump」不同（那边是 append-only 可被旧端忽略）。
-pub(crate) const SNAPSHOT_VERSION: u32 = 4;
+/// v5：新增 Record::McpServer（迁移 48 平台标签方案的同步面）。
+/// 同步语义：定义随人走，激活看平台——stdio 的 platform 变体不再导致
+/// 整表排除；行上不含 headers（凭据不离本机）与 trusted（信任是本机
+/// 事实，apply 强制置 0 回到逐次审批）。新增 serde 变体后旧端标签分发
+/// 失败会整份拒收，跨 v4/v5 必须显式 bump——与 wire 枚举不同（那边
+/// append-only 可被旧端忽略）。
+pub(crate) const SNAPSHOT_VERSION: u32 = 5;
 
 /// 随快照携带的表。QUERIES 必须真实覆盖这里的每一张（覆盖性由门禁测试
 /// `snapshot_carries_every_table_or_explicitly_excludes_it` 兜住：新增表不登记
@@ -66,6 +72,9 @@ pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
     // 接收端 reconcile 用它落盘；墓碑拦「已卸载技能」被旧分发复活。
     "skill_files",
     "skill_tombstones",
+    // MCP 定义（迁移 48 平台标签方案）：随快照携带，apply 不含 headers 与
+    // trusted（见 Record::McpServer 文档）。
+    "mcp_servers",
 ];
 
 pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
@@ -86,9 +95,13 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // GC 只认本设备的应用层水位，不跨设备继承。
     ("sync_gc_state", "per-device-gc-watermark"),
     // 本机同步收发/传输/迁移残留状态：不属于数据集内容。
-    // MCP 服务器是本机执行环境事实（命令路径依赖本机 node/npx 生态，进程
-    // 也只在本机拉起）；要换设备重新配，同步过去反而是断链的命令。
-    ("mcp_servers", "per-device-execution-environment"),
+    // MCP 服务器定义随快照走（迁移 48）：stdio 命令是平台绑定事实，靠
+    // platform 标签分发而非整表不同步（远程 http 行标 all 即可全端可用）。
+    // 排除面由 apply 闸门兑现：不含 headers（凭据）与 trusted（信任是
+    // 本机事实，落表强制置 0）。若未来要回到 per-device，必须连同
+    // Record::McpServer 与门禁测试一起撤。
+    // ("mcp_servers", "per-device-execution-environment"),
+
     ("ai_provider_sync_order", "rebuilt-by-provider-bundle-apply"),
     ("analysis_jobs", "per-device-sync-state"),
     ("sync_operation_fragment_outbox", "per-device-sync-state"),
@@ -404,6 +417,24 @@ enum Record {
         skill_id: String,
         updated_at: String,
     },
+    /// MCP 服务器定义（迁移 48 平台标签方案）：定义随人走，激活看平台。
+    /// 不含 headers_json（凭据不入快照，与 provider key 同一先例）与
+    /// trusted（信任是本机事实，apply 强制置 0）。platform 值域
+    /// all/linux/macos/windows；接收端 (name,platform) 已有行则本机获胜
+    /// （INSERT OR IGNORE 对 id 与 (name,platform) 两个唯一目标都静默跳过）。
+    McpServer {
+        id: String,
+        name: String,
+        platform: String,
+        transport: String,
+        command: String,
+        args_json: String,
+        env_json: String,
+        url: String,
+        enabled: bool,
+        created_at: String,
+        updated_at: String,
+    },
 }
 
 // rowid is only a cursor inside this one pinned source view, never a replicated
@@ -436,6 +467,9 @@ const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','provider_checkpoint','revision_id',substr(message_id,10),'content_hash',payload_hash) FROM sync_wire_outbox WHERE rowid>?1 AND message_id LIKE 'provider:%' ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','skill_file','skill_id',skill_id,'rel',rel,'sha256',sha256,'size',size,'updated_at',updated_at,'bytes_hex',hex(bytes)) FROM skill_files WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','skill_tombstone','skill_id',skill_id,'updated_at',updated_at) FROM skill_tombstones WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    // MCP 定义（迁移 48）：headers_json 不导出（凭据不离本机）；trusted
+    // 同理不入快照——apply 时强制置 0。
+    "SELECT rowid,json_object('kind','mcp_server','id',id,'name',name,'platform',platform,'transport',transport,'command',command,'args_json',args_json,'env_json',env_json,'url',url,'enabled',json(CASE WHEN enabled=1 THEN 'true' ELSE 'false' END),'created_at',created_at,'updated_at',updated_at) FROM mcp_servers WHERE rowid>?1 ORDER BY rowid LIMIT 1",
 ];
 
 pub(crate) struct SnapshotExporter {
@@ -1507,6 +1541,63 @@ impl Store {
                     params![skill_id, updated_at],
                 )?;
             }
+            Record::McpServer {
+                id,
+                name,
+                platform,
+                transport,
+                command,
+                args_json,
+                env_json,
+                url,
+                enabled,
+                created_at,
+                updated_at,
+            } => {
+                // 闸门：id 形态、name 字符集（工具名拼接安全）、platform 与
+                // transport 值域、args/env 合法 JSON。headers/trusted 不在
+                // 快照记录里（凭据不离本机；信任是本机事实）。
+                ensure!(validate_id(id).is_ok(), "sync_snapshot_mcp_server_invalid");
+                ensure!(
+                    !name.is_empty()
+                        && name
+                            .chars()
+                            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
+                    "sync_snapshot_mcp_server_invalid"
+                );
+                ensure!(
+                    matches!(platform.as_str(), "all" | "linux" | "macos" | "windows"),
+                    "sync_snapshot_mcp_server_invalid"
+                );
+                ensure!(
+                    matches!(transport.as_str(), "stdio" | "streamable-http"),
+                    "sync_snapshot_mcp_server_invalid"
+                );
+                validate_json_arg(args_json, "sync_snapshot_mcp_server_invalid")?;
+                validate_json_arg(env_json, "sync_snapshot_mcp_server_invalid")?;
+                // 本机获胜：同 id 或同 (name,platform) 已有行 → 忽略远端行
+                // （INSERT OR IGNORE 对主键与唯一索引两个目标都会静默跳过）。
+                // trusted 强制 0：同步到达的 server 回到逐次审批，用户看过、
+                // 信任了再开——URL 可以搭车，豁免不搭车。
+                self.connection.execute(
+                    "INSERT OR IGNORE INTO mcp_servers
+                        (id,name,platform,transport,command,args_json,env_json,url,headers_json,enabled,trusted,created_at,updated_at)
+                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,'{}',?9,0,?10,?11)",
+                    params![
+                        id,
+                        name,
+                        platform,
+                        transport,
+                        command,
+                        args_json,
+                        env_json,
+                        url,
+                        *enabled as i64,
+                        created_at,
+                        updated_at
+                    ],
+                )?;
+            }
             Record::Member {
                 device_id,
                 stream_id,
@@ -1669,6 +1760,14 @@ impl Store {
         }
         Ok(())
     }
+}
+
+/// MCP 快照行的 args_json/env_json 有效性闸门（数组或对象，非法即拒）。
+fn validate_json_arg(text: &str, code: &'static str) -> Result<()> {
+    let value: serde_json::Value =
+        serde_json::from_str(text).map_err(|_| anyhow::anyhow!(code))?;
+    ensure!(value.is_array() || value.is_object(), code);
+    Ok(())
 }
 
 fn hex_to_vec(hex: &str) -> Result<Vec<u8>> {

@@ -392,7 +392,6 @@ mod resolve_tests {
 #[cfg(test)]
 mod trust_tests {
     use super::*;
-    use crate::ai::tool::ToolRegistry;
 
     fn fixture(tag: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(

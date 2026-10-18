@@ -9069,6 +9069,7 @@ impl SseDecode for crate::api::mcp::McpServerDto {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
         let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_platform = <String>::sse_decode(deserializer);
         let mut var_transport = <String>::sse_decode(deserializer);
         let mut var_command = <String>::sse_decode(deserializer);
         let mut var_argsJson = <String>::sse_decode(deserializer);
@@ -9080,6 +9081,7 @@ impl SseDecode for crate::api::mcp::McpServerDto {
         return crate::api::mcp::McpServerDto {
             id: var_id,
             name: var_name,
+            platform: var_platform,
             transport: var_transport,
             command: var_command,
             args_json: var_argsJson,
@@ -12070,6 +12072,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::mcp::McpServerDto {
         [
             self.id.into_into_dart().into_dart(),
             self.name.into_into_dart().into_dart(),
+            self.platform.into_into_dart().into_dart(),
             self.transport.into_into_dart().into_dart(),
             self.command.into_into_dart().into_dart(),
             self.args_json.into_into_dart().into_dart(),
@@ -14968,6 +14971,7 @@ impl SseEncode for crate::api::mcp::McpServerDto {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.name, serializer);
+        <String>::sse_encode(self.platform, serializer);
         <String>::sse_encode(self.transport, serializer);
         <String>::sse_encode(self.command, serializer);
         <String>::sse_encode(self.args_json, serializer);
@@ -17761,6 +17765,7 @@ mod io {
             crate::api::mcp::McpServerDto {
                 id: self.id.cst_decode(),
                 name: self.name.cst_decode(),
+                platform: self.platform.cst_decode(),
                 transport: self.transport.cst_decode(),
                 command: self.command.cst_decode(),
                 args_json: self.args_json.cst_decode(),
@@ -19604,6 +19609,7 @@ mod io {
             Self {
                 id: core::ptr::null_mut(),
                 name: core::ptr::null_mut(),
+                platform: core::ptr::null_mut(),
                 transport: core::ptr::null_mut(),
                 command: core::ptr::null_mut(),
                 args_json: core::ptr::null_mut(),
@@ -25229,6 +25235,7 @@ mod io {
     pub struct wire_cst_mcp_server_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         name: *mut wire_cst_list_prim_u_8_strict,
+        platform: *mut wire_cst_list_prim_u_8_strict,
         transport: *mut wire_cst_list_prim_u_8_strict,
         command: *mut wire_cst_list_prim_u_8_strict,
         args_json: *mut wire_cst_list_prim_u_8_strict,
@@ -28184,21 +28191,22 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                10,
-                "Expected 10 elements, got {}",
+                11,
+                "Expected 11 elements, got {}",
                 self_.length()
             );
             crate::api::mcp::McpServerDto {
                 id: self_.get(0).cst_decode(),
                 name: self_.get(1).cst_decode(),
-                transport: self_.get(2).cst_decode(),
-                command: self_.get(3).cst_decode(),
-                args_json: self_.get(4).cst_decode(),
-                env_json: self_.get(5).cst_decode(),
-                url: self_.get(6).cst_decode(),
-                headers_json: self_.get(7).cst_decode(),
-                enabled: self_.get(8).cst_decode(),
-                trusted: self_.get(9).cst_decode(),
+                platform: self_.get(2).cst_decode(),
+                transport: self_.get(3).cst_decode(),
+                command: self_.get(4).cst_decode(),
+                args_json: self_.get(5).cst_decode(),
+                env_json: self_.get(6).cst_decode(),
+                url: self_.get(7).cst_decode(),
+                headers_json: self_.get(8).cst_decode(),
+                enabled: self_.get(9).cst_decode(),
+                trusted: self_.get(10).cst_decode(),
             }
         }
     }

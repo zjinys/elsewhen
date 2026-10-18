@@ -687,18 +687,16 @@ pub(crate) fn dispatch_with_knowledge(
                 // MCP server 是第三方代码，默认走 pending-action 审批——
                 // 用户确认卡接受后才真正发起 tools/call，参数以确认时原样
                 // 执行（杜绝确认前后偷换内容）。拒绝则丢弃，不执行。
-                // 例外：server 被用户在设置页标为「信任」（trusted=1，迁移 47）
-                // 时直接执行——设置页已明示风险，开启即用户自担。
-                // streamable-http 远程可达（手机也能连）；stdio 仅桌面。
-                const IS_MOBILE: bool =
-                    cfg!(any(target_os = "android", target_os = "ios"));
+                // platform 标签（迁移 48）统一裁决可达性：不匹配当前平台的行
+                // 不注入工具，查不到即不可达；stdio/stdhttp 的设备适用性都由
+                // 行上的标签表达（桌面多平台/移动端各取所需）。
                 let server_name = call
                     .name
                     .strip_prefix(crate::ai::mcp::MCP_PREFIX)
                     .and_then(|rest| rest.split("__").next())
                     .unwrap_or_default();
                 let server_info = store
-                    .list_enabled_mcp_servers()
+                    .list_active_mcp_servers()
                     .ok()
                     .and_then(|servers| {
                         servers
@@ -706,22 +704,12 @@ pub(crate) fn dispatch_with_knowledge(
                             .find(|s| s.name == server_name)
                             .map(|s| (s.transport, s.trusted))
                     });
-                let transport = server_info.as_ref().map(|(t, _)| t.as_str());
-                let unreachable = match transport {
-                    None => true,
-                    Some("stdio") => IS_MOBILE,
-                    Some(_) => false,
-                };
-                if unreachable {
+                if server_info.is_none() {
                     return ToolResultMsg::err(
                         call,
-                        if transport.is_none() {
-                            format!(
-                                "MCP 服务器「{server_name}」未启用或不存在，本次调用未执行。"
-                            )
-                        } else {
-                            "此 MCP 服务器使用本机子进程协议，需要桌面环境（此设备无法执行）。".to_string()
-                        },
+                        format!(
+                            "MCP 服务器「{server_name}」未启用、删除或未适用当前平台，本次调用未执行。"
+                        ),
                     );
                 }
                 // trusted=1：跳过审批直接执行，错误同样以结果文本返回。

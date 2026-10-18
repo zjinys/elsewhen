@@ -11,6 +11,9 @@ pub struct McpServerDto {
     #[serde(default)]
     pub id: String,
     pub name: String,
+    /// 平台标签（迁移 48）：all/linux/macos/windows；空串按 all 处理。
+    #[serde(default)]
+    pub platform: String,
     /// 首期仅 "stdio"；现写死校验，后续演进 streamable-http 再放行。
     pub transport: String,
     pub command: String,
@@ -60,6 +63,7 @@ pub fn list_mcp_servers() -> Result<Vec<McpServerDto>> {
         .map(|s| McpServerDto {
             id: s.id,
             name: s.name,
+            platform: s.platform,
             transport: s.transport,
             command: s.command,
             args_json: s.args_json,
@@ -102,9 +106,16 @@ fn record_mcp_audit(action: &str, detail: &str) {
 pub fn save_mcp_server(server: McpServerDto) -> Result<String> {
     let store = store_from_config()?;
     let is_new = server.id.is_empty();
+    // 未标记平台的老客户端（字段是 serde default）归入 all。
+    let platform = if server.platform.is_empty() {
+        "all"
+    } else {
+        server.platform.as_str()
+    };
     let id = store.save_mcp_server(
         Some(server.id.as_str()).filter(|s| !s.is_empty()),
         &server.name,
+        platform,
         &server.transport,
         &server.command,
         &server.args_json,
@@ -116,7 +127,7 @@ pub fn save_mcp_server(server: McpServerDto) -> Result<String> {
     )?;
     record_mcp_audit(
         if is_new { "create" } else { "update" },
-        &format!("name={} trusted={}", server.name, server.trusted),
+        &format!("name={} platform={platform} trusted={}", server.name, server.trusted),
     );
     Ok(id)
 }
@@ -159,6 +170,7 @@ pub fn test_mcp_server(server: McpServerDto) -> Result<Vec<McpToolDto>> {
             server.id.clone()
         },
         name: server.name.clone(),
+        platform: server.platform.clone(),
         transport: server.transport.clone(),
         command: server.command.clone(),
         args_json: server.args_json.clone(),
