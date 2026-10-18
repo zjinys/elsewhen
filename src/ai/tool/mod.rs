@@ -684,12 +684,42 @@ pub(crate) fn dispatch_with_knowledge(
             // 内置注册表未命中：MCP 工具（mcp__<server>__<tool>）走外部
             // 分发；错误同样以结果文本返回，不炸生成主链路。
             if call.name.starts_with(crate::ai::mcp::MCP_PREFIX) {
-                return match crate::ai::mcp::call_tool(store, &call.name, &call.arguments) {
-                    Ok(text) => ToolResultMsg::ok(call, text),
-                    Err(e) => ToolResultMsg::err(call, e),
-                };
+                // MCP server 是第三方代码，工具调用不直接执行：按
+                // run_skill_script 同模式走 pending-action 审批——用户
+                // 确认卡接受后才真正发起 tools/call，参数以确认时原样
+                // 执行（杜绝确认前后偷换内容）。拒绝则丢弃，不执行。
+                #[cfg(any(target_os = "android", target_os = "ios"))]
+                {
+                    return ToolResultMsg::err(
+                        call,
+                        "MCP 工具需要桌面环境（此设备无法运行本地子进程协议）。",
+                    );
+                }
+                #[cfg(not(any(target_os = "android", target_os = "ios")))]
+                {
+                    let action_args = serde_json::json!({
+                        "full_name": call.name,
+                        "arguments": call.arguments,
+                    });
+                    match store_create_pending(
+                        store,
+                        conversation_id,
+                        "mcp_tool_call",
+                        &action_args,
+                    ) {
+                        Ok(_) => ToolResultMsg::ok(
+                            call,
+                            format!(
+                                "工具 {} 已暂存待用户确认（MCP 服务器为第三方代码，执行前需要逐次审批）。在审阅卡点击接受后执行。",
+                                call.name
+                            ),
+                        ),
+                        Err(e) => ToolResultMsg::err(call, e),
+                    }
+                }
+            } else {
+                ToolResultMsg::err(call, format!("未知工具：{}", call.name))
             }
-            ToolResultMsg::err(call, format!("未知工具：{}", call.name))
         }
     }
 }
@@ -2045,6 +2075,16 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
         "run_skill_script" => {
             let data_dir = crate::config::AppConfig::load()?.data_dir;
             skill_script::execute_confirmed(&data_dir, &args)
+        }
+        // MCP 工具调用：参数以确认时封存的 args 原样执行（dispatch 时已
+        // 创建 pending，这里不再二次批准）；server 须仍处启用态，否则报错。
+        "mcp_tool_call" => {
+            let full_name = arg_str(&args, "full_name")?;
+            let arguments = args
+                .get("arguments")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({}));
+            crate::ai::mcp::call_tool(store, &full_name, &arguments)
         }
         // 历史遗留的 record_event 待确认动作（改直接入库前的旧数据）仍可执行
         "record_event" => insert_event_from_args(&args, store),

@@ -172,6 +172,8 @@ String _toolLabel(String name) =>
       'fetch_page': '读取网页',
       'record_event': '记录事件',
       'save_knowledge_draft': '草拟知识页',
+      'run_skill_script': '执行技能脚本',
+      'mcp_tool_call': 'MCP 工具调用',
       'list_todos': '查询待办',
       'create_todo': '草拟待办',
       'propose_people_relations': '草拟联系人关联',

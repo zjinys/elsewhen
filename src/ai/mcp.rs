@@ -405,7 +405,7 @@ for line in sys.stdin:
         std::fs::remove_dir_all(&dir).ok();
     }
 
-    fn which_python() -> Option<String> {
+    pub(super) fn which_python() -> Option<String> {
         ["python3", "python"].iter().find_map(|bin| {
             std::process::Command::new(bin)
                 .arg("--version")
@@ -422,5 +422,97 @@ for line in sys.stdin:
         let truncated = truncate_result(big);
         assert!(truncated.chars().count() < MAX_RESULT_CHARS + 100);
         assert!(truncated.contains("已截断"));
+    }
+}
+
+#[cfg(test)]
+mod approval_tests {
+    use super::*;
+    use crate::ai::tool::{dispatch, ToolCall, ToolRegistry};
+
+    /// 审批闭环：dispatch MCP 工具不直接执行 → 创建 pending_action →
+    /// 用户确认后 execute_pending_action 才真正发起 tools/call。
+    /// 用真子进程 echo server 验证全程（与协议测试同 fixture）。
+    #[test]
+    fn dispatch_creates_pending_action_and_execute_confirmed_runs_it() {
+        let python = match super::tests::which_python() {
+            Some(p) => p,
+            None => {
+                eprintln!("跳过：找不到 python3");
+                return;
+            }
+        };
+        let script = r#"
+import json, sys
+for line in sys.stdin:
+    msg = json.loads(line)
+    if 'id' not in msg:
+        continue
+    method = msg.get('method', '')
+    if method == 'initialize':
+        result = {"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "t", "version": "0"}}
+    elif method == 'tools/call':
+        result = {"content": [{"type": "text", "text": "echo: " + msg['params']['arguments']['text']}], "isError": False}
+    else:
+        result = {}
+    print(json.dumps({"jsonrpc": "2.0", "id": msg['id'], "result": result}), flush=True)
+"#;
+        let dir = std::env::temp_dir().join(format!(
+            "elsewhen-mcp-approval-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let script_path = dir.join("mcp_echo.py");
+        std::fs::write(&script_path, script).unwrap();
+        let server = crate::storage::McpServerConfig {
+            id: "approval-server".into(),
+            name: "approvalsrv".to_string(),
+            transport: "stdio".into(),
+            command: python,
+            args_json: serde_json::to_string(&[script_path.to_string_lossy().to_string()]).unwrap(),
+            env_json: "{}".into(),
+            enabled: true,
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+
+        let db = dir.join("test.db");
+        let store = crate::storage::Store::open(&db).unwrap();
+        crate::storage::Store::mark_initialized(&db).unwrap();
+        // call_tool 执行时从 mcp_servers 表查配置，先把 server 落库
+        store.save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, true).unwrap();
+        let conversation_id = store.create_conversation(None, None).unwrap();
+
+        // dispatch 一个 MCP 工具调用（registry 为空 → 走 MCP sidecar 路由）
+        let call = ToolCall {
+            id: "call-1".into(),
+            name: format!("{MCP_PREFIX}approvalsrv__echo"),
+            arguments: serde_json::json!({ "text": "hi" }),
+            raw_arguments: None,
+        };
+        let registry = ToolRegistry::deferred_runtime();
+        let msg = dispatch(&call, &registry, &store, &conversation_id);
+        // 不直接执行：结果文本告知待确认，工具输出不出现
+        let text = format!("{msg:?}");
+        assert!(text.contains("待用户确认"), "got: {text}");
+        assert!(!text.contains("echo: hi"));
+
+        // pending_action 已创建，参数封存
+        let pending = store
+            .pending_actions_for_conversation(&conversation_id)
+            .unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].action, "mcp_tool_call");
+        let args: serde_json::Value =
+            serde_json::from_str(&pending[0].args_json).unwrap();
+        assert_eq!(args["full_name"], call.name);
+        assert_eq!(args["arguments"]["text"], "hi");
+
+        // 用户在审阅卡点接受 → 真正执行
+        let out = crate::ai::tool::execute_pending_action(&store, &pending[0]).unwrap();
+        assert_eq!(out, "echo: hi");
+
+        invalidate_server(&server.id);
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
