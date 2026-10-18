@@ -72,8 +72,36 @@ pub fn list_mcp_servers() -> Result<Vec<McpServerDto>> {
         .collect())
 }
 
+/// MCP 生命周期审计：与 skills 侧同模型（信任墙 #4）——新增/删除/启停/
+/// 免审批开关都落在 `<data_dir>/mcp/.audit.log`（JSONL）。故意不进用户
+/// 事件流：那是个人记录，不应混入系统操作，但免审批开关这类放宽信任
+/// 边界的动作必须有本机留痕。
+fn record_mcp_audit(action: &str, detail: &str) {
+    use std::io::Write;
+    let Ok(config) = crate::config::AppConfig::load() else {
+        return;
+    };
+    let dir = config.data_dir.join("mcp");
+    if std::fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+    let line = serde_json::json!({
+        "ts": chrono::Utc::now().to_rfc3339(),
+        "action": action,
+        "detail": detail,
+    });
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join(".audit.log"))
+    {
+        let _ = writeln!(f, "{line}");
+    }
+}
+
 pub fn save_mcp_server(server: McpServerDto) -> Result<String> {
     let store = store_from_config()?;
+    let is_new = server.id.is_empty();
     let id = store.save_mcp_server(
         Some(server.id.as_str()).filter(|s| !s.is_empty()),
         &server.name,
@@ -86,22 +114,39 @@ pub fn save_mcp_server(server: McpServerDto) -> Result<String> {
         server.enabled,
         server.trusted,
     )?;
+    record_mcp_audit(
+        if is_new { "create" } else { "update" },
+        &format!("name={} trusted={}", server.name, server.trusted),
+    );
     Ok(id)
 }
 
 pub fn delete_mcp_server(id: String) -> Result<()> {
     let store = store_from_config()?;
-    store.delete_mcp_server(&id)
+    store.delete_mcp_server(&id)?;
+    record_mcp_audit("delete", &id);
+    Ok(())
 }
 
 pub fn set_mcp_server_enabled(id: String, enabled: bool) -> Result<()> {
     let store = store_from_config()?;
-    store.set_mcp_server_enabled(&id, enabled)
+    store.set_mcp_server_enabled(&id, enabled)?;
+    record_mcp_audit(
+        if enabled { "enable" } else { "disable" },
+        &id,
+    );
+    Ok(())
 }
 
 pub fn set_mcp_server_trusted(id: String, trusted: bool) -> Result<()> {
     let store = store_from_config()?;
-    store.set_mcp_server_trusted(&id, trusted)
+    store.set_mcp_server_trusted(&id, trusted)?;
+    // 免审批开关最该留痕：这是对第三方代码信任边界的显式放宽。
+    record_mcp_audit(
+        if trusted { "trust" } else { "untrust" },
+        &id,
+    );
+    Ok(())
 }
 
 /// 连通性测试：发起 stdio 会话并拉取工具清单。将一并验证用户的命令/

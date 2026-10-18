@@ -65,6 +65,19 @@ impl Tool for RunSkillScriptTool {
     }
 
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let data_dir = crate::config::AppConfig::load()?.data_dir;
+        self.run_with_data_dir(args, ctx, &data_dir)
+    }
+}
+
+impl RunSkillScriptTool {
+    /// 审批/执行逻辑本体，data_dir 显式传入供测试注入（临时技能目录）。
+    fn run_with_data_dir(
+        &self,
+        args: &Value,
+        ctx: &ToolContext,
+        data_dir: &std::path::Path,
+    ) -> Result<String> {
         let skill = arg_str(args, "skill")?;
         let script = arg_str(args, "script")?;
         let extra_args = arg_str_opt(args, "args").unwrap_or_default();
@@ -79,7 +92,6 @@ impl Tool for RunSkillScriptTool {
         }
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         {
-            let data_dir = crate::config::AppConfig::load()?.data_dir;
             let resolved = resolve_script(&data_dir, &skill, &script)?;
             let command = build_command_display(&resolved, &extra_args);
             let action_args = json!({
@@ -374,5 +386,118 @@ mod resolve_tests {
         crate::ai::skills::set_enabled(&dir, "proxy-pick", false).unwrap();
         assert!(resolve_script(&dir, "proxy-pick", "templates/clash-pick").is_err());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod trust_tests {
+    use super::*;
+    use crate::ai::tool::ToolRegistry;
+
+    fn fixture(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "elsewhen-skill-trust-{}-{tag}-{}",
+            std::process::id(),
+            std::thread::current().name().unwrap_or("t")
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let skill = dir.join("skills").join("echo-skill");
+        std::fs::create_dir_all(&skill).unwrap();
+        std::fs::write(
+            skill.join("SKILL.md"),
+            "---\nname: echo-skill\ndescription: test\n---\nbody",
+        )
+        .unwrap();
+        std::fs::write(skill.join("run.sh"), "#!/bin/sh\necho skill-echo \"$1\"\n").unwrap();
+        dir
+    }
+
+    fn dispatch_env(tag: &str) -> (crate::storage::Store, String, std::path::PathBuf) {
+        let dir = fixture(tag);
+        let db = dir.join("test.db");
+        let store = crate::storage::Store::open(&db).unwrap();
+        crate::storage::Store::mark_initialized(&db).unwrap();
+        let conversation_id = store.create_conversation(None, None).unwrap();
+        (store, conversation_id, dir)
+    }
+
+    fn call() -> serde_json::Value {
+        serde_json::json!({ "skill": "echo-skill", "script": "run.sh", "args": "hi" })
+    }
+
+    fn ctx<'a>(
+        store: &'a crate::storage::Store,
+        conversation_id: &'a str,
+    ) -> ToolContext<'a> {
+        ToolContext {
+            store,
+            conversation_id,
+            source_event_id: None,
+            knowledge_candidates: &[],
+        }
+    }
+
+    #[test]
+    fn untrusted_skill_dispatch_creates_pending_action_with_sealed_args() {
+        let (store, conversation_id, dir) = dispatch_env("untrusted");
+        // 未 trust：走 pending，不直接执行。
+        let out = RunSkillScriptTool
+            .run_with_data_dir(&call(), &ctx(&store, &conversation_id), &dir)
+            .unwrap();
+        assert!(out.contains("等待你确认"), "got: {out}");
+        // 未执行：不含执行成功的完成态文案。
+        assert!(!out.contains("执行成功"));
+        let pending = store
+            .pending_actions_for_conversation(&conversation_id)
+            .unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].action, "run_skill_script");
+        let sealed: serde_json::Value =
+            serde_json::from_str(&pending[0].args_json).unwrap();
+        assert_eq!(sealed["skill"], "echo-skill");
+        assert_eq!(sealed["script"], "run.sh");
+        assert_eq!(sealed["args"], "hi");
+        // 确认后走同一条 execute_confirmed（execute_pending_action 的
+        // run_skill_script 分支内部就是它），输出正确。
+        let executed = execute_confirmed(&dir, &sealed).unwrap();
+        assert_eq!(executed, "[echo-skill/run.sh] 执行成功\n\nskill-echo hi\n");
+        drop(store);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn trusted_skill_dispatch_executes_directly_without_pending_action() {
+        let (store, conversation_id, dir) = dispatch_env("trusted");
+        // trust 后 dispatch 跳过审批直接执行，不创建 pending_action。
+        crate::ai::skills::set_trusted(&dir, "echo-skill", true).unwrap();
+        assert!(crate::ai::skills::is_trusted(&dir, "echo-skill"));
+        let out = RunSkillScriptTool
+            .run_with_data_dir(&call(), &ctx(&store, &conversation_id), &dir)
+            .unwrap();
+        // 免审批路径的输出格式与确认后一致：完成态 + stdout。
+        assert_eq!(out, "[echo-skill/run.sh] 执行成功\n\nskill-echo hi\n");
+        assert!(
+            store
+                .pending_actions_for_conversation(&conversation_id)
+                .unwrap()
+                .is_empty()
+        );
+        // 审计留痕（信任墙 #4 对齐：trust 动作写入 skills/.audit.log）。
+        let audit = std::fs::read_to_string(dir.join("skills/.audit.log")).unwrap();
+        assert!(audit.contains("\"trust\""));
+        assert!(audit.contains("echo-skill"));
+        drop(store);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn untrust_and_retrust_roundtrip_updates_state_file() {
+        let dir = fixture("state");
+        assert!(!crate::ai::skills::is_trusted(&dir, "echo-skill"));
+        crate::ai::skills::set_trusted(&dir, "echo-skill", true).unwrap();
+        assert!(crate::ai::skills::is_trusted(&dir, "echo-skill"));
+        crate::ai::skills::set_trusted(&dir, "echo-skill", false).unwrap();
+        assert!(!crate::ai::skills::is_trusted(&dir, "echo-skill"));
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
