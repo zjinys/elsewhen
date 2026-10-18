@@ -32,7 +32,8 @@ Elsewhen 的对话不适合只做「读写自己的库」。用户要求 AI 能�
 - 不做 per-server 工具子集筛选（该 server 的全部工具常驻注入）。
 - 不做连接空闲回收、后台健康巡检、自动重连策略调优。
 - **不做细粒度「总是允许此工具」**。信任粒度是 server/技能整体，不细化到单个工具、单个参数模式。
-- 不做跨设备同步 trusted 状态（见 §2）。
+- 不做跨设备同步 trusted 状态（见 §2）。也不做逐平台布尔组合（标签单值：all/linux/macos/windows，跨平台需求用同名变体表达）。
+- 不在 v1 做「移动端把执行委托给桌面节点」（云端/本地执行选择），该方向已成文为独立提案（docs/notes/proposed/architecture/2026-10-18-mobile-execution-delegation.md），且以平台标签为前置。
 - 不做审批卡的多 delegated 审阅（会话内 pending 卡只有一份，不接受多人审批）。
 - 不承诺 MCP server 的行为安全。trusted 只表示用户对它的声明，不构成系统层面的任何安全背书。
 
@@ -68,7 +69,7 @@ MCP server 的增删改启停、trusted 开关，技能的安装启停信任操�
 
 ## 5. 约束
 
-- `mcp_servers` 表与 `skills_state.json` 不进同步域（本机执行环境事实）。
+- `skills_state.json` 不进同步域；`mcp_servers` 定义随快照分发但 `headers_json`（凭据）与 `trusted`（信任）不入快照（迁移 48）。
 - MCP 工具参数含动态 JSON，跨 FFI 边界一律字符串化（`args_json` / `headers_json` 等），不直接传 `serde_json::Value`（frb 界面限制）。
 - streamable-http 采用逐消息 POST 拉模式，不开常驻 SSE 流；HTTP 头承载鉴权。
 - trust 的粒度是 server/技能整体；不许出现「某工具免审批、其余审批」的混合态。
@@ -78,4 +79,5 @@ MCP server 的增删改启停、trusted 开关，技能的安装启停信任操�
 - MCP 三连提交：接入（`6502717`）、pending 审批（`c4780e1`）、streamable-http（`c26c750`）。
 - trusted：MCP（`e58fb0f`，迁移 47）、skills（`eeeb0e6`）、审计与测试补齐（`fc54c2d`）。
 - 双向审批闭环测试（真 python fixture）：untrusted → pending 封存 → 确认执行；trusted → 直执行无 pending。skill 侧同构三条测试（pending 封存、trusted 直执行 + 审计留痕、状态轮转）。
-- Rust 824 passed / 0 failed 为本需求代码基线。
+- 迁移 48（平台标签）：桌面配好的远程 server 同步到手机即可用（all 行）；快照三铁律测试钉住 headers 不搭车、trusted 不搭车、本机行获胜。
+- Rust 826 passed / 0 failed 为本需求代码基线。
