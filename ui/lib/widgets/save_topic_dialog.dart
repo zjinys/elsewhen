@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
+import 'glass.dart';
 
 /// 「存为主题」对话框：复用知识库「文本导入」的字段与交互（标题 / 标签 / 正文），
 /// 但保存为 topic 页。点消息气泡上的书签按钮弹出，预填从消息提取的内容，
@@ -99,61 +100,49 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppTheme.surface0,
-      title: Text(
-        '存为主题',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
-        ),
-      ),
-      content: SizedBox(
-        width: 560,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _titleController,
-                enabled: !_busy,
-                decoration: _deco('标题（可选，留空自动取正文首行前 60 字）'),
-              ),
-              const SizedBox(height: AppTheme.space3),
-              TextField(
-                controller: _tagsController,
-                enabled: !_busy,
-                style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
-                decoration: _deco(
-                  '标签（可选，空格或逗号分隔，例如：理财 副业）',
-                  prefix: Icon(Icons.sell_outlined, size: 16),
-                ),
-              ),
-              const SizedBox(height: AppTheme.space3),
-              SizedBox(
-                height: 300,
-                child: TextField(
-                  controller: _textController,
-                  enabled: !_busy,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  style: TextStyle(color: AppTheme.textPrimary),
-                  decoration: _deco('正文（Markdown 支持）'),
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: AppTheme.space2),
-                Text(
-                  _error!,
-                  style: TextStyle(fontSize: 12, color: AppTheme.error),
-                ),
-              ],
-            ],
+    return GlassDialog(
+      maxWidth: 560,
+      title: const Text('存为主题'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _titleController,
+            enabled: !_busy,
+            decoration: _deco('标题（可选，留空自动取正文首行前 60 字）'),
           ),
-        ),
+          const SizedBox(height: AppTheme.space3),
+          TextField(
+            controller: _tagsController,
+            enabled: !_busy,
+            style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
+            decoration: _deco(
+              '标签（可选，空格或逗号分隔，例如：理财 副业）',
+              prefix: Icon(Icons.sell_outlined, size: 16),
+            ),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          SizedBox(
+            height: 300,
+            child: TextField(
+              controller: _textController,
+              enabled: !_busy,
+              maxLines: null,
+              expands: true,
+              textAlignVertical: TextAlignVertical.top,
+              style: TextStyle(color: AppTheme.textPrimary),
+              decoration: _deco('正文（Markdown 支持）'),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: AppTheme.space2),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: 12, color: AppTheme.error),
+            ),
+          ],
+        ],
       ),
       actions: [
         TextButton(

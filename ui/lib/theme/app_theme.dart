@@ -203,6 +203,43 @@ class AppTheme {
         hintStyle: TextStyle(color: palette.textTertiary, fontSize: 14),
         labelStyle: TextStyle(color: palette.textSecondary, fontSize: 13),
       ),
+      // 滚动条：桌面常驻细轨（4px，hover 加粗由 Scrollbar 自身处理），
+      // 移动端自动隐去（thumbVisibility 由平台缺省决定，移动端捏合不出现）。
+      scrollbarTheme: ScrollbarThemeData(
+        thickness: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.hovered) ? 7.0 : 4.0,
+        ),
+        radius: const Radius.circular(4),
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.hovered)
+              ? palette.textTertiary.withValues(alpha: 0.75)
+              : palette.textTertiary.withValues(alpha: 0.4),
+        ),
+        trackVisibility: WidgetStateProperty.all(false),
+        interactive: true,
+      ),
+      // 抽屉 / 弹出菜单：与卡片同级的圆角与 surface 层级。
+      drawerTheme: DrawerThemeData(
+        backgroundColor: palette.surface1,
+        shape: const RoundedRectangleBorder(),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: palette.surface2,
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+          side: BorderSide(
+            color: palette.surface3.withValues(alpha: 0.8),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: palette.surface3,
+        contentTextStyle: TextStyle(color: palette.textPrimary, fontSize: 13),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+      ),
       // 设计令牌注入：玻璃参数 / 平台差异通过 ThemeExtension 下发，
       // 组件里 AppDesignTheme.of(context) 读取，杜绝散落硬编码。
       // 运行时（main.dart）会按实际平台覆盖 isMobile；这里是静态兜底。

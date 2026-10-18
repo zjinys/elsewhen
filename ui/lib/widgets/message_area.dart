@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import 'app_pressable.dart';
+import 'glass.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
 import 'chat_proposal_review.dart';
@@ -3006,17 +3007,14 @@ class _InputCompletionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: Material(
-        color: AppTheme.surface1,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        elevation: 3,
-        shadowColor: Colors.black.withValues(alpha: 0.25),
-        child: Container(
+      child: GlassPanel(
+        elevation: 2,
+        borderRadius: AppTheme.radiusMedium,
+        padding: EdgeInsets.zero,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Container(
           constraints: const BoxConstraints(maxWidth: 420),
-          decoration: BoxDecoration(
-            border: Border.all(color: AppTheme.surface3),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -3078,6 +3076,7 @@ class _InputCompletionPanel extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
           ),
         ),
       ),

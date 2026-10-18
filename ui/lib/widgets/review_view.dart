@@ -6,6 +6,7 @@ import '../bridge/rust_bridge_repository.dart';
 import '../data/storage_repository.dart';
 import '../providers/review_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
 
 /// 回顾页（R1 第一刀）：主工作区的回顾读面。
 ///
@@ -24,8 +25,14 @@ class ReviewView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final granularity = ref.watch(reviewGranularityProvider);
-    final wide = MediaQuery.of(context).size.width >= 760;
-    final horizontalPadding = wide ? 32.0 : 12.0;
+    // 断点走令牌：平板/小窗（≥600）加宽边距；桌面（>1024）再给足呼吸感。
+    final width = MediaQuery.sizeOf(context).width;
+    final wide = width >= Breakpoints.phone;
+    final horizontalPadding = width >= Breakpoints.desktop
+        ? AppTheme.space12
+        : wide
+            ? AppTheme.space8
+            : AppTheme.space3;
     // 粒度切换处的未读小圆点（R4 唯一提醒形态）：任一该粒度报告
     // readAt 为空 = 未读；报告面尚未加载时不显示（静默降级）。
     final weekUnread = _hasUnread(ref, 'week');

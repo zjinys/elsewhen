@@ -73,7 +73,9 @@ class GlassPanel extends StatelessWidget {
               .withValues(alpha: tokens.glassBorderOpacity),
         ),
       ),
-      child: child,
+      // 透明 Material 垫底：带背景色的 DecoratedBox 不能挡在 ListTile 与其
+      // Material 祖先之间（ListTile/ink 需要最近 Material 绘制波纹与选中底）。
+      child: Material(type: MaterialType.transparency, child: child),
     );
 
     if (showHighlight) {
@@ -170,6 +172,109 @@ class GlassBar extends StatelessWidget implements PreferredSizeWidget {
     }
 
     return RepaintBoundary(child: content);
+  }
+}
+
+/// 玻璃弹窗：替代 AlertDialog 外壳 —— 半透明底 + 背景模糊 + 细边框 +
+/// 顶部高光 + overlay 级阴影，入场淡入。内容布局（title/content/actions）
+/// 沿用 AlertDialog 习惯的参数形状，迁移成本最低。
+///
+/// 用法：`showDialog(builder: (_) => GlassDialog(title: ..., content: ..., actions: ...))`。
+class GlassDialog extends StatelessWidget {
+  final Widget? title;
+  final Widget content;
+  final List<Widget>? actions;
+  final double maxWidth;
+
+  const GlassDialog({
+    super.key,
+    this.title,
+    required this.content,
+    this.actions,
+    this.maxWidth = DesignTokens.dialogMaxWidth,
+  });
+
+  /// 便捷入口：等价 showDialog(builder: (_) => GlassDialog(...))，
+  /// 入场动画用 FadeTransition（Material 默认是缩放缓，玻璃层用淡入更轻）。
+  static Future<T?> show<T>(
+    BuildContext context, {
+    Widget? title,
+    required Widget content,
+    List<Widget>? actions,
+    double maxWidth = DesignTokens.dialogMaxWidth,
+  }) {
+    return showGeneralDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      transitionDuration: MotionTokens.panel,
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: MotionTokens.standard),
+          child: child,
+        );
+      },
+      pageBuilder: (context, animation, secondaryAnimation) => GlassDialog(
+        title: title,
+        content: content,
+        actions: actions,
+        maxWidth: maxWidth,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: Padding(
+          // 键盘弹出时整体上移（移动端输入框不被键盘盖住）。
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: GlassPanel(
+            elevation: 2,
+            padding: const EdgeInsets.all(AppTheme.space6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (title != null) ...[
+                  DefaultTextStyle(
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                    child: title!,
+                  ),
+                  const SizedBox(height: AppTheme.space4),
+                ],
+                Flexible(
+                  child: SingleChildScrollView(child: content),
+                ),
+                if (actions != null && actions!.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      for (var i = 0; i < actions!.length; i++) ...[
+                        if (i > 0) const SizedBox(width: AppTheme.space2),
+                        actions![i],
+                      ],
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
