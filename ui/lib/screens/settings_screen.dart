@@ -143,7 +143,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 9, vsync: this);
     _loadVersion();
     final settings = ref.read(settingsProvider);
     // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
@@ -929,7 +929,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         children: [
                           _buildModelTab(settings),
                           _buildAppearanceTab(settings),
-                          _buildServiceTab(),
+                          _buildIntegrationTab(),
+                          _buildNetworkTab(),
+                          _buildSkillsTab(),
                           _buildSyncTab(),
                           _buildKnowledgeTab(),
                           _buildDataTab(),
@@ -1015,15 +1017,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(1, '外观', Icons.palette_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(2, '服务', Icons.cloud_outlined),
+                  _buildSettingsTabItem(2, '集成', Icons.hub_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(3, '同步', Icons.devices_outlined),
+                  _buildSettingsTabItem(3, '网络', Icons.dns_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(4, '知识', Icons.auto_stories_outlined),
+                  _buildSettingsTabItem(4, '技能', Icons.extension_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(5, '数据', Icons.dataset_outlined),
+                  _buildSettingsTabItem(5, '同步', Icons.devices_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(6, '规则', Icons.rule_outlined),
+                  _buildSettingsTabItem(6, '知识', Icons.auto_stories_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(7, '数据', Icons.dataset_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(8, '规则', Icons.rule_outlined),
                 ],
               ),
             ),
@@ -1082,7 +1088,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             tabs: const [
               Tab(text: '模型', icon: Icon(Icons.smart_toy_outlined, size: 17)),
               Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
-              Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
+              Tab(text: '集成', icon: Icon(Icons.hub_outlined, size: 17)),
+              Tab(text: '网络', icon: Icon(Icons.dns_outlined, size: 17)),
+              Tab(text: '技能', icon: Icon(Icons.extension_outlined, size: 17)),
               Tab(text: '同步', icon: Icon(Icons.devices_outlined, size: 17)),
               Tab(
                 text: '知识',
@@ -1555,7 +1563,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  Widget _buildServiceTab() {
+  /// 「服务」一拆三：集成（外部数据源）、网络（链路层）、技能（可编程扩展）。
+  /// 原单 tab 四块，技能作为主打功能沉在底部不可见。
+  Widget _buildIntegrationTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
       child: Column(
@@ -1572,13 +1582,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: Icons.travel_explore_outlined,
             child: const WebSearchSettings(),
           ),
-          const SizedBox(height: AppTheme.space6),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNetworkTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           _buildSection(
             title: '网络（DoH）',
             icon: Icons.shield_outlined,
             child: const DohSettings(),
           ),
-          const SizedBox(height: AppTheme.space6),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkillsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           _buildSection(
             title: '用户技能',
             icon: Icons.extension_outlined,
