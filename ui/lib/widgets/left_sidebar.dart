@@ -65,6 +65,14 @@ class LeftSidebar extends ConsumerWidget {
       }
     });
 
+    // 平板 / 小桌面窗口（600–1024）：主区被挤，侧栏收成 64px 图标轨；
+    // 图标按钮与抽屉 footer 用同一套 _FooterAction（iconOnly），
+    // 三个域的切换语义完全一致，只是换了密度。
+    // 注：抽屉形态（compact，<700）总是用宽侧栏，由 Drawer 约束决定。
+    final width = MediaQuery.maybeSizeOf(context)?.width ?? 1024;
+    final rail = width >= 700 && width < 1024;
+    if (rail) return const _SidebarRail();
+
     return Container(
       width: 280,
       decoration: BoxDecoration(
@@ -194,56 +202,103 @@ class LeftSidebar extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          _FooterAction(
-            icon: Icons.chat_bubble_outline,
-            label: '对话',
-            isActive: activeTab == SidebarTab.conversation,
-            onTap: () {
-              ref
-                  .read(sidebarTabProvider.notifier)
-                  .set(SidebarTab.conversation);
-            },
-          ),
-          const SizedBox(height: 2),
-          _FooterAction(
-            icon: Icons.menu_book_outlined,
-            label: '知识库',
-            isActive: activeTab == SidebarTab.wiki,
-            onTap: () {
-              ref.read(wikiActiveTabIdProvider.notifier).set('import');
-              ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
-            },
-          ),
-          // 回顾入口（R1）：原「事件」域并入回顾——日视图承载当天
-          // 事件明细，周/月为实时统计拼装。见
-          // docs/roadmap/2026-10-15-review-and-goal-deviation-roadmap.md。
-          const SizedBox(height: 2),
-          _FooterAction(
-            icon: Icons.auto_awesome_outlined,
-            label: '回顾',
-            isActive: activeTab == SidebarTab.review,
-            onTap: () {
-              ref.read(sidebarTabProvider.notifier).set(SidebarTab.review);
-            },
-          ),
-          // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与
-          // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。
-          _FooterAction(
-            icon: Icons.settings_outlined,
-            label: '设置',
-            isActive: false,
-            onTap: () async {
-              final scaffold = Scaffold.maybeOf(context);
-              if (scaffold?.isDrawerOpen ?? false) {
-                Navigator.of(context).pop();
-              }
-              await Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-              // 从设置页返回后刷新首次运行探测（横幅是否该消失）
-              ref.invalidate(aiProviderConfiguredProvider);
-            },
-          ),
+          for (final (i, action) in _footerActions(context, ref, activeTab).indexed) ...[
+            if (i > 0) const SizedBox(height: 2),
+            action,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 底部导航动作清单：宽侧栏（带文字）与窄轨（纯图标）共用，
+/// 保证两种密度下的切换语义、设置入口、抽屉关闭逻辑一致。
+List<_FooterAction> _footerActions(
+  BuildContext context,
+  WidgetRef ref,
+  SidebarTab activeTab, {
+  bool iconOnly = false,
+}) {
+  return [
+    _FooterAction(
+      icon: Icons.chat_bubble_outline,
+      label: '对话',
+      isActive: activeTab == SidebarTab.conversation,
+      iconOnly: iconOnly,
+      onTap: () {
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.conversation);
+      },
+    ),
+    _FooterAction(
+      icon: Icons.menu_book_outlined,
+      label: '知识库',
+      isActive: activeTab == SidebarTab.wiki,
+      iconOnly: iconOnly,
+      onTap: () {
+        ref.read(wikiActiveTabIdProvider.notifier).set('import');
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
+      },
+    ),
+    // 回顾入口（R1）：原「事件」域并入回顾——日视图承载当天
+    // 事件明细，周/月为实时统计拼装。见
+    // docs/roadmap/2026-10-15-review-and-goal-deviation-roadmap.md。
+    _FooterAction(
+      icon: Icons.auto_awesome_outlined,
+      label: '回顾',
+      isActive: activeTab == SidebarTab.review,
+      iconOnly: iconOnly,
+      onTap: () {
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.review);
+      },
+    ),
+    // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与
+    // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。
+    _FooterAction(
+      icon: Icons.settings_outlined,
+      label: '设置',
+      isActive: false,
+      iconOnly: iconOnly,
+      onTap: () async {
+        final scaffold = Scaffold.maybeOf(context);
+        if (scaffold?.isDrawerOpen ?? false) {
+          Navigator.of(context).pop();
+        }
+        await Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+        // 从设置页返回后刷新首次运行探测（横幅是否该消失）
+        ref.invalidate(aiProviderConfiguredProvider);
+      },
+    ),
+  ];
+}
+
+/// 窄轨侧栏（64px）：平板 / 小桌面窗口的导航形态。只放域切换 + 设置，
+/// 列表内容让位给主区；点域图标即切 tab，需要列表时拖宽窗口即可。
+class _SidebarRail extends ConsumerWidget {
+  const _SidebarRail();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeTab = ref.watch(sidebarTabProvider);
+    final actions = _footerActions(context, ref, activeTab, iconOnly: true);
+    return Container(
+      width: 64,
+      decoration: BoxDecoration(
+        color: AppTheme.surface1,
+        border: Border(right: BorderSide(color: AppTheme.surface3, width: 1)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: AppTheme.space2),
+          for (final (i, action) in actions.indexed) ...[
+            if (i > 0) const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.space2),
+              child: action,
+            ),
+          ],
         ],
       ),
     );
@@ -256,11 +311,15 @@ class _FooterAction extends StatelessWidget {
   final VoidCallback onTap;
   final bool isActive;
 
+  /// 窄轨模式：只显示图标（居中），文字进 tooltip。
+  final bool iconOnly;
+
   const _FooterAction({
     required this.icon,
     required this.label,
     required this.onTap,
     this.isActive = false,
+    this.iconOnly = false,
   });
 
   @override
@@ -292,26 +351,42 @@ class _FooterAction extends StatelessWidget {
               width: 1,
             ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isActive ? AppTheme.accentPrimary : AppTheme.textSecondary,
-              ),
-              const SizedBox(width: AppTheme.space2),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isActive
-                      ? AppTheme.accentPrimary
-                      : AppTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+          child: iconOnly
+              ? Tooltip(
+                  message: label,
+                  child: Center(
+                    child: Icon(
+                      icon,
+                      size: 18,
+                      color: isActive
+                          ? AppTheme.accentPrimary
+                          : AppTheme.textSecondary,
+                    ),
+                  ),
+                )
+              : Row(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 18,
+                      color: isActive
+                          ? AppTheme.accentPrimary
+                          : AppTheme.textSecondary,
+                    ),
+                    const SizedBox(width: AppTheme.space2),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: isActive
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textSecondary,
+                        fontSize: 13,
+                        fontWeight:
+                            isActive ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ),
     ),
