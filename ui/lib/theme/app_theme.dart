@@ -240,6 +240,28 @@ class AppTheme {
           borderRadius: BorderRadius.circular(radiusMedium),
         ),
       ),
+      // 触控目标底线（Apple HIG 44pt）：按钮最小高度统一 44。桌面仍显紧凑
+      //（内边距未变），但任何密度覆盖都不会把按钮压到触控不可用之下。
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(64, DesignTokens.minTouchTarget),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(64, DesignTokens.minTouchTarget),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(64, DesignTokens.minTouchTarget),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          minimumSize: const Size(48, DesignTokens.minTouchTarget),
+        ),
+      ),
       // 设计令牌注入：玻璃参数 / 平台差异通过 ThemeExtension 下发，
       // 组件里 AppDesignTheme.of(context) 读取，杜绝散落硬编码。
       // 运行时（main.dart）会按实际平台覆盖 isMobile；这里是静态兜底。
