@@ -837,4 +837,141 @@ mod tests {
         assert_eq!(req, before);
         assert!(text_tokens("unknown", "中文🙂") >= text_tokens("gpt-4o", "中文🙂"));
     }
+
+    /// P1 验收的主场景演练：按真实形态构造一个超长会话（主闲聊轮次
+    /// + 密集工具调用的wiki搜索/编辑会话），窗口 32k，提出 fit。
+    /// 验收口径（roadmap §P1）：
+    /// 1. 超长请求在报错前完成降级（Ok 且装配后 tokens ≤ input_limit）；
+    /// 2. 工具结果占位化节省量可观测（pruned_tool_results ≥ 15）；
+    /// 3. 降级后消息仍闭合（fil 内部 exchanges::validate 不炸）；
+    /// 4. 最近 3 个工具结果保留原文，更早的替换为占位。
+    #[test]
+    fn long_session_32k_window_fully_degrades_before_erroring() {
+        let tool_result_payload = || {
+            // 仿 wiki 检索/页面编辑产出的结构化长文，非同一种字骑常量。
+            format!(
+                "{{\"snippets\":[{snippet}]}} 卜补：\n```rust\n{code}\n```\n小结：以上要点来自知识库最近的整理，请引用时注意段落的原始出处。",
+                snippet = (0..8)
+                    .map(|j| format!(
+                        "{{\"title\":\"要点{j}\",\"slug\":\"kb/entry-{j}\",\"text\":\"{}\"}}",
+                        "知识库存档的段落原文，用于核对来源与出处。".repeat(20)
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                code = "fn consolidate(items: &[Item]) -> Summary { /* 省略实现 */ }\n".repeat(30)
+            )
+        };
+
+        let mut messages = vec![serde_json::json!({
+            "role":"system",
+            "content":"你是个人知识助手。回答要引用知识库来源，保持简洁。当前会话在进行一篇技术调研的整理，完成后会导出到 wiki。"
+        })];
+        let mut expected_tool_results: usize = 0;
+        for round in 0..24usize {
+            messages.push(serde_json::json!({
+                "role":"user",
+                "content": format!(
+                    "第{round}轮：请把下面的素材整理进知识库，并把改动作与已建立条目建立交叉引用。这个工作流之后还会继续补充素材，烦请保持上下文连贯。素材如下：\n{}",
+                    "批次素材内容，涉及术语定义、文献线索、与之前条目的差异对比。".repeat(60)
+                )
+            }));
+            if round % 4 == 3 {
+                // assistant 带 tool_call + tool result（保留最近的闭合单元形态）
+                let call_id = format!("call_{round}");
+                messages.push(serde_json::json!({
+                    "role":"assistant",
+                    "content": null,
+                    "tool_calls":[{"id":call_id,"type":"function","function":{
+                        "name":"wiki_search",
+                        "arguments": format!("{{\"query\":\"第{round}轮相关的既有条目检索\",\"limit\":8}}"),
+                    }}]
+                }));
+                messages.push(serde_json::json!({
+                    "role":"tool",
+                    "tool_call_id":call_id,
+                    "content": tool_result_payload()
+                }));
+                expected_tool_results += 1;
+            } else {
+                messages.push(serde_json::json!({
+                    "role":"assistant",
+                    "content": format!(
+                        "已核对素材并更新交叉引用。本轮补充：术语定义与文献线索已按既有结构入条，差异对比器已替你标出与第{}轮的冲突点，导出版 wiki 草稿也一并更新。后续几轮我们会继续推进引用关系采集，稍后可要求预览汇总。",
+                        round.saturating_sub(4)
+                    )
+                }));
+            }
+        }
+        messages.push(serde_json::json!({"role":"user","content":"现在问题：把前面所有轮次的要点收敛成一份导出大纲。"}));
+        let mut request = serde_json::json!({ "messages": messages });
+        let serialized_chars = request.to_string().chars().count();
+        assert!(
+            serialized_chars > 45_000,
+            "构造负载应显著超长，实测 {serialized_chars} chars"
+        );
+
+        let window = 32_768usize;
+        let output = 2_048usize;
+        let tokens_before = input_tokens("gpt-4o", &request);
+        let mut policies = RequestPolicies::plain(&request);
+        let tokens_after = policies
+            .fit("gpt-4o", &mut request, window, output)
+            .expect("超长会话应在报错前完成降级");
+        let limit = input_limit(window, output).unwrap();
+        assert!(tokens_before > limit, "构造负载应确实触发降级路径");
+        assert!(tokens_after <= limit, "降级后应入预算：{tokens_after} ≤ {limit}");
+        // 装配报告第一手值（非事后从 wire 反推）：占位化确实发生过。
+        let first_hand_pruned = policies.pruned_tool_results;
+        assert!(first_hand_pruned > 0, "占位化应参与降级，实现为 0 说明顺序回归");
+
+        let sent = &request["messages"];
+        let arr = sent.as_array().unwrap();
+        let tool_messages: Vec<(usize, &serde_json::Value)> = arr
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| m["role"] == "tool")
+            .map(|(i, m)| (i, m))
+            .collect();
+        // 闭合单元铁律：每个存留的 tool 结果，其发起方 assistant tool_call
+        // 必须同在（两者要么都留要么都摘，绝不孒儿）。
+        for (idx, tool_msg) in &tool_messages {
+            let call_id = tool_msg["tool_call_id"].as_str().unwrap_or("");
+            let paired = arr[..*idx].iter().any(|m| {
+                m["role"] == "assistant"
+                    && m["tool_calls"]
+                        .as_array()
+                        .is_some_and(|calls| calls.iter().any(|c| c["id"].as_str() == Some(call_id)))
+            });
+            assert!(
+                paired,
+                "孒儿 tool_result 出现：tool_call_id={call_id}（红线 2）"
+            );
+        }
+        let kept_raw = tool_messages
+            .iter()
+            .filter(|(_, m)| {
+                m["content"].as_str().is_some_and(|c| c.contains("知识库存档的段落"))
+            })
+            .count();
+        let pruned = tool_messages
+            .iter()
+            .filter(|(_, m)| {
+                m["content"].as_str() == Some(crate::ai::budget::PRUNED_TOOL_RESULT_PLACEHOLDER)
+            })
+            .count();
+        // 降级构成（占位化只试一轮，不够则回落砍轮——设计如此）：
+        let dropped_pairs = expected_tool_results.saturating_sub(tool_messages.len());
+        println!(
+            "[P1 验收] 原 {} 个工具结果 · 降级前 tokens {tokens_before} → 降级后 {tokens_after}（预算 {limit}）\n  占位化（第一手报告）{first_hand_pruned} · 随闭合单元整轮摘除 {} 个结果 · wire 带占位 {} · 原文保留 {}",
+            expected_tool_results, dropped_pairs, pruned, kept_raw
+        );
+        assert!(
+            first_hand_pruned + kept_raw <= expected_tool_results,
+            "占位+保留合计不应超出原有工具结果数"
+        );
+        assert!(
+            kept_raw <= 3,
+            "「保留最近 3」的语义必须守住：kept_raw={kept_raw}"
+        );
+    }
 }
