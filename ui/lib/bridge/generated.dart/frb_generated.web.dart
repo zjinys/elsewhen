@@ -19,6 +19,7 @@ import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
+import 'api/mcp.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/relations.dart';
@@ -127,6 +128,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  McpServerDto dco_decode_box_autoadd_mcp_server_dto(dynamic raw);
 
   @protected
   MessageRecordabilityDto dco_decode_box_autoadd_message_recordability_dto(
@@ -458,6 +462,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<LibraryEntry> dco_decode_list_library_entry(dynamic raw);
 
   @protected
+  List<McpServerDto> dco_decode_list_mcp_server_dto(dynamic raw);
+
+  @protected
+  List<McpToolDto> dco_decode_list_mcp_tool_dto(dynamic raw);
+
+  @protected
   List<MemoryEchoDto> dco_decode_list_memory_echo_dto(dynamic raw);
 
   @protected
@@ -558,6 +568,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw);
+
+  @protected
+  McpServerDto dco_decode_mcp_server_dto(dynamic raw);
+
+  @protected
+  McpToolDto dco_decode_mcp_tool_dto(dynamic raw);
 
   @protected
   MemoryEchoDto dco_decode_memory_echo_dto(dynamic raw);
@@ -885,6 +901,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  McpServerDto sse_decode_box_autoadd_mcp_server_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   MessageRecordabilityDto sse_decode_box_autoadd_message_recordability_dto(
@@ -1316,6 +1337,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<McpServerDto> sse_decode_list_mcp_server_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<McpToolDto> sse_decode_list_mcp_tool_dto(SseDeserializer deserializer);
+
+  @protected
   List<MemoryEchoDto> sse_decode_list_memory_echo_dto(
     SseDeserializer deserializer,
   );
@@ -1450,6 +1479,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LocalSyncStateDto sse_decode_local_sync_state_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  McpServerDto sse_decode_mcp_server_dto(SseDeserializer deserializer);
+
+  @protected
+  McpToolDto sse_decode_mcp_tool_dto(SseDeserializer deserializer);
 
   @protected
   MemoryEchoDto sse_decode_memory_echo_dto(SseDeserializer deserializer);
@@ -1940,6 +1975,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_64(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_mcp_server_dto(McpServerDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_mcp_server_dto(raw);
   }
 
   @protected
@@ -2986,6 +3027,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_mcp_server_dto(List<McpServerDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_mcp_server_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_mcp_tool_dto(List<McpToolDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_mcp_tool_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_memory_echo_dto(List<MemoryEchoDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_memory_echo_dto).toList().jsify()!;
@@ -3190,6 +3243,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_64(raw.activePeers),
       cst_encode_i_64(raw.pendingOperations),
       cst_encode_opt_String(raw.relayUrl),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_mcp_server_dto(McpServerDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.name),
+      cst_encode_String(raw.transport),
+      cst_encode_String(raw.command),
+      cst_encode_String(raw.argsJson),
+      cst_encode_String(raw.envJson),
+      cst_encode_bool(raw.enabled),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_mcp_tool_dto(McpToolDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.name),
+      cst_encode_String(raw.server),
+      cst_encode_String(raw.rawName),
+      cst_encode_String(raw.description),
+      cst_encode_String(raw.parameters),
     ].jsify()!;
   }
 
@@ -4191,6 +4270,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_mcp_server_dto(
+    McpServerDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_message_recordability_dto(
     MessageRecordabilityDto self,
     SseSerializer serializer,
@@ -4743,6 +4828,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_mcp_server_dto(
+    List<McpServerDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_mcp_tool_dto(
+    List<McpToolDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_memory_echo_dto(
     List<MemoryEchoDto> self,
     SseSerializer serializer,
@@ -4918,6 +5015,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     LocalSyncStateDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_mcp_server_dto(McpServerDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_mcp_tool_dto(McpToolDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_memory_echo_dto(MemoryEchoDto self, SseSerializer serializer);
@@ -5682,6 +5785,11 @@ class RustLibWire implements BaseWire {
     feeling,
   );
 
+  void wire__crate__api__mcp__delete_mcp_server(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__mcp__delete_mcp_server(port_, id);
+
   void wire__crate__api__relations__delete_relation(
     NativePortType port_,
     String id,
@@ -6380,6 +6488,9 @@ class RustLibWire implements BaseWire {
     status,
   );
 
+  void wire__crate__api__mcp__list_mcp_servers(NativePortType port_) =>
+      wasmModule.wire__crate__api__mcp__list_mcp_servers(port_);
+
   void wire__crate__api__conversations__list_messages(
     NativePortType port_,
     String conversation_id,
@@ -6835,6 +6946,11 @@ class RustLibWire implements BaseWire {
     tags,
   );
 
+  void wire__crate__api__mcp__save_mcp_server(
+    NativePortType port_,
+    JSAny server,
+  ) => wasmModule.wire__crate__api__mcp__save_mcp_server(port_, server);
+
   void wire__crate__api__web_search__save_network_proxy(
     NativePortType port_,
     String proxy_mode,
@@ -7057,6 +7173,16 @@ class RustLibWire implements BaseWire {
         state,
       );
 
+  void wire__crate__api__mcp__set_mcp_server_enabled(
+    NativePortType port_,
+    String id,
+    bool enabled,
+  ) => wasmModule.wire__crate__api__mcp__set_mcp_server_enabled(
+    port_,
+    id,
+    enabled,
+  );
+
   void wire__crate__api__rules__set_rule_hit_feedback(
     NativePortType port_,
     String id,
@@ -7161,6 +7287,11 @@ class RustLibWire implements BaseWire {
     port_,
     doh_uri,
   );
+
+  void wire__crate__api__mcp__test_mcp_server(
+    NativePortType port_,
+    JSAny server,
+  ) => wasmModule.wire__crate__api__mcp__test_mcp_server(port_, server);
 
   void wire__crate__api__web_search__test_proxy_connection(
     NativePortType port_,
@@ -7611,6 +7742,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
     String? target,
     String feeling,
+  );
+
+  external void wire__crate__api__mcp__delete_mcp_server(
+    NativePortType port_,
+    String id,
   );
 
   external void wire__crate__api__relations__delete_relation(
@@ -8095,6 +8231,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? status,
   );
 
+  external void wire__crate__api__mcp__list_mcp_servers(NativePortType port_);
+
   external void wire__crate__api__conversations__list_messages(
     NativePortType port_,
     String conversation_id,
@@ -8413,6 +8551,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny tags,
   );
 
+  external void wire__crate__api__mcp__save_mcp_server(
+    NativePortType port_,
+    JSAny server,
+  );
+
   external void wire__crate__api__web_search__save_network_proxy(
     NativePortType port_,
     String proxy_mode,
@@ -8546,6 +8689,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String state,
   );
 
+  external void wire__crate__api__mcp__set_mcp_server_enabled(
+    NativePortType port_,
+    String id,
+    bool enabled,
+  );
+
   external void wire__crate__api__rules__set_rule_hit_feedback(
     NativePortType port_,
     String id,
@@ -8612,6 +8761,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__web_search__test_doh_connection(
     NativePortType port_,
     String doh_uri,
+  );
+
+  external void wire__crate__api__mcp__test_mcp_server(
+    NativePortType port_,
+    JSAny server,
   );
 
   external void wire__crate__api__web_search__test_proxy_connection(

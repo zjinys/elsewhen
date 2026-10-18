@@ -1006,6 +1006,22 @@ class RustBridgeRepository implements StorageRepository {
   /// 用户技能（skills 目录 + SKILL.md frontmatter）。
   Future<List<api.UserSkillDto>> listUserSkills() => api.listUserSkills();
 
+  /// MCP 服务器管理（用户自定义外部工具源，迁移 44）。
+  Future<List<api.McpServerDto>> listMcpServers() => api.listMcpServers();
+
+  Future<String> saveMcpServer(api.McpServerDto server) =>
+      api.saveMcpServer(server: server);
+
+  Future<void> deleteMcpServer({required String id}) =>
+      api.deleteMcpServer(id: id);
+
+  Future<void> setMcpServerEnabled({required String id, required bool enabled}) =>
+      api.setMcpServerEnabled(id: id, enabled: enabled);
+
+  /// 连通性测试：拉起进程走握手并取回工具清单。
+  Future<List<api.McpToolDto>> testMcpServer(api.McpServerDto server) =>
+      api.testMcpServer(server: server);
+
   /// 用户技能启停（写 skills_state.json，不影响技能文件）。
   Future<void> setUserSkillEnabled({required String id, required bool enabled}) =>
       api.setUserSkillEnabled(id: id, enabled: enabled);

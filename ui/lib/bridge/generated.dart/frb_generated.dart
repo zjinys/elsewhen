@@ -16,6 +16,7 @@ import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
+import 'api/mcp.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/relations.dart';
@@ -100,7 +101,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1806790268;
+  int get rustContentHash => 1435120086;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -298,6 +299,8 @@ abstract class RustLibApi extends BaseApi {
     String? target,
     required String feeling,
   });
+
+  Future<void> crateApiMcpDeleteMcpServer({required String id});
 
   Future<bool> crateApiRelationsDeleteRelation({required String id});
 
@@ -649,6 +652,8 @@ abstract class RustLibApi extends BaseApi {
     String? status,
   });
 
+  Future<List<McpServerDto>> crateApiMcpListMcpServers();
+
   Future<List<MessageDto>> crateApiConversationsListMessages({
     required String conversationId,
   });
@@ -887,6 +892,8 @@ abstract class RustLibApi extends BaseApi {
     required List<String> tags,
   });
 
+  Future<String> crateApiMcpSaveMcpServer({required McpServerDto server});
+
   Future<void> crateApiWebSearchSaveNetworkProxy({
     required String proxyMode,
     required String proxyUrl,
@@ -996,6 +1003,11 @@ abstract class RustLibApi extends BaseApi {
     required String state,
   });
 
+  Future<void> crateApiMcpSetMcpServerEnabled({
+    required String id,
+    required bool enabled,
+  });
+
   Future<void> crateApiRulesSetRuleHitFeedback({
     required String id,
     String? feedback,
@@ -1047,6 +1059,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<String> crateApiWebSearchTestDohConnection({required String dohUri});
+
+  Future<List<McpToolDto>> crateApiMcpTestMcpServer({
+    required McpServerDto server,
+  });
 
   Future<String> crateApiWebSearchTestProxyConnection({
     required String proxyUrl,
@@ -2423,6 +2439,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "delete_event_emotion",
     argNames: ["id", "target", "feeling"],
   );
+
+  @override
+  Future<void> crateApiMcpDeleteMcpServer({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__mcp__delete_mcp_server(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMcpDeleteMcpServerConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMcpDeleteMcpServerConstMeta =>
+      const TaskConstMeta(debugName: "delete_mcp_server", argNames: ["id"]);
 
   @override
   Future<bool> crateApiRelationsDeleteRelation({required String id}) {
@@ -5147,6 +5185,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<McpServerDto>> crateApiMcpListMcpServers() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__mcp__list_mcp_servers(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_mcp_server_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMcpListMcpServersConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMcpListMcpServersConstMeta =>
+      const TaskConstMeta(debugName: "list_mcp_servers", argNames: []);
+
+  @override
   Future<List<MessageDto>> crateApiConversationsListMessages({
     required String conversationId,
   }) {
@@ -6878,6 +6937,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiMcpSaveMcpServer({required McpServerDto server}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_mcp_server_dto(server);
+          return wire.wire__crate__api__mcp__save_mcp_server(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMcpSaveMcpServerConstMeta,
+        argValues: [server],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMcpSaveMcpServerConstMeta =>
+      const TaskConstMeta(debugName: "save_mcp_server", argNames: ["server"]);
+
+  @override
   Future<void> crateApiWebSearchSaveNetworkProxy({
     required String proxyMode,
     required String proxyUrl,
@@ -7561,6 +7642,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiMcpSetMcpServerEnabled({
+    required String id,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_bool(enabled);
+          return wire.wire__crate__api__mcp__set_mcp_server_enabled(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMcpSetMcpServerEnabledConstMeta,
+        argValues: [id, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMcpSetMcpServerEnabledConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_mcp_server_enabled",
+        argNames: ["id", "enabled"],
+      );
+
+  @override
   Future<void> crateApiRulesSetRuleHitFeedback({
     required String id,
     String? feedback,
@@ -7911,6 +8025,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "test_doh_connection",
         argNames: ["dohUri"],
       );
+
+  @override
+  Future<List<McpToolDto>> crateApiMcpTestMcpServer({
+    required McpServerDto server,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_mcp_server_dto(server);
+          return wire.wire__crate__api__mcp__test_mcp_server(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_mcp_tool_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMcpTestMcpServerConstMeta,
+        argValues: [server],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMcpTestMcpServerConstMeta =>
+      const TaskConstMeta(debugName: "test_mcp_server", argNames: ["server"]);
 
   @override
   Future<String> crateApiWebSearchTestProxyConnection({
@@ -8889,6 +9027,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_i_64(raw);
+  }
+
+  @protected
+  McpServerDto dco_decode_box_autoadd_mcp_server_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_mcp_server_dto(raw);
   }
 
   @protected
@@ -10113,6 +10257,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<McpServerDto> dco_decode_list_mcp_server_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_mcp_server_dto).toList();
+  }
+
+  @protected
+  List<McpToolDto> dco_decode_list_mcp_tool_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_mcp_tool_dto).toList();
+  }
+
+  @protected
   List<MemoryEchoDto> dco_decode_list_memory_echo_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_memory_echo_dto).toList();
@@ -10335,6 +10491,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       activePeers: dco_decode_i_64(arr[8]),
       pendingOperations: dco_decode_i_64(arr[9]),
       relayUrl: dco_decode_opt_String(arr[10]),
+    );
+  }
+
+  @protected
+  McpServerDto dco_decode_mcp_server_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return McpServerDto(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      transport: dco_decode_String(arr[2]),
+      command: dco_decode_String(arr[3]),
+      argsJson: dco_decode_String(arr[4]),
+      envJson: dco_decode_String(arr[5]),
+      enabled: dco_decode_bool(arr[6]),
+    );
+  }
+
+  @protected
+  McpToolDto dco_decode_mcp_tool_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return McpToolDto(
+      name: dco_decode_String(arr[0]),
+      server: dco_decode_String(arr[1]),
+      rawName: dco_decode_String(arr[2]),
+      description: dco_decode_String(arr[3]),
+      parameters: dco_decode_String(arr[4]),
     );
   }
 
@@ -11622,6 +11810,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
+  McpServerDto sse_decode_box_autoadd_mcp_server_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_mcp_server_dto(deserializer));
   }
 
   @protected
@@ -13372,6 +13568,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<McpServerDto> sse_decode_list_mcp_server_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <McpServerDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_mcp_server_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<McpToolDto> sse_decode_list_mcp_tool_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <McpToolDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_mcp_tool_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<MemoryEchoDto> sse_decode_list_memory_echo_dto(
     SseDeserializer deserializer,
   ) {
@@ -13787,6 +14009,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       activePeers: var_activePeers,
       pendingOperations: var_pendingOperations,
       relayUrl: var_relayUrl,
+    );
+  }
+
+  @protected
+  McpServerDto sse_decode_mcp_server_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_transport = sse_decode_String(deserializer);
+    var var_command = sse_decode_String(deserializer);
+    var var_argsJson = sse_decode_String(deserializer);
+    var var_envJson = sse_decode_String(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    return McpServerDto(
+      id: var_id,
+      name: var_name,
+      transport: var_transport,
+      command: var_command,
+      argsJson: var_argsJson,
+      envJson: var_envJson,
+      enabled: var_enabled,
+    );
+  }
+
+  @protected
+  McpToolDto sse_decode_mcp_tool_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_server = sse_decode_String(deserializer);
+    var var_rawName = sse_decode_String(deserializer);
+    var var_description = sse_decode_String(deserializer);
+    var var_parameters = sse_decode_String(deserializer);
+    return McpToolDto(
+      name: var_name,
+      server: var_server,
+      rawName: var_rawName,
+      description: var_description,
+      parameters: var_parameters,
     );
   }
 
@@ -15413,6 +15673,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_mcp_server_dto(
+    McpServerDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_mcp_server_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_message_recordability_dto(
     MessageRecordabilityDto self,
     SseSerializer serializer,
@@ -16722,6 +16991,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_mcp_server_dto(
+    List<McpServerDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_mcp_server_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_mcp_tool_dto(
+    List<McpToolDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_mcp_tool_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_memory_echo_dto(
     List<MemoryEchoDto> self,
     SseSerializer serializer,
@@ -17088,6 +17381,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.activePeers, serializer);
     sse_encode_i_64(self.pendingOperations, serializer);
     sse_encode_opt_String(self.relayUrl, serializer);
+  }
+
+  @protected
+  void sse_encode_mcp_server_dto(McpServerDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.transport, serializer);
+    sse_encode_String(self.command, serializer);
+    sse_encode_String(self.argsJson, serializer);
+    sse_encode_String(self.envJson, serializer);
+    sse_encode_bool(self.enabled, serializer);
+  }
+
+  @protected
+  void sse_encode_mcp_tool_dto(McpToolDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.server, serializer);
+    sse_encode_String(self.rawName, serializer);
+    sse_encode_String(self.description, serializer);
+    sse_encode_String(self.parameters, serializer);
   }
 
   @protected

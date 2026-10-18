@@ -147,7 +147,14 @@ fn generate_with_provider_configs(
         .unwrap_or_else(|| "unknown".into());
     // 生产与测试统一走延迟加载：同一套链路，测试直接守护生产行为，
     // 包括 enable_tools 与请求预算的相互作用（零余量窗口不能被工具化挤爆）。
-    let registry = ToolRegistry::deferred_runtime();
+    let mut registry = ToolRegistry::deferred_runtime();
+    // MCP sidecar：拉取启用 server 的工具清单拼进注册表；单个 server 失败
+    // 不拖垮生成，错误记入事件供设置页/报表观测（红线上抛不适用于插件缺失）。
+    let (mcp_tools, mcp_errors) = super::mcp::available_tools(store);
+    if !mcp_errors.is_empty() {
+        super::generation::event(store, "mcp_errors", serde_json::json!(mcp_errors))?;
+    }
+    registry.set_mcp_tools(mcp_tools);
     let tool_definitions = registry.eager_specs(true).into_iter().map(|spec| serde_json::json!({
         "type":"function", "function":{"name":spec.name,"description":spec.description,"parameters":spec.parameters}
     })).collect::<Vec<_>>();
@@ -790,7 +797,7 @@ fn run_agent_loop_inner(
     // 空回复重发：上游返回空 content 时消耗一轮预算重试，而不是把空串当答案收敛。
     let mut empty_retries_used = 0usize;
     let mut rounds_used = 0usize;
-    let tool_names = registry.names();
+    let tool_names = registry.all_names();
 
     for _round in 0..MAX_TOOL_ROUNDS {
         super::generation::check(store)?;
@@ -1426,7 +1433,7 @@ fn parse_xml_tool_calls(content: &str) -> (String, Vec<ToolCall>) {
 /// 判定信号分两档：
 /// 1. 任一已知协议的结构标记（与具体方言无关，见一个即命中）；
 /// 2. 出现已知工具名 + 调用形态（arguments 字样，或 JSON 名值对）。
-fn tool_call_attempt_detected(content: &str, tool_names: &[&str]) -> bool {
+fn tool_call_attempt_detected(content: &str, tool_names: &[String]) -> bool {
     const STRUCTURAL: &[&str] = &[
         "<tool_call",
         "</tool_call>",
@@ -1445,7 +1452,7 @@ fn tool_call_attempt_detected(content: &str, tool_names: &[&str]) -> bool {
     if STRUCTURAL.iter().any(|m| content.contains(m)) {
         return true;
     }
-    if !tool_names.iter().any(|n| content.contains(*n)) {
+    if !tool_names.iter().any(|n| content.contains(n.as_str())) {
         return false;
     }
     let lower = content.to_lowercase();
@@ -2506,7 +2513,7 @@ mod tests {
 
     #[test]
     fn tool_call_attempt_detected_structural_markers() {
-        let names = vec!["search_knowledge_base"];
+        let names = vec!["search_knowledge_base".to_string()];
         // 各家方言的结构标记：见一个即命中，与严格解析器能否解析无关
         for content in [
             "<tool_call>search_knowledge_base<arg_key>query</arg_key><arg_value>x</arg_value></tool_call>",
@@ -2523,7 +2530,7 @@ mod tests {
 
     #[test]
     fn tool_call_attempt_detected_tool_name_plus_shape() {
-        let names = vec!["search_knowledge_base", "list_rules"];
+        let names = vec!["search_knowledge_base".to_string(), "list_rules".to_string()];
         // 未知方言但含工具名 + 调用形态 → 命中（回炉），不能静默吞掉
         assert!(tool_call_attempt_detected(
             "[CALL] search_knowledge_base with arguments {\"query\": \"x\"}",

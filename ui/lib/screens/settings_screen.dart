@@ -67,6 +67,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   String? _dbStatsError;
   List<api.UserSkillDto>? _userSkills;
   String? _userSkillsError;
+  List<api.McpServerDto>? _mcpServers;
+  String? _mcpError;
   bool _installingSkill = false;
   bool _vacuuming = false;
 
@@ -144,7 +146,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 9, vsync: this);
     _loadVersion();
     final settings = ref.read(settingsProvider);
     // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
@@ -168,6 +170,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       _loadRules();
       _loadDbStats();
       _loadUserSkills();
+      _loadMcpServers();
     });
   }
 
@@ -933,6 +936,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           _buildIntegrationTab(),
                           _buildNetworkTab(),
                           _buildSkillsTab(),
+                          _buildMcpTab(),
                           _buildKnowledgeTab(),
                           _buildDataTab(),
                           _buildRulesTab(),
@@ -1023,11 +1027,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(4, '技能', Icons.extension_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(5, '知识', Icons.auto_stories_outlined),
+                  _buildSettingsTabItem(5, 'MCP', Icons.usb_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(6, '数据', Icons.dataset_outlined),
+                  _buildSettingsTabItem(6, '知识', Icons.auto_stories_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(7, '规则', Icons.rule_outlined),
+                  _buildSettingsTabItem(7, '数据', Icons.dataset_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(8, '规则', Icons.rule_outlined),
                 ],
               ),
             ),
@@ -1089,6 +1095,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               Tab(text: '集成', icon: Icon(Icons.hub_outlined, size: 17)),
               Tab(text: '网络', icon: Icon(Icons.dns_outlined, size: 17)),
               Tab(text: '技能', icon: Icon(Icons.extension_outlined, size: 17)),
+              Tab(text: 'MCP', icon: Icon(Icons.usb_outlined, size: 17)),
               Tab(
                 text: '知识',
                 icon: Icon(Icons.auto_stories_outlined, size: 17),
@@ -1620,6 +1627,295 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ],
       ),
     );
+  }
+
+  /// MCP 服务器：用户自定义的外部工具源（stdio 子进程，迁移 44）。
+  Widget _buildMcpTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSection(
+            title: 'MCP 服务器',
+            icon: Icons.usb_outlined,
+            child: _buildMcpContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMcpContent() {
+    final servers = _mcpServers;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '连接 Model Context Protocol 服务器，把外部工具带入对话。'
+          '工具以 mcp__<服务器>__<工具名> 出现，模型按需调用；'
+          'stdio 服务器以指定命令作为子进程启动（首期只支持 stdio 传输）。',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+            height: 1.6,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        OutlinedButton.icon(
+          onPressed: () => _showMcpServerDialog(),
+          icon: const Icon(Icons.add_outlined, size: 18),
+          label: const Text('添加服务器'),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        if (servers == null)
+          Text(
+            _mcpError ?? '读取中…',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          )
+        else if (servers.isEmpty)
+          Text(
+            '尚未添加任何 MCP 服务器',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          )
+        else
+          ...servers.map(
+            (server) => Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(server.name, style: const TextStyle(fontSize: 14)),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          '${server.command} ${server.argsJson}',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: '编辑',
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  onPressed: () => _showMcpServerDialog(existing: server),
+                ),
+                IconButton(
+                  tooltip: '删除',
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  onPressed: () => _deleteMcpServer(server.id),
+                ),
+                Switch(
+                  value: server.enabled,
+                  onChanged: (value) => _toggleMcpServer(server.id, value),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _loadMcpServers() async {
+    final repository = ref.read(storageRepositoryProvider);
+    if (repository is! RustBridgeRepository) return;
+    try {
+      final servers = await repository.listMcpServers();
+      if (mounted)
+        setState(() {
+          _mcpServers = servers;
+          _mcpError = null;
+        });
+    } catch (e) {
+      if (mounted) setState(() => _mcpError = reportUiError('读取 MCP 服务器', e));
+    }
+  }
+
+  Future<void> _toggleMcpServer(String id, bool enabled) async {
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    try {
+      await repository.setMcpServerEnabled(id: id, enabled: enabled);
+      await _loadMcpServers();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(reportUiError('切换 MCP 服务器', e))),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteMcpServer(String id) async {
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    try {
+      await repository.deleteMcpServer(id: id);
+      await _loadMcpServers();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(reportUiError('删除 MCP 服务器', e))),
+        );
+      }
+    }
+  }
+
+  Future<void> _showMcpServerDialog({api.McpServerDto? existing}) async {
+    final nameController = TextEditingController(text: existing?.name ?? '');
+    final commandController = TextEditingController(
+      text: existing?.command ?? '',
+    );
+    final argsController = TextEditingController(
+      text: existing?.argsJson ?? '[]',
+    );
+    final envController = TextEditingController(
+      text: existing?.envJson ?? '{}',
+    );
+    final result = await showDialog<_McpServerFormResult>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(existing == null ? '添加 MCP 服务器' : '编辑 MCP 服务器'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: '名称（字母/数字/短横线/下划线）',
+                  hintText: 'filesystem',
+                ),
+              ),
+              const SizedBox(height: AppTheme.space3),
+              TextField(
+                controller: commandController,
+                decoration: const InputDecoration(
+                  labelText: '命令',
+                  hintText: 'npx',
+                ),
+              ),
+              const SizedBox(height: AppTheme.space3),
+              TextField(
+                controller: argsController,
+                decoration: const InputDecoration(
+                  labelText: '参数（JSON 数组）',
+                  hintText: '["-y","@modelcontextprotocol/server-filesystem","/tmp"]',
+                ),
+              ),
+              const SizedBox(height: AppTheme.space3),
+              TextField(
+                controller: envController,
+                decoration: const InputDecoration(
+                  labelText: '环境变量（JSON 对象）',
+                  hintText: '{"NODE_ENV":"production"}',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _testMcpConnection(
+              dialogContext,
+              nameController.text,
+              commandController.text,
+              argsController.text,
+              envController.text,
+            ),
+            child: const Text('测试连接'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(_McpServerFormResult(
+                name: nameController.text,
+                command: commandController.text,
+                argsJson: argsController.text,
+                envJson: envController.text,
+              ));
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    try {
+      await repository.saveMcpServer(api.McpServerDto(
+        id: existing?.id ?? '',
+        name: result.name,
+        transport: 'stdio',
+        command: result.command,
+        argsJson: result.argsJson,
+        envJson: result.envJson,
+        enabled: existing?.enabled ?? true,
+      ));
+      await _loadMcpServers();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(reportUiError('保存 MCP 服务器', e))),
+        );
+      }
+    }
+  }
+
+  Future<void> _testMcpConnection(
+    BuildContext dialogContext,
+    String name,
+    String command,
+    String argsJson,
+    String envJson,
+  ) async {
+    if (command.trim().isEmpty) {
+      ScaffoldMessenger.maybeOf(dialogContext)?.showSnackBar(
+        const SnackBar(content: Text('先填命令再测试')),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(dialogContext);
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    try {
+      final tools = await repository.testMcpServer(api.McpServerDto(
+        id: 'test-probe',
+        name: name.isEmpty ? 'probe' : name,
+        transport: 'stdio',
+        command: command,
+        argsJson: argsJson,
+        envJson: envJson,
+        enabled: true,
+      ));
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            tools.isEmpty
+                ? '连接成功，但该服务器未提供工具'
+                : '连接成功：${tools.map((t) => t.rawName).take(6).join('、')}'
+                    '${tools.length > 6 ? ' 等 ${tools.length} 个工具' : ''}',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text(reportUiError('MCP 测试连接', e))),
+      );
+    }
   }
 
   /// 用户技能：skills 目录里每个 SKILL.md 一行，开关控制是否参与对话。
@@ -3383,4 +3679,19 @@ class _TokenUsageBarChart extends StatelessWidget {
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
     return '$n';
   }
+}
+
+
+/// MCP 服务器表单对话框的保存结果。
+class _McpServerFormResult {
+  final String name;
+  final String command;
+  final String argsJson;
+  final String envJson;
+  const _McpServerFormResult({
+    required this.name,
+    required this.command,
+    required this.argsJson,
+    required this.envJson,
+  });
 }

@@ -1,0 +1,426 @@
+//! MCP（Model Context Protocol）客户端：stdio 传输的 jsonrpc-2.0 最小实现。
+//!
+//! 设计要点：
+//! - 懒启动：首个工具调用/清单拉取时才 spawn 子进程；会话按 server id 缓存，
+//!   配置变更（保存/删除/停用）时 `invalidate_server` 作废，下次重拉。
+//! - 超时全部有界（握手/清单 30s，工具调用 120s），server 卡死不拖垮对话链。
+//! - 失败不上抛到生成主链路：工具调用错误以结果文本返回（与内置工具一致，
+//!   模型能看到错误并自行调整）。
+//! - 工具名合成 `mcp__<server>__<tool>`（Anthropic 生态惯例），server 名在
+//!   存储层已限制为 `[A-Za-z0-9_-]+`，不产生歧义分隔。
+
+use crate::storage::Store;
+use anyhow::{anyhow, bail, Context as _, Result};
+use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Write};
+use std::process::{Child, Command, Stdio};
+use std::sync::mpsc::{channel, Sender};
+use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
+
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
+const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(120);
+const TOOLS_LIST_TIMEOUT: Duration = Duration::from_secs(30);
+/// 单 server 工具数上限：防失控 server 挤爆工具清单预算。
+const MAX_TOOLS_PER_SERVER: usize = 128;
+/// 单次工具结果文本上限：与内置工具同口径的护栏。
+const MAX_RESULT_CHARS: usize = 64 * 1024;
+
+pub const MCP_PREFIX: &str = "mcp__";
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct McpToolInfo {
+    /// 合成名：`mcp__<server>__<tool>`
+    pub name: String,
+    pub server: String,
+    pub server_id: String,
+    pub raw_name: String,
+    pub description: String,
+    pub parameters: Value,
+}
+
+struct McpSession {
+    child: Child,
+    stdin: Sender<String>,
+    /// 读线程与 request 共享的应答路由表：id → 该请求的回传通道。
+    pending: Arc<Mutex<HashMap<i64, Sender<Value>>>>,
+    next_id: AtomicI64,
+}
+
+impl McpSession {
+    fn spawn(command: &str, args: &[String], env: &HashMap<String, String>) -> Result<Self> {
+        let mut cmd = Command::new(command);
+        cmd.args(args)
+            .envs(env)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
+        #[cfg(unix)]
+        {
+            // 脱离当前进程组：server 崩溃不连带，Ctrl+C 也不误伤工具进程。
+            use std::os::unix::process::CommandExt;
+            cmd.process_group(0);
+        }
+        let mut child = cmd.spawn().map_err(|e| anyhow!("MCP 进程启动失败（{command}）：{e}"))?;
+        let stdin = child.stdin.take().context("stdin 缺失")?;
+        let stdout = child.stdout.take().context("stdout 缺失")?;
+
+        let (stdin_tx, stdin_rx) = channel::<String>();
+        std::thread::Builder::new()
+            .name("mcp-stdin".into())
+            .spawn(move || {
+                let mut stdin = stdin;
+                for line in stdin_rx {
+                    if stdin.write_all(line.as_bytes()).is_err() {
+                        break;
+                    }
+                    if stdin.flush().is_err() {
+                        break;
+                    }
+                }
+            })
+            .ok();
+
+        let (notify_tx, notify_rx) = channel::<Value>();
+        let pending: Arc<Mutex<HashMap<i64, Sender<Value>>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+        let reader_pending = Arc::clone(&pending);
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                let Ok(line) = line else { break };
+                let Ok(message) = serde_json::from_str::<Value>(&line) else { continue };
+                if let Some(id) = message.get("id").and_then(Value::as_i64) {
+                    // 直接路由到等待中的 request；超时的请求已摘牌，send
+                    // 失败即静默丢弃（副本回复，无泄漏）。
+                    let sender = reader_pending
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .remove(&id);
+                    if let Some(sender) = sender {
+                        let _ = sender.send(message);
+                    }
+                } else if notify_tx.send(message).is_err() {
+                    break;
+                }
+            }
+        });
+        std::thread::Builder::new()
+            .name("mcp-notify".into())
+            .spawn(move || {
+                for _ in notify_rx {
+                    // 通知/日志留观测口，暂不消费。
+                }
+            })
+            .ok();
+
+        Ok(Self {
+            child,
+            stdin: stdin_tx,
+            pending,
+            next_id: AtomicI64::new(0),
+        })
+    }
+
+    fn request(&self, method: &str, params: Value, timeout: Duration) -> Result<Value> {
+        let (tx, rx) = channel();
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        self.pending
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .insert(id, tx);
+        let message = json!({"jsonrpc":"2.0","id":id,"method":method,"params":params});
+        if self.stdin.send(message.to_string() + "\n").is_err() {
+            self.pending
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .remove(&id);
+            bail!("MCP server 的 stdin 已关闭");
+        }
+        let reply = match rx.recv_timeout(timeout) {
+            Ok(reply) => reply,
+            Err(_) => {
+                self.pending
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .remove(&id);
+                bail!("MCP 请求超时（{method}，{timeout:?}）")
+            }
+        };
+        if let Some(error) = reply.get("error") {
+            bail!("MCP 错误响应：{error}");
+        }
+        Ok(reply.get("result").cloned().unwrap_or(Value::Null))
+    }
+
+    fn is_alive(&mut self) -> bool {
+        matches!(self.child.try_wait(), Ok(None))
+    }
+}
+
+impl Drop for McpSession {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+fn sessions() -> &'static Mutex<HashMap<String, Arc<Mutex<McpSession>>>> {
+    static SESSIONS: OnceLock<Mutex<HashMap<String, Arc<Mutex<McpSession>>>>> = OnceLock::new();
+    SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// 配置变更后作废会话（下次调用重拉进程与工具清单）。
+pub fn invalidate_server(server_id: &str) {
+    if let Some(session) = sessions()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .remove(server_id)
+    {
+        // 立即杀进程：持有会话的仅此一处。
+        if let Ok(mut session) = session.lock() {
+            let _ = session.child.kill();
+            let _ = session.child.wait();
+        }
+    }
+}
+
+fn connect(server: &crate::storage::McpServerConfig) -> Result<Arc<Mutex<McpSession>>> {
+    let mut map = sessions().lock().unwrap_or_else(|p| p.into_inner());
+    if let Some(session) = map.get(&server.id) {
+        let alive = session.lock().unwrap_or_else(|p| p.into_inner()).is_alive();
+        if alive {
+            return Ok(Arc::clone(session));
+        }
+        map.remove(&server.id);
+    }
+    let args: Vec<String> = serde_json::from_str(&server.args_json).unwrap_or_default();
+    let env: HashMap<String, String> = serde_json::from_str(&server.env_json).unwrap_or_default();
+    let session = Arc::new(Mutex::new(McpSession::spawn(
+        &server.command,
+        &args,
+        &env,
+    )?));
+    {
+        let guard = session.lock().unwrap_or_else(|p| p.into_inner());
+        guard
+            .request(
+                "initialize",
+                json!({
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "elsewhen", "version": env!("CARGO_PKG_VERSION")}
+                }),
+                HANDSHAKE_TIMEOUT,
+            )
+            .context("MCP initialize 握手失败")?;
+        let _ = guard.stdin.send(
+            json!({"jsonrpc":"2.0","method":"notifications/initialized"}).to_string() + "\n",
+        );
+    }
+    map.insert(server.id.clone(), Arc::clone(&session));
+    Ok(session)
+}
+
+fn create_session_by_config(server: &crate::storage::McpServerConfig) -> Result<Arc<Mutex<McpSession>>> {
+    connect(server)
+}
+
+/// 拉取某 server 的工具清单（合成名）。失败返回 Err，由调用方决定降级方式。
+pub fn list_tools_for_server(server: &crate::storage::McpServerConfig) -> Result<Vec<McpToolInfo>> {
+    let session = create_session_by_config(server)?;
+    let guard = session.lock().unwrap_or_else(|p| p.into_inner());
+    let result = guard.request("tools/list", json!({}), TOOLS_LIST_TIMEOUT)?;
+    let tools = result
+        .get("tools")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut out = Vec::new();
+    for tool in tools.into_iter().take(MAX_TOOLS_PER_SERVER) {
+        let raw_name = match tool.get("name").and_then(Value::as_str) {
+            Some(name) => name.to_string(),
+            None => continue,
+        };
+        out.push(McpToolInfo {
+            name: format!("{MCP_PREFIX}{}__{raw_name}", server.name),
+            server: server.name.clone(),
+            server_id: server.id.clone(),
+            raw_name,
+            description: tool
+                .get("description")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
+            parameters: tool.get("inputSchema").cloned().unwrap_or_else(|| json!({"type":"object"})),
+        });
+    }
+    Ok(out)
+}
+
+/// 汇总全部启用 server 的工具清单；单个 server 失败不拖垮其它 server，
+/// 失败原因进错误列表由装配层决定上报口径（红线上抛优于静默）。
+pub fn available_tools(store: &Store) -> (Vec<McpToolInfo>, Vec<String>) {
+    let mut tools = Vec::new();
+    let mut errors = Vec::new();
+    match store.list_enabled_mcp_servers() {
+        Ok(servers) => {
+            for server in servers {
+                match list_tools_for_server(&server) {
+                    Ok(mut list) => tools.append(&mut list),
+                    Err(error) => errors.push(format!("MCP「{}」：{error:#}", server.name)),
+                }
+            }
+        }
+        Err(error) => errors.push(format!("MCP 配置读取失败：{error:#}")),
+    }
+    (tools, errors)
+}
+
+/// 分发一次 MCP 工具调用。`full_name` 为合成名。
+pub fn call_tool(store: &Store, full_name: &str, arguments: &Value) -> Result<String> {
+    let raw = full_name
+        .strip_prefix(MCP_PREFIX)
+        .ok_or_else(|| anyhow!("不是 MCP 工具名：{full_name}"))?;
+    let (server_name, raw_name) = raw
+        .split_once("__")
+        .ok_or_else(|| anyhow!("MCP 工具名缺少 server 前缀：{full_name}"))?;
+    let server = store
+        .list_enabled_mcp_servers()?
+        .into_iter()
+        .find(|s| s.name == server_name)
+        .ok_or_else(|| anyhow!("MCP 服务器「{server_name}」未启用或不存在"))?;
+    let session = create_session_by_config(&server)?;
+    let guard = session.lock().unwrap_or_else(|p| p.into_inner());
+    let result = guard.request(
+        "tools/call",
+        json!({"name": raw_name, "arguments": arguments}),
+        TOOL_CALL_TIMEOUT,
+    )?;
+    if result.get("isError").and_then(Value::as_bool) == Some(true) {
+        let text = extract_text(&result).unwrap_or_default();
+        bail!("MCP 工具返回错误：{text}");
+    }
+    let text = extract_text(&result)
+        .unwrap_or_else(|| "(工具无文本输出)".to_string());
+    Ok(truncate_result(text))
+}
+
+fn extract_text(result: &Value) -> Option<String> {
+    let content = result.get("content")?.as_array()?;
+    let mut out = String::new();
+    for item in content {
+        if item.get("type").and_then(Value::as_str) == Some("text") {
+            if let Some(text) = item.get("text").and_then(Value::as_str) {
+                if !out.is_empty() {
+                    out.push('\n');
+                }
+                out.push_str(text);
+            }
+        }
+    }
+    Some(out).filter(|s| !s.is_empty())
+}
+
+fn truncate_result(text: String) -> String {
+    if text.chars().count() <= MAX_RESULT_CHARS {
+        return text;
+    }
+    let head: String = text.chars().take(MAX_RESULT_CHARS).collect();
+    format!("{head}\n\n[输出超过 {MAX_RESULT_CHARS} 字符，已截断；如需完整内容请让工具分页返回]")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 用真子进程走一遍协议：python3 起一个最小 jsonrpc echo server。
+    /// 无 python3 的环境跳过（CI 兜底）。
+    #[test]
+    fn stdio_jsonrpc_roundtrip_against_real_child_process() {
+        let python = match which_python() {
+            Some(p) => p,
+            None => {
+                eprintln!("跳过：找不到 python3");
+                return;
+            }
+        };
+        let script = r#"
+import json, sys
+for line in sys.stdin:
+    msg = json.loads(line)
+    if 'id' not in msg:
+        continue
+    method = msg.get('method', '')
+    if method == 'initialize':
+        result = {"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "test", "version": "0"}}
+    elif method == 'tools/list':
+        result = {"tools": [{"name": "echo", "description": "回声", "inputSchema": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}}]}
+    elif method == 'tools/call':
+        result = {"content": [{"type": "text", "text": "echo: " + msg['params']['arguments']['text']}], "isError": False}
+    else:
+        result = {}
+    print(json.dumps({"jsonrpc": "2.0", "id": msg['id'], "result": result}), flush=True)
+"#;
+        let dir = std::env::temp_dir().join(format!("elsewhen-mcp-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let script_path = dir.join("mcp_echo.py");
+        std::fs::write(&script_path, script).unwrap();
+        let server = crate::storage::McpServerConfig {
+            id: "test-server".into(),
+            name: "testsrv".to_string(),
+            transport: "stdio".into(),
+            command: python,
+            args_json: serde_json::to_string(&[script_path.to_string_lossy().to_string()]).unwrap(),
+            env_json: "{}".into(),
+            enabled: true,
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+        // 无 store 依赖：list_tools_for_server / call_tool 只吃配置与会话。
+        let tools = list_tools_for_server(&server).unwrap();
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name, format!("{MCP_PREFIX}testsrv__echo"));
+
+        let session = connect(&server).unwrap();
+        drop(session); // connect 只是复用缓存会话
+        let storeless = create_session_by_config(&server).unwrap();
+        drop(storeless);
+        let result = {
+            let sessions = sessions().lock().unwrap();
+            let session = sessions.get("test-server").unwrap().clone();
+            let mut guard = session.lock().unwrap();
+            guard
+                .request(
+                    "tools/call",
+                    json!({"name": "echo", "arguments": {"text": "你好"}}),
+                    Duration::from_secs(30),
+                )
+                .unwrap()
+        };
+        assert_eq!(extract_text(&result).as_deref(), Some("echo: 你好"));
+        invalidate_server("test-server");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn which_python() -> Option<String> {
+        ["python3", "python"].iter().find_map(|bin| {
+            std::process::Command::new(bin)
+                .arg("--version")
+                .output()
+                .ok()
+                .filter(|out| out.status.success())
+                .map(|_| bin.to_string())
+        })
+    }
+
+    #[test]
+    fn oversized_tool_result_is_truncated_with_marker() {
+        let big = "好".repeat(MAX_RESULT_CHARS + 10);
+        let truncated = truncate_result(big);
+        assert!(truncated.chars().count() < MAX_RESULT_CHARS + 100);
+        assert!(truncated.contains("已截断"));
+    }
+}

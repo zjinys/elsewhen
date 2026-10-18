@@ -16,6 +16,7 @@ import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
+import 'api/mcp.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/relations.dart';
@@ -125,6 +126,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  McpServerDto dco_decode_box_autoadd_mcp_server_dto(dynamic raw);
 
   @protected
   MessageRecordabilityDto dco_decode_box_autoadd_message_recordability_dto(
@@ -456,6 +460,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<LibraryEntry> dco_decode_list_library_entry(dynamic raw);
 
   @protected
+  List<McpServerDto> dco_decode_list_mcp_server_dto(dynamic raw);
+
+  @protected
+  List<McpToolDto> dco_decode_list_mcp_tool_dto(dynamic raw);
+
+  @protected
   List<MemoryEchoDto> dco_decode_list_memory_echo_dto(dynamic raw);
 
   @protected
@@ -556,6 +566,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw);
+
+  @protected
+  McpServerDto dco_decode_mcp_server_dto(dynamic raw);
+
+  @protected
+  McpToolDto dco_decode_mcp_tool_dto(dynamic raw);
 
   @protected
   MemoryEchoDto dco_decode_memory_echo_dto(dynamic raw);
@@ -883,6 +899,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  McpServerDto sse_decode_box_autoadd_mcp_server_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   MessageRecordabilityDto sse_decode_box_autoadd_message_recordability_dto(
@@ -1314,6 +1335,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<McpServerDto> sse_decode_list_mcp_server_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<McpToolDto> sse_decode_list_mcp_tool_dto(SseDeserializer deserializer);
+
+  @protected
   List<MemoryEchoDto> sse_decode_list_memory_echo_dto(
     SseDeserializer deserializer,
   );
@@ -1448,6 +1477,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LocalSyncStateDto sse_decode_local_sync_state_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  McpServerDto sse_decode_mcp_server_dto(SseDeserializer deserializer);
+
+  @protected
+  McpToolDto sse_decode_mcp_tool_dto(SseDeserializer deserializer);
 
   @protected
   MemoryEchoDto sse_decode_memory_echo_dto(SseDeserializer deserializer);
@@ -1867,6 +1902,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Int64> cst_encode_box_autoadd_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return wire.cst_new_box_autoadd_i_64(cst_encode_i_64(raw));
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_mcp_server_dto> cst_encode_box_autoadd_mcp_server_dto(
+    McpServerDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_mcp_server_dto();
+    cst_api_fill_to_wire_mcp_server_dto(raw, ptr.ref);
+    return ptr;
   }
 
   @protected
@@ -2371,6 +2416,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_library_entry(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_library_entry(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_mcp_server_dto> cst_encode_list_mcp_server_dto(
+    List<McpServerDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_mcp_server_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_mcp_server_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_mcp_tool_dto> cst_encode_list_mcp_tool_dto(
+    List<McpToolDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_mcp_tool_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_mcp_tool_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3080,6 +3149,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_guidance_dto> wireObj,
   ) {
     cst_api_fill_to_wire_guidance_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_mcp_server_dto(
+    McpServerDto apiObj,
+    ffi.Pointer<wire_cst_mcp_server_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_mcp_server_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -3942,6 +4019,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.active_peers = cst_encode_i_64(apiObj.activePeers);
     wireObj.pending_operations = cst_encode_i_64(apiObj.pendingOperations);
     wireObj.relay_url = cst_encode_opt_String(apiObj.relayUrl);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_mcp_server_dto(
+    McpServerDto apiObj,
+    wire_cst_mcp_server_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.transport = cst_encode_String(apiObj.transport);
+    wireObj.command = cst_encode_String(apiObj.command);
+    wireObj.args_json = cst_encode_String(apiObj.argsJson);
+    wireObj.env_json = cst_encode_String(apiObj.envJson);
+    wireObj.enabled = cst_encode_bool(apiObj.enabled);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_mcp_tool_dto(
+    McpToolDto apiObj,
+    wire_cst_mcp_tool_dto wireObj,
+  ) {
+    wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.server = cst_encode_String(apiObj.server);
+    wireObj.raw_name = cst_encode_String(apiObj.rawName);
+    wireObj.description = cst_encode_String(apiObj.description);
+    wireObj.parameters = cst_encode_String(apiObj.parameters);
   }
 
   @protected
@@ -4824,6 +4927,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_mcp_server_dto(
+    McpServerDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_message_recordability_dto(
     MessageRecordabilityDto self,
     SseSerializer serializer,
@@ -5376,6 +5485,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_mcp_server_dto(
+    List<McpServerDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_mcp_tool_dto(
+    List<McpToolDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_memory_echo_dto(
     List<MemoryEchoDto> self,
     SseSerializer serializer,
@@ -5551,6 +5672,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     LocalSyncStateDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_mcp_server_dto(McpServerDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_mcp_tool_dto(McpToolDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_memory_echo_dto(MemoryEchoDto self, SseSerializer serializer);
@@ -6124,6 +6251,18 @@ class RustLibWire implements BaseWire {
       );
   late final _cst_new_box_autoadd_i_64 = _cst_new_box_autoadd_i_64Ptr
       .asFunction<ffi.Pointer<ffi.Int64> Function(int)>();
+
+  ffi.Pointer<wire_cst_mcp_server_dto> cst_new_box_autoadd_mcp_server_dto() {
+    return _cst_new_box_autoadd_mcp_server_dto();
+  }
+
+  late final _cst_new_box_autoadd_mcp_server_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_mcp_server_dto> Function()>
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_mcp_server_dto');
+  late final _cst_new_box_autoadd_mcp_server_dto =
+      _cst_new_box_autoadd_mcp_server_dtoPtr
+          .asFunction<ffi.Pointer<wire_cst_mcp_server_dto> Function()>();
 
   ffi.Pointer<wire_cst_message_recordability_dto>
   cst_new_box_autoadd_message_recordability_dto() {
@@ -6845,6 +6984,34 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_library_entry');
   late final _cst_new_list_library_entry = _cst_new_list_library_entryPtr
       .asFunction<ffi.Pointer<wire_cst_list_library_entry> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_mcp_server_dto> cst_new_list_mcp_server_dto(
+    int len,
+  ) {
+    return _cst_new_list_mcp_server_dto(len);
+  }
+
+  late final _cst_new_list_mcp_server_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_mcp_server_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_mcp_server_dto');
+  late final _cst_new_list_mcp_server_dto = _cst_new_list_mcp_server_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_mcp_server_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_mcp_tool_dto> cst_new_list_mcp_tool_dto(int len) {
+    return _cst_new_list_mcp_tool_dto(len);
+  }
+
+  late final _cst_new_list_mcp_tool_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_mcp_tool_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_mcp_tool_dto');
+  late final _cst_new_list_mcp_tool_dto = _cst_new_list_mcp_tool_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_mcp_tool_dto> Function(int)>();
 
   ffi.Pointer<wire_cst_list_memory_echo_dto> cst_new_list_memory_echo_dto(
     int len,
@@ -10578,6 +10745,102 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__list_recent_events =
       _wire__crate__api__list_recent_eventsPtr
           .asFunction<void Function(int, int, int)>();
+
+  void wire__crate__api__mcp__delete_mcp_server(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__mcp__delete_mcp_server(port_, id);
+  }
+
+  late final _wire__crate__api__mcp__delete_mcp_serverPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__mcp__delete_mcp_server');
+  late final _wire__crate__api__mcp__delete_mcp_server =
+      _wire__crate__api__mcp__delete_mcp_serverPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__mcp__list_mcp_servers(int port_) {
+    return _wire__crate__api__mcp__list_mcp_servers(port_);
+  }
+
+  late final _wire__crate__api__mcp__list_mcp_serversPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__mcp__list_mcp_servers',
+      );
+  late final _wire__crate__api__mcp__list_mcp_servers =
+      _wire__crate__api__mcp__list_mcp_serversPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__mcp__save_mcp_server(
+    int port_,
+    ffi.Pointer<wire_cst_mcp_server_dto> server,
+  ) {
+    return _wire__crate__api__mcp__save_mcp_server(port_, server);
+  }
+
+  late final _wire__crate__api__mcp__save_mcp_serverPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64, ffi.Pointer<wire_cst_mcp_server_dto>)
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__mcp__save_mcp_server');
+  late final _wire__crate__api__mcp__save_mcp_server =
+      _wire__crate__api__mcp__save_mcp_serverPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_mcp_server_dto>)
+          >();
+
+  void wire__crate__api__mcp__set_mcp_server_enabled(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    bool enabled,
+  ) {
+    return _wire__crate__api__mcp__set_mcp_server_enabled(port_, id, enabled);
+  }
+
+  late final _wire__crate__api__mcp__set_mcp_server_enabledPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__mcp__set_mcp_server_enabled');
+  late final _wire__crate__api__mcp__set_mcp_server_enabled =
+      _wire__crate__api__mcp__set_mcp_server_enabledPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
+  void wire__crate__api__mcp__test_mcp_server(
+    int port_,
+    ffi.Pointer<wire_cst_mcp_server_dto> server,
+  ) {
+    return _wire__crate__api__mcp__test_mcp_server(port_, server);
+  }
+
+  late final _wire__crate__api__mcp__test_mcp_serverPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64, ffi.Pointer<wire_cst_mcp_server_dto>)
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__mcp__test_mcp_server');
+  late final _wire__crate__api__mcp__test_mcp_server =
+      _wire__crate__api__mcp__test_mcp_serverPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_mcp_server_dto>)
+          >();
 
   void wire__crate__api__provider_config__delete_ai_provider_config(
     int port_,
@@ -16560,6 +16823,36 @@ final class wire_cst_list_library_entry extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_mcp_server_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_mcp_server_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_mcp_server_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_mcp_server_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_mcp_server_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_mcp_tool_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_mcp_tool_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_mcp_tool_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_mcp_tool_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_mcp_tool_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_memory_echo_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_memory_echo_dto> ptr;
 
@@ -17063,6 +17356,67 @@ final class wire_cst_local_sync_state_dto extends ffi.Struct {
     ..ref.active_peers = active_peers
     ..ref.pending_operations = pending_operations
     ..ref.relay_url = relay_url;
+}
+
+final class wire_cst_mcp_server_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> transport;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> command;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> env_json;
+
+  @ffi.Bool()
+  external bool enabled;
+
+  static ffi.Pointer<wire_cst_mcp_server_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> transport,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> command,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> env_json,
+    required bool enabled,
+  }) => $allocator<wire_cst_mcp_server_dto>()
+    ..ref.id = id
+    ..ref.name = name
+    ..ref.transport = transport
+    ..ref.command = command
+    ..ref.args_json = args_json
+    ..ref.env_json = env_json
+    ..ref.enabled = enabled;
+}
+
+final class wire_cst_mcp_tool_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> server;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> description;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> parameters;
+
+  static ffi.Pointer<wire_cst_mcp_tool_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> server,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> raw_name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> description,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> parameters,
+  }) => $allocator<wire_cst_mcp_tool_dto>()
+    ..ref.name = name
+    ..ref.server = server
+    ..ref.raw_name = raw_name
+    ..ref.description = description
+    ..ref.parameters = parameters;
 }
 
 final class wire_cst_memory_echo_dto extends ffi.Struct {

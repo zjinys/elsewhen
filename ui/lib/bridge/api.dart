@@ -14,6 +14,7 @@ export 'generated.dart/api/entities.dart';
 export 'generated.dart/api/fonts.dart';
 export 'generated.dart/api/goals.dart';
 export 'generated.dart/api/knowledge.dart';
+export 'generated.dart/api/mcp.dart';
 export 'generated.dart/storage/knowledge.dart';
 export 'generated.dart/knowledge.dart';
 export 'generated.dart/knowledge/review.dart';

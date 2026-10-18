@@ -86,6 +86,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // GC 只认本设备的应用层水位，不跨设备继承。
     ("sync_gc_state", "per-device-gc-watermark"),
     // 本机同步收发/传输/迁移残留状态：不属于数据集内容。
+    // MCP 服务器是本机执行环境事实（命令路径依赖本机 node/npx 生态，进程
+    // 也只在本机拉起）；要换设备重新配，同步过去反而是断链的命令。
+    ("mcp_servers", "per-device-execution-environment"),
     ("ai_provider_sync_order", "rebuilt-by-provider-bundle-apply"),
     ("analysis_jobs", "per-device-sync-state"),
     ("sync_operation_fragment_outbox", "per-device-sync-state"),

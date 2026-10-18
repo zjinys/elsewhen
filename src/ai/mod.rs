@@ -10,6 +10,7 @@ pub mod skills;
 pub(crate) mod summary;
 pub(crate) mod supplements;
 pub(crate) mod time_context;
+pub mod mcp;
 pub mod tool;
 
 pub use conversation::{

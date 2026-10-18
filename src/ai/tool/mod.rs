@@ -217,6 +217,9 @@ pub trait Tool {
 pub struct ToolRegistry {
     tools: Vec<Box<dyn Tool>>,
     defer_tools: bool,
+    /// MCP sidecar：外部 server 的动态工具，不符 `Tool` trait（动态名/描述），
+    /// 由装配层拉取后注入；分发在 dispatch 的前缀路由完成。
+    mcp_tools: Vec<crate::ai::mcp::McpToolInfo>,
 }
 
 impl Default for ToolRegistry {
@@ -241,7 +244,17 @@ impl ToolRegistry {
         Self {
             tools: Self::all_tools(),
             defer_tools,
+            mcp_tools: Vec::new(),
         }
+    }
+
+    /// 注入 MCP 动态工具（装配层在拉取清单后调用；空清单 = 未启用 MCP）。
+    pub fn set_mcp_tools(&mut self, tools: Vec<crate::ai::mcp::McpToolInfo>) {
+        self.mcp_tools = tools;
+    }
+
+    pub fn mcp_tools(&self) -> &[crate::ai::mcp::McpToolInfo] {
+        &self.mcp_tools
     }
 
     fn all_tools() -> Vec<Box<dyn Tool>> {
@@ -291,6 +304,11 @@ impl ToolRegistry {
                 description: t.description().to_string(),
                 parameters: t.parameters_schema(),
             })
+            .chain(self.mcp_tools.iter().map(|t| ToolSpec {
+                name: t.name.clone(),
+                description: t.description.clone(),
+                parameters: t.parameters.clone(),
+            }))
             .collect()
     }
 
@@ -562,6 +580,13 @@ impl ToolRegistry {
         self.tools.iter().map(|t| t.name()).collect()
     }
 
+    /// 全部可用工具名（内置 + MCP 合成名），enable_tools 登记与文本协议用。
+    pub fn all_names(&self) -> Vec<String> {
+        let mut out: Vec<String> = self.tools.iter().map(|t| t.name().to_string()).collect();
+        out.extend(self.mcp_tools.iter().map(|t| t.name.clone()));
+        out
+    }
+
     /// 原生 tool-calling 用的工具清单
     pub fn provider_specs(&self) -> Vec<ToolSpec> {
         self.provider_specs_for(true)
@@ -576,6 +601,11 @@ impl ToolRegistry {
                 description: t.description().to_string(),
                 parameters: t.parameters_schema(),
             })
+            .chain(self.mcp_tools.iter().map(|t| ToolSpec {
+                name: t.name.clone(),
+                description: t.description.clone(),
+                parameters: t.parameters.clone(),
+            }))
             .collect()
     }
 
@@ -650,7 +680,17 @@ pub(crate) fn dispatch_with_knowledge(
                 Err(e) => ToolResultMsg::err(call, e),
             }
         }
-        None => ToolResultMsg::err(call, format!("未知工具：{}", call.name)),
+        None => {
+            // 内置注册表未命中：MCP 工具（mcp__<server>__<tool>）走外部
+            // 分发；错误同样以结果文本返回，不炸生成主链路。
+            if call.name.starts_with(crate::ai::mcp::MCP_PREFIX) {
+                return match crate::ai::mcp::call_tool(store, &call.name, &call.arguments) {
+                    Ok(text) => ToolResultMsg::ok(call, text),
+                    Err(e) => ToolResultMsg::err(call, e),
+                };
+            }
+            ToolResultMsg::err(call, format!("未知工具：{}", call.name))
+        }
     }
 }
 
