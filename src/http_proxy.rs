@@ -52,14 +52,14 @@ pub fn load_policy_from_store(store: &crate::storage::Store) {
     }
 }
 
-/// 给 client builder 追加出站代理。无 custom、无环境变量时原样返回。
+/// 给 blocking client builder 追加出站代理。无 custom、无环境变量时
+/// **显式 no_proxy**：屏蔽 reqwest 默认 system-proxy 对 `http_proxy` 等
+/// 非白名单变量的隐式读取（不然「只认 HTTPS 语义」名存实亡——用户
+/// export 的 http_proxy 会劫持全部出站，测试 flake 正是此症状）。
 pub(crate) fn with_outbound_proxy(
     builder: reqwest::blocking::ClientBuilder,
 ) -> reqwest::blocking::ClientBuilder {
-    let (mode, custom_url) = policy_slot()
-        .read()
-        .map(|guard| (guard.mode.clone(), guard.url.clone()))
-        .unwrap_or(("auto".to_string(), String::new()));
+    let (mode, custom_url) = current_policy();
 
     if mode == "off" {
         // 显式直连：连 reqwest 对环境变量的隐式探测也一并关掉。
@@ -72,8 +72,37 @@ pub(crate) fn with_outbound_proxy(
     }
     match env_proxy() {
         Some(proxy) => builder.proxy(with_loopback_bypass(proxy)),
-        None => builder,
+        // auto 但无白名单变量：显式关掉默认探测（http_proxy 不算）。
+        None => builder.no_proxy(),
     }
+}
+
+/// async 版 [`with_outbound_proxy`]——AI 流式（streaming.rs）与 MCP 会话
+/// 等异步出站必须走同一策略，否则「off 屏蔽环境变量」名存实亡。
+pub(crate) fn with_outbound_proxy_async(
+    builder: reqwest::ClientBuilder,
+) -> reqwest::ClientBuilder {
+    let (mode, custom_url) = current_policy();
+
+    if mode == "off" {
+        return builder.no_proxy();
+    }
+    if mode == "custom" && !custom_url.is_empty() {
+        if let Ok(proxy) = reqwest::Proxy::all(&custom_url) {
+            return builder.proxy(proxy);
+        }
+    }
+    match env_proxy() {
+        Some(proxy) => builder.proxy(with_loopback_bypass(proxy)),
+        None => builder.no_proxy(),
+    }
+}
+
+fn current_policy() -> (String, String) {
+    policy_slot()
+        .read()
+        .map(|guard| (guard.mode.clone(), guard.url.clone()))
+        .unwrap_or(("auto".to_string(), String::new()))
 }
 
 /// 环境变量代理（历史行为：auto 模式)。只认 HTTPS 语义的变量；`http_proxy`
@@ -149,5 +178,42 @@ mod proxy_policy_tests {
         let _ = with_outbound_proxy(builder);
         unsafe { std::env::remove_var("ALL_PROXY") };
         apply_policy("auto", "");
+    }
+
+    /// 非白名单变量（http_proxy）不得被隐式劫持：auto+仅 http_proxy 时
+    /// 决策结果必须是显式 no_proxy（否则 reqwest 默认 system proxy 会
+    /// 把它读走——测试 flake 的根因）。探测方式：构造 client 后请求回
+    /// 环 server，若被代理劫持会连到代理端口而非 mock。用分支语义测：
+    /// env_proxy() 返回 None 时 with_outbound_proxy 必走 no_proxy 分支——
+    /// 难以直查 client，改为实证打法：起回环 mock，require 请求直达。同
+    /// 一场景在 provider streaming 测试（sync 也复用）已长期回归，这里
+    /// 钉住语义层：仅 http_proxy 时 env_proxy() 必须是 None。
+    #[test]
+    fn lowercase_http_proxy_is_not_quotaed_for_outbound() {
+        let _guard = crate::config::test_env_guard();
+        // 受控环境：先移除全部白名单变量，只留 http_proxy。
+        for name in ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"] {
+            unsafe { std::env::remove_var(name) };
+        }
+        unsafe { std::env::set_var("http_proxy", "http://127.0.0.1:7897") };
+        apply_policy("auto", "");
+        assert!(env_proxy().is_none());
+        unsafe { std::env::remove_var("http_proxy") };
+        apply_policy("auto", "");
+    }
+
+    /// async 路径（AI 流式）同策略：off 屏蔽、auto 挂白名单 env、回环豁免。
+    /// 至少不在编译层面缺席——行为同上，语义层钉住构建链。
+    #[test]
+    fn async_builder_follows_same_policy() {
+        let _guard = crate::config::test_env_guard();
+        apply_policy("off", "");
+        let _ = with_outbound_proxy_async(reqwest::Client::builder());
+        apply_policy("custom", "socks5://127.0.0.1:7891");
+        let _ = with_outbound_proxy_async(reqwest::Client::builder());
+        apply_policy("auto", "");
+        unsafe { std::env::set_var("HTTPS_PROXY", "http://127.0.0.1:7890") };
+        let _ = with_outbound_proxy_async(reqwest::Client::builder());
+        unsafe { std::env::remove_var("HTTPS_PROXY") };
     }
 }

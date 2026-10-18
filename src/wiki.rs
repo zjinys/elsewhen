@@ -549,10 +549,11 @@ fn parse_tweet_content(parsed: FxTwitterResponse) -> Result<FxTweetContent> {
 
 /// 调用 fxtwitter 获取推文长文（long_mode=true 取完整正文）
 fn fetch_tweet(tweet_id: &str) -> Result<FxTweetContent> {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .context("创建 HTTP 客户端失败")?;
+    let client = crate::http_proxy::with_outbound_proxy(
+        reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(30)),
+    )
+    .build()
+    .context("创建 HTTP 客户端失败")?;
     let url = format!("https://api.fxtwitter.com/status/{tweet_id}?long_mode=true");
     let resp = client
         .get(&url)
@@ -608,9 +609,10 @@ fn download_tweet_images(tweet_id: &str, data_dir: &std::path::Path, content: &m
         }
         return;
     }
-    let client = match reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
+    let client = match crate::http_proxy::with_outbound_proxy(
+        reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(30)),
+    )
+    .build()
     {
         Ok(c) => c,
         Err(_) => return,

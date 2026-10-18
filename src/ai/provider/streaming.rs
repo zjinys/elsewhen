@@ -218,9 +218,10 @@ pub(super) fn generate(
         .enable_all()
         .build()?;
     runtime.block_on(async {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(60))
-            .build()?;
+        let client = crate::http_proxy::with_outbound_proxy_async(
+            reqwest::Client::builder().timeout(std::time::Duration::from_secs(60)),
+        )
+        .build()?;
         payload["stream"] = Value::Bool(true);
         payload["stream_options"] = serde_json::json!({"include_usage":true});
         let mut budget_retry = false;
@@ -367,9 +368,10 @@ pub(super) fn cancellable_json(
         .enable_all()
         .build()?;
     runtime.block_on(async {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
-            .build()?;
+        let client = crate::http_proxy::with_outbound_proxy_async(
+            reqwest::Client::builder().timeout(std::time::Duration::from_secs(120)),
+        )
+        .build()?;
         observer(ProviderEvent::Poll)?;
         let mut heartbeat = tokio::time::interval(std::time::Duration::from_millis(25));
         let send = client.post(url).json(payload).send();
