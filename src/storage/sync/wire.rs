@@ -114,22 +114,32 @@ impl Store {
             |r| r.get(0),
         )?;
         ensure!(active, "sync_member_not_authorized");
-        let existing:Option<(String,i64,Vec<u8>)>=self.connection.query_row("SELECT payload_hash,key_version,encrypted_envelope FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id=?2",params![header.recipient_device_id,header.message_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
-        if let Some((hash, version, bytes)) = existing {
-            ensure!(hash == digest, "sync_wire_identity_content_conflict");
+        let existing: Option<(String, i64, Vec<u8>, String)> = self.connection.query_row("SELECT payload_hash,key_version,encrypted_envelope,state FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id=?2",params![header.recipient_device_id,header.message_id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional()?;
+        if let Some((hash, version, bytes, state)) = existing {
             ensure!(
                 header.key_version >= version as u64,
                 "sync_wire_key_version_stale"
             );
             if header.key_version == version as u64 {
-                if let Some(tx) = tx {
-                    tx.commit()?;
+                if state == "acknowledged" {
+                    // 已确认信封不可变：同 id 内容漂移＝完整性事故。
+                    ensure!(hash == digest, "sync_wire_identity_content_conflict");
                 }
-                return Ok(bytes);
+                if hash == digest {
+                    // 同内容幂等短路：返回已封密文，不再重新 seal。
+                    if let Some(tx) = tx {
+                        tx.commit()?;
+                    }
+                    return Ok(bytes);
+                }
+                // pending（收端从未确认过旧内容）允许覆盖重封：配对重置/
+                // 快照重建会让同 stream:seq 的 op 换 payload，若拒绝重封，
+                // 死行会永久堵住 outbox 并阻断其后全部 op。ack 行在上方
+                // 已被 ensure 挡下，铁律不变。
             }
         }
         let encrypted = crypto::seal(header.clone(), key, signer, payload)?.to_bytes()?;
-        self.connection.execute("INSERT INTO sync_wire_outbox(recipient_device_id,message_id,payload_hash,key_version,encrypted_envelope) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(recipient_device_id,message_id) DO UPDATE SET key_version=excluded.key_version,encrypted_envelope=excluded.encrypted_envelope,available_at_ms=0,relay_id=NULL",params![header.recipient_device_id,header.message_id,digest,header.key_version as i64,encrypted])?;
+        self.connection.execute("INSERT INTO sync_wire_outbox(recipient_device_id,message_id,payload_hash,key_version,encrypted_envelope) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(recipient_device_id,message_id) DO UPDATE SET payload_hash=excluded.payload_hash,key_version=excluded.key_version,encrypted_envelope=excluded.encrypted_envelope,available_at_ms=0,relay_id=NULL",params![header.recipient_device_id,header.message_id,digest,header.key_version as i64,encrypted])?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
@@ -329,11 +339,19 @@ mod tests {
                     .unwrap(),
                 bytes
             );
-            assert!(
-                store
-                    .stage_sync_wire_envelope(&header, &key, &signer, b"different")
-                    .is_err()
+            // pending 行（未 ack）：同 id 内容变化允许覆盖重封
+            //（配对重置/快照重建场景，否则死行堵住 outbox）。
+            let restaged = store
+                .stage_sync_wire_envelope(&header, &key, &signer, b"different")
+                .unwrap();
+            assert_ne!(restaged, bytes);
+            // 覆盖后收端收到的应是新 payload。
+            let parsed_re = EncryptedEnvelope::from_bytes(&restaged).unwrap();
+            assert_eq!(
+                crypto::open(&parsed_re, &header, &key, &signer.public_key()).unwrap(),
+                b"different"
             );
+            // 但 ack 之后同 id 不同内容依旧是完整性事故，不可覆盖。
             store
                 .record_sync_wire_attempt("b", &header.message_id, 100, Some("0000000000000001"))
                 .unwrap();
@@ -343,18 +361,21 @@ mod tests {
                     .unwrap()
                     .is_empty()
             );
-            bytes
+            restaged
         };
         let store = Store::open(&path).unwrap();
         let due = store.due_sync_wire_envelopes("b", 1100, 10).unwrap();
         assert_eq!(due.len(), 1);
         assert_eq!(due[0].message_id, header.message_id);
         assert_eq!(due[0].encrypted_envelope, bytes);
+        // 覆盖后库中现存的是最后一次封包，解开必须是新内容。
         let parsed = EncryptedEnvelope::from_bytes(&bytes).unwrap();
         assert_eq!(
             crypto::open(&parsed, &header, &key, &signer.public_key()).unwrap(),
-            payload
+            b"different"
         );
+        // 密文不泄漏任一版本明文。
+        assert!(!String::from_utf8_lossy(&bytes).contains("SYNTHETIC_PROVIDER_SECRET"));
         assert!(
             store
                 .acknowledge_sync_wire("b", &header.message_id, "wrong")
@@ -364,7 +385,7 @@ mod tests {
             .acknowledge_sync_wire(
                 "b",
                 &header.message_id,
-                &crate::storage::sync::hash(payload),
+                &crate::storage::sync::hash(b"different"),
             )
             .unwrap();
         assert!(
@@ -372,6 +393,29 @@ mod tests {
                 .due_sync_wire_envelopes("b", 999999, 10)
                 .unwrap()
                 .is_empty()
+        );
+        // 已确认信封是铁律：同 id、不同内容 → 拒绝。
+        assert!(
+            store
+                .stage_sync_wire_envelope(&header, &key, &signer, b"tampered")
+                .unwrap_err()
+                .to_string()
+                .contains("sync_wire_identity_content_conflict")
+        );
+        // 同 id 同内容：幂等短路，返回已有密文（跨 reopen 后仍在库中）。
+        let stored: Vec<u8> = store
+            .connection
+            .query_row(
+                "SELECT encrypted_envelope FROM sync_wire_outbox WHERE recipient_device_id='b' AND message_id=?1",
+                [&header.message_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            store
+                .stage_sync_wire_envelope(&header, &key, &signer, b"different")
+                .unwrap(),
+            stored
         );
         drop(store);
         std::fs::remove_dir_all(dir).unwrap();
