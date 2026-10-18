@@ -114,7 +114,7 @@ Future<MessageDto> sendMessage({
   parentMessageId: parentMessageId,
 );
 
-/// List messages in a conversation
+/// List messages in a conversation（展示序：回复锚定其输入，保证一问一答交错）
 Future<List<MessageDto>> listMessages({required String conversationId}) =>
     RustLib.instance.api.crateApiConversationsListMessages(
       conversationId: conversationId,
@@ -246,6 +246,9 @@ class MessageDto {
   final String content;
   final String createdAt;
 
+  /// 展示配对：assistant 回复对应的输入消息 id（仅展示用）。
+  final String? inputMessageId;
+
   const MessageDto({
     required this.id,
     required this.conversationId,
@@ -253,6 +256,7 @@ class MessageDto {
     required this.role,
     required this.content,
     required this.createdAt,
+    this.inputMessageId,
   });
 
   @override
@@ -262,7 +266,8 @@ class MessageDto {
       parentMessageId.hashCode ^
       role.hashCode ^
       content.hashCode ^
-      createdAt.hashCode;
+      createdAt.hashCode ^
+      inputMessageId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -274,7 +279,8 @@ class MessageDto {
           parentMessageId == other.parentMessageId &&
           role == other.role &&
           content == other.content &&
-          createdAt == other.createdAt;
+          createdAt == other.createdAt &&
+          inputMessageId == other.inputMessageId;
 }
 
 class PendingActionDto {

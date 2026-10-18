@@ -114,7 +114,7 @@ impl RelayClient {
                 && url.fragment().is_none(),
             "relay URL must not contain credentials, query or fragment"
         );
-        let http = crate::http_proxy::with_env_proxy(reqwest::blocking::Client::builder())
+        let http = crate::http_proxy::with_outbound_proxy(reqwest::blocking::Client::builder())
             .timeout(std::time::Duration::from_secs(30))
             .redirect(reqwest::redirect::Policy::none())
             .build()

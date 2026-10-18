@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/chat_proposals.dart';
 import 'api/chat_runs.dart';
 import 'api/conversations.dart';
+import 'api/db_maintenance.dart';
 import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
@@ -24,6 +25,7 @@ import 'api/sync.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
+import 'api/user_skills.dart';
 import 'api/web_search.dart';
 import 'api/wiki.dart';
 import 'api/wiki_chat.dart';
@@ -98,7 +100,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1388820506;
+  int get rustContentHash => -1806790268;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -266,6 +268,8 @@ abstract class RustLibApi extends BaseApi {
     required String contentMd,
   });
 
+  Future<DatabaseStatsDto> crateApiDbMaintenanceDatabaseStats();
+
   Future<ChatDecisionDto> crateApiChatProposalsDecideChatProposal({
     required ChatReviewRequest request,
     required bool accept,
@@ -352,6 +356,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<EventStatsQuery> crateApiEventStatsEventStatsQueryDefault();
+
+  Future<WikiExportResultDto> crateApiWikiExportWikiMarkdown({
+    required String outDir,
+  });
 
   Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url});
 
@@ -504,6 +512,18 @@ abstract class RustLibApi extends BaseApi {
 
   Future<SyncJoinStateDto> crateApiSyncInspectSyncJoinApproval({
     required String operationId,
+  });
+
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromDirectory({
+    required String source,
+  });
+
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromGit({
+    required String url,
+  });
+
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromZip({
+    required String zipPath,
   });
 
   Future<SyncJoinStateDto> crateApiSyncInstallSyncJoinKey({
@@ -682,6 +702,8 @@ abstract class RustLibApi extends BaseApi {
     required int offset,
     required int limit,
   });
+
+  Future<List<UserSkillDto>> crateApiUserSkillsListUserSkills();
 
   Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts();
 
@@ -865,6 +887,11 @@ abstract class RustLibApi extends BaseApi {
     required List<String> tags,
   });
 
+  Future<void> crateApiWebSearchSaveNetworkProxy({
+    required String proxyMode,
+    required String proxyUrl,
+  });
+
   Future<void> crateApiKnowledgeWorkflowsSaveSuggestionFeedback({
     required String messageId,
     required String decision,
@@ -982,6 +1009,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiRulesSetRuleTriggerMode({required String mode});
 
+  Future<void> crateApiUserSkillsSetUserSkillEnabled({
+    required String id,
+    required bool enabled,
+  });
+
   Future<WikiPageDto> crateApiWikiSetWikiOpinion({
     required String slug,
     String? opinion,
@@ -1016,6 +1048,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiWebSearchTestDohConnection({required String dohUri});
 
+  Future<String> crateApiWebSearchTestProxyConnection({
+    required String proxyUrl,
+  });
+
   Future<PlatformInt64> crateApiKnowledgeTickKnowledgeInsights();
 
   Future<PeriodReportTickResult> crateApiReviewReportTickPeriodicReports();
@@ -1038,6 +1074,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiKnowledgeWorkflowsUndoTopicOrganization({
     required String id,
   });
+
+  Future<void> crateApiUserSkillsUninstallUserSkill({required String id});
 
   Future<void> crateApiProviderConfigUpdateAiProviderConfig({
     required String baseUrl,
@@ -1099,6 +1137,10 @@ abstract class RustLibApi extends BaseApi {
     required String slug,
     required List<String> tags,
   });
+
+  Future<String> crateApiUserSkillsUserSkillsDirectoryPath();
+
+  Future<VacuumResultDto> crateApiDbMaintenanceVacuumDatabase();
 
   Future<bool> crateApiChatRunsWithdrawChatInput({
     required String conversationId,
@@ -2160,6 +2202,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DatabaseStatsDto> crateApiDbMaintenanceDatabaseStats() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__db_maintenance__database_stats(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_database_stats_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDbMaintenanceDatabaseStatsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbMaintenanceDatabaseStatsConstMeta =>
+      const TaskConstMeta(debugName: "database_stats", argNames: []);
+
+  @override
   Future<ChatDecisionDto> crateApiChatProposalsDecideChatProposal({
     required ChatReviewRequest request,
     required bool accept,
@@ -2800,6 +2863,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiEventStatsEventStatsQueryDefaultConstMeta =>
       const TaskConstMeta(debugName: "event_stats_query_default", argNames: []);
+
+  @override
+  Future<WikiExportResultDto> crateApiWikiExportWikiMarkdown({
+    required String outDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(outDir);
+          return wire.wire__crate__api__wiki__export_wiki_markdown(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_export_result_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiExportWikiMarkdownConstMeta,
+        argValues: [outDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiExportWikiMarkdownConstMeta =>
+      const TaskConstMeta(
+        debugName: "export_wiki_markdown",
+        argNames: ["outDir"],
+      );
 
   @override
   Future<ImportUrlDto> crateApiImportFetchImportUrl({required String url}) {
@@ -4052,6 +4142,97 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "inspect_sync_join_approval",
         argNames: ["operationId"],
+      );
+
+  @override
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromDirectory({
+    required String source,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(source);
+          return wire
+              .wire__crate__api__user_skills__install_skill_from_directory(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_user_skill_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsInstallSkillFromDirectoryConstMeta,
+        argValues: [source],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsInstallSkillFromDirectoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "install_skill_from_directory",
+        argNames: ["source"],
+      );
+
+  @override
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromGit({
+    required String url,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(url);
+          return wire.wire__crate__api__user_skills__install_skill_from_git(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_user_skill_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsInstallSkillFromGitConstMeta,
+        argValues: [url],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsInstallSkillFromGitConstMeta =>
+      const TaskConstMeta(
+        debugName: "install_skill_from_git",
+        argNames: ["url"],
+      );
+
+  @override
+  Future<UserSkillDto> crateApiUserSkillsInstallSkillFromZip({
+    required String zipPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(zipPath);
+          return wire.wire__crate__api__user_skills__install_skill_from_zip(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_user_skill_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsInstallSkillFromZipConstMeta,
+        argValues: [zipPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsInstallSkillFromZipConstMeta =>
+      const TaskConstMeta(
+        debugName: "install_skill_from_zip",
+        argNames: ["zipPath"],
       );
 
   @override
@@ -5401,6 +5582,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<UserSkillDto>> crateApiUserSkillsListUserSkills() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__user_skills__list_user_skills(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_user_skill_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsListUserSkillsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsListUserSkillsConstMeta =>
+      const TaskConstMeta(debugName: "list_user_skills", argNames: []);
+
+  @override
   Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts() {
     return handler.executeNormal(
       NormalTask(
@@ -6676,6 +6878,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiWebSearchSaveNetworkProxy({
+    required String proxyMode,
+    required String proxyUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(proxyMode);
+          var arg1 = cst_encode_String(proxyUrl);
+          return wire.wire__crate__api__web_search__save_network_proxy(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWebSearchSaveNetworkProxyConstMeta,
+        argValues: [proxyMode, proxyUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebSearchSaveNetworkProxyConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_network_proxy",
+        argNames: ["proxyMode", "proxyUrl"],
+      );
+
+  @override
   Future<void> crateApiKnowledgeWorkflowsSaveSuggestionFeedback({
     required String messageId,
     required String decision,
@@ -7423,6 +7658,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiUserSkillsSetUserSkillEnabled({
+    required String id,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_bool(enabled);
+          return wire.wire__crate__api__user_skills__set_user_skill_enabled(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsSetUserSkillEnabledConstMeta,
+        argValues: [id, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsSetUserSkillEnabledConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_user_skill_enabled",
+        argNames: ["id", "enabled"],
+      );
+
+  @override
   Future<WikiPageDto> crateApiWikiSetWikiOpinion({
     required String slug,
     String? opinion,
@@ -7645,6 +7913,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiWebSearchTestProxyConnection({
+    required String proxyUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(proxyUrl);
+          return wire.wire__crate__api__web_search__test_proxy_connection(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWebSearchTestProxyConnectionConstMeta,
+        argValues: [proxyUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebSearchTestProxyConnectionConstMeta =>
+      const TaskConstMeta(
+        debugName: "test_proxy_connection",
+        argNames: ["proxyUrl"],
+      );
+
+  @override
   Future<PlatformInt64> crateApiKnowledgeTickKnowledgeInsights() {
     return handler.executeNormal(
       NormalTask(
@@ -7851,6 +8149,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "undo_topic_organization",
         argNames: ["id"],
       );
+
+  @override
+  Future<void> crateApiUserSkillsUninstallUserSkill({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__user_skills__uninstall_user_skill(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsUninstallUserSkillConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsUninstallUserSkillConstMeta =>
+      const TaskConstMeta(debugName: "uninstall_user_skill", argNames: ["id"]);
 
   @override
   Future<void> crateApiProviderConfigUpdateAiProviderConfig({
@@ -8245,6 +8568,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "update_wiki_tags",
     argNames: ["slug", "tags"],
   );
+
+  @override
+  Future<String> crateApiUserSkillsUserSkillsDirectoryPath() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__user_skills__user_skills_directory_path(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsUserSkillsDirectoryPathConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsUserSkillsDirectoryPathConstMeta =>
+      const TaskConstMeta(
+        debugName: "user_skills_directory_path",
+        argNames: [],
+      );
+
+  @override
+  Future<VacuumResultDto> crateApiDbMaintenanceVacuumDatabase() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__db_maintenance__vacuum_database(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_vacuum_result_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDbMaintenanceVacuumDatabaseConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbMaintenanceVacuumDatabaseConstMeta =>
+      const TaskConstMeta(debugName: "vacuum_database", argNames: []);
 
   @override
   Future<bool> crateApiChatRunsWithdrawChatInput({
@@ -8860,6 +9230,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       completionTokens: dco_decode_i_64(arr[2]),
       totalTokens: dco_decode_i_64(arr[3]),
       callCount: dco_decode_i_64(arr[4]),
+    );
+  }
+
+  @protected
+  DatabaseStatsDto dco_decode_database_stats_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return DatabaseStatsDto(
+      fileBytes: dco_decode_i_64(arr[0]),
+      allocatedBytes: dco_decode_i_64(arr[1]),
+      freeBytes: dco_decode_i_64(arr[2]),
+      pageSize: dco_decode_i_64(arr[3]),
     );
   }
 
@@ -9908,6 +10292,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<UserSkillDto> dco_decode_list_user_skill_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_user_skill_dto).toList();
+  }
+
+  @protected
   List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(
     dynamic raw,
   ) {
@@ -9965,8 +10355,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MessageDto dco_decode_message_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return MessageDto(
       id: dco_decode_String(arr[0]),
       conversationId: dco_decode_String(arr[1]),
@@ -9974,6 +10364,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       role: dco_decode_String(arr[3]),
       content: dco_decode_String(arr[4]),
       createdAt: dco_decode_String(arr[5]),
+      inputMessageId: dco_decode_opt_String(arr[6]),
     );
   }
 
@@ -10010,12 +10401,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return NetworkSettingsDto(
       dohUri: dco_decode_String(arr[0]),
       dohScope: dco_decode_String(arr[1]),
       dohMode: dco_decode_String(arr[2]),
+      proxyMode: dco_decode_String(arr[3]),
+      proxyUrl: dco_decode_String(arr[4]),
     );
   }
 
@@ -10805,9 +11198,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UserSkillDto dco_decode_user_skill_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return UserSkillDto(
+      id: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      brief: dco_decode_String(arr[2]),
+      enabled: dco_decode_bool(arr[3]),
+      hasSkillMd: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
   BigInt dco_decode_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeU64(raw);
+  }
+
+  @protected
+  VacuumResultDto dco_decode_vacuum_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return VacuumResultDto(
+      beforeBytes: dco_decode_i_64(arr[0]),
+      afterBytes: dco_decode_i_64(arr[1]),
+    );
   }
 
   @protected
@@ -10837,6 +11257,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       title: dco_decode_String(arr[1]),
       contentMd: dco_decode_String(arr[2]),
       basisJson: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  WikiExportResultDto dco_decode_wiki_export_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return WikiExportResultDto(
+      outDir: dco_decode_String(arr[0]),
+      exported: dco_decode_i_64(arr[1]),
     );
   }
 
@@ -11613,6 +12045,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       completionTokens: var_completionTokens,
       totalTokens: var_totalTokens,
       callCount: var_callCount,
+    );
+  }
+
+  @protected
+  DatabaseStatsDto sse_decode_database_stats_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fileBytes = sse_decode_i_64(deserializer);
+    var var_allocatedBytes = sse_decode_i_64(deserializer);
+    var var_freeBytes = sse_decode_i_64(deserializer);
+    var var_pageSize = sse_decode_i_64(deserializer);
+    return DatabaseStatsDto(
+      fileBytes: var_fileBytes,
+      allocatedBytes: var_allocatedBytes,
+      freeBytes: var_freeBytes,
+      pageSize: var_pageSize,
     );
   }
 
@@ -13257,6 +13704,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<UserSkillDto> sse_decode_list_user_skill_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <UserSkillDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_user_skill_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
     SseDeserializer deserializer,
   ) {
@@ -13351,6 +13812,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_role = sse_decode_String(deserializer);
     var var_content = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_String(deserializer);
+    var var_inputMessageId = sse_decode_opt_String(deserializer);
     return MessageDto(
       id: var_id,
       conversationId: var_conversationId,
@@ -13358,6 +13820,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       role: var_role,
       content: var_content,
       createdAt: var_createdAt,
+      inputMessageId: var_inputMessageId,
     );
   }
 
@@ -13400,10 +13863,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_dohUri = sse_decode_String(deserializer);
     var var_dohScope = sse_decode_String(deserializer);
     var var_dohMode = sse_decode_String(deserializer);
+    var var_proxyMode = sse_decode_String(deserializer);
+    var var_proxyUrl = sse_decode_String(deserializer);
     return NetworkSettingsDto(
       dohUri: var_dohUri,
       dohScope: var_dohScope,
       dohMode: var_dohMode,
+      proxyMode: var_proxyMode,
+      proxyUrl: var_proxyUrl,
     );
   }
 
@@ -14467,9 +14934,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UserSkillDto sse_decode_user_skill_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_brief = sse_decode_String(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_hasSkillMd = sse_decode_bool(deserializer);
+    return UserSkillDto(
+      id: var_id,
+      title: var_title,
+      brief: var_brief,
+      enabled: var_enabled,
+      hasSkillMd: var_hasSkillMd,
+    );
+  }
+
+  @protected
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  VacuumResultDto sse_decode_vacuum_result_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_beforeBytes = sse_decode_i_64(deserializer);
+    var var_afterBytes = sse_decode_i_64(deserializer);
+    return VacuumResultDto(
+      beforeBytes: var_beforeBytes,
+      afterBytes: var_afterBytes,
+    );
   }
 
   @protected
@@ -14508,6 +15003,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       contentMd: var_contentMd,
       basisJson: var_basisJson,
     );
+  }
+
+  @protected
+  WikiExportResultDto sse_decode_wiki_export_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_outDir = sse_decode_String(deserializer);
+    var var_exported = sse_decode_i_64(deserializer);
+    return WikiExportResultDto(outDir: var_outDir, exported: var_exported);
   }
 
   @protected
@@ -15224,6 +15729,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.completionTokens, serializer);
     sse_encode_i_64(self.totalTokens, serializer);
     sse_encode_i_64(self.callCount, serializer);
+  }
+
+  @protected
+  void sse_encode_database_stats_dto(
+    DatabaseStatsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.fileBytes, serializer);
+    sse_encode_i_64(self.allocatedBytes, serializer);
+    sse_encode_i_64(self.freeBytes, serializer);
+    sse_encode_i_64(self.pageSize, serializer);
   }
 
   @protected
@@ -16507,6 +17024,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_user_skill_dto(
+    List<UserSkillDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_user_skill_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_wiki_page_conflict_dto(
     List<WikiPageConflictDto> self,
     SseSerializer serializer,
@@ -16581,6 +17110,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.role, serializer);
     sse_encode_String(self.content, serializer);
     sse_encode_String(self.createdAt, serializer);
+    sse_encode_opt_String(self.inputMessageId, serializer);
   }
 
   @protected
@@ -16617,6 +17147,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.dohUri, serializer);
     sse_encode_String(self.dohScope, serializer);
     sse_encode_String(self.dohMode, serializer);
+    sse_encode_String(self.proxyMode, serializer);
+    sse_encode_String(self.proxyUrl, serializer);
   }
 
   @protected
@@ -17430,9 +17962,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_user_skill_dto(UserSkillDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.brief, serializer);
+    sse_encode_bool(self.enabled, serializer);
+    sse_encode_bool(self.hasSkillMd, serializer);
+  }
+
+  @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_vacuum_result_dto(
+    VacuumResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.beforeBytes, serializer);
+    sse_encode_i_64(self.afterBytes, serializer);
   }
 
   @protected
@@ -17459,6 +18011,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.title, serializer);
     sse_encode_String(self.contentMd, serializer);
     sse_encode_String(self.basisJson, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_export_result_dto(
+    WikiExportResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.outDir, serializer);
+    sse_encode_i_64(self.exported, serializer);
   }
 
   @protected

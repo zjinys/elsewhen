@@ -625,6 +625,7 @@ class RustBridgeRepository implements StorageRepository {
             role: MessageRole.fromString(dto.role),
             content: dto.content,
             createdAt: DateTime.parse(dto.createdAt).toLocal(),
+            inputMessageId: dto.inputMessageId,
           ),
         )
         .toList();
@@ -999,9 +1000,45 @@ class RustBridgeRepository implements StorageRepository {
     return WikiPage.fromDto(dto);
   }
 
+  /// 数据库体量统计（含 freelist 空闲占比，供维护面板展示）。
+  Future<api.DatabaseStatsDto> databaseStats() => api.databaseStats();
+
+  /// 用户技能（skills 目录 + SKILL.md frontmatter）。
+  Future<List<api.UserSkillDto>> listUserSkills() => api.listUserSkills();
+
+  /// 用户技能启停（写 skills_state.json，不影响技能文件）。
+  Future<void> setUserSkillEnabled({required String id, required bool enabled}) =>
+      api.setUserSkillEnabled(id: id, enabled: enabled);
+
+  /// 技能目录绝对路径（供"打开技能目录"）。
+  Future<String> userSkillsDirectoryPath() => api.userSkillsDirectoryPath();
+
+  /// 安装：本地目录（含仓库外壳自动下钻）。
+  Future<api.UserSkillDto> installUserSkillFromDirectory(String source) =>
+      api.installSkillFromDirectory(source: source);
+
+  /// 安装：zip（内含 zip-slip 防御）。
+  Future<api.UserSkillDto> installUserSkillFromZip(String zipPath) =>
+      api.installSkillFromZip(zipPath: zipPath);
+
+  /// 安装：git 仓库（depth 1，https 或本地路径）。
+  Future<api.UserSkillDto> installUserSkillFromGit(String url) =>
+      api.installSkillFromGit(url: url);
+
+  /// 卸载：删目录 + 记删除墓碑（其他设备同步后一并删除）。
+  /// 删除的唯一合法入口——手动 rm 目录会被分发复活。
+  Future<void> uninstallUserSkill(String id) => api.uninstallUserSkill(id: id);
+
+  /// VACUUM 整理（独占写，被并发阻塞时抛错由前端提示重试）。
+  Future<api.VacuumResultDto> vacuumDatabase() => api.vacuumDatabase();
+
   /// 删除知识页（同步库先捕获 deleted 变更再物理删除；不存在返回 false）。
   Future<bool> deleteWikiPage({required String slug}) =>
       api.deleteWikiPage(slug: slug);
+
+  /// 导出知识页为 Markdown（用户选定目录；与主列表同口径，同名覆盖可重复）。
+  Future<api.WikiExportResultDto> exportWikiMarkdown({required String outDir}) =>
+      api.exportWikiMarkdown(outDir: outDir);
 
   /// 按项目页记录的本地目录重新扫描，并更新原知识页。
   Future<WikiPage> refreshProjectPage(String slug) async {

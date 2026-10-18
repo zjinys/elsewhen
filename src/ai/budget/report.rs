@@ -23,6 +23,9 @@ pub struct BudgetReport {
     pub output_reserve: usize,
     pub safety_margin: usize,
     pub input_limit: Option<usize>,
+    /// 降级时被占位化的早期工具结果条数（0=未触发；观测降级构成用）。
+    #[serde(default)]
+    pub pruned_tool_results: usize,
     pub input_tokens_before: usize,
     pub input_tokens_after: usize,
     pub tools_tokens: usize,
@@ -101,6 +104,7 @@ impl RequestPolicies {
                 .get("tools")
                 .map_or(0, |tools| text_tokens(model, &tools.to_string())),
             counting: "provider_aware_local_estimate; segment_counts_are_not_additive",
+            pruned_tool_results: self.pruned_tool_results,
             outcome: if result.is_ok() {
                 "ready"
             } else {

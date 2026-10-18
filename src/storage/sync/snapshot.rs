@@ -30,7 +30,7 @@ pub(crate) const SNAPSHOT_CARRIED_DIRS: &[&str] = &["tweet_images"];
 /// v3：新增 Record::WikiAsset（图片字节随快照携带）。新增 serde 变体后旧端
 /// 标签分发失败会整份拒收，所以跨 v2/v3 隔离是真实的、必须显式 bump——
 /// 与「wire 枚举加变体不 bump」不同（那边是 append-only 可被旧端忽略）。
-pub(crate) const SNAPSHOT_VERSION: u32 = 3;
+pub(crate) const SNAPSHOT_VERSION: u32 = 4;
 
 /// 随快照携带的表。QUERIES 必须真实覆盖这里的每一张（覆盖性由门禁测试
 /// `snapshot_carries_every_table_or_explicitly_excludes_it` 兜住：新增表不登记
@@ -62,6 +62,10 @@ pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
     "sync_wire_outbox",
     "ai_provider_configs",
     "wiki_assets",
+    // 技能跨设备分发（migration 41/42）：技能文件字节随整库快照走，
+    // 接收端 reconcile 用它落盘；墓碑拦「已卸载技能」被旧分发复活。
+    "skill_files",
+    "skill_tombstones",
 ];
 
 pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
@@ -379,6 +383,21 @@ enum Record {
         /// 字节的 hex 编码（2×size）；apply 端解码并复核长度与哈希。
         bytes_hex: String,
     },
+    /// 技能分发（migration 41）：技能目录内单文件字节，skill_id×rel 主键。
+    SkillFile {
+        skill_id: String,
+        rel: String,
+        sha256: String,
+        size: i64,
+        updated_at: String,
+        /// 字节的 hex 编码（2×size）；apply 端解码并复核长度与哈希。
+        bytes_hex: String,
+    },
+    /// 技能墓碑（migration 41）：拦截已卸载技能被旧分发复活。
+    SkillTombstone {
+        skill_id: String,
+        updated_at: String,
+    },
 }
 
 // rowid is only a cursor inside this one pinned source view, never a replicated
@@ -409,6 +428,8 @@ const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','provider_checkpoint','revision_id',revision_id,'content_hash',content_hash) FROM sync_checkpoint_providers WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','provider_checkpoint','revision_id',revision_id,'content_hash',content_hash) FROM sync_provider_versions WHERE rowid>?1 AND state='applied' ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','provider_checkpoint','revision_id',substr(message_id,10),'content_hash',payload_hash) FROM sync_wire_outbox WHERE rowid>?1 AND message_id LIKE 'provider:%' ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','skill_file','skill_id',skill_id,'rel',rel,'sha256',sha256,'size',size,'updated_at',updated_at,'bytes_hex',hex(bytes)) FROM skill_files WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','skill_tombstone','skill_id',skill_id,'updated_at',updated_at) FROM skill_tombstones WHERE rowid>?1 ORDER BY rowid LIMIT 1",
 ];
 
 pub(crate) struct SnapshotExporter {
@@ -1420,6 +1441,64 @@ impl Store {
                 self.connection.execute(
                     "INSERT OR REPLACE INTO wiki_assets(rel,sha256,mime,size) VALUES(?1,?2,?3,?4)",
                     params![rel, sha256, mime, size],
+                )?;
+            }
+            Record::SkillFile {
+                skill_id,
+                rel,
+                sha256,
+                size,
+                updated_at,
+                bytes_hex,
+            } => {
+                // 技能分发字节只进表（分发事实源），目录由接收端启动 reconcile
+                // 从表落盘——不在快照 apply 里碰技能目录，保持「库先行」的单一顺序。
+                // 闸门：skill_id 形态 / rel 钉在技能目录内（无越界、无隐藏文件段）/
+                // hex 长度 / sha256 与字节一致。
+                let rel_ok = !rel.is_empty()
+                    && rel.len() <= 256
+                    && !rel.starts_with('/')
+                    && !rel.contains('\\')
+                    && rel.split('/').all(|seg| {
+                        !seg.is_empty() && seg != "." && seg != ".." && !seg.starts_with('.')
+                    });
+                ensure!(
+                    validate_id(skill_id).is_ok()
+                        && rel_ok
+                        && *size >= 0
+                        && bytes_hex.len() == (*size as usize) * 2,
+                    "sync_snapshot_skill_file_invalid"
+                );
+                let bytes = hex_to_vec(bytes_hex)?;
+                ensure!(
+                    bytes.len() == *size as usize,
+                    "sync_snapshot_skill_file_invalid"
+                );
+                let digest = hex(ring::digest::digest(&SHA256, &bytes).as_ref());
+                ensure!(&digest == sha256, "sync_snapshot_skill_file_hash_mismatch");
+                self.connection.execute(
+                    "INSERT INTO skill_files(skill_id,rel,bytes,sha256,size,updated_at)
+                     VALUES(?1,?2,?3,?4,?5,?6)
+                     ON CONFLICT(skill_id,rel) DO UPDATE SET
+                       bytes=excluded.bytes, sha256=excluded.sha256,
+                       size=excluded.size, updated_at=excluded.updated_at",
+                    params![skill_id, rel, bytes, sha256, size, updated_at],
+                )?;
+            }
+            Record::SkillTombstone {
+                skill_id,
+                updated_at,
+            } => {
+                ensure!(
+                    validate_id(skill_id).is_ok() && !updated_at.is_empty(),
+                    "sync_snapshot_skill_tombstone_invalid"
+                );
+                self.connection.execute(
+                    "INSERT INTO skill_tombstones(skill_id,updated_at) VALUES(?1,?2)
+                     ON CONFLICT(skill_id) DO UPDATE SET
+                       updated_at=excluded.updated_at
+                     WHERE excluded.updated_at > skill_tombstones.updated_at",
+                    params![skill_id, updated_at],
                 )?;
             }
             Record::Member {

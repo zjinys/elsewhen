@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'app_pressable.dart';
+
 import '../models/wiki_page.dart';
 import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
@@ -9,6 +11,8 @@ import '../providers/wiki_provider.dart';
 import '../providers/review_provider.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
+import 'sync_workspace.dart';
+import '../bridge/rust_bridge_repository.dart';
 
 /// 「最近使用」最多显示的页面数。
 ///
@@ -63,6 +67,14 @@ class LeftSidebar extends ConsumerWidget {
       }
     });
 
+    // 平板 / 小桌面窗口（600–1024）：主区被挤，侧栏收成 64px 图标轨；
+    // 图标按钮与抽屉 footer 用同一套 _FooterAction（iconOnly），
+    // 三个域的切换语义完全一致，只是换了密度。
+    // 注：抽屉形态（compact，<700）总是用宽侧栏，由 Drawer 约束决定。
+    final width = MediaQuery.maybeSizeOf(context)?.width ?? 1024;
+    final rail = width >= 700 && width < 1024;
+    if (rail) return const _SidebarRail();
+
     return Container(
       width: 280,
       decoration: BoxDecoration(
@@ -77,6 +89,10 @@ class LeftSidebar extends ConsumerWidget {
               SidebarTab.wiki => const _WikiTab(),
               // 回顾页左栏：近 7 天入口，点击切换日期与日粒度
               SidebarTab.review => const _ReviewNavSummary(),
+              // 同步左栏：健康度仪表（成员/心跳），操作在右侧工作区
+              SidebarTab.sync => SyncNavSummary(
+                  repository: ref.watch(storageRepositoryProvider),
+                ),
             },
           ),
           _buildFooter(context, ref),
@@ -192,56 +208,114 @@ class LeftSidebar extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          _FooterAction(
-            icon: Icons.chat_bubble_outline,
-            label: '对话',
-            isActive: activeTab == SidebarTab.conversation,
-            onTap: () {
-              ref
-                  .read(sidebarTabProvider.notifier)
-                  .set(SidebarTab.conversation);
-            },
-          ),
-          const SizedBox(height: 2),
-          _FooterAction(
-            icon: Icons.menu_book_outlined,
-            label: '知识库',
-            isActive: activeTab == SidebarTab.wiki,
-            onTap: () {
-              ref.read(wikiActiveTabIdProvider.notifier).set('import');
-              ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
-            },
-          ),
-          // 回顾入口（R1）：原「事件」域并入回顾——日视图承载当天
-          // 事件明细，周/月为实时统计拼装。见
-          // docs/roadmap/2026-10-15-review-and-goal-deviation-roadmap.md。
-          const SizedBox(height: 2),
-          _FooterAction(
-            icon: Icons.auto_awesome_outlined,
-            label: '回顾',
-            isActive: activeTab == SidebarTab.review,
-            onTap: () {
-              ref.read(sidebarTabProvider.notifier).set(SidebarTab.review);
-            },
-          ),
-          // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与
-          // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。
-          _FooterAction(
-            icon: Icons.settings_outlined,
-            label: '设置',
-            isActive: false,
-            onTap: () async {
-              final scaffold = Scaffold.maybeOf(context);
-              if (scaffold?.isDrawerOpen ?? false) {
-                Navigator.of(context).pop();
-              }
-              await Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-              // 从设置页返回后刷新首次运行探测（横幅是否该消失）
-              ref.invalidate(aiProviderConfiguredProvider);
-            },
-          ),
+          for (final (i, action) in _footerActions(
+            context,
+            ref,
+            activeTab,
+          ).indexed) ...[if (i > 0) const SizedBox(height: 2), action],
+        ],
+      ),
+    );
+  }
+}
+
+/// 底部导航动作清单：宽侧栏（带文字）与窄轨（纯图标）共用，
+/// 保证两种密度下的切换语义、设置入口、抽屉关闭逻辑一致。
+List<_FooterAction> _footerActions(
+  BuildContext context,
+  WidgetRef ref,
+  SidebarTab activeTab, {
+  bool iconOnly = false,
+}) {
+  return [
+    _FooterAction(
+      icon: Icons.chat_bubble_outline,
+      label: '对话',
+      isActive: activeTab == SidebarTab.conversation,
+      iconOnly: iconOnly,
+      onTap: () {
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.conversation);
+      },
+    ),
+    _FooterAction(
+      icon: Icons.menu_book_outlined,
+      label: '知识',
+      isActive: activeTab == SidebarTab.wiki,
+      iconOnly: iconOnly,
+      onTap: () {
+        ref.read(wikiActiveTabIdProvider.notifier).set('import');
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
+      },
+    ),
+    // 回顾入口（R1）：原「事件」域并入回顾——日视图承载当天
+    // 事件明细，周/月为实时统计拼装。见
+    // docs/roadmap/2026-10-15-review-and-goal-deviation-roadmap.md。
+    _FooterAction(
+      icon: Icons.auto_awesome_outlined,
+      label: '回顾',
+      isActive: activeTab == SidebarTab.review,
+      iconOnly: iconOnly,
+      onTap: () {
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.review);
+      },
+    ),
+    // 同步一级入口：配对完成后的持续状态仪表（设备/心跳），不该沉在设置里。
+    // 单入口：主区放完整 LocalSyncSettings 工作区，设置页的同步 tab 已删。
+    _FooterAction(
+      icon: Icons.devices_outlined,
+      label: '同步',
+      isActive: activeTab == SidebarTab.sync,
+      iconOnly: iconOnly,
+      onTap: () {
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.sync);
+      },
+    ),
+    // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与
+    // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。
+    _FooterAction(
+      icon: Icons.settings_outlined,
+      label: '设置',
+      isActive: false,
+      iconOnly: iconOnly,
+      onTap: () async {
+        final scaffold = Scaffold.maybeOf(context);
+        if (scaffold?.isDrawerOpen ?? false) {
+          Navigator.of(context).pop();
+        }
+        await Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+        // 从设置页返回后刷新首次运行探测（横幅是否该消失）
+        ref.invalidate(aiProviderConfiguredProvider);
+      },
+    ),
+  ];
+}
+
+/// 窄轨侧栏（64px）：平板 / 小桌面窗口的导航形态。只放域切换 + 设置，
+/// 列表内容让位给主区；点域图标即切 tab，需要列表时拖宽窗口即可。
+class _SidebarRail extends ConsumerWidget {
+  const _SidebarRail();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeTab = ref.watch(sidebarTabProvider);
+    final actions = _footerActions(context, ref, activeTab, iconOnly: true);
+    return Container(
+      width: 64,
+      decoration: BoxDecoration(
+        color: AppTheme.surface1,
+        border: Border(right: BorderSide(color: AppTheme.surface3, width: 1)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: AppTheme.space2),
+          for (final (i, action) in actions.indexed) ...[
+            if (i > 0) const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.space2),
+              child: action,
+            ),
+          ],
         ],
       ),
     );
@@ -254,58 +328,83 @@ class _FooterAction extends StatelessWidget {
   final VoidCallback onTap;
   final bool isActive;
 
+  /// 窄轨模式：只显示图标（居中），文字进 tooltip。
+  final bool iconOnly;
+
   const _FooterAction({
     required this.icon,
     required this.label,
     required this.onTap,
     this.isActive = false,
+    this.iconOnly = false,
   });
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      hoverColor: isActive ? null : AppTheme.surface2.withValues(alpha: 0.6),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.space3,
-          vertical: AppTheme.space2,
-        ),
-        decoration: BoxDecoration(
-          color: isActive
-              ? AppTheme.accentPrimary.withValues(alpha: 0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          border: Border.all(
-            color: isActive
-                ? AppTheme.accentPrimary.withValues(alpha: 0.28)
-                : Colors.transparent,
-            width: 1,
+  Widget build(BuildContext context) => AppPressable(
+    scaleOnPress: 0.98,
+    duration: const Duration(milliseconds: 120),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        hoverColor: isActive ? null : AppTheme.surface2.withValues(alpha: 0.6),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.space3,
+            vertical: AppTheme.space2,
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isActive ? AppTheme.accentPrimary : AppTheme.textSecondary,
+          decoration: BoxDecoration(
+            color: isActive
+                ? AppTheme.accentPrimary.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            border: Border.all(
+              color: isActive
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.28)
+                  : Colors.transparent,
+              width: 1,
             ),
-            const SizedBox(width: AppTheme.space2),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive
-                    ? AppTheme.accentPrimary
-                    : AppTheme.textSecondary,
-                fontSize: 13,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
+          ),
+          child: iconOnly
+              ? Tooltip(
+                  message: label,
+                  child: Center(
+                    child: Icon(
+                      icon,
+                      size: 18,
+                      color: isActive
+                          ? AppTheme.accentPrimary
+                          : AppTheme.textSecondary,
+                    ),
+                  ),
+                )
+              : Row(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 18,
+                      color: isActive
+                          ? AppTheme.accentPrimary
+                          : AppTheme.textSecondary,
+                    ),
+                    const SizedBox(width: AppTheme.space2),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: isActive
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textSecondary,
+                        fontSize: 13,
+                        fontWeight: isActive
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     ),
@@ -493,121 +592,132 @@ class _WikiPageItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isSelected ? AppTheme.surface2 : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(AppTheme.space3),
-          decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                color: isSelected ? AppTheme.accentPrimary : Colors.transparent,
-                width: 3,
+    return AppPressable(
+      scaleOnPress: 0.985,
+      duration: const Duration(milliseconds: 120),
+      child: Material(
+        color: isSelected ? AppTheme.surface2 : Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(AppTheme.space3),
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: isSelected
+                      ? AppTheme.accentPrimary
+                      : Colors.transparent,
+                  width: 3,
+                ),
               ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  // kind 色点徽标：与分组标题同色，形成双重视觉索引
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppTheme.space2),
-                    child: _KindBadge(kind: page.kind, label: page.kindLabel),
-                  ),
-                  Expanded(
-                    child: Text(
-                      page.title,
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 14,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.space2),
-                  if (page.sourceUrl != null)
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // kind 色点徽标：与分组标题同色，形成双重视觉索引
                     Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Icon(
-                        page.isLocalPath ? Icons.folder_outlined : Icons.link,
-                        size: 12,
+                      padding: const EdgeInsets.only(right: AppTheme.space2),
+                      child: _KindBadge(kind: page.kind, label: page.kindLabel),
+                    ),
+                    Expanded(
+                      child: Text(
+                        page.title,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.space2),
+                    if (page.sourceUrl != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Icon(
+                          page.isLocalPath ? Icons.folder_outlined : Icons.link,
+                          size: 12,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusFull,
+                        ),
+                      ),
+                      child: Text(
+                        '证据 ${page.evidenceCount}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.accentPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (page.summary.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space1),
+                  Text(
+                    page.summary,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: AppTheme.space1),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 2,
+                        children: [
+                          for (final tag in page.tags.take(3))
+                            Text(
+                              '#$tag',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppTheme.accentMuted,
+                              ),
+                            ),
+                          if (page.tags.length > 3)
+                            Text(
+                              '+${page.tags.length - 3}',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppTheme.textTertiary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.space2),
+                    Text(
+                      _formatRelative(page.updatedAt),
+                      style: TextStyle(
+                        fontSize: 10.5,
                         color: AppTheme.textTertiary,
                       ),
                     ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentPrimary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                    ),
-                    child: Text(
-                      '证据 ${page.evidenceCount}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.accentPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (page.summary.isNotEmpty) ...[
-                const SizedBox(height: AppTheme.space1),
-                Text(
-                  page.summary,
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  ],
                 ),
               ],
-              const SizedBox(height: AppTheme.space1),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 2,
-                      children: [
-                        for (final tag in page.tags.take(3))
-                          Text(
-                            '#$tag',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: AppTheme.accentMuted,
-                            ),
-                          ),
-                        if (page.tags.length > 3)
-                          Text(
-                            '+${page.tags.length - 3}',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: AppTheme.textTertiary,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.space2),
-                  Text(
-                    _formatRelative(page.updatedAt),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: AppTheme.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),

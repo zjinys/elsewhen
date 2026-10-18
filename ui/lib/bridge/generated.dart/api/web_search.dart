@@ -43,6 +43,21 @@ Future<void> saveDohSettings({
   dohMode: dohMode,
 );
 
+/// 保存出站代理策略并即时生效（清 AI client 池）。`proxy_mode`：off|auto|custom。
+Future<void> saveNetworkProxy({
+  required String proxyMode,
+  required String proxyUrl,
+}) => RustLib.instance.api.crateApiWebSearchSaveNetworkProxy(
+  proxyMode: proxyMode,
+  proxyUrl: proxyUrl,
+);
+
+/// 经指定代理（空=直连）访问一个 204 端点，返回可读结果。供「测试」按钮。
+Future<String> testProxyConnection({required String proxyUrl}) => RustLib
+    .instance
+    .api
+    .crateApiWebSearchTestProxyConnection(proxyUrl: proxyUrl);
+
 /// 测试 DoH+ECH 连通性：经当前配置的 DoH 访问一个 Cloudflare trace 端点，
 /// 返回可读结果（含 SNI 是否加密，即 ECH 是否生效）。供设置页「测试连接」按钮。
 Future<String> testDohConnection({required String dohUri}) =>
@@ -56,14 +71,27 @@ class NetworkSettingsDto {
   /// 启用策略：off | auto | force。
   final String dohMode;
 
+  /// off（强制直连）| auto（跟环境变量，默认）| custom（用 proxy_url）。
+  final String proxyMode;
+
+  /// custom 模式的代理地址（http:// 或 socks5://）。
+  final String proxyUrl;
+
   const NetworkSettingsDto({
     required this.dohUri,
     required this.dohScope,
     required this.dohMode,
+    required this.proxyMode,
+    required this.proxyUrl,
   });
 
   @override
-  int get hashCode => dohUri.hashCode ^ dohScope.hashCode ^ dohMode.hashCode;
+  int get hashCode =>
+      dohUri.hashCode ^
+      dohScope.hashCode ^
+      dohMode.hashCode ^
+      proxyMode.hashCode ^
+      proxyUrl.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -72,7 +100,9 @@ class NetworkSettingsDto {
           runtimeType == other.runtimeType &&
           dohUri == other.dohUri &&
           dohScope == other.dohScope &&
-          dohMode == other.dohMode;
+          dohMode == other.dohMode &&
+          proxyMode == other.proxyMode &&
+          proxyUrl == other.proxyUrl;
 }
 
 /// 外网搜索配置 DTO。

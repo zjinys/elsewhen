@@ -314,7 +314,7 @@ pub fn fetch_import_url(url: &str) -> Result<ImportedContent> {
         })
     } else {
         // 普通网页
-        let client = crate::http_proxy::with_env_proxy(reqwest::blocking::Client::builder())
+        let client = crate::http_proxy::with_outbound_proxy(reqwest::blocking::Client::builder())
             .timeout(std::time::Duration::from_secs(20))
             .build()
             .context("创建 HTTP 客户端失败")?;
@@ -633,9 +633,10 @@ fn download_tweet_images(tweet_id: &str, data_dir: &std::path::Path, content: &m
         }
     }
     // 第二遍：直连失败的图，若配置了 DoH 则走 DoH+ECH 隧道重试。
+    // 用户显式挂代理（proxy_mode=custom）时 DoH 让位：「挂了代理就全走代理」。
     if !direct_failed.is_empty() {
         if let Some(net) = load_doh_settings() {
-            if net.should_use_doh() {
+            if net.should_use_doh() && net.proxy_mode != "custom" {
                 for &idx in &direct_failed {
                     let url = &content.image_urls[idx];
                     match download_one_image_via_doh(url, &net.doh_uri, &dir, idx) {
@@ -1500,9 +1501,23 @@ fn proposal_to_draft(p: &DigestProposal, events: &[EventRecord]) -> Result<WikiP
 /// 知识消化用的 provider：沿用当前启用配置，温度与输出上限固定为 digest 调参。
 /// 没有可用配置时返回 None（事件照常保存，任务等待）。
 pub fn digest_provider(store: &Store) -> Result<Option<(OpenAiCompatibleProvider, String)>> {
-    let Some(config) = store.active_ai_provider_config()? else {
-        return Ok(None);
+    // 后台任务（知识整理/周期报告/来源编译）与主对话分流：多个渠道时
+    // 优先挑**非活跃**的渠道，避免 524 重试风浪与长任务挤占主对话的
+    // 响应速度；只配了一个渠道时回退活跃渠道（有总比没有强）。
+    // 无 key 的配置直接跳过（取不到 key 时静默用主渠道是历史坑）。
+    let configs = store.list_ai_provider_configs_for_runtime()?;
+    let mut usable: Vec<_> = configs
+        .into_iter()
+        .filter(|c| !c.api_key.trim().is_empty())
+        .collect();
+    let idx = match usable.iter().position(|c| c.is_active) {
+        Some(active) => usable.iter().position(|c| !c.is_active).unwrap_or(active),
+        None => match usable.len() {
+            0 => return Ok(None),
+            n => n - 1,
+        },
     };
+    let config = usable.remove(idx);
     let model = config.model.clone();
     let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
         base_url: config.base_url,

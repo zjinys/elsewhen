@@ -65,11 +65,32 @@ void main() {
       ),
     );
 
+    // 延迟工具 → 打包它的内建技能；常驻工具无需 enable。
+    const deferredSkill = {
+      'create_todo': 'todo-actions',
+      'rename_wiki_page': 'wiki-maintenance',
+    };
     void tool(String name, Map<String, dynamic> args) {
+      // 延迟加载后的真实链路：模型先 enable_tools 拿到 schema，同轮再发起调用；
+      // 循环内逐个处理，enable 在前则后面的调用能过守卫。
+      final skill = deferredSkill[name];
       responses.add({
         'role': 'assistant',
         'content': '',
         'tool_calls': [
+          if (skill != null)
+            {
+              'id': 'call-enable-${requests.length}',
+              'type': 'function',
+              'function': {
+                'name': 'enable_tools',
+                'arguments': jsonEncode({
+                  'skills': [
+                    skill,
+                  ],
+                }),
+              },
+            },
           {
             'id': 'call-${requests.length}',
             'type': 'function',

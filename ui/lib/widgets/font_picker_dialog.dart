@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/settings.dart';
 import '../theme/app_theme.dart';
 import '../utils/system_fonts.dart';
+import 'glass.dart';
 
 /// 「跟随全局」哨兵：编辑器字体覆盖用，调用方映射回 null。
 const String kFontFollowGlobal = '__follow_global__';
@@ -17,18 +18,17 @@ Future<String?> showFontPickerDialog(
   bool includeFollowGlobal = false,
   String title = '选择字体',
 }) {
-  return showDialog<String>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(title),
-      contentPadding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
-      content: SizedBox(
-        width: 520,
-        height: 560,
-        child: _FontPickerBody(
-          current: current,
-          includeFollowGlobal: includeFollowGlobal,
-        ),
+  // 玻璃外壳 + 固定高度列表区：GlassDialog 的 content 自带滚动，
+  // 但这里内部是 FutureBuilder + ListView 需要自己撑高。
+  return GlassDialog.show<String>(
+    context,
+    maxWidth: 520,
+    title: Text(title),
+    content: SizedBox(
+      height: 560,
+      child: _FontPickerBody(
+        current: current,
+        includeFollowGlobal: includeFollowGlobal,
       ),
     ),
   );

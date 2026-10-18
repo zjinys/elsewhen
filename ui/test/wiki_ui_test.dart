@@ -58,8 +58,8 @@ void main() {
 
     // 1. 左侧栏结构：主对话 + 最近页面 + 底部工作区入口
     expect(find.text('对话'), findsOneWidget, reason: '对话 tab 应在左侧栏');
-    expect(find.text('知识库'), findsOneWidget, reason: '知识库应在左侧统一入口');
-    expect(find.text('知识库'), findsOneWidget, reason: '知识库应在左侧快捷入口');
+    expect(find.text('知识'), findsOneWidget, reason: '知识库应在左侧统一入口');
+    expect(find.text('知识'), findsOneWidget, reason: '知识库应在左侧快捷入口');
     // 设置入口已移到标题栏：图标按钮（tooltip「设置」），不再出现在侧边栏
     expect(find.byTooltip('设置'), findsOneWidget, reason: '设置入口应在标题栏右侧');
 
@@ -67,7 +67,7 @@ void main() {
     expect(find.byType(MessageArea), findsOneWidget, reason: '对话 Tab 右侧应为消息区');
 
     // 3. 通过左侧快捷入口打开入库工作区
-    await tester.tap(find.text('知识库'));
+    await tester.tap(find.text('知识'));
     await tester.pump();
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 500)),

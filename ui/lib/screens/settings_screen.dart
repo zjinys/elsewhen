@@ -1,5 +1,6 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, Process;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'package:flutter/foundation.dart';
@@ -23,6 +24,7 @@ import '../widgets/provider_endpoint_notice.dart';
 import '../widgets/knowledge_digest_dialog.dart';
 import '../widgets/web_search_settings.dart';
 import '../widgets/doh_settings.dart';
+import '../widgets/proxy_settings.dart';
 import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
 import '../utils/window_service.dart';
@@ -58,6 +60,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   bool _analysisJobStatsLoading = true;
   api.KnowledgeDigestStatsDto? _digestStats;
   bool _digestStatsLoading = true;
+
+  bool _exportingWiki = false;
+
+  api.DatabaseStatsDto? _dbStats;
+  String? _dbStatsError;
+  List<api.UserSkillDto>? _userSkills;
+  String? _userSkillsError;
+  bool _installingSkill = false;
+  bool _vacuuming = false;
 
   // 个人经验规则库
   List<Rule> _rules = [];
@@ -133,7 +144,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
     _loadVersion();
     final settings = ref.read(settingsProvider);
     // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
@@ -155,6 +166,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       _loadDigestStats();
       _loadTweetService();
       _loadRules();
+      _loadDbStats();
+      _loadUserSkills();
     });
   }
 
@@ -917,8 +930,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         children: [
                           _buildModelTab(settings),
                           _buildAppearanceTab(settings),
-                          _buildServiceTab(),
-                          _buildSyncTab(),
+                          _buildIntegrationTab(),
+                          _buildNetworkTab(),
+                          _buildSkillsTab(),
+                          _buildKnowledgeTab(),
                           _buildDataTab(),
                           _buildRulesTab(),
                         ],
@@ -1002,13 +1017,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(1, '外观', Icons.palette_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(2, '服务', Icons.cloud_outlined),
+                  _buildSettingsTabItem(2, '集成', Icons.hub_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(3, '同步', Icons.devices_outlined),
+                  _buildSettingsTabItem(3, '网络', Icons.dns_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(4, '数据', Icons.dataset_outlined),
+                  _buildSettingsTabItem(4, '技能', Icons.extension_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(5, '规则', Icons.rule_outlined),
+                  _buildSettingsTabItem(5, '知识', Icons.auto_stories_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(6, '数据', Icons.dataset_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(7, '规则', Icons.rule_outlined),
                 ],
               ),
             ),
@@ -1067,8 +1086,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             tabs: const [
               Tab(text: '模型', icon: Icon(Icons.smart_toy_outlined, size: 17)),
               Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
-              Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
-              Tab(text: '同步', icon: Icon(Icons.devices_outlined, size: 17)),
+              Tab(text: '集成', icon: Icon(Icons.hub_outlined, size: 17)),
+              Tab(text: '网络', icon: Icon(Icons.dns_outlined, size: 17)),
+              Tab(text: '技能', icon: Icon(Icons.extension_outlined, size: 17)),
+              Tab(
+                text: '知识',
+                icon: Icon(Icons.auto_stories_outlined, size: 17),
+              ),
               Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
               Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),
             ],
@@ -1245,6 +1269,140 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
+  Widget _buildWikiExportContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '把知识页导出为带元数据的 Markdown 文件（Obsidian 等通用工具可直接打开）；'
+          '派生产物与归档/拒绝页不导出，同名覆盖可重复执行。',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+            height: 1.6,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        OutlinedButton.icon(
+          onPressed: _exportingWiki ? null : _exportWikiMarkdown,
+          icon: _exportingWiki
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.ios_share_outlined, size: 18),
+          label: Text(_exportingWiki ? '导出中…' : '选择目录并导出'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _exportWikiMarkdown() async {
+    final directory = await FilePicker.getDirectoryPath(dialogTitle: '选择导出目录');
+    if (!mounted || directory == null || directory.trim().isEmpty) return;
+    setState(() => _exportingWiki = true);
+    try {
+      final repository = ref.read(storageRepositoryProvider);
+      if (repository is! RustBridgeRepository) {
+        throw StateError('当前存储后端不支持导出');
+      }
+      final result = await repository.exportWikiMarkdown(outDir: directory);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已导出 ${result.exported} 个知识页到 ${result.outDir}'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('导出知识库', e))));
+    } finally {
+      if (mounted) setState(() => _exportingWiki = false);
+    }
+  }
+
+  Widget _buildDbMaintenanceContent() {
+    final stats = _dbStats;
+    String mb(int bytes) => (bytes / 1024 / 1024).toStringAsFixed(1);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (stats == null)
+          Text(
+            _dbStatsError ?? '读取中…',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          )
+        else ...[
+          Text(
+            '库文件 ${mb(stats.fileBytes)} MB，其中可回收 ${mb(stats.freeBytes)} MB'
+            '（历史删除残留）${stats.freeBytes > 8 * 1024 * 1024 ? '。建议整理。' : ''}',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          OutlinedButton.icon(
+            onPressed: _vacuuming ? null : _vacuumDatabase,
+            icon: _vacuuming
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cleaning_services_outlined, size: 18),
+            label: Text(_vacuuming ? '整理中…' : '立即整理'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _loadDbStats() async {
+    final repository = ref.read(storageRepositoryProvider);
+    if (repository is! RustBridgeRepository) return;
+    try {
+      final stats = await repository.databaseStats();
+      if (mounted)
+        setState(() {
+          _dbStats = stats;
+          _dbStatsError = null;
+        });
+    } catch (e) {
+      if (mounted) setState(() => _dbStatsError = reportUiError('读取库体量', e));
+    }
+  }
+
+  Future<void> _vacuumDatabase() async {
+    setState(() => _vacuuming = true);
+    try {
+      final repository =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final result = await repository.vacuumDatabase();
+      await _loadDbStats();
+      if (!mounted) return;
+      final saved = (result.beforeBytes - result.afterBytes) / 1024 / 1024;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            saved >= 0.1
+                ? '整理完成，回收了 ${saved.toStringAsFixed(1)} MB'
+                : '整理完成，库已经很紧凑',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('整理数据库', e))));
+    } finally {
+      if (mounted) setState(() => _vacuuming = false);
+    }
+  }
+
   Widget _buildAppearanceTab(AppSettings settings) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
@@ -1300,70 +1458,111 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
         ),
         const SizedBox(height: 10),
-        SegmentedButton<CloseAction>(
-          segments: [
-            ButtonSegment(
-              value: CloseAction.minimizeToTray,
-              icon: const Icon(Icons.arrow_downward_rounded, size: 18),
-              label: Text(CloseAction.minimizeToTray.displayName),
-            ),
-            ButtonSegment(
-              value: CloseAction.quit,
-              icon: const Icon(Icons.power_settings_new_rounded, size: 18),
-              label: Text(CloseAction.quit.displayName),
-            ),
-          ],
-          selected: {_closeAction},
-          onSelectionChanged: (selection) {
-            final action = selection.first;
-            if (action == _closeAction) return;
-            setState(() => _closeAction = action);
-            windowService.setCloseAction(action);
-          },
-          showSelectedIcon: false,
-          style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              return states.contains(WidgetState.selected)
-                  ? AppTheme.accentPrimary.withValues(alpha: 0.16)
-                  : AppTheme.surface2.withValues(alpha: 0.5);
-            }),
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              return states.contains(WidgetState.selected)
-                  ? AppTheme.accentPrimary
-                  : AppTheme.textSecondary;
-            }),
-            side: WidgetStateProperty.resolveWith((states) {
-              return BorderSide(
-                color: states.contains(WidgetState.selected)
-                    ? AppTheme.accentPrimary.withValues(alpha: 0.55)
-                    : AppTheme.surface4,
-              );
-            }),
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            textStyle: const WidgetStatePropertyAll(
-              TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '关闭后应用继续在后台运行，可从托盘菜单唤回或退出。',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppTheme.textTertiary,
-            height: 1.5,
+        // 选项卡片而非 SegmentedButton：与卡片区块语言一致，
+        // 且能各带一行描述（行为后果写在选项上，不再依赖区块尾部说明）。
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildCloseActionCard(
+                action: CloseAction.minimizeToTray,
+                selected: _closeAction == CloseAction.minimizeToTray,
+                icon: Icons.arrow_downward_rounded,
+                description: '应用留在后台托盘，可随时从托盘菜单唤回',
+                onSelected: () => _applyCloseAction(CloseAction.minimizeToTray),
+              ),
+              const SizedBox(width: 10),
+              _buildCloseActionCard(
+                action: CloseAction.quit,
+                selected: _closeAction == CloseAction.quit,
+                icon: Icons.power_settings_new_rounded,
+                description: '彻底退出应用，托盘图标一并移除',
+                onSelected: () => _applyCloseAction(CloseAction.quit),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildServiceTab() {
+  void _applyCloseAction(CloseAction action) {
+    if (action == _closeAction) return;
+    setState(() => _closeAction = action);
+    ref.read(windowServiceProvider).setCloseAction(action);
+  }
+
+  Widget _buildCloseActionCard({
+    required CloseAction action,
+    required bool selected,
+    required IconData icon,
+    required String description,
+    required VoidCallback onSelected,
+  }) {
+    return Expanded(
+      child: Material(
+        color: selected
+            ? AppTheme.accentPrimary.withValues(alpha: 0.10)
+            : AppTheme.surface2.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onSelected,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected
+                    ? AppTheme.accentPrimary.withValues(alpha: 0.55)
+                    : AppTheme.surface4,
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 16,
+                      color: selected
+                          ? AppTheme.accentPrimary
+                          : AppTheme.textTertiary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      action.displayName,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: selected
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppTheme.textTertiary,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 「服务」一拆三：集成（外部数据源）、网络（链路层）、技能（可编程扩展）。
+  /// 原单 tab 四块，技能作为主打功能沉在底部不可见。
+  Widget _buildIntegrationTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
       child: Column(
@@ -1380,9 +1579,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: Icons.travel_explore_outlined,
             child: const WebSearchSettings(),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNetworkTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSection(
+            title: '出站代理',
+            icon: Icons.vpn_key_outlined,
+            child: const ProxySettings(),
+          ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(
-            title: '网络（DoH）',
+            title: 'DoH 加密 DNS',
             icon: Icons.shield_outlined,
             child: const DohSettings(),
           ),
@@ -1391,25 +1606,291 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  /// 设备同步独立 tab：本地密钥/移交/名册/冲突态势都聚在区块内。
-  Widget _buildSyncTab() {
-    final repository = ref.watch(storageRepositoryProvider);
+  Widget _buildSkillsTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
-      child: _buildSection(
-        title: '设备同步',
-        icon: Icons.devices_outlined,
-        child: LocalSyncSettings(
-          controller: repository is RustBridgeRepository
-              ? repository.localSync
-              : null,
-          repository: repository is RustBridgeRepository ? repository : null,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSection(
+            title: '用户技能',
+            icon: Icons.extension_outlined,
+            child: _buildUserSkillsContent(),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildDataTab() {
+  /// 用户技能：skills 目录里每个 SKILL.md 一行，开关控制是否参与对话。
+  Widget _buildUserSkillsContent() {
+    final skills = _userSkills;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '把技能目录放进 <数据目录>/skills（每个技能一个子目录，含 SKILL.md），'
+          '对话中由模型按需加载；脚本执行前会单独向你确认。',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+            height: 1.6,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space3),
+        Wrap(
+          spacing: AppTheme.space2,
+          runSpacing: AppTheme.space2,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _installingSkill
+                  ? null
+                  : () => _pickInstallSkill(false),
+              icon: const Icon(Icons.folder_open_outlined, size: 18),
+              label: const Text('从文件夹安装'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _installingSkill
+                  ? null
+                  : () => _pickInstallSkill(true),
+              icon: const Icon(Icons.archive_outlined, size: 18),
+              label: const Text('从 zip 安装'),
+            ),
+            if (!Platform.isAndroid && !Platform.isIOS)
+              OutlinedButton.icon(
+                onPressed: _installingSkill ? null : _promptGitInstall,
+                icon: const Icon(Icons.commit_outlined, size: 18),
+                label: const Text('从 Git 安装'),
+              ),
+            if (!Platform.isAndroid && !Platform.isIOS)
+              TextButton.icon(
+                onPressed: _openSkillsDirectory,
+                icon: const Icon(Icons.output_outlined, size: 18),
+                label: const Text('打开技能目录'),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppTheme.space3),
+        if (skills == null)
+          Text(
+            _userSkillsError ?? '读取中…',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          )
+        else if (skills.isEmpty)
+          Text(
+            '尚未安装任何用户技能',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          )
+        else
+          ...skills.map(
+            (skill) => Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(skill.title, style: const TextStyle(fontSize: 14)),
+                      if (skill.brief.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            skill.brief,
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: '卸载（全设备同步删除）',
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  onPressed: () => _uninstallUserSkill(skill.id),
+                ),
+                Switch(
+                  value: skill.enabled,
+                  onChanged: (value) => _toggleUserSkill(skill.id, value),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _loadUserSkills() async {
+    final repository = ref.read(storageRepositoryProvider);
+    if (repository is! RustBridgeRepository) return;
+    try {
+      final skills = await repository.listUserSkills();
+      if (mounted)
+        setState(() {
+          _userSkills = skills;
+          _userSkillsError = null;
+        });
+    } catch (e) {
+      if (mounted)
+        setState(() => _userSkillsError = reportUiError('读取用户技能', e));
+    }
+  }
+
+  Future<void> _pickInstallSkill(bool asZip) async {
+    final path = asZip
+        ? (await FilePicker.pickFiles(
+            dialogTitle: '选择技能 zip 包',
+            type: FileType.custom,
+            allowedExtensions: ['zip'],
+          ))?.first.path
+        : await FilePicker.getDirectoryPath(dialogTitle: '选择包含 SKILL.md 的技能目录');
+    if (path == null) return;
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    await _installSkill(
+      asZip
+          ? () => repository.installUserSkillFromZip(path)
+          : () => repository.installUserSkillFromDirectory(path),
+      what: asZip ? 'zip 安装' : '目录安装',
+    );
+  }
+
+  Future<void> _promptGitInstall() async {
+    final controller = TextEditingController();
+    final url = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('从 Git 仓库安装技能'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'https://github.com/user/skill-repo.git',
+            labelText: '仓库地址（https 或本地路径）',
+          ),
+          onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('安装'),
+          ),
+        ],
+      ),
+    );
+    if (url == null || url.isEmpty) return;
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    await _installSkill(
+      () => repository.installUserSkillFromGit(url),
+      what: 'Git 安装',
+    );
+  }
+
+  Future<void> _installSkill(
+    Future<api.UserSkillDto> Function() install, {
+    required String what,
+  }) async {
+    setState(() => _installingSkill = true);
+    try {
+      final dto = await install();
+      await _loadUserSkills();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('已安装 ${dto.title}，默认启用')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError(what, e))));
+    } finally {
+      if (mounted) setState(() => _installingSkill = false);
+    }
+  }
+
+  Future<void> _openSkillsDirectory() async {
+    final repository = ref.read(storageRepositoryProvider);
+    if (repository is! RustBridgeRepository) return;
+    try {
+      final dir = await repository.userSkillsDirectoryPath();
+      final binary = Platform.isMacOS
+          ? 'open'
+          : Platform.isWindows
+          ? 'explorer'
+          : 'xdg-open';
+      await Process.run(binary, [dir]);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('打开技能目录', e))));
+    }
+  }
+
+  Future<void> _uninstallUserSkill(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('卸载技能'),
+        content: Text('$id 将从本机删除；若已同步，其他设备也会一并删除。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('卸载'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final repository =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repository.uninstallUserSkill(id);
+      await _loadUserSkills();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('卸载技能', e))));
+    }
+  }
+
+  Future<void> _toggleUserSkill(String id, bool enabled) async {
+    setState(() {
+      _userSkills = _userSkills
+          ?.map((s) => s.id == id ? _copySkill(s, enabled: enabled) : s)
+          .toList();
+    });
+    try {
+      final repository =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repository.setUserSkillEnabled(id: id, enabled: enabled);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _userSkillsError = reportUiError('切换用户技能', e));
+      }
+      await _loadUserSkills();
+    }
+  }
+
+  api.UserSkillDto _copySkill(api.UserSkillDto s, {required bool enabled}) =>
+      api.UserSkillDto(
+        id: s.id,
+        title: s.title,
+        brief: s.brief,
+        enabled: enabled,
+        hasSkillMd: s.hasSkillMd,
+      );
+
+  /// 设备同步独立 tab：本地密钥/移交/名册/冲突态势都聚在区块内。
+  /// 知识管道仪表（主循环吞吐与产物）：分析队列 → 消化 → 导出。
+  /// 与「数据」tab（存储与用量）分开——原单 tab 五组内容太挤。
+  Widget _buildKnowledgeTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
       child: Column(
@@ -1425,6 +1906,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             title: '知识消化',
             icon: Icons.auto_stories_outlined,
             child: _buildDigestStatsContent(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '知识导出',
+            icon: Icons.ios_share_outlined,
+            child: _buildWikiExportContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSection(
+            title: '数据库维护',
+            icon: Icons.cleaning_services_outlined,
+            child: _buildDbMaintenanceContent(),
           ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(
@@ -1562,13 +2065,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     Widget? trailing,
   }) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: AppTheme.surface1.withValues(alpha: 0.6),
+        color: AppTheme.surface1.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: AppTheme.surface3.withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       // 透明 Material 垫底：带背景色的 DecoratedBox 不能挡在 ListTile 与其
       // Material 祖先之间，否则 CheckboxListTile（如主人端配对同意勾选）的
@@ -1583,7 +2091,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: AppTheme.accentPrimary, size: 20),
@@ -1592,15 +2100,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 if (trailing != null) ...[const Spacer(), trailing],
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             child,
           ],
         ),

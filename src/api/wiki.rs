@@ -239,3 +239,19 @@ pub fn delete_wiki_page(slug: String) -> Result<bool> {
     let store = Store::open(&config.database_path)?;
     store.delete_wiki_page(&slug)
 }
+
+/// 知识库 Markdown 导出结果。
+#[derive(Clone, Debug)]
+pub struct WikiExportResultDto {
+    pub out_dir: String,
+    pub exported: i64,
+}
+
+/// 把知识库页面导出为 Markdown（用户选定的目录）。与主列表同口径：
+/// 不含派生产物与已归档/拒绝页；同名覆盖可重复执行。
+pub fn export_wiki_markdown(out_dir: String) -> Result<WikiExportResultDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let exported = store.export_wiki_markdown(std::path::Path::new(&out_dir))? as i64;
+    Ok(WikiExportResultDto { out_dir, exported })
+}

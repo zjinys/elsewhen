@@ -669,4 +669,63 @@ mod tests {
             .unwrap();
         assert_eq!(count, 0);
     }
+
+    /// active 的双语义分野：显式激活进同步域（dirty 记账），运行时 failover
+    /// 落点不进。这是同步冲突审阅能否收敛的分水岭——两端对话行为各自改
+    /// active 会让 provider bundle 永久分叉（详见 set_active_ai_provider_config_for_sync）。
+    #[test]
+    fn runtime_failover_activates_without_entering_sync_domain() {
+        let a = configured();
+        let ids: Vec<String> = a
+            .store
+            .list_ai_provider_configs()
+            .unwrap()
+            .into_iter()
+            .map(|row| row.id)
+            .collect();
+        let (first, second) = (&ids[0], &ids[1]);
+
+        // 显式激活（用户意图）：is_active 生效且 dirty 记账。
+        a.store
+            .set_active_ai_provider_config_for_sync(first, true)
+            .unwrap();
+        let dirty_before: String = a
+            .store
+            .connection
+            .query_row(
+                "SELECT revision_id FROM sync_provider_dirty WHERE singleton=1",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+
+        // 运行时 failover 落点：切换生效，但不进同步域。
+        a.store
+            .set_active_ai_provider_config_for_sync(second, false)
+            .unwrap();
+        let active: Option<String> = a
+            .store
+            .connection
+            .query_row(
+                "SELECT id FROM ai_provider_configs WHERE is_active=1",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(active.as_deref(), Some(second.as_str()));
+        let dirty_after: Option<String> = a
+            .store
+            .connection
+            .query_row(
+                "SELECT revision_id FROM sync_provider_dirty WHERE singleton=1",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            dirty_after.as_deref(),
+            Some(dirty_before.as_str()),
+            "failover 落点不能改写同步 dirty 的 revision"
+        );
+    }
 }

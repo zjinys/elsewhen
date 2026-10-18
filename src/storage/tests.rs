@@ -2256,3 +2256,47 @@ fn list_wiki_page_metas_bounded_and_derivative_free() {
 
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn network_proxy_save_load_roundtrip_and_validation() {
+    let store = Store::open(&temporary_database()).unwrap();
+    store
+        .connection
+        .execute(
+            "INSERT INTO network_settings(singleton,doh_uri,doh_scope,doh_mode,proxy_mode,proxy_url,created_at,updated_at)
+             VALUES(1,'','search_only','auto','auto','',datetime('now'),datetime('now'))",
+            [],
+        )
+        .unwrap();
+
+    // 默认 auto
+    let s = store.network_settings().unwrap();
+    assert_eq!(s.proxy_mode, "auto");
+    assert_eq!(s.proxy_url, "");
+
+    // custom 圆桌
+    store
+        .save_network_proxy("custom", "socks5://127.0.0.1:7890")
+        .unwrap();
+    let s = store.network_settings().unwrap();
+    assert_eq!(s.proxy_mode, "custom");
+    assert_eq!(s.proxy_url, "socks5://127.0.0.1:7890");
+
+    // off
+    store.save_network_proxy("off", "").unwrap();
+    let s = store.network_settings().unwrap();
+    assert_eq!(s.proxy_mode, "off");
+
+    // 校验：非法 mode；custom 缺地址/地址不带 scheme
+    assert!(store.save_network_proxy("weird", "").is_err());
+    assert!(store.save_network_proxy("custom", "").is_err());
+    assert!(
+        store
+            .save_network_proxy("custom", "127.0.0.1:7890")
+            .is_err()
+    );
+
+    // 失败保存不落库（仍是 off）
+    let s = store.network_settings().unwrap();
+    assert_eq!(s.proxy_mode, "off");
+}

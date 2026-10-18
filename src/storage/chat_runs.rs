@@ -349,6 +349,7 @@ impl Store {
         status: &str,
         model: Option<&str>,
         usage: Option<(u64, u64)>,
+        cached_tokens: Option<u64>,
     ) -> Result<ChatRunEvent> {
         ensure!(matches!(status, "completed" | "failed"), "请求终态无效");
         let stored_usage = usage.and_then(|(prompt, completion)| {
@@ -356,6 +357,7 @@ impl Store {
                 .ok()
                 .zip(i64::try_from(completion).ok())
         });
+        let stored_cached = cached_tokens.and_then(|v| i64::try_from(v).ok());
         let usage_source = match (usage, stored_usage) {
             (Some(_), Some(_)) => "provider",
             (Some(_), None) => "invalid",
@@ -363,13 +365,13 @@ impl Store {
         };
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
         self.check_chat_run_owner(run, owner)?;
-        let changed=self.connection.execute("UPDATE chat_run_requests SET status=?1,model=COALESCE(?2,model),prompt_tokens=?3,completion_tokens=?4,usage_source=?5,finished_at=?6 WHERE id=?7 AND run_id=?8 AND status='running'",
-            params![status,model,stored_usage.map(|u|u.0),stored_usage.map(|u|u.1),usage_source,chrono::Utc::now().to_rfc3339(),request,run])?;
+        let changed=self.connection.execute("UPDATE chat_run_requests SET status=?1,model=COALESCE(?2,model),prompt_tokens=?3,completion_tokens=?4,usage_source=?5,prompt_cached_tokens=?6,finished_at=?7 WHERE id=?8 AND run_id=?9 AND status='running'",
+            params![status,model,stored_usage.map(|u|u.0),stored_usage.map(|u|u.1),usage_source,stored_cached,chrono::Utc::now().to_rfc3339(),request,run])?;
         ensure!(changed == 1, "请求已处理或不属于此运行");
         let event = self.record_run_event_in_tx(
             run,
             "request_finished",
-            &json!({"request_id":request,"status":status,"model":model,"usage":stored_usage,"usage_source":usage_source}),
+            &json!({"request_id":request,"status":status,"model":model,"usage":stored_usage,"usage_source":usage_source,"prompt_cached_tokens":stored_cached}),
         )?;
         tx.commit()?;
         Ok(event)

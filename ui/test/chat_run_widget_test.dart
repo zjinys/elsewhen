@@ -212,7 +212,9 @@ void main() {
         );
         await container.read(chatRunControllerProvider('conv-1')).poll();
         await settleFrames(tester);
-        expect(find.text('回复已完成'), findsOneWidget);
+        // 完成即静默：状态条（含旧文案"回复已完成"）不再渲染任何内容，
+        // 正文由消息列表渲染。
+        expect(find.text('回复已完成'), findsNothing);
         expect(find.text('unverified draft'), findsNothing);
         expect(
           find.text('verified answer', findRichText: true),

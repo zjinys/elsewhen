@@ -33,14 +33,27 @@ const PROVIDER_ERROR_BODY_MAX_CHARS: usize = 300;
 /// 按 timeout 分档复用的 blocking HTTP client（P2 client 复用）。
 /// provider 每次 `new` 都重建 client 会反复建立连接池；这里按超时档
 /// 缓存一份全局实例，调用方共享连接池与 DNS 缓存。
-pub(crate) fn shared_blocking_client(timeout_secs: u64) -> Result<reqwest::blocking::Client> {
+/// 共享 client 池（模块级：代理策略变化时由 clear_shared_http_clients 清空）。
+fn shared_http_clients() -> &'static Mutex<Vec<(u64, reqwest::blocking::Client)>> {
     static CLIENTS: OnceLock<Mutex<Vec<(u64, reqwest::blocking::Client)>>> = OnceLock::new();
-    let clients = CLIENTS.get_or_init(|| Mutex::new(Vec::new()));
+    CLIENTS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+/// 代理策略变化时清空共享 client 池（client 长持有代理设置，不清不生效）。
+pub(crate) fn clear_shared_http_clients() {
+    shared_http_clients()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clear();
+}
+
+pub(crate) fn shared_blocking_client(timeout_secs: u64) -> Result<reqwest::blocking::Client> {
+    let clients = shared_http_clients();
     let mut clients = clients.lock().unwrap_or_else(|e| e.into_inner());
     if let Some((_, client)) = clients.iter().find(|(t, _)| *t == timeout_secs) {
         return Ok(client.clone());
     }
-    let client = crate::http_proxy::with_env_proxy(reqwest::blocking::Client::builder())
+    let client = crate::http_proxy::with_outbound_proxy(reqwest::blocking::Client::builder())
         .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
         .context("Failed to create HTTP client")?;
@@ -68,6 +81,9 @@ pub struct TokenUsage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub total_tokens: u64,
+    /// Provider 报告的前缀缓存命中 token 数（deepseek
+    /// prompt_cache_hit_tokens / OpenAI cached_tokens）。None 表示渠道未报。
+    pub prompt_cached_tokens: Option<u64>,
 }
 
 /// AI provider reply: content plus optional tool calls, usage and model metadata
@@ -260,6 +276,15 @@ struct OpenAiUsage {
     prompt_tokens: Option<u64>,
     completion_tokens: Option<u64>,
     total_tokens: Option<u64>,
+    /// deepseek 网关直接报 prompt_cache_hit_tokens。
+    prompt_cache_hit_tokens: Option<u64>,
+    /// OpenAI 报 prompt_tokens_details.cached_tokens。
+    prompt_tokens_details: Option<OpenAiPromptTokensDetails>,
+}
+
+#[derive(Deserialize)]
+struct OpenAiPromptTokensDetails {
+    cached_tokens: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -530,6 +555,9 @@ impl OpenAiCompatibleProvider {
             total_tokens: u
                 .total_tokens
                 .unwrap_or_else(|| u.prompt_tokens.unwrap_or(0) + u.completion_tokens.unwrap_or(0)),
+            prompt_cached_tokens: u
+                .prompt_cache_hit_tokens
+                .or_else(|| u.prompt_tokens_details.and_then(|d| d.cached_tokens)),
         });
 
         Ok(AiReply {
@@ -801,6 +829,7 @@ impl OllamaProvider {
                 prompt_tokens,
                 completion_tokens,
                 total_tokens: prompt_tokens.saturating_add(completion_tokens),
+                prompt_cached_tokens: None,
             }),
             _ => None,
         };

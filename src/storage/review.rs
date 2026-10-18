@@ -316,7 +316,7 @@ impl Store {
                     report_json, deviations_json
              FROM deviation_reports WHERE period_type = ?2
              ORDER BY created_at DESC, id DESC LIMIT ?1"
-            .to_string()
+                .to_string()
         };
         let mut statement = self.connection.prepare(&sql)?;
         let bind = |row: &rusqlite::Row| -> rusqlite::Result<DeviationReportRow> {

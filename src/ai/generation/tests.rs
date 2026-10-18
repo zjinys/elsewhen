@@ -21,6 +21,7 @@ fn auxiliary_stream_keeps_answer_draft_and_accounts_separate_usage() {
                 prompt_tokens: 10,
                 completion_tokens: 5,
                 total_tokens: 15,
+                prompt_cached_tokens: None,
             });
             Ok(reply)
         }

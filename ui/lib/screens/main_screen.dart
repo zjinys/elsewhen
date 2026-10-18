@@ -17,7 +17,10 @@ import '../widgets/wiki_page_detail_view.dart';
 import '../widgets/custom_title_bar.dart';
 import '../widgets/ai_provider_setup_hint.dart';
 import '../widgets/companion_revisit_hint.dart';
+import '../widgets/glass.dart';
 import '../widgets/review_view.dart';
+import '../widgets/sync_workspace.dart';
+import '../bridge/rust_bridge_repository.dart';
 
 class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
@@ -39,83 +42,109 @@ class MainScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppTheme.surface0,
       drawer: compact ? const Drawer(child: LeftSidebar()) : null,
-      body: Column(
-        children: [
-          // 移动端 app 风格：菜单按钮在左（抽屉），logo+「今天」操作行居中，
-          // 设置收进导航抽屉 footer，标题栏不再出现设置图标。
-          // 桌面端保留窗口 chrome 风格：标题在左，设置图标 + 窗口按钮在右。
-          CustomTitleBar(
-            title: 'Elsewhen',
-            topInset: topInset,
-            leading: compact
-                ? Builder(
-                    builder: (context) => IconButton(
-                      icon: const Icon(Icons.menu_outlined),
-                      tooltip: '打开导航',
-                      onPressed: () => Scaffold.of(context).openDrawer(),
-                    ),
-                  )
-                : null,
-            middleActions: compact
-                ? (tab == SidebarTab.conversation
-                      ? const [TodayTitleBarActions()]
-                      : const [_WikiTitleBarActions()])
-                : null,
-            actions: [
-              if (!compact)
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  iconSize: 16,
-                  color: const Color(0xFF6C7A89),
-                  tooltip: '设置',
-                  onPressed: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    );
-                    // 从设置页返回后刷新首次运行探测（横幅是否该消失）
-                    ref.invalidate(aiProviderConfiguredProvider);
-                  },
-                ),
-            ],
-          ),
-          // 首次运行引导：未配置 AI Provider 时提示去设置页
-          const AiProviderSetupHint(),
-          // 情感回访（D6）：打开应用时最多一条温和的记忆回引，可关（设置→规则库）
-          const CompanionRevisitHint(),
-          Expanded(
-            child: Row(
-              children: [
-                // Left: sidebar（对话 / 知识库 + 设置入口）
-                if (!compact) const LeftSidebar(),
-
-                // Right: 按当前 Tab 切换内容区
-                // 背景色放在 Material 上而非外层 Container：右侧内容区里的裸
-                // ListTile（ExpansionTile / CheckboxListTile 等）因此有最近的
-                // Material 祖先兜底，ink 波纹不会被 DecoratedBox 背景盖掉。
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        left: BorderSide(
-                          color: AppTheme.surface3.withValues(alpha: 0.65),
-                        ),
+      // 氛围渐变底：为玻璃层提供可透出的层次，纯色底上玻璃看不出模糊。
+      body: AmbientBackground(
+        child: Column(
+          children: [
+            // 移动端 app 风格：菜单按钮在左（抽屉），logo+「今天」操作行居中，
+            // 设置收进导航抽屉 footer，标题栏不再出现设置图标。
+            // 桌面端保留窗口 chrome 风格：标题在左，设置图标 + 窗口按钮在右。
+            CustomTitleBar(
+              title: 'Elsewhen',
+              topInset: topInset,
+              leading: compact
+                  ? Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(Icons.menu_outlined),
+                        tooltip: '打开导航',
+                        onPressed: () => Scaffold.of(context).openDrawer(),
                       ),
-                    ),
-                    child: Material(
-                      color: AppTheme.surface0,
-                      child: switch (tab) {
-                        SidebarTab.conversation => const MessageArea(),
-                        SidebarTab.wiki => const WikiPageDetailView(),
-                        // 回顾页（R1）：日/周/月三粒度，事件明细并入日视图
-                        SidebarTab.review => const ReviewView(),
-                      },
-                    ),
+                    )
+                  : null,
+              middleActions: compact
+                  ? (tab == SidebarTab.conversation
+                        ? const [TodayTitleBarActions()]
+                        : const [_WikiTitleBarActions()])
+                  : null,
+              actions: [
+                if (!compact)
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined),
+                    iconSize: 16,
+                    color: const Color(0xFF6C7A89),
+                    tooltip: '设置',
+                    onPressed: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      );
+                      // 从设置页返回后刷新首次运行探测（横幅是否该消失）
+                      ref.invalidate(aiProviderConfiguredProvider);
+                    },
                   ),
-                ),
               ],
             ),
-          ),
-        ],
+            // 首次运行引导：未配置 AI Provider 时提示去设置页
+            const AiProviderSetupHint(),
+            // 情感回访（D6）：打开应用时最多一条温和的记忆回引，可关（设置→规则库）
+            const CompanionRevisitHint(),
+            Expanded(
+              child: Row(
+                children: [
+                  // Left: sidebar（对话 / 知识库 + 设置入口）
+                  if (!compact) const LeftSidebar(),
+
+                  // Right: 按当前 Tab 切换内容区
+                  // 背景色放在 Material 上而非外层 Container：右侧内容区里的裸
+                  // ListTile（ExpansionTile / CheckboxListTile 等）因此有最近的
+                  // Material 祖先兜底，ink 波纹不会被 DecoratedBox 背景盖掉。
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: AppTheme.surface3.withValues(alpha: 0.65),
+                          ),
+                        ),
+                      ),
+                      child: Material(
+                        color: AppTheme.surface0,
+                        child: switch (tab) {
+                          SidebarTab.conversation => const MessageArea(),
+                          SidebarTab.wiki => const WikiPageDetailView(),
+                          // 回顾页（R1）：日/周/月三粒度，事件明细并入日视图
+                          SidebarTab.review => const ReviewView(),
+                          // 同步工作区（一级入口）：LocalSyncSettings 整包，
+                          // 非桌面后端（repository 非 RustBridge）维持占位空态。
+                          SidebarTab.sync => Builder(
+                            builder: (context) {
+                              final repository = ref.watch(
+                                storageRepositoryProvider,
+                              );
+                              if (repository is! RustBridgeRepository) {
+                                return Center(
+                                  child: Text(
+                                    '同步在此平台暂不可用',
+                                    style: TextStyle(
+                                      color: AppTheme.textTertiary,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                );
+                              }
+                              return SyncWorkspace(repository: repository);
+                            },
+                          ),
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

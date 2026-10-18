@@ -5,12 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'dart:ui';
-
 import '../bridge/rust_bridge_repository.dart';
 import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/window_service.dart';
+import 'glass.dart';
 
 /// Custom title bar。
 ///
@@ -52,21 +51,11 @@ class CustomTitleBar extends ConsumerWidget {
         ref.watch(aiGeneratingProvider).isNotEmpty ||
         ref.watch(knowledgeDigestBusyProvider);
     final windowService = WindowService();
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          height: 48 + topInset,
-          padding: EdgeInsets.only(top: topInset),
-          decoration: BoxDecoration(
-            color: AppTheme.surface1.withValues(alpha: 0.82),
-            border: Border(
-              bottom: BorderSide(
-                color: AppTheme.surface3.withValues(alpha: 0.8),
-              ),
-            ),
-          ),
-          child: Row(
+    // 玻璃顶栏：模糊 + 半透明 + 底部细分割线统一由 GlassBar 按令牌渲染；
+    // 减少动效 / 移动端自动降级（见 design_tokens.dart）。
+    return GlassBar(
+      topInset: topInset,
+      child: Row(
             children: [
               ?leading,
               // 标题/空白区整块可拖拽（桌面端无边框窗口）：Expanded 必须包在
@@ -148,8 +137,6 @@ class CustomTitleBar extends ConsumerWidget {
                 ),
               ],
             ],
-          ),
-        ),
       ),
     );
   }
@@ -162,17 +149,40 @@ class _AiActivityIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: 'AI 正在工作',
-      child: SizedBox(
-        width: 36,
-        height: 48,
-        child: Center(
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppTheme.accentPrimary,
+      child: Center(
+        child: Container(
+          height: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+            border: Border.all(
+              color: AppTheme.accentPrimary.withValues(alpha: 0.28),
+              width: 1,
             ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 11,
+                height: 11,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.accentPrimary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '思考中',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.accentPrimary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -197,28 +207,51 @@ class _WindowButton extends StatefulWidget {
 
 class _WindowButtonState extends State<_WindowButton> {
   bool _isHovered = false;
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
+    final hoverBg = widget.isClose
+        ? const Color(0xFFE81123)
+        : AppTheme.surface3.withValues(alpha: 0.65);
+    final hoverIconColor = widget.isClose
+        ? Colors.white
+        : AppTheme.textPrimary;
+    final normalIconColor = AppTheme.textSecondary;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
+      onExit: (_) => setState(() {
+        _isHovered = false;
+        _isPressed = false;
+      }),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
         onTap: widget.onPressed,
-        child: Container(
-          width: 48,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          width: 46,
           height: 48,
           color: _isHovered
-              ? (widget.isClose
-                    ? const Color(0xFFE81123)
-                    : const Color(0xFF38BDF8).withValues(alpha: 0.1))
+              ? (_isPressed && !widget.isClose
+                  ? AppTheme.surface3
+                  : hoverBg)
               : Colors.transparent,
-          child: Icon(
-            widget.icon,
-            size: 16,
-            color: _isHovered
-                ? (widget.isClose ? Colors.white : const Color(0xFF38BDF8))
-                : const Color(0xFF6C7A89),
+          child: Center(
+            child: AnimatedScale(
+              scale: _isPressed ? 0.90 : 1.0,
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.easeOutCubic,
+              child: Icon(
+                widget.icon,
+                size: 15,
+                color: _isHovered ? hoverIconColor : normalIconColor,
+              ),
+            ),
           ),
         ),
       ),

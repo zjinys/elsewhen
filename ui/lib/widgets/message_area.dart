@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'app_pressable.dart';
+import 'glass.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
 import 'chat_proposal_review.dart';
@@ -1520,7 +1522,10 @@ class _NowStatus extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 780;
+          // 宽形态一行的自然宽度实测约 950–1000px（今天+草稿+目标+待办+审阅
+          // +对话统计+Token+provider+2 图标按钮）；断点取 1020 留出余量。
+          // 旧值 780 在图标轨（700–1024 窗口）区间会溢出 RenderFlex。
+          final compact = constraints.maxWidth < 1020;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -1588,6 +1593,30 @@ class _NowStatus extends ConsumerWidget {
                       ChatProposalReviewButton(conversationId: conversationId),
                     ],
                     const Spacer(),
+                    // 防跳动：会出现/消失的 widget 全部排在左边，常驻按钮钉死
+                    // 最右。provider 名加载异步、最长、最易有/无 → 挪到最左，
+                    // 它的闪烁只影响自己左边（没人），不再推挤右侧所有图标。
+                    if (activeProvider != null) ...[
+                      Icon(
+                        Icons.smart_toy_outlined,
+                        size: 14,
+                        color: AppTheme.textTertiary,
+                      ),
+                      const SizedBox(width: 5),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 120),
+                        child: Text(
+                          activeProvider,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1606,52 +1635,34 @@ class _NowStatus extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    if (tokenUsage != null) ...[
-                      const SizedBox(width: 12),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.data_usage_outlined,
-                            size: 14,
-                            color: AppTheme.textTertiary,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Token${_formatTokens(tokenUsage.totalTokens)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    // Token 永远占位：有数据显数值，没数据显「Token–」，不再
+                    // 整个消失导致右侧图标来回跳。
                     const SizedBox(width: 12),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (activeProvider != null) ...[
-                          Icon(
-                            Icons.smart_toy_outlined,
-                            size: 14,
-                            color: AppTheme.textTertiary,
+                        Icon(
+                          Icons.data_usage_outlined,
+                          size: 14,
+                          color: AppTheme.textTertiary,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          tokenUsage != null
+                              ? 'Token${_formatTokens(tokenUsage.totalTokens)}'
+                              : 'Token–',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
                           ),
-                          const SizedBox(width: 5),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 120),
-                            child: Text(
-                              activeProvider,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                        ],
+                        ),
+                      ],
+                    ),
+                    // 常驻按钮区：复制全部（可能无）也在搜索左边，搜索钉死最右。
+                    const SizedBox(width: 12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         if (onCopyAll != null)
                           IconButton(
                             tooltip: '复制全部对话',
@@ -2164,6 +2175,9 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
     final analyzing =
         const ['pending', 'running', 'retry'].contains(value.jobStatus) &&
         value.source == 'default';
+    // 分析结束前不露头：技术化的中间态（“分析中”）对用户无意义，
+    // staleness 轮询完成后会自然变成 记录/讨论。
+    if (analyzing) return const SizedBox.shrink();
     final label = analyzing ? '分析中' : (value.recordable ? '记录' : '讨论');
     final icon = analyzing
         ? Icons.sync
@@ -2292,17 +2306,21 @@ class _SaveTopicButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(
-        Icons.bookmark_add_outlined,
-        size: 14,
-        color: AppTheme.accentPrimary,
+    return AppPressable(
+      scaleOnPress: 0.88,
+      duration: const Duration(milliseconds: 120),
+      child: IconButton(
+        icon: Icon(
+          Icons.bookmark_add_outlined,
+          size: 14,
+          color: AppTheme.accentPrimary,
+        ),
+        tooltip: '把这条内容存为主题',
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
+        onPressed: () => SaveTopicDialog.show(context, message.content),
       ),
-      tooltip: '把这条内容存为主题',
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
-      onPressed: () => SaveTopicDialog.show(context, message.content),
     );
   }
 }
@@ -2894,20 +2912,25 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                 ),
               ),
               const SizedBox(width: AppTheme.space3),
-              IconButton.filled(
-                onPressed: busy ? null : _handleSubmit,
-                style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.accentPrimary,
-                  disabledBackgroundColor: AppTheme.surface3,
+              AppPressable(
+                scaleOnPress: 0.92,
+                duration: const Duration(milliseconds: 120),
+                enabled: !busy,
+                child: IconButton.filled(
+                  onPressed: busy ? null : _handleSubmit,
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppTheme.accentPrimary,
+                    disabledBackgroundColor: AppTheme.surface3,
+                  ),
+                  icon: busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.arrow_upward, size: 16),
+                  tooltip: isGenerating && queueEnabled ? '保存并排队下一问' : '发送',
                 ),
-                icon: busy
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.arrow_upward, size: 16),
-                tooltip: isGenerating && queueEnabled ? '保存并排队下一问' : '发送',
               ),
               if (queueEnabled)
                 PopupMenuButton<ChatInputMode>(
@@ -2993,49 +3016,76 @@ class _InputCompletionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: Material(
-        color: AppTheme.surface1,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        child: Container(
+      child: GlassPanel(
+        elevation: 2,
+        borderRadius: AppTheme.radiusMedium,
+        padding: EdgeInsets.zero,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Container(
           constraints: const BoxConstraints(maxWidth: 420),
-          decoration: BoxDecoration(
-            border: Border.all(color: AppTheme.surface3),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               for (final page in pages)
-                InkWell(
-                  onTap: () => onSelected(page.title),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '$marker${page.title}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: AppTheme.textPrimary),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    hoverColor: AppTheme.surface2,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    onTap: () => onSelected(page.title),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            marker == '@'
+                                ? Icons.person_outline
+                                : Icons.tag_outlined,
+                            size: 15,
+                            color: AppTheme.accentPrimary,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          page.kindLabel,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textTertiary,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '$marker${page.title}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surface3.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              page.kindLabel,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppTheme.textTertiary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
             ],
+          ),
           ),
         ),
       ),
@@ -3058,26 +3108,39 @@ class _InputGuideItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 17, color: AppTheme.accentPrimary),
-              const SizedBox(width: 6),
-              Text(title, style: TextStyle(color: AppTheme.textPrimary)),
-              const SizedBox(width: 6),
-              Text(
-                description,
-                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-              ),
-            ],
+    return AppPressable(
+      scaleOnPress: 0.96,
+      duration: const Duration(milliseconds: 130),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.surface1,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          border: Border.all(
+            color: AppTheme.surface3.withValues(alpha: 0.8),
+            width: 1,
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: AppTheme.accentPrimary),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              description,
+              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+            ),
+          ],
         ),
       ),
     );

@@ -10,6 +10,7 @@ import 'api.dart';
 import 'api/chat_proposals.dart';
 import 'api/chat_runs.dart';
 import 'api/conversations.dart';
+import 'api/db_maintenance.dart';
 import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
@@ -27,6 +28,7 @@ import 'api/sync.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
+import 'api/user_skills.dart';
 import 'api/web_search.dart';
 import 'api/wiki.dart';
 import 'api/wiki_chat.dart';
@@ -211,6 +213,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DailyTokenUsageDto dco_decode_daily_token_usage_dto(dynamic raw);
+
+  @protected
+  DatabaseStatsDto dco_decode_database_stats_dto(dynamic raw);
 
   @protected
   DayCountDto dco_decode_day_count_dto(dynamic raw);
@@ -540,6 +545,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UserSkillDto> dco_decode_list_user_skill_dto(dynamic raw);
+
+  @protected
   List<WikiPageConflictDto> dco_decode_list_wiki_page_conflict_dto(dynamic raw);
 
   @protected
@@ -761,13 +769,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnscheduledChatInputDto dco_decode_unscheduled_chat_input_dto(dynamic raw);
 
   @protected
+  UserSkillDto dco_decode_user_skill_dto(dynamic raw);
+
+  @protected
   BigInt dco_decode_usize(dynamic raw);
+
+  @protected
+  VacuumResultDto dco_decode_vacuum_result_dto(dynamic raw);
 
   @protected
   WebSearchConfigDto dco_decode_web_search_config_dto(dynamic raw);
 
   @protected
   WikiChatMaterialDto dco_decode_wiki_chat_material_dto(dynamic raw);
+
+  @protected
+  WikiExportResultDto dco_decode_wiki_export_result_dto(dynamic raw);
 
   @protected
   WikiPageConflictDto dco_decode_wiki_page_conflict_dto(dynamic raw);
@@ -980,6 +997,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DailyTokenUsageDto sse_decode_daily_token_usage_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DatabaseStatsDto sse_decode_database_stats_dto(SseDeserializer deserializer);
 
   @protected
   DayCountDto sse_decode_day_count_dto(SseDeserializer deserializer);
@@ -1409,6 +1429,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<UserSkillDto> sse_decode_list_user_skill_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WikiPageConflictDto> sse_decode_list_wiki_page_conflict_dto(
     SseDeserializer deserializer,
   );
@@ -1692,7 +1717,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  UserSkillDto sse_decode_user_skill_dto(SseDeserializer deserializer);
+
+  @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  VacuumResultDto sse_decode_vacuum_result_dto(SseDeserializer deserializer);
 
   @protected
   WebSearchConfigDto sse_decode_web_search_config_dto(
@@ -1701,6 +1732,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WikiChatMaterialDto sse_decode_wiki_chat_material_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WikiExportResultDto sse_decode_wiki_export_result_dto(
     SseDeserializer deserializer,
   );
 
@@ -2194,6 +2230,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_64(raw.completionTokens),
       cst_encode_i_64(raw.totalTokens),
       cst_encode_i_64(raw.callCount),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_database_stats_dto(DatabaseStatsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.fileBytes),
+      cst_encode_i_64(raw.allocatedBytes),
+      cst_encode_i_64(raw.freeBytes),
+      cst_encode_i_64(raw.pageSize),
     ].jsify()!;
   }
 
@@ -3105,6 +3152,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_user_skill_dto(List<UserSkillDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_user_skill_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_wiki_page_conflict_dto(List<WikiPageConflictDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_wiki_page_conflict_dto).toList().jsify()!;
@@ -3160,6 +3213,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.role),
       cst_encode_String(raw.content),
       cst_encode_String(raw.createdAt),
+      cst_encode_opt_String(raw.inputMessageId),
     ].jsify()!;
   }
 
@@ -3190,6 +3244,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.dohUri),
       cst_encode_String(raw.dohScope),
       cst_encode_String(raw.dohMode),
+      cst_encode_String(raw.proxyMode),
+      cst_encode_String(raw.proxyUrl),
     ].jsify()!;
   }
 
@@ -3863,9 +3919,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_user_skill_dto(UserSkillDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.brief),
+      cst_encode_bool(raw.enabled),
+      cst_encode_bool(raw.hasSkillMd),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_usize(BigInt raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return castNativeBigInt(raw);
+  }
+
+  @protected
+  JSAny cst_encode_vacuum_result_dto(VacuumResultDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.beforeBytes),
+      cst_encode_i_64(raw.afterBytes),
+    ].jsify()!;
   }
 
   @protected
@@ -3889,6 +3966,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.title),
       cst_encode_String(raw.contentMd),
       cst_encode_String(raw.basisJson),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_wiki_export_result_dto(WikiExportResultDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.outDir),
+      cst_encode_i_64(raw.exported),
     ].jsify()!;
   }
 
@@ -4248,6 +4334,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_daily_token_usage_dto(
     DailyTokenUsageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_database_stats_dto(
+    DatabaseStatsDto self,
     SseSerializer serializer,
   );
 
@@ -4798,6 +4890,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_user_skill_dto(
+    List<UserSkillDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_wiki_page_conflict_dto(
     List<WikiPageConflictDto> self,
     SseSerializer serializer,
@@ -5155,7 +5253,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_user_skill_dto(UserSkillDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_vacuum_result_dto(
+    VacuumResultDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_web_search_config_dto(
@@ -5166,6 +5273,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_wiki_chat_material_dto(
     WikiChatMaterialDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_wiki_export_result_dto(
+    WikiExportResultDto self,
     SseSerializer serializer,
   );
 
@@ -5507,6 +5620,9 @@ class RustLibWire implements BaseWire {
     content_md,
   );
 
+  void wire__crate__api__db_maintenance__database_stats(NativePortType port_) =>
+      wasmModule.wire__crate__api__db_maintenance__database_stats(port_);
+
   void wire__crate__api__chat_proposals__decide_chat_proposal(
     NativePortType port_,
     JSAny request,
@@ -5690,6 +5806,11 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__event_stats__event_stats_query_default(
     port_,
   );
+
+  void wire__crate__api__wiki__export_wiki_markdown(
+    NativePortType port_,
+    String out_dir,
+  ) => wasmModule.wire__crate__api__wiki__export_wiki_markdown(port_, out_dir);
 
   void wire__crate__api__import__fetch_import_url(
     NativePortType port_,
@@ -5989,6 +6110,30 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__sync__inspect_sync_join_approval(
     port_,
     operation_id,
+  );
+
+  void wire__crate__api__user_skills__install_skill_from_directory(
+    NativePortType port_,
+    String source,
+  ) => wasmModule.wire__crate__api__user_skills__install_skill_from_directory(
+    port_,
+    source,
+  );
+
+  void wire__crate__api__user_skills__install_skill_from_git(
+    NativePortType port_,
+    String url,
+  ) => wasmModule.wire__crate__api__user_skills__install_skill_from_git(
+    port_,
+    url,
+  );
+
+  void wire__crate__api__user_skills__install_skill_from_zip(
+    NativePortType port_,
+    String zip_path,
+  ) => wasmModule.wire__crate__api__user_skills__install_skill_from_zip(
+    port_,
+    zip_path,
   );
 
   void wire__crate__api__sync__install_sync_join_key(
@@ -6324,6 +6469,9 @@ class RustLibWire implements BaseWire {
     offset,
     limit,
   );
+
+  void wire__crate__api__user_skills__list_user_skills(NativePortType port_) =>
+      wasmModule.wire__crate__api__user_skills__list_user_skills(port_);
 
   void wire__crate__api__sync__list_wiki_page_conflicts(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__list_wiki_page_conflicts(port_);
@@ -6687,6 +6835,16 @@ class RustLibWire implements BaseWire {
     tags,
   );
 
+  void wire__crate__api__web_search__save_network_proxy(
+    NativePortType port_,
+    String proxy_mode,
+    String proxy_url,
+  ) => wasmModule.wire__crate__api__web_search__save_network_proxy(
+    port_,
+    proxy_mode,
+    proxy_url,
+  );
+
   void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -6926,6 +7084,16 @@ class RustLibWire implements BaseWire {
     String mode,
   ) => wasmModule.wire__crate__api__rules__set_rule_trigger_mode(port_, mode);
 
+  void wire__crate__api__user_skills__set_user_skill_enabled(
+    NativePortType port_,
+    String id,
+    bool enabled,
+  ) => wasmModule.wire__crate__api__user_skills__set_user_skill_enabled(
+    port_,
+    id,
+    enabled,
+  );
+
   void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
     String slug,
@@ -6994,6 +7162,14 @@ class RustLibWire implements BaseWire {
     doh_uri,
   );
 
+  void wire__crate__api__web_search__test_proxy_connection(
+    NativePortType port_,
+    String proxy_url,
+  ) => wasmModule.wire__crate__api__web_search__test_proxy_connection(
+    port_,
+    proxy_url,
+  );
+
   void wire__crate__api__knowledge__tick_knowledge_insights(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__knowledge__tick_knowledge_insights(port_);
@@ -7041,6 +7217,12 @@ class RustLibWire implements BaseWire {
         port_,
         id,
       );
+
+  void wire__crate__api__user_skills__uninstall_user_skill(
+    NativePortType port_,
+    String id,
+  ) =>
+      wasmModule.wire__crate__api__user_skills__uninstall_user_skill(port_, id);
 
   void wire__crate__api__provider_config__update_ai_provider_config(
     NativePortType port_,
@@ -7160,6 +7342,16 @@ class RustLibWire implements BaseWire {
     String slug,
     JSAny tags,
   ) => wasmModule.wire__crate__api__wiki__update_wiki_tags(port_, slug, tags);
+
+  void wire__crate__api__user_skills__user_skills_directory_path(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__user_skills__user_skills_directory_path(
+    port_,
+  );
+
+  void wire__crate__api__db_maintenance__vacuum_database(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__db_maintenance__vacuum_database(port_);
 
   void wire__crate__api__chat_runs__withdraw_chat_input(
     NativePortType port_,
@@ -7380,6 +7572,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content_md,
   );
 
+  external void wire__crate__api__db_maintenance__database_stats(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__chat_proposals__decide_chat_proposal(
     NativePortType port_,
     JSAny request,
@@ -7499,6 +7695,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__event_stats__event_stats_query_default(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__wiki__export_wiki_markdown(
+    NativePortType port_,
+    String out_dir,
   );
 
   external void wire__crate__api__import__fetch_import_url(
@@ -7719,6 +7920,21 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__sync__inspect_sync_join_approval(
     NativePortType port_,
     String operation_id,
+  );
+
+  external void wire__crate__api__user_skills__install_skill_from_directory(
+    NativePortType port_,
+    String source,
+  );
+
+  external void wire__crate__api__user_skills__install_skill_from_git(
+    NativePortType port_,
+    String url,
+  );
+
+  external void wire__crate__api__user_skills__install_skill_from_zip(
+    NativePortType port_,
+    String zip_path,
   );
 
   external void wire__crate__api__sync__install_sync_join_key(
@@ -7957,6 +8173,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     int limit,
   );
 
+  external void wire__crate__api__user_skills__list_user_skills(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__sync__list_wiki_page_conflicts(
     NativePortType port_,
   );
@@ -8193,6 +8413,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny tags,
   );
 
+  external void wire__crate__api__web_search__save_network_proxy(
+    NativePortType port_,
+    String proxy_mode,
+    String proxy_url,
+  );
+
   external void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -8338,6 +8564,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String mode,
   );
 
+  external void wire__crate__api__user_skills__set_user_skill_enabled(
+    NativePortType port_,
+    String id,
+    bool enabled,
+  );
+
   external void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
     String slug,
@@ -8382,6 +8614,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String doh_uri,
   );
 
+  external void wire__crate__api__web_search__test_proxy_connection(
+    NativePortType port_,
+    String proxy_url,
+  );
+
   external void wire__crate__api__knowledge__tick_knowledge_insights(
     NativePortType port_,
   );
@@ -8413,6 +8650,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__knowledge_workflows__undo_topic_organization(
+    NativePortType port_,
+    String id,
+  );
+
+  external void wire__crate__api__user_skills__uninstall_user_skill(
     NativePortType port_,
     String id,
   );
@@ -8488,6 +8730,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     JSAny tags,
+  );
+
+  external void wire__crate__api__user_skills__user_skills_directory_path(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__db_maintenance__vacuum_database(
+    NativePortType port_,
   );
 
   external void wire__crate__api__chat_runs__withdraw_chat_input(

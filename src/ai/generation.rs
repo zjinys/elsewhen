@@ -187,10 +187,11 @@ fn request_on_channel(
                     .usage
                     .as_ref()
                     .map(|u| (u.prompt_tokens, u.completion_tokens)),
+                reply.usage.as_ref().and_then(|u| u.prompt_cached_tokens),
             )?;
         }
         Err(_) => {
-            store.finish_chat_request(&run.id, &run.owner, &request, "failed", None, None)?;
+            store.finish_chat_request(&run.id, &run.owner, &request, "failed", None, None, None)?;
         }
     }
     if !publish_draft {

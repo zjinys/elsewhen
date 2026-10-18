@@ -25,6 +25,8 @@ pub struct MessageDto {
     pub role: String,
     pub content: String,
     pub created_at: String,
+    /// 展示配对：assistant 回复对应的输入消息 id（仅展示用）。
+    pub input_message_id: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -300,15 +302,16 @@ pub fn send_message(
         role: message.role,
         content: message.content,
         created_at: message.created_at,
+        input_message_id: message.input_message_id,
     })
 }
 
-/// List messages in a conversation
+/// List messages in a conversation（展示序：回复锚定其输入，保证一问一答交错）
 pub fn list_messages(conversation_id: String) -> Result<Vec<MessageDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
 
-    let messages = store.list_messages(&conversation_id)?;
+    let messages = store.list_messages_for_display(&conversation_id)?;
 
     Ok(messages
         .into_iter()
@@ -319,6 +322,7 @@ pub fn list_messages(conversation_id: String) -> Result<Vec<MessageDto>> {
             role: m.role,
             content: m.content,
             created_at: m.created_at,
+            input_message_id: m.input_message_id,
         })
         .collect())
 }
@@ -339,6 +343,7 @@ pub fn get_child_messages(parent_id: String) -> Result<Vec<MessageDto>> {
             role: m.role,
             content: m.content,
             created_at: m.created_at,
+            input_message_id: m.input_message_id,
         })
         .collect())
 }
@@ -359,6 +364,7 @@ pub fn get_message_chain(message_id: String) -> Result<Vec<MessageDto>> {
             role: m.role,
             content: m.content,
             created_at: m.created_at,
+            input_message_id: m.input_message_id,
         })
         .collect())
 }

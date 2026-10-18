@@ -148,9 +148,7 @@ impl Store {
         // 本地 wiki_revisions 保留全文，仅对外副本截断。
         let mut revision = revision.clone();
         revision.reason = clamp_wiki_reason(&revision.reason);
-        self.append_sync_mutation(SyncMutation::WikiPageRevisionAppended {
-            revision,
-        })?;
+        self.append_sync_mutation(SyncMutation::WikiPageRevisionAppended { revision })?;
         Ok(())
     }
 

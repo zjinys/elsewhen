@@ -1061,3 +1061,69 @@ fn snapshot_applies_legacy_absolute_path_wiki_rows_as_placeholders() {
         "接收端落地必须已是占位符：{content}"
     );
 }
+
+#[test]
+fn skill_distribution_travels_inside_snapshot() {
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    // A 端：技能发布两文件 + 一条墓碑（模拟曾卸载过的旧技能）。
+    a.store
+        .connection
+        .execute(
+            "INSERT INTO skill_files(skill_id,rel,bytes,sha256,size,updated_at)
+             VALUES('proxy-pick','SKILL.md',?1,?2,3,'2026-10-18T08:00:00Z'),
+                   ('proxy-pick','scripts/pick.py',x'70697961',?3,4,'2026-10-18T08:00:00Z')",
+            rusqlite::params![
+                b"abc".as_slice(),
+                {
+                    use ring::digest::{SHA256, digest};
+                    let d = digest(&SHA256, b"abc");
+                    hex_of(d.as_ref())
+                },
+                {
+                    use ring::digest::{SHA256, digest};
+                    let d = digest(&SHA256, b"piya");
+                    hex_of(d.as_ref())
+                },
+            ],
+        )
+        .unwrap();
+    a.store
+        .connection
+        .execute(
+            "INSERT INTO skill_tombstones(skill_id,updated_at) VALUES('old-skill','2026-10-17T00:00:00Z')",
+            [],
+        )
+        .unwrap();
+
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let id = Uuid::new_v4().to_string();
+    let (chunks, manifest) = export(&a.store, "b", &id, &key, &signer);
+    b.store.begin_snapshot_import(&id, "a", 1).unwrap();
+    stage(&b.store, &id, "a", &chunks, &key, &signer.public_key());
+    b.store
+        .publish_snapshot(&id, "a", 1, &manifest, &key, &signer.public_key())
+        .unwrap();
+
+    // 技能文件与墓碑随快照到达（分发的「随整库走」在此断言，不许再静默断档）。
+    assert_eq!(b.count("skill_files"), 2, "两枚技能文件应随快照到达 B");
+    assert_eq!(b.count("skill_tombstones"), 1, "墓碑应随快照到达 B");
+    let bytes: Vec<u8> = b
+        .store
+        .connection
+        .query_row(
+            "SELECT bytes FROM skill_files WHERE skill_id='proxy-pick' AND rel='scripts/pick.py'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(bytes, b"piya", "字节 hex 往返应逐位一致");
+}
+
+fn hex_of(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
