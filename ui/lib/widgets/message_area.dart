@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'app_pressable.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
 import 'chat_proposal_review.dart';
@@ -2295,17 +2296,21 @@ class _SaveTopicButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(
-        Icons.bookmark_add_outlined,
-        size: 14,
-        color: AppTheme.accentPrimary,
+    return AppPressable(
+      scaleOnPress: 0.88,
+      duration: const Duration(milliseconds: 120),
+      child: IconButton(
+        icon: Icon(
+          Icons.bookmark_add_outlined,
+          size: 14,
+          color: AppTheme.accentPrimary,
+        ),
+        tooltip: '把这条内容存为主题',
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
+        onPressed: () => SaveTopicDialog.show(context, message.content),
       ),
-      tooltip: '把这条内容存为主题',
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
-      onPressed: () => SaveTopicDialog.show(context, message.content),
     );
   }
 }
@@ -2897,20 +2902,25 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                 ),
               ),
               const SizedBox(width: AppTheme.space3),
-              IconButton.filled(
-                onPressed: busy ? null : _handleSubmit,
-                style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.accentPrimary,
-                  disabledBackgroundColor: AppTheme.surface3,
+              AppPressable(
+                scaleOnPress: 0.92,
+                duration: const Duration(milliseconds: 120),
+                enabled: !busy,
+                child: IconButton.filled(
+                  onPressed: busy ? null : _handleSubmit,
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppTheme.accentPrimary,
+                    disabledBackgroundColor: AppTheme.surface3,
+                  ),
+                  icon: busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.arrow_upward, size: 16),
+                  tooltip: isGenerating && queueEnabled ? '保存并排队下一问' : '发送',
                 ),
-                icon: busy
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.arrow_upward, size: 16),
-                tooltip: isGenerating && queueEnabled ? '保存并排队下一问' : '发送',
               ),
               if (queueEnabled)
                 PopupMenuButton<ChatInputMode>(
@@ -2999,6 +3009,8 @@ class _InputCompletionPanel extends StatelessWidget {
       child: Material(
         color: AppTheme.surface1,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        elevation: 3,
+        shadowColor: Colors.black.withValues(alpha: 0.25),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 420),
           decoration: BoxDecoration(
@@ -3009,32 +3021,59 @@ class _InputCompletionPanel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               for (final page in pages)
-                InkWell(
-                  onTap: () => onSelected(page.title),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '$marker${page.title}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: AppTheme.textPrimary),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    hoverColor: AppTheme.surface2,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    onTap: () => onSelected(page.title),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            marker == '@'
+                                ? Icons.person_outline
+                                : Icons.tag_outlined,
+                            size: 15,
+                            color: AppTheme.accentPrimary,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          page.kindLabel,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textTertiary,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '$marker${page.title}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surface3.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              page.kindLabel,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppTheme.textTertiary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -3061,26 +3100,39 @@ class _InputGuideItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 17, color: AppTheme.accentPrimary),
-              const SizedBox(width: 6),
-              Text(title, style: TextStyle(color: AppTheme.textPrimary)),
-              const SizedBox(width: 6),
-              Text(
-                description,
-                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-              ),
-            ],
+    return AppPressable(
+      scaleOnPress: 0.96,
+      duration: const Duration(milliseconds: 130),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.surface1,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          border: Border.all(
+            color: AppTheme.surface3.withValues(alpha: 0.8),
+            width: 1,
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: AppTheme.accentPrimary),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              description,
+              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+            ),
+          ],
         ),
       ),
     );

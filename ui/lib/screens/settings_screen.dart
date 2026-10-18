@@ -2086,13 +2086,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     Widget? trailing,
   }) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: AppTheme.surface1.withValues(alpha: 0.6),
+        color: AppTheme.surface1.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+          color: AppTheme.surface3.withValues(alpha: 0.6),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       // 透明 Material 垫底：带背景色的 DecoratedBox 不能挡在 ListTile 与其
       // Material 祖先之间，否则 CheckboxListTile（如主人端配对同意勾选）的
@@ -2107,7 +2114,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: AppTheme.accentPrimary, size: 20),
@@ -2116,15 +2123,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 if (trailing != null) ...[const Spacer(), trailing],
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             child,
           ],
         ),

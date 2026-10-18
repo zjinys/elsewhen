@@ -162,17 +162,40 @@ class _AiActivityIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: 'AI 正在工作',
-      child: SizedBox(
-        width: 36,
-        height: 48,
-        child: Center(
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppTheme.accentPrimary,
+      child: Center(
+        child: Container(
+          height: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+            border: Border.all(
+              color: AppTheme.accentPrimary.withValues(alpha: 0.28),
+              width: 1,
             ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 11,
+                height: 11,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.accentPrimary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '思考中',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.accentPrimary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -197,28 +220,51 @@ class _WindowButton extends StatefulWidget {
 
 class _WindowButtonState extends State<_WindowButton> {
   bool _isHovered = false;
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
+    final hoverBg = widget.isClose
+        ? const Color(0xFFE81123)
+        : AppTheme.surface3.withValues(alpha: 0.65);
+    final hoverIconColor = widget.isClose
+        ? Colors.white
+        : AppTheme.textPrimary;
+    final normalIconColor = AppTheme.textSecondary;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
+      onExit: (_) => setState(() {
+        _isHovered = false;
+        _isPressed = false;
+      }),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
         onTap: widget.onPressed,
-        child: Container(
-          width: 48,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          width: 46,
           height: 48,
           color: _isHovered
-              ? (widget.isClose
-                    ? const Color(0xFFE81123)
-                    : const Color(0xFF38BDF8).withValues(alpha: 0.1))
+              ? (_isPressed && !widget.isClose
+                  ? AppTheme.surface3
+                  : hoverBg)
               : Colors.transparent,
-          child: Icon(
-            widget.icon,
-            size: 16,
-            color: _isHovered
-                ? (widget.isClose ? Colors.white : const Color(0xFF38BDF8))
-                : const Color(0xFF6C7A89),
+          child: Center(
+            child: AnimatedScale(
+              scale: _isPressed ? 0.90 : 1.0,
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.easeOutCubic,
+              child: Icon(
+                widget.icon,
+                size: 15,
+                color: _isHovered ? hoverIconColor : normalIconColor,
+              ),
+            ),
           ),
         ),
       ),

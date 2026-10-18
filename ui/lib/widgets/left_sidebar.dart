@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'app_pressable.dart';
+
 import '../models/wiki_page.dart';
 import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
@@ -262,50 +264,54 @@ class _FooterAction extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      hoverColor: isActive ? null : AppTheme.surface2.withValues(alpha: 0.6),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.space3,
-          vertical: AppTheme.space2,
-        ),
-        decoration: BoxDecoration(
-          color: isActive
-              ? AppTheme.accentPrimary.withValues(alpha: 0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          border: Border.all(
-            color: isActive
-                ? AppTheme.accentPrimary.withValues(alpha: 0.28)
-                : Colors.transparent,
-            width: 1,
+  Widget build(BuildContext context) => AppPressable(
+    scaleOnPress: 0.98,
+    duration: const Duration(milliseconds: 120),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+        hoverColor: isActive ? null : AppTheme.surface2.withValues(alpha: 0.6),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.space3,
+            vertical: AppTheme.space2,
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isActive ? AppTheme.accentPrimary : AppTheme.textSecondary,
+          decoration: BoxDecoration(
+            color: isActive
+                ? AppTheme.accentPrimary.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            border: Border.all(
+              color: isActive
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.28)
+                  : Colors.transparent,
+              width: 1,
             ),
-            const SizedBox(width: AppTheme.space2),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive
-                    ? AppTheme.accentPrimary
-                    : AppTheme.textSecondary,
-                fontSize: 13,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isActive ? AppTheme.accentPrimary : AppTheme.textSecondary,
               ),
-            ),
-          ],
+              const SizedBox(width: AppTheme.space2),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isActive
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textSecondary,
+                  fontSize: 13,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -493,20 +499,23 @@ class _WikiPageItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isSelected ? AppTheme.surface2 : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(AppTheme.space3),
-          decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                color: isSelected ? AppTheme.accentPrimary : Colors.transparent,
-                width: 3,
+    return AppPressable(
+      scaleOnPress: 0.985,
+      duration: const Duration(milliseconds: 120),
+      child: Material(
+        color: isSelected ? AppTheme.surface2 : Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(AppTheme.space3),
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: isSelected ? AppTheme.accentPrimary : Colors.transparent,
+                  width: 3,
+                ),
               ),
             ),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -611,8 +620,9 @@ class _WikiPageItem extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _EmptyState extends StatelessWidget {
