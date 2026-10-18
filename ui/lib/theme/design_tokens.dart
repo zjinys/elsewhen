@@ -154,8 +154,10 @@ class AppDesignTheme extends ThemeExtension<AppDesignTheme> {
     required this.isMobile,
   });
 
-  /// 深色：底更透（0.55）让模糊透出来，高光线可见；浅色：底更不透明
-  /// （0.72）保证可读，高光线更亮。
+  /// 深色：底更透（0.55）让模糊透出来，边框用白光发丝线；浅色：填充
+  /// 降到 0.62（0.72 实测几乎不透明、玻璃感全无），边框改用深色发丝线
+  /// （浅色背景上白边框不可见），顶部高亮保持明亮。玻璃可读性靠填充，
+  /// 通透感靠模糊透出的底层色块——两者靠这两个值平衡。
   factory AppDesignTheme.resolve({
     required Brightness brightness,
     required bool isMobile,
@@ -167,9 +169,9 @@ class AppDesignTheme extends ThemeExtension<AppDesignTheme> {
         : (isMobile ? DesignTokens.blurMobile : DesignTokens.blurDesktop);
     return AppDesignTheme(
       glassBlur: blur,
-      glassFillOpacity: dark ? 0.55 : 0.72,
-      glassBorderOpacity: dark ? 0.10 : 0.45,
-      glassHighlightOpacity: dark ? 0.08 : 0.65,
+      glassFillOpacity: dark ? 0.55 : 0.62,
+      glassBorderOpacity: dark ? 0.10 : 0.14,
+      glassHighlightOpacity: dark ? 0.08 : 0.80,
       isDark: dark,
       isMobile: isMobile,
     );

@@ -68,8 +68,10 @@ class GlassPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: fill,
         borderRadius: radius,
+        // 发丝边框：深色用白光、浅色用墨色——浅色背景上白边不可见，
+        // 深色背景上墨边也看不见，两边都得反向取色。
         border: Border.all(
-          color: (dark ? Colors.white : AppTheme.surface4)
+          color: (dark ? Colors.white : AppTheme.textPrimary)
               .withValues(alpha: tokens.glassBorderOpacity),
         ),
       ),
