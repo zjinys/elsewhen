@@ -5,12 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'dart:ui';
-
 import '../bridge/rust_bridge_repository.dart';
 import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/window_service.dart';
+import 'glass.dart';
 
 /// Custom title bar。
 ///
@@ -52,21 +51,11 @@ class CustomTitleBar extends ConsumerWidget {
         ref.watch(aiGeneratingProvider).isNotEmpty ||
         ref.watch(knowledgeDigestBusyProvider);
     final windowService = WindowService();
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          height: 48 + topInset,
-          padding: EdgeInsets.only(top: topInset),
-          decoration: BoxDecoration(
-            color: AppTheme.surface1.withValues(alpha: 0.82),
-            border: Border(
-              bottom: BorderSide(
-                color: AppTheme.surface3.withValues(alpha: 0.8),
-              ),
-            ),
-          ),
-          child: Row(
+    // 玻璃顶栏：模糊 + 半透明 + 底部细分割线统一由 GlassBar 按令牌渲染；
+    // 减少动效 / 移动端自动降级（见 design_tokens.dart）。
+    return GlassBar(
+      topInset: topInset,
+      child: Row(
             children: [
               ?leading,
               // 标题/空白区整块可拖拽（桌面端无边框窗口）：Expanded 必须包在
@@ -148,8 +137,6 @@ class CustomTitleBar extends ConsumerWidget {
                 ),
               ],
             ],
-          ),
-        ),
       ),
     );
   }

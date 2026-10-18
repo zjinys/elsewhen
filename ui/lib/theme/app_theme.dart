@@ -2,6 +2,7 @@ import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 
 import '../models/settings.dart' show AppFonts, AppThemePreset;
+import 'design_tokens.dart';
 
 /// 一整套界面色板（浅 / 深两套）。应用在 `AppTheme.apply()` 时切换，
 /// 组件里继续写 `AppTheme.surface1` 就能自动跟随深浅模式。
@@ -202,6 +203,12 @@ class AppTheme {
         hintStyle: TextStyle(color: palette.textTertiary, fontSize: 14),
         labelStyle: TextStyle(color: palette.textSecondary, fontSize: 13),
       ),
+      // 设计令牌注入：玻璃参数 / 平台差异通过 ThemeExtension 下发，
+      // 组件里 AppDesignTheme.of(context) 读取，杜绝散落硬编码。
+      // 运行时（main.dart）会按实际平台覆盖 isMobile；这里是静态兜底。
+      extensions: [
+        AppDesignTheme.resolve(brightness: brightness, isMobile: false),
+      ],
     );
   }
 

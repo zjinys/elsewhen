@@ -17,6 +17,7 @@ import '../widgets/wiki_page_detail_view.dart';
 import '../widgets/custom_title_bar.dart';
 import '../widgets/ai_provider_setup_hint.dart';
 import '../widgets/companion_revisit_hint.dart';
+import '../widgets/glass.dart';
 import '../widgets/review_view.dart';
 
 class MainScreen extends ConsumerWidget {
@@ -39,7 +40,9 @@ class MainScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppTheme.surface0,
       drawer: compact ? const Drawer(child: LeftSidebar()) : null,
-      body: Column(
+      // 氛围渐变底：为玻璃层提供可透出的层次，纯色底上玻璃看不出模糊。
+      body: AmbientBackground(
+        child: Column(
         children: [
           // 移动端 app 风格：菜单按钮在左（抽屉），logo+「今天」操作行居中，
           // 设置收进导航抽屉 footer，标题栏不再出现设置图标。
@@ -116,6 +119,7 @@ class MainScreen extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

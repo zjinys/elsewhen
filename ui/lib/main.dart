@@ -8,6 +8,7 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 
 import 'theme/app_theme.dart';
 import 'theme/content_font.dart';
+import 'theme/design_tokens.dart';
 import 'models/app_config.dart';
 import 'models/settings.dart';
 import 'screens/main_screen.dart';
@@ -101,7 +102,22 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
       settings.themePreset,
       Brightness.dark,
     );
-    final activeTheme = brightness == Brightness.dark ? darkTheme : lightTheme;
+    // 平台相关的玻璃令牌（移动端模糊更低、减少动效时关模糊）按运行时
+    // 环境覆盖——buildTheme 里的是静态兜底，真实参数在这里注入。
+    final isMobilePlatform =
+        !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    final designTokens = AppDesignTheme.resolve(
+      brightness: brightness,
+      isMobile: isMobilePlatform,
+      // 系统「减少动效」偏好在第一帧 MediaQuery 未必就绪，这里先按平台给；
+      // 组件内 AppDesignTheme.of / MotionTokens.effective 再按 MediaQuery 降级。
+      reduceMotion: false,
+    );
+    final lightThemed =
+        lightTheme.copyWith(extensions: [designTokens]);
+    final darkThemed = darkTheme.copyWith(extensions: [designTokens]);
+    final activeTheme =
+        brightness == Brightness.dark ? darkThemed : lightThemed;
     // 把当前色卡（含 accent）同步给自定义组件用的全局色板
     AppTheme.apply(brightness, accent: activeTheme.colorScheme.primary);
 
@@ -141,8 +157,8 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
         family: contentFamily,
         child: MaterialApp(
           title: 'Elsewhen',
-          theme: lightTheme,
-          darkTheme: darkTheme,
+          theme: lightThemed,
+          darkTheme: darkThemed,
           themeMode: switch (settings.themeMode) {
             AppThemeMode.light => ThemeMode.light,
             AppThemeMode.dark => ThemeMode.dark,
