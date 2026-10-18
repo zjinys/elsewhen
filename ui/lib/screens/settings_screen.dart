@@ -1595,15 +1595,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
-            title: 'DoH 加密 DNS',
-            icon: Icons.shield_outlined,
-            child: const DohSettings(),
-          ),
-          const SizedBox(height: AppTheme.space6),
-          _buildSection(
             title: '出站代理',
             icon: Icons.vpn_key_outlined,
             child: const ProxySettings(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: 'DoH 加密 DNS',
+            icon: Icons.shield_outlined,
+            child: const DohSettings(),
           ),
         ],
       ),
