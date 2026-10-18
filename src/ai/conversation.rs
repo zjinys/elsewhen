@@ -450,7 +450,10 @@ fn generate_with_provider_configs(
         ) {
             Ok(result) => {
                 if let Some(id) = provider_id {
-                    store.set_active_ai_provider_config(&id)?;
+                    // failover 落点不进同步域：active 是本机运行时事实，
+                    // 不跨设备——否则两端对话各自改 active，provider bundle
+                    // 永久分叉，同步冲突审阅永远无法收敛。
+                    store.set_active_ai_provider_config_for_sync(&id, false)?;
                 }
                 context = attempt_context;
                 outcome = Some(result);

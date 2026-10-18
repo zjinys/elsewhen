@@ -304,8 +304,21 @@ impl Store {
 
     /// 把指定配置设为激活（其余全部取消激活），保证有且仅有一个激活项
     pub fn set_active_ai_provider_config(&self, id: &str) -> Result<()> {
-        // IMMEDIATE：先置全零再点亮目标行，两步写必须在拿到写锁后一次性完成，
-        // 避免 DEFERRED 在 WAL 并发下升级锁时撞上 worker 的写事务报 database is locked。
+        self.set_active_ai_provider_config_for_sync(id, true)
+    }
+
+    /// 记号：`mark_sync` 控制是否把变更纳入同步域。
+    ///
+    /// AI 运行时的 failover 落点（`conversation.rs` 成功后写 active）传 false：
+    /// active 是本机运行时事实——哪台拿 503 哪台才需要切，它不属于用户配置意图。
+    /// 若纳入同步，两端对话行为会各自改 active，provider bundle 永久分叉，
+    /// 每轮同步都制造新的冲突审阅（用户裁决无法收敛的真根源）。
+    /// 用户在设置页的显式激活（`api/provider_config.rs`）仍传 true 同步。
+    pub fn set_active_ai_provider_config_for_sync(
+        &self,
+        id: &str,
+        mark_sync: bool,
+    ) -> Result<()> {
         let transaction = self.begin_write_transaction()?;
         self.connection.execute(
             "UPDATE ai_provider_configs SET is_active=0, updated_at=?1",
@@ -318,7 +331,9 @@ impl Store {
         if changed == 0 {
             anyhow::bail!("未找到要激活的配置（id={id}）");
         }
-        self.sync_mark_provider_dirty()?;
+        if mark_sync {
+            self.sync_mark_provider_dirty()?;
+        }
         if let Some(transaction) = transaction {
             transaction.commit()?;
         }
