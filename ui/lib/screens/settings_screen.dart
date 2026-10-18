@@ -1084,7 +1084,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
               Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
               Tab(text: '同步', icon: Icon(Icons.devices_outlined, size: 17)),
-              Tab(text: '知识', icon: Icon(Icons.auto_stories_outlined, size: 17)),
+              Tab(
+                text: '知识',
+                icon: Icon(Icons.auto_stories_outlined, size: 17),
+              ),
               Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
               Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),
             ],
@@ -1302,13 +1305,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       final result = await repository.exportWikiMarkdown(outDir: directory);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已导出 ${result.exported} 个知识页到 ${result.outDir}')),
+        SnackBar(
+          content: Text('已导出 ${result.exported} 个知识页到 ${result.outDir}'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(reportUiError('导出知识库', e))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('导出知识库', e))));
     } finally {
       if (mounted) setState(() => _exportingWiki = false);
     }
@@ -1329,7 +1333,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           Text(
             '库文件 ${mb(stats.fileBytes)} MB，其中可回收 ${mb(stats.freeBytes)} MB'
             '（历史删除残留）${stats.freeBytes > 8 * 1024 * 1024 ? '。建议整理。' : ''}',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.6),
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.6,
+            ),
           ),
           const SizedBox(height: AppTheme.space3),
           OutlinedButton.icon(
@@ -1353,7 +1361,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (repository is! RustBridgeRepository) return;
     try {
       final stats = await repository.databaseStats();
-      if (mounted) setState(() { _dbStats = stats; _dbStatsError = null; });
+      if (mounted)
+        setState(() {
+          _dbStats = stats;
+          _dbStatsError = null;
+        });
     } catch (e) {
       if (mounted) setState(() => _dbStatsError = reportUiError('读取库体量', e));
     }
@@ -1362,23 +1374,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Future<void> _vacuumDatabase() async {
     setState(() => _vacuuming = true);
     try {
-      final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final repository =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final result = await repository.vacuumDatabase();
       await _loadDbStats();
       if (!mounted) return;
       final saved = (result.beforeBytes - result.afterBytes) / 1024 / 1024;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(saved >= 0.1
-              ? '整理完成，回收了 ${saved.toStringAsFixed(1)} MB'
-              : '整理完成，库已经很紧凑'),
+          content: Text(
+            saved >= 0.1
+                ? '整理完成，回收了 ${saved.toStringAsFixed(1)} MB'
+                : '整理完成，库已经很紧凑',
+          ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(reportUiError('整理数据库', e))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('整理数据库', e))));
     } finally {
       if (mounted) setState(() => _vacuuming = false);
     }
@@ -1439,66 +1453,105 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
         ),
         const SizedBox(height: 10),
-        SegmentedButton<CloseAction>(
-          segments: [
-            ButtonSegment(
-              value: CloseAction.minimizeToTray,
-              icon: const Icon(Icons.arrow_downward_rounded, size: 18),
-              label: Text(CloseAction.minimizeToTray.displayName),
-            ),
-            ButtonSegment(
-              value: CloseAction.quit,
-              icon: const Icon(Icons.power_settings_new_rounded, size: 18),
-              label: Text(CloseAction.quit.displayName),
-            ),
-          ],
-          selected: {_closeAction},
-          onSelectionChanged: (selection) {
-            final action = selection.first;
-            if (action == _closeAction) return;
-            setState(() => _closeAction = action);
-            windowService.setCloseAction(action);
-          },
-          showSelectedIcon: false,
-          style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              return states.contains(WidgetState.selected)
-                  ? AppTheme.accentPrimary.withValues(alpha: 0.16)
-                  : AppTheme.surface2.withValues(alpha: 0.5);
-            }),
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              return states.contains(WidgetState.selected)
-                  ? AppTheme.accentPrimary
-                  : AppTheme.textSecondary;
-            }),
-            side: WidgetStateProperty.resolveWith((states) {
-              return BorderSide(
-                color: states.contains(WidgetState.selected)
-                    ? AppTheme.accentPrimary.withValues(alpha: 0.55)
-                    : AppTheme.surface4,
-              );
-            }),
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            textStyle: const WidgetStatePropertyAll(
-              TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '关闭后应用继续在后台运行，可从托盘菜单唤回或退出。',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppTheme.textTertiary,
-            height: 1.5,
+        // 选项卡片而非 SegmentedButton：与卡片区块语言一致，
+        // 且能各带一行描述（行为后果写在选项上，不再依赖区块尾部说明）。
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildCloseActionCard(
+                action: CloseAction.minimizeToTray,
+                selected: _closeAction == CloseAction.minimizeToTray,
+                icon: Icons.arrow_downward_rounded,
+                description: '应用留在后台托盘，可随时从托盘菜单唤回',
+                onSelected: () => _applyCloseAction(CloseAction.minimizeToTray),
+              ),
+              const SizedBox(width: 10),
+              _buildCloseActionCard(
+                action: CloseAction.quit,
+                selected: _closeAction == CloseAction.quit,
+                icon: Icons.power_settings_new_rounded,
+                description: '彻底退出应用，托盘图标一并移除',
+                onSelected: () => _applyCloseAction(CloseAction.quit),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  void _applyCloseAction(CloseAction action) {
+    if (action == _closeAction) return;
+    setState(() => _closeAction = action);
+    ref.read(windowServiceProvider).setCloseAction(action);
+  }
+
+  Widget _buildCloseActionCard({
+    required CloseAction action,
+    required bool selected,
+    required IconData icon,
+    required String description,
+    required VoidCallback onSelected,
+  }) {
+    return Expanded(
+      child: Material(
+        color: selected
+            ? AppTheme.accentPrimary.withValues(alpha: 0.10)
+            : AppTheme.surface2.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onSelected,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected
+                    ? AppTheme.accentPrimary.withValues(alpha: 0.55)
+                    : AppTheme.surface4,
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 16,
+                      color: selected
+                          ? AppTheme.accentPrimary
+                          : AppTheme.textTertiary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      action.displayName,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: selected
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppTheme.textTertiary,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1545,7 +1598,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         Text(
           '把技能目录放进 <数据目录>/skills（每个技能一个子目录，含 SKILL.md），'
           '对话中由模型按需加载；脚本执行前会单独向你确认。',
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.6),
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+            height: 1.6,
+          ),
         ),
         const SizedBox(height: AppTheme.space3),
         Wrap(
@@ -1592,42 +1649,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
           )
         else
-          ...skills.map((skill) => Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          skill.title,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        if (skill.brief.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              skill.brief,
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 12,
-                              ),
+          ...skills.map(
+            (skill) => Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(skill.title, style: const TextStyle(fontSize: 14)),
+                      if (skill.brief.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            skill.brief,
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: '卸载（全设备同步删除）',
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    onPressed: () => _uninstallUserSkill(skill.id),
-                  ),
-                  Switch(
-                    value: skill.enabled,
-                    onChanged: (value) =>
-                        _toggleUserSkill(skill.id, value),
-                  ),
-                ],
-              )),
+                ),
+                IconButton(
+                  tooltip: '卸载（全设备同步删除）',
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  onPressed: () => _uninstallUserSkill(skill.id),
+                ),
+                Switch(
+                  value: skill.enabled,
+                  onChanged: (value) => _toggleUserSkill(skill.id, value),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -1637,9 +1692,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (repository is! RustBridgeRepository) return;
     try {
       final skills = await repository.listUserSkills();
-      if (mounted) setState(() { _userSkills = skills; _userSkillsError = null; });
+      if (mounted)
+        setState(() {
+          _userSkills = skills;
+          _userSkillsError = null;
+        });
     } catch (e) {
-      if (mounted) setState(() => _userSkillsError = reportUiError('读取用户技能', e));
+      if (mounted)
+        setState(() => _userSkillsError = reportUiError('读取用户技能', e));
     }
   }
 
@@ -1649,13 +1709,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             dialogTitle: '选择技能 zip 包',
             type: FileType.custom,
             allowedExtensions: ['zip'],
-          ))
-            ?.first.path
-        : await FilePicker.getDirectoryPath(
-            dialogTitle: '选择包含 SKILL.md 的技能目录',
-          );
+          ))?.first.path
+        : await FilePicker.getDirectoryPath(dialogTitle: '选择包含 SKILL.md 的技能目录');
     if (path == null) return;
-    final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
     await _installSkill(
       asZip
           ? () => repository.installUserSkillFromZip(path)
@@ -1692,7 +1750,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       ),
     );
     if (url == null || url.isEmpty) return;
-    final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
     await _installSkill(
       () => repository.installUserSkillFromGit(url),
       what: 'Git 安装',
@@ -1708,14 +1767,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       final dto = await install();
       await _loadUserSkills();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已安装 ${dto.title}，默认启用')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('已安装 ${dto.title}，默认启用')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(reportUiError(what, e))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError(what, e))));
     } finally {
       if (mounted) setState(() => _installingSkill = false);
     }
@@ -1729,14 +1786,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       final binary = Platform.isMacOS
           ? 'open'
           : Platform.isWindows
-              ? 'explorer'
-              : 'xdg-open';
+          ? 'explorer'
+          : 'xdg-open';
       await Process.run(binary, [dir]);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(reportUiError('打开技能目录', e))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('打开技能目录', e))));
     }
   }
 
@@ -1760,14 +1816,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
     if (confirmed != true) return;
     try {
-      final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final repository =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
       await repository.uninstallUserSkill(id);
       await _loadUserSkills();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(reportUiError('卸载技能', e))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(reportUiError('卸载技能', e))));
     }
   }
 
@@ -1778,7 +1834,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           .toList();
     });
     try {
-      final repository = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final repository =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
       await repository.setUserSkillEnabled(id: id, enabled: enabled);
     } catch (e) {
       if (mounted) {

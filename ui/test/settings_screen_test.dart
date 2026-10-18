@@ -187,7 +187,7 @@ void main() {
     expect(find.textContaining('还没有规则'), findsNothing);
   });
 
-  testWidgets('桌面窗口：「关闭窗口时」用 SegmentedButton 选择并回写 WindowService', (
+  testWidgets('桌面窗口：「关闭窗口时」用选项卡片选择并回写 WindowService', (
     tester,
   ) async {
     final fake = _FakeDesktopWindowService();
@@ -209,13 +209,10 @@ void main() {
     await tester.tap(find.text('外观'));
     await tester.pumpAndSettle();
 
-    // 托盘可用 → 渲染二选一的 SegmentedButton（不是下拉）
+    // 托盘可用 → 渲染两张选项卡片（不是下拉，也不是 SegmentedButton）
     expect(find.text('关闭窗口时'), findsOneWidget);
-    expect(
-      find.byType(SegmentedButton<CloseAction>),
-      findsOneWidget,
-      reason: '关闭行为应使用 SegmentedButton 而非 DropdownButtonFormField',
-    );
+    expect(find.byType(SegmentedButton<CloseAction>), findsNothing,
+        reason: '卡片区块里 SegmentedButton 形态不搭，应为选项卡片');
     expect(find.byType(DropdownButtonFormField<CloseAction>), findsNothing);
     expect(find.text('最小化到托盘'), findsOneWidget);
     expect(find.text('退出应用'), findsOneWidget);
@@ -223,7 +220,7 @@ void main() {
     // 默认选中「最小化到托盘」；点「退出应用」应回写并更新状态
     expect(fake.closeAction, CloseAction.minimizeToTray);
     // 该区块在「外观」tab 底部，先滚动进视口再点击
-    await tester.ensureVisible(find.byType(SegmentedButton<CloseAction>));
+    await tester.ensureVisible(find.text('退出应用'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('退出应用'));
     await tester.pumpAndSettle();
