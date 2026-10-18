@@ -20,6 +20,7 @@ pub mod theme;
 pub mod todos;
 pub mod tweet;
 pub mod mcp;
+pub mod page_marks;
 pub mod user_skills;
 pub mod web_search;
 pub mod wiki;

@@ -13,10 +13,13 @@ mod events;
 mod goals;
 pub(crate) mod knowledge;
 mod mcp_servers;
+pub mod page_marks;
 mod new_migrations;
 mod provider;
 mod provider_keys;
 pub use mcp_servers::McpServerConfig;
+pub(crate) use page_marks::PageMark;
+
 mod records;
 mod review;
 pub(crate) mod rule_triggers;

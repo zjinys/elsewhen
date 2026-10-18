@@ -20,6 +20,7 @@ import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
 import 'api/mcp.dart';
+import 'api/page_marks.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/relations.dart';
@@ -486,6 +487,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PageGuidanceDto> dco_decode_list_page_guidance_dto(dynamic raw);
 
   @protected
+  List<PageMarkDto> dco_decode_list_page_mark_dto(dynamic raw);
+
+  @protected
   List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
 
   @protected
@@ -672,6 +676,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw);
+
+  @protected
+  PageMarkDto dco_decode_page_mark_dto(dynamic raw);
 
   @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
@@ -1373,6 +1380,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<PageMarkDto> sse_decode_list_page_mark_dto(SseDeserializer deserializer);
+
+  @protected
   List<PendingActionDto> sse_decode_list_pending_action_dto(
     SseDeserializer deserializer,
   );
@@ -1607,6 +1617,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer);
+
+  @protected
+  PageMarkDto sse_decode_page_mark_dto(SseDeserializer deserializer);
 
   @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
@@ -3075,6 +3088,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_page_mark_dto(List<PageMarkDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_page_mark_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_pending_action_dto(List<PendingActionDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_pending_action_dto).toList().jsify()!;
@@ -3524,6 +3543,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_String(raw.lessons),
       cst_encode_list_String(raw.followUpsRefined),
       cst_encode_opt_String(raw.feedback),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_page_mark_dto(PageMarkDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.conversationId),
+      cst_encode_String(raw.boundaryMessageId),
+      cst_encode_String(raw.summaryNodeId),
+      cst_encode_String(raw.summaryPreview),
+      cst_encode_String(raw.bodyJson),
+      cst_encode_String(raw.kind),
+      cst_encode_bool(raw.active),
+      cst_encode_String(raw.createdAt),
     ].jsify()!;
   }
 
@@ -4878,6 +4913,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_page_mark_dto(
+    List<PageMarkDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_pending_action_dto(
     List<PendingActionDto> self,
     SseSerializer serializer,
@@ -5170,6 +5211,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     PageGuidanceDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_page_mark_dto(PageMarkDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_pending_action_dto(
@@ -5693,6 +5737,16 @@ class RustLibWire implements BaseWire {
     port_,
     relay_url,
     acknowledge_provider_key_sharing,
+  );
+
+  void wire__crate__api__page_marks__create_page_mark(
+    NativePortType port_,
+    String conversation_id,
+    String boundary_message_id,
+  ) => wasmModule.wire__crate__api__page_marks__create_page_mark(
+    port_,
+    conversation_id,
+    boundary_message_id,
   );
 
   void wire__crate__api__todos__create_todo(
@@ -6509,6 +6563,14 @@ class RustLibWire implements BaseWire {
     String slug,
   ) => wasmModule.wire__crate__api__list_page_guidance(port_, slug);
 
+  void wire__crate__api__page_marks__list_page_marks(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule.wire__crate__api__page_marks__list_page_marks(
+    port_,
+    conversation_id,
+  );
+
   void wire__crate__api__conversations__list_pending_actions(
     NativePortType port_,
     String conversation_id,
@@ -6963,6 +7025,16 @@ class RustLibWire implements BaseWire {
     proxy_url,
   );
 
+  void wire__crate__api__page_marks__save_page_mark_override(
+    NativePortType port_,
+    String id,
+    String body_json,
+  ) => wasmModule.wire__crate__api__page_marks__save_page_mark_override(
+    port_,
+    id,
+    body_json,
+  );
+
   void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -7183,6 +7255,16 @@ class RustLibWire implements BaseWire {
     port_,
     id,
     enabled,
+  );
+
+  void wire__crate__api__page_marks__set_page_mark_active(
+    NativePortType port_,
+    String id,
+    bool active,
+  ) => wasmModule.wire__crate__api__page_marks__set_page_mark_active(
+    port_,
+    id,
+    active,
   );
 
   void wire__crate__api__rules__set_rule_hit_feedback(
@@ -7686,6 +7768,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String relay_url,
     bool acknowledge_provider_key_sharing,
+  );
+
+  external void wire__crate__api__page_marks__create_page_mark(
+    NativePortType port_,
+    String conversation_id,
+    String boundary_message_id,
   );
 
   external void wire__crate__api__todos__create_todo(
@@ -8249,6 +8337,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
+  external void wire__crate__api__page_marks__list_page_marks(
+    NativePortType port_,
+    String conversation_id,
+  );
+
   external void wire__crate__api__conversations__list_pending_actions(
     NativePortType port_,
     String conversation_id,
@@ -8564,6 +8657,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String proxy_url,
   );
 
+  external void wire__crate__api__page_marks__save_page_mark_override(
+    NativePortType port_,
+    String id,
+    String body_json,
+  );
+
   external void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -8695,6 +8794,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String id,
     bool enabled,
+  );
+
+  external void wire__crate__api__page_marks__set_page_mark_active(
+    NativePortType port_,
+    String id,
+    bool active,
   );
 
   external void wire__crate__api__rules__set_rule_hit_feedback(

@@ -17,6 +17,7 @@ import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
 import 'api/mcp.dart';
+import 'api/page_marks.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/relations.dart';
@@ -101,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1435120086;
+  int get rustContentHash => 1227048982;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -252,6 +253,11 @@ abstract class RustLibApi extends BaseApi {
   Future<SyncInvitationOfferDto> crateApiSyncCreateOwnerSyncInvitation({
     required String relayUrl,
     required bool acknowledgeProviderKeySharing,
+  });
+
+  Future<String> crateApiPageMarksCreatePageMark({
+    required String conversationId,
+    required String boundaryMessageId,
   });
 
   Future<TodoDto> crateApiTodosCreateTodo({
@@ -664,6 +670,10 @@ abstract class RustLibApi extends BaseApi {
     required String slug,
   });
 
+  Future<List<PageMarkDto>> crateApiPageMarksListPageMarks({
+    required String conversationId,
+  });
+
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
   });
@@ -899,6 +909,11 @@ abstract class RustLibApi extends BaseApi {
     required String proxyUrl,
   });
 
+  Future<void> crateApiPageMarksSavePageMarkOverride({
+    required String id,
+    required String bodyJson,
+  });
+
   Future<void> crateApiKnowledgeWorkflowsSaveSuggestionFeedback({
     required String messageId,
     required String decision,
@@ -1006,6 +1021,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiMcpSetMcpServerEnabled({
     required String id,
     required bool enabled,
+  });
+
+  Future<void> crateApiPageMarksSetPageMarkActive({
+    required String id,
+    required bool active,
   });
 
   Future<void> crateApiRulesSetRuleHitFeedback({
@@ -2135,6 +2155,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "create_owner_sync_invitation",
         argNames: ["relayUrl", "acknowledgeProviderKeySharing"],
+      );
+
+  @override
+  Future<String> crateApiPageMarksCreatePageMark({
+    required String conversationId,
+    required String boundaryMessageId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_String(boundaryMessageId);
+          return wire.wire__crate__api__page_marks__create_page_mark(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPageMarksCreatePageMarkConstMeta,
+        argValues: [conversationId, boundaryMessageId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPageMarksCreatePageMarkConstMeta =>
+      const TaskConstMeta(
+        debugName: "create_page_mark",
+        argNames: ["conversationId", "boundaryMessageId"],
       );
 
   @override
@@ -5281,6 +5334,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_page_guidance", argNames: ["slug"]);
 
   @override
+  Future<List<PageMarkDto>> crateApiPageMarksListPageMarks({
+    required String conversationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          return wire.wire__crate__api__page_marks__list_page_marks(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_page_mark_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPageMarksListPageMarksConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPageMarksListPageMarksConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_page_marks",
+        argNames: ["conversationId"],
+      );
+
+  @override
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
   }) {
@@ -6992,6 +7075,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiPageMarksSavePageMarkOverride({
+    required String id,
+    required String bodyJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_String(bodyJson);
+          return wire.wire__crate__api__page_marks__save_page_mark_override(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPageMarksSavePageMarkOverrideConstMeta,
+        argValues: [id, bodyJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPageMarksSavePageMarkOverrideConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_page_mark_override",
+        argNames: ["id", "bodyJson"],
+      );
+
+  @override
   Future<void> crateApiKnowledgeWorkflowsSaveSuggestionFeedback({
     required String messageId,
     required String decision,
@@ -7672,6 +7788,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "set_mcp_server_enabled",
         argNames: ["id", "enabled"],
+      );
+
+  @override
+  Future<void> crateApiPageMarksSetPageMarkActive({
+    required String id,
+    required bool active,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_bool(active);
+          return wire.wire__crate__api__page_marks__set_page_mark_active(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPageMarksSetPageMarkActiveConstMeta,
+        argValues: [id, active],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPageMarksSetPageMarkActiveConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_page_mark_active",
+        argNames: ["id", "active"],
       );
 
   @override
@@ -10305,6 +10454,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PageMarkDto> dco_decode_list_page_mark_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_page_mark_dto).toList();
+  }
+
+  @protected
   List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_pending_action_dto).toList();
@@ -10803,6 +10958,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       lessons: dco_decode_list_String(arr[4]),
       followUpsRefined: dco_decode_list_String(arr[5]),
       feedback: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
+  PageMarkDto dco_decode_page_mark_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return PageMarkDto(
+      id: dco_decode_String(arr[0]),
+      conversationId: dco_decode_String(arr[1]),
+      boundaryMessageId: dco_decode_String(arr[2]),
+      summaryNodeId: dco_decode_String(arr[3]),
+      summaryPreview: dco_decode_String(arr[4]),
+      bodyJson: dco_decode_String(arr[5]),
+      kind: dco_decode_String(arr[6]),
+      active: dco_decode_bool(arr[7]),
+      createdAt: dco_decode_String(arr[8]),
     );
   }
 
@@ -13678,6 +13852,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PageMarkDto> sse_decode_list_page_mark_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PageMarkDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_page_mark_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<PendingActionDto> sse_decode_list_pending_action_dto(
     SseDeserializer deserializer,
   ) {
@@ -14464,6 +14652,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       lessons: var_lessons,
       followUpsRefined: var_followUpsRefined,
       feedback: var_feedback,
+    );
+  }
+
+  @protected
+  PageMarkDto sse_decode_page_mark_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_conversationId = sse_decode_String(deserializer);
+    var var_boundaryMessageId = sse_decode_String(deserializer);
+    var var_summaryNodeId = sse_decode_String(deserializer);
+    var var_summaryPreview = sse_decode_String(deserializer);
+    var var_bodyJson = sse_decode_String(deserializer);
+    var var_kind = sse_decode_String(deserializer);
+    var var_active = sse_decode_bool(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    return PageMarkDto(
+      id: var_id,
+      conversationId: var_conversationId,
+      boundaryMessageId: var_boundaryMessageId,
+      summaryNodeId: var_summaryNodeId,
+      summaryPreview: var_summaryPreview,
+      bodyJson: var_bodyJson,
+      kind: var_kind,
+      active: var_active,
+      createdAt: var_createdAt,
     );
   }
 
@@ -17093,6 +17306,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_page_mark_dto(
+    List<PageMarkDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_page_mark_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_pending_action_dto(
     List<PendingActionDto> self,
     SseSerializer serializer,
@@ -17770,6 +17995,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_String(self.lessons, serializer);
     sse_encode_list_String(self.followUpsRefined, serializer);
     sse_encode_opt_String(self.feedback, serializer);
+  }
+
+  @protected
+  void sse_encode_page_mark_dto(PageMarkDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.conversationId, serializer);
+    sse_encode_String(self.boundaryMessageId, serializer);
+    sse_encode_String(self.summaryNodeId, serializer);
+    sse_encode_String(self.summaryPreview, serializer);
+    sse_encode_String(self.bodyJson, serializer);
+    sse_encode_String(self.kind, serializer);
+    sse_encode_bool(self.active, serializer);
+    sse_encode_String(self.createdAt, serializer);
   }
 
   @protected

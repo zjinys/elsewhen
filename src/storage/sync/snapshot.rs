@@ -136,6 +136,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("chat_run_requests", "local-chat-execution-state"),
     ("chat_runs", "local-chat-execution-state"),
     ("chat_summary_nodes", "local-chat-execution-state"),
+    // 翻篇标记引用本机摘要节点（同上域）；跨端以消息为准按需重建，
+    // Node 缺失时装配退回原文——配套性检查（P4）前不同步。
+    ("conversation_page_marks", "local-chat-execution-state"),
     ("pending_actions", "local-chat-execution-state"),
     ("suggestion_feedback", "local-chat-execution-state"),
     // knowledge 管线本地产物，不在同步数据集（不产生 op）。用户语义状态

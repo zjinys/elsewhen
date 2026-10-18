@@ -17,6 +17,7 @@ import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
 import 'api/mcp.dart';
+import 'api/page_marks.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/relations.dart';
@@ -484,6 +485,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PageGuidanceDto> dco_decode_list_page_guidance_dto(dynamic raw);
 
   @protected
+  List<PageMarkDto> dco_decode_list_page_mark_dto(dynamic raw);
+
+  @protected
   List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
 
   @protected
@@ -670,6 +674,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw);
+
+  @protected
+  PageMarkDto dco_decode_page_mark_dto(dynamic raw);
 
   @protected
   PendingActionDto dco_decode_pending_action_dto(dynamic raw);
@@ -1371,6 +1378,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<PageMarkDto> sse_decode_list_page_mark_dto(SseDeserializer deserializer);
+
+  @protected
   List<PendingActionDto> sse_decode_list_pending_action_dto(
     SseDeserializer deserializer,
   );
@@ -1605,6 +1615,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer);
+
+  @protected
+  PageMarkDto sse_decode_page_mark_dto(SseDeserializer deserializer);
 
   @protected
   PendingActionDto sse_decode_pending_action_dto(SseDeserializer deserializer);
@@ -2510,6 +2523,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_page_guidance_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_page_guidance_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_page_mark_dto> cst_encode_list_page_mark_dto(
+    List<PageMarkDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_page_mark_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_page_mark_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -4158,6 +4183,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_page_mark_dto(
+    PageMarkDto apiObj,
+    wire_cst_page_mark_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.conversation_id = cst_encode_String(apiObj.conversationId);
+    wireObj.boundary_message_id = cst_encode_String(apiObj.boundaryMessageId);
+    wireObj.summary_node_id = cst_encode_String(apiObj.summaryNodeId);
+    wireObj.summary_preview = cst_encode_String(apiObj.summaryPreview);
+    wireObj.body_json = cst_encode_String(apiObj.bodyJson);
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.active = cst_encode_bool(apiObj.active);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_pending_action_dto(
     PendingActionDto apiObj,
     wire_cst_pending_action_dto wireObj,
@@ -5535,6 +5576,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_page_mark_dto(
+    List<PageMarkDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_pending_action_dto(
     List<PendingActionDto> self,
     SseSerializer serializer,
@@ -5827,6 +5874,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     PageGuidanceDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_page_mark_dto(PageMarkDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_pending_action_dto(
@@ -7107,6 +7157,19 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_list_page_guidance_dto> Function(int)
           >();
+
+  ffi.Pointer<wire_cst_list_page_mark_dto> cst_new_list_page_mark_dto(int len) {
+    return _cst_new_list_page_mark_dto(len);
+  }
+
+  late final _cst_new_list_page_mark_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_page_mark_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_page_mark_dto');
+  late final _cst_new_list_page_mark_dto = _cst_new_list_page_mark_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_page_mark_dto> Function(int)>();
 
   ffi.Pointer<wire_cst_list_pending_action_dto> cst_new_list_pending_action_dto(
     int len,
@@ -10842,6 +10905,127 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__mcp__test_mcp_serverPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_mcp_server_dto>)
+          >();
+
+  void wire__crate__api__page_marks__create_page_mark(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> boundary_message_id,
+  ) {
+    return _wire__crate__api__page_marks__create_page_mark(
+      port_,
+      conversation_id,
+      boundary_message_id,
+    );
+  }
+
+  late final _wire__crate__api__page_marks__create_page_markPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__page_marks__create_page_mark');
+  late final _wire__crate__api__page_marks__create_page_mark =
+      _wire__crate__api__page_marks__create_page_markPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__page_marks__list_page_marks(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+  ) {
+    return _wire__crate__api__page_marks__list_page_marks(
+      port_,
+      conversation_id,
+    );
+  }
+
+  late final _wire__crate__api__page_marks__list_page_marksPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__page_marks__list_page_marks');
+  late final _wire__crate__api__page_marks__list_page_marks =
+      _wire__crate__api__page_marks__list_page_marksPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__page_marks__save_page_mark_override(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> body_json,
+  ) {
+    return _wire__crate__api__page_marks__save_page_mark_override(
+      port_,
+      id,
+      body_json,
+    );
+  }
+
+  late final _wire__crate__api__page_marks__save_page_mark_overridePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__page_marks__save_page_mark_override',
+      );
+  late final _wire__crate__api__page_marks__save_page_mark_override =
+      _wire__crate__api__page_marks__save_page_mark_overridePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__page_marks__set_page_mark_active(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    bool active,
+  ) {
+    return _wire__crate__api__page_marks__set_page_mark_active(
+      port_,
+      id,
+      active,
+    );
+  }
+
+  late final _wire__crate__api__page_marks__set_page_mark_activePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__page_marks__set_page_mark_active',
+      );
+  late final _wire__crate__api__page_marks__set_page_mark_active =
+      _wire__crate__api__page_marks__set_page_mark_activePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__provider_config__delete_ai_provider_config(
@@ -16945,6 +17129,21 @@ final class wire_cst_list_page_guidance_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_page_mark_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_page_mark_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_page_mark_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_page_mark_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_page_mark_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_pending_action_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_pending_action_dto> ptr;
 
@@ -17679,6 +17878,49 @@ final class wire_cst_page_guidance_dto extends ffi.Struct {
     ..ref.lessons = lessons
     ..ref.follow_ups_refined = follow_ups_refined
     ..ref.feedback = feedback;
+}
+
+final class wire_cst_page_mark_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> boundary_message_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> summary_node_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> summary_preview;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> body_json;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  @ffi.Bool()
+  external bool active;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  static ffi.Pointer<wire_cst_page_mark_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> boundary_message_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> summary_node_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> summary_preview,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> body_json,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required bool active,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+  }) => $allocator<wire_cst_page_mark_dto>()
+    ..ref.id = id
+    ..ref.conversation_id = conversation_id
+    ..ref.boundary_message_id = boundary_message_id
+    ..ref.summary_node_id = summary_node_id
+    ..ref.summary_preview = summary_preview
+    ..ref.body_json = body_json
+    ..ref.kind = kind
+    ..ref.active = active
+    ..ref.created_at = created_at;
 }
 
 final class wire_cst_pending_action_dto extends ffi.Struct {

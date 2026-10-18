@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1435120086;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1227048982;
 
 // Section: executor
 
@@ -840,6 +840,34 @@ fn wire__crate__api__sync__create_owner_sync_invitation_impl(
                         let output_ok = crate::api::sync::create_owner_sync_invitation(
                             api_relay_url,
                             api_acknowledge_provider_key_sharing,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__page_marks__create_page_mark_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    conversation_id: impl CstDecode<String>,
+    boundary_message_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_page_mark",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_conversation_id = conversation_id.cst_decode();
+            let api_boundary_message_id = boundary_message_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::page_marks::create_page_mark(
+                            api_conversation_id,
+                            api_boundary_message_id,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -3554,6 +3582,30 @@ fn wire__crate__api__list_page_guidance_impl(
         },
     )
 }
+fn wire__crate__api__page_marks__list_page_marks_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    conversation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_page_marks",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_conversation_id = conversation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::page_marks::list_page_marks(api_conversation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__conversations__list_pending_actions_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     conversation_id: impl CstDecode<String>,
@@ -5015,6 +5067,32 @@ fn wire__crate__api__web_search__save_network_proxy_impl(
         },
     )
 }
+fn wire__crate__api__page_marks__save_page_mark_override_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    body_json: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_page_mark_override",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_body_json = body_json.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::page_marks::save_page_mark_override(api_id, api_body_json)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge_workflows__save_suggestion_feedback_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     message_id: impl CstDecode<String>,
@@ -5582,6 +5660,32 @@ fn wire__crate__api__mcp__set_mcp_server_enabled_impl(
                     (move || {
                         let output_ok =
                             crate::api::mcp::set_mcp_server_enabled(api_id, api_enabled)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__page_marks__set_page_mark_active_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    active: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_page_mark_active",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_active = active.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::page_marks::set_page_mark_active(api_id, api_active)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -8554,6 +8658,20 @@ impl SseDecode for Vec<crate::api::PageGuidanceDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::page_marks::PageMarkDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::page_marks::PageMarkDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::conversations::PendingActionDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9338,6 +9456,32 @@ impl SseDecode for crate::api::PageGuidanceDto {
             lessons: var_lessons,
             follow_ups_refined: var_followUpsRefined,
             feedback: var_feedback,
+        };
+    }
+}
+
+impl SseDecode for crate::api::page_marks::PageMarkDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_conversationId = <String>::sse_decode(deserializer);
+        let mut var_boundaryMessageId = <String>::sse_decode(deserializer);
+        let mut var_summaryNodeId = <String>::sse_decode(deserializer);
+        let mut var_summaryPreview = <String>::sse_decode(deserializer);
+        let mut var_bodyJson = <String>::sse_decode(deserializer);
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_active = <bool>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        return crate::api::page_marks::PageMarkDto {
+            id: var_id,
+            conversation_id: var_conversationId,
+            boundary_message_id: var_boundaryMessageId,
+            summary_node_id: var_summaryNodeId,
+            summary_preview: var_summaryPreview,
+            body_json: var_bodyJson,
+            kind: var_kind,
+            active: var_active,
+            created_at: var_createdAt,
         };
     }
 }
@@ -12100,6 +12244,34 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::PageGuidanceDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::page_marks::PageMarkDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.conversation_id.into_into_dart().into_dart(),
+            self.boundary_message_id.into_into_dart().into_dart(),
+            self.summary_node_id.into_into_dart().into_dart(),
+            self.summary_preview.into_into_dart().into_dart(),
+            self.body_json.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.active.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::page_marks::PageMarkDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::page_marks::PageMarkDto>
+    for crate::api::page_marks::PageMarkDto
+{
+    fn into_into_dart(self) -> crate::api::page_marks::PageMarkDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::conversations::PendingActionDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -14474,6 +14646,16 @@ impl SseEncode for Vec<crate::api::PageGuidanceDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::page_marks::PageMarkDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::page_marks::PageMarkDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::conversations::PendingActionDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -15044,6 +15226,21 @@ impl SseEncode for crate::api::PageGuidanceDto {
         <Vec<String>>::sse_encode(self.lessons, serializer);
         <Vec<String>>::sse_encode(self.follow_ups_refined, serializer);
         <Option<String>>::sse_encode(self.feedback, serializer);
+    }
+}
+
+impl SseEncode for crate::api::page_marks::PageMarkDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.conversation_id, serializer);
+        <String>::sse_encode(self.boundary_message_id, serializer);
+        <String>::sse_encode(self.summary_node_id, serializer);
+        <String>::sse_encode(self.summary_preview, serializer);
+        <String>::sse_encode(self.body_json, serializer);
+        <String>::sse_encode(self.kind, serializer);
+        <bool>::sse_encode(self.active, serializer);
+        <String>::sse_encode(self.created_at, serializer);
     }
 }
 
@@ -17211,6 +17408,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::page_marks::PageMarkDto>> for *mut wire_cst_list_page_mark_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::page_marks::PageMarkDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::conversations::PendingActionDto>>
         for *mut wire_cst_list_pending_action_dto
     {
@@ -17619,6 +17826,22 @@ mod io {
                 lessons: self.lessons.cst_decode(),
                 follow_ups_refined: self.follow_ups_refined.cst_decode(),
                 feedback: self.feedback.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::page_marks::PageMarkDto> for wire_cst_page_mark_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::page_marks::PageMarkDto {
+            crate::api::page_marks::PageMarkDto {
+                id: self.id.cst_decode(),
+                conversation_id: self.conversation_id.cst_decode(),
+                boundary_message_id: self.boundary_message_id.cst_decode(),
+                summary_node_id: self.summary_node_id.cst_decode(),
+                summary_preview: self.summary_preview.cst_decode(),
+                body_json: self.body_json.cst_decode(),
+                kind: self.kind.cst_decode(),
+                active: self.active.cst_decode(),
+                created_at: self.created_at.cst_decode(),
             }
         }
     }
@@ -19488,6 +19711,26 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_page_mark_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                conversation_id: core::ptr::null_mut(),
+                boundary_message_id: core::ptr::null_mut(),
+                summary_node_id: core::ptr::null_mut(),
+                summary_preview: core::ptr::null_mut(),
+                body_json: core::ptr::null_mut(),
+                kind: core::ptr::null_mut(),
+                active: Default::default(),
+                created_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_page_mark_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_pending_action_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -20552,6 +20795,19 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__page_marks__create_page_mark(
+        port_: i64,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+        boundary_message_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__page_marks__create_page_mark_impl(
+            port_,
+            conversation_id,
+            boundary_message_id,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__todos__create_todo(
         port_: i64,
         title: *mut wire_cst_list_prim_u_8_strict,
@@ -21493,6 +21749,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__page_marks__list_page_marks(
+        port_: i64,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__page_marks__list_page_marks_impl(port_, conversation_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__list_pending_actions(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -22026,6 +22290,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__page_marks__save_page_mark_override(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        body_json: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__page_marks__save_page_mark_override_impl(port_, id, body_json)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__save_suggestion_feedback(
         port_: i64,
         message_id: *mut wire_cst_list_prim_u_8_strict,
@@ -22254,6 +22527,15 @@ mod io {
         enabled: bool,
     ) {
         wire__crate__api__mcp__set_mcp_server_enabled_impl(port_, id, enabled)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__page_marks__set_page_mark_active(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        active: bool,
+    ) {
+        wire__crate__api__page_marks__set_page_mark_active_impl(port_, id, active)
     }
 
     #[unsafe(no_mangle)]
@@ -23394,6 +23676,20 @@ mod io {
         let wrap = wire_cst_list_page_guidance_dto {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_page_guidance_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_page_mark_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_page_mark_dto {
+        let wrap = wire_cst_list_page_mark_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_page_mark_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -24683,6 +24979,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_page_mark_dto {
+        ptr: *mut wire_cst_page_mark_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_pending_action_dto {
         ptr: *mut wire_cst_pending_action_dto,
         len: i32,
@@ -24943,6 +25245,19 @@ mod io {
         lessons: *mut wire_cst_list_String,
         follow_ups_refined: *mut wire_cst_list_String,
         feedback: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_page_mark_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+        boundary_message_id: *mut wire_cst_list_prim_u_8_strict,
+        summary_node_id: *mut wire_cst_list_prim_u_8_strict,
+        summary_preview: *mut wire_cst_list_prim_u_8_strict,
+        body_json: *mut wire_cst_list_prim_u_8_strict,
+        kind: *mut wire_cst_list_prim_u_8_strict,
+        active: bool,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -27470,6 +27785,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::page_marks::PageMarkDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::page_marks::PageMarkDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::conversations::PendingActionDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -28010,6 +28337,33 @@ mod web {
                 lessons: self_.get(4).cst_decode(),
                 follow_ups_refined: self_.get(5).cst_decode(),
                 feedback: self_.get(6).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::page_marks::PageMarkDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::page_marks::PageMarkDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                9,
+                "Expected 9 elements, got {}",
+                self_.length()
+            );
+            crate::api::page_marks::PageMarkDto {
+                id: self_.get(0).cst_decode(),
+                conversation_id: self_.get(1).cst_decode(),
+                boundary_message_id: self_.get(2).cst_decode(),
+                summary_node_id: self_.get(3).cst_decode(),
+                summary_preview: self_.get(4).cst_decode(),
+                body_json: self_.get(5).cst_decode(),
+                kind: self_.get(6).cst_decode(),
+                active: self_.get(7).cst_decode(),
+                created_at: self_.get(8).cst_decode(),
             }
         }
     }
@@ -29450,6 +29804,19 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__page_marks__create_page_mark(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        conversation_id: String,
+        boundary_message_id: String,
+    ) {
+        wire__crate__api__page_marks__create_page_mark_impl(
+            port_,
+            conversation_id,
+            boundary_message_id,
+        )
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__todos__create_todo(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         title: String,
@@ -30411,6 +30778,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__page_marks__list_page_marks(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        conversation_id: String,
+    ) {
+        wire__crate__api__page_marks__list_page_marks_impl(port_, conversation_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__list_pending_actions(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
@@ -30956,6 +31331,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__page_marks__save_page_mark_override(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        body_json: String,
+    ) {
+        wire__crate__api__page_marks__save_page_mark_override_impl(port_, id, body_json)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge_workflows__save_suggestion_feedback(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         message_id: String,
@@ -31184,6 +31568,15 @@ mod web {
         enabled: bool,
     ) {
         wire__crate__api__mcp__set_mcp_server_enabled_impl(port_, id, enabled)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__page_marks__set_page_mark_active(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        active: bool,
+    ) {
+        wire__crate__api__page_marks__set_page_mark_active_impl(port_, id, active)
     }
 
     #[wasm_bindgen]

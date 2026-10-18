@@ -1,4 +1,5 @@
 use super::tool::ToolCall;
+use serde_json::json;
 use crate::storage::Store;
 use anyhow::Result;
 
@@ -598,12 +599,61 @@ pub(crate) fn prepare_uncompressed_context(
     conversation_id: &str,
     store: &Store,
 ) -> Result<Vec<ContextMessage>> {
-    let mut context: Vec<_> = store
-        .list_messages(conversation_id)?
+    let messages = store.list_messages(conversation_id)?;
+    // 翻篇（P2 手动 / P3 自动档）：生效标记边界前的原文确定性跳过，
+    // 摘要注入 system 之后、历史之前。边界消息若已不在会话中（被删/换
+    // 设备截断），标记视为失效——退回全原文并落事件，不静默吞历史。
+    let mut page_mark = store.active_page_mark(conversation_id)?;
+    if let Some(mark) = page_mark.take() {
+        let boundary_present = messages.iter().any(|m| m.id == mark.boundary_message_id);
+        if boundary_present {
+            page_mark = Some(mark);
+        } else {
+            super::generation::event(
+                store,
+                "page_mark_stale",
+                json!({"mark_id":mark.id,"reason":"boundary_message_missing"}),
+            )?;
+        }
+    }
+    let history_start = page_mark
+        .as_ref()
+        .and_then(|mark| {
+            messages
+                .iter()
+                .position(|m| m.id == mark.boundary_message_id)
+                .map(|position| position + 1)
+        })
+        .unwrap_or(0);
+    let mut context: Vec<_> = messages
         .into_iter()
+        .skip(history_start)
         .map(ContextMessage::from_record)
         .collect();
     context.splice(0..0, build_system_context(store, conversation_id)?);
+    if let Some(mark) = &page_mark {
+        match super::summary::render_mark_text(store, mark) {
+            Ok((text, _)) => {
+                context.insert(
+                    1.min(context.len()),
+                    ContextMessage::new("system", text).with_segment(
+                        SegmentPurpose::Summary,
+                        SegmentOrigin::Derived,
+                        Some(&mark.summary_node_id),
+                        OmissionPolicy::Required,
+                    ),
+                );
+            }
+            Err(error) => {
+                // 摘要失效（节点被删/覆盖不合法）不炸主链路：退回原文。
+                super::generation::event(
+                    store,
+                    "page_mark_stale",
+                    json!({"mark_id":mark.id,"reason":"summary_unusable","detail":error.to_string()}),
+                )?;
+            }
+        }
+    }
     // 动态背景段推到尾部（历史之后）：它们内容每轮都可能变，若插在
     // system 与历史之间，任何变化都会使其后的全部 KV 缓存失效——挪到
     // 尾部后，system+历史成为逐轮可复用的稳定前缀（provider 前缀缓存）。

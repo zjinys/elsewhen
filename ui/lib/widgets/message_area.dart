@@ -6,6 +6,7 @@ import 'app_pressable.dart';
 import 'glass.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
+import 'page_mark_review.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
 import 'chat_input_queue.dart';
@@ -332,6 +333,9 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           messages: messagesAsync.value ?? const [],
           showSearch: showSearch,
           onOpenDrafts: () => openKnowledgeDraftsDialog(context),
+          onOpenPageMarks: selectedId.isEmpty
+              ? null
+              : () => openPageMarkListDialog(context, ref, selectedId),
           onOpenTodos: () => openTodoDialog(context),
           onOpenGoals: () => openGoalDialog(context),
           onToggleSearch: () => ref
@@ -481,6 +485,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                       message: message,
                       showRetry: needsReply,
                       onRetry: () => _retryAiGeneration(selectedId, message.id),
+                      isLastMessage: libIndex == rows.length - 1,
                     );
                   }
                   final tailIndex = libIndex - rows.length;
@@ -1467,6 +1472,7 @@ class _NowStatus extends ConsumerWidget {
   final VoidCallback? onOpenDrafts;
   final VoidCallback? onOpenTodos;
   final VoidCallback? onOpenGoals;
+  final VoidCallback? onOpenPageMarks;
   final VoidCallback? onToggleSearch;
   final VoidCallback? onCopyAll;
   const _NowStatus({
@@ -1474,6 +1480,7 @@ class _NowStatus extends ConsumerWidget {
     required this.messages,
     this.showSearch = false,
     this.onOpenDrafts,
+    this.onOpenPageMarks,
     this.onOpenTodos,
     this.onOpenGoals,
     this.onToggleSearch,
@@ -1671,6 +1678,14 @@ class _NowStatus extends ConsumerWidget {
                             color: AppTheme.textSecondary,
                             onPressed: onCopyAll,
                           ),
+                        if (onOpenPageMarks != null)
+                          IconButton(
+                            tooltip: '翻篇记录',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.auto_stories, size: 17),
+                            color: AppTheme.textSecondary,
+                            onPressed: onOpenPageMarks,
+                          ),
                         IconButton(
                           tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
                           visualDensity: VisualDensity.compact,
@@ -1782,6 +1797,14 @@ class _NowStatus extends ConsumerWidget {
                             onPressed: onCopyAll,
                           ),
                         ],
+                        if (onOpenPageMarks != null)
+                          IconButton(
+                            tooltip: '翻篇记录',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.auto_stories, size: 17),
+                            color: AppTheme.textSecondary,
+                            onPressed: onOpenPageMarks,
+                          ),
                         IconButton(
                           tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
                           visualDensity: VisualDensity.compact,
@@ -1911,8 +1934,13 @@ class _MessageBubble extends ConsumerStatefulWidget {
   final bool showRetry;
   final VoidCallback? onRetry;
 
+  /// 「翻篇到此」只在边界后还有原文的消息上出现（最后一条被
+  /// 「不吞最新一轮」硬约束拒绝，直接不亮按钮）。
+  final bool isLastMessage;
+
   const _MessageBubble({
     required this.message,
+    this.isLastMessage = false,
     this.showRetry = false,
     this.onRetry,
   });
@@ -1926,6 +1954,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
   Widget build(BuildContext context) {
     final message = widget.message;
     final isUser = message.isUser;
+    final canFlipPast = !widget.isLastMessage;
     final displayContent = isUser
         ? message.content
         // 模型常把普通换行输出成空行分隔，聊天阅读中会显得过于松散；
@@ -1993,6 +2022,13 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                         // 点击不直接调工具——把明确指令预填进输入框，用户可改可发，
                         // 草稿仍走确认门（比按钮直写库透明，也不绕开用户把关）。
                         if (!isUser) _SaveTopicButton(message: message),
+                        // 「翻篇到此」：以本条为边界生成章节摘要（P2 手动翻篇）。
+                        // 用户消息也允许——边界前含用户原文即可摘要。
+                        if (canFlipPast)
+                          PageMarkToolButton(
+                            conversationId: message.conversationId,
+                            boundaryMessageId: message.id,
+                          ),
                         if (isUser) _buildRecordability(context, ref),
                       ],
                     ),
@@ -2005,8 +2041,8 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onLongPress: _isMobilePlatform
-                        ? () =>
-                              _showMessageActionsSheet(context, message, isUser)
+                        ? () => _showMessageActionsSheet(
+                              context, isUser, canFlipPast, message)
                         : null,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -2118,8 +2154,9 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
   /// 不是直接写库，用户可改可发。
   void _showMessageActionsSheet(
     BuildContext context,
-    Message message,
     bool isUser,
+    bool canFlipPast,
+    Message message,
   ) {
     showModalBottomSheet<void>(
       context: context,
@@ -2150,6 +2187,24 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                 onTap: () {
                   Navigator.of(sheetContext).pop();
                   SaveTopicDialog.show(context, message.content);
+                },
+              ),
+            if (canFlipPast)
+              ListTile(
+                leading: Icon(
+                  Icons.auto_stories,
+                  color: AppTheme.accentPrimary,
+                ),
+                title: const Text('翻篇到此'),
+                subtitle: const Text('此前历史收进章节摘要，新请求不再携带原文'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  openPageMarkCreateDialog(
+                    context,
+                    this.ref,
+                    message.conversationId,
+                    message.id,
+                  );
                 },
               ),
           ],

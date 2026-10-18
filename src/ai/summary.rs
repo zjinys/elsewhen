@@ -216,6 +216,85 @@ fn summary_context(node: &SummaryNode) -> Result<ContextMessage> {
     )).with_segment(SegmentPurpose::Summary, SegmentOrigin::Derived, Some(&node.id), OmissionPolicy::Required))
 }
 
+/// 翻篇摘要的确认前预览/编辑渲染：override 优先，节点原文本兜底。
+/// 返回 (注入文本, SummaryBody JSON)。span 对活体消息校验失败即报错——
+/// 摘要与历史配套是硬前提，不配套宁可让装配退回原文。
+pub(crate) fn render_mark_text(
+    store: &Store,
+    mark: &crate::storage::PageMark,
+) -> Result<(String, String)> {
+    let node = store
+        .summary_node_by_id(
+            &mark.conversation_id,
+            &mark.summary_node_id,
+        )?
+        .context("翻篇标记引用的摘要节点不存在")?;
+    store.validate_history_spans(&mark.conversation_id, &node.spans)?;
+    let body = match &mark.override_json {
+        Some(json) => {
+            let body: SummaryBody = serde_json::from_str(json).context("标记覆盖不是合法摘要 JSON")?;
+            body.validate().context("标记覆盖未通过摘要校验")?;
+            body
+        }
+        None => node.body.clone(),
+    };
+    let body_json = serde_json::to_string(&body).context("摘要序列化失败")?;
+    let first = node.spans.first().context("摘要范围为空")?;
+    let last = node.spans.last().context("摘要范围为空")?;
+    let text = format!(
+        "【已翻篇的历史摘要，覆盖边界前全部对话；不是原文或来源证据，可能遗漏信息】\nsummary_id={}；覆盖首条 message_id={} 到末条 message_id={}，共 {} 个连续字符范围。需要精确数值、原话或出处时回读原始消息，不能把本摘要作为 Wiki 引用。\n{}",
+        node.id, first.message_id, last.message_id, node.spans.len(), body_json,
+    );
+    Ok((text, body_json))
+}
+
+/// 手动/自动翻篇：走 chat-summary-v1 同一条生成与缓存管道产出边界摘要
+/// 摘要节点，再落 PageMark。boundary 及更早的消息被标记覆盖。
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn generate_page_mark(
+    store: &Store,
+    conversation: &str,
+    boundary_message_id: &str,
+    provider: &dyn AiProvider,
+    provider_name: &str,
+    provider_basis: &str,
+    model: &str,
+    kind: &str,
+) -> Result<String> {
+    let history = store.list_messages(conversation)?;
+    validate_history_path(&history)?;
+    let Some(position) = history.iter().position(|m| m.id == boundary_message_id) else {
+        anyhow::bail!("边界消息不在当前会话中");
+    };
+    let selected = &history[..=position];
+    ensure!(
+        selected
+            .iter()
+            .any(|m| m.role == "user"),
+        "翻篇边界前没有用户消息，无可摘要内容"
+    );
+    let mut builder = Builder {
+        store,
+        conversation,
+        provider,
+        provider_name,
+        provider_basis,
+        model,
+        requests: 0,
+        cache_hits: 0,
+    };
+    let node = builder.build(selected)?;
+    // 节点覆盖必须与消息链配套（边界前全覆盖、无重叠空洞）。
+    store.validate_history_spans(conversation, &node.spans)?;
+    let mark_id = store.create_page_mark(conversation, boundary_message_id, &node.id, kind)?;
+    super::generation::event(
+        store,
+        "page_marked",
+        json!({"mark_id":mark_id,"boundary":boundary_message_id,"kind":kind,"summary_id":node.id,"requests":builder.requests,"cache_hits":builder.cache_hits,"covered_messages":selected.len()}),
+    )?;
+    Ok(mark_id)
+}
+
 /// Receives uncompressed original history plus dynamic required context. The
 /// caller still runs C05 selection and the complete provider payload gate.
 pub(crate) fn apply_summary(
@@ -233,15 +312,29 @@ pub(crate) fn apply_summary(
     }
     super::budget::validate_context_exchanges(context)?;
     // Optional background alone never triggers paid summary work.
+    // P3 自动档：80% 触发线提前预热——摘要节点落 PageMark 持久化，
+    // 下一轮装配直接读标记跳过边界前原文，免重复摘要成本。
     let tokens: usize = context
         .iter()
         .filter(|message| !message.optional_background)
         .map(|message| super::budget::text_tokens(model, &message.content) + 8)
         .sum();
-    if tokens <= budget {
+    let trigger_line = budget * 8 / 10;
+    if tokens <= trigger_line {
         return Ok(());
     }
-    let history = store.list_messages(conversation)?;
+    let mut history = store.list_messages(conversation)?;
+    // 已有生效翻篇标记时，本轮摘要只面向边界之后的「当前篇」：边界前
+    // 原文已由标记摘要固化，不再重复进入摘要选择（否则 pre-clip 守护
+    // 会把标记后的新增长永远挡在摘要之外）。
+    if let Some(mark) = store.active_page_mark(conversation)? {
+        if let Some(position) = history
+            .iter()
+            .position(|m| m.id == mark.boundary_message_id)
+        {
+            history.drain(..=position);
+        }
+    }
     let users: Vec<_> = history
         .iter()
         .enumerate()
@@ -295,7 +388,7 @@ pub(crate) fn apply_summary(
         cache_hits: 0,
     };
     super::generation::event(store, "phase", json!({"phase":"summarizing"}))?;
-    let result = (|| -> Result<ContextMessage> {
+    let result = (|| -> Result<(ContextMessage, String)> {
         validate_history_path(&history)?;
         let mut node = builder.build(selected)?;
         let allowance = (budget / 4).clamp(256, 2400);
@@ -311,11 +404,11 @@ pub(crate) fn apply_summary(
         );
         store.validate_history_spans(conversation, &node.spans)?;
         super::generation::check(store)?;
-        Ok(replacement)
+        Ok((replacement, node.id))
     })();
     super::generation::check(store)?;
     match result {
-        Ok(replacement) => {
+        Ok((replacement, node_id)) => {
             let mut rebuilt: Vec<_> = context
                 .iter()
                 .filter(|message| {
@@ -329,6 +422,21 @@ pub(crate) fn apply_summary(
                 .collect();
             rebuilt.insert(1.min(rebuilt.len()), replacement);
             *context = rebuilt;
+            // P3 自动档：把刚生成的摘要固化为 kind=auto 翻篇标记（覆盖
+            // 到倒数第二条 user 前），下一轮装配免重做。落标失败不炸
+            // 本轮主链路；用户手动撤销（active=0）后 auto 重做属预期。
+            let boundary = selected.last().map(|message| message.id.clone());
+            if let Some(boundary) = boundary {
+                if let Err(error) =
+                    store.create_page_mark(conversation, &boundary, &node_id, "auto")
+                {
+                    super::generation::event(
+                        store,
+                        "page_mark_stale",
+                        json!({"reason":"auto_mark_failed","detail":error.to_string()}),
+                    )?;
+                }
+            }
             super::generation::event(
                 store,
                 "summary_ready",
