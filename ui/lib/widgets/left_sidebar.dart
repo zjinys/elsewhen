@@ -239,7 +239,7 @@ List<_FooterAction> _footerActions(
     ),
     _FooterAction(
       icon: Icons.menu_book_outlined,
-      label: '知识库',
+      label: '知识',
       isActive: activeTab == SidebarTab.wiki,
       iconOnly: iconOnly,
       onTap: () {

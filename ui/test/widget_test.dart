@@ -15,7 +15,7 @@ void main() {
       overrides: [appInitializationProvider.overrideWith((ref) async => true)],
     );
 
-    // 桌面宽度（≥1024）渲染宽侧栏：底部导航带「对话 / 知识库」文字。
+    // 桌面宽度（≥1024）渲染宽侧栏：底部导航带「对话 / 知识」文字。
     // 默认 800×600 测试窗口处于「平板/小窗」区间，侧栏是 64px 纯图标轨，
     // 没有文字可查——这不是回归，是响应式设计的预期形态。
     tester.view.physicalSize = const Size(1440, 900);
@@ -35,8 +35,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('对话'), findsOneWidget);
-    expect(find.text('知识库'), findsOneWidget);
-    expect(find.text('知识库'), findsOneWidget);
+    expect(find.text('知识'), findsOneWidget);
+    expect(find.text('知识'), findsOneWidget);
     expect(find.text('编辑器测试'), findsNothing);
     expect(find.byType(SvgPicture), findsOneWidget);
   });
@@ -66,7 +66,7 @@ void main() {
     // 图标轨：域图标在、文字不在
     expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
     expect(find.text('对话'), findsNothing);
-    expect(find.text('知识库'), findsNothing);
+    expect(find.text('知识'), findsNothing);
   });
 
   testWidgets('Phone width uses drawer instead of sidebar', (
@@ -99,7 +99,7 @@ void main() {
     scaffoldState.openDrawer();
     await tester.pumpAndSettle();
     expect(find.text('对话'), findsOneWidget);
-    expect(find.text('知识库'), findsOneWidget);
+    expect(find.text('知识'), findsOneWidget);
   });
 
   testWidgets('Capture mode launches successfully', (
