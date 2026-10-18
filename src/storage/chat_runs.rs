@@ -286,6 +286,17 @@ impl Store {
                 "UPDATE chat_runs SET provider_basis_json=?2 WHERE id=?1",
                 params![run, payload.to_string()],
             )?;
+        } else if kind == "request_budget" {
+            // 降级构成观测（P1 验收口径 2）：每次装配报告覆盖写，终态行
+            // 留下最后一次装配的占位化条数；重试链上取末次即最终形态。
+            if let Some(request_id) = payload["request_id"].as_str() {
+                if let Some(pruned) = payload["report"]["pruned_tool_results"].as_i64() {
+                    self.connection.execute(
+                        "UPDATE chat_run_requests SET pruned_tool_results=?2 WHERE id=?1 AND run_id=?3",
+                        params![request_id, pruned, run],
+                    )?;
+                }
+            }
         }
         let event = self.record_run_event_in_tx(run, kind, payload)?;
         if let Some(tx) = tx {

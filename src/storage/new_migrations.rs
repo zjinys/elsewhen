@@ -158,6 +158,7 @@ mod tests {
                 "40-prompt-cache-stats",
                 "41-skill-bundles",
                 "42-network-proxy",
+                "43-pruned-tool-results",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -189,7 +190,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 42, "四十二条迁移跑完，user_version 应为 42");
+        assert_eq!(version, 43, "四十三条迁移跑完，user_version 应为 43");
         assert_eq!(
             latest_version().unwrap(),
             version,

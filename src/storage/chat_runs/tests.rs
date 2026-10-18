@@ -521,3 +521,60 @@ fn deleting_a_conversation_removes_its_run_and_blocks_late_writes() {
     assert!(f.store.get_conversation(&f.conversation).unwrap().is_none());
     f.clean();
 }
+
+/// P1 验收口径 2 的观测链：request_budget 事件里的占位化条数要落到
+/// chat_run_requests 列上（每次覆盖，终态行留着最后一次装配的值）。
+#[test]
+fn request_budget_event_records_pruned_tool_results() {
+    let f = Fixture::new();
+    let run = f.run();
+    let (request, _) = f
+        .store
+        .start_chat_request(&run.id, "owner", "fixture", Some("model"))
+        .unwrap();
+    let report = |pruned: usize| {
+        serde_json::json!({
+            "request_id": request,
+            "attempt": 1,
+            "trigger": "initial",
+            "report": {"pruned_tool_results": pruned}
+        })
+    };
+    f.store
+        .append_chat_run_event(&run.id, "owner", "request_budget", &report(3))
+        .unwrap();
+    // 第二次装配未占位化：覆盖为 0 而不是保留旧值（重试链取末次）。
+    f.store
+        .append_chat_run_event(&run.id, "owner", "request_budget", &report(0))
+        .unwrap();
+    let stored: Option<i64> = f
+        .store
+        .connection
+        .query_row(
+            "SELECT pruned_tool_results FROM chat_run_requests WHERE id=?1",
+            [&request],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(stored, Some(0), "终态行应留最后一次装配的值");
+    // 非预算事件不得碰这列。
+    f.store
+        .append_chat_run_event(
+            &run.id,
+            "owner",
+            "tool_result",
+            &serde_json::json!({"call_id":"c","content":"x","success":true}),
+        )
+        .unwrap();
+    let still: Option<i64> = f
+        .store
+        .connection
+        .query_row(
+            "SELECT pruned_tool_results FROM chat_run_requests WHERE id=?1",
+            [&request],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(still, Some(0));
+    f.clean();
+}
