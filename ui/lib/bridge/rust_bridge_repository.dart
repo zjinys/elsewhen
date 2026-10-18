@@ -1030,6 +1030,10 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> setUserSkillEnabled({required String id, required bool enabled}) =>
       api.setUserSkillEnabled(id: id, enabled: enabled);
 
+  /// 免审批执行开关（与 MCP trusted 同模型）。
+  Future<void> setUserSkillTrusted({required String id, required bool trusted}) =>
+      api.setUserSkillTrusted(id: id, trusted: trusted);
+
   /// 技能目录绝对路径（供"打开技能目录"）。
   Future<String> userSkillsDirectoryPath() => api.userSkillsDirectoryPath();
 

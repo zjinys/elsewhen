@@ -3,6 +3,8 @@
 //! 安全模型（docs/roadmap/2026-10-16-user-skills-roadmap.md）：
 //! - 装即信任来源，但**跑 = 逐次确认**：工具本体只做校验并挂待确认动作，
 //!   用户在审阅卡接受后才会真正起进程（`execute_pending_action`）。
+//! - 例外：技能被用户在设置页标为「信任」（skills_state.json 的 trusted 列表）
+//!   时直接执行——与 MCP trusted 同模型，设置页已明示风险。
 //! - 脚本路径必须落在技能目录内（canonical 比对防穿越）。
 //! - 解释器按 shebang 解析，从 PATH 查找；环境变量仅白名单透传。
 //! - 超时 120s、输出截断 8KB；每次执行在事件日志留痕。
@@ -80,12 +82,17 @@ impl Tool for RunSkillScriptTool {
             let data_dir = crate::config::AppConfig::load()?.data_dir;
             let resolved = resolve_script(&data_dir, &skill, &script)?;
             let command = build_command_display(&resolved, &extra_args);
-            // 待确认动作：确认时按 args_json 原样执行，杜绝确认前后偷换内容
             let action_args = json!({
                 "skill": skill,
                 "script": script,
                 "args": extra_args,
             });
+            // trusted 技能：跳过审批直接起进程（与 MCP trusted 同模型）。
+            // 执行路径与确认后完全一致（execute_confirmed 重做全部校验）。
+            if crate::ai::skills::is_trusted(&data_dir, &skill) {
+                return execute_confirmed(&data_dir, &action_args);
+            }
+            // 待确认动作：确认时按 args_json 原样执行，杜绝确认前后偷换内容
             super::store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
             let excerpt = resolved.body_chars.take(400).collect::<String>();
             Ok(format!(

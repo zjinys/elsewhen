@@ -4043,6 +4043,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.title),
       cst_encode_String(raw.brief),
       cst_encode_bool(raw.enabled),
+      cst_encode_bool(raw.trusted),
       cst_encode_bool(raw.hasSkillMd),
     ].jsify()!;
   }
@@ -7315,6 +7316,16 @@ class RustLibWire implements BaseWire {
     enabled,
   );
 
+  void wire__crate__api__user_skills__set_user_skill_trusted(
+    NativePortType port_,
+    String id,
+    bool trusted,
+  ) => wasmModule.wire__crate__api__user_skills__set_user_skill_trusted(
+    port_,
+    id,
+    trusted,
+  );
+
   void wire__crate__api__wiki__set_wiki_opinion(
     NativePortType port_,
     String slug,
@@ -8841,6 +8852,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String id,
     bool enabled,
+  );
+
+  external void wire__crate__api__user_skills__set_user_skill_trusted(
+    NativePortType port_,
+    String id,
+    bool trusted,
   );
 
   external void wire__crate__api__wiki__set_wiki_opinion(

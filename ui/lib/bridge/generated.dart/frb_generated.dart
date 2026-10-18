@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -126488439;
+  int get rustContentHash => 1197457818;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1049,6 +1049,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiUserSkillsSetUserSkillEnabled({
     required String id,
     required bool enabled,
+  });
+
+  Future<void> crateApiUserSkillsSetUserSkillTrusted({
+    required String id,
+    required bool trusted,
   });
 
   Future<WikiPageDto> crateApiWikiSetWikiOpinion({
@@ -7992,6 +7997,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiUserSkillsSetUserSkillTrusted({
+    required String id,
+    required bool trusted,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_bool(trusted);
+          return wire.wire__crate__api__user_skills__set_user_skill_trusted(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiUserSkillsSetUserSkillTrustedConstMeta,
+        argValues: [id, trusted],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUserSkillsSetUserSkillTrustedConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_user_skill_trusted",
+        argNames: ["id", "trusted"],
+      );
+
+  @override
   Future<WikiPageDto> crateApiWikiSetWikiOpinion({
     required String slug,
     String? opinion,
@@ -11604,14 +11642,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   UserSkillDto dco_decode_user_skill_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return UserSkillDto(
       id: dco_decode_String(arr[0]),
       title: dco_decode_String(arr[1]),
       brief: dco_decode_String(arr[2]),
       enabled: dco_decode_bool(arr[3]),
-      hasSkillMd: dco_decode_bool(arr[4]),
+      trusted: dco_decode_bool(arr[4]),
+      hasSkillMd: dco_decode_bool(arr[5]),
     );
   }
 
@@ -15460,12 +15499,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_title = sse_decode_String(deserializer);
     var var_brief = sse_decode_String(deserializer);
     var var_enabled = sse_decode_bool(deserializer);
+    var var_trusted = sse_decode_bool(deserializer);
     var var_hasSkillMd = sse_decode_bool(deserializer);
     return UserSkillDto(
       id: var_id,
       title: var_title,
       brief: var_brief,
       enabled: var_enabled,
+      trusted: var_trusted,
       hasSkillMd: var_hasSkillMd,
     );
   }
@@ -18572,6 +18613,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.title, serializer);
     sse_encode_String(self.brief, serializer);
     sse_encode_bool(self.enabled, serializer);
+    sse_encode_bool(self.trusted, serializer);
     sse_encode_bool(self.hasSkillMd, serializer);
   }
 

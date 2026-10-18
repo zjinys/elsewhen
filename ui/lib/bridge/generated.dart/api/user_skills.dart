@@ -19,6 +19,13 @@ Future<void> setUserSkillEnabled({required String id, required bool enabled}) =>
       enabled: enabled,
     );
 
+/// 免审批执行开关（与 MCP trusted 同模型）。开启后该技能的脚本调用直接执行。
+Future<void> setUserSkillTrusted({required String id, required bool trusted}) =>
+    RustLib.instance.api.crateApiUserSkillsSetUserSkillTrusted(
+      id: id,
+      trusted: trusted,
+    );
+
 /// 卸载用户技能：删目录 + 记删除墓碑（同步语义：其他设备收到墓碑后删除）。
 /// 这是删除的唯一合法入口——手动 rm 目录会被分发复活。
 Future<void> uninstallUserSkill({required String id}) =>
@@ -59,6 +66,10 @@ class UserSkillDto {
   final String brief;
   final bool enabled;
 
+  /// 免审批执行（skills_state.json trusted 列表）：true 时该技能的
+  /// run_skill_script 调用直接起进程，不再逐次弹审批卡。
+  final bool trusted;
+
   /// SKILL.md 是否存在（目录无 SKILL.md 的不会出现在列表，此字段保留给
   /// 未来"无效技能"提示用）。
   final bool hasSkillMd;
@@ -68,6 +79,7 @@ class UserSkillDto {
     required this.title,
     required this.brief,
     required this.enabled,
+    required this.trusted,
     required this.hasSkillMd,
   });
 
@@ -77,6 +89,7 @@ class UserSkillDto {
       title.hashCode ^
       brief.hashCode ^
       enabled.hashCode ^
+      trusted.hashCode ^
       hasSkillMd.hashCode;
 
   @override
@@ -88,5 +101,6 @@ class UserSkillDto {
           title == other.title &&
           brief == other.brief &&
           enabled == other.enabled &&
+          trusted == other.trusted &&
           hasSkillMd == other.hasSkillMd;
 }

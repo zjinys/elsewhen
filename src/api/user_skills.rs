@@ -15,6 +15,9 @@ pub struct UserSkillDto {
     /// description 单行截断到 200 chars。
     pub brief: String,
     pub enabled: bool,
+    /// 免审批执行（skills_state.json trusted 列表）：true 时该技能的
+    /// run_skill_script 调用直接起进程，不再逐次弹审批卡。
+    pub trusted: bool,
     /// SKILL.md 是否存在（目录无 SKILL.md 的不会出现在列表，此字段保留给
     /// 未来"无效技能"提示用）。
     pub has_skill_md: bool,
@@ -27,6 +30,7 @@ pub fn list_user_skills() -> Result<Vec<UserSkillDto>> {
         .into_iter()
         .map(|skill| UserSkillDto {
             enabled: crate::ai::skills::is_enabled(&cfg.data_dir, &skill.id),
+            trusted: crate::ai::skills::is_trusted(&cfg.data_dir, &skill.id),
             has_skill_md: skill.skill_md.is_file(),
             id: skill.id,
             title: skill.title,
@@ -38,6 +42,12 @@ pub fn list_user_skills() -> Result<Vec<UserSkillDto>> {
 pub fn set_user_skill_enabled(id: String, enabled: bool) -> Result<()> {
     let cfg = crate::config::AppConfig::load()?;
     crate::ai::skills::set_enabled(&cfg.data_dir, &id, enabled)
+}
+
+/// 免审批执行开关（与 MCP trusted 同模型）。开启后该技能的脚本调用直接执行。
+pub fn set_user_skill_trusted(id: String, trusted: bool) -> Result<()> {
+    let cfg = crate::config::AppConfig::load()?;
+    crate::ai::skills::set_trusted(&cfg.data_dir, &id, trusted)
 }
 
 /// 卸载用户技能：删目录 + 记删除墓碑（同步语义：其他设备收到墓碑后删除）。
@@ -151,6 +161,7 @@ fn install_staged(data_dir: &Path, staged: &Path, staging_root: &Path) -> Result
             title: skill.title,
             brief: skill.brief,
             enabled: true,
+            trusted: false,
             has_skill_md: skill.skill_md.is_file(),
         })
     };

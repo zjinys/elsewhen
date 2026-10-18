@@ -63,6 +63,11 @@ pub fn record_audit(data_dir: &Path, action: &str, detail: &str) {
 #[derive(Debug, Default, Deserialize, Serialize)]
 struct SkillsState {
     disabled: Vec<String>,
+    /// 免审批执行的技能 id（与 MCP trusted 同模型）：在列技能的
+    /// run_skill_script 调用直接起进程，不再逐次弹审批卡。脚本可在本机
+    /// 执行任意操作，开启即用户自担风险（设置页有明示）。
+    #[serde(default)]
+    trusted: Vec<String>,
 }
 
 fn load_state(data_dir: &Path) -> SkillsState {
@@ -93,6 +98,28 @@ pub fn set_enabled(data_dir: &Path, id: &str, enabled: bool) -> Result<()> {
     }
     save_state(data_dir, &state)?;
     record_audit(data_dir, if enabled { "enable" } else { "disable" }, id);
+    Ok(())
+}
+
+pub fn is_trusted(data_dir: &Path, id: &str) -> bool {
+    load_state(data_dir).trusted.iter().any(|x| x == id)
+}
+
+pub fn set_trusted(data_dir: &Path, id: &str, trusted: bool) -> Result<()> {
+    let mut state = load_state(data_dir);
+    if trusted {
+        if !state.trusted.iter().any(|x| x == id) {
+            state.trusted.push(id.to_string());
+        }
+    } else {
+        state.trusted.retain(|x| x != id);
+    }
+    save_state(data_dir, &state)?;
+    record_audit(
+        data_dir,
+        if trusted { "trust" } else { "untrust" },
+        id,
+    );
     Ok(())
 }
 

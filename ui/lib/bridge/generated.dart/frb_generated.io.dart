@@ -4707,6 +4707,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.title = cst_encode_String(apiObj.title);
     wireObj.brief = cst_encode_String(apiObj.brief);
     wireObj.enabled = cst_encode_bool(apiObj.enabled);
+    wireObj.trusted = cst_encode_bool(apiObj.trusted);
     wireObj.has_skill_md = cst_encode_bool(apiObj.hasSkillMd);
   }
 
@@ -13640,6 +13641,36 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
+  void wire__crate__api__user_skills__set_user_skill_trusted(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    bool trusted,
+  ) {
+    return _wire__crate__api__user_skills__set_user_skill_trusted(
+      port_,
+      id,
+      trusted,
+    );
+  }
+
+  late final _wire__crate__api__user_skills__set_user_skill_trustedPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__user_skills__set_user_skill_trusted',
+      );
+  late final _wire__crate__api__user_skills__set_user_skill_trusted =
+      _wire__crate__api__user_skills__set_user_skill_trustedPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
   void wire__crate__api__user_skills__uninstall_user_skill(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -19056,6 +19087,9 @@ final class wire_cst_user_skill_dto extends ffi.Struct {
   external bool enabled;
 
   @ffi.Bool()
+  external bool trusted;
+
+  @ffi.Bool()
   external bool has_skill_md;
 
   static ffi.Pointer<wire_cst_user_skill_dto> $allocate(
@@ -19064,12 +19098,14 @@ final class wire_cst_user_skill_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> brief,
     required bool enabled,
+    required bool trusted,
     required bool has_skill_md,
   }) => $allocator<wire_cst_user_skill_dto>()
     ..ref.id = id
     ..ref.title = title
     ..ref.brief = brief
     ..ref.enabled = enabled
+    ..ref.trusted = trusted
     ..ref.has_skill_md = has_skill_md;
 }
 

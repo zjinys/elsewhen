@@ -2055,7 +2055,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       children: [
         Text(
           '把技能目录放进 <数据目录>/skills（每个技能一个子目录，含 SKILL.md），'
-          '对话中由模型按需加载；脚本执行前会单独向你确认。',
+          '对话中由模型按需加载；脚本执行前会单独向你确认。'
+          '把某个技能标为「信任」后，它的脚本调用直接执行、不再审批——脚本可在'
+          '本机执行任意操作，开启即视为你了解并自担风险。',
           style: TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 13,
@@ -2128,6 +2130,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         ),
                     ],
                   ),
+                ),
+                IconButton(
+                  tooltip: skill.trusted ? '信任（脚本免审批，点击改为逐次审批）' : '逐次审批（点击标为信任，脚本免审批）',
+                  icon: Icon(
+                    skill.trusted
+                        ? Icons.verified_user_outlined
+                        : Icons.shield_outlined,
+                    size: 18,
+                    color: skill.trusted
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textTertiary,
+                  ),
+                  onPressed: () => _toggleUserSkillTrusted(skill.id, !skill.trusted),
                 ),
                 IconButton(
                   tooltip: '卸载（全设备同步删除）',
@@ -2303,12 +2318,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
-  api.UserSkillDto _copySkill(api.UserSkillDto s, {required bool enabled}) =>
+  Future<void> _toggleUserSkillTrusted(String id, bool trusted) async {
+    setState(() {
+      _userSkills = _userSkills
+          ?.map((s) => s.id == id ? _copySkill(s, trusted: trusted) : s)
+          .toList();
+    });
+    try {
+      final repository =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repository.setUserSkillTrusted(id: id, trusted: trusted);
+      if (mounted && trusted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(content: Text('已标为信任：该技能的脚本调用不再弹审批卡')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _userSkillsError = reportUiError('切换信任状态', e));
+      }
+      await _loadUserSkills();
+    }
+  }
+
+  api.UserSkillDto _copySkill(
+    api.UserSkillDto s, {
+    bool? enabled,
+    bool? trusted,
+  }) =>
       api.UserSkillDto(
         id: s.id,
         title: s.title,
         brief: s.brief,
-        enabled: enabled,
+        enabled: enabled ?? s.enabled,
+        trusted: trusted ?? s.trusted,
         hasSkillMd: s.hasSkillMd,
       );
 

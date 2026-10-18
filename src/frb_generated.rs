@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -126488439;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1197457818;
 
 // Section: executor
 
@@ -5825,6 +5825,32 @@ fn wire__crate__api__user_skills__set_user_skill_enabled_impl(
         },
     )
 }
+fn wire__crate__api__user_skills__set_user_skill_trusted_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    trusted: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_user_skill_trusted",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_trusted = trusted.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::user_skills::set_user_skill_trusted(api_id, api_trusted)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__wiki__set_wiki_opinion_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     slug: impl CstDecode<String>,
@@ -10260,12 +10286,14 @@ impl SseDecode for crate::api::user_skills::UserSkillDto {
         let mut var_title = <String>::sse_decode(deserializer);
         let mut var_brief = <String>::sse_decode(deserializer);
         let mut var_enabled = <bool>::sse_decode(deserializer);
+        let mut var_trusted = <bool>::sse_decode(deserializer);
         let mut var_hasSkillMd = <bool>::sse_decode(deserializer);
         return crate::api::user_skills::UserSkillDto {
             id: var_id,
             title: var_title,
             brief: var_brief,
             enabled: var_enabled,
+            trusted: var_trusted,
             has_skill_md: var_hasSkillMd,
         };
     }
@@ -13139,6 +13167,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::user_skills::UserSkillDto {
             self.title.into_into_dart().into_dart(),
             self.brief.into_into_dart().into_dart(),
             self.enabled.into_into_dart().into_dart(),
+            self.trusted.into_into_dart().into_dart(),
             self.has_skill_md.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -15752,6 +15781,7 @@ impl SseEncode for crate::api::user_skills::UserSkillDto {
         <String>::sse_encode(self.title, serializer);
         <String>::sse_encode(self.brief, serializer);
         <bool>::sse_encode(self.enabled, serializer);
+        <bool>::sse_encode(self.trusted, serializer);
         <bool>::sse_encode(self.has_skill_md, serializer);
     }
 }
@@ -18360,6 +18390,7 @@ mod io {
                 title: self.title.cst_decode(),
                 brief: self.brief.cst_decode(),
                 enabled: self.enabled.cst_decode(),
+                trusted: self.trusted.cst_decode(),
                 has_skill_md: self.has_skill_md.cst_decode(),
             }
         }
@@ -20345,6 +20376,7 @@ mod io {
                 title: core::ptr::null_mut(),
                 brief: core::ptr::null_mut(),
                 enabled: Default::default(),
+                trusted: Default::default(),
                 has_skill_md: Default::default(),
             }
         }
@@ -22618,6 +22650,15 @@ mod io {
         enabled: bool,
     ) {
         wire__crate__api__user_skills__set_user_skill_enabled_impl(port_, id, enabled)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__user_skills__set_user_skill_trusted(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        trusted: bool,
+    ) {
+        wire__crate__api__user_skills__set_user_skill_trusted_impl(port_, id, trusted)
     }
 
     #[unsafe(no_mangle)]
@@ -25678,6 +25719,7 @@ mod io {
         title: *mut wire_cst_list_prim_u_8_strict,
         brief: *mut wire_cst_list_prim_u_8_strict,
         enabled: bool,
+        trusted: bool,
         has_skill_md: bool,
     }
     #[repr(C)]
@@ -29228,8 +29270,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                5,
-                "Expected 5 elements, got {}",
+                6,
+                "Expected 6 elements, got {}",
                 self_.length()
             );
             crate::api::user_skills::UserSkillDto {
@@ -29237,7 +29279,8 @@ mod web {
                 title: self_.get(1).cst_decode(),
                 brief: self_.get(2).cst_decode(),
                 enabled: self_.get(3).cst_decode(),
-                has_skill_md: self_.get(4).cst_decode(),
+                trusted: self_.get(4).cst_decode(),
+                has_skill_md: self_.get(5).cst_decode(),
             }
         }
     }
@@ -31670,6 +31713,15 @@ mod web {
         enabled: bool,
     ) {
         wire__crate__api__user_skills__set_user_skill_enabled_impl(port_, id, enabled)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__user_skills__set_user_skill_trusted(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        trusted: bool,
+    ) {
+        wire__crate__api__user_skills__set_user_skill_trusted_impl(port_, id, trusted)
     }
 
     #[wasm_bindgen]
