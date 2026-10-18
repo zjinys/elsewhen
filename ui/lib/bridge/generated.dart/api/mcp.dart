@@ -43,6 +43,12 @@ class McpServerDto {
 
   /// 字符串对象 JSON 文本（如 `{"NODE_ENV":"production"}`）。
   final String envJson;
+
+  /// streamable-http 端点（stdio 传输留空）。
+  final String url;
+
+  /// 透传 header JSON 文本（如 `{"Authorization":"Bearer …"}`）。
+  final String headersJson;
   final bool enabled;
 
   const McpServerDto({
@@ -52,6 +58,8 @@ class McpServerDto {
     required this.command,
     required this.argsJson,
     required this.envJson,
+    required this.url,
+    required this.headersJson,
     required this.enabled,
   });
 
@@ -63,6 +71,8 @@ class McpServerDto {
       command.hashCode ^
       argsJson.hashCode ^
       envJson.hashCode ^
+      url.hashCode ^
+      headersJson.hashCode ^
       enabled.hashCode;
 
   @override
@@ -76,6 +86,8 @@ class McpServerDto {
           command == other.command &&
           argsJson == other.argsJson &&
           envJson == other.envJson &&
+          url == other.url &&
+          headersJson == other.headersJson &&
           enabled == other.enabled;
 }
 

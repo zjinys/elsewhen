@@ -4032,6 +4032,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.command = cst_encode_String(apiObj.command);
     wireObj.args_json = cst_encode_String(apiObj.argsJson);
     wireObj.env_json = cst_encode_String(apiObj.envJson);
+    wireObj.url = cst_encode_String(apiObj.url);
+    wireObj.headers_json = cst_encode_String(apiObj.headersJson);
     wireObj.enabled = cst_encode_bool(apiObj.enabled);
   }
 
@@ -17371,6 +17373,10 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> env_json;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> url;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> headers_json;
+
   @ffi.Bool()
   external bool enabled;
 
@@ -17382,6 +17388,8 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> command,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> env_json,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> headers_json,
     required bool enabled,
   }) => $allocator<wire_cst_mcp_server_dto>()
     ..ref.id = id
@@ -17390,6 +17398,8 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
     ..ref.command = command
     ..ref.args_json = args_json
     ..ref.env_json = env_json
+    ..ref.url = url
+    ..ref.headers_json = headers_json
     ..ref.enabled = enabled;
 }
 

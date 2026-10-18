@@ -18,6 +18,12 @@ pub struct McpServerDto {
     pub args_json: String,
     /// 字符串对象 JSON 文本（如 `{"NODE_ENV":"production"}`）。
     pub env_json: String,
+    /// streamable-http 端点（stdio 传输留空）。
+    #[serde(default)]
+    pub url: String,
+    /// 透传 header JSON 文本（如 `{"Authorization":"Bearer …"}`）。
+    #[serde(default)]
+    pub headers_json: String,
     #[serde(default = "default_true")]
     pub enabled: bool,
 }
@@ -55,6 +61,8 @@ pub fn list_mcp_servers() -> Result<Vec<McpServerDto>> {
             command: s.command,
             args_json: s.args_json,
             env_json: s.env_json,
+            url: s.url,
+            headers_json: s.headers_json,
             enabled: s.enabled,
         })
         .collect())
@@ -69,6 +77,8 @@ pub fn save_mcp_server(server: McpServerDto) -> Result<String> {
         &server.command,
         &server.args_json,
         &server.env_json,
+        &server.url,
+        &server.headers_json,
         server.enabled,
     )?;
     Ok(id)
@@ -98,6 +108,8 @@ pub fn test_mcp_server(server: McpServerDto) -> Result<Vec<McpToolDto>> {
         command: server.command.clone(),
         args_json: server.args_json.clone(),
         env_json: server.env_json.clone(),
+        url: server.url.clone(),
+        headers_json: server.headers_json.clone(),
         enabled: true,
         created_at: String::new(),
         updated_at: String::new(),

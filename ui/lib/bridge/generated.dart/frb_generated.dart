@@ -10498,8 +10498,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   McpServerDto dco_decode_mcp_server_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return McpServerDto(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -10507,7 +10507,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       command: dco_decode_String(arr[3]),
       argsJson: dco_decode_String(arr[4]),
       envJson: dco_decode_String(arr[5]),
-      enabled: dco_decode_bool(arr[6]),
+      url: dco_decode_String(arr[6]),
+      headersJson: dco_decode_String(arr[7]),
+      enabled: dco_decode_bool(arr[8]),
     );
   }
 
@@ -14021,6 +14023,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_command = sse_decode_String(deserializer);
     var var_argsJson = sse_decode_String(deserializer);
     var var_envJson = sse_decode_String(deserializer);
+    var var_url = sse_decode_String(deserializer);
+    var var_headersJson = sse_decode_String(deserializer);
     var var_enabled = sse_decode_bool(deserializer);
     return McpServerDto(
       id: var_id,
@@ -14029,6 +14033,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       command: var_command,
       argsJson: var_argsJson,
       envJson: var_envJson,
+      url: var_url,
+      headersJson: var_headersJson,
       enabled: var_enabled,
     );
   }
@@ -17392,6 +17398,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.command, serializer);
     sse_encode_String(self.argsJson, serializer);
     sse_encode_String(self.envJson, serializer);
+    sse_encode_String(self.url, serializer);
+    sse_encode_String(self.headersJson, serializer);
     sse_encode_bool(self.enabled, serializer);
   }
 

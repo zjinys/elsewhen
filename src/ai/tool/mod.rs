@@ -688,14 +688,40 @@ pub(crate) fn dispatch_with_knowledge(
                 // run_skill_script 同模式走 pending-action 审批——用户
                 // 确认卡接受后才真正发起 tools/call，参数以确认时原样
                 // 执行（杜绝确认前后偷换内容）。拒绝则丢弃，不执行。
-                #[cfg(any(target_os = "android", target_os = "ios"))]
-                {
+                // streamable-http 远程可达（手机也能连）；stdio 仅桌面。
+                const IS_MOBILE: bool =
+                    cfg!(any(target_os = "android", target_os = "ios"));
+                let server_name = call
+                    .name
+                    .strip_prefix(crate::ai::mcp::MCP_PREFIX)
+                    .and_then(|rest| rest.split("__").next())
+                    .unwrap_or_default();
+                let transport = store
+                    .list_enabled_mcp_servers()
+                    .ok()
+                    .and_then(|servers| {
+                        servers
+                            .into_iter()
+                            .find(|s| s.name == server_name)
+                            .map(|s| s.transport)
+                    });
+                let unreachable = match transport.as_deref() {
+                    None => true,
+                    Some("stdio") => IS_MOBILE,
+                    Some(_) => false,
+                };
+                if unreachable {
                     return ToolResultMsg::err(
                         call,
-                        "MCP 工具需要桌面环境（此设备无法运行本地子进程协议）。",
+                        if transport.is_none() {
+                            format!(
+                                "MCP 服务器「{server_name}」未启用或不存在，本次调用未执行。"
+                            )
+                        } else {
+                            "此 MCP 服务器使用本机子进程协议，需要桌面环境（此设备无法执行）。".to_string()
+                        },
                     );
                 }
-                #[cfg(not(any(target_os = "android", target_os = "ios")))]
                 {
                     let action_args = serde_json::json!({
                         "full_name": call.name,

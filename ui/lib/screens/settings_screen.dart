@@ -1690,7 +1690,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
-                          '${server.command} ${server.argsJson}',
+                          server.transport == 'streamable-http'
+                              ? server.url
+                              : '${server.command} ${server.argsJson}',
                           style: TextStyle(
                             color: AppTheme.textSecondary,
                             fontSize: 12,
@@ -1779,77 +1781,129 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     final envController = TextEditingController(
       text: existing?.envJson ?? '{}',
     );
+    final urlController = TextEditingController(text: existing?.url ?? '');
+    final headersController = TextEditingController(
+      text: existing?.headersJson ?? '{}',
+    );
+    String transport = existing?.transport ?? 'stdio';
     final result = await showDialog<_McpServerFormResult>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(existing == null ? '添加 MCP 服务器' : '编辑 MCP 服务器'),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: '名称（字母/数字/短横线/下划线）',
-                  hintText: 'filesystem',
-                ),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(existing == null ? '添加 MCP 服务器' : '编辑 MCP 服务器'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: '名称（字母/数字/短横线/下划线）',
+                      hintText: 'filesystem',
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.space3),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'stdio',
+                        label: Text('本机命令'),
+                        icon: Icon(Icons.terminal, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: 'streamable-http',
+                        label: Text('远程服务器'),
+                        icon: Icon(Icons.public, size: 16),
+                      ),
+                    ],
+                    selected: {transport},
+                    onSelectionChanged: (selection) =>
+                        setDialogState(() => transport = selection.first),
+                  ),
+                  const SizedBox(height: AppTheme.space3),
+                  if (transport == 'stdio') ...[
+                    TextField(
+                      controller: commandController,
+                      decoration: const InputDecoration(
+                        labelText: '命令',
+                        hintText: 'npx',
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.space3),
+                    TextField(
+                      controller: argsController,
+                      decoration: const InputDecoration(
+                        labelText: '参数（JSON 数组）',
+                        hintText:
+                            '["-y","@modelcontextprotocol/server-filesystem","/tmp"]',
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.space3),
+                    TextField(
+                      controller: envController,
+                      decoration: const InputDecoration(
+                        labelText: '环境变量（JSON 对象）',
+                        hintText: '{"NODE_ENV":"production"}',
+                      ),
+                    ),
+                  ] else ...[
+                    TextField(
+                      controller: urlController,
+                      decoration: const InputDecoration(
+                        labelText: '端点 URL',
+                        hintText: 'https://mcp.example.com/mcp',
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.space3),
+                    TextField(
+                      controller: headersController,
+                      decoration: const InputDecoration(
+                        labelText: '自定义 Header（JSON 对象，鉴权等）',
+                        hintText: '{"Authorization":"Bearer …"}',
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: AppTheme.space3),
-              TextField(
-                controller: commandController,
-                decoration: const InputDecoration(
-                  labelText: '命令',
-                  hintText: 'npx',
-                ),
-              ),
-              const SizedBox(height: AppTheme.space3),
-              TextField(
-                controller: argsController,
-                decoration: const InputDecoration(
-                  labelText: '参数（JSON 数组）',
-                  hintText: '["-y","@modelcontextprotocol/server-filesystem","/tmp"]',
-                ),
-              ),
-              const SizedBox(height: AppTheme.space3),
-              TextField(
-                controller: envController,
-                decoration: const InputDecoration(
-                  labelText: '环境变量（JSON 对象）',
-                  hintText: '{"NODE_ENV":"production"}',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => _testMcpConnection(
-              dialogContext,
-              nameController.text,
-              commandController.text,
-              argsController.text,
-              envController.text,
             ),
-            child: const Text('测试连接'),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop(_McpServerFormResult(
-                name: nameController.text,
-                command: commandController.text,
-                argsJson: argsController.text,
-                envJson: envController.text,
-              ));
-            },
-            child: const Text('保存'),
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => _testMcpConnection(
+                dialogContext,
+                nameController.text,
+                transport,
+                commandController.text,
+                argsController.text,
+                envController.text,
+                urlController.text,
+                headersController.text,
+              ),
+              child: const Text('测试连接'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(_McpServerFormResult(
+                  name: nameController.text,
+                  transport: transport,
+                  command: commandController.text,
+                  argsJson: argsController.text,
+                  envJson: envController.text,
+                  url: urlController.text,
+                  headersJson: headersController.text,
+                ));
+              },
+              child: const Text('保存'),
+            ),
+          ],
+        ),
       ),
     );
     if (result == null) return;
@@ -1859,10 +1913,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       await repository.saveMcpServer(api.McpServerDto(
         id: existing?.id ?? '',
         name: result.name,
-        transport: 'stdio',
-        command: result.command,
+        transport: result.transport,
+        command: result.transport == 'stdio' ? result.command : '',
         argsJson: result.argsJson,
         envJson: result.envJson,
+        url: result.transport == 'streamable-http' ? result.url : '',
+        headersJson: result.headersJson,
         enabled: existing?.enabled ?? true,
       ));
       await _loadMcpServers();
@@ -1878,13 +1934,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Future<void> _testMcpConnection(
     BuildContext dialogContext,
     String name,
+    String transport,
     String command,
     String argsJson,
     String envJson,
+    String url,
+    String headersJson,
   ) async {
-    if (command.trim().isEmpty) {
+    if (transport == 'stdio' && command.trim().isEmpty) {
       ScaffoldMessenger.maybeOf(dialogContext)?.showSnackBar(
         const SnackBar(content: Text('先填命令再测试')),
+      );
+      return;
+    }
+    if (transport == 'streamable-http' &&
+        !url.trim().startsWith('http')) {
+      ScaffoldMessenger.maybeOf(dialogContext)?.showSnackBar(
+        const SnackBar(content: Text('先填 http(s) 端点 URL 再测试')),
       );
       return;
     }
@@ -1895,10 +1961,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       final tools = await repository.testMcpServer(api.McpServerDto(
         id: 'test-probe',
         name: name.isEmpty ? 'probe' : name,
-        transport: 'stdio',
-        command: command,
+        transport: transport,
+        command: transport == 'stdio' ? command : '',
         argsJson: argsJson,
         envJson: envJson,
+        url: transport == 'streamable-http' ? url : '',
+        headersJson: headersJson,
         enabled: true,
       ));
       messenger?.showSnackBar(
@@ -3685,13 +3753,19 @@ class _TokenUsageBarChart extends StatelessWidget {
 /// MCP 服务器表单对话框的保存结果。
 class _McpServerFormResult {
   final String name;
+  final String transport;
   final String command;
   final String argsJson;
   final String envJson;
+  final String url;
+  final String headersJson;
   const _McpServerFormResult({
     required this.name,
+    required this.transport,
     required this.command,
     required this.argsJson,
     required this.envJson,
+    required this.url,
+    required this.headersJson,
   });
 }

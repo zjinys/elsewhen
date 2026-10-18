@@ -8903,6 +8903,8 @@ impl SseDecode for crate::api::mcp::McpServerDto {
         let mut var_command = <String>::sse_decode(deserializer);
         let mut var_argsJson = <String>::sse_decode(deserializer);
         let mut var_envJson = <String>::sse_decode(deserializer);
+        let mut var_url = <String>::sse_decode(deserializer);
+        let mut var_headersJson = <String>::sse_decode(deserializer);
         let mut var_enabled = <bool>::sse_decode(deserializer);
         return crate::api::mcp::McpServerDto {
             id: var_id,
@@ -8911,6 +8913,8 @@ impl SseDecode for crate::api::mcp::McpServerDto {
             command: var_command,
             args_json: var_argsJson,
             env_json: var_envJson,
+            url: var_url,
+            headers_json: var_headersJson,
             enabled: var_enabled,
         };
     }
@@ -11870,6 +11874,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::mcp::McpServerDto {
             self.command.into_into_dart().into_dart(),
             self.args_json.into_into_dart().into_dart(),
             self.env_json.into_into_dart().into_dart(),
+            self.url.into_into_dart().into_dart(),
+            self.headers_json.into_into_dart().into_dart(),
             self.enabled.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -14726,6 +14732,8 @@ impl SseEncode for crate::api::mcp::McpServerDto {
         <String>::sse_encode(self.command, serializer);
         <String>::sse_encode(self.args_json, serializer);
         <String>::sse_encode(self.env_json, serializer);
+        <String>::sse_encode(self.url, serializer);
+        <String>::sse_encode(self.headers_json, serializer);
         <bool>::sse_encode(self.enabled, serializer);
     }
 }
@@ -17490,6 +17498,8 @@ mod io {
                 command: self.command.cst_decode(),
                 args_json: self.args_json.cst_decode(),
                 env_json: self.env_json.cst_decode(),
+                url: self.url.cst_decode(),
+                headers_json: self.headers_json.cst_decode(),
                 enabled: self.enabled.cst_decode(),
             }
         }
@@ -19313,6 +19323,8 @@ mod io {
                 command: core::ptr::null_mut(),
                 args_json: core::ptr::null_mut(),
                 env_json: core::ptr::null_mut(),
+                url: core::ptr::null_mut(),
+                headers_json: core::ptr::null_mut(),
                 enabled: Default::default(),
             }
         }
@@ -24837,6 +24849,8 @@ mod io {
         command: *mut wire_cst_list_prim_u_8_strict,
         args_json: *mut wire_cst_list_prim_u_8_strict,
         env_json: *mut wire_cst_list_prim_u_8_strict,
+        url: *mut wire_cst_list_prim_u_8_strict,
+        headers_json: *mut wire_cst_list_prim_u_8_strict,
         enabled: bool,
     }
     #[repr(C)]
@@ -27759,8 +27773,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                7,
-                "Expected 7 elements, got {}",
+                9,
+                "Expected 9 elements, got {}",
                 self_.length()
             );
             crate::api::mcp::McpServerDto {
@@ -27770,7 +27784,9 @@ mod web {
                 command: self_.get(3).cst_decode(),
                 args_json: self_.get(4).cst_decode(),
                 env_json: self_.get(5).cst_decode(),
-                enabled: self_.get(6).cst_decode(),
+                url: self_.get(6).cst_decode(),
+                headers_json: self_.get(7).cst_decode(),
+                enabled: self_.get(8).cst_decode(),
             }
         }
     }

@@ -1,8 +1,12 @@
-//! MCP（Model Context Protocol）客户端：stdio 传输的 jsonrpc-2.0 最小实现。
+//! MCP（Model Context Protocol）客户端：stdio + streamable-http 双传输的
+//! jsonrpc-2.0 最小实现。
 //!
 //! 设计要点：
-//! - 懒启动：首个工具调用/清单拉取时才 spawn 子进程；会话按 server id 缓存，
-//!   配置变更（保存/删除/停用）时 `invalidate_server` 作废，下次重拉。
+//! - 懒连接：首个工具调用/清单拉取时才 spawn 子进程（stdio）或建 HTTP
+//!   会话（streamable-http）；会话按 server id 缓存，配置变更时
+//!   `invalidate_server` 作废，下次重拉。
+//! - stdio 本机子进程（桌面 only）；streamable-http 远程端点
+//!   （全平台可用，含移动端），会话以 `Mcp-Session-Id` header 维持。
 //! - 超时全部有界（握手/清单 30s，工具调用 120s），server 卡死不拖垮对话链。
 //! - 失败不上抛到生成主链路：工具调用错误以结果文本返回（与内置工具一致，
 //!   模型能看到错误并自行调整）。
@@ -167,19 +171,197 @@ impl Drop for McpSession {
     }
 }
 
-fn sessions() -> &'static Mutex<HashMap<String, Arc<Mutex<McpSession>>>> {
-    static SESSIONS: OnceLock<Mutex<HashMap<String, Arc<Mutex<McpSession>>>>> = OnceLock::new();
+fn sessions() -> &'static Mutex<HashMap<String, McpConn>> {
+    static SESSIONS: OnceLock<Mutex<HashMap<String, McpConn>>> = OnceLock::new();
     SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// 一条活跃的 MCP 连接。stdio 走子进程，streamable-http 走远程端点。
+enum McpConn {
+    Stdio(Arc<Mutex<McpSession>>),
+    Http(Box<HttpSession>),
+}
+
+impl McpConn {
+    fn request(&mut self, method: &str, params: Value, timeout: Duration) -> Result<Value> {
+        match self {
+            McpConn::Stdio(session) => {
+                let guard = session.lock().unwrap_or_else(|p| p.into_inner());
+                guard.request(method, params, timeout)
+            }
+            McpConn::Http(session) => session.request(method, params, timeout),
+        }
+    }
+
+    fn notify(&mut self, method: &str, params: Value) -> Result<()> {
+        match self {
+            McpConn::Stdio(session) => {
+                let guard = session.lock().unwrap_or_else(|p| p.into_inner());
+                let _ = guard
+                    .stdin
+                    .send(json!({"jsonrpc":"2.0","method":method,"params":params}).to_string()
+                        + "\n");
+                Ok(())
+            }
+            McpConn::Http(session) => session.notify(method, params),
+        }
+    }
+
+    /// 活性检查：stdio 看子进程，HTTP 恒真（服务器自会报错）。
+    fn is_alive(&mut self) -> bool {
+        match self {
+            McpConn::Stdio(session) => {
+                session.lock().unwrap_or_else(|p| p.into_inner()).is_alive()
+            }
+            McpConn::Http(_) => true,
+        }
+    }
+}
+
+/// streamable-http 会话：initialize 拿回 `Mcp-Session-Id` 后续请求都带上。
+/// 每个请求一次 POST，响应按 content-type 兼容 JSON 与 SSE 两种封装；
+/// 不开 GET 常驻 SSE 流（客户端拉模式足够，server 主动推送无消费者）。
+struct HttpSession {
+    client: reqwest::blocking::Client,
+    url: String,
+    session_id: Option<String>,
+    headers: Vec<(String, String)>,
+    next_id: AtomicI64,
+}
+
+/// 单个 HTTP 响应体上限（SSE 无 content-length，必须有界）。
+const MAX_HTTP_BODY_BYTES: usize = 16 * 1024 * 1024;
+
+impl HttpSession {
+    fn new(server: &crate::storage::McpServerConfig) -> Result<Self> {
+        if server.url.is_empty() {
+            bail!("streamable-http 服务器缺少 URL");
+        }
+        // 与 provider 同一共享 client（带用户代理配置），长工具调用单独超时。
+        let client = crate::ai::provider::shared_blocking_client(300)?;
+        let headers: Value = serde_json::from_str(&server.headers_json).unwrap_or(json!({}));
+        let mut parsed = Vec::new();
+        if let Some(map) = headers.as_object() {
+            for (k, v) in map {
+                let value = v.as_str().context("header 值必须是字符串")?;
+                parsed.push((k.clone(), value.to_string()));
+            }
+        }
+        Ok(Self {
+            client,
+            url: server.url.clone(),
+            session_id: None,
+            headers: parsed,
+            next_id: AtomicI64::new(0),
+        })
+    }
+
+    fn build_request(&self, body: &Value, timeout: Duration) -> Result<reqwest::blocking::RequestBuilder> {
+        let mut req = self
+            .client
+            .post(&self.url)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json, text/event-stream")
+            .header("MCP-Protocol-Version", "2025-06-18")
+            .timeout(timeout)
+            .json(body);
+        if let Some(sid) = &self.session_id {
+            req = req.header("Mcp-Session-Id", sid);
+        }
+        for (k, v) in &self.headers {
+            req = req.header(k.as_str(), v.as_str());
+        }
+        Ok(req)
+    }
+
+    /// POST 一条 jsonrpc 消息。返回 Ok(None) 表示 202/空体（通知或非文本响应）。
+    fn post(&mut self, body: Value, timeout: Duration) -> Result<Option<Value>> {
+        let response = self
+            .build_request(&body, timeout)?
+            .send()
+            .map_err(|e| anyhow!("MCP HTTP 请求失败：{e}"))?;
+        let status = response.status();
+        if let Some(sid) = response
+            .headers()
+            .get("mcp-session-id")
+            .and_then(|v| v.to_str().ok())
+        {
+            self.session_id = Some(sid.to_string());
+        }
+        if status == reqwest::StatusCode::ACCEPTED {
+            return Ok(None);
+        }
+        if !status.is_success() {
+            bail!("MCP HTTP 响应状态异常（{}）", status)
+        }
+        let content_type = response
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        let body_text = response
+            .bytes()
+            .map_err(|e| anyhow!("MCP HTTP 响应读取失败：{e}"))?;
+        if body_text.len() > MAX_HTTP_BODY_BYTES {
+            bail!("MCP HTTP 响应体超过 {MAX_HTTP_BODY_BYTES} 字节，拒绝处理");
+        }
+        let body_text = String::from_utf8_lossy(&body_text);
+        if body_text.trim().is_empty() {
+            return Ok(None);
+        }
+        if content_type.contains("text/event-stream") {
+            // SSE 封装：找第一条带 id 的 data 消息（我们是同步拉模式，
+            // 不消费 server 主动推送）。
+            for line in body_text.lines() {
+                let Some(data) = line.strip_prefix("data:") else {
+                    continue;
+                };
+                let Ok(message) = serde_json::from_str::<Value>(data.trim()) else {
+                    continue;
+                };
+                if message.get("id").is_some() {
+                    return Ok(Some(message));
+                }
+            }
+            return Ok(None);
+        }
+        Ok(Some(serde_json::from_str(&body_text).map_err(|e| {
+            anyhow!("MCP HTTP 响应不是合法 JSON：{e}")
+        })?))
+    }
+
+    fn request(&mut self, method: &str, params: Value, timeout: Duration) -> Result<Value> {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let reply = self
+            .post(
+                json!({"jsonrpc":"2.0","id":id,"method":method,"params":params}),
+                timeout,
+            )?
+            .ok_or_else(|| anyhow!("MCP 服务器未返回响应（{method}）"))?;
+        if let Some(error) = reply.get("error") {
+            bail!("MCP 错误响应：{error}");
+        }
+        Ok(reply.get("result").cloned().unwrap_or(Value::Null))
+    }
+
+    fn notify(&mut self, method: &str, params: Value) -> Result<()> {
+        self.post(json!({"jsonrpc":"2.0","method":method,"params":params}), Duration::from_secs(30))?;
+        Ok(())
+    }
 }
 
 /// 配置变更后作废会话（下次调用重拉进程与工具清单）。
 pub fn invalidate_server(server_id: &str) {
-    if let Some(session) = sessions()
+    let Some(conn) = sessions()
         .lock()
         .unwrap_or_else(|p| p.into_inner())
         .remove(server_id)
-    {
-        // 立即杀进程：持有会话的仅此一处。
+    else {
+        return;
+    };
+    // 立即杀进程：stdio 会话仅此一处持有。HTTP 会话无本地进程，随 drop 释放。
+    if let McpConn::Stdio(session) = conn {
         if let Ok(mut session) = session.lock() {
             let _ = session.child.kill();
             let _ = session.child.wait();
@@ -187,52 +369,48 @@ pub fn invalidate_server(server_id: &str) {
     }
 }
 
-fn connect(server: &crate::storage::McpServerConfig) -> Result<Arc<Mutex<McpSession>>> {
+/// 获取（或新建）server 的会话。返回借用持有会话表锁：工具调用在
+/// 生成侧串行执行，配置 invalidate 最多等一次调用结束，不会死锁。
+fn connect(
+    server: &crate::storage::McpServerConfig,
+) -> Result<std::sync::MutexGuard<'static, HashMap<String, McpConn>>> {
     let mut map = sessions().lock().unwrap_or_else(|p| p.into_inner());
-    if let Some(session) = map.get(&server.id) {
-        let alive = session.lock().unwrap_or_else(|p| p.into_inner()).is_alive();
-        if alive {
-            return Ok(Arc::clone(session));
-        }
+    if !map.get_mut(&server.id).map(McpConn::is_alive).unwrap_or(false) {
         map.remove(&server.id);
+        let conn = match server.transport.as_str() {
+            "stdio" => {
+                let args: Vec<String> =
+                    serde_json::from_str(&server.args_json).unwrap_or_default();
+                let env: HashMap<String, String> =
+                    serde_json::from_str(&server.env_json).unwrap_or_default();
+                McpConn::Stdio(Arc::new(Mutex::new(McpSession::spawn(
+                    &server.command, &args, &env,
+                )?)))
+            }
+            _ => McpConn::Http(Box::new(HttpSession::new(server)?)),
+        };
+        map.insert(server.id.clone(), conn);
     }
-    let args: Vec<String> = serde_json::from_str(&server.args_json).unwrap_or_default();
-    let env: HashMap<String, String> = serde_json::from_str(&server.env_json).unwrap_or_default();
-    let session = Arc::new(Mutex::new(McpSession::spawn(
-        &server.command,
-        &args,
-        &env,
-    )?));
-    {
-        let guard = session.lock().unwrap_or_else(|p| p.into_inner());
-        guard
-            .request(
-                "initialize",
-                json!({
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {},
-                    "clientInfo": {"name": "elsewhen", "version": env!("CARGO_PKG_VERSION")}
-                }),
-                HANDSHAKE_TIMEOUT,
-            )
-            .context("MCP initialize 握手失败")?;
-        let _ = guard.stdin.send(
-            json!({"jsonrpc":"2.0","method":"notifications/initialized"}).to_string() + "\n",
-        );
-    }
-    map.insert(server.id.clone(), Arc::clone(&session));
-    Ok(session)
-}
-
-fn create_session_by_config(server: &crate::storage::McpServerConfig) -> Result<Arc<Mutex<McpSession>>> {
-    connect(server)
+    let conn = map.get_mut(&server.id).expect("just ensured alive");
+    conn.request(
+        "initialize",
+        json!({
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "elsewhen", "version": env!("CARGO_PKG_VERSION")}
+        }),
+        HANDSHAKE_TIMEOUT,
+    )
+    .context("MCP initialize 握手失败")?;
+    let _ = conn.notify("notifications/initialized", json!({}));
+    Ok(map)
 }
 
 /// 拉取某 server 的工具清单（合成名）。失败返回 Err，由调用方决定降级方式。
 pub fn list_tools_for_server(server: &crate::storage::McpServerConfig) -> Result<Vec<McpToolInfo>> {
-    let session = create_session_by_config(server)?;
-    let guard = session.lock().unwrap_or_else(|p| p.into_inner());
-    let result = guard.request("tools/list", json!({}), TOOLS_LIST_TIMEOUT)?;
+    let mut map = connect(server)?;
+    let conn = map.get_mut(&server.id).expect("connect ensured");
+    let result = conn.request("tools/list", json!({}), TOOLS_LIST_TIMEOUT)?;
     let tools = result
         .get("tools")
         .and_then(Value::as_array)
@@ -292,9 +470,9 @@ pub fn call_tool(store: &Store, full_name: &str, arguments: &Value) -> Result<St
         .into_iter()
         .find(|s| s.name == server_name)
         .ok_or_else(|| anyhow!("MCP 服务器「{server_name}」未启用或不存在"))?;
-    let session = create_session_by_config(&server)?;
-    let guard = session.lock().unwrap_or_else(|p| p.into_inner());
-    let result = guard.request(
+    let mut map = connect(&server)?;
+    let conn = map.get_mut(&server.id).expect("connect ensured");
+    let result = conn.request(
         "tools/call",
         json!({"name": raw_name, "arguments": arguments}),
         TOOL_CALL_TIMEOUT,
@@ -375,6 +553,8 @@ for line in sys.stdin:
             command: python,
             args_json: serde_json::to_string(&[script_path.to_string_lossy().to_string()]).unwrap(),
             env_json: "{}".into(),
+            url: String::new(),
+            headers_json: "{}".into(),
             enabled: true,
             created_at: String::new(),
             updated_at: String::new(),
@@ -384,21 +564,16 @@ for line in sys.stdin:
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name, format!("{MCP_PREFIX}testsrv__echo"));
 
-        let session = connect(&server).unwrap();
-        drop(session); // connect 只是复用缓存会话
-        let storeless = create_session_by_config(&server).unwrap();
-        drop(storeless);
+        // connect 复用缓存会话：第二次调用不再 spawn 新进程
         let result = {
-            let sessions = sessions().lock().unwrap();
-            let session = sessions.get("test-server").unwrap().clone();
-            let mut guard = session.lock().unwrap();
-            guard
-                .request(
-                    "tools/call",
-                    json!({"name": "echo", "arguments": {"text": "你好"}}),
-                    Duration::from_secs(30),
-                )
-                .unwrap()
+            let mut map = connect(&server).unwrap();
+            let conn = map.get_mut("test-server").unwrap();
+            conn.request(
+                "tools/call",
+                json!({"name": "echo", "arguments": {"text": "你好"}}),
+                Duration::from_secs(30),
+            )
+            .unwrap()
         };
         assert_eq!(extract_text(&result).as_deref(), Some("echo: 你好"));
         invalidate_server("test-server");
@@ -471,6 +646,8 @@ for line in sys.stdin:
             command: python,
             args_json: serde_json::to_string(&[script_path.to_string_lossy().to_string()]).unwrap(),
             env_json: "{}".into(),
+            url: String::new(),
+            headers_json: "{}".into(),
             enabled: true,
             created_at: String::new(),
             updated_at: String::new(),
@@ -480,7 +657,7 @@ for line in sys.stdin:
         let store = crate::storage::Store::open(&db).unwrap();
         crate::storage::Store::mark_initialized(&db).unwrap();
         // call_tool 执行时从 mcp_servers 表查配置，先把 server 落库
-        store.save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, true).unwrap();
+        store.save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, "", "{}", true).unwrap();
         let conversation_id = store.create_conversation(None, None).unwrap();
 
         // dispatch 一个 MCP 工具调用（registry 为空 → 走 MCP sidecar 路由）
@@ -514,5 +691,121 @@ for line in sys.stdin:
 
         invalidate_server(&server.id);
         std::fs::remove_dir_all(&dir).ok();
+    }
+}
+
+#[cfg(test)]
+mod http_transport_tests {
+    use super::*;
+
+    /// mock 一个 streamable-http jsonrpc server：
+    /// - initialize 回 MCP-Session-Id 响应头 + SSE 封装
+    /// - tools/call 要求带会话头与 Bearer，回 JSON 封装
+    #[test]
+    fn streamable_http_roundtrip_with_session_id_and_headers() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let http_port = std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let mut stream = stream.unwrap();
+                std::thread::spawn(move || {
+                    use std::io::{Read, Write};
+                    let mut buf = [0u8; 65536];
+                    let len = stream.read(&mut buf).unwrap();
+                    let raw = String::from_utf8_lossy(&buf[..len]).to_string();
+                    // 解析请求头与体
+                    let (head, body) = raw.split_once("\r\n\r\n").unwrap();
+                    let has_session = head.to_lowercase().contains("mcp-session-id:");
+                    let auth_ok = head.to_lowercase().contains("authorization: bearer tok-1");
+                    let msg: Value = serde_json::from_str(body).unwrap();
+                    let id = msg.get("id").cloned();
+                    let method = msg.get("method").and_then(Value::as_str).unwrap_or("");
+                    let result = match method {
+                        "initialize" => {
+                            let payload = json!({
+                                "protocolVersion": "2024-11-05",
+                                "capabilities": {},
+                                "serverInfo": {"name": "http", "version": "0"}
+                            });
+                            let response = if let Some(id) = id {
+                                format!(
+                                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nMcp-Session-Id: sess-42\r\n\r\nevent: message\r\ndata: {}\r\n\r\n",
+                                    json!({"jsonrpc":"2.0","id":id,"result":payload})
+                                )
+                            } else {
+                                return;
+                            };
+                            stream.write_all(response.as_bytes()).unwrap();
+                            return;
+                        }
+                        "tools/list" if has_session => {
+                            json!({"tools":[{"name":"http_echo","description":"d","inputSchema":{"type":"object","properties":{}}}]})
+                        }
+                        "tools/call" if has_session && auth_ok => {
+                            let text = msg["params"]["arguments"]["text"].as_str().unwrap_or("");
+                            json!({"content":[{"type":"text","text":format!("http: {text}")}],"isError":false})
+                        }
+                        _ => {
+                            let response = if let Some(id) = id {
+                                format!(
+                                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{}",
+                                    json!({"jsonrpc":"2.0","id":id,"error":{"code":-32000,"message":"bad request"}})
+                                )
+                            } else {
+                                "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n".to_string()
+                            };
+                            stream.write_all(response.as_bytes()).unwrap();
+                            return;
+                        }
+                    };
+                    if let Some(id) = id {
+                        let payload = json!({"jsonrpc":"2.0","id":id,"result":result});
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{payload}"
+                        );
+                        stream.write_all(response.as_bytes()).unwrap();
+                    }
+                });
+            }
+        });
+        let _ = http_port;
+
+        let server = crate::storage::McpServerConfig {
+            id: "http-server".into(),
+            name: "httpsrv".to_string(),
+            transport: "streamable-http".into(),
+            command: String::new(),
+            args_json: "[]".into(),
+            env_json: "{}".into(),
+            url: format!("http://{addr}/mcp"),
+            headers_json: r#"{"Authorization":"Bearer tok-1"}"#.into(),
+            enabled: true,
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+
+        let tools = list_tools_for_server(&server).unwrap();
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].raw_name, "http_echo");
+        assert_eq!(tools[0].name, format!("{MCP_PREFIX}httpsrv__http_echo"));
+
+        // tools/call 走同会话（session id 已缓存）+ Bearer 透传；call_tool
+        // 从 store 查启用 server，先落库
+        let db = std::env::temp_dir()
+            .join(format!("elsewhen-mcp-http-{}.db", std::process::id()));
+        let store = crate::storage::Store::open(&db).unwrap();
+        crate::storage::Store::mark_initialized(&db).unwrap();
+        store
+            .save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, &server.url, &server.headers_json, true)
+            .unwrap();
+        let result = call_tool(
+            &store,
+            &format!("{MCP_PREFIX}httpsrv__http_echo"),
+            &json!({"text": "hi http"}),
+        )
+        .unwrap_or_else(|e| panic!("call_tool 失败：{e:#}"));
+        assert_eq!(result, "http: hi http");
+        invalidate_server(&server.id);
+        std::fs::remove_file(&db).ok();
     }
 }
