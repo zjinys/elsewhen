@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1227048982;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -126488439;
 
 // Section: executor
 
@@ -5667,6 +5667,32 @@ fn wire__crate__api__mcp__set_mcp_server_enabled_impl(
         },
     )
 }
+fn wire__crate__api__mcp__set_mcp_server_trusted_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    trusted: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_mcp_server_trusted",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_trusted = trusted.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::mcp::set_mcp_server_trusted(api_id, api_trusted)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__page_marks__set_page_mark_active_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
@@ -9024,6 +9050,7 @@ impl SseDecode for crate::api::mcp::McpServerDto {
         let mut var_url = <String>::sse_decode(deserializer);
         let mut var_headersJson = <String>::sse_decode(deserializer);
         let mut var_enabled = <bool>::sse_decode(deserializer);
+        let mut var_trusted = <bool>::sse_decode(deserializer);
         return crate::api::mcp::McpServerDto {
             id: var_id,
             name: var_name,
@@ -9034,6 +9061,7 @@ impl SseDecode for crate::api::mcp::McpServerDto {
             url: var_url,
             headers_json: var_headersJson,
             enabled: var_enabled,
+            trusted: var_trusted,
         };
     }
 }
@@ -12021,6 +12049,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::mcp::McpServerDto {
             self.url.into_into_dart().into_dart(),
             self.headers_json.into_into_dart().into_dart(),
             self.enabled.into_into_dart().into_dart(),
+            self.trusted.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -14917,6 +14946,7 @@ impl SseEncode for crate::api::mcp::McpServerDto {
         <String>::sse_encode(self.url, serializer);
         <String>::sse_encode(self.headers_json, serializer);
         <bool>::sse_encode(self.enabled, serializer);
+        <bool>::sse_encode(self.trusted, serializer);
     }
 }
 
@@ -17708,6 +17738,7 @@ mod io {
                 url: self.url.cst_decode(),
                 headers_json: self.headers_json.cst_decode(),
                 enabled: self.enabled.cst_decode(),
+                trusted: self.trusted.cst_decode(),
             }
         }
     }
@@ -19549,6 +19580,7 @@ mod io {
                 url: core::ptr::null_mut(),
                 headers_json: core::ptr::null_mut(),
                 enabled: Default::default(),
+                trusted: Default::default(),
             }
         }
     }
@@ -22530,6 +22562,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__mcp__set_mcp_server_trusted(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        trusted: bool,
+    ) {
+        wire__crate__api__mcp__set_mcp_server_trusted_impl(port_, id, trusted)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__page_marks__set_page_mark_active(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
@@ -25154,6 +25195,7 @@ mod io {
         url: *mut wire_cst_list_prim_u_8_strict,
         headers_json: *mut wire_cst_list_prim_u_8_strict,
         enabled: bool,
+        trusted: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -28100,8 +28142,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                9,
-                "Expected 9 elements, got {}",
+                10,
+                "Expected 10 elements, got {}",
                 self_.length()
             );
             crate::api::mcp::McpServerDto {
@@ -28114,6 +28156,7 @@ mod web {
                 url: self_.get(6).cst_decode(),
                 headers_json: self_.get(7).cst_decode(),
                 enabled: self_.get(8).cst_decode(),
+                trusted: self_.get(9).cst_decode(),
             }
         }
     }
@@ -31568,6 +31611,15 @@ mod web {
         enabled: bool,
     ) {
         wire__crate__api__mcp__set_mcp_server_enabled_impl(port_, id, enabled)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__mcp__set_mcp_server_trusted(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        trusted: bool,
+    ) {
+        wire__crate__api__mcp__set_mcp_server_trusted_impl(port_, id, trusted)
     }
 
     #[wasm_bindgen]

@@ -684,10 +684,11 @@ pub(crate) fn dispatch_with_knowledge(
             // 内置注册表未命中：MCP 工具（mcp__<server>__<tool>）走外部
             // 分发；错误同样以结果文本返回，不炸生成主链路。
             if call.name.starts_with(crate::ai::mcp::MCP_PREFIX) {
-                // MCP server 是第三方代码，工具调用不直接执行：按
-                // run_skill_script 同模式走 pending-action 审批——用户
-                // 确认卡接受后才真正发起 tools/call，参数以确认时原样
+                // MCP server 是第三方代码，默认走 pending-action 审批——
+                // 用户确认卡接受后才真正发起 tools/call，参数以确认时原样
                 // 执行（杜绝确认前后偷换内容）。拒绝则丢弃，不执行。
+                // 例外：server 被用户在设置页标为「信任」（trusted=1，迁移 47）
+                // 时直接执行——设置页已明示风险，开启即用户自担。
                 // streamable-http 远程可达（手机也能连）；stdio 仅桌面。
                 const IS_MOBILE: bool =
                     cfg!(any(target_os = "android", target_os = "ios"));
@@ -696,16 +697,17 @@ pub(crate) fn dispatch_with_knowledge(
                     .strip_prefix(crate::ai::mcp::MCP_PREFIX)
                     .and_then(|rest| rest.split("__").next())
                     .unwrap_or_default();
-                let transport = store
+                let server_info = store
                     .list_enabled_mcp_servers()
                     .ok()
                     .and_then(|servers| {
                         servers
                             .into_iter()
                             .find(|s| s.name == server_name)
-                            .map(|s| s.transport)
+                            .map(|s| (s.transport, s.trusted))
                     });
-                let unreachable = match transport.as_deref() {
+                let transport = server_info.as_ref().map(|(t, _)| t.as_str());
+                let unreachable = match transport {
                     None => true,
                     Some("stdio") => IS_MOBILE,
                     Some(_) => false,
@@ -721,6 +723,13 @@ pub(crate) fn dispatch_with_knowledge(
                             "此 MCP 服务器使用本机子进程协议，需要桌面环境（此设备无法执行）。".to_string()
                         },
                     );
+                }
+                // trusted=1：跳过审批直接执行，错误同样以结果文本返回。
+                if server_info.map(|(_, trusted)| trusted).unwrap_or(false) {
+                    return match crate::ai::mcp::call_tool(store, &call.name, &call.arguments) {
+                        Ok(output) => ToolResultMsg::ok(call, output),
+                        Err(e) => ToolResultMsg::err(call, e),
+                    };
                 }
                 {
                     let action_args = serde_json::json!({

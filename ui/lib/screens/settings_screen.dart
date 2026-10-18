@@ -1661,6 +1661,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             height: 1.6,
           ),
         ),
+        const SizedBox(height: AppTheme.space2),
+        // 信任开关的风险说明：MCP server 是第三方代码，开启免审批后模型
+        // 发起的每次工具调用都不再经人工确认，用户需自担风险。
+        Text(
+          '默认每次工具调用都会弹出审批卡逐次确认。把某个服务器标为「信任」后，'
+          '它的调用将直接执行、不再审批——MCP 服务器是第三方代码，模型可能被'
+          '诱导发起破坏性调用，开启即视为你了解并自担风险。',
+          style: TextStyle(
+            color: AppTheme.textTertiary,
+            fontSize: 12,
+            height: 1.6,
+          ),
+        ),
         const SizedBox(height: AppTheme.space3),
         OutlinedButton.icon(
           onPressed: () => _showMcpServerDialog(),
@@ -1705,6 +1718,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   ),
                 ),
                 IconButton(
+                  tooltip: server.trusted ? '信任（调用免审批，点击改为逐次审批）' : '逐次审批（点击标为信任，调用免审批）',
+                  icon: Icon(
+                    server.trusted
+                        ? Icons.verified_user_outlined
+                        : Icons.shield_outlined,
+                    size: 18,
+                    color: server.trusted
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textTertiary,
+                  ),
+                  onPressed: () => _toggleMcpTrusted(server.id, !server.trusted),
+                ),
+                IconButton(
                   tooltip: '编辑',
                   icon: const Icon(Icons.edit_outlined, size: 18),
                   onPressed: () => _showMcpServerDialog(existing: server),
@@ -1740,6 +1766,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  Future<void> _toggleMcpTrusted(String id, bool trusted) async {
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    try {
+      await repository.setMcpServerTrusted(id: id, trusted: trusted);
+      await _loadMcpServers();
+      if (mounted && trusted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(content: Text('已标为信任：该服务器的工具调用不再弹审批卡')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(reportUiError('切换信任状态', e))),
+        );
+      }
+    }
+  }
+
   Future<void> _toggleMcpServer(String id, bool enabled) async {
     final repository =
         ref.read(storageRepositoryProvider) as RustBridgeRepository;
@@ -1771,6 +1817,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   Future<void> _showMcpServerDialog({api.McpServerDto? existing}) async {
+    bool trusted = existing?.trusted ?? false;
     final nameController = TextEditingController(text: existing?.name ?? '');
     final commandController = TextEditingController(
       text: existing?.command ?? '',
@@ -1866,6 +1913,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       ),
                     ),
                   ],
+                  const SizedBox(height: AppTheme.space3),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('信任（调用免审批）', style: TextStyle(fontSize: 13.5)),
+                    subtitle: const Text(
+                      '开启后该服务器的工具调用直接执行，不再逐次弹审批卡。MCP 服务器是第三方代码，请只对你信任的服务器开启。',
+                      style: TextStyle(fontSize: 11.5),
+                    ),
+                    value: trusted,
+                    onChanged: (v) => setDialogState(() => trusted = v),
+                  ),
                 ],
               ),
             ),
@@ -1898,6 +1956,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   envJson: envController.text,
                   url: urlController.text,
                   headersJson: headersController.text,
+                  trusted: trusted,
                 ));
               },
               child: const Text('保存'),
@@ -1920,6 +1979,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         url: result.transport == 'streamable-http' ? result.url : '',
         headersJson: result.headersJson,
         enabled: existing?.enabled ?? true,
+        trusted: result.trusted,
       ));
       await _loadMcpServers();
     } catch (e) {
@@ -1968,6 +2028,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         url: transport == 'streamable-http' ? url : '',
         headersJson: headersJson,
         enabled: true,
+        trusted: false,
       ));
       messenger?.showSnackBar(
         SnackBar(
@@ -3759,6 +3820,7 @@ class _McpServerFormResult {
   final String envJson;
   final String url;
   final String headersJson;
+  final bool trusted;
   const _McpServerFormResult({
     required this.name,
     required this.transport,
@@ -3767,5 +3829,6 @@ class _McpServerFormResult {
     required this.envJson,
     required this.url,
     required this.headersJson,
+    required this.trusted,
   });
 }

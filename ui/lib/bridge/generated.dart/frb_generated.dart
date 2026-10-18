@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1227048982;
+  int get rustContentHash => -126488439;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1021,6 +1021,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiMcpSetMcpServerEnabled({
     required String id,
     required bool enabled,
+  });
+
+  Future<void> crateApiMcpSetMcpServerTrusted({
+    required String id,
+    required bool trusted,
   });
 
   Future<void> crateApiPageMarksSetPageMarkActive({
@@ -7791,6 +7796,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiMcpSetMcpServerTrusted({
+    required String id,
+    required bool trusted,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_bool(trusted);
+          return wire.wire__crate__api__mcp__set_mcp_server_trusted(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMcpSetMcpServerTrustedConstMeta,
+        argValues: [id, trusted],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMcpSetMcpServerTrustedConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_mcp_server_trusted",
+        argNames: ["id", "trusted"],
+      );
+
+  @override
   Future<void> crateApiPageMarksSetPageMarkActive({
     required String id,
     required bool active,
@@ -10653,8 +10691,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   McpServerDto dco_decode_mcp_server_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return McpServerDto(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -10665,6 +10703,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       url: dco_decode_String(arr[6]),
       headersJson: dco_decode_String(arr[7]),
       enabled: dco_decode_bool(arr[8]),
+      trusted: dco_decode_bool(arr[9]),
     );
   }
 
@@ -14214,6 +14253,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_url = sse_decode_String(deserializer);
     var var_headersJson = sse_decode_String(deserializer);
     var var_enabled = sse_decode_bool(deserializer);
+    var var_trusted = sse_decode_bool(deserializer);
     return McpServerDto(
       id: var_id,
       name: var_name,
@@ -14224,6 +14264,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       url: var_url,
       headersJson: var_headersJson,
       enabled: var_enabled,
+      trusted: var_trusted,
     );
   }
 
@@ -17626,6 +17667,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.url, serializer);
     sse_encode_String(self.headersJson, serializer);
     sse_encode_bool(self.enabled, serializer);
+    sse_encode_bool(self.trusted, serializer);
   }
 
   @protected

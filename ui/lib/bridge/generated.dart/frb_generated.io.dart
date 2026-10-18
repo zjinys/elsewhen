@@ -4060,6 +4060,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.url = cst_encode_String(apiObj.url);
     wireObj.headers_json = cst_encode_String(apiObj.headersJson);
     wireObj.enabled = cst_encode_bool(apiObj.enabled);
+    wireObj.trusted = cst_encode_bool(apiObj.trusted);
   }
 
   @protected
@@ -10888,6 +10889,30 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
+  void wire__crate__api__mcp__set_mcp_server_trusted(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    bool trusted,
+  ) {
+    return _wire__crate__api__mcp__set_mcp_server_trusted(port_, id, trusted);
+  }
+
+  late final _wire__crate__api__mcp__set_mcp_server_trustedPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__mcp__set_mcp_server_trusted');
+  late final _wire__crate__api__mcp__set_mcp_server_trusted =
+      _wire__crate__api__mcp__set_mcp_server_trustedPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
   void wire__crate__api__mcp__test_mcp_server(
     int port_,
     ffi.Pointer<wire_cst_mcp_server_dto> server,
@@ -17579,6 +17604,9 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
   @ffi.Bool()
   external bool enabled;
 
+  @ffi.Bool()
+  external bool trusted;
+
   static ffi.Pointer<wire_cst_mcp_server_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -17590,6 +17618,7 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> url,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> headers_json,
     required bool enabled,
+    required bool trusted,
   }) => $allocator<wire_cst_mcp_server_dto>()
     ..ref.id = id
     ..ref.name = name
@@ -17599,7 +17628,8 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
     ..ref.env_json = env_json
     ..ref.url = url
     ..ref.headers_json = headers_json
-    ..ref.enabled = enabled;
+    ..ref.enabled = enabled
+    ..ref.trusted = trusted;
 }
 
 final class wire_cst_mcp_tool_dto extends ffi.Struct {

@@ -22,6 +22,10 @@ pub struct McpServerConfig {
     /// 透传 header（如 Authorization）；键值均为字符串。
     pub headers_json: String,
     pub enabled: bool,
+    /// 免审批开关（迁移 47）：true 时该 server 的工具调用直接执行，
+    /// 不再创建 pending-action 审批卡。MCP server 是第三方代码，开启
+    /// 即视为用户自担风险（设置页有明示）。
+    pub trusted: bool,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -61,7 +65,7 @@ fn validate_headers(headers: &serde_json::Value) -> Result<()> {
 impl Store {
     pub fn list_mcp_servers(&self) -> Result<Vec<McpServerConfig>> {
         let mut statement = self.connection.prepare(
-            "SELECT id,name,transport,command,args_json,env_json,url,headers_json,enabled,created_at,updated_at
+            "SELECT id,name,transport,command,args_json,env_json,url,headers_json,enabled,trusted,created_at,updated_at
              FROM mcp_servers ORDER BY created_at ASC, id ASC",
         )?;
         let rows = statement.query_map([], |row| {
@@ -75,8 +79,9 @@ impl Store {
                 url: row.get(6)?,
                 headers_json: row.get(7)?,
                 enabled: row.get::<_, i64>(8)? != 0,
-                created_at: row.get(9)?,
-                updated_at: row.get(10)?,
+                trusted: row.get::<_, i64>(9)? != 0,
+                created_at: row.get(10)?,
+                updated_at: row.get(11)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -110,6 +115,7 @@ impl Store {
         url: &str,
         headers_json: &str,
         enabled: bool,
+        trusted: bool,
     ) -> Result<String> {
         let name = name.trim();
         if name.is_empty() {
@@ -151,9 +157,9 @@ impl Store {
         match id {
             Some(existing) if !existing.is_empty() => {
                 let updated = self.connection.execute(
-                    "UPDATE mcp_servers SET name=?2,transport=?3,command=?4,args_json=?5,env_json=?6,url=?7,headers_json=?8,enabled=?9,updated_at=?10
+                    "UPDATE mcp_servers SET name=?2,transport=?3,command=?4,args_json=?5,env_json=?6,url=?7,headers_json=?8,enabled=?9,trusted=?10,updated_at=?11
                      WHERE id=?1",
-                    params![existing, name, transport, command, args_json, env_json, url, headers_json, enabled as i64, now],
+                    params![existing, name, transport, command, args_json, env_json, url, headers_json, enabled as i64, trusted as i64, now],
                 )?;
                 if updated == 0 {
                     bail!("未找到要更新的 MCP 服务器（id={existing}）");
@@ -165,9 +171,9 @@ impl Store {
             _ => {
                 let new_id = uuid::Uuid::new_v4().to_string();
                 self.connection.execute(
-                    "INSERT INTO mcp_servers (id,name,transport,command,args_json,env_json,url,headers_json,enabled,created_at,updated_at)
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?10)",
-                    params![new_id, name, transport, command, args_json, env_json, url, headers_json, enabled as i64, now],
+                    "INSERT INTO mcp_servers (id,name,transport,command,args_json,env_json,url,headers_json,enabled,trusted,created_at,updated_at)
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?11)",
+                    params![new_id, name, transport, command, args_json, env_json, url, headers_json, enabled as i64, trusted as i64, now],
                 )?;
                 Ok(new_id)
             }
@@ -189,6 +195,19 @@ impl Store {
         let updated = self.connection.execute(
             "UPDATE mcp_servers SET enabled=?2, updated_at=?3 WHERE id=?1",
             params![id, enabled as i64, chrono::Utc::now().to_rfc3339()],
+        )?;
+        if updated == 0 {
+            bail!("未找到 MCP 服务器（id={id}）");
+        }
+        super::super::ai::mcp::invalidate_server(id);
+        Ok(())
+    }
+
+    /// 切换免审批开关。trusted=true 后该 server 的工具调用直接执行。
+    pub fn set_mcp_server_trusted(&self, id: &str, trusted: bool) -> Result<()> {
+        let updated = self.connection.execute(
+            "UPDATE mcp_servers SET trusted=?2, updated_at=?3 WHERE id=?1",
+            params![id, trusted as i64, chrono::Utc::now().to_rfc3339()],
         )?;
         if updated == 0 {
             bail!("未找到 MCP 服务器（id={id}）");
@@ -223,6 +242,7 @@ mod tests {
                 "",
                 "{}",
                 true,
+                false,
             )
             .unwrap();
         let listed = store.list_mcp_servers().unwrap();
@@ -240,6 +260,7 @@ mod tests {
                 "{}",
                 "",
                 "{}",
+                false,
                 false,
             )
             .unwrap();
@@ -259,44 +280,44 @@ mod tests {
         let store = fixture();
         // 名称带非法字符（会污染合成工具名）。
         assert!(store
-            .save_mcp_server(None, "bad name", "stdio", "cmd", "[]", "{}", "", "{}", true)
+            .save_mcp_server(None, "bad name", "stdio", "cmd", "[]", "{}", "", "{}", true, false)
             .is_err());
         // transport 只认 stdio / streamable-http。
         assert!(store
             .save_mcp_server(
-                None, "ok-name", "websocket", "cmd", "[]", "{}", "", "{}", true
+                None, "ok-name", "websocket", "cmd", "[]", "{}", "", "{}", true, false
             )
             .is_err());
         // args 不是字符串数组。
         assert!(store
             .save_mcp_server(
-                None, "ok-name", "stdio", "cmd", r#"["-y",3]"#, "{}", "", "{}", true
+                None, "ok-name", "stdio", "cmd", r#"["-y",3]"#, "{}", "", "{}", true, false
             )
             .is_err());
         // stdio 命令为空。
         assert!(store
             .save_mcp_server(
-                None, "ok-name", "stdio", "  ", "[]", "{}", "", "{}", true
+                None, "ok-name", "stdio", "  ", "[]", "{}", "", "{}", true, false
             )
             .is_err());
         // streamable-http 需要 http(s) URL。
         assert!(store
             .save_mcp_server(
-                None, "ok-name", "streamable-http", "", "[]", "{}", "ftp://x", "{}", true
+                None, "ok-name", "streamable-http", "", "[]", "{}", "ftp://x", "{}", true, false
             )
             .is_err());
         // streamable-http 不吃本地命令。
         assert!(store
             .save_mcp_server(
                 None, "ok-name", "streamable-http", "npx", "[]", "{}",
-                "https://mcp.example.com/mcp", "{}", true
+                "https://mcp.example.com/mcp", "{}", true, false
             )
             .is_err());
         // 合法远程配置落地且 url 原样保存。
         let id = store
             .save_mcp_server(
                 None, "remote", "streamable-http", "", "[]", "{}",
-                "https://mcp.example.com/mcp", r#"{"Authorization":"Bearer t"}"#, true,
+                "https://mcp.example.com/mcp", r#"{"Authorization":"Bearer t"}"#, true, false,
             )
             .unwrap();
         let listed = store.get_mcp_server(&id).unwrap().unwrap();

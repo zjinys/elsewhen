@@ -1018,6 +1018,10 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> setMcpServerEnabled({required String id, required bool enabled}) =>
       api.setMcpServerEnabled(id: id, enabled: enabled);
 
+  /// 免审批开关（迁移 47）：trusted=true 后该服务器工具调用直接执行。
+  Future<void> setMcpServerTrusted({required String id, required bool trusted}) =>
+      api.setMcpServerTrusted(id: id, trusted: trusted);
+
   /// 连通性测试：拉起进程走握手并取回工具清单。
   Future<List<api.McpToolDto>> testMcpServer(api.McpServerDto server) =>
       api.testMcpServer(server: server);

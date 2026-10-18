@@ -162,6 +162,7 @@ mod tests {
                 "44-mcp-servers",
         "45-mcp-streamable-http",
         "46-conversation-page-marks",
+        "47-mcp-trusted",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );

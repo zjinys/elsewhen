@@ -3278,6 +3278,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.url),
       cst_encode_String(raw.headersJson),
       cst_encode_bool(raw.enabled),
+      cst_encode_bool(raw.trusted),
     ].jsify()!;
   }
 
@@ -7257,6 +7258,16 @@ class RustLibWire implements BaseWire {
     enabled,
   );
 
+  void wire__crate__api__mcp__set_mcp_server_trusted(
+    NativePortType port_,
+    String id,
+    bool trusted,
+  ) => wasmModule.wire__crate__api__mcp__set_mcp_server_trusted(
+    port_,
+    id,
+    trusted,
+  );
+
   void wire__crate__api__page_marks__set_page_mark_active(
     NativePortType port_,
     String id,
@@ -8794,6 +8805,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String id,
     bool enabled,
+  );
+
+  external void wire__crate__api__mcp__set_mcp_server_trusted(
+    NativePortType port_,
+    String id,
+    bool trusted,
   );
 
   external void wire__crate__api__page_marks__set_page_mark_active(

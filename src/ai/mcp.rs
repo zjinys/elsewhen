@@ -556,6 +556,7 @@ for line in sys.stdin:
             url: String::new(),
             headers_json: "{}".into(),
             enabled: true,
+            trusted: false,
             created_at: String::new(),
             updated_at: String::new(),
         };
@@ -649,6 +650,7 @@ for line in sys.stdin:
             url: String::new(),
             headers_json: "{}".into(),
             enabled: true,
+            trusted: false,
             created_at: String::new(),
             updated_at: String::new(),
         };
@@ -657,7 +659,7 @@ for line in sys.stdin:
         let store = crate::storage::Store::open(&db).unwrap();
         crate::storage::Store::mark_initialized(&db).unwrap();
         // call_tool 执行时从 mcp_servers 表查配置，先把 server 落库
-        store.save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, "", "{}", true).unwrap();
+        store.save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, "", "{}", true, false).unwrap();
         let conversation_id = store.create_conversation(None, None).unwrap();
 
         // dispatch 一个 MCP 工具调用（registry 为空 → 走 MCP sidecar 路由）
@@ -690,6 +692,80 @@ for line in sys.stdin:
         assert_eq!(out, "echo: hi");
 
         invalidate_server(&server.id);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// trusted=1 的 server：dispatch 直接执行，不创建 pending_action。
+    /// 与上面审批闭环同一 echo fixture，仅 trusted 标志不同。
+    #[test]
+    fn trusted_server_dispatch_executes_directly_without_pending_action() {
+        let python = match super::tests::which_python() {
+            Some(p) => p,
+            None => {
+                eprintln!("跳过：找不到 python3");
+                return;
+            }
+        };
+        let script = r#"
+import json, sys
+for line in sys.stdin:
+    msg = json.loads(line)
+    if 'id' not in msg:
+        continue
+    method = msg.get('method', '')
+    if method == 'initialize':
+        result = {"protocolVersion": "2024-11-05", "capabilities": {}, "serverInfo": {"name": "t", "version": "0"}}
+    elif method == 'tools/call':
+        result = {"content": [{"type": "text", "text": "echo: " + msg['params']['arguments']['text']}], "isError": False}
+    else:
+        result = {}
+    print(json.dumps({"jsonrpc": "2.0", "id": msg['id'], "result": result}), flush=True)
+"#;
+        let dir = std::env::temp_dir().join(format!(
+            "elsewhen-mcp-trusted-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let script_path = dir.join("mcp_echo.py");
+        std::fs::write(&script_path, script).unwrap();
+
+        let db = dir.join("test.db");
+        let store = crate::storage::Store::open(&db).unwrap();
+        crate::storage::Store::mark_initialized(&db).unwrap();
+        // trusted=true 落库
+        store
+            .save_mcp_server(
+                None,
+                "trustedsrv",
+                "stdio",
+                &python,
+                &serde_json::to_string(&[script_path.to_string_lossy().to_string()]).unwrap(),
+                "{}",
+                "",
+                "{}",
+                true,
+                true,
+            )
+            .unwrap();
+        let conversation_id = store.create_conversation(None, None).unwrap();
+
+        let call = ToolCall {
+            id: "call-1".into(),
+            name: format!("{MCP_PREFIX}trustedsrv__echo"),
+            arguments: serde_json::json!({ "text": "hi" }),
+            raw_arguments: None,
+        };
+        let registry = ToolRegistry::deferred_runtime();
+        let msg = dispatch(&call, &registry, &store, &conversation_id);
+        // 直接执行：工具输出出现在结果里，没有审批暂存
+        let text = format!("{msg:?}");
+        assert!(text.contains("echo: hi"), "got: {text}");
+        assert!(!text.contains("待用户确认"), "got: {text}");
+        let pending = store
+            .pending_actions_for_conversation(&conversation_id)
+            .unwrap();
+        assert!(pending.is_empty(), "trusted 不应创建 pending_action");
+
         std::fs::remove_dir_all(&dir).ok();
     }
 }
@@ -780,6 +856,7 @@ mod http_transport_tests {
             url: format!("http://{addr}/mcp"),
             headers_json: r#"{"Authorization":"Bearer tok-1"}"#.into(),
             enabled: true,
+            trusted: false,
             created_at: String::new(),
             updated_at: String::new(),
         };
@@ -796,7 +873,7 @@ mod http_transport_tests {
         let store = crate::storage::Store::open(&db).unwrap();
         crate::storage::Store::mark_initialized(&db).unwrap();
         store
-            .save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, &server.url, &server.headers_json, true)
+            .save_mcp_server(None, &server.name, &server.transport, &server.command, &server.args_json, &server.env_json, &server.url, &server.headers_json, true, false)
             .unwrap();
         let result = call_tool(
             &store,

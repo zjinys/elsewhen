@@ -25,6 +25,12 @@ Future<void> setMcpServerEnabled({required String id, required bool enabled}) =>
       enabled: enabled,
     );
 
+Future<void> setMcpServerTrusted({required String id, required bool trusted}) =>
+    RustLib.instance.api.crateApiMcpSetMcpServerTrusted(
+      id: id,
+      trusted: trusted,
+    );
+
 /// 连通性测试：发起 stdio 会话并拉取工具清单。将一并验证用户的命令/
 /// 参数/env 配置是否真的能起进程、过握手。UI 的「测试连接」入口用。
 Future<List<McpToolDto>> testMcpServer({required McpServerDto server}) =>
@@ -51,6 +57,9 @@ class McpServerDto {
   final String headersJson;
   final bool enabled;
 
+  /// 免审批开关（迁移 47）：true 时工具调用直接执行，不再弹审批卡。
+  final bool trusted;
+
   const McpServerDto({
     required this.id,
     required this.name,
@@ -61,6 +70,7 @@ class McpServerDto {
     required this.url,
     required this.headersJson,
     required this.enabled,
+    required this.trusted,
   });
 
   @override
@@ -73,7 +83,8 @@ class McpServerDto {
       envJson.hashCode ^
       url.hashCode ^
       headersJson.hashCode ^
-      enabled.hashCode;
+      enabled.hashCode ^
+      trusted.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -88,7 +99,8 @@ class McpServerDto {
           envJson == other.envJson &&
           url == other.url &&
           headersJson == other.headersJson &&
-          enabled == other.enabled;
+          enabled == other.enabled &&
+          trusted == other.trusted;
 }
 
 class McpToolDto {

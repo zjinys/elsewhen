@@ -26,6 +26,9 @@ pub struct McpServerDto {
     pub headers_json: String,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// 免审批开关（迁移 47）：true 时工具调用直接执行，不再弹审批卡。
+    #[serde(default)]
+    pub trusted: bool,
 }
 
 fn default_true() -> bool {
@@ -64,6 +67,7 @@ pub fn list_mcp_servers() -> Result<Vec<McpServerDto>> {
             url: s.url,
             headers_json: s.headers_json,
             enabled: s.enabled,
+            trusted: s.trusted,
         })
         .collect())
 }
@@ -80,6 +84,7 @@ pub fn save_mcp_server(server: McpServerDto) -> Result<String> {
         &server.url,
         &server.headers_json,
         server.enabled,
+        server.trusted,
     )?;
     Ok(id)
 }
@@ -92,6 +97,11 @@ pub fn delete_mcp_server(id: String) -> Result<()> {
 pub fn set_mcp_server_enabled(id: String, enabled: bool) -> Result<()> {
     let store = store_from_config()?;
     store.set_mcp_server_enabled(&id, enabled)
+}
+
+pub fn set_mcp_server_trusted(id: String, trusted: bool) -> Result<()> {
+    let store = store_from_config()?;
+    store.set_mcp_server_trusted(&id, trusted)
 }
 
 /// 连通性测试：发起 stdio 会话并拉取工具清单。将一并验证用户的命令/
@@ -111,6 +121,7 @@ pub fn test_mcp_server(server: McpServerDto) -> Result<Vec<McpToolDto>> {
         url: server.url.clone(),
         headers_json: server.headers_json.clone(),
         enabled: true,
+        trusted: false,
         created_at: String::new(),
         updated_at: String::new(),
     };
