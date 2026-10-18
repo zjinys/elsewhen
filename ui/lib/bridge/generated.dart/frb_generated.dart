@@ -100,7 +100,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1803629858;
+  int get rustContentHash => -1806790268;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -887,6 +887,11 @@ abstract class RustLibApi extends BaseApi {
     required List<String> tags,
   });
 
+  Future<void> crateApiWebSearchSaveNetworkProxy({
+    required String proxyMode,
+    required String proxyUrl,
+  });
+
   Future<void> crateApiKnowledgeWorkflowsSaveSuggestionFeedback({
     required String messageId,
     required String decision,
@@ -1042,6 +1047,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<String> crateApiWebSearchTestDohConnection({required String dohUri});
+
+  Future<String> crateApiWebSearchTestProxyConnection({
+    required String proxyUrl,
+  });
 
   Future<PlatformInt64> crateApiKnowledgeTickKnowledgeInsights();
 
@@ -6869,6 +6878,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiWebSearchSaveNetworkProxy({
+    required String proxyMode,
+    required String proxyUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(proxyMode);
+          var arg1 = cst_encode_String(proxyUrl);
+          return wire.wire__crate__api__web_search__save_network_proxy(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWebSearchSaveNetworkProxyConstMeta,
+        argValues: [proxyMode, proxyUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebSearchSaveNetworkProxyConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_network_proxy",
+        argNames: ["proxyMode", "proxyUrl"],
+      );
+
+  @override
   Future<void> crateApiKnowledgeWorkflowsSaveSuggestionFeedback({
     required String messageId,
     required String decision,
@@ -7868,6 +7910,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "test_doh_connection",
         argNames: ["dohUri"],
+      );
+
+  @override
+  Future<String> crateApiWebSearchTestProxyConnection({
+    required String proxyUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(proxyUrl);
+          return wire.wire__crate__api__web_search__test_proxy_connection(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWebSearchTestProxyConnectionConstMeta,
+        argValues: [proxyUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWebSearchTestProxyConnectionConstMeta =>
+      const TaskConstMeta(
+        debugName: "test_proxy_connection",
+        argNames: ["proxyUrl"],
       );
 
   @override
@@ -10329,12 +10401,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return NetworkSettingsDto(
       dohUri: dco_decode_String(arr[0]),
       dohScope: dco_decode_String(arr[1]),
       dohMode: dco_decode_String(arr[2]),
+      proxyMode: dco_decode_String(arr[3]),
+      proxyUrl: dco_decode_String(arr[4]),
     );
   }
 
@@ -13789,10 +13863,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_dohUri = sse_decode_String(deserializer);
     var var_dohScope = sse_decode_String(deserializer);
     var var_dohMode = sse_decode_String(deserializer);
+    var var_proxyMode = sse_decode_String(deserializer);
+    var var_proxyUrl = sse_decode_String(deserializer);
     return NetworkSettingsDto(
       dohUri: var_dohUri,
       dohScope: var_dohScope,
       dohMode: var_dohMode,
+      proxyMode: var_proxyMode,
+      proxyUrl: var_proxyUrl,
     );
   }
 
@@ -17069,6 +17147,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.dohUri, serializer);
     sse_encode_String(self.dohScope, serializer);
     sse_encode_String(self.dohMode, serializer);
+    sse_encode_String(self.proxyMode, serializer);
+    sse_encode_String(self.proxyUrl, serializer);
   }
 
   @protected

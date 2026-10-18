@@ -489,24 +489,29 @@ mod tool_result_prune_tests {
     }
 
     /// 场景一：早期工具结果占位化即足以回到预算内——第一轮对话必须完整保留。
+    /// 工具结果必须 **多于 keep=3** 才会触发占位（fixture 曾只有 3 条踩坑：
+    /// 「最近 3 次保留」语义下 3<=3 恰好全保留，prune 永远不发生）。
     #[test]
     fn pruning_old_tool_results_keeps_history_intact() {
         let mut request = serde_json::json!({
             "messages": [
                 {"role":"user","content":"第一问"},
                 {"role":"assistant","content":"第一答","tool_calls":[{"id":"c0","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c0", 5000),
+                tool_msg("c0", 8000),
                 {"role":"user","content":"第二问"},
                 {"role":"assistant","content":"第二答","tool_calls":[{"id":"c1","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c1", 6000),
+                tool_msg("c1", 2500),
                 {"role":"user","content":"第三问"},
                 {"role":"assistant","content":"第三答","tool_calls":[{"id":"c2","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c2", 6000),
-                {"role":"user","content":"第四问，当前问题必须完整保留"},
+                tool_msg("c2", 2500),
+                {"role":"user","content":"第四问"},
+                {"role":"assistant","content":"第四答","tool_calls":[{"id":"c3","type":"function","function":{"name":"t","arguments":"{}"}}]},
+                tool_msg("c3", 2500),
+                {"role":"user","content":"第五问，当前问题必须完整保留"},
             ]
         });
         let first_user = request["messages"][0]["content"].clone();
-        let last_user = request["messages"][9]["content"].clone();
+        let last_user = request["messages"][12]["content"].clone();
         let mut policies = RequestPolicies::plain(&request);
         let count = policies
             .fit("unknown", &mut request, 14000, 256)
@@ -527,13 +532,17 @@ mod tool_result_prune_tests {
             msgs.iter()
                 .any(|m| m["role"] == "user" && m["content"] == last_user)
         );
-        // 近 3 个身位规则：c1、c2 原样；c0 占位
+        // 近 3 个身位规则：c1、c2、c3 原样；c0 占位
         let c0 = msgs.iter().find(|m| m["tool_call_id"] == "c0").unwrap();
         assert_eq!(c0["content"].as_str(), Some(PRUNED_TOOL_RESULT_PLACEHOLDER));
-        let c1 = msgs.iter().find(|m| m["tool_call_id"] == "c1").unwrap();
-        assert_eq!(c1["content"].as_str().map(str::len), Some(6000));
-        let c2 = msgs.iter().find(|m| m["tool_call_id"] == "c2").unwrap();
-        assert_eq!(c2["content"].as_str().map(str::len), Some(6000));
+        for id in ["c1", "c2", "c3"] {
+            let c = msgs.iter().find(|m| m["tool_call_id"] == id).unwrap();
+            assert_eq!(
+                c["content"].as_str().map(str::len),
+                Some(2500),
+                "{id} 应原样保留"
+            );
+        }
     }
 
     /// 场景二：占位化不够仍超预算 → 回落到整轮删除路径，且如实计数。

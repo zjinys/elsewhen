@@ -3244,6 +3244,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.dohUri),
       cst_encode_String(raw.dohScope),
       cst_encode_String(raw.dohMode),
+      cst_encode_String(raw.proxyMode),
+      cst_encode_String(raw.proxyUrl),
     ].jsify()!;
   }
 
@@ -6833,6 +6835,16 @@ class RustLibWire implements BaseWire {
     tags,
   );
 
+  void wire__crate__api__web_search__save_network_proxy(
+    NativePortType port_,
+    String proxy_mode,
+    String proxy_url,
+  ) => wasmModule.wire__crate__api__web_search__save_network_proxy(
+    port_,
+    proxy_mode,
+    proxy_url,
+  );
+
   void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -7148,6 +7160,14 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__web_search__test_doh_connection(
     port_,
     doh_uri,
+  );
+
+  void wire__crate__api__web_search__test_proxy_connection(
+    NativePortType port_,
+    String proxy_url,
+  ) => wasmModule.wire__crate__api__web_search__test_proxy_connection(
+    port_,
+    proxy_url,
   );
 
   void wire__crate__api__knowledge__tick_knowledge_insights(
@@ -8393,6 +8413,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny tags,
   );
 
+  external void wire__crate__api__web_search__save_network_proxy(
+    NativePortType port_,
+    String proxy_mode,
+    String proxy_url,
+  );
+
   external void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -8586,6 +8612,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__web_search__test_doh_connection(
     NativePortType port_,
     String doh_uri,
+  );
+
+  external void wire__crate__api__web_search__test_proxy_connection(
+    NativePortType port_,
+    String proxy_url,
   );
 
   external void wire__crate__api__knowledge__tick_knowledge_insights(

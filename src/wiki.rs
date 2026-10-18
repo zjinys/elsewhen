@@ -314,7 +314,7 @@ pub fn fetch_import_url(url: &str) -> Result<ImportedContent> {
         })
     } else {
         // 普通网页
-        let client = crate::http_proxy::with_env_proxy(reqwest::blocking::Client::builder())
+        let client = crate::http_proxy::with_outbound_proxy(reqwest::blocking::Client::builder())
             .timeout(std::time::Duration::from_secs(20))
             .build()
             .context("创建 HTTP 客户端失败")?;

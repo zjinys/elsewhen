@@ -24,6 +24,7 @@ import '../widgets/provider_endpoint_notice.dart';
 import '../widgets/knowledge_digest_dialog.dart';
 import '../widgets/web_search_settings.dart';
 import '../widgets/doh_settings.dart';
+import '../widgets/proxy_settings.dart';
 import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
 import '../utils/window_service.dart';
@@ -1594,9 +1595,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
-            title: '网络（DoH）',
+            title: 'DoH 加密 DNS',
             icon: Icons.shield_outlined,
             child: const DohSettings(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: '出站代理',
+            icon: Icons.vpn_key_outlined,
+            child: const ProxySettings(),
           ),
         ],
       ),

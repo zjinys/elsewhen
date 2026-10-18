@@ -3999,6 +3999,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.doh_uri = cst_encode_String(apiObj.dohUri);
     wireObj.doh_scope = cst_encode_String(apiObj.dohScope);
     wireObj.doh_mode = cst_encode_String(apiObj.dohMode);
+    wireObj.proxy_mode = cst_encode_String(apiObj.proxyMode);
+    wireObj.proxy_url = cst_encode_String(apiObj.proxyUrl);
   }
 
   @protected
@@ -13256,6 +13258,38 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__web_search__save_network_proxy(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> proxy_mode,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> proxy_url,
+  ) {
+    return _wire__crate__api__web_search__save_network_proxy(
+      port_,
+      proxy_mode,
+      proxy_url,
+    );
+  }
+
+  late final _wire__crate__api__web_search__save_network_proxyPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__web_search__save_network_proxy');
+  late final _wire__crate__api__web_search__save_network_proxy =
+      _wire__crate__api__web_search__save_network_proxyPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__web_search__save_web_search_config(
     int port_,
     bool enabled,
@@ -13320,6 +13354,33 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_wire__crate__api__web_search__test_doh_connection');
   late final _wire__crate__api__web_search__test_doh_connection =
       _wire__crate__api__web_search__test_doh_connectionPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__web_search__test_proxy_connection(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> proxy_url,
+  ) {
+    return _wire__crate__api__web_search__test_proxy_connection(
+      port_,
+      proxy_url,
+    );
+  }
+
+  late final _wire__crate__api__web_search__test_proxy_connectionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__web_search__test_proxy_connection',
+      );
+  late final _wire__crate__api__web_search__test_proxy_connection =
+      _wire__crate__api__web_search__test_proxy_connectionPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -17113,15 +17174,23 @@ final class wire_cst_network_settings_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_mode;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> proxy_mode;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> proxy_url;
+
   static ffi.Pointer<wire_cst_network_settings_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_uri,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_scope,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> doh_mode,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> proxy_mode,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> proxy_url,
   }) => $allocator<wire_cst_network_settings_dto>()
     ..ref.doh_uri = doh_uri
     ..ref.doh_scope = doh_scope
-    ..ref.doh_mode = doh_mode;
+    ..ref.doh_mode = doh_mode
+    ..ref.proxy_mode = proxy_mode
+    ..ref.proxy_url = proxy_url;
 }
 
 final class wire_cst_object_conflict_dto extends ffi.Struct {

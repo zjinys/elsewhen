@@ -33,14 +33,27 @@ const PROVIDER_ERROR_BODY_MAX_CHARS: usize = 300;
 /// 按 timeout 分档复用的 blocking HTTP client（P2 client 复用）。
 /// provider 每次 `new` 都重建 client 会反复建立连接池；这里按超时档
 /// 缓存一份全局实例，调用方共享连接池与 DNS 缓存。
-pub(crate) fn shared_blocking_client(timeout_secs: u64) -> Result<reqwest::blocking::Client> {
+/// 共享 client 池（模块级：代理策略变化时由 clear_shared_http_clients 清空）。
+fn shared_http_clients() -> &'static Mutex<Vec<(u64, reqwest::blocking::Client)>> {
     static CLIENTS: OnceLock<Mutex<Vec<(u64, reqwest::blocking::Client)>>> = OnceLock::new();
-    let clients = CLIENTS.get_or_init(|| Mutex::new(Vec::new()));
+    CLIENTS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+/// 代理策略变化时清空共享 client 池（client 长持有代理设置，不清不生效）。
+pub(crate) fn clear_shared_http_clients() {
+    shared_http_clients()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clear();
+}
+
+pub(crate) fn shared_blocking_client(timeout_secs: u64) -> Result<reqwest::blocking::Client> {
+    let clients = shared_http_clients();
     let mut clients = clients.lock().unwrap_or_else(|e| e.into_inner());
     if let Some((_, client)) = clients.iter().find(|(t, _)| *t == timeout_secs) {
         return Ok(client.clone());
     }
-    let client = crate::http_proxy::with_env_proxy(reqwest::blocking::Client::builder())
+    let client = crate::http_proxy::with_outbound_proxy(reqwest::blocking::Client::builder())
         .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
         .context("Failed to create HTTP client")?;

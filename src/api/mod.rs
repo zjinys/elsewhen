@@ -502,6 +502,8 @@ pub fn init_bridge(database_path: Option<String>) -> Result<String> {
             if let Err(e) = crate::ai::skills::reconcile_with_store(&config.data_dir, &store) {
                 eprintln!("[skills] reconcile failed: {e:#}");
             }
+            // 出站代理策略（migration 43）：启动时从库加载（off/custom 即时生效）。
+            crate::http_proxy::load_policy_from_store(&store);
             Store::mark_initialized(&config.database_path)?;
             Ok(())
         })

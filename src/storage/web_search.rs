@@ -55,6 +55,10 @@ pub struct NetworkSettings {
     pub doh_scope: String,
     /// 启用策略：off | auto | force。
     pub doh_mode: DohMode,
+    /// 出站代理策略：off（强制直连）| auto（跟随环境变量，默认）| custom。
+    pub proxy_mode: String,
+    /// custom 模式的代理地址：http:// 或 socks5:// 开头。
+    pub proxy_url: String,
 }
 
 impl NetworkSettings {
@@ -86,6 +90,8 @@ impl Default for NetworkSettings {
             doh_uri: String::new(),
             doh_scope: "search_only".to_string(),
             doh_mode: DohMode::Auto,
+            proxy_mode: "auto".to_string(),
+            proxy_url: String::new(),
         }
     }
 }
@@ -145,17 +151,39 @@ impl Store {
             params![now_iso()],
         )?;
         let s = self.connection.query_row(
-            "SELECT doh_uri,doh_scope,doh_mode FROM network_settings WHERE singleton=1",
+            "SELECT doh_uri,doh_scope,doh_mode,proxy_mode,proxy_url FROM network_settings WHERE singleton=1",
             [],
             |r| {
                 Ok(NetworkSettings {
                     doh_uri: r.get(0)?,
                     doh_scope: r.get(1)?,
                     doh_mode: DohMode::from_str(&r.get::<_, String>(2)?),
+                    proxy_mode: r.get(3)?,
+                    proxy_url: r.get(4)?,
                 })
             },
         )?;
         Ok(s)
+    }
+
+    /// 保存出站代理策略（mode: off|auto|custom）。校验 custom 必带 URL。
+    pub fn save_network_proxy(&self, proxy_mode: &str, proxy_url: &str) -> Result<()> {
+        let now = now_iso();
+        anyhow::ensure!(
+            matches!(proxy_mode, "off" | "auto" | "custom"),
+            "未知代理策略: {proxy_mode}"
+        );
+        let url = proxy_url.trim();
+        anyhow::ensure!(
+            proxy_mode != "custom"
+                || (!url.is_empty() && url.starts_with("http://") || url.starts_with("socks5://")),
+            "自定义代理地址需以 http:// 或 socks5:// 开头"
+        );
+        self.connection.execute(
+            "UPDATE network_settings SET proxy_mode=?1, proxy_url=?2, updated_at=?3 WHERE singleton=1",
+            params![proxy_mode, url, now],
+        )?;
+        Ok(())
     }
 
     /// 保存 DoH 服务地址与启用策略（scope 本版固定 search_only，不在这里改）。

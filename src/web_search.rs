@@ -611,6 +611,7 @@ mod tests {
             doh_uri: doh_uri.to_string(),
             doh_scope: "search_only".to_string(),
             doh_mode: crate::storage::DohMode::Force,
+            ..crate::storage::NetworkSettings::default()
         }
     }
 
@@ -688,6 +689,7 @@ mod tests {
             doh_uri: uri.to_string(),
             doh_scope: "search_only".to_string(),
             doh_mode: mode,
+            ..crate::storage::NetworkSettings::default()
         }
     }
 

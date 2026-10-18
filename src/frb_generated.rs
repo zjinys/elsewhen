@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1803629858;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1806790268;
 
 // Section: executor
 
@@ -4920,6 +4920,34 @@ fn wire__crate__api__import__save_imported_page_impl(
         },
     )
 }
+fn wire__crate__api__web_search__save_network_proxy_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    proxy_mode: impl CstDecode<String>,
+    proxy_url: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_network_proxy",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_proxy_mode = proxy_mode.cst_decode();
+            let api_proxy_url = proxy_url.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::web_search::save_network_proxy(
+                            api_proxy_mode,
+                            api_proxy_url,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge_workflows__save_suggestion_feedback_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     message_id: impl CstDecode<String>,
@@ -5763,6 +5791,30 @@ fn wire__crate__api__web_search__test_doh_connection_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::web_search::test_doh_connection(api_doh_uri)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__web_search__test_proxy_connection_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    proxy_url: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "test_proxy_connection",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_proxy_url = proxy_url.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::web_search::test_proxy_connection(api_proxy_url)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -8778,10 +8830,14 @@ impl SseDecode for crate::api::web_search::NetworkSettingsDto {
         let mut var_dohUri = <String>::sse_decode(deserializer);
         let mut var_dohScope = <String>::sse_decode(deserializer);
         let mut var_dohMode = <String>::sse_decode(deserializer);
+        let mut var_proxyMode = <String>::sse_decode(deserializer);
+        let mut var_proxyUrl = <String>::sse_decode(deserializer);
         return crate::api::web_search::NetworkSettingsDto {
             doh_uri: var_dohUri,
             doh_scope: var_dohScope,
             doh_mode: var_dohMode,
+            proxy_mode: var_proxyMode,
+            proxy_url: var_proxyUrl,
         };
     }
 }
@@ -11716,6 +11772,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::web_search::NetworkSettingsDt
             self.doh_uri.into_into_dart().into_dart(),
             self.doh_scope.into_into_dart().into_dart(),
             self.doh_mode.into_into_dart().into_dart(),
+            self.proxy_mode.into_into_dart().into_dart(),
+            self.proxy_url.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -14464,6 +14522,8 @@ impl SseEncode for crate::api::web_search::NetworkSettingsDto {
         <String>::sse_encode(self.doh_uri, serializer);
         <String>::sse_encode(self.doh_scope, serializer);
         <String>::sse_encode(self.doh_mode, serializer);
+        <String>::sse_encode(self.proxy_mode, serializer);
+        <String>::sse_encode(self.proxy_url, serializer);
     }
 }
 
@@ -17179,6 +17239,8 @@ mod io {
                 doh_uri: self.doh_uri.cst_decode(),
                 doh_scope: self.doh_scope.cst_decode(),
                 doh_mode: self.doh_mode.cst_decode(),
+                proxy_mode: self.proxy_mode.cst_decode(),
+                proxy_url: self.proxy_url.cst_decode(),
             }
         }
     }
@@ -18990,6 +19052,8 @@ mod io {
                 doh_uri: core::ptr::null_mut(),
                 doh_scope: core::ptr::null_mut(),
                 doh_mode: core::ptr::null_mut(),
+                proxy_mode: core::ptr::null_mut(),
+                proxy_url: core::ptr::null_mut(),
             }
         }
     }
@@ -21565,6 +21629,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__web_search__save_network_proxy(
+        port_: i64,
+        proxy_mode: *mut wire_cst_list_prim_u_8_strict,
+        proxy_url: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__web_search__save_network_proxy_impl(port_, proxy_mode, proxy_url)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge_workflows__save_suggestion_feedback(
         port_: i64,
         message_id: *mut wire_cst_list_prim_u_8_strict,
@@ -21906,6 +21979,14 @@ mod io {
         doh_uri: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__web_search__test_doh_connection_impl(port_, doh_uri)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__web_search__test_proxy_connection(
+        port_: i64,
+        proxy_url: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__web_search__test_proxy_connection_impl(port_, proxy_url)
     }
 
     #[unsafe(no_mangle)]
@@ -24347,6 +24428,8 @@ mod io {
         doh_uri: *mut wire_cst_list_prim_u_8_strict,
         doh_scope: *mut wire_cst_list_prim_u_8_strict,
         doh_mode: *mut wire_cst_list_prim_u_8_strict,
+        proxy_mode: *mut wire_cst_list_prim_u_8_strict,
+        proxy_url: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -27282,14 +27365,16 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                3,
-                "Expected 3 elements, got {}",
+                5,
+                "Expected 5 elements, got {}",
                 self_.length()
             );
             crate::api::web_search::NetworkSettingsDto {
                 doh_uri: self_.get(0).cst_decode(),
                 doh_scope: self_.get(1).cst_decode(),
                 doh_mode: self_.get(2).cst_decode(),
+                proxy_mode: self_.get(3).cst_decode(),
+                proxy_url: self_.get(4).cst_decode(),
             }
         }
     }
@@ -30290,6 +30375,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__web_search__save_network_proxy(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        proxy_mode: String,
+        proxy_url: String,
+    ) {
+        wire__crate__api__web_search__save_network_proxy_impl(port_, proxy_mode, proxy_url)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge_workflows__save_suggestion_feedback(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         message_id: String,
@@ -30631,6 +30725,14 @@ mod web {
         doh_uri: String,
     ) {
         wire__crate__api__web_search__test_doh_connection_impl(port_, doh_uri)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__web_search__test_proxy_connection(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        proxy_url: String,
+    ) {
+        wire__crate__api__web_search__test_proxy_connection_impl(port_, proxy_url)
     }
 
     #[wasm_bindgen]
