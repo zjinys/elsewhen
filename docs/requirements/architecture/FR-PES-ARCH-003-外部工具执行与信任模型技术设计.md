@@ -47,7 +47,7 @@ CREATE TABLE mcp_servers (
 );
 ```
 
--FrB 侧动态 JSON 全部字符串化（`args_json`/`env_json`/`headers_json`）；`serde_json::Value` 不过 frb 界面。
+- FFI 侧动态 JSON 全部字符串化（`args_json`/`env_json`/`headers_json`）；`serde_json::Value` 不过 frb 界面。
 - 双语义列 `enabled`（可调用性）与 `trusted`（审批豁免）正交：停用的 server 即使 trusted 也拒绝（`call_tool` 只查 enabled）。
 - 技能侧信任存 `<data_dir>/skills_state.json`（`trusted: Vec<String>`），非数据库——随体系既有约定，且天然本机化。
 
