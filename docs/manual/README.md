@@ -11,12 +11,14 @@ Elsewhen helps you **record what happens and what you think each day**, and the 
 - **知识库**：AI 把你的记录沉淀成关于你的笔记，随时翻看。
 - **待办与目标**：记下要做什么，跟踪你的目标。
 - **收藏**：把网页、推文、文章存进来。
+- **工具与技能**：让 AI 连外部服务、跑你定义的脚本（每次先问你）。
 
 - **Quick capture**: a shortcut opens a small window to jot something down in seconds.
 - **Chat with AI**: ask questions, have it add todos, organize ideas.
 - **Knowledge base**: AI distills your notes into pages about you.
 - **Todos & goals**: track what to do and where you're headed.
 - **Save content**: keep web pages, tweets, and articles.
+- **Tools & skills**: let the AI call external services and run scripts you define (with your approval each time).
 
 ## 目录 / Contents
 
@@ -27,3 +29,4 @@ Elsewhen helps you **record what happens and what you think each day**, and the 
 5. [收藏与导入 / Saving Content](05-import.md)
 6. [待办与目标 / Todos & Goals](06-todos-and-goals.md)
 7. [设置 / Settings](07-settings.md)
+8. [外部工具与技能 / External Tools & Skills](08-external-tools-and-skills.md)
