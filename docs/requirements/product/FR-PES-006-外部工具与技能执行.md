@@ -33,7 +33,7 @@ Elsewhen 的对话不适合只做「读写自己的库」。用户要求 AI 能�
 - 不做连接空闲回收、后台健康巡检、自动重连策略调优。
 - **不做细粒度「总是允许此工具」**。信任粒度是 server/技能整体，不细化到单个工具、单个参数模式。
 - 不做跨设备同步 trusted 状态（见 §2）。也不做逐平台布尔组合（标签单值：all/linux/macos/windows，跨平台需求用同名变体表达）。
-- 不在 v1 做「移动端把执行委托给桌面节点」（云端/本地执行选择），该方向已成文为独立提案（docs/notes/proposed/architecture/2026-10-18-mobile-execution-delegation.md），且以平台标签为前置。
+- 不在 v1 做「移动端把执行委托给桌面节点」（云端/本地执行选择），该方向经评估已搁置（Deferred），成文见 docs/notes/proposed/architecture/2026-10-18-mobile-execution-delegation.md——平台标签（迁移 48）已覆盖手机端高频工具需求，重启前只考虑 fire-and-forget 轻量形态。
 - 不做审批卡的多 delegated 审阅（会话内 pending 卡只有一份，不接受多人审批）。
 - 不承诺 MCP server 的行为安全。trusted 只表示用户对它的声明，不构成系统层面的任何安全背书。
 
