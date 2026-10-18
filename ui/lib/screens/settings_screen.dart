@@ -144,7 +144,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 9, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
     _loadVersion();
     final settings = ref.read(settingsProvider);
     // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
@@ -933,7 +933,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           _buildIntegrationTab(),
                           _buildNetworkTab(),
                           _buildSkillsTab(),
-                          _buildSyncTab(),
                           _buildKnowledgeTab(),
                           _buildDataTab(),
                           _buildRulesTab(),
@@ -1024,13 +1023,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(4, '技能', Icons.extension_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(5, '同步', Icons.devices_outlined),
+                  _buildSettingsTabItem(5, '知识', Icons.auto_stories_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(6, '知识', Icons.auto_stories_outlined),
+                  _buildSettingsTabItem(6, '数据', Icons.dataset_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(7, '数据', Icons.dataset_outlined),
-                  const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(8, '规则', Icons.rule_outlined),
+                  _buildSettingsTabItem(7, '规则', Icons.rule_outlined),
                 ],
               ),
             ),
@@ -1092,7 +1089,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               Tab(text: '集成', icon: Icon(Icons.hub_outlined, size: 17)),
               Tab(text: '网络', icon: Icon(Icons.dns_outlined, size: 17)),
               Tab(text: '技能', icon: Icon(Icons.extension_outlined, size: 17)),
-              Tab(text: '同步', icon: Icon(Icons.devices_outlined, size: 17)),
               Tab(
                 text: '知识',
                 icon: Icon(Icons.auto_stories_outlined, size: 17),
@@ -1892,23 +1888,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       );
 
   /// 设备同步独立 tab：本地密钥/移交/名册/冲突态势都聚在区块内。
-  Widget _buildSyncTab() {
-    final repository = ref.watch(storageRepositoryProvider);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppTheme.space6),
-      child: _buildSection(
-        title: '设备同步',
-        icon: Icons.devices_outlined,
-        child: LocalSyncSettings(
-          controller: repository is RustBridgeRepository
-              ? repository.localSync
-              : null,
-          repository: repository is RustBridgeRepository ? repository : null,
-        ),
-      ),
-    );
-  }
-
   /// 知识管道仪表（主循环吞吐与产物）：分析队列 → 消化 → 导出。
   /// 与「数据」tab（存储与用量）分开——原单 tab 五组内容太挤。
   Widget _buildKnowledgeTab() {
@@ -2090,9 +2069,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       decoration: BoxDecoration(
         color: AppTheme.surface1.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.surface3.withValues(alpha: 0.6),
-        ),
+        border: Border.all(color: AppTheme.surface3.withValues(alpha: 0.6)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.12),

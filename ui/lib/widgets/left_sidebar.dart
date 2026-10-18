@@ -11,6 +11,8 @@ import '../providers/wiki_provider.dart';
 import '../providers/review_provider.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
+import 'sync_workspace.dart';
+import '../bridge/rust_bridge_repository.dart';
 
 /// 「最近使用」最多显示的页面数。
 ///
@@ -87,6 +89,10 @@ class LeftSidebar extends ConsumerWidget {
               SidebarTab.wiki => const _WikiTab(),
               // 回顾页左栏：近 7 天入口，点击切换日期与日粒度
               SidebarTab.review => const _ReviewNavSummary(),
+              // 同步左栏：健康度仪表（成员/心跳），操作在右侧工作区
+              SidebarTab.sync => SyncNavSummaryOrPlaceholder(
+                  repository: ref.watch(storageRepositoryProvider),
+                ),
             },
           ),
           _buildFooter(context, ref),
@@ -202,10 +208,11 @@ class LeftSidebar extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          for (final (i, action) in _footerActions(context, ref, activeTab).indexed) ...[
-            if (i > 0) const SizedBox(height: 2),
-            action,
-          ],
+          for (final (i, action) in _footerActions(
+            context,
+            ref,
+            activeTab,
+          ).indexed) ...[if (i > 0) const SizedBox(height: 2), action],
         ],
       ),
     );
@@ -252,6 +259,17 @@ List<_FooterAction> _footerActions(
         ref.read(sidebarTabProvider.notifier).set(SidebarTab.review);
       },
     ),
+    // 同步一级入口：配对完成后的持续状态仪表（设备/心跳），不该沉在设置里。
+    // 单入口：主区放完整 LocalSyncSettings 工作区，设置页的同步 tab 已删。
+    _FooterAction(
+      icon: Icons.devices_outlined,
+      label: '同步',
+      isActive: activeTab == SidebarTab.sync,
+      iconOnly: iconOnly,
+      onTap: () {
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.sync);
+      },
+    ),
     // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与
     // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。
     _FooterAction(
@@ -264,9 +282,8 @@ List<_FooterAction> _footerActions(
         if (scaffold?.isDrawerOpen ?? false) {
           Navigator.of(context).pop();
         }
-        await Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+        await Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
         // 从设置页返回后刷新首次运行探测（横幅是否该消失）
         ref.invalidate(aiProviderConfiguredProvider);
       },
@@ -381,8 +398,9 @@ class _FooterAction extends StatelessWidget {
                             ? AppTheme.accentPrimary
                             : AppTheme.textSecondary,
                         fontSize: 13,
-                        fontWeight:
-                            isActive ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: isActive
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                       ),
                     ),
                   ],
@@ -586,118 +604,125 @@ class _WikiPageItem extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border(
                 left: BorderSide(
-                  color: isSelected ? AppTheme.accentPrimary : Colors.transparent,
+                  color: isSelected
+                      ? AppTheme.accentPrimary
+                      : Colors.transparent,
                   width: 3,
                 ),
               ),
             ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  // kind 色点徽标：与分组标题同色，形成双重视觉索引
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppTheme.space2),
-                    child: _KindBadge(kind: page.kind, label: page.kindLabel),
-                  ),
-                  Expanded(
-                    child: Text(
-                      page.title,
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 14,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.space2),
-                  if (page.sourceUrl != null)
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // kind 色点徽标：与分组标题同色，形成双重视觉索引
                     Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Icon(
-                        page.isLocalPath ? Icons.folder_outlined : Icons.link,
-                        size: 12,
+                      padding: const EdgeInsets.only(right: AppTheme.space2),
+                      child: _KindBadge(kind: page.kind, label: page.kindLabel),
+                    ),
+                    Expanded(
+                      child: Text(
+                        page.title,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.space2),
+                    if (page.sourceUrl != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Icon(
+                          page.isLocalPath ? Icons.folder_outlined : Icons.link,
+                          size: 12,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusFull,
+                        ),
+                      ),
+                      child: Text(
+                        '证据 ${page.evidenceCount}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.accentPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (page.summary.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.space1),
+                  Text(
+                    page.summary,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: AppTheme.space1),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 2,
+                        children: [
+                          for (final tag in page.tags.take(3))
+                            Text(
+                              '#$tag',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppTheme.accentMuted,
+                              ),
+                            ),
+                          if (page.tags.length > 3)
+                            Text(
+                              '+${page.tags.length - 3}',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppTheme.textTertiary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.space2),
+                    Text(
+                      _formatRelative(page.updatedAt),
+                      style: TextStyle(
+                        fontSize: 10.5,
                         color: AppTheme.textTertiary,
                       ),
                     ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentPrimary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                    ),
-                    child: Text(
-                      '证据 ${page.evidenceCount}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.accentPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (page.summary.isNotEmpty) ...[
-                const SizedBox(height: AppTheme.space1),
-                Text(
-                  page.summary,
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  ],
                 ),
               ],
-              const SizedBox(height: AppTheme.space1),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 2,
-                      children: [
-                        for (final tag in page.tags.take(3))
-                          Text(
-                            '#$tag',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: AppTheme.accentMuted,
-                            ),
-                          ),
-                        if (page.tags.length > 3)
-                          Text(
-                            '+${page.tags.length - 3}',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: AppTheme.textTertiary,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.space2),
-                  Text(
-                    _formatRelative(page.updatedAt),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: AppTheme.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _EmptyState extends StatelessWidget {
