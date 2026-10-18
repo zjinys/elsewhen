@@ -41,33 +41,39 @@ class SyncWorkspace extends StatelessWidget {
           color: AppTheme.accentPrimary.withValues(alpha: 0.1),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+      // 透明 Material 垫底（同 settings_screen._buildSection）：带背景色的
+      // DecoratedBox 不能挡在 ListTile 与其 Material 祖先之间，否则同步设置里
+      // 的 CheckboxListTile / 成员卡背景与水波纹不可见，debug 直接断言崩。
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: AppTheme.accentPrimary, size: 20),
                 ),
-                child: Icon(icon, color: AppTheme.accentPrimary, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.space4),
-          child,
-        ],
+              ],
+            ),
+            const SizedBox(height: AppTheme.space4),
+            child,
+          ],
+        ),
       ),
     );
   }
