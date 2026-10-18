@@ -1593,6 +1593,30 @@ class _NowStatus extends ConsumerWidget {
                       ChatProposalReviewButton(conversationId: conversationId),
                     ],
                     const Spacer(),
+                    // 防跳动：会出现/消失的 widget 全部排在左边，常驻按钮钉死
+                    // 最右。provider 名加载异步、最长、最易有/无 → 挪到最左，
+                    // 它的闪烁只影响自己左边（没人），不再推挤右侧所有图标。
+                    if (activeProvider != null) ...[
+                      Icon(
+                        Icons.smart_toy_outlined,
+                        size: 14,
+                        color: AppTheme.textTertiary,
+                      ),
+                      const SizedBox(width: 5),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 120),
+                        child: Text(
+                          activeProvider,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1611,52 +1635,34 @@ class _NowStatus extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    if (tokenUsage != null) ...[
-                      const SizedBox(width: 12),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.data_usage_outlined,
-                            size: 14,
-                            color: AppTheme.textTertiary,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Token${_formatTokens(tokenUsage.totalTokens)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    // Token 永远占位：有数据显数值，没数据显「Token–」，不再
+                    // 整个消失导致右侧图标来回跳。
                     const SizedBox(width: 12),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (activeProvider != null) ...[
-                          Icon(
-                            Icons.smart_toy_outlined,
-                            size: 14,
-                            color: AppTheme.textTertiary,
+                        Icon(
+                          Icons.data_usage_outlined,
+                          size: 14,
+                          color: AppTheme.textTertiary,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          tokenUsage != null
+                              ? 'Token${_formatTokens(tokenUsage.totalTokens)}'
+                              : 'Token–',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
                           ),
-                          const SizedBox(width: 5),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 120),
-                            child: Text(
-                              activeProvider,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                        ],
+                        ),
+                      ],
+                    ),
+                    // 常驻按钮区：复制全部（可能无）也在搜索左边，搜索钉死最右。
+                    const SizedBox(width: 12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         if (onCopyAll != null)
                           IconButton(
                             tooltip: '复制全部对话',
