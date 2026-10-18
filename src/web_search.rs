@@ -68,8 +68,12 @@ pub enum Transport {
 impl Transport {
     /// 按 DoH 三态构建传输。off 一律直连；auto/force 在填了地址时走 DoH（auto 允许回退，
     /// force 不回退）；auto/force 但没填地址时也直连（等价 off，不算错误）。
+    ///
+    /// 例外：出站代理为 custom（用户显式挂代理）时 DoH 一律让位——「挂了代理就
+    /// 全走代理」，两条隧道不叠用；代理挂了也别指望 DoH 救场，那不是它的职责。
     pub fn new(settings: &crate::storage::NetworkSettings, timeout: Duration) -> Self {
-        if settings.should_use_doh() {
+        let proxy_mode_custom = settings.proxy_mode == "custom";
+        if settings.should_use_doh() && !proxy_mode_custom {
             Transport::Doh {
                 doh_uri: settings.doh_uri.clone(),
                 timeout,
@@ -680,6 +684,26 @@ mod tests {
         assert_eq!(urlencoding_simple("a+b=c"), "a%2Bb%3Dc");
         // 中文按 UTF-8 字节编码
         assert!(urlencoding_simple("搜索").starts_with('%'));
+    }
+
+    #[test]
+    fn custom_proxy_suppresses_doh_transport() {
+        // 「挂了代理就全走代理」：proxy_mode=custom 时 DoH 即使 force+有地址也
+        // 不再构建 DoH 传输，退化 Direct（而 Direct 走代理 client）。
+        let mut settings = settings_with(crate::storage::DohMode::Force, "https://dns.example/dns-query");
+        settings.proxy_mode = "custom".to_string();
+        settings.proxy_url = "http://127.0.0.1:7890".to_string();
+        assert!(matches!(
+            Transport::new(&settings, Duration::from_secs(5)),
+            Transport::Direct { .. }
+        ));
+
+        // 非 custom（auto/off 代理模式）不抑制 DoH。
+        let settings = settings_with(crate::storage::DohMode::Force, "https://dns.example/dns-query");
+        assert!(matches!(
+            Transport::new(&settings, Duration::from_secs(5)),
+            Transport::Doh { .. }
+        ));
     }
 
     // ── DoH 三态决策 ──

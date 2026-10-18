@@ -633,9 +633,10 @@ fn download_tweet_images(tweet_id: &str, data_dir: &std::path::Path, content: &m
         }
     }
     // 第二遍：直连失败的图，若配置了 DoH 则走 DoH+ECH 隧道重试。
+    // 用户显式挂代理（proxy_mode=custom）时 DoH 让位：「挂了代理就全走代理」。
     if !direct_failed.is_empty() {
         if let Some(net) = load_doh_settings() {
-            if net.should_use_doh() {
+            if net.should_use_doh() && net.proxy_mode != "custom" {
                 for &idx in &direct_failed {
                     let url = &content.image_urls[idx];
                     match download_one_image_via_doh(url, &net.doh_uri, &dir, idx) {

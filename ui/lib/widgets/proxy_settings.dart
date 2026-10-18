@@ -265,7 +265,7 @@ class _ProxySettingsState extends State<ProxySettings> {
   Widget _buildHint() {
     final hint = switch (_mode) {
       'off' => '所有出站请求强制直连，环境变量中的代理不再生效。',
-      'custom' => 'AI 请求、外网搜索、wiki 外链与同步 relay 都走此代理；本机（127.0.0.1）地址例外。',
+      'custom' => 'AI 请求、外网搜索、wiki 外链与同步 relay 都走此代理；本机（127.0.0.1）地址例外。挂代理期间 DoH 隧道自动让位，不再叠用。',
       _ => '与启动脚本探测的 clash 端口相同来源：HTTPS_PROXY / ALL_PROXY，未设置则直连。',
     };
     return Text(
