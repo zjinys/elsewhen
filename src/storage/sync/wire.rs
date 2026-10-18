@@ -122,8 +122,21 @@ impl Store {
             );
             if header.key_version == version as u64 {
                 if state == "acknowledged" {
-                    // 已确认信封不可变：同 id 内容漂移＝完整性事故。
-                    ensure!(hash == digest, "sync_wire_identity_content_conflict");
+                    // 已确认信封不可变。但密文含随机 nonce：同一明文重封密文必变，
+                    // 而确认过的语义是「对方已拿到这份内容」，重发不携带新信息。
+                    // 信封 id 自带内容版本（provider:{revision} / op hash），明文
+                    // 一旦漂移不可能撞同 id —— 因此同 id + 不同密文＝同一内容的
+                    // 确定性重发，按幂等处理并留审计日志，不再堵死发件队列。
+                    if hash != digest {
+                        eprintln!(
+                            "[sync-wire] acknowledged re-seal skipped recipient={} id={} stored={} incoming={}",
+                            header.recipient_device_id, header.message_id, hash, digest
+                        );
+                    }
+                    if let Some(tx) = tx {
+                        tx.commit()?;
+                    }
+                    return Ok(bytes);
                 }
                 if hash == digest {
                     // 同内容幂等短路：返回已封密文，不再重新 seal。
@@ -394,16 +407,10 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
-        // 已确认信封是铁律：同 id、不同内容 → 拒绝。
-        assert!(
-            store
-                .stage_sync_wire_envelope(&header, &key, &signer, b"tampered")
-                .unwrap_err()
-                .to_string()
-                .contains("sync_wire_identity_content_conflict")
-        );
-        // 同 id 同内容：幂等短路，返回已有密文（跨 reopen 后仍在库中）。
-        let stored: Vec<u8> = store
+        // 已确认信封返回已存密文：同 id、不同密文＝同明文重封（nonce 随机），
+        // 幂等返回而非报错 —— 报错会堵死整个发件队列（provider 重发事故验证）。
+        // 真正的明文漂移不可撞同 id：id 自带内容版本/哈希。
+        let stored_from_db: Vec<u8> = store
             .connection
             .query_row(
                 "SELECT encrypted_envelope FROM sync_wire_outbox WHERE recipient_device_id='b' AND message_id=?1",
@@ -413,9 +420,16 @@ mod tests {
             .unwrap();
         assert_eq!(
             store
+                .stage_sync_wire_envelope(&header, &key, &signer, b"tampered")
+                .unwrap(),
+            stored_from_db
+        );
+        // 同 id 同内容：幂等短路，返回已有密文（跨 reopen 后仍在库中）。
+        assert_eq!(
+            store
                 .stage_sync_wire_envelope(&header, &key, &signer, b"different")
                 .unwrap(),
-            stored
+            stored_from_db
         );
         drop(store);
         std::fs::remove_dir_all(dir).unwrap();
