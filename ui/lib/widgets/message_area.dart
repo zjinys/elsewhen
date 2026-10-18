@@ -6,6 +6,7 @@ import 'app_pressable.dart';
 import 'glass.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
+// ignore: unused_import — 翻篇入口暂隐藏，放量时恢复
 import 'page_mark_review.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
@@ -333,9 +334,8 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           messages: messagesAsync.value ?? const [],
           showSearch: showSearch,
           onOpenDrafts: () => openKnowledgeDraftsDialog(context),
-          onOpenPageMarks: selectedId.isEmpty
-              ? null
-              : () => openPageMarkListDialog(context, ref, selectedId),
+          // 翻篇记录入口暂隐藏：与「翻篇到此」同批放量。
+          onOpenPageMarks: null,
           onOpenTodos: () => openTodoDialog(context),
           onOpenGoals: () => openGoalDialog(context),
           onToggleSearch: () => ref
@@ -2022,13 +2022,13 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                         // 点击不直接调工具——把明确指令预填进输入框，用户可改可发，
                         // 草稿仍走确认门（比按钮直写库透明，也不绕开用户把关）。
                         if (!isUser) _SaveTopicButton(message: message),
-                        // 「翻篇到此」：以本条为边界生成章节摘要（P2 手动翻篇）。
-                        // 用户消息也允许——边界前含用户原文即可摘要。
-                        if (canFlipPast)
-                          PageMarkToolButton(
-                            conversationId: message.conversationId,
-                            boundaryMessageId: message.id,
-                          ),
+                        // 「翻篇到此」入口暂隐藏：功能在 Rust 侧已就绪，
+                        // 待装机观测/冲突裁决后放量（canFlipPast 判定保留）。
+                        // if (canFlipPast)
+                        //   PageMarkToolButton(
+                        //     conversationId: message.conversationId,
+                        //     boundaryMessageId: message.id,
+                        //   ),
                         if (isUser) _buildRecordability(context, ref),
                       ],
                     ),
@@ -2189,24 +2189,9 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                   SaveTopicDialog.show(context, message.content);
                 },
               ),
-            if (canFlipPast)
-              ListTile(
-                leading: Icon(
-                  Icons.auto_stories,
-                  color: AppTheme.accentPrimary,
-                ),
-                title: const Text('翻篇到此'),
-                subtitle: const Text('此前历史收进章节摘要，新请求不再携带原文'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  openPageMarkCreateDialog(
-                    context,
-                    this.ref,
-                    message.conversationId,
-                    message.id,
-                  );
-                },
-              ),
+            // 「翻篇到此」入口暂隐藏（同工具条注释）。
+            // if (canFlipPast)
+            //   ListTile(...),
           ],
         ),
       ),
