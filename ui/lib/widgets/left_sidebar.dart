@@ -90,7 +90,7 @@ class LeftSidebar extends ConsumerWidget {
               // 回顾页左栏：近 7 天入口，点击切换日期与日粒度
               SidebarTab.review => const _ReviewNavSummary(),
               // 同步左栏：健康度仪表（成员/心跳），操作在右侧工作区
-              SidebarTab.sync => SyncNavSummaryOrPlaceholder(
+              SidebarTab.sync => SyncNavSummary(
                   repository: ref.watch(storageRepositoryProvider),
                 ),
             },

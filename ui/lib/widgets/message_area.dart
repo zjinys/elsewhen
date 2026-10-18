@@ -1522,7 +1522,10 @@ class _NowStatus extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 780;
+          // 宽形态一行的自然宽度实测约 950–1000px（今天+草稿+目标+待办+审阅
+          // +对话统计+Token+provider+2 图标按钮）；断点取 1020 留出余量。
+          // 旧值 780 在图标轨（700–1024 窗口）区间会溢出 RenderFlex。
+          final compact = constraints.maxWidth < 1020;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
