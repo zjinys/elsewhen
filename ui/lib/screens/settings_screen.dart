@@ -143,7 +143,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
     _loadVersion();
     final settings = ref.read(settingsProvider);
     // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
@@ -931,6 +931,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           _buildAppearanceTab(settings),
                           _buildServiceTab(),
                           _buildSyncTab(),
+                          _buildKnowledgeTab(),
                           _buildDataTab(),
                           _buildRulesTab(),
                         ],
@@ -1018,9 +1019,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(3, '同步', Icons.devices_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(4, '数据', Icons.dataset_outlined),
+                  _buildSettingsTabItem(4, '知识', Icons.auto_stories_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(5, '规则', Icons.rule_outlined),
+                  _buildSettingsTabItem(5, '数据', Icons.dataset_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(6, '规则', Icons.rule_outlined),
                 ],
               ),
             ),
@@ -1081,6 +1084,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
               Tab(text: '服务', icon: Icon(Icons.cloud_outlined, size: 17)),
               Tab(text: '同步', icon: Icon(Icons.devices_outlined, size: 17)),
+              Tab(text: '知识', icon: Icon(Icons.auto_stories_outlined, size: 17)),
               Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
               Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),
             ],
@@ -1811,7 +1815,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  Widget _buildDataTab() {
+  /// 知识管道仪表（主循环吞吐与产物）：分析队列 → 消化 → 导出。
+  /// 与「数据」tab（存储与用量）分开——原单 tab 五组内容太挤。
+  Widget _buildKnowledgeTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
       child: Column(
@@ -1834,7 +1840,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             icon: Icons.ios_share_outlined,
             child: _buildWikiExportContent(),
           ),
-          const SizedBox(height: AppTheme.space6),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           _buildSection(
             title: '数据库维护',
             icon: Icons.cleaning_services_outlined,

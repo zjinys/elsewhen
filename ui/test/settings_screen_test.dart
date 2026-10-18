@@ -93,15 +93,13 @@ void main() {
       reason: '模型 tab：provider 为卡片布局，仅记忆策略有文本输入',
     );
 
-    // 切到「数据」tab 应看到每日 Token 使用区块（纯展示，不依赖是否有记录）
-    await tester.tap(find.text('数据'));
+    // 「知识」tab：知识管道仪表（事件分析队列 / 知识消化 / 知识导出）
+    await tester.tap(find.text('知识'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('每日 Token 使用'), findsOneWidget);
     expect(find.text('事件分析队列'), findsOneWidget);
-    // 「数据」tab 上有两个队列区块（事件分析队列 / 知识消化），两者都有「待处理」
-    // 「已完成」「失败」三枚同名指标，故这三条按 2 枚断言；下面几条是事件分析
-    // 队列独有的指标，仍要求恰好一枚。
+    // 两个队列区块（事件分析队列 / 知识消化）都有「待处理」「已完成」「失败」
+    // 三枚同名指标，故按 2 枚断言；下面几条是事件分析队列独有，仍要求恰好一枚。
     expect(find.text('待处理'), findsNWidgets(2));
     expect(find.text('已完成'), findsNWidgets(2));
     expect(find.text('失败'), findsNWidgets(2));
@@ -111,6 +109,13 @@ void main() {
     expect(find.text('知识消化'), findsOneWidget);
     expect(find.text('知识消化状态读取失败'), findsNothing);
     expect(find.text('跳过'), findsOneWidget);
+
+    // 「数据」tab：存储与用量（数据库维护 / 每日 Token 使用）
+    await tester.tap(find.text('数据'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('每日 Token 使用'), findsOneWidget);
+    expect(find.text('数据库维护'), findsOneWidget);
   });
 
   testWidgets('外观 tab：正文字号滑块存在并驱动设置状态', (tester) async {
