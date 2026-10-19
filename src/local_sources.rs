@@ -1298,105 +1298,6 @@ pub(crate) fn confirm_file_import(
     Ok(report)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    fn temp_path(label: &str) -> PathBuf {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        std::env::temp_dir().join(format!("elsewhen-{label}-{nonce}"))
-    }
-
-    #[test]
-    fn evidence_sanitization_removes_secrets_and_credentials() {
-        let sanitized = sanitize_evidence(
-            "API_KEY=super-secret\npassword: hunter2\nlet normal = true;\nAuthorization: Bearer abc",
-        );
-        assert!(!sanitized.contains("super-secret"));
-        assert!(!sanitized.contains("hunter2"));
-        assert!(!sanitized.contains("Bearer abc"));
-        assert!(sanitized.contains("let normal = true;"));
-        assert!(is_sensitive_evidence_path("credentials.json"));
-        assert!(is_sensitive_evidence_path("signing.p12"));
-        assert!(!is_sensitive_evidence_path("readme.md"));
-    }
-
-    #[test]
-    fn project_evidence_is_bounded_and_skips_sensitive_files() {
-        let directory = temp_path("evidence-test");
-        fs::create_dir_all(&directory).unwrap();
-        fs::write(directory.join("README.md"), "# Evidence fixture").unwrap();
-        fs::write(
-            directory.join("credentials.json"),
-            "{\"private_key\": \"do-not-send\"}",
-        )
-        .unwrap();
-        for index in 0..40 {
-            fs::write(
-                directory.join(format!("module-{index}.rs")),
-                format!("fn item_{index}() {{}}\n{}", "x".repeat(1500)),
-            )
-            .unwrap();
-        }
-
-        let evidence =
-            collect_project_evidence(&directory, &collect_project_files(&directory).unwrap().0)
-                .unwrap();
-
-        assert!(evidence.chars().count() <= MAX_AI_EVIDENCE_CHARS);
-        assert!(evidence.matches("\n### ").count() <= MAX_AI_EVIDENCE_FILES);
-        assert!(!evidence.contains("do-not-send"));
-        assert!(evidence.contains("Evidence fixture"));
-        let _ = fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn project_scan_is_bounded_and_marks_truncation() {
-        let directory = temp_path("scan-limit");
-        fs::create_dir_all(&directory).unwrap();
-        for index in 0..=MAX_PROJECT_SCAN_FILES {
-            fs::write(directory.join(format!("file-{index}.rs")), "fn main() {}").unwrap();
-        }
-
-        let summary = analyze_project(&directory).unwrap();
-
-        assert_eq!(summary.files, MAX_PROJECT_SCAN_FILES);
-        assert!(summary.scan_truncated);
-        assert!(summary.content_md.contains("候选清单达到上限：是"));
-        let _ = fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn ingest_project_summary_persists_exact_preview_without_rescanning() {
-        let db_path = temp_path("summary-test.db");
-        let directory = temp_path("missing-source");
-        let store = Store::open(&db_path).unwrap();
-        let summary = ProjectSummary {
-            project_name: "Preview Project".into(),
-            files: 7,
-            skipped: 2,
-            scan_truncated: false,
-            content_md: "# Exact preview\n\nGenerated once.".into(),
-        };
-
-        let report = ingest_project_summary(&store, &directory, summary).unwrap();
-
-        assert_eq!(report.files, 7);
-        assert_eq!(report.pages, vec!["project/preview-project"]);
-        assert_eq!(
-            store
-                .get_wiki_page("project/preview-project")
-                .unwrap()
-                .unwrap()
-                .content_md,
-            "# Exact preview\n\nGenerated once."
-        );
-        drop(store);
-        let _ = fs::remove_file(db_path);
     }
 }
 
@@ -1467,3 +1368,8 @@ pub fn plan_topic(store: &Store, topic: &str) -> Result<String> {
     tx.commit()?;
     Ok(slug)
 }
+
+#[cfg(test)]
+#[path = "local_sources_tests/mod.rs"]
+mod tests;
+
