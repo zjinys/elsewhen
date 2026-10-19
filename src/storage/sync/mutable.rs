@@ -22,6 +22,7 @@ fn todo_record_from_row(
     status: String,
     priority: String,
     due_at: Option<String>,
+    reminder: i64,
     related_event_id: Option<String>,
     related_wiki_slug: Option<String>,
     note: Option<String>,
@@ -34,6 +35,7 @@ fn todo_record_from_row(
         status,
         priority,
         due_at,
+        reminder: reminder != 0,
         related_event_id,
         related_wiki_slug,
         note,
@@ -49,7 +51,7 @@ impl Store {
     fn sync_todo_record(&self, id: &str) -> Result<Option<TodoRecord>> {
         self.connection
             .query_row(
-                "SELECT id,title,status,priority,due_at,related_event_id,related_wiki_slug,note,created_at,updated_at \
+                "SELECT id,title,status,priority,due_at,reminder,related_event_id,related_wiki_slug,note,created_at,updated_at \
                  FROM todos WHERE id=?1",
                 [id],
                 |r| {
@@ -64,6 +66,7 @@ impl Store {
                         r.get(7)?,
                         r.get(8)?,
                         r.get(9)?,
+                        r.get(10)?,
                     ))
                 },
             )
@@ -248,10 +251,10 @@ impl Store {
             return Ok(Apply::Applied);
         }
         let changed = self.connection.execute(
-            "INSERT INTO todos(id,title,status,priority,due_at,related_event_id,related_wiki_slug,note,created_at,updated_at) \
-             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10) \
+            "INSERT INTO todos(id,title,status,priority,due_at,reminder,related_event_id,related_wiki_slug,note,created_at,updated_at) \
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11) \
              ON CONFLICT(id) DO UPDATE SET title=excluded.title,status=excluded.status,priority=excluded.priority, \
-             due_at=excluded.due_at,related_event_id=excluded.related_event_id,related_wiki_slug=excluded.related_wiki_slug, \
+             due_at=excluded.due_at,reminder=excluded.reminder,related_event_id=excluded.related_event_id,related_wiki_slug=excluded.related_wiki_slug, \
              note=excluded.note,updated_at=excluded.updated_at",
             params![
                 todo.id,
@@ -259,6 +262,7 @@ impl Store {
                 todo.status,
                 todo.priority,
                 todo.due_at,
+                todo.reminder as i64,
                 todo.related_event_id,
                 todo.related_wiki_slug,
                 todo.note,

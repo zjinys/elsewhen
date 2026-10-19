@@ -128,6 +128,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // 规则触发命中挂本地事件（events 不同步，提醒在哪台设备响是设备侧行为）；
     // 偏好开关同理。规则触发词字段随 rules 行携带。
     ("rule_hits", "local-event-reminders"),
+    // 定时提醒的本机触发去重（migration 50）：「提醒在哪台设备响是设备侧行为」，
+    // 多设备各自弹各自的，不同步触发记录（与 rule_hits 同纪律）。
+    ("todo_reminder_fires", "local-event-reminders"),
     ("rule_trigger_settings", "local-event-reminders"),
     // 情感回访偏好与记账：本机提醒体验状态，不属于跨设备数据集。
     ("companion_settings", "local-event-reminders"),
@@ -361,6 +364,8 @@ enum Record {
         status: String,
         priority: String,
         due_at: Option<String>,
+        /// SQLite json_object 对本列输出 0/1 整数（不是 true/false），镜像类型用 i64。
+        reminder: i64,
         related_event_id: Option<String>,
         related_wiki_slug: Option<String>,
         note: Option<String>,
@@ -452,7 +457,7 @@ const QUERIES: &[&str] = &[
     "SELECT i.rowid,json_object('kind','input','value',json_object('id',i.id,'raw_text',i.raw_text,'source',i.source,'event_id',i.event_id,'message_id',i.message_id,'created_at',i.created_at)) FROM input_records i WHERE i.rowid>?1 AND i.event_id IS NOT NULL AND (i.message_id IS NULL OR EXISTS(SELECT 1 FROM messages m WHERE m.id=i.message_id)) ORDER BY i.rowid LIMIT 1",
     "SELECT rowid,json_object('kind','analysis','id',id,'event_id',event_id,'prompt_version',prompt_version,'result_json',result_json,'created_at',created_at) FROM event_analyses WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','classification','id',id,'event_id',event_id,'recordable',json(CASE WHEN recordable=1 THEN 'true' ELSE 'false' END),'event_kind',kind,'reason',reason,'created_at',created_at) FROM event_recordability_decisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
-    "SELECT rowid,json_object('kind','todo','id',id,'title',title,'status',status,'priority',priority,'due_at',due_at,'related_event_id',related_event_id,'related_wiki_slug',related_wiki_slug,'note',note,'created_at',created_at,'updated_at',updated_at) FROM todos WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','todo','id',id,'title',title,'status',status,'priority',priority,'due_at',due_at,'reminder',(reminder!=0),'related_event_id',related_event_id,'related_wiki_slug',related_wiki_slug,'note',note,'created_at',created_at,'updated_at',updated_at) FROM todos WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','goal','id',id,'content',content,'phase',phase,'status',status,'created_at',created_at,'updated_at',updated_at,'superseded_at',superseded_at) FROM goals WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','rule','id',id,'content',content,'status',status,'created_at',created_at,'updated_at',updated_at,'conversation_id',conversation_id,'review_version',review_version) FROM rules WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT h.rowid,json_object('kind','head','object_kind',h.object_kind,'object_id',h.object_id,'revision_id',h.revision_id,'deleted',json(CASE WHEN h.deleted=1 THEN 'true' ELSE 'false' END)) FROM sync_object_heads h WHERE h.rowid>?1 ORDER BY h.rowid LIMIT 1",
@@ -1368,6 +1373,7 @@ impl Store {
                 status,
                 priority,
                 due_at,
+                reminder,
                 related_event_id,
                 related_wiki_slug,
                 note,
@@ -1380,7 +1386,7 @@ impl Store {
                         && matches!(priority.as_str(), "high" | "normal" | "low"),
                     "sync_snapshot_todo_status_invalid"
                 );
-                self.connection.execute("INSERT INTO todos(id,title,status,priority,due_at,related_event_id,related_wiki_slug,note,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",params![id,title,status,priority,due_at,related_event_id,related_wiki_slug,note,created_at,updated_at])?;
+                self.connection.execute("INSERT INTO todos(id,title,status,priority,due_at,reminder,related_event_id,related_wiki_slug,note,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",params![id,title,status,priority,due_at,reminder,related_event_id,related_wiki_slug,note,created_at,updated_at])?;
             }
             Record::Goal {
                 id,

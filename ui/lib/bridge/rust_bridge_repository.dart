@@ -366,6 +366,9 @@ class RustBridgeRepository implements StorageRepository {
       try {
         do {
           _analysisRerunRequested = false;
+          // 定时提醒 tick 挂在每拍最前（评审：最先弹出，且故障隔离——
+          // 提醒 tick 失败绝不影响后面的分析/消化/同步）。
+          if (!_disposed) await _tickDueReminders();
           // Keep draining bounded Rust batches while pending work is
           // immediately available. Retry jobs are revisited by the timer once
           // available_at expires.
@@ -428,6 +431,49 @@ class RustBridgeRepository implements StorageRepository {
       }
     });
   }
+
+  /// 到期提醒广播（UI 订阅弹出）。只进不出：tick 只负责发现+记录 fire+广播，
+  /// 确认/推迟由 UI 动作走独立 API（见 confirmReminder/snoozeReminder）。
+  final ValueNotifier<List<api.DueReminderDto>> dueReminders =
+      ValueNotifier<List<api.DueReminderDto>>(const []);
+
+  static const String _reminderDeviceId = 'local';
+
+  Future<void> _tickDueReminders() async {
+    try {
+      final due = await api.popDueReminders(deviceId: _reminderDeviceId);
+      if (due.isNotEmpty) dueReminders.value = due;
+    } catch (e) {
+      // 故障隔离：提醒 tick 失败只记日志，绝不带崩后续分析/消化/同步。
+      debugPrint('due reminders tick failed: $e');
+    }
+  }
+
+  Future<void> confirmReminder(String todoId) async {
+    await api.confirmReminder(todoId: todoId, deviceId: _reminderDeviceId);
+    _clearDueReminder(todoId);
+  }
+
+  Future<void> snoozeReminder(String todoId, {int minutes = 10}) async {
+    await api.snoozeReminder(
+        todoId: todoId, minutes: minutes, deviceId: _reminderDeviceId);
+    _clearDueReminder(todoId);
+  }
+
+  void dismissReminder(String todoId) => _clearDueReminder(todoId);
+
+  void _clearDueReminder(String todoId) {
+    final cur = dueReminders.value;
+    if (cur.any((d) => d.todoId == todoId)) {
+      dueReminders.value = cur.where((d) => d.todoId != todoId).toList();
+    }
+  }
+
+  Future<void> setTodoReminder(String id, bool reminder) =>
+      api.setTodoReminder(id: id, reminder: reminder);
+
+  Future<String?> parseReminderTime(String text) =>
+      api.parseReminderTime(text: text);
 
   /// P3 网络同步 tick：锁/占用/未初始化时 Rust 返回 `ran == false`；错误
   /// 只记入状态页，绝不影响本地记录（本地写路径不经过 relay）。
@@ -991,6 +1037,28 @@ class RustBridgeRepository implements StorageRepository {
     return dto == null ? null : WikiPage.fromDto(dto);
   }
 
+  /// 创建记事本（kind=memo 唯一建档入口）
+  Future<WikiPage> createWikiPage({
+    required String title,
+    String contentMd = '',
+    List<String> tags = const [],
+  }) async {
+    final dto = await api.createWikiPage(
+        title: title, contentMd: contentMd, tags: tags);
+    return WikiPage.fromDto(dto);
+  }
+
+  /// 追加记事本正文（快记框唯一写入口；单事务）
+  Future<WikiPage> appendWikiPageContent({
+    required String slug,
+    required String appendMd,
+    String reason = '快记',
+  }) async {
+    final dto = await api.appendWikiPageContent(
+        slug: slug, appendMd: appendMd, reason: reason);
+    return WikiPage.fromDto(dto);
+  }
+
   /// 更新知识页标签（应用内整理元数据；传空列表即清空）。返回更新后的页面。
   Future<WikiPage> updateWikiTags({
     required String slug,
@@ -1305,6 +1373,7 @@ class RustBridgeRepository implements StorageRepository {
     String? priority,
     String? relatedWikiSlug,
     String? note,
+    bool reminder = false,
   }) async {
     final dto = await api.createTodo(
       title: title,
@@ -1312,6 +1381,7 @@ class RustBridgeRepository implements StorageRepository {
       priority: priority,
       relatedWikiSlug: relatedWikiSlug,
       note: note,
+      reminder: reminder,
     );
     return Todo.fromDto(dto);
   }

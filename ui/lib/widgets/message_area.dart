@@ -39,6 +39,8 @@ import 'markdown_view.dart';
 import 'knowledge_panel.dart';
 import 'todo_view.dart';
 import 'goal_view.dart';
+import 'notepad_view.dart';
+import 'reminder_banner.dart';
 
 /// 会话内搜索开关：放 provider 层，标题栏（MessageArea 之外）也能切换。
 /// 不是全局单例——family 按 conversationId 区分，各会话互不干扰。
@@ -201,6 +203,20 @@ void openTodoDialog(BuildContext context) {
   );
 }
 
+void openNotepadDialog(BuildContext context) {
+  _showAdaptivePanel(
+    context,
+    dialog: Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 580),
+        child: const SizedBox(width: 620, height: 580, child: NotepadView()),
+      ),
+    ),
+    sheetBuilder: (sheetContext) =>
+        _PanelSheet(title: '记事本', builder: (context) => const NotepadView()),
+  );
+}
+
 void openGoalDialog(BuildContext context) {
   _showAdaptivePanel(
     context,
@@ -338,6 +354,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           onOpenPageMarks: null,
           onOpenTodos: () => openTodoDialog(context),
           onOpenGoals: () => openGoalDialog(context),
+          onOpenNotepad: () => openNotepadDialog(context),
           onToggleSearch: () => ref
               .read(messageSearchVisibleProvider(selectedId).notifier)
               .set(!showSearch),
@@ -350,6 +367,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                 )
               : null,
         ),
+        const ReminderBanner(),
         if (showSearch) _buildSearchBar(messagesAsync.value ?? const []),
         _PendingRelationsBanner(),
         // Messages list
@@ -1472,6 +1490,7 @@ class _NowStatus extends ConsumerWidget {
   final VoidCallback? onOpenDrafts;
   final VoidCallback? onOpenTodos;
   final VoidCallback? onOpenGoals;
+  final VoidCallback? onOpenNotepad;
   final VoidCallback? onOpenPageMarks;
   final VoidCallback? onToggleSearch;
   final VoidCallback? onCopyAll;
@@ -1483,6 +1502,7 @@ class _NowStatus extends ConsumerWidget {
     this.onOpenPageMarks,
     this.onOpenTodos,
     this.onOpenGoals,
+    this.onOpenNotepad,
     this.onToggleSearch,
     this.onCopyAll,
   });
@@ -1591,6 +1611,15 @@ class _NowStatus extends ConsumerWidget {
                       onPressed: onOpenTodos,
                       icon: const Icon(Icons.check_circle_outlined, size: 16),
                       label: Text('待办${openTodos ?? 0}项'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    TextButton.icon(
+                      onPressed: onOpenNotepad,
+                      icon: const Icon(Icons.note_alt_outlined, size: 16),
+                      label: const Text('记事'),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),

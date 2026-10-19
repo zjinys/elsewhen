@@ -1139,4 +1139,103 @@ impl Store {
         }
         Ok(true)
     }
+
+    /// 人类直接创建一张 wiki 页（当前唯一使用方是 kind=memo 记事本，评审
+    /// 3.3：新页成为人类专属内容的唯一建档入口）。无 migration、无 AI 参与；
+    /// 与所有写路径同纪律（同事务写页+revision+同步捕获+log）。
+    /// slug 冲突时自动加数字后缀（title 相同时复用已有 slug，对齐 unique_slug 语义）。
+    pub fn create_wiki_page(
+        &self,
+        kind: &str,
+        title: &str,
+        content_md: &str,
+        tags: &[String],
+    ) -> Result<WikiPage> {
+        let title = title.trim();
+        if title.is_empty() {
+            anyhow::bail!("标题不能为空");
+        }
+        if kind == "memo" {
+            // 记事本是人类专属（评审 D1）：只允许本路径建档，digest 与 AI
+            // 工具一律不碰。本函数不拦其他 kind，但 UI 当前只暴露 memo。
+        }
+        let base_slug = format!("memo/{}", crate::wiki::slugify(title));
+        let slug = crate::wiki::unique_slug(self, &base_slug, title)?;
+        let draft = WikiPageDraft {
+            slug,
+            kind: kind.to_string(),
+            title: title.to_string(),
+            summary: String::new(),
+            content_md: content_md.trim().to_string(),
+            tags: tags.to_vec(),
+            source_event_ids: Vec::new(),
+            status: "confirmed".to_string(),
+            reason: "人工创建记事本".to_string(),
+            source_url: None,
+        };
+        // upsert 内部已同事务记录 revision + 同步捕获（ContentPolicy::Always：
+        // 人类显式建档是有显式授权的写入路径）。
+        let outcome = self.upsert_wiki_page(&draft, ContentPolicy::Always)?;
+        self.append_wiki_log(&format!("人工创建记事本：{}", outcome.page.slug))?;
+        Ok(outcome.page)
+    }
+
+    /// 单事务追加正文（memo 快记框的唯一写入口，评审 3.1：读-改-写两个
+    /// 事务的乐观锁路径对「连击快记」会丢写，必须读-拼-写同一事务）。
+    /// 与 save_wiki_page_content 同上限（64k 字符），附加「追加块」上限 8k。
+    pub fn append_wiki_page_content(
+        &self,
+        slug: &str,
+        append_md: &str,
+        reason: &str,
+    ) -> Result<WikiPage> {
+        let append_md = append_md.trim();
+        if append_md.is_empty() {
+            anyhow::bail!("追加内容为空");
+        }
+        let append_chars = append_md.chars().count();
+        if append_chars > 8192 {
+            anyhow::bail!("单次追加超过 8k 字符上限（当前 {append_chars} 字符）");
+        }
+        let tx = self.begin_write_transaction()?;
+        let page = self
+            .get_wiki_page(slug)?
+            .with_context(|| format!("知识页不存在: {slug}"))?;
+        if matches!(page.kind.as_str(), "source" | "note") {
+            anyhow::bail!("素材页（kind={}）只读，不支持追加正文", page.kind);
+        }
+        let mut content_md = page.content_md.clone();
+        if !content_md.is_empty() && !content_md.ends_with('\n') {
+            content_md.push('\n');
+        }
+        content_md.push_str(append_md);
+        content_md.push('\n');
+        let total = content_md.chars().count();
+        if total > 65536 {
+            anyhow::bail!("追加后正文将超过 64k 字符上限（当前 {total} 字符），请先归档或新开一页");
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        self.connection.execute(
+            "UPDATE wiki_pages SET content_md=?1, human_edited_at=?2, updated_at=?2 WHERE id=?3",
+            params![content_md, now, page.id],
+        )?;
+        self.sync_record_wiki_page(&page.id, false)?;
+        let reason = reason.trim();
+        self.record_wiki_revision(
+            &page.id,
+            &content_md,
+            &format!(
+                "[human] {}",
+                if reason.is_empty() { "追加快记" } else { reason }
+            ),
+            None,
+        )?;
+        self.append_wiki_log(&format!(
+            "人工追加正文：{slug}（+{append_chars} 字符）"
+        ))?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        self.get_wiki_page(slug)?.context("追加保存后读取失败")
+    }
 }

@@ -21,6 +21,7 @@ pub use mcp_servers::McpServerConfig;
 pub(crate) use page_marks::PageMark;
 
 mod records;
+mod reminders;
 mod review;
 pub(crate) mod rule_triggers;
 pub(crate) mod skills;
@@ -82,6 +83,7 @@ pub use digest::{
 };
 pub use goals::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
 pub use knowledge::{KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, SourceSnapshot};
+pub use reminders::DueReminder;
 pub use web_search::{DohMode, NetworkSettings, WebSearchConfig};
 
 // Conversation and Message summary structs
@@ -215,6 +217,9 @@ pub struct Todo {
     pub status: TodoStatus,
     pub priority: String, // high / normal / low
     pub due_at: Option<String>,
+    /// 是否为「提醒」类待办（migration 50）：到期时由本机提醒通道弹窗/通知。
+    /// 普通待办恒为 false；语义与 due_at 无关（待办也可有截止时间）。
+    pub reminder: bool,
     pub related_event_id: Option<String>,
     pub related_wiki_slug: Option<String>,
     pub note: Option<String>,

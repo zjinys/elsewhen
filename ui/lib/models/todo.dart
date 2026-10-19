@@ -45,6 +45,9 @@ class Todo {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// 是否为提醒类待办（到期弹窗/通知；评审 2026-10-19 定时提醒）
+  final bool reminder;
+
   const Todo({
     required this.id,
     required this.title,
@@ -54,6 +57,7 @@ class Todo {
     this.relatedEventId,
     this.relatedWikiSlug,
     this.note,
+    this.reminder = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -68,6 +72,7 @@ class Todo {
       relatedEventId: dto.relatedEventId,
       relatedWikiSlug: dto.relatedWikiSlug,
       note: dto.note,
+      reminder: dto.reminder,
       createdAt: DateTime.parse(dto.createdAt).toLocal(),
       updatedAt: DateTime.parse(dto.updatedAt).toLocal(),
     );

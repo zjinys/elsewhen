@@ -596,7 +596,7 @@ fn snapshot_carries_wiki_todos_goals_rules_and_continues_incremental() {
         .unwrap();
     let todo = a
         .store
-        .create_todo("快照待办", "high", None, None, None, None)
+        .create_todo("快照待办", "high", None, None, None, None, false)
         .unwrap()
         .id;
     a.store

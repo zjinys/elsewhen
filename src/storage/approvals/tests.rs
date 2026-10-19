@@ -533,7 +533,7 @@ fn interrupted_claim_does_not_replay_an_already_committed_business_write() {
     ));
     // Simulate a crash after the business commit, before its result receipt.
     f.store
-        .create_todo("once", "normal", None, None, None, None)
+        .create_todo("once", "normal", None, None, None, None, false)
         .unwrap();
     // A still-valid lease must survive another bridge initialization.
     assert_eq!(f.store.recover_chat_proposal_decisions().unwrap(), 0);

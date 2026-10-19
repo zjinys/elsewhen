@@ -230,6 +230,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviationReportDto dco_decode_deviation_report_dto(dynamic raw);
 
   @protected
+  DueReminderDto dco_decode_due_reminder_dto(dynamic raw);
+
+  @protected
   EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw);
 
   @protected
@@ -390,6 +393,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw);
+
+  @protected
+  List<DueReminderDto> dco_decode_list_due_reminder_dto(dynamic raw);
 
   @protected
   List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw);
@@ -1039,6 +1045,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DueReminderDto sse_decode_due_reminder_dto(SseDeserializer deserializer);
+
+  @protected
   EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer);
 
   @protected
@@ -1247,6 +1256,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeviationReportDto> sse_decode_list_deviation_report_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DueReminderDto> sse_decode_list_due_reminder_dto(
     SseDeserializer deserializer,
   );
 
@@ -2211,6 +2225,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_deviation_report_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_deviation_report_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_due_reminder_dto> cst_encode_list_due_reminder_dto(
+    List<DueReminderDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_due_reminder_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_due_reminder_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3548,6 +3574,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_due_reminder_dto(
+    DueReminderDto apiObj,
+    wire_cst_due_reminder_dto wireObj,
+  ) {
+    wireObj.todo_id = cst_encode_String(apiObj.todoId);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.due_at = cst_encode_String(apiObj.dueAt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_emotion_tag_dto(
     EmotionTagDto apiObj,
     wire_cst_emotion_tag_dto wireObj,
@@ -4658,6 +4694,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.status = cst_encode_String(apiObj.status);
     wireObj.priority = cst_encode_String(apiObj.priority);
     wireObj.due_at = cst_encode_opt_String(apiObj.dueAt);
+    wireObj.reminder = cst_encode_bool(apiObj.reminder);
     wireObj.related_event_id = cst_encode_opt_String(apiObj.relatedEventId);
     wireObj.related_wiki_slug = cst_encode_opt_String(apiObj.relatedWikiSlug);
     wireObj.note = cst_encode_opt_String(apiObj.note);
@@ -5148,6 +5185,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_due_reminder_dto(
+    DueReminderDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_emotion_tag_dto(EmotionTagDto self, SseSerializer serializer);
 
   @protected
@@ -5420,6 +5463,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_deviation_report_dto(
     List<DeviationReportDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_due_reminder_dto(
+    List<DueReminderDto> self,
     SseSerializer serializer,
   );
 
@@ -6725,6 +6774,21 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_list_deviation_report_dto> Function(int)
           >();
+
+  ffi.Pointer<wire_cst_list_due_reminder_dto> cst_new_list_due_reminder_dto(
+    int len,
+  ) {
+    return _cst_new_list_due_reminder_dto(len);
+  }
+
+  late final _cst_new_list_due_reminder_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_due_reminder_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_due_reminder_dto');
+  late final _cst_new_list_due_reminder_dto = _cst_new_list_due_reminder_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_due_reminder_dto> Function(int)>();
 
   ffi.Pointer<wire_cst_list_emotion_tag_dto> cst_new_list_emotion_tag_dto(
     int len,
@@ -13090,6 +13154,38 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__todos__confirm_reminder(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> todo_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+  ) {
+    return _wire__crate__api__todos__confirm_reminder(
+      port_,
+      todo_id,
+      device_id,
+    );
+  }
+
+  late final _wire__crate__api__todos__confirm_reminderPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__confirm_reminder');
+  late final _wire__crate__api__todos__confirm_reminder =
+      _wire__crate__api__todos__confirm_reminderPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__todos__create_todo(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
@@ -13097,6 +13193,7 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> priority,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> related_wiki_slug,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+    bool reminder,
   ) {
     return _wire__crate__api__todos__create_todo(
       port_,
@@ -13105,6 +13202,7 @@ class RustLibWire implements BaseWire {
       priority,
       related_wiki_slug,
       note,
+      reminder,
     );
   }
 
@@ -13118,6 +13216,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
           )
         >
       >('frbgen_elsewhen_ui_wire__crate__api__todos__create_todo');
@@ -13131,6 +13230,7 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
             )
           >();
 
@@ -13198,6 +13298,110 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__todos__open_todo_work_itemPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__todos__parse_reminder_time(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> text,
+  ) {
+    return _wire__crate__api__todos__parse_reminder_time(port_, text);
+  }
+
+  late final _wire__crate__api__todos__parse_reminder_timePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__parse_reminder_time');
+  late final _wire__crate__api__todos__parse_reminder_time =
+      _wire__crate__api__todos__parse_reminder_timePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__todos__pop_due_reminders(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+  ) {
+    return _wire__crate__api__todos__pop_due_reminders(port_, device_id);
+  }
+
+  late final _wire__crate__api__todos__pop_due_remindersPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__pop_due_reminders');
+  late final _wire__crate__api__todos__pop_due_reminders =
+      _wire__crate__api__todos__pop_due_remindersPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__todos__set_todo_reminder(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    bool reminder,
+  ) {
+    return _wire__crate__api__todos__set_todo_reminder(port_, id, reminder);
+  }
+
+  late final _wire__crate__api__todos__set_todo_reminderPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__set_todo_reminder');
+  late final _wire__crate__api__todos__set_todo_reminder =
+      _wire__crate__api__todos__set_todo_reminderPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
+  void wire__crate__api__todos__snooze_reminder(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> todo_id,
+    int minutes,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+  ) {
+    return _wire__crate__api__todos__snooze_reminder(
+      port_,
+      todo_id,
+      minutes,
+      device_id,
+    );
+  }
+
+  late final _wire__crate__api__todos__snooze_reminderPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__todos__snooze_reminder');
+  late final _wire__crate__api__todos__snooze_reminder =
+      _wire__crate__api__todos__snooze_reminderPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__todos__update_todo(
@@ -13892,6 +14096,42 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__wiki__append_wiki_page_content(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> append_md,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+  ) {
+    return _wire__crate__api__wiki__append_wiki_page_content(
+      port_,
+      slug,
+      append_md,
+      reason,
+    );
+  }
+
+  late final _wire__crate__api__wiki__append_wiki_page_contentPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__append_wiki_page_content');
+  late final _wire__crate__api__wiki__append_wiki_page_content =
+      _wire__crate__api__wiki__append_wiki_page_contentPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__wiki__compose_page_reference_supplement(
     int port_,
     ffi.Pointer<wire_cst_list_String> slugs,
@@ -13963,6 +14203,42 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__wiki__create_wiki_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
+    ffi.Pointer<wire_cst_list_String> tags,
+  ) {
+    return _wire__crate__api__wiki__create_wiki_page(
+      port_,
+      title,
+      content_md,
+      tags,
+    );
+  }
+
+  late final _wire__crate__api__wiki__create_wiki_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_String>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__wiki__create_wiki_page');
+  late final _wire__crate__api__wiki__create_wiki_page =
+      _wire__crate__api__wiki__create_wiki_pagePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_String>,
             )
           >();
 
@@ -15455,6 +15731,24 @@ final class wire_cst_deviation_report_dto extends ffi.Struct {
     ..ref.deviations = deviations;
 }
 
+final class wire_cst_due_reminder_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> todo_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> due_at;
+
+  static ffi.Pointer<wire_cst_due_reminder_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> todo_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> due_at,
+  }) => $allocator<wire_cst_due_reminder_dto>()
+    ..ref.todo_id = todo_id
+    ..ref.title = title
+    ..ref.due_at = due_at;
+}
+
 final class wire_cst_emotion_tag_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> target;
 
@@ -16816,6 +17110,21 @@ final class wire_cst_list_deviation_report_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_deviation_report_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_deviation_report_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_due_reminder_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_due_reminder_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_due_reminder_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_due_reminder_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_due_reminder_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }
@@ -19011,6 +19320,9 @@ final class wire_cst_todo_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> due_at;
 
+  @ffi.Bool()
+  external bool reminder;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> related_event_id;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> related_wiki_slug;
@@ -19028,6 +19340,7 @@ final class wire_cst_todo_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> priority,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> due_at,
+    required bool reminder,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> related_event_id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> related_wiki_slug,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
@@ -19039,6 +19352,7 @@ final class wire_cst_todo_dto extends ffi.Struct {
     ..ref.status = status
     ..ref.priority = priority
     ..ref.due_at = due_at
+    ..ref.reminder = reminder
     ..ref.related_event_id = related_event_id
     ..ref.related_wiki_slug = related_wiki_slug
     ..ref.note = note

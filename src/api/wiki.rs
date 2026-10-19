@@ -231,6 +231,27 @@ pub fn set_wiki_opinion(slug: String, opinion: Option<String>) -> Result<WikiPag
     Ok(WikiPageDto::serve(&store, page))
 }
 
+/// 创建记事本（kind=memo 唯一建档入口；评审 3.3：无 migration，复用 wiki_pages）。
+/// 标题重复时 slug 自动加后缀，与 unique_slug 同语义。
+pub fn create_wiki_page(title: String, content_md: String, tags: Vec<String>) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let page = store.create_wiki_page("memo", &title, &content_md, &tags)?;
+    Ok(WikiPageDto::serve(&store, page))
+}
+
+/// 追加记事本正文（快记框唯一写入口；评审 3.1：必须单事务读-拼-写）。
+pub fn append_wiki_page_content(
+    slug: String,
+    append_md: String,
+    reason: String,
+) -> Result<WikiPageDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let page = store.append_wiki_page_content(&slug, &append_md, &reason)?;
+    Ok(WikiPageDto::serve(&store, page))
+}
+
 /// 删除 Wiki 页面（人工主题页；同步库内先捕获 deleted 变更再物理删除，
 /// 对端迟到编辑会形成 `wiki_page_deleted` 冲突候选）。页面不存在时返回
 /// false（幂等）。

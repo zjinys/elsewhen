@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'wiki.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`
 
 /// 列出待办（status 过滤：open/done/archived；None 时列出 open+done）
 Future<List<TodoDto>> listTodos({String? status}) =>
@@ -22,12 +22,14 @@ Future<TodoDto> createTodo({
   String? priority,
   String? relatedWikiSlug,
   String? note,
+  required bool reminder,
 }) => RustLib.instance.api.crateApiTodosCreateTodo(
   title: title,
   dueAt: dueAt,
   priority: priority,
   relatedWikiSlug: relatedWikiSlug,
   note: note,
+  reminder: reminder,
 );
 
 /// 更新待办状态（open/done/archived）
@@ -37,6 +39,15 @@ Future<void> updateTodoStatus({required String id, required String status}) =>
 /// 打开待办对应的可讨论工作项；无关联页时按需创建并回写关联。
 Future<WikiPageDto> openTodoWorkItem({required String id}) =>
     RustLib.instance.api.crateApiTodosOpenTodoWorkItem(id: id);
+
+/// 更新待办的可编辑字段（标题 / 补充 / 优先级 / 截止时间）。
+/// reminder 为 true 且 due_at 仍指向过去时拒绝（提示重新设一个未来时间），
+/// 否则 `due_at<=now` 会让弹出在保存下一拍立刻响起（评审 3.2）。
+Future<void> setTodoReminder({required String id, required bool reminder}) =>
+    RustLib.instance.api.crateApiTodosSetTodoReminder(
+      id: id,
+      reminder: reminder,
+    );
 
 /// 更新待办的可编辑字段（标题 / 补充 / 优先级 / 截止时间）。
 /// 可选字段传 None 表示清除（如结束拖延、去掉截止时间）。
@@ -54,9 +65,64 @@ Future<void> updateTodo({
   dueAt: dueAt,
 );
 
+/// 轮询到期提醒（每 5s 后台 tick 调用；本机去重，多设备各弹各的）。
+/// 幂等：先记录 fire 再弹出；两步之间退出最多重弹一次。
+Future<List<DueReminderDto>> popDueReminders({required String deviceId}) =>
+    RustLib.instance.api.crateApiTodosPopDueReminders(deviceId: deviceId);
+
+/// 确认提醒：完成待办并清除本机触发记录（同事务）。
+Future<void> confirmReminder({
+  required String todoId,
+  required String deviceId,
+}) => RustLib.instance.api.crateApiTodosConfirmReminder(
+  todoId: todoId,
+  deviceId: deviceId,
+);
+
+/// 推迟提醒（默认 +10 分钟）：同事务更新 due_at 并删 fire 行，否则永不重响。
+Future<void> snoozeReminder({
+  required String todoId,
+  required PlatformInt64 minutes,
+  required String deviceId,
+}) => RustLib.instance.api.crateApiTodosSnoozeReminder(
+  todoId: todoId,
+  minutes: minutes,
+  deviceId: deviceId,
+);
+
+/// 解析自然语言提醒时间（本地创建路径；评审 3.4：客户端回显确认后
+/// 才落库，解析不出明确时间返回 None 让客户端回显「无法确定时间」）。
+Future<String?> parseReminderTime({required String text}) =>
+    RustLib.instance.api.crateApiTodosParseReminderTime(text: text);
+
 /// 删除一条待办
 Future<bool> deleteTodo({required String id}) =>
     RustLib.instance.api.crateApiTodosDeleteTodo(id: id);
+
+/// 到期应弹的提醒（本机未触发过的）。
+class DueReminderDto {
+  final String todoId;
+  final String title;
+  final String dueAt;
+
+  const DueReminderDto({
+    required this.todoId,
+    required this.title,
+    required this.dueAt,
+  });
+
+  @override
+  int get hashCode => todoId.hashCode ^ title.hashCode ^ dueAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DueReminderDto &&
+          runtimeType == other.runtimeType &&
+          todoId == other.todoId &&
+          title == other.title &&
+          dueAt == other.dueAt;
+}
 
 /// 待办 DTO
 class TodoDto {
@@ -65,6 +131,9 @@ class TodoDto {
   final String status;
   final String priority;
   final String? dueAt;
+
+  /// 是否为提醒类待办（到期弹窗/通知）
+  final bool reminder;
   final String? relatedEventId;
   final String? relatedWikiSlug;
   final String? note;
@@ -77,6 +146,7 @@ class TodoDto {
     required this.status,
     required this.priority,
     this.dueAt,
+    required this.reminder,
     this.relatedEventId,
     this.relatedWikiSlug,
     this.note,
@@ -91,6 +161,7 @@ class TodoDto {
       status.hashCode ^
       priority.hashCode ^
       dueAt.hashCode ^
+      reminder.hashCode ^
       relatedEventId.hashCode ^
       relatedWikiSlug.hashCode ^
       note.hashCode ^
@@ -107,6 +178,7 @@ class TodoDto {
           status == other.status &&
           priority == other.priority &&
           dueAt == other.dueAt &&
+          reminder == other.reminder &&
           relatedEventId == other.relatedEventId &&
           relatedWikiSlug == other.relatedWikiSlug &&
           note == other.note &&

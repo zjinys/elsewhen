@@ -1521,7 +1521,7 @@ fn todos_replicate_edit_state_and_double_delete_converges() {
     pair(&a, &b);
     let todo = a
         .store
-        .create_todo("买牛奶", "high", None, None, None, None)
+        .create_todo("买牛奶", "high", None, None, None, None, false)
         .unwrap();
     deliver(&a, &b);
     assert_eq!(b.count("todos"), 1, "收端整行到达");
@@ -1573,7 +1573,7 @@ fn todo_delete_versus_edit_lands_as_candidate_and_todo_slug_ref_migrates() {
     deliver(&a, &b);
     let todo = a
         .store
-        .create_todo("改稿", "normal", None, None, Some("topic/项目"), None)
+        .create_todo("改稿", "normal", None, None, Some("topic/项目"), None, false)
         .unwrap();
     deliver(&a, &b);
     a.store
@@ -1861,7 +1861,7 @@ fn object_conflict_review_keep_local_recaptures_and_accept_remote_adopts() {
     pair(&a, &b);
     let todo = a
         .store
-        .create_todo("买牛奶", "high", None, None, None, None)
+        .create_todo("买牛奶", "high", None, None, None, None, false)
         .unwrap();
     deliver(&a, &b);
     // 双端离线编辑 → 各自立案 base_revision_changed。
@@ -1937,7 +1937,7 @@ fn todo_deleted_candidate_keep_local_clears_and_accept_remote_revives() {
     pair(&a, &b);
     let todo = a
         .store
-        .create_todo("待办", "normal", None, None, None, None)
+        .create_todo("待办", "normal", None, None, None, None, false)
         .unwrap();
     deliver(&a, &b);
     // b 删除（head 停在删除态）；a 离线编辑后送到 → b 立案 todo_deleted
