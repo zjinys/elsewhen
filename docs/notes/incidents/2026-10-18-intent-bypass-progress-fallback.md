@@ -1,6 +1,6 @@
 # 事故档案：AI 回复被任务输出顶包 / 承诺动作蒸发（ESP32-糖尿病 对话事故）
 
-**日期**：2026-10-18　**状态**：根因已定位至代码级，待复现实锤（用户计划次日 Linux 下复现）
+**日期**：2026-10-18　**状态**：根因已定位至代码级并已实施 P1-A/P1-B 修复（分支 `fix/progress-fallback-honest-failure-20261018`；Linux 复现实锤仍待跑）
 **涉及代码**：`src/ai/conversation/continuity.rs`（progress_fallback）、budget 闸门链路
 
 ## 一、现象时间线（手机端会话 93196d4f，已同步回桌面）
@@ -65,6 +65,24 @@ chat_runs/run_requests/** 是 `local-chat-execution-state` 数据集（snapshot.
 2. **P1-B（承诺蒸发）**：run 失败时若上下文里有 AI 承诺+用户确认（pending 意图），失败消息必须点名「答应你的 XX 还没做」；重试应保留原任务（入 pending_actions 队列）
 3. **预算前移**：组装请求前预检必要上下文体积；知识库挂载按相关度限量（Top-K 而非全量倾向），超限**截断挂载**而非拒绝整轮
 4. 测试：continuity_tests 补两例（失败路由只产失败消息；显式追问才产结果报告）
+
+## 五、P1-A / P1-B 修复进展（2026-10-18，分支 `fix/progress-fallback-honest-failure-20261018`）
+
+### 已落地（全量 lib 测试 830 过）
+- **P1-A 门控**（`continuity.rs`）：`progress_fallback` 增加 `failure` 参数。
+  - 仅当最新用户消息命中 `FollowUp`（显式追问进展）时才允许"已取得的结果"式汇报；
+  - 自动触发（模型没给出答复）一律走新 `failure_reply`：点名原请求 + 给出原因 + 有承诺则承认"同样没有做到"，**工具结果永不进消息流**（留在 run 记录，待 reports 侧栏承接）；
+  - 用户已确认且已执行的写操作（内部记录 summary）仍如实汇报——那是承诺的兑现，不算顶包；
+  - 失败消息固定带"这一轮还没有完成 / 还没有交付可用结果"指纹，并已加入 `interrupted_reply` 识别列表：失败说明之后追问进展会正确衔接原任务。
+- **P1-B 运行失败可见**（`generation.rs`）：run 落终态失败后，追加一条诚实失败消息到对话流、挂在本轮输入上（budget→"必要上下文超过预算…"；生成错误→对应文案）。独立于终态写入：中途崩溃退化为现状（只有 failed run 记录），不会卡死状态；cancelled 不写（用户自己停的）。
+- **测试**：continuity_tests 补齐事故对应三例——`automatic_failure_fallback_never_passes_tool_results_off_as_an_answer`（失败路由只产失败消息，检索结果不出现）、`only_explicit_progress_questions_may_report_known_results`（显式追问才产结果报告）、`failure_notice_quotes_request_and_admits_unfulfilled_promise`（确认后的失败点名未兑现承诺并引用原请求）；原 `fallback_renders_found_knowledge_without_exposing_protocol_json` 改写为断言不顶包。
+
+### 待办
+1. Linux 复现实锤（第三节脚本不变；顶包路径应已无法复现，改为验证失败消息出现且检索内容只在 run 记录里）
+2. **预算前移**（原预案第 3 条）：组装前预检、知识库 Top-K 截断挂载——本次未动，budget 闸门拒绝整轮的行为仍在，只是失败可见了
+3. reports 侧栏/折叠卡片（Flutter UI 层）：给失败轮的工具结果一个非聊天流出口
+4. 手机 APK 重打（含 wire 修复 f534b4f 与本次修复）
+5. 补一个 run 级 E2E 集成测试（execute 失败→消息落库）——本次手工推演，由复现脚本覆盖
 
 ## 四、本轮已完成的相关修复（已推送 origin/main f534b4f）
 - `sync_wire_identity_content_conflict` 死结：acknowledged 同 id 重封（nonce 随机→密文必变）按幂等跳过 + 审计日志；provider dirty 清除接受已确认信封为送达。事故后果：手机消息上行被堵约 4 小时（provider:b149240c 重发循环）。

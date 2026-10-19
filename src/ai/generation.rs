@@ -280,6 +280,23 @@ pub(crate) fn execute(
                 None,
                 Some((kind, text)),
             );
+            // 事故 2026-10-18 P1-A/P1-B：失败不再沉默——在对话流里追加一条
+            // 点名原请求与未兑现承诺的诚实失败消息（挂在原输入上，工具结果
+            // 不进消息流）。放在终态之后独立写入：中途崩溃则退化为现状
+            // （只有 failed 运行记录），不会反而把状态卡死。
+            if !stopped {
+                if let Ok(notice) =
+                    super::conversation::failure_notice(store, &run.conversation_id, text)
+                {
+                    let _ = store.send_message_with_input(
+                        &run.conversation_id,
+                        "assistant",
+                        &notice,
+                        None,
+                        Some(&run.input_message_id),
+                    );
+                }
+            }
             Err(error)
         }
     }

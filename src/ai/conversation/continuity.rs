@@ -57,6 +57,9 @@ fn interrupted_reply(text: &str) -> bool {
             "刚才没能生成回复",
             "还没有交付可用结果",
             "这件事还没有完成",
+            // 2026-10-18 事故 P1-A：诚实失败消息是失败说明，不是交付；
+            // 它之后追问进展必须判定为「还没完成」并衔接原任务。
+            "这一轮还没有完成",
         ]
         .iter()
         .any(|s| text.contains(s))
@@ -157,14 +160,23 @@ pub(super) fn excerpt(text: &str, limit: usize) -> String {
     result
 }
 
-/// A fallback is a report of known state, never a fabricated completed answer.
+/// 事故 2026-10-18 P1-A：兜底只允许两种形态。
+/// ① 用户显式追问进展（FollowUp 命中）：可以把已知结果作为材料汇报；
+/// ② 自动触发（模型没给出答复/运行失败）：只产出诚实失败消息，
+///    工具检索结果一律不进用户消息流（留在 run 记录中，待 reports 侧栏承接），
+///    否则就像事故里那样，知识库 dump 被当成回答，失败真相被淹没。
 pub(super) fn progress_fallback(
     store: &Store,
     conversation_id: &str,
     context: &[ContextMessage],
     results: &[ToolResultMsg],
+    failure: Option<&str>,
 ) -> Result<String> {
     let followup = FollowUp::load(store, conversation_id)?;
+    if followup.is_none() {
+        let reason = failure.unwrap_or("生成没有产出可用答复；你的问题还挂着，可以重试一次。");
+        return failure_reply(store, conversation_id, context, reason);
+    }
     let request = followup
         .as_ref()
         .map(|f| f.request.as_str())
@@ -178,18 +190,10 @@ pub(super) fn progress_fallback(
     let task = format!("关于你刚才的要求「{}」", excerpt(request, 100));
     let mut parts = Vec::new();
 
-    if let Some(summary) = context
-        .iter()
-        .rev()
-        .filter(|m| m.role == "system")
-        .find_map(|m| {
-            m.content
-                .strip_prefix("（内部记录）你刚才提议的写操作已被用户确认，执行结果如下：\n")
-        })
-    {
+    if let Some(summary) = confirmed_write_summary(context) {
         parts.push(format!(
             "{task}，确认操作的实际结果是：\n{}",
-            excerpt(summary, 2000)
+            excerpt(&summary, 2000)
         ));
     }
     if let Some(data) = context
@@ -203,31 +207,13 @@ pub(super) fn progress_fallback(
     }
 
     let pending = store.pending_actions_for_conversation(conversation_id)?;
-    if !pending.is_empty() {
-        let mut drafts = Vec::new();
-        for action in pending.iter().take(3) {
-            let args: serde_json::Value =
-                serde_json::from_str(&action.args_json).unwrap_or_default();
-            let title = args
-                .get("title")
-                .or_else(|| args.get("project_name"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("待确认操作");
-            let preview = args
-                .get("content_md")
-                .and_then(|v| v.as_str())
-                .map(|s| format!("\n{}", excerpt(s, 1200)))
-                .unwrap_or_default();
-            drafts.push(format!("「{}」{preview}", excerpt(title, 100)));
-        }
-        parts.push(format!(
-            "当前会话有 {} 项操作等待确认，尚未执行保存：\n{}\n请查看草稿后明确确认，或取消；问进展不会替你确认保存。",
-            pending.len(), drafts.join("\n\n")
-        ));
+    if let Some(notice) = pending_notice(&pending) {
+        parts.push(notice);
     }
 
     // Real tool output can be useful even when the final model response fails.
-    // Do not relabel a read or a draft as a completed write.
+    // Only an explicit progress question may see it (see doc above); an automatic
+    // trigger never gets here.
     for result in results.iter().rev().take(3).rev() {
         if !result.success {
             parts.push(format!("有一步没有完成：{}", excerpt(&result.content, 400)));
@@ -247,6 +233,159 @@ pub(super) fn progress_fallback(
     Ok(format!(
         "{task}，这件事还没有完成，我还没有交付可用结果。当前没有后台任务继续处理；原要求仍保留在这段对话里，你不需要重新输入。"
     ))
+}
+
+fn pending_notice(pending: &[crate::storage::PendingAction]) -> Option<String> {
+    if pending.is_empty() {
+        return None;
+    }
+    let mut drafts = Vec::new();
+    for action in pending.iter().take(3) {
+        let args: serde_json::Value = serde_json::from_str(&action.args_json).unwrap_or_default();
+        let title = args
+            .get("title")
+            .or_else(|| args.get("project_name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("待确认操作");
+        let preview = args
+            .get("content_md")
+            .and_then(|v| v.as_str())
+            .map(|s| format!("\n{}", excerpt(s, 1200)))
+            .unwrap_or_default();
+        drafts.push(format!("「{}」{preview}", excerpt(title, 100)));
+    }
+    Some(format!(
+        "当前会话有 {} 项操作等待确认，尚未执行保存：\n{}\n请查看草稿后明确确认，或取消；确认后才会执行保存。",
+        pending.len(),
+        drafts.join("\n\n")
+    ))
+}
+
+/// 最近的未交付请求：若最新一条用户输入本身是新请求就取它（点名的是「现在
+///这个问题」）；若是追问/确认，则回到造成它的那个原请求，并检查其后的助手
+///消息是否只留下了预告（promised）。与 FollowUp::load 同一扫描口径。
+fn pending_request(store: &Store, conversation_id: &str) -> Result<Option<(String, bool)>> {
+    let messages = store.list_messages(conversation_id)?;
+    let Some(latest) = messages.iter().rposition(|m| m.role == "user") else {
+        return Ok(None);
+    };
+    let latest_text = messages[latest].content.clone();
+    if super::is_declination(&latest_text) {
+        return Ok(None);
+    }
+    if is_progress_question(&latest_text) || super::is_confirmation(&latest_text) {
+        // 追问/确认不是新任务：回到造成它的那个原请求。
+        let Some(request_index) = messages[..latest].iter().rposition(|m| {
+            m.role == "user"
+                && !is_progress_question(&m.content)
+                && !super::is_confirmation(&m.content)
+        }) else {
+            return Ok(None);
+        };
+        if super::is_declination(&messages[request_index].content) {
+            return Ok(None);
+        }
+        let promised = messages[request_index + 1..latest]
+            .iter()
+            .any(|m| m.role == "assistant" && future_promise_detected(&m.content));
+        return Ok(Some((messages[request_index].content.clone(), promised)));
+    }
+    Ok(Some((latest_text, false)))
+}
+
+/// 诚实的失败消息（2026-10-18 事故 P1-A/P1-B）。点名原请求、给出失败原因，
+/// 若此前有承诺则承认没有做到——绝不声称完成，也绝不把工具结果当成回答。
+pub(super) fn failure_reply(
+    store: &Store,
+    conversation_id: &str,
+    context: &[ContextMessage],
+    reason: &str,
+) -> Result<String> {
+    let mut parts = Vec::new();
+    // 用户已确认且已执行的写操作：如实汇报执行结果——这是承诺的兑现，
+    // 不算顶包；只剩没生成的补充说明，不能反过来说「还没完成」。
+    if let Some(summary) = confirmed_write_summary(context) {
+        let request = pending_request(store, conversation_id)?
+            .map(|(r, _)| r)
+            .or_else(|| {
+                context
+                    .iter()
+                    .rev()
+                    .find(|m| m.role == "user")
+                    .map(|m| m.content.clone())
+            })
+            .unwrap_or_else(|| "刚才的要求".into());
+        parts.push(format!(
+            "关于你刚才的要求「{}」，确认操作的实际结果是：\n{}",
+            excerpt(&request, 100),
+            excerpt(&summary, 2000)
+        ));
+        if let Some(notice) =
+            pending_notice(&store.pending_actions_for_conversation(conversation_id)?)
+        {
+            parts.push(notice);
+        }
+        return Ok(parts.join("\n\n"));
+    }
+    let (mut request, mut promised) = match pending_request(store, conversation_id)? {
+        Some((request, promised)) => (Some(request), promised),
+        None => (None, false),
+    };
+    // 库里还没有本轮输入时（测试/边缘路径），退回 context 的最新用户消息。
+    let context_request = context
+        .iter()
+        .rev()
+        .find(|m| m.role == "user")
+        .map(|m| m.content.clone());
+    if request.is_none() {
+        request = context_request;
+    }
+    // 正在进行的这轮内部也可能已出现过预告；失败说明必须承认它没兑现。
+    if !promised {
+        promised = context
+            .iter()
+            .any(|m| m.role == "assistant" && future_promise_detected(&m.content));
+    }
+    match request {
+        Some(request) => {
+            let task = format!("关于你刚才的要求「{}」", excerpt(&request, 120));
+            let promised_line = if promised {
+                "另外，我之前说过要接着处理这件事，这次同样没有做到；它还挂着，不会被当作已完成。"
+            } else {
+                ""
+            };
+            parts.push(format!("{task}，这一轮还没有完成：{reason}{promised_line}"));
+        }
+        None => parts.push(format!("这一轮还没有完成：{reason}")),
+    }
+    if let Some(notice) = pending_notice(&store.pending_actions_for_conversation(conversation_id)?)
+    {
+        parts.push(notice);
+    }
+    parts.push(
+        "现在还没有交付可用结果；原要求仍保留在这段对话里，说「继续」或换个问法即可。".into(),
+    );
+    Ok(parts.join("\n\n"))
+}
+
+/// 上下文里最近一条「已确认写操作的执行结果」内部记录（若存在）。
+fn confirmed_write_summary(context: &[ContextMessage]) -> Option<String> {
+    context
+        .iter()
+        .rev()
+        .filter(|m| m.role == "system")
+        .find_map(|m| {
+            m.content
+                .strip_prefix("（内部记录）你刚才提议的写操作已被用户确认，执行结果如下：\n")
+                .map(str::to_string)
+        })
+}
+
+/// run 级失败（budget/生成错误）落终态时写入对话流的诚实失败消息；
+/// 由 generation 侧在 finish_chat_run 之后追加，挂在本轮输入上，
+/// 让「请求没被回答」在消息流里可见（事故 2026-10-18 的沉默与顶包都源于此）。
+pub(crate) fn failure_notice(store: &Store, conversation_id: &str, reason: &str) -> Result<String> {
+    failure_reply(store, conversation_id, &[], reason)
 }
 
 fn readable_result(result: &ToolResultMsg) -> String {

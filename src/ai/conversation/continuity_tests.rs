@@ -130,6 +130,7 @@ fn question_marks_recover_original_task_across_legacy_empty_replies_and_restart(
         &conv,
         &[ContextMessage::new("user", "搞定了吗？")],
         &[],
+        None,
     )
     .unwrap();
     assert!(fallback.contains(original));
@@ -243,7 +244,7 @@ fn unverified_old_save_claim_is_not_treated_as_a_completed_task() {
         store.send_message(&conv, role, text, None).unwrap();
     }
     assert!(FollowUp::load(&store, &conv).unwrap().unwrap().unresolved);
-    let result = progress_fallback(&store, &conv, &[], &[]).unwrap();
+    let result = progress_fallback(&store, &conv, &[], &[], None).unwrap();
     assert!(!result.contains("已保存"));
     assert!(result.contains("还没有完成"));
     drop(store);
@@ -305,7 +306,9 @@ fn finalization_never_dispatches_native_or_text_writes() {
                 json!({"title":"unexpected", "content_md":"no"}),
             )
         } else {
-            AiReply::text("[工具调用]{\"name\":\"save_knowledge_draft\",\"arguments\":{\"title\":\"unexpected\",\"content_md\":\"no\"}}")
+            AiReply::text(
+                "[工具调用]{\"name\":\"save_knowledge_draft\",\"arguments\":{\"title\":\"unexpected\",\"content_md\":\"no\"}}",
+            )
         };
         let provider = RecordingProvider::new(vec![
             native_reply("", "list_rules", json!({})),
@@ -323,10 +326,12 @@ fn finalization_never_dispatches_native_or_text_writes() {
             chrono::Utc::now(),
         )
         .unwrap();
-        assert!(store
-            .pending_actions_for_conversation(&conv)
-            .unwrap()
-            .is_empty());
+        assert!(
+            store
+                .pending_actions_for_conversation(&conv)
+                .unwrap()
+                .is_empty()
+        );
         assert!(!result.content.trim().is_empty());
         assert!(!result.content.contains("已保存"));
         drop(store);
@@ -349,10 +354,12 @@ fn protected_material_rejects_an_impossible_revision_before_creating_pending() {
     );
     assert!(!rejected.success);
     assert!(rejected.content.contains("derivative"));
-    assert!(store
-        .pending_actions_for_conversation(&conv)
-        .unwrap()
-        .is_empty());
+    assert!(
+        store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
     let mut allowed = args;
     allowed["save_as"] = json!("derivative");
     let drafted = dispatch(
@@ -439,11 +446,20 @@ fn successful_confirmation_survives_failure_to_generate_final_words() {
         )
         .unwrap();
     store.send_message(&conv, "user", "好", None).unwrap();
-    let proposal = store.list_chat_proposals(Some(&conv), 0, 10).unwrap().remove(0);
+    let proposal = store
+        .list_chat_proposals(Some(&conv), 0, 10)
+        .unwrap()
+        .remove(0);
     let receipt = crate::ai::approval::resolve_chat_proposal(
-        &store, &proposal.kind, &proposal.id, Some(&conv), proposal.version,
-        &proposal.approval_token, "accept",
-    ).unwrap();
+        &store,
+        &proposal.kind,
+        &proposal.id,
+        Some(&conv),
+        proposal.version,
+        &proposal.approval_token,
+        "accept",
+    )
+    .unwrap();
     assert_eq!(receipt.status, "succeeded");
     let summary = Some(receipt.result);
     let mut context = vec![
@@ -511,15 +527,17 @@ fn empty_retry_preserves_native_protocol_and_counts_both_requests() {
     let _ = std::fs::remove_file(path);
 }
 
+/// 事故 2026-10-18 根因 A：run 没能生成答复时，知识检索结果曾被拼成
+/// 「已取得的结果：…」顶包。自动兜底必须只产诚实失败消息。
 #[test]
-fn fallback_renders_found_knowledge_without_exposing_protocol_json() {
+fn automatic_failure_fallback_never_passes_tool_results_off_as_an_answer() {
     let (store, path) = temporary_database();
     let conv = store.create_conversation(Some("test"), None).unwrap();
     let page =
-        crate::wiki::save_text_page("固定机位，保留纹理", Some("视频原料"), &[], &store).unwrap();
-    let mut context = vec![ContextMessage::new("user", "看看视频原料")];
+        crate::wiki::save_text_page("糖尿病足预警方案正文", Some("病程数据"), &[], &store).unwrap();
+    let mut context = vec![ContextMessage::new("user", "糖尿病足预警这个具体怎么做呢")];
     let provider = RecordingProvider::new(vec![
-        native_reply("", "get_wiki_page", json!({"slug":page.slug})),
+        native_reply("", "get_wiki_page", json!({"slug": page.slug})),
         AiReply::text(""),
         AiReply::text(""),
         AiReply::text(""),
@@ -534,9 +552,74 @@ fn fallback_renders_found_knowledge_without_exposing_protocol_json() {
         chrono::Utc::now(),
     )
     .unwrap();
-    assert!(result.content.contains("固定机位，保留纹理"));
+    // 点名原请求 + 承认没完成，不把检索到的整页内容当成回答
+    assert!(result.content.contains("糖尿病足预警这个具体怎么做呢"));
+    assert!(result.content.contains("这一轮还没有完成"));
+    assert!(!result.content.contains("糖尿病足预警方案正文"));
     assert!(!result.content.contains("knowledge_candidates"));
     assert!(!result.content.contains("snapshot_id"));
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+/// 事故 2026-10-18 P1-A：只有用户显式追问进展时，才允许把工具结果
+/// 作为已知材料汇报；自动触发永远只产诚实失败消息。
+#[test]
+fn only_explicit_progress_questions_may_report_known_results() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    store
+        .send_message(&conv, "user", "把发布清单整理一版", None)
+        .unwrap();
+    let call = ToolCall::new("search_notes", json!({"query": "发布清单"}));
+    let results = vec![ToolResultMsg::ok(&call, "发布清单的检查要点正文".into())];
+    let automatic = progress_fallback(
+        &store,
+        &conv,
+        &[ContextMessage::new("user", "把发布清单整理一版")],
+        &results,
+        Some("生成没有产出可用答复。"),
+    )
+    .unwrap();
+    assert!(automatic.contains("把发布清单整理一版"));
+    assert!(automatic.contains("这一轮还没有完成"));
+    assert!(!automatic.contains("发布清单的检查要点正文"));
+    store
+        .send_message(&conv, "user", "搞定了吗？", None)
+        .unwrap();
+    let explicit = progress_fallback(
+        &store,
+        &conv,
+        &[ContextMessage::new("user", "搞定了吗？")],
+        &results,
+        None,
+    )
+    .unwrap();
+    assert!(explicit.contains("发布清单的检查要点正文"));
+    assert!(!explicit.contains("这一轮还没有完成"));
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+/// 事故 2026-10-18 根因 B：用户确认后的失败必须点名「答应的事没做到」。
+#[test]
+fn failure_notice_quotes_request_and_admits_unfulfilled_promise() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    for (role, text) in [
+        ("user", "把 ESP32 糖尿病监测的思路整理进产品灵感页"),
+        ("assistant", "我这就把这块整理成一条灵感记录。"),
+        ("user", "好"),
+    ] {
+        store.send_message(&conv, role, text, None).unwrap();
+    }
+    let notice = failure_notice(&store, &conv, "本轮必要上下文超过预算；请缩小任务范围").unwrap();
+    assert!(notice.contains("把 ESP32 糖尿病监测的思路整理进产品灵感页"));
+    assert!(notice.contains("这一轮还没有完成"));
+    assert!(notice.contains("同样没有做到"));
+    assert!(!notice.contains("已保存"));
+    // 失败说明之后追问进展，必须判定为还没完成并接上原任务
+    assert!(FollowUp::load(&store, &conv).unwrap().is_none());
     drop(store);
     let _ = std::fs::remove_file(path);
 }
@@ -620,11 +703,13 @@ fn followup_full_request_reaches_http_provider_after_memory_compression() {
         .unwrap();
     assert!(recalled["content"].as_str().unwrap().contains(&original));
     assert!(answer.contains("完整改进稿"));
-    assert!(store
-        .list_messages(&conv)
-        .unwrap()
-        .iter()
-        .any(|m| m.role == "user" && m.content == "？"));
+    assert!(
+        store
+            .list_messages(&conv)
+            .unwrap()
+            .iter()
+            .any(|m| m.role == "user" && m.content == "？")
+    );
     drop(store);
     let _ = std::fs::remove_file(path);
 }

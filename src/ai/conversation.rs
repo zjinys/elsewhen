@@ -14,6 +14,8 @@ use super::provider::{AiProvider, AiReply, OllamaProvider, OpenAiCompatibleProvi
 use super::tool::{ToolCall, ToolPolicy, ToolRegistry, ToolResultMsg, dispatch_with_knowledge};
 use crate::storage::{RuleStatus, Store};
 use anyhow::{Context, Result};
+/// 事故 2026-10-18 P1-A/P1-B：run 级失败的诚实失败消息，供 generation 落终态时写入消息流。
+pub(crate) use continuity::failure_notice;
 use continuity::{FINAL_ANSWER_NUDGE, FollowUp, progress_fallback, unhelpful_failure_reply};
 use serde_json::Value;
 
@@ -537,7 +539,14 @@ fn generate_with_provider_configs(
             Some((label, data)) => {
                 format!("查到的「{label}」数据如下：\n{data}")
             }
-            None => progress_fallback(store, conversation_id, &context, &[])?,
+            // 事故 2026-10-18 P1-A：自动兜底只产诚实失败消息，工具结果不进消息流。
+            None => progress_fallback(
+                store,
+                conversation_id,
+                &context,
+                &[],
+                Some("生成没有产出可用答复；你的问题还挂着，可以重试一次。"),
+            )?,
         };
     }
 
@@ -1213,7 +1222,15 @@ fn run_agent_loop_inner(
     }
 
     if content.trim().is_empty() {
-        content = progress_fallback(store, conversation_id, context, &results)?;
+        content = progress_fallback(
+            store,
+            conversation_id,
+            context,
+            &results,
+            Some(
+                "连续几轮都没有产出可用内容，本轮到此为止；你的问题还挂着，说「继续」或换个问法即可，不需要重新输入原话。",
+            ),
+        )?;
     }
 
     Ok(AgentOutcome {
@@ -2530,7 +2547,10 @@ mod tests {
 
     #[test]
     fn tool_call_attempt_detected_tool_name_plus_shape() {
-        let names = vec!["search_knowledge_base".to_string(), "list_rules".to_string()];
+        let names = vec![
+            "search_knowledge_base".to_string(),
+            "list_rules".to_string(),
+        ];
         // 未知方言但含工具名 + 调用形态 → 命中（回炉），不能静默吞掉
         assert!(tool_call_attempt_detected(
             "[CALL] search_knowledge_base with arguments {\"query\": \"x\"}",
