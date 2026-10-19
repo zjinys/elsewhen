@@ -211,6 +211,27 @@ fn request_on_channel(
     reply
 }
 
+/// 10-19 档案 P0-c：completed run 的摘要不可用降级前缀。挂在最终回复
+/// 之首供用户直接看见（原因细节已在 summary_unavailable 事件与健康巡
+/// 检里，不进对话内容）。
+pub(crate) fn honest_summary_degradation(store: &Store, run_id: &str, content: String) -> String {
+    let unavailable: i64 = store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM chat_run_events WHERE run_id=?1 AND kind='summary_unavailable'",
+            [run_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    if unavailable > 0 {
+        format!(
+            "〔系统标注：本轮背景摘要不可用，模型没有获得较早历史的派生摘要；涉及旧事的细节请让它明确说明依据。〕\n\n{content}"
+        )
+    } else {
+        content
+    }
+}
+
 pub(crate) fn execute(
     store: &Store,
     run: &ChatRun,
@@ -237,6 +258,11 @@ pub(crate) fn execute(
     })();
     match result {
         Ok(content) => {
+            // 10-19 档案 P0-c：completed run 的降级声明走确定性前缀，
+            // 不走 failure_notice（新通道，避免污染 2026-10-18 事故的
+            // P1-A 失败指纹体系）。模型把 system 免责声明转述成「没有
+            // 留存」正是当时的现状——前缀由装配层直接可见，不依赖转述。
+            let content = honest_summary_degradation(store, &run.id, content);
             match store.finish_chat_run(&run.id, owner, "completed", Some(&content), None) {
                 Ok(_) => Ok(content),
                 Err(error) => {
@@ -425,4 +451,53 @@ pub(crate) fn tool_result_payload(
 ) -> serde_json::Value {
     json!({"call_id":call.id,"name":call.name,"success":result.success,
         "content":result.content,"outcome":if !result.success {"failed"} else if policy == super::tool::ToolPolicy::WriteConfirm {"proposal_ready"} else if policy == super::tool::ToolPolicy::WriteDirect {"executed"} else {"read"}})
+}
+
+#[cfg(test)]
+mod honest_tests {
+    use super::*;
+    use crate::storage::Store;
+
+    fn fixture() -> (Store, ChatRun, String) {
+        let dir =
+            std::env::temp_dir().join(format!("elsewhen-honest-prefix-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let store = Store::open(&dir.join("test.db")).unwrap();
+        crate::storage::Store::mark_initialized(&dir.join("test.db")).unwrap();
+        let conversation = store.create_conversation(None, None).unwrap();
+        let input = store
+            .send_message(&conversation, "user", "第一问", None)
+            .unwrap();
+        let run = store
+            .create_chat_run(
+                &conversation,
+                &input,
+                &uuid::Uuid::new_v4().to_string(),
+                "owner",
+            )
+            .unwrap();
+        (store, run, conversation)
+    }
+
+    #[test]
+    fn completed_reply_carries_honest_prefix_when_summary_unavailable() {
+        // 10-19 档案 P0-c：completed run 里用户必须直接看到「背景摘要
+        // 不可用」，不再依赖模型转述 system 免责声明。
+        let (store, run, _conversation) = fixture();
+        let plain = honest_summary_degradation(&store, &run.id, "正常回复".into());
+        assert_eq!(plain, "正常回复", "无事件时不加前缀");
+        store
+            .append_chat_run_event(
+                &run.id,
+                "owner",
+                "summary_unavailable",
+                &serde_json::json!({"reason":"incomplete_or_invalid_basis","detail":"没有可摘要的历史"}),
+            )
+            .unwrap();
+        let degraded = honest_summary_degradation(&store, &run.id, "模型回答".into());
+        assert!(degraded.contains("背景摘要不可用"));
+        assert!(degraded.ends_with("模型回答"), "前缀在回复之首");
+        // 不走 failure_leave——P1-A 指纹不因此污染
+        assert!(!degraded.contains("失败通知"));
+    }
 }

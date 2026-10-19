@@ -1,6 +1,6 @@
 # 事故档案：主对话流摘要管道永久失败 → AI「忘记」三分钟前的承诺
 
-**日期**：2026-10-19　**状态**：根因已定位到模块级；P0-a 已落地（真实错误入事件，含脱敏截断）、知识健康巡检已落地（FRB `knowledge_health`，纯 Rust 无 UI）；P0-b 最近轮 Required 保留、P0-c 诚实降级文案、P1 归并根节点修复未动；P1 归并根节点失败点待 P0-a 拿到 detail 后定位
+**日期**：2026-10-19　**状态**：根因已定位到模块级；P0-a 已落地（真实错误入事件，含脱敏截断）、知识健康巡检已落地（FRB `knowledge_health`，纯 Rust 无 UI）；P0-b 已落地（2026-10-20，`87d4931`：fit 砍轮下限 turns<=2 + preselection 最近交换硬保留，同一口径）；P0-c 已落地（`generation.rs::honest_summary_degradation`：completed run 查本 run 的 `summary_unavailable` 事件，给最终回复加确定性系统标注前缀，不走 failure_notice 避免污染 P1-A 指纹）；P1 归并根节点修复未动，失败点待 P0-a detail 积累后定位
 **涉及代码**：`src/ai/summary.rs`（apply_summary / Builder::build）、`src/ai/memory.rs`（preselection_earlier_turn）、`src/ai/budget.rs`（whole_earlier_turn 裁剪）
 **关联事故**：与 [2026-10-18 顶包事故](2026-10-18-intent-bypass-progress-fallback.md) 同一会话（93196d4f「主对话流」）的预算问题家族，但触发机制不同——那次是 run 失败后 progress_fallback 顶包，这次是摘要失败后静默砍历史。
 
