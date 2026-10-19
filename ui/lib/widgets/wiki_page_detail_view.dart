@@ -37,7 +37,8 @@ part 'wiki_page_parts/wiki_detail_entity_items.dart';
 part 'wiki_page_parts/wiki_detail_entity_guidance.dart';
 part 'wiki_page_parts/wiki_detail_entity_facts.dart';
 part 'wiki_detail_page_chips.dart';
-part 'wiki_detail_import_preview.dart';
+part 'wiki_page_parts/wiki_detail_import_fetch.dart';
+part 'wiki_page_parts/wiki_detail_import_tweet.dart';
 // ── 详情视图主体拆分（行为零变化，见 wiki_page_parts/）──
 part 'wiki_page_parts/wiki_detail_home_tab.dart';
 part 'wiki_page_parts/wiki_detail_body_immersive.dart';
