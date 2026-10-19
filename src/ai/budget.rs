@@ -465,6 +465,16 @@ fn supplement_halved(content: &str) -> Option<String> {
     Some(format!("{head}{SUPPLEMENT_HALVED_SUFFIX}"))
 }
 
+/// 内容启发式估算的安全系数：所有比率均在样本基准上加 12% 余量，
+/// 保证估算偏低（宁高不低红线）。
+const HEURISTIC_SAFETY: f64 = 1.12;
+/// ASCII（英文/JSON/代码，工具 schema 主体）：约 3.4 bytes/token。
+/// 基准：34,204 字节 Gitea schema → ~11,200 估算（真实 ~9-12K）。
+const ASCII_CHARS_PER_TOKEN: f64 = 3.4;
+/// CJK 每字符 token 系数：真实 deepseek/qwen 中文约 0.6~0.8 token/字，
+/// 取 2.0 保守放大 2.5~3 倍。基准：1000 汉字 → 2240 估算（验收 [1.8K,2.4K]）。
+const CJK_TOKENS_PER_CHAR: f64 = 2.0;
+
 pub fn text_tokens(model: &str, text: &str) -> usize {
     if model.starts_with("gpt-4o")
         || model.starts_with("gpt-5")
@@ -480,8 +490,43 @@ pub fn text_tokens(model: &str, text: &str) -> usize {
             .encode_ordinary(text)
             .len()
     } else {
-        text.len()
+        heuristic_tokens(text)
     }
+}
+
+/// 非 tiktoken 族的分层估算（L1/L2 合一：族识别已无增量信息，
+/// 内容启发式按字符类别分别计费）：
+/// - CJK 按字符 × 2.0；
+/// - ASCII 按字符 ÷ 3.4（JSON/代码/英文经验 BPE 比率）；
+/// - 其余字符（带附加符号拉丁文、emoji 等低频）按 1 字/1 token 保守计；
+/// - 全部乘 `HEURISTIC_SAFETY`。单次 O(n) 扫描。
+fn heuristic_tokens(text: &str) -> usize {
+    let mut ascii = 0usize;
+    let mut cjk = 0usize;
+    let mut other = 0usize;
+    for ch in text.chars() {
+        if is_cjk(ch) {
+            cjk += 1;
+        } else if ch.is_ascii() {
+            ascii += 1;
+        } else {
+            other += 1;
+        }
+    }
+    let estimate =
+        ascii as f64 / ASCII_CHARS_PER_TOKEN + cjk as f64 * CJK_TOKENS_PER_CHAR + other as f64;
+    (estimate * HEURISTIC_SAFETY).ceil() as usize
+}
+
+fn is_cjk(ch: char) -> bool {
+    matches!(ch as u32,
+        0x4E00..=0x9FFF   // CIR 汉字
+        | 0x3400..=0x4DBF // 扩展 A
+        | 0x3000..=0x303F // CJK 标点
+        | 0x3040..=0x30FF // 日文假名
+        | 0xAC00..=0xD7AF // 谚文
+        | 0xF900..=0xFAFF // 兼容汉字
+    )
 }
 #[cfg(test)]
 mod context_overflow_tests {
@@ -566,16 +611,16 @@ mod tool_result_prune_tests {
             "messages": [
                 {"role":"user","content":"第一问"},
                 {"role":"assistant","content":"第一答","tool_calls":[{"id":"c0","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c0", 8000),
+                tool_msg("c0", 28000),
                 {"role":"user","content":"第二问"},
                 {"role":"assistant","content":"第二答","tool_calls":[{"id":"c1","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c1", 2500),
+                tool_msg("c1", 9000),
                 {"role":"user","content":"第三问"},
                 {"role":"assistant","content":"第三答","tool_calls":[{"id":"c2","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c2", 2500),
+                tool_msg("c2", 9000),
                 {"role":"user","content":"第四问"},
                 {"role":"assistant","content":"第四答","tool_calls":[{"id":"c3","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c3", 2500),
+                tool_msg("c3", 9000),
                 {"role":"user","content":"第五问，当前问题必须完整保留"},
             ]
         });
@@ -608,7 +653,7 @@ mod tool_result_prune_tests {
             let c = msgs.iter().find(|m| m["tool_call_id"] == id).unwrap();
             assert_eq!(
                 c["content"].as_str().map(str::len),
-                Some(2500),
+                Some(9000),
                 "{id} 应原样保留"
             );
         }
@@ -621,13 +666,13 @@ mod tool_result_prune_tests {
             "messages": [
                 {"role":"user","content":"第一问"},
                 {"role":"assistant","content":"第一答","tool_calls":[{"id":"c0","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c0", 5000),
+                tool_msg("c0", 17500),
                 {"role":"user","content":"第二问"},
                 {"role":"assistant","content":"第二答","tool_calls":[{"id":"c1","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c1", 6000),
+                tool_msg("c1", 21000),
                 {"role":"user","content":"第三问"},
                 {"role":"assistant","content":"第三答","tool_calls":[{"id":"c2","type":"function","function":{"name":"t","arguments":"{}"}}]},
-                tool_msg("c2", 6000),
+                tool_msg("c2", 21000),
                 {"role":"user","content":"第四问，当前问题必须完整保留"},
             ]
         });
@@ -704,6 +749,50 @@ pub fn fit_request(
 mod tests {
     use super::*;
 
+    /// R1 基准：非 GPT 模型下 34,204 字节工具 schema 估算落 [8K,16K]
+    /// （事故实况：字节退化估为 34,204；真实 ~9-12K）。
+    #[test]
+    fn gitea_schema_estimation_falls_in_calibrated_band() {
+        let mut schema = String::from("{");
+        for i in 0..53 {
+            let desc = "Execute Gitea repository operation and return structured result ".repeat(8);
+            schema.push_str(
+                &format!(
+                    "\"mcp__gitea-mcp__tool_{i:02}\": {{\"name\": \"tool_{i:02}\", \"description\": \"{desc}\"}},"
+                ),
+            );
+        }
+        schema.push_str("\"dummy\": null}");
+        let estimated = text_tokens("deepseek-flash", &schema);
+        assert!(
+            (8_000..=16_000).contains(&estimated),
+            "估算 {estimated} 未落 [8K,16K]"
+        );
+    }
+
+    /// R1 基准：1000 汉字历史消息估算落 [1.8K,2.4K]
+    /// （事故实况：字节退化估为 3,000；真实 ~600-800，宁高不低）。
+    #[test]
+    fn chinese_history_estimation_falls_in_calibrated_band() {
+        let text =
+            "用户记录了一段关于咖啡豆烘焙曲线的观察，浅烘带出果酸，深烘则厚重回甘。".repeat(28); // ~980 字
+        let estimated = text_tokens("deepseek-flash", &text);
+        assert!(
+            (1_800..=2_400).contains(&estimated),
+            "估算 {estimated} 未落 [1.8K,2.4K]"
+        );
+    }
+
+    /// 空文本不炸、非 CJK 非 ASCII 字符 1：1 保守计。
+    #[test]
+    fn heuristic_edge_cases() {
+        assert_eq!(text_tokens("deepseek-flash", ""), 0);
+        assert_eq!(text_tokens("gpt-4o", ""), 0);
+        // 浮点 ceil 边界：100 × 1.12 = 112（允许 +1 误差）
+        let emoji = "🎯".repeat(100);
+        assert!((112..=113).contains(&text_tokens("glm-5.3-flash", &emoji)));
+    }
+
     #[test]
     fn time_hints_follow_removed_turns_and_reanchor_after_smaller_retry() {
         use crate::ai::memory::ContextMessage;
@@ -736,7 +825,7 @@ mod tests {
                     }],
                     None,
                 ),
-                ContextMessage::tool_result("call_current".into(), "真实结果".into()),
+                ContextMessage::tool_result("call_current".into(), "真实结果".repeat(240).into()),
             ],
             &SystemClock,
         );
@@ -749,7 +838,7 @@ mod tests {
         let n = messages.len();
         messages[n - 2] = serde_json::json!({"role":"assistant", "tool_calls":[{"id":"call_current","type":"function","function":{"name":"search","arguments":"{}"}}]});
         messages[n - 1] =
-            serde_json::json!({"role":"tool", "tool_call_id":"call_current", "content":"真实结果"});
+            serde_json::json!({"role":"tool", "tool_call_id":"call_current", "content":"真实结果".repeat(240)});
         let exchange = messages[n - 3..].to_vec();
         let mut request = serde_json::json!({"messages":messages});
         policies.fit("unknown", &mut request, 4096, 512).unwrap();
@@ -785,8 +874,9 @@ mod tests {
             ContextMessage::new("user", "old".repeat(3000)),
             hint,
             // 10-19 P0-b：最近两轮不可砍，砍轮目标必须是 old 轮；垫一轮
-            // 小的让省略后仍能回到预算内。
-            ContextMessage::new("user", "垫轮".repeat(4)),
+            // 小的让省略后仍能回到预算内。垫轮放大至新估算口径下仍
+            // 超最小窗口，保住第二段断言的「最近两轮不可省略」诚实失败。
+            ContextMessage::new("user", "垫轮".repeat(300)),
             ContextMessage::new("assistant", "垫答"),
             ContextMessage::new("user", "latest"),
             ContextMessage::new("system", "evidence"),
