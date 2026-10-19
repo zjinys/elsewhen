@@ -72,7 +72,7 @@ fn mount_summary(summary: &str, content_md: &str) -> String {
     }
 }
 
-fn query_terms(query: &str) -> Vec<String> {
+pub(crate) fn query_terms(query: &str) -> Vec<String> {
     let query = shorten(query, 3000).to_lowercase();
     let mut terms = Vec::new();
     for word in query.split(|c: char| !c.is_alphanumeric()) {

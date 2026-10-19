@@ -1,7 +1,13 @@
 # 知识页持续更新与关系网
 
 - 日期：2026-10-19
-- 状态：proposed
+- 状态：proposed → **P0 已实施**（2026-10-20 评审采纳，分期推进）。
+  已落地：A 相关性选页（`select_context_pages_for_events`，词项打分，
+  evidence 只做平票裁定——缺陷①主因已修）；B 提示词纪律 + 代码侧同义
+  新建改写（kind+归一化标题+tag 重合才转 update，宁漏判不误并）；
+  migration 修正：实施时应为 **52**（51 已被 todo-reminder-fires 占用）。
+  P2 实施时模型调用须套摘要管线同款纪律（渠道事实判定+预算闸+账本）。
+  P1/P2/P3 待做。
 - 范围：让 elsewhen 自己总结的知识页（habit / profile / topic / …）随新事件持续更新；并回答「是否需要内容-文档关系网、是否按关系级联更新」
 - 性质：消化管线的增量演进；新增「页级再汇总」与「语义关系边」，复用现有依赖 / 刷新 / 版本机制
 - 关联：[FR-PES-004 LLM-Wiki 知识库闭环](../../../requirements/product/FR-PES-004-LLM-Wiki知识库闭环.md)、[docs/llm-wiki.md](../../../llm-wiki.md)、[摘录孵化闭环](../product/2026-10-19-clip-incubation-and-negative-knowledge.md)

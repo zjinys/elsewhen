@@ -449,7 +449,7 @@ pub(crate) fn apply_summary(
     super::generation::check(store)?;
     match result {
         Ok((replacement, node_id)) => {
-            failed_flag = false;
+            // failed_flag 已是 false（Ok 分支）
             let mut rebuilt: Vec<_> = context
                 .iter()
                 .filter(|message| {

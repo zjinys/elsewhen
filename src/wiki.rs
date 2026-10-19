@@ -183,6 +183,132 @@ pub fn select_context_pages(
     picked
 }
 
+/// 事件驱动的相关性选页（知识页持续更新提案 A，2026-10-20）。
+///
+/// 解决缺陷①：旧选页只看证据数/时间，本批事件提到的低证据页只以一行索引出现，
+/// 模型拿不到正文所以永远不会 update 它。改为：从本批事件抽词项，标题/tags/
+/// summary 命中权重高、正文次之，evidence/时间只做平票裁定；命中页给全文
+/// （单页 ≤4000 字），总预算 max_chars 维持。零命中时返回空——此时索引行已足够，
+/// 也顺着提案 B 的「宁缺毋滥」减少提示词噪声。
+/// 1-hop 关系邻居加分留到提案 D 落地后接入（图不存在时跳过，不阻塞本函数）。
+const CONTEXT_MIN_SCORE: i64 = 6;
+const CONTEXT_PAGE_MAX_CHARS: usize = 4000;
+
+pub fn select_context_pages_for_events(
+    events: &[EventRecord],
+    pages: Vec<WikiPage>,
+    kinds: &[&str],
+    max_chars: usize,
+) -> Vec<WikiPage> {
+    // 逐事件抽词项合并（单事件内复用 knowledge 的词项提取），避免拼接后
+    // 超过词项提取的内部截断导致尾部事件被忽略。
+    let mut terms = Vec::new();
+    for event in events {
+        for term in crate::knowledge::query_terms(&event.raw_text) {
+            if !terms.contains(&term) {
+                terms.push(term);
+            }
+        }
+    }
+    if terms.is_empty() {
+        return Vec::new();
+    }
+    let mut scored: Vec<(i64, WikiPage)> = pages
+        .into_iter()
+        .filter(|p| p.status != "archived" && kinds.contains(&p.kind.as_str()))
+        .map(|p| {
+            let mut score = 0i64;
+            let title = p.title.to_lowercase();
+            let summary = p.summary.to_lowercase();
+            let body = p.content_md.to_lowercase();
+            for term in &terms {
+                if title.contains(term.as_str()) {
+                    score += 8;
+                }
+                if p.tags
+                    .iter()
+                    .any(|t| t.to_lowercase().contains(term.as_str()))
+                {
+                    score += 6;
+                }
+                if summary.contains(term.as_str()) {
+                    score += 4;
+                }
+                if body.contains(term.as_str()) {
+                    score += 2;
+                }
+            }
+            (score, p)
+        })
+        .collect();
+    scored.retain(|(score, _)| *score >= CONTEXT_MIN_SCORE);
+    scored.sort_by(|a, b| {
+        b.0.cmp(&a.0)
+            .then_with(|| b.1.evidence_count.cmp(&a.1.evidence_count))
+            .then_with(|| b.1.last_seen_at.cmp(&a.1.last_seen_at))
+    });
+    let mut total = 0usize;
+    scored
+        .into_iter()
+        .filter_map(|(_, p)| {
+            let cost = p.content_md.len().min(CONTEXT_PAGE_MAX_CHARS);
+            if total + cost <= max_chars {
+                total += cost;
+                Some(p)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// 标题归一化：去空白与常见连接符后小写比较（近似 slug 检查用）。
+fn normalize_page_title(title: &str) -> String {
+    title
+        .trim()
+        .to_lowercase()
+        .chars()
+        .filter(|c| !c.is_whitespace() && !c.is_ascii_punctuation() && !"·—–_".contains(*c))
+        .collect()
+}
+
+/// 提案 B（2026-10-20）：create 前的近似检查。与既有页 kind 相同、归一化
+/// 标题逐字相等且至少 1 个 tag 重合的新建提议 → 改写为对既有页的 update
+/// （下游按 slug 是否已存在推断 create/update，重写 slug 即可）。判定条件
+/// 刻意收窄：宁可漏判走 create（有 wiki_revisions 可撤销），不可错合并
+/// 「同标题不同实体」的页。
+fn redirect_synonym_creates(
+    store: &Store,
+    mut proposals: Vec<DigestProposal>,
+) -> Result<Vec<DigestProposal>> {
+    let pages = store.list_wiki_pages(None, None)?;
+    for p in &mut proposals {
+        if p.op != "create" {
+            continue;
+        }
+        let normalized = normalize_page_title(&p.title);
+        if normalized.is_empty() {
+            continue;
+        }
+        if let Some(existing) = pages.iter().find(|page| {
+            page.kind == p.kind
+                && normalize_page_title(&page.title) == normalized
+                && p.tags.iter().any(|t| page.tags.contains(t))
+        }) {
+            p.reason = Some(format!(
+                "与既有页 {} 同主题，按纪律并入更新：{}",
+                existing.slug,
+                p.reason
+                    .clone()
+                    .unwrap_or_else(|| "digest 消化新事件".into())
+            ));
+            p.slug = existing.slug.clone();
+            p.op = "update".into();
+        }
+    }
+    Ok(proposals)
+}
+
 #[cfg(not(test))]
 fn call_provider(store: &Store, system: &str, user: &str, max_tokens: u32) -> Result<String> {
     let ai_config = store
@@ -1314,8 +1440,11 @@ const DIGEST_SYSTEM_PROMPT: &str = r#"你是 elsewhen 个人知识库的 wiki �
 - slug：小写 kebab-case，格式 <kind 去下划线>/<简短名>，例如 recurring-cost/dongguan-huizhou-commute。
 - 已有页面需要更新时 op=update，给出【全文新内容】（基于旧内容增量修补，不丢失旧事实）。
 - 若事件没有产生任何新事实，返回空数组。
+- 索引或「相关现有页面全文」中已有同主题页时【必须 op=update】，不得新建同义
+  slug；凡标题或标签命中的候选页，逐页判断是否需要更新，并在 reason 里说明
+  为什么改或不改。
 - 每个页面变更的 source_event_ids 必须列出支撑它的事件编号（至少一个，只能用本次给出的编号）。
-- 宁缺毋滥：一条事件通常 0~1 个页面变更，最多 2 个。"#;
+- 宁缺毋滥：一条事件 0~2 个页面变更，允许 0；与已有页相关时优先更新而不是新建。"#;
 
 /// LLM 返回的页面变更提议
 #[derive(Debug, Clone, Deserialize)]
@@ -1373,15 +1502,13 @@ fn build_digest_user_prompt(
     out.push_str(&index);
 
     // memo 全文不进 digest 上下文（只留给「知识引用式」按需挂载，评审 D3）。
-    let context = select_context_pages(
-        pages,
-        &WIKI_KINDS
-            .iter()
-            .copied()
-            .filter(|k| *k != "memo")
-            .collect::<Vec<_>>(),
-        max_chars,
-    );
+    let kinds: Vec<&str> = WIKI_KINDS
+        .iter()
+        .copied()
+        .filter(|k| *k != "memo")
+        .collect();
+    // 提案 A：相关性选页——本批事件提到的页必然拿到正文，不再只看证据数。
+    let context = select_context_pages_for_events(events, pages, &kinds, max_chars);
     if !context.is_empty() {
         out.push_str("\n相关现有页面全文（合并/更新时参考）：\n");
         for p in &context {
@@ -1478,6 +1605,8 @@ fn digest_batch_drafts(
         .context("调用模型失败")?
         .content;
     let proposals = parse_proposals(&reply)?;
+    // 提案 B：同义新建改写为对既有页的 update（kind+归一化标题+tag 重合）。
+    let proposals = redirect_synonym_creates(store, proposals)?;
     proposals
         .iter()
         .map(|p| proposal_to_draft(p, events))
