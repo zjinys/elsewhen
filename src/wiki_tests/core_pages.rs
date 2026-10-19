@@ -1,4 +1,6 @@
 use super::*;
+use crate::storage::{ContentPolicy, WikiPageDraft};
+use std::path::Path;
 
 #[test]
 fn slug_validation() {

@@ -1,4 +1,5 @@
 use super::*;
+use crate::wiki::tweet_import::{FxTwitterResponse, parse_tweet_content};
 
 #[test]
 fn proposals_parse_plain_and_fenced() {

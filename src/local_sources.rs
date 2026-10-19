@@ -1298,9 +1298,6 @@ pub(crate) fn confirm_file_import(
     Ok(report)
 }
 
-    }
-}
-
 pub fn plan_topic(store: &Store, topic: &str) -> Result<String> {
     let topic = topic.trim();
     if topic.is_empty() {
