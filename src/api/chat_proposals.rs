@@ -117,14 +117,31 @@ pub fn edit_chat_proposal(
 
 /// Approval binds the exact preview token, never a natural-language keyword.
 pub fn decide_chat_proposal(request: ChatReviewRequest, accept: bool) -> Result<ChatDecisionDto> {
-    Ok(crate::ai::approval::resolve_chat_proposal(
-        &store()?,
+    let store = store()?;
+    let decision = crate::ai::approval::resolve_chat_proposal(
+        &store,
         &request.kind,
         &request.proposal_id,
         request.conversation_id.as_deref(),
         request.expected_version,
         &request.approval_token,
         if accept { "accept" } else { "reject" },
-    )?
-    .into())
+    )?;
+    // R3 审批续跑闭环：接受且执行成功时注入续跑指令并入队一轮生成
+    // （节流与封顶在 approval::enqueue_approval_followup 内部）。
+    // 入队失败不推翻审批结果——批准已生效，续跑属增强路径。
+    if let Err(error) = crate::ai::approval::enqueue_approval_followup_claimed(
+        &store,
+        &request.kind,
+        &request.proposal_id,
+        request.conversation_id.as_deref(),
+        &decision,
+    ) {
+        let _ = crate::ai::generation::event(
+            &store,
+            "approval_followup_failed",
+            serde_json::json!({"proposal_id": request.proposal_id, "detail": error.to_string()}),
+        );
+    }
+    Ok(decision.into())
 }

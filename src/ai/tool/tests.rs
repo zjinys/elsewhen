@@ -1047,7 +1047,10 @@ fn mcp_tool(server: &str, raw: &str, desc_len: usize) -> crate::ai::mcp::McpTool
         server: server.to_string(),
         server_id: format!("{server}-id"),
         raw_name: raw.to_string(),
-        description: format!("列出仓库 issue 并返回分页结果。{}", "细节说明。".repeat(desc_len)),
+        description: format!(
+            "列出仓库 issue 并返回分页结果。{}",
+            "细节说明。".repeat(desc_len)
+        ),
         parameters: serde_json::json!({
             "type":"object",
             "properties":{"owner":{"type":"string"},"repo":{"type":"string"}},
@@ -1064,21 +1067,28 @@ fn mcp_tools_deferred_until_enabled() {
     registry.set_mcp_tools(vec![mcp_tool("gitea-mcp", "list_issues", 2)]);
     let empty = std::collections::HashSet::new();
     // 常驻集不含 MCP
-    assert!(registry
-        .eager_specs(true)
-        .iter()
-        .all(|s| !s.name.starts_with("mcp__")));
+    assert!(
+        registry
+            .eager_specs(true)
+            .iter()
+            .all(|s| !s.name.starts_with("mcp__"))
+    );
     // 未启用：不出现在注入集
-    assert!(registry
-        .provider_specs_partitioned(true, &empty)
-        .iter()
-        .all(|s| !s.name.starts_with("mcp__")));
+    assert!(
+        registry
+            .provider_specs_partitioned(true, &empty)
+            .iter()
+            .all(|s| !s.name.starts_with("mcp__"))
+    );
     // 登记后放量
     let enabled: std::collections::HashSet<String> =
         ["mcp__gitea-mcp__list_issues".to_string()].into();
     let specs = registry.provider_specs_partitioned(true, &enabled);
     assert_eq!(
-        specs.iter().filter(|s| s.name == "mcp__gitea-mcp__list_issues").count(),
+        specs
+            .iter()
+            .filter(|s| s.name == "mcp__gitea-mcp__list_issues")
+            .count(),
         1
     );
 }
@@ -1097,16 +1107,29 @@ fn mcp_catalog_groups_and_budgets() {
     assert!(catalog.contains("fs-mcp（1 个工具）"));
     assert!(catalog.contains("tool_00"), "工具应按行出现在 catalog 中");
     // 行内描述截断到 120 字符：不应出现整段长描述
-    assert!(catalog.lines().filter(|l| l.contains("// ")).all(|l| l.chars().count() < 180));
+    assert!(
+        catalog
+            .lines()
+            .filter(|l| l.contains("// "))
+            .all(|l| l.chars().count() < 180)
+    );
     // 2000 token 预算装不下 54 行中文描述 → 截断进计数行，总量贴近预算
-    assert!(catalog.contains("个工具未列出"), "超预算应截断并为模型留计数提示");
+    assert!(
+        catalog.contains("个工具未列出"),
+        "超预算应截断并为模型留计数提示"
+    );
     let catalog_tokens = crate::ai::budget::text_tokens("deepseek-flash", &catalog);
-    assert!((1_500..=2_300).contains(&catalog_tokens), "实际 {catalog_tokens}");
+    assert!(
+        (1_500..=2_300).contains(&catalog_tokens),
+        "实际 {catalog_tokens}"
+    );
     // 全量 schema 体积远大于 catalog（瘦身验收的对照面）
     let full: usize = registry
         .mcp_tools()
         .iter()
-        .map(|t| crate::ai::budget::text_tokens("deepseek-flash", &serde_json::to_string(t).unwrap()))
+        .map(|t| {
+            crate::ai::budget::text_tokens("deepseek-flash", &serde_json::to_string(t).unwrap())
+        })
         .sum();
     assert!(crate::ai::budget::text_tokens("deepseek-flash", &catalog) < full / 4);
 }
@@ -1118,7 +1141,10 @@ fn enable_result_registers_mcp_fullnames() {
     registry.set_mcp_tools(vec![mcp_tool("gitea-mcp", "list_issues", 1)]);
     let mut enabled = std::collections::HashSet::new();
     let text = registry.enable_result(
-        &["mcp__gitea-mcp__list_issues".to_string(), "mcp__gitea-mcp__nope".to_string()],
+        &[
+            "mcp__gitea-mcp__list_issues".to_string(),
+            "mcp__gitea-mcp__nope".to_string(),
+        ],
         &mut enabled,
     );
     assert!(enabled.contains("mcp__gitea-mcp__list_issues"));
@@ -1126,4 +1152,83 @@ fn enable_result_registers_mcp_fullnames() {
     assert!(text.contains("JSON Schema"));
     assert!(text.contains("未知的技能包") || text.contains("mcp__gitea-mcp__nope"));
     assert!(!enabled.contains("mcp__gitea-mcp__nope"));
+}
+
+// ── R3：审批续跑闭环 ──
+
+/// accept 成功 → 注入带确定性标记的续跑指令并入队生成；节流 2 条/5 分钟；
+/// reject 或失败决策不触发。
+#[test]
+fn approval_followup_injects_and_throttles() {
+    use crate::storage::approvals::{ChatDecision, ChatProposal, FOLLOWUP_MARK};
+    let (store, _dir) = temp_db();
+    let conversation = store.create_conversation(Some("续跑"), None).unwrap();
+    let proposal = ChatProposal {
+        kind: "action".into(),
+        id: "p1".into(),
+        conversation_id: Some(conversation.clone()),
+        action: "create_todo".into(),
+        args_json: "{}".into(),
+        version: 1,
+        created_at: "2026-10-20T00:00:00Z".into(),
+        approval_token: "tok".into(),
+        target_basis_json: "{}".into(),
+    };
+    let decision = |decision: &str, status: &str| ChatDecision {
+        kind: "action".into(),
+        id: "p1".into(),
+        conversation_id: Some(conversation.clone()),
+        version: 1,
+        approval_token: "tok".into(),
+        decision: decision.into(),
+        status: status.into(),
+        result: "已创建待办草稿".into(),
+        action: "create_todo".into(),
+        args_json: "{}".into(),
+    };
+    // reject 不续跑
+    assert!(
+        !crate::ai::approval::enqueue_approval_followup(
+            &store,
+            &proposal,
+            &decision("reject", "declined")
+        )
+        .unwrap()
+    );
+    // accept 成功 → 续跑入队
+    assert!(
+        crate::ai::approval::enqueue_approval_followup(
+            &store,
+            &proposal,
+            &decision("accept", "succeeded")
+        )
+        .unwrap()
+    );
+    let messages = store.list_messages(&conversation).unwrap();
+    let followups: Vec<_> = messages
+        .iter()
+        .filter(|m| m.role == "user" && m.content.starts_with(FOLLOWUP_MARK))
+        .collect();
+    assert_eq!(followups.len(), 1);
+    assert!(followups[0].content.contains("create_todo"));
+    // 队列里有一项待生成输入
+    let queue = store.list_chat_input_queue(&conversation, 0, 10).unwrap();
+    assert_eq!(queue.len(), 1);
+    // 第 2、3 条 → 节流（窗口内 ≥2 即放弃）
+    assert!(
+        crate::ai::approval::enqueue_approval_followup(
+            &store,
+            &proposal,
+            &decision("accept", "succeeded")
+        )
+        .unwrap()
+    );
+    assert!(
+        !crate::ai::approval::enqueue_approval_followup(
+            &store,
+            &proposal,
+            &decision("accept", "succeeded")
+        )
+        .unwrap()
+    );
 }

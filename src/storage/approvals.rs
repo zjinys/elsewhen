@@ -24,6 +24,10 @@ impl Drop for ProposalLease {
     }
 }
 
+/// R3 审批续跑指令的确定性前缀：装配与节流扫描都依赖它识别
+/// 「系统代发的自动续跑输入」，别改字面量。
+pub const FOLLOWUP_MARK: &str = "〔审批后续跑〕";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatProposal {
     pub kind: String,
