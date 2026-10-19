@@ -1,0 +1,429 @@
+use super::super::continuity_tests::*;
+use super::super::super::*;
+use super::missing_call_reply;
+use super::protocol_http_fixture;
+use super::*;
+
+// Included after continuity_tests.rs to share the recording provider fixture.
+
+#[test]
+fn natural_replies_never_execute_or_discard_unbound_proposals() {
+    for reply in ["好", "好的，别保存", "可以不保存", "不用了，先放着"] {
+        let (url, server) = protocol_http_fixture(vec![(
+            200,
+            json!({
+                "choices":[{"message":{"content":"待审内容已保留，请在审阅卡选择具体操作。"},"finish_reason":"stop"}]
+            }),
+        )]);
+        let (store, path) = temporary_database();
+        // 模型名用 kimi 前缀 → 默认窗 131k：本测试验「短回复不得授权」的行为
+        // 纪律，不是预算装载（那条护栏由 short_new_conversation_fits_..
+        // 单独看守）。R2 上线全工具清单后，规则命中+待确认动作的重上下文
+        // 在 unknown 的 32k 保守窗下已无余量，不在本测试里叠加那个边缘约束。
+        store
+            .upsert_ai_provider_config(&url, "kimi-fixture", "fixture-key")
+            .unwrap();
+        let conv = store
+            .create_conversation(Some("explicit review"), None)
+            .unwrap();
+        for title in ["A", "B"] {
+            store
+                .create_pending_action(&conv, "create_todo", &json!({"title":title}).to_string())
+                .unwrap();
+        }
+        store
+            .add_rule("不能从短回复推断授权", RuleStatus::Pending, Some(&conv))
+            .unwrap();
+        store.send_message(&conv, "user", reply, None).unwrap();
+        generate_conversation_reply(&conv, &store, None).unwrap();
+        let requests = server.join().unwrap();
+        assert_eq!(requests.len(), 1);
+        assert!(store.list_todos(None).unwrap().is_empty(), "{reply}");
+        assert!(store.list_active_rules().unwrap().is_empty(), "{reply}");
+        assert_eq!(
+            store
+                .list_chat_proposals(Some(&conv), 0, 100)
+                .unwrap()
+                .len(),
+            3
+        );
+        assert!(
+            store
+                .list_chat_decisions(Some(&conv), 0, 100)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(store.list_events().unwrap().is_empty());
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[test]
+fn http_optional_background_is_omitted_without_internal_metadata() {
+    let (url, server) = protocol_http_fixture(vec![(
+        200,
+        json!({"choices":[{"message":{"content":"回答"},"finish_reason":"stop"}]}),
+    )]);
+    let provider = OpenAiCompatibleProvider::new(crate::ai::provider::OpenAiCompatibleConfig {
+        base_url: url,
+        api_key: "fixture-key".into(),
+        model: "fixture".into(),
+        temperature: 0.7,
+        max_tokens: Some(512),
+        context_window: Some(4096),
+    })
+    .unwrap();
+    let mut background = ContextMessage::new("system", "其他会话背景".repeat(1000));
+    background.optional_background = true;
+    let question = "当前问题全文";
+    provider
+        .generate_reply(vec![
+            ContextMessage::new("system", "必要规则"),
+            background,
+            ContextMessage::new("user", question),
+        ])
+        .unwrap();
+    let requests = server.join().unwrap();
+    let serialized = requests[0].to_string();
+    assert!(serialized.contains(question));
+    assert!(serialized.contains("已省略"));
+    assert!(!serialized.contains("其他会话背景"));
+    assert!(!serialized.contains("optional_background"));
+}
+
+#[test]
+fn text_fallback_does_not_offer_record_event_for_auto_recorded_input() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("主对话流"), None).unwrap();
+    store
+        .submit_conversation_input(&conv, "今天终于完成了整理", Some("budget-fixture"))
+        .unwrap();
+    let mut context = vec![ContextMessage::new("user", "今天终于完成了整理")];
+    let provider = RecordingProvider::new(vec![
+        missing_call_reply(),
+        AiReply::text("总算完成了，听起来松了口气。"),
+    ]);
+    run_agent_loop(
+        &provider,
+        "test-provider",
+        &mut context,
+        &ToolRegistry::default(),
+        &store,
+        &conv,
+        chrono::Utc::now(),
+    )
+    .unwrap();
+    let requests = provider.requests.borrow();
+    let list = requests[1]
+        .0
+        .iter()
+        .find(|m| m.content.starts_with("可用工具（name：用途）"))
+        .unwrap();
+    assert!(!list.content.contains("record_event"));
+    assert!(list.content.contains("search_knowledge_base"));
+    assert!(!requests[1].1);
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn switching_after_a_native_call_preserves_results_as_text_and_does_not_replay() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    let mut context = vec![ContextMessage::new("user", "把视频方案整理保存")];
+    let provider = RecordingProvider::new(vec![
+        native_reply(
+            "这是方案正文",
+            "save_knowledge_draft",
+            json!({"title":"视频方案", "content_md":"保持纹理"}),
+        ),
+        missing_call_reply(),
+        AiReply::text("视频方案草稿待确认，尚未保存为知识页。"),
+    ]);
+    run_agent_loop(
+        &provider,
+        "test-provider",
+        &mut context,
+        &ToolRegistry::default(),
+        &store,
+        &conv,
+        chrono::Utc::now(),
+    )
+    .unwrap();
+    let requests = provider.requests.borrow();
+    assert_eq!(
+        requests.iter().map(|r| r.1).collect::<Vec<_>>(),
+        vec![true, true, false]
+    );
+    let text_context = &requests[2].0;
+    assert!(
+        text_context
+            .iter()
+            .all(|m| m.role != "tool" && m.tool_calls.is_none() && m.tool_call_id.is_none())
+    );
+    assert!(
+        text_context
+            .iter()
+            .any(|m| m.content.contains("这是方案正文")
+                && m.content.contains("save_knowledge_draft"))
+    );
+    assert!(
+        text_context
+            .iter()
+            .any(|m| m.role == "system" && m.content.contains("视频方案"))
+    );
+    assert_eq!(
+        store.pending_actions_for_conversation(&conv).unwrap().len(),
+        1
+    );
+    assert!(store.list_wiki_pages(None, None).unwrap().is_empty());
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn native_reply_during_text_fallback_does_not_reenable_native_requests() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    let mut context = vec![ContextMessage::new("user", "查规则")];
+    let provider = RecordingProvider::new(vec![
+        missing_call_reply(),
+        native_reply("", "list_rules", json!({})),
+        AiReply::text("还没有生效的个人规则。"),
+    ]);
+    run_agent_loop(
+        &provider,
+        "test-provider",
+        &mut context,
+        &ToolRegistry::default(),
+        &store,
+        &conv,
+        chrono::Utc::now(),
+    )
+    .unwrap();
+    let requests = provider.requests.borrow();
+    assert_eq!(
+        requests.iter().map(|r| r.1).collect::<Vec<_>>(),
+        vec![true, false, false]
+    );
+    assert!(
+        requests[2]
+            .0
+            .iter()
+            .all(|m| m.role != "tool" && m.tool_calls.is_none())
+    );
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn native_repair_preserves_opaque_reasoning_without_exposing_it() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("repair"), None).unwrap();
+    let mut context = vec![ContextMessage::new("user", "查一下规则")];
+    let mut promise = AiReply::text("我接下来会查询规则。");
+    promise.reasoning_content = Some("private-repair-context".into());
+    let provider = RecordingProvider::new(vec![
+        promise,
+        native_reply("", "list_rules", json!({})),
+        AiReply::text("当前没有生效的个人规则。"),
+    ]);
+    let outcome = run_agent_loop(
+        &provider,
+        "fixture",
+        &mut context,
+        &ToolRegistry::default(),
+        &store,
+        &conv,
+        chrono::Utc::now(),
+    )
+    .unwrap();
+    let requests = provider.requests.borrow();
+    assert_eq!(requests.len(), 3);
+    assert!(requests[1].1);
+    let continuation = requests[1]
+        .0
+        .iter()
+        .find(|m| m.role == "assistant")
+        .unwrap();
+    assert_eq!(
+        continuation.reasoning_content.as_deref(),
+        Some("private-repair-context")
+    );
+    assert!(!outcome.content.contains("private-repair-context"));
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn empty_reasoning_or_length_response_does_not_claim_tools_are_unsupported() {
+    for reason in ["stop", "length", "content_filter"] {
+        let (store, path) = temporary_database();
+        let conv = store.create_conversation(Some("test"), None).unwrap();
+        let mut context = vec![ContextMessage::new("user", "看看方案")];
+        let mut first = reply_with(Some(reason), "", vec![]);
+        first.reasoning_content = Some("internal reasoning".into());
+        let provider = RecordingProvider::new(vec![first, AiReply::text("方案尚需补充时间安排。")]);
+        run_agent_loop(
+            &provider,
+            "test-provider",
+            &mut context,
+            &ToolRegistry::default(),
+            &store,
+            &conv,
+            chrono::Utc::now(),
+        )
+        .unwrap();
+        assert!(provider.requests.borrow().iter().all(|r| r.1));
+        assert!(!context.iter().any(|m| m.content == TEXT_PROTOCOL_NUDGE));
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[test]
+fn http_missing_function_call_recovers_executes_once_and_persists_answer() {
+    let (url, server) = protocol_http_fixture(vec![
+        (
+            200,
+            json!({"model":"gpt-4o", "choices":[{"message":{"role":"assistant"}, "finish_reason":"function_call"}], "usage":{"prompt_tokens":200,"completion_tokens":43,"total_tokens":243}}),
+        ),
+        (
+            200,
+            json!({"choices":[{"message":{"content":"[工具调用]{\"name\":\"save_knowledge_draft\",\"arguments\":{\"title\":\"视频方案\",\"content_md\":\"保持镜头稳定。\"}}"},"finish_reason":"stop"}]}),
+        ),
+        (
+            200,
+            json!({"choices":[{"message":{"content":"视频方案已整理为待确认草稿，确认后保存。"},"finish_reason":"stop"}]}),
+        ),
+    ]);
+    let (store, path) = temporary_database();
+    store
+        .upsert_ai_provider_config(&url, "gpt-4o", "fixture-key")
+        .unwrap();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    store
+        .send_message(&conv, "user", "把稳定镜头的方案整理保存", None)
+        .unwrap();
+    let answer = generate_conversation_reply(&conv, &store, None).unwrap();
+    let requests = server.join().unwrap();
+    assert_eq!(requests.len(), 3);
+    assert!(requests[0]["tools"].is_array());
+    for request in &requests[1..] {
+        assert!(request.get("tools").is_none());
+        assert!(request.get("tool_choice").is_none());
+        assert!(
+            request["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|m| m["role"] != "tool" && m.get("tool_calls").is_none())
+        );
+    }
+    assert_eq!(answer, "视频方案已整理为待确认草稿，确认后保存。");
+    assert_eq!(
+        store.list_messages(&conv).unwrap().last().unwrap().content,
+        answer
+    );
+    assert_eq!(
+        store.pending_actions_for_conversation(&conv).unwrap().len(),
+        1
+    );
+    assert!(store.list_wiki_pages(None, None).unwrap().is_empty());
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn http_legacy_function_call_executes_and_echoes_matching_call_id() {
+    let args = "{ \"title\": \"视频方案\", \"content_md\": \"保持纹理\" }";
+    let (url, server) = protocol_http_fixture(vec![
+        (
+            200,
+            json!({"choices":[{"message":{"content":"整理镜头方案", "function_call":{"name":"save_knowledge_draft","arguments":args}}, "finish_reason":"function_call"}]}),
+        ),
+        (
+            200,
+            json!({"choices":[{"message":{"content":"视频方案草稿待确认。"},"finish_reason":"stop"}]}),
+        ),
+    ]);
+    let (store, path) = temporary_database();
+    store
+        .upsert_ai_provider_config(&url, "gpt-4o", "fixture-key")
+        .unwrap();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    store
+        .send_message(&conv, "user", "整理视频方案并保存", None)
+        .unwrap();
+    assert_eq!(
+        generate_conversation_reply(&conv, &store, None).unwrap(),
+        "视频方案草稿待确认。"
+    );
+    let requests = server.join().unwrap();
+    assert_eq!(requests.len(), 2);
+    assert!(requests[1]["tools"].is_array());
+    let messages = requests[1]["messages"].as_array().unwrap();
+    let assistant = messages
+        .iter()
+        .find(|m| m.get("tool_calls").is_some())
+        .unwrap();
+    let tool = messages.iter().find(|m| m["role"] == "tool").unwrap();
+    assert_eq!(assistant["content"], "整理镜头方案");
+    assert_eq!(assistant["tool_calls"][0]["function"]["arguments"], args);
+    assert_eq!(assistant["tool_calls"][0]["id"], tool["tool_call_id"]);
+    assert_eq!(
+        store.pending_actions_for_conversation(&conv).unwrap().len(),
+        1
+    );
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn http_protocol_error_after_a_write_keeps_the_draft_and_normalizes_history() {
+    let (url, server) = protocol_http_fixture(vec![
+        (
+            200,
+            json!({"choices":[{"message":{"tool_calls":[{"id":"c1","function":{"name":"save_knowledge_draft","arguments":"{\"title\":\"视频方案\",\"content_md\":\"保持纹理\"}"}}]}, "finish_reason":"tool_calls"}]}),
+        ),
+        (
+            400,
+            json!({"error":{"message":"unsupported tool messages"}}),
+        ),
+        (
+            200,
+            json!({"choices":[{"message":{"content":"视频方案草稿待确认。"}, "finish_reason":"stop"}]}),
+        ),
+    ]);
+    let (store, path) = temporary_database();
+    store
+        .upsert_ai_provider_config(&url, "gpt-4o", "fixture-key")
+        .unwrap();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    store
+        .send_message(&conv, "user", "整理视频方案并保存", None)
+        .unwrap();
+    assert_eq!(
+        generate_conversation_reply(&conv, &store, None).unwrap(),
+        "视频方案草稿待确认。"
+    );
+    let requests = server.join().unwrap();
+    assert!(requests[2].get("tools").is_none());
+    let messages = requests[2]["messages"].as_array().unwrap();
+    assert!(messages.iter().all(|m| m["role"] != "tool"
+        && m.get("tool_calls").is_none()
+        && m.get("tool_call_id").is_none()));
+    assert!(
+        messages
+            .iter()
+            .any(|m| m["role"] == "system" && m["content"].as_str().unwrap().contains("视频方案"))
+    );
+    assert_eq!(
+        store.pending_actions_for_conversation(&conv).unwrap().len(),
+        1
+    );
+    assert!(store.list_wiki_pages(None, None).unwrap().is_empty());
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}

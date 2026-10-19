@@ -3378,7 +3378,14 @@ mod tests {
         )));
     }
 
-    include!("conversation/continuity_tests.rs");
-    include!("conversation/protocol_tests.rs");
+    // 原 include! 平铺内嵌（迁移 600 行上限拆分时改为 inline mod 包装：
+    // include 展开的 inline mod 子模块基目录 = mod tests 所在目录 src/ai/conversation/，
+    // 子文件恰落在 conversation/<name>/ 下）。
+    mod continuity_tests {
+        include!("conversation/continuity_tests/mod.rs");
+    }
+    mod protocol_tests {
+        include!("conversation/protocol_tests/mod.rs");
+    }
     include!("conversation/baseline_tests.rs");
 }

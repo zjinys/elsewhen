@@ -1,3 +1,5 @@
+use self::protocol_tests::protocol_http_fixture;
+use self::continuity_tests::*;
 // Local HTTP fixtures only. Refresh the baseline explicitly, not as a timing gate.
 #[test]
 #[ignore = "local fixture benchmark; run explicitly when refreshing C00 baseline"]
