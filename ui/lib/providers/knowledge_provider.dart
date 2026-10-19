@@ -90,6 +90,14 @@ class KnowledgeRepository {
       api.getKnowledgeSourceSnapshot(id: id);
   Future<String> propose(String slug, String kind) =>
       api.proposeKnowledgePage(slug: slug, kind: kind);
+  /// 摘录定论（孵化闭环 2026-10-20）：endorse 要求已采用派生稿（未采用
+  /// 会被服务端拒绝并给原因）；reject 必填原因。
+  Future<api.WikiPageDto> decideSource(String slug, String decision, String reason) =>
+      api.decideKnowledgeSource(slug: slug, decision: decision, reason: reason);
+  Future<List<api.RejectedSourceRow>> rejectedSources() =>
+      api.listRejectedSources();
+  Future<api.KnowledgeHealthReport> health({required int daysLookback}) =>
+      api.knowledgeHealth(daysLookback: daysLookback);
   Future<api.WikiPageDto?> resolve(String id, bool accept) =>
       api.resolveKnowledgeProposal(id: id, accept: accept);
   Future<List<api.KnowledgeDiffPart>> diff(String id) =>
@@ -169,6 +177,18 @@ final knowledgeRevisionsProvider = FutureProvider.autoDispose
     .family<List<api.KnowledgeRevisionDto>, String>((ref, slug) {
       ref.watch(knowledgeRevisionProvider);
       return ref.read(knowledgeRepositoryProvider).revisions(slug);
+    });
+/// 负知识（已否定来源）列表：身份 + 否定原因；导入后同源命中提示共用。
+final rejectedSourcesProvider =
+    FutureProvider.autoDispose<List<api.RejectedSourceRow>>((ref) {
+      ref.watch(knowledgeRevisionProvider);
+      return ref.read(knowledgeRepositoryProvider).rejectedSources();
+    });
+/// 知识管道健康（P0-a 可见性的用户面）：评测/库存/摘要管线/孵化闸门。
+final knowledgeHealthProvider =
+    FutureProvider.autoDispose<api.KnowledgeHealthReport>((ref) {
+      ref.watch(knowledgeRevisionProvider);
+      return ref.read(knowledgeRepositoryProvider).health(daysLookback: 30);
     });
 
 void notifyKnowledgeChanged(WidgetRef ref) {

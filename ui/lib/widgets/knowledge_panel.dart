@@ -166,6 +166,71 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
   bool _busy = false;
   String? _failure;
   String? _lastKind;
+
+  /// 摘录定论（孵化闭环，提案 2026-10-19）：仅 material 且未定论时显示。
+  /// endorse 要求已采用派生稿（未采用服务端拒绝并给原因，直接展示）；
+  /// reject 弹原因必填对话框。
+  Future<void> _decide(String decision, String reason) async {
+    setState(() {
+      _busy = true;
+      _failure = null;
+      _lastKind = 'decide:$decision';
+    });
+    try {
+      await ref
+          .read(knowledgeRepositoryProvider)
+          .decideSource(widget.page.slug, decision, reason);
+      if (mounted) _refresh(ref, widget.page.slug);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _failure = _error(error, context: '摘录定论', showDetail: true));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _confirmReject() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surface1,
+        title: const Text('丢弃为负知识', style: TextStyle(fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '这条摘录为什么不可信/不可用？原因会成为负知识一部分，'
+              '下次同源导入会提前提示。',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: AppTheme.space2),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(hintText: '必填：丢弃原因'),
+              onSubmitted: (v) => Navigator.of(context).pop(v),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('丢弃'),
+          ),
+        ],
+      ),
+    );
+    if (reason == null || reason.isEmpty) return; // 必填：空原因即放弃
+    await _decide('reject', reason);
+  }
+
   Future<void> _propose(String kind) async {
     setState(() {
       _busy = true;
@@ -191,6 +256,7 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
   @override
   Widget build(BuildContext context) {
     final material = ['source', 'note'].contains(widget.page.kind);
+    final incubating = material && widget.page.opinion == null;
     final style = TextButton.styleFrom(
       minimumSize: const Size(0, 36),
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -292,9 +358,54 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('重试整理'),
           ),
+        // 孵化定论动作（与「提炼」同区，互不替代：先提炼派生稿，纳
+        // 入时服务端校验已采用）。
+        if (incubating && !_busy) ...[
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            onPressed: () => _decide('endorse', ''),
+            // 服务端校验：未采用派生稿的纳入会被拒并给原因，直接展示。
+            icon: const Icon(Icons.verified_outlined, size: 16),
+            label: const Text('纳入知识'),
+          ),
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            onPressed: _confirmReject,
+            icon: const Icon(Icons.block_outlined, size: 16),
+            label: const Text('丢弃'),
+          ),
+        ] else if (widget.page.opinion == 'endorse')
+          const _OpinionBadge(label: '已纳入知识', color: Color(0xFF9ECE6A))
+        else if (widget.page.opinion == 'reject')
+          const _OpinionBadge(label: '已丢弃（负知识）', color: Color(0xFFF7768E)),
       ],
     );
   }
+}
+
+/// 定论状态徽标（endorse/reject 已定论的只读展示）。
+class _OpinionBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _OpinionBadge({required this.label, required this.color});
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.check_circle_outline, size: 14, color: color),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: TextStyle(fontSize: 11, color: color),
+      ),
+    ],
+  );
 }
 
 class _CountBadge extends StatelessWidget {
