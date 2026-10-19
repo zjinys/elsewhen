@@ -10,9 +10,9 @@
 > 5. 已完成的提案不留在「待实现」表里，移到「已完成（归档）」或直接删除行；状态以各 note 头部 `Status` 为准。
 
 - 建立日期：2026-10-04
-- 最后更新：2026-10-19（登记主对话流摘要管道永久失败事故；新增「记事本页」「定时提醒」两项提案）
+- 最后更新：2026-10-19（登记主对话流摘要管道永久失败事故；新增「记事本页」「定时提醒」「摘录孵化闭环」「知识页持续更新与关系网」四项提案）
 
-## 待实现（14 项）
+## 待实现（16 项）
 
 | Proposal | 缺失内容 | 优先级 |
 |---|---|---|
@@ -28,6 +28,8 @@
 | [主对话流摘要管道永久失败 → AI 忘记刚说的话](notes/incidents/2026-10-19-summary-pipeline-permanent-failure.md) | 每轮摘要失败（summary_ready 0 次）+ 降级砍掉最近轮原文 + 错误被 Err(_) 吞掉；P0：失败日志 + 最近 N 轮不可裁剪 + 诚实降级文案；P1：归并根节点失败点；P2：工具 schema 40K 瘦身 | 高 |
 | [记事本页（随手记，不经 AI）](notes/proposed/product/2026-10-19-notepad-memo-pages.md) | 方案待评审：新增用户自有 wiki kind `memo` + 记事本入口与快记追加，AI 永不改动；待定单/多页、Capture 落点、AI 读权限 | 中 |
 | [定时提醒（"20 分钟后提醒我"）](notes/proposed/architecture/2026-10-19-timed-reminders.md) | 方案待评审：**复用 `todos` 承载**（已有 `due_at`）+ 到期调度（挂 5s tick）+ 应用内/系统通知双通道 + 本地解析与 AI 工具；需本机触发去重表、加 `flutter_local_notifications` | 中 |
+| [摘录孵化闭环（讨论 → 纳入知识 / 丢弃为负知识）](notes/proposed/product/2026-10-19-clip-incubation-and-negative-knowledge.md) | 方案已定待实施：孵化闸门（`opinion IS NULL`=孵化中，仅对 source/note 收紧缺省语义，不参与编译/召回）+ AI 只在派生稿上改 + 纳入前须先采用一版派生稿 + 丢弃写 `knowledge_sources.reject_reason` 并 archived 留痕（不做撤销否定、素材库独立分组）；需统一参与谓词、回填存量、把 `knowledge_sources` 移入快照 carried | 中 |
+| [知识页持续更新与关系网](notes/proposed/architecture/2026-10-19-knowledge-page-reconsolidation-and-relations.md) | 方案待评审：消化选页改「相关性优先」+ 提示词/slug 纪律 + 页级再汇总 job + `knowledge_relations` 语义关系网（关系只扩上下文 / 排队复核，不自动改写邻居） | 中 |
 | [Today 每日回顾工作台](notes/proposed/product/2026-09-20-today-daily-review-workbench.md) | 暂缓（后置） | 后置 |
 
 ## 进行中（0 项）
