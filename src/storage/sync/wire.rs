@@ -128,10 +128,12 @@ impl Store {
                     // 一旦漂移不可能撞同 id —— 因此同 id + 不同密文＝同一内容的
                     // 确定性重发，按幂等处理并留审计日志，不再堵死发件队列。
                     if hash != digest {
-                        eprintln!(
-                            "[sync-wire] acknowledged re-seal skipped recipient={} id={} stored={} incoming={}",
-                            header.recipient_device_id, header.message_id, hash, digest
-                        );
+                        if std::env::var("ELSEWHEN_DEBUG").is_ok() {
+                            eprintln!(
+                                "[sync-wire] acknowledged re-seal skipped recipient={} id={} stored={} incoming={}",
+                                header.recipient_device_id, header.message_id, hash, digest
+                            );
+                        }
                     }
                     if let Some(tx) = tx {
                         tx.commit()?;

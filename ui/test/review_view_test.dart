@@ -376,6 +376,7 @@ class _ReviewBridge extends RustBridgeRepository {
   _ReviewBridge({
     required this.overview,
     required this.stats,
+    // ignore: unused_element_parameter
     this.reports = const [],
   });
 

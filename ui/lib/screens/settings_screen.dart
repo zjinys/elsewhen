@@ -19,7 +19,6 @@ import '../bridge/api.dart' as api;
 import '../widgets/chat_proposal_review.dart';
 import '../widgets/custom_title_bar.dart';
 import '../widgets/font_picker_dialog.dart';
-import '../widgets/local_sync_settings.dart';
 import '../widgets/provider_endpoint_notice.dart';
 import '../widgets/knowledge_digest_dialog.dart';
 import '../widgets/web_search_settings.dart';
@@ -2215,7 +2214,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             dialogTitle: '选择技能 zip 包',
             type: FileType.custom,
             allowedExtensions: ['zip'],
-          ))?.first.path
+          )).first.path
         : await FilePicker.getDirectoryPath(dialogTitle: '选择包含 SKILL.md 的技能目录');
     if (path == null) return;
     final repository =

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
+import '../utils/error_report.dart';
 
 /// 最近一次网络同步 tick 的只读状态行（诊断：错误/计数/收敛/版本错位）。
 /// 数据由后台 worker 更新；本组件只展示，绝不触发同步。
@@ -27,7 +28,10 @@ class SyncTickStatusLine extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (error != null) ...[
-              Text('最近同步错误：$error', style: theme.textTheme.bodySmall),
+              Text(
+                '最近同步错误：${stripErrorShell(error)}',
+                style: theme.textTheme.bodySmall,
+              ),
             ] else if (tick != null) ...[
               Text(
                 tick.ran

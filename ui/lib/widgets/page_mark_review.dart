@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 
 import '../bridge/api.dart' as bridge;
 import '../theme/app_theme.dart';
+import '../utils/error_report.dart';
 
 const _groupLabels = {
   'goals': '目标',
@@ -164,15 +165,7 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
     }
   }
 
-  String _readableError(Object e) {
-    var detail = e.toString();
-    const prefix = 'AnyhowException(';
-    if (detail.startsWith(prefix)) detail = detail.substring(prefix.length);
-    if (detail.endsWith(')')) {
-      detail = detail.substring(0, detail.length - 1).trimRight();
-    }
-    return detail;
-  }
+  String _readableError(Object e) => stripErrorShell(e);
 
   Future<void> _saveOverride() async {
     final current = body;

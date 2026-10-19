@@ -46,6 +46,28 @@ void main() {
     );
   });
 
+  test('showDetail 打开后剥掉 AnyhowException 外壳', () {
+    expect(
+      reportUiError('处理提案', _FakeAnyhow('AnyhowException(来源已更新，请重新生成建议)'), showDetail: true),
+      '来源已更新，请重新生成建议',
+    );
+  });
+
+  test('stripErrorShell 正确剥离各类外壳并提取 Caused by 深层原因', () {
+    expect(stripErrorShell(Exception('foo')), 'foo');
+    expect(stripErrorShell('AnyhowException(something went wrong)'), 'something went wrong');
+    expect(stripErrorShell('AnyhowException(Exception: nested error)'), 'nested error');
+    expect(
+      stripErrorShell(
+        'Outer error\n'
+        'Caused by:\n'
+        '    0: middle error\n'
+        '    1: root cause error',
+      ),
+      'root cause error',
+    );
+  });
+
   test('showDetail 优先级低于 userMessage', () {
     expect(
       reportUiError(

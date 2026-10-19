@@ -26,6 +26,65 @@ import 'package:flutter/foundation.dart';
 bool debugLoggingEnabled([Map<String, String>? env]) =>
     (env ?? Platform.environment).containsKey('ELSEWHEN_DEBUG');
 
+/// 剥掉常见异常外壳（`AnyhowException(...)`、`Exception: ` 等），提取真实原因。
+///
+/// 当 Rust 侧经 `flutter_rust_bridge` 抛出 `anyhow::Error` 时，Dart 端会包装成
+/// `AnyhowException(真实文案)`；多层 `context(...)` 还会带上 `Caused by:`。
+/// 本函数逐层剥离外壳，并提取深层原因。
+String stripErrorShell(Object? error, {bool stripExceptionPrefix = true}) {
+  if (error == null) return '';
+  var raw = error.toString().trim();
+  if (raw.isEmpty) return '';
+
+  // 1. 如果整体以 AnyhowException( 开头且以 ) 结尾，先剥掉最外层包装
+  const anyhowPrefix = 'AnyhowException(';
+  bool hadAnyhow = false;
+  if (raw.startsWith(anyhowPrefix)) {
+    hadAnyhow = true;
+    raw = raw.substring(anyhowPrefix.length).trim();
+    if (raw.endsWith(')')) {
+      raw = raw.substring(0, raw.length - 1).trim();
+    }
+  }
+
+  // 2. 取 Caused by 根因，或单行首行
+  var detail = raw;
+  const causedBy = 'Caused by:';
+  if (detail.contains(causedBy)) {
+    final causes = detail
+        .substring(detail.indexOf(causedBy) + causedBy.length)
+        .split(RegExp(r'\n\s*\d+:\s*'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (causes.isNotEmpty) detail = causes.last;
+  } else {
+    detail = detail.split('\n').first.trim();
+  }
+
+  // 3. 处理多行截断后可能残留在末尾的 Anyhow 闭括号
+  if (hadAnyhow && detail.endsWith(')')) {
+    int balance = 0;
+    for (int i = 0; i < detail.length; i++) {
+      if (detail[i] == '(') balance++;
+      if (detail[i] == ')') balance--;
+    }
+    if (balance < 0) {
+      detail = detail.substring(0, detail.length - 1).trimRight();
+    }
+  }
+
+  // 4. 可选剥离 Exception: 前缀
+  if (stripExceptionPrefix) {
+    const exPrefix = 'Exception: ';
+    if (detail.startsWith(exPrefix)) {
+      detail = detail.substring(exPrefix.length).trim();
+    }
+  }
+
+  return detail;
+}
+
 /// 记录一次异常，返回**可以安全显示给用户**的文案。
 ///
 /// [context] 是中文短动作标签（「删除规则」「保存 Provider」）。它会进日志，
@@ -36,7 +95,7 @@ bool debugLoggingEnabled([Map<String, String>? env]) =>
 ///
 /// [showDetail] 是**逐站点显式开的例外**：默认隐藏，只有确认这条失败路径
 /// 背后 Rust 侧只 `bail` 可读的领域文案（表单校验、来源变更提示之类）时
-/// 才打开。打开后原文照登。
+/// 才打开。打开后展示剥离外壳后的文案。
 ///
 /// 为什么不给「干净文案」加自动判据：`bail!` 有 151 处，其中约 67 处是
 /// 刻意写给用户看的中文，其余是内部失败。任何启发式（无换行 / 无
@@ -63,7 +122,8 @@ String reportUiError(
 
   if (userMessage != null) return userMessage;
   if (showDetail) {
-    return error.toString().replaceFirst('Exception: ', '');
+    final clean = stripErrorShell(error);
+    return clean.isNotEmpty ? clean : '$context失败，请重试一次';
   }
   return '$context失败，请重试一次';
 }

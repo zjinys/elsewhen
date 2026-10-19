@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../models/wiki_page.dart';
 import '../providers/wiki_provider.dart';
+import '../utils/error_report.dart';
 
 T _repo<T>(Ref ref) => ref.read(storageRepositoryProvider) as T;
 
@@ -76,7 +77,9 @@ class _NotepadViewState extends ConsumerState<NotepadView> {
         Expanded(
           child: pages.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('加载失败：$e')),
+            error: (e, _) => Center(
+              child: Text(reportUiError('加载记事本', e, showDetail: true)),
+            ),
             data: (list) => list.isEmpty
                 ? const Center(child: Text('还没有记事，点右上角 + 新建'))
                 : ListView.builder(
@@ -195,7 +198,9 @@ class _NotepadDetailState extends ConsumerState<_NotepadDetail> {
         Expanded(
           child: pageAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('加载失败：$e')),
+            error: (e, _) => Center(
+              child: Text(reportUiError('读取便签正文', e, showDetail: true)),
+            ),
             data: (page) => page == null
                 ? const Center(child: Text('页面不存在'))
                 : SingleChildScrollView(
@@ -259,8 +264,9 @@ class _NotepadDetailState extends ConsumerState<_NotepadDetail> {
       ref.invalidate(knowledgeRevisionProvider);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('追加失败：$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(reportUiError('追加内容', e, showDetail: true))),
+        );
       }
     } finally {
       if (mounted) setState(() => _appending = false);

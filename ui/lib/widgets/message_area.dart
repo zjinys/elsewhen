@@ -128,25 +128,7 @@ String aiFailureNotice(Object e) {
     return '尚未配置 AI Provider，请到设置页填写后重试';
   }
 
-  var detail = raw;
-  final causedBy = 'Caused by:';
-  if (raw.contains(causedBy)) {
-    final causes = raw
-        .substring(raw.indexOf(causedBy) + causedBy.length)
-        .split(RegExp(r'\n\s*\d+:\s*'))
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-    if (causes.isNotEmpty) detail = causes.last;
-  } else {
-    detail = raw.split('\n').first.trim();
-  }
-  // 去掉 AnyhowException(...) 外壳与其多出的收尾括号（wrapper 恰好多一个）
-  const prefix = 'AnyhowException(';
-  if (detail.startsWith(prefix)) detail = detail.substring(prefix.length);
-  if (detail.endsWith(')')) {
-    detail = detail.substring(0, detail.length - 1).trimRight();
-  }
+  final detail = stripErrorShell(e, stripExceptionPrefix: false);
   return 'AI 回复失败：$detail';
 }
 
