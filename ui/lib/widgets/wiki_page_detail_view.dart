@@ -33,7 +33,9 @@ import 'knowledge_import.dart';
 import '../providers/knowledge_provider.dart';
 
 part 'wiki_detail_import_section.dart';
-part 'wiki_detail_entity_sections.dart';
+part 'wiki_page_parts/wiki_detail_entity_items.dart';
+part 'wiki_page_parts/wiki_detail_entity_guidance.dart';
+part 'wiki_page_parts/wiki_detail_entity_facts.dart';
 part 'wiki_detail_page_chips.dart';
 part 'wiki_detail_import_preview.dart';
 // ── 详情视图主体拆分（行为零变化，见 wiki_page_parts/）──
