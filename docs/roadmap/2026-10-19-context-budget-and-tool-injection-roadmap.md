@@ -181,6 +181,7 @@
 | R1 | ✅ 完成 | 双基准达标（Gitea schema ~11K∈[8K,16K]；中文 1000 字 ~2.2K∈[1.8K,2.4K]）；保守方向不破；usage 锚定调序后已落地（`3c0b930`，进程内单槽、clamp[1.0,1.5]、只记低估不记高估） |
 | R2A | ✅ 完成 | 未启用 MCP 不进 tools 字段；catalog 2K 预算；tools/list 缓存指纹键+TTL（`949d0b2`）；未注册 MCP 直放侧门已堵；Round 0 tools_tokens 推断 ~2K（53 工具不再进 tools 字段） |
 | R2B | ⚠️ 部分完成 | SYSTEM_PROMPT_BASE 4,407→2,710 字（~5.9K tokens@新口径），**未达 < 3K**；偏差声明：余量主体是行为安全纪律（草拟确认制/素材锁定/铁律），削减需产品决策。TOOL_GUIDES 分节+独立第二条 message 已落地；base 前缀稳定对 prefix cache 友好；pi 式增量 diff 下发未落地（前缀稳定结构已就位） |
+| 规则库解耦（后续切片） | ✅ 完成 | 三件套（`e7e9e4b`）：① 基座瘦身——SYSTEM_PROMPT_BASE 规则段改为触发纪律，PersonalRules 段只播报规模（count_active_rules）不再全量注入规则原文，stable_setup 与规则库大小脱钩；② 规则全文按需经常驻 list_rules 工具获取（描述补触发场景）；③ 对话影子校验（迁移 54 chat_rule_hits）：主回复完成后关键词预筛落 pending（幂等、失败静默不阻塞对话），后台 worker 复用 analysis 队列 tick 判定适用性（不确定宁判 false，坏回包保持 pending 重试），回填只动 pending 行；红线：绝不改写主回复、不向对话注入；观测面为 api list_recent_chat_rule_hits + 设置页规则库区只读审查面；快照归类 local-event-reminders |
 | R2.5 | ✅ 完成 | 侦察确认分批压缩与跨次收敛已存在（树式 build+节点缓存+preheat）；死局文案区分「压缩未收敛可重试」vs「缩小范围」；未造新批量器 |
 | R3 | ✅ 完成 | 审批续跑已落地（`9e4f0a8`：注入自明续跑指令+三重封顶）；回执摘要化已落地（审阅弹窗/处理记录/批量结果三处长回执折叠预览+展开，SelectableText 保留可复制）；readOnlyHint 只读免审批已落地（迁移 53：server 级 `allow_readonly_auto` 白名单默认关 + 上游 `annotations.readOnlyHint` 双边生效才直执行，免审批仍写执行审计 `mcp/.audit.log`，白名单关或注解缺失均回审批流；设置页 MCP 区独立锁形开关，含风险文案） |
 | R4 | ✅ 完成 | upstream_context_window_rejection 检测+窗口减半重试已在；收口为重试耗尽后的可诊断语义错误 |
@@ -192,6 +193,6 @@
 
 ### 未落地项清单（后续候选）
 
-1. **R2B stable_setup < 3K**：余量主体是行为安全纪律文案，削减需产品决策；可虑把「情绪回应」与「个人经验规则库引导」从 base 移到按需注入（仅在用户分享经历时注入）。
+1. **R2B stable_setup < 3K**：余量主体是行为安全纪律文案与「情绪回应」引导，削减需产品决策；「个人经验规则库引导」的全量注入已由规则库解耦切片（`e7e9e4b`）解决——基座只播报规模与 list_rules 查询入口，规则原文不随对话注入（聊天场景由影子校验补位）。
 2. **R2B 增量 diff 下发**：前缀稳定结构已就位，pi 式 sections diff 机制未落地——对 prefix cache 命中率有进一步提升空间。
 3. **R8E 幻觉后验检测**：明确不立项（理由见上表）。
