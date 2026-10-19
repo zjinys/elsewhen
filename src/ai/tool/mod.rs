@@ -328,6 +328,15 @@ impl ToolRegistry {
         self.provider_specs_partitioned(allow_record_event, &std::collections::HashSet::new())
     }
 
+    /// 常驻（非延迟）工具名集——R2B 工具指南按需渲染的判定面。
+    pub fn resident_tool_names(&self) -> std::collections::HashSet<String> {
+        self.tools
+            .iter()
+            .filter(|t| !t.deferred())
+            .map(|t| t.name().to_string())
+            .collect()
+    }
+
     /// 是否处于延迟加载模式。
     pub fn defer_tools(&self) -> bool {
         self.defer_tools
