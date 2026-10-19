@@ -5,6 +5,7 @@ import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/models/wiki_page.dart';
 import 'package:elsewhen_ui/providers/knowledge_provider.dart';
 import 'package:elsewhen_ui/widgets/knowledge_panel.dart';
+import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
 
 import 'knowledge_flow_test.dart' show FakeKnowledge;
 
@@ -100,6 +101,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(repo.reconsolidations, ['source/one']);
     expect(find.textContaining('已重整'), findsOneWidget);
+  });
+
+  testWidgets('相关页面行：chip 渲染、人工边可删、派生边只读', (tester) async {
+    final repo = FakeKnowledge();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [knowledgeRepositoryProvider.overrideWithValue(repo)],
+        child: const MaterialApp(
+          home: Scaffold(body: SingleChildScrollView(child: RelatedPagesRow(slug: 'source/one'))),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    // details.relations 带一条人工边
+    expect(find.text('相关页面'), findsOneWidget);
+    expect(find.text('咖啡豆'), findsOneWidget);
+    expect(find.text('相关'), findsOneWidget);
+    // 人工边：删除按钮存在并会触发 repo 调用
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pump();
+    expect(repo.relatedRemoved, ['rel-1']);
+    expect(repo.relatedAdded, isEmpty);
   });
 
   testWidgets('已定论显示状态徽标，不再出现纳入/丢弃动作', (tester) async {

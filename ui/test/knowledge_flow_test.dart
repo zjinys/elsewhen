@@ -110,6 +110,16 @@ class FakeKnowledge extends KnowledgeRepository {
         lastConsolidatedAt: '2026-10-19T10:00:00Z',
         newEvidence: 1,
       ),
+      relations: [
+        api.KnowledgeRelationDto(
+          id: 'rel-1',
+          otherSlug: 'asset/coffee-beans',
+          otherTitle: '咖啡豆',
+          relation: 'related',
+          origin: 'human',
+          note: null,
+        ),
+      ],
     );
   }
 
@@ -152,6 +162,20 @@ class FakeKnowledge extends KnowledgeRepository {
   Future<String> reconsolidate(String slug) async {
     reconsolidations.add(slug);
     return '已重整：正文按全部 1 条来源事件增量修补';
+  }
+
+  List<(String, String)> relatedAdded = [];
+  List<String> relatedRemoved = [];
+
+  @override
+  Future<String> addRelatedPage(String fromSlug, String toSlug) async {
+    relatedAdded.add((fromSlug, toSlug));
+    return 'rel-new';
+  }
+
+  @override
+  Future<void> removeRelatedPage(String slug, String relationId) async {
+    relatedRemoved.add(relationId);
   }
 
   @override

@@ -21,6 +21,7 @@ pub use mcp_servers::McpServerConfig;
 pub(crate) use page_marks::PageMark;
 
 mod records;
+pub mod relations;
 mod reminders;
 mod review;
 pub(crate) mod rule_triggers;

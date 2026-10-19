@@ -1286,4 +1286,131 @@ impl Store {
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(Into::into)
     }
+
+    /// 把触发阈值命中的参考页排进再汇总队列（P2，提案 §6）。
+    /// 派生口径与 P1 观测一致：整理点（最新 wiki_revisions）之后
+    /// 新到来源事件 ≥3 → evidence_delta；整理点超 30 天且有新证据 →
+    /// scheduled。人工编辑页不排（worker 也会拦一道）。进行中/失败的
+    /// 任务不重复排；已有 succeeded 行在再次触发时重新入队。
+    pub fn reconsolidation_enqueue_candidates(&self, now: &str) -> Result<usize> {
+        let mut stmt = self.connection.prepare(
+            "SELECT p.id FROM wiki_pages p
+             WHERE p.status != 'archived'
+               AND p.human_edited_at IS NULL
+               AND COALESCE(p.area, 'insight') = 'insight'
+               AND (p.kind NOT IN ('source', 'note') OR p.opinion = 'endorse')
+               AND (
+                 (SELECT COUNT(*) FROM json_each(p.source_event_ids) je
+                    JOIN events e ON e.id = je.value
+                   WHERE e.recorded_at > COALESCE(
+                     (SELECT MAX(r.created_at) FROM wiki_revisions r WHERE r.page_id = p.id),
+                     '1970')) >= 3
+                 OR
+                 ((SELECT MAX(r.created_at) FROM wiki_revisions r WHERE r.page_id = p.id)
+                     IS NOT NULL
+                  AND julianday(?2) - julianday(
+                     (SELECT MAX(r.created_at) FROM wiki_revisions r WHERE r.page_id = p.id)) >= 30
+                  AND (SELECT COUNT(*) FROM json_each(p.source_event_ids) je
+                    JOIN events e ON e.id = je.value
+                   WHERE e.recorded_at > COALESCE(
+                     (SELECT MAX(r.created_at) FROM wiki_revisions r WHERE r.page_id = p.id),
+                     '1970')) >= 1)
+               )
+               AND NOT EXISTS(SELECT 1 FROM knowledge_reconsolidation_jobs j
+                 WHERE j.page_id = p.id AND j.status IN ('pending', 'running', 'retry'))
+               AND NOT EXISTS(SELECT 1 FROM knowledge_reconsolidation_jobs j
+                 WHERE j.page_id = p.id AND j.status = 'succeeded'
+                   AND (j.last_completed_at IS NULL OR j.last_completed_at >=
+                     (SELECT MAX(r.created_at) FROM wiki_revisions r WHERE r.page_id = p.id)))",
+        )?;
+        // 先收再写，避免语句交互。
+        let due = stmt
+            .query_map(rusqlite::params![now, now], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let mut enqueued = 0;
+        for page_id in due {
+            // 触发分支各自命名：evidence_delta（增量≥3）优先于 scheduled
+            //（30 天+新证据），便于观测面板看「为什么整理这页」。
+            let trigger: String = self.connection.query_row(
+                "SELECT CASE WHEN (
+                   SELECT COUNT(*) FROM json_each(p.source_event_ids) je
+                     JOIN events e ON e.id = je.value
+                    WHERE e.recorded_at > COALESCE(
+                      (SELECT MAX(r.created_at) FROM wiki_revisions r WHERE r.page_id = p.id),
+                      '1970')) >= 3
+                 THEN 'evidence_delta' ELSE 'scheduled' END
+                 FROM wiki_pages p WHERE p.id = ?1",
+                [&page_id],
+                |row| row.get(0),
+            )?;
+            enqueued += self.connection.execute(
+                "INSERT INTO knowledge_reconsolidation_jobs(page_id, trigger, available_at)
+                 VALUES(?1, ?2, ?3)
+                 ON CONFLICT(page_id) DO UPDATE SET
+                   trigger = excluded.trigger, status = 'pending',
+                   generation = knowledge_reconsolidation_jobs.generation + 1,
+                   attempts = 0, available_at = excluded.available_at
+                 WHERE knowledge_reconsolidation_jobs.status = 'succeeded'",
+                rusqlite::params![page_id, trigger, now],
+            )?;
+        }
+        Ok(enqueued)
+    }
+
+    /// 领取一条到期任务并上心跳锁（与 refresh 同一 generation 语义）。
+    /// 返回 None = 当前无可处理任务。
+    pub fn claim_reconsolidation_job(&self, now: &str) -> Result<Option<(String, i64)>> {
+        let Some(candidate) = self
+            .connection
+            .prepare(
+                "SELECT page_id, generation FROM knowledge_reconsolidation_jobs
+             WHERE status IN ('pending', 'retry')
+               AND julianday(available_at) <= julianday(?1)
+             ORDER BY attempts, available_at, page_id LIMIT 1",
+            )?
+            .query_row([now], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })
+            .optional()?
+        else {
+            return Ok(None);
+        };
+        let (page_id, generation) = candidate;
+        let heartbeat = (chrono::DateTime::parse_from_rfc3339(now)?
+            + chrono::Duration::minutes(10))
+        .to_rfc3339();
+        let changed = self.connection.execute(
+            "UPDATE knowledge_reconsolidation_jobs SET status = 'running',
+             attempts = attempts + 1, available_at = ?3
+             WHERE page_id = ?1 AND generation = ?2
+               AND status IN ('pending', 'retry')",
+            rusqlite::params![page_id, generation, heartbeat],
+        )?;
+        if changed == 0 {
+            return Ok(None);
+        }
+        Ok(Some((page_id, generation)))
+    }
+
+    /// 任务收尾：状态、重试退避由 worker 负责，这里只做带 generation 的定稿。
+    pub fn finish_reconsolidation_job(
+        &self,
+        page_id: &str,
+        status: &str,
+        detail: &str,
+    ) -> Result<()> {
+        self.connection.execute(
+            "UPDATE knowledge_reconsolidation_jobs SET status = ?2, detail = ?3,
+             last_completed_at = CASE WHEN ?2 = 'succeeded' THEN ?4 ELSE last_completed_at END,
+             last_evidence_count = CASE WHEN ?2 = 'succeeded' THEN
+               (SELECT COUNT(*) FROM json_each(p.source_event_ids) je JOIN events e ON e.id = je.value
+                WHERE e.recorded_at > COALESCE((SELECT MAX(r.created_at) FROM wiki_revisions r
+                  WHERE r.page_id = p.id), '1970'))
+             ELSE last_evidence_count END
+             FROM wiki_pages p
+             WHERE knowledge_reconsolidation_jobs.page_id = ?1",
+            rusqlite::params![page_id, status, detail, chrono::Utc::now().to_rfc3339()],
+        )?;
+        Ok(())
+    }
 }

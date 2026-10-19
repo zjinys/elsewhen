@@ -82,6 +82,16 @@ class KnowledgeRepository {
   /// 手动「重新整理此页」（提案 P1）：单页再汇总，同步返回结果说明。
   Future<String> reconsolidate(String slug) =>
       api.reconsolidateKnowledgePage(slug: slug);
+  /// 人工添加「相关页面」边（P3；relation 固定 related，校验在 Rust 层）。
+  Future<String> addRelatedPage(String fromSlug, String toSlug) =>
+      api.addKnowledgeRelation(
+        fromSlug: fromSlug,
+        toSlug: toSlug,
+        relation: 'related',
+      );
+  /// 删除人工相关边；派生边（citation）Rust 层会拒绝并说明。
+  Future<void> removeRelatedPage(String slug, String relationId) =>
+      api.removeKnowledgeRelation(slug: slug, relationId: relationId);
   Future<List<api.KnowledgeProposal>> proposals() =>
       api.listKnowledgeProposals();
   Future<List<api.KnowledgeIssue>> issues() => api.listKnowledgeIssues();

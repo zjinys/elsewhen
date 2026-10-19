@@ -60,6 +60,7 @@ class MaintenanceFake extends KnowledgeRepository {
           lastConsolidatedAt: null,
           newEvidence: 0,
         ),
+        relations: [],
       );
   @override
   Future<List<api.KnowledgeReviewRecord>> history(

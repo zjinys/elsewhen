@@ -1,7 +1,7 @@
 # 知识页持续更新与关系网
 
 - 日期：2026-10-19
-- 状态：proposed → **P0/P1 已实施**（2026-10-20 评审采纳，分期推进）。
+- 状态：proposed → **P0/P1/P2/P3 全部已实施**（2026-10-20 评审采纳，分期推进）。
   P1 落面：`page_consolidation_status` 派生读（最近整理=wiki_revisions
   最新时间、新增证据=来源事件晚于该点个数，不加列不动快照版本）+
   `reconsolidate_page` 手动重整理 worker（preservation 铁律提示词、
@@ -13,8 +13,18 @@
   evidence 只做平票裁定——缺陷①主因已修）；B 提示词纪律 + 代码侧同义
   新建改写（kind+归一化标题+tag 重合才转 update，宁漏判不误并）；
   migration 修正：实施时应为 **52**（51 已被 todo-reminder-fires 占用）。
-  P2 实施时模型调用须套摘要管线同款纪律（渠道事实判定+预算闸+账本）。
   P1/P2/P3 待做。
+  **P2 已实施**（2026-10-20）：migration 52 `knowledge_reconsolidation_jobs`
+  （generation 防并发、租约心跳、退避字段）；触发阈值为派生读（证据增量
+  ≥3 → evidence_delta；距上次整理 ≥30 天且有新证据 → scheduled），不存
+  证据基线列；每 tick 至多一页串行清理（死进程回收 + 指数退避 2^n·60s
+  上限 6h），人工编辑的后台重排不调模型直接标记跳过；任务表排除出快照。
+  **P3 已实施**（2026-10-20，瘦身为「相关页面」）：migration 52
+  `knowledge_relations`（UNIQUE(from,to,relation)、origin CHECK）；
+  mentions 边确定性派生（tags 逐字命中标题、差量重建）；人工 add/remove
+  （自环/未知页/派生边删除/12 边上限全拒绝）；详情页「相关页面」行
+  （chip 点击跳对端页、人工边 × 可删、「+」从页列表排除已有）。不做
+  AI 写边、级联更新与全图遍历（后续看数据密度再议）。
 - 范围：让 elsewhen 自己总结的知识页（habit / profile / topic / …）随新事件持续更新；并回答「是否需要内容-文档关系网、是否按关系级联更新」
 - 性质：消化管线的增量演进；新增「页级再汇总」与「语义关系边」，复用现有依赖 / 刷新 / 版本机制
 - 关联：[FR-PES-004 LLM-Wiki 知识库闭环](../../../requirements/product/FR-PES-004-LLM-Wiki知识库闭环.md)、[docs/llm-wiki.md](../../../llm-wiki.md)、[摘录孵化闭环](../product/2026-10-19-clip-incubation-and-negative-knowledge.md)
@@ -234,7 +244,10 @@ CREATE INDEX idx_knowledge_relations_to   ON knowledge_relations(to_page_id);
 
 ## 9. 迁移与改动清单
 
-- migration `51-...`（`50` 已被摘录孵化占用）：新建 `knowledge_relations`、`knowledge_reconsolidation_jobs`；
+> 实施实录（2026-10-20）：migration 编号用 52；边数据与 mentions 派生差量重建
+> 落在 `src/storage/relations.rs`；设置页队列面板未做——任务观察先走 `list_reconsolidation_jobs` API。
+
+- migration `52-knowledge-reconsolidation-relations`（`50`/`51` 已被占用）：新建 `knowledge_relations`、`knowledge_reconsolidation_jobs`；
 - `src/storage/sync/snapshot.rs`：两表登记为 excluded（理由 `local-knowledge-pipeline`），同步门禁测试；
 - `src/wiki.rs`：相关性选页、提示词、`DigestProposal.relations`；
 - `src/knowledge_background/reconsolidation.rs`（新）：worker；

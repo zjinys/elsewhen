@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 583834547;
+  int get rustContentHash => -1005541329;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -125,6 +125,13 @@ abstract class RustLibApi extends BaseApi {
     required String entityKind,
     required String entitySlug,
     required String alias,
+  });
+
+  Future<String> crateApiKnowledgeAddKnowledgeRelation({
+    required String fromSlug,
+    required String toSlug,
+    required String relation,
+    String? note,
   });
 
   Future<RelationDto> crateApiRelationsAddRelation({
@@ -669,6 +676,9 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<KnowledgeProposal>> crateApiKnowledgeListKnowledgeProposals();
 
+  Future<List<ReconsolidationJobDto>>
+  crateApiKnowledgeListKnowledgeReconsolidationJobs();
+
   Future<List<KnowledgeRepairSource>>
   crateApiKnowledgeListKnowledgeRepairSources({required String slug});
 
@@ -860,6 +870,11 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiSyncReleaseSyncJoin({required String operationId});
 
   Future<bool> crateApiSyncReleaseSyncKeyRequest({required String token});
+
+  Future<void> crateApiKnowledgeRemoveKnowledgeRelation({
+    required String slug,
+    required String relationId,
+  });
 
   Future<void> crateApiConversationsRenameConversation({
     required String conversationId,
@@ -1341,6 +1356,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "add_entity_alias",
         argNames: ["entityKind", "entitySlug", "alias"],
+      );
+
+  @override
+  Future<String> crateApiKnowledgeAddKnowledgeRelation({
+    required String fromSlug,
+    required String toSlug,
+    required String relation,
+    String? note,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(fromSlug);
+          var arg1 = cst_encode_String(toSlug);
+          var arg2 = cst_encode_String(relation);
+          var arg3 = cst_encode_opt_String(note);
+          return wire.wire__crate__api__knowledge__add_knowledge_relation(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeAddKnowledgeRelationConstMeta,
+        argValues: [fromSlug, toSlug, relation, note],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeAddKnowledgeRelationConstMeta =>
+      const TaskConstMeta(
+        debugName: "add_knowledge_relation",
+        argNames: ["fromSlug", "toSlug", "relation", "note"],
       );
 
   @override
@@ -5358,6 +5412,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_knowledge_proposals", argNames: []);
 
   @override
+  Future<List<ReconsolidationJobDto>>
+  crateApiKnowledgeListKnowledgeReconsolidationJobs() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire
+              .wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs(
+                port_,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_reconsolidation_job_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeListKnowledgeReconsolidationJobsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiKnowledgeListKnowledgeReconsolidationJobsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_knowledge_reconsolidation_jobs",
+        argNames: [],
+      );
+
+  @override
   Future<List<KnowledgeRepairSource>>
   crateApiKnowledgeListKnowledgeRepairSources({required String slug}) {
     return handler.executeNormal(
@@ -6857,6 +6940,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "release_sync_key_request",
         argNames: ["token"],
+      );
+
+  @override
+  Future<void> crateApiKnowledgeRemoveKnowledgeRelation({
+    required String slug,
+    required String relationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          var arg1 = cst_encode_String(relationId);
+          return wire.wire__crate__api__knowledge__remove_knowledge_relation(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeRemoveKnowledgeRelationConstMeta,
+        argValues: [slug, relationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeRemoveKnowledgeRelationConstMeta =>
+      const TaskConstMeta(
+        debugName: "remove_knowledge_relation",
+        argNames: ["slug", "relationId"],
       );
 
   @override
@@ -10571,8 +10687,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   KnowledgePageDetails dco_decode_knowledge_page_details(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return KnowledgePageDetails(
       sourcePages: dco_decode_list_wiki_page_dto(arr[0]),
       outputPages: dco_decode_list_wiki_page_dto(arr[1]),
@@ -10582,6 +10698,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       issues: dco_decode_list_knowledge_issue(arr[5]),
       metadata: dco_decode_knowledge_metadata(arr[6]),
       consolidation: dco_decode_page_consolidation_status(arr[7]),
+      relations: dco_decode_list_knowledge_relation_dto(arr[8]),
     );
   }
 
@@ -10642,6 +10759,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       total: dco_decode_i_64(arr[6]),
       items: dco_decode_list_knowledge_queue_item(arr[7]),
       hasMore: dco_decode_bool(arr[8]),
+    );
+  }
+
+  @protected
+  KnowledgeRelationDto dco_decode_knowledge_relation_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return KnowledgeRelationDto(
+      id: dco_decode_String(arr[0]),
+      otherSlug: dco_decode_String(arr[1]),
+      otherTitle: dco_decode_String(arr[2]),
+      relation: dco_decode_String(arr[3]),
+      origin: dco_decode_String(arr[4]),
+      note: dco_decode_opt_String(arr[5]),
     );
   }
 
@@ -10944,6 +11077,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<KnowledgeRelationDto> dco_decode_list_knowledge_relation_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_knowledge_relation_dto).toList();
+  }
+
+  @protected
   List<KnowledgeRepairSource> dco_decode_list_knowledge_repair_source(
     dynamic raw,
   ) {
@@ -11074,6 +11215,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<ReachabilityHint> dco_decode_list_reachability_hint(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_reachability_hint).toList();
+  }
+
+  @protected
+  List<ReconsolidationJobDto> dco_decode_list_reconsolidation_job_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_reconsolidation_job_dto).toList();
   }
 
   @protected
@@ -11719,6 +11868,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return ReachabilityHint(
       code: dco_decode_String(arr[0]),
       address: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  ReconsolidationJobDto dco_decode_reconsolidation_job_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return ReconsolidationJobDto(
+      slug: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      trigger: dco_decode_String(arr[2]),
+      status: dco_decode_String(arr[3]),
+      attempts: dco_decode_i_64(arr[4]),
+      availableAt: dco_decode_String(arr[5]),
+      lastCompletedAt: dco_decode_opt_String(arr[6]),
+      detail: dco_decode_opt_String(arr[7]),
     );
   }
 
@@ -13715,6 +13882,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_issues = sse_decode_list_knowledge_issue(deserializer);
     var var_metadata = sse_decode_knowledge_metadata(deserializer);
     var var_consolidation = sse_decode_page_consolidation_status(deserializer);
+    var var_relations = sse_decode_list_knowledge_relation_dto(deserializer);
     return KnowledgePageDetails(
       sourcePages: var_sourcePages,
       outputPages: var_outputPages,
@@ -13724,6 +13892,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       issues: var_issues,
       metadata: var_metadata,
       consolidation: var_consolidation,
+      relations: var_relations,
     );
   }
 
@@ -13811,6 +13980,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       total: var_total,
       items: var_items,
       hasMore: var_hasMore,
+    );
+  }
+
+  @protected
+  KnowledgeRelationDto sse_decode_knowledge_relation_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_otherSlug = sse_decode_String(deserializer);
+    var var_otherTitle = sse_decode_String(deserializer);
+    var var_relation = sse_decode_String(deserializer);
+    var var_origin = sse_decode_String(deserializer);
+    var var_note = sse_decode_opt_String(deserializer);
+    return KnowledgeRelationDto(
+      id: var_id,
+      otherSlug: var_otherSlug,
+      otherTitle: var_otherTitle,
+      relation: var_relation,
+      origin: var_origin,
+      note: var_note,
     );
   }
 
@@ -14383,6 +14573,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<KnowledgeRelationDto> sse_decode_list_knowledge_relation_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <KnowledgeRelationDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_knowledge_relation_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<KnowledgeRepairSource> sse_decode_list_knowledge_repair_source(
     SseDeserializer deserializer,
   ) {
@@ -14632,6 +14836,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <ReachabilityHint>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_reachability_hint(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ReconsolidationJobDto> sse_decode_list_reconsolidation_job_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ReconsolidationJobDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_reconsolidation_job_dto(deserializer));
     }
     return ans_;
   }
@@ -15606,6 +15824,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_code = sse_decode_String(deserializer);
     var var_address = sse_decode_String(deserializer);
     return ReachabilityHint(code: var_code, address: var_address);
+  }
+
+  @protected
+  ReconsolidationJobDto sse_decode_reconsolidation_job_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_slug = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_trigger = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_attempts = sse_decode_i_64(deserializer);
+    var var_availableAt = sse_decode_String(deserializer);
+    var var_lastCompletedAt = sse_decode_opt_String(deserializer);
+    var var_detail = sse_decode_opt_String(deserializer);
+    return ReconsolidationJobDto(
+      slug: var_slug,
+      title: var_title,
+      trigger: var_trigger,
+      status: var_status,
+      attempts: var_attempts,
+      availableAt: var_availableAt,
+      lastCompletedAt: var_lastCompletedAt,
+      detail: var_detail,
+    );
   }
 
   @protected
@@ -17450,6 +17693,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_knowledge_issue(self.issues, serializer);
     sse_encode_knowledge_metadata(self.metadata, serializer);
     sse_encode_page_consolidation_status(self.consolidation, serializer);
+    sse_encode_list_knowledge_relation_dto(self.relations, serializer);
   }
 
   @protected
@@ -17504,6 +17748,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.total, serializer);
     sse_encode_list_knowledge_queue_item(self.items, serializer);
     sse_encode_bool(self.hasMore, serializer);
+  }
+
+  @protected
+  void sse_encode_knowledge_relation_dto(
+    KnowledgeRelationDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.otherSlug, serializer);
+    sse_encode_String(self.otherTitle, serializer);
+    sse_encode_String(self.relation, serializer);
+    sse_encode_String(self.origin, serializer);
+    sse_encode_opt_String(self.note, serializer);
   }
 
   @protected
@@ -17975,6 +18233,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_knowledge_relation_dto(
+    List<KnowledgeRelationDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_knowledge_relation_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_knowledge_repair_source(
     List<KnowledgeRepairSource> self,
     SseSerializer serializer,
@@ -18207,6 +18477,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_reachability_hint(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_reconsolidation_job_dto(
+    List<ReconsolidationJobDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_reconsolidation_job_dto(item, serializer);
     }
   }
 
@@ -18996,6 +19278,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.code, serializer);
     sse_encode_String(self.address, serializer);
+  }
+
+  @protected
+  void sse_encode_reconsolidation_job_dto(
+    ReconsolidationJobDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.slug, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.trigger, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_i_64(self.attempts, serializer);
+    sse_encode_String(self.availableAt, serializer);
+    sse_encode_opt_String(self.lastCompletedAt, serializer);
+    sse_encode_opt_String(self.detail, serializer);
   }
 
   @protected

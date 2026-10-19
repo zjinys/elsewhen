@@ -113,10 +113,13 @@ pub fn tick_knowledge_insights() -> Result<i64> {
     let compiled =
         crate::knowledge_background::run_automatic_source_compilation(&store, &provider)?;
     let integrated = crate::knowledge_background::run_automatic_integration(&store, &provider)?;
+    let reconsolidated =
+        crate::knowledge_background::run_knowledge_reconsolidation(&store, &provider)?;
     Ok(preheated
         + refreshed
         + compiled
         + integrated
+        + reconsolidated
         + crate::knowledge_background::run_automatic_insights(&store, &provider)?)
 }
 
@@ -180,6 +183,8 @@ pub struct KnowledgePageDetails {
     pub metadata: KnowledgeMetadata,
     /// P1 可观测（提案 2026-10-19）：最近整理时间 + 其后新增证据数。
     pub consolidation: PageConsolidationStatus,
+    /// P3 导航面（提案 §7.4）：相关页面，展示前先惰性重建派生边。
+    pub relations: Vec<KnowledgeRelationDto>,
 }
 
 pub fn get_knowledge_page_details(slug: String) -> Result<KnowledgePageDetails> {
@@ -207,6 +212,26 @@ pub fn get_knowledge_page_details(slug: String) -> Result<KnowledgePageDetails> 
                 new_evidence,
             }
         },
+        relations: {
+            // 展示前惰性重建：tags 变化 → citation 边多退少补（不调模型）。
+            store.rebuild_mention_relations()?;
+            store
+                .list_knowledge_relations(&slug)?
+                .into_iter()
+                .map(|row| {
+                    let (other_slug, other_title, relation) =
+                        row.other_side(&slug).context("关系图返回了未知页")?;
+                    Ok(KnowledgeRelationDto {
+                        id: row.id,
+                        other_slug,
+                        other_title,
+                        relation,
+                        origin: row.origin,
+                        note: row.note,
+                    })
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?
+        },
     })
 }
 
@@ -218,6 +243,76 @@ pub fn reconsolidate_knowledge_page(slug: String) -> Result<String> {
         anyhow::bail!("没有可用的 AI Provider 配置，请先在设置里配置")
     };
     crate::wiki::reconsolidate_page(&store, &provider, &slug)
+}
+
+/// 相关页面的关系边（P3 导航面载体）；origin='human' 才可删，
+/// 派生边（citation）去改页面 tags。
+#[derive(Clone, Debug)]
+pub struct KnowledgeRelationDto {
+    pub id: String,
+    pub other_slug: String,
+    pub other_title: String,
+    pub relation: String,
+    pub origin: String,
+    pub note: Option<String>,
+}
+
+/// 人工添加「相关页面」。校验在 storage 层（自环/上限/存在性，幂等）。
+pub fn add_knowledge_relation(
+    from_slug: String,
+    to_slug: String,
+    relation: String,
+    note: Option<String>,
+) -> Result<String> {
+    store()?.add_knowledge_relation(&from_slug, &to_slug, &relation, note.as_deref())
+}
+
+pub fn remove_knowledge_relation(slug: String, relation_id: String) -> Result<()> {
+    store()?.remove_knowledge_relation_from_page(&slug, &relation_id)
+}
+
+/// 再汇总队列观测（P2）：排队/重试/最近完成，接维护面板。
+#[derive(Clone, Debug)]
+pub struct ReconsolidationJobDto {
+    pub slug: String,
+    pub title: String,
+    pub trigger: String,
+    pub status: String,
+    pub attempts: i64,
+    pub available_at: String,
+    pub last_completed_at: Option<String>,
+    pub detail: Option<String>,
+}
+
+pub fn list_knowledge_reconsolidation_jobs() -> Result<Vec<ReconsolidationJobDto>> {
+    let store = store()?;
+    let mut statement = store.connection.prepare(
+        "SELECT p.slug, p.title, j.trigger, j.status, j.attempts, j.available_at,
+           j.last_completed_at, j.detail
+         FROM knowledge_reconsolidation_jobs j
+         JOIN wiki_pages p ON p.id = j.page_id
+         WHERE j.status IN ('pending', 'running', 'retry')
+            OR (j.last_completed_at IS NOT NULL AND j.last_completed_at >=
+              datetime('now', '-7 days'))
+         ORDER BY CASE j.status WHEN 'running' THEN 0 WHEN 'pending' THEN 1
+           WHEN 'retry' THEN 2 ELSE 3 END, j.available_at
+         LIMIT 30",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(ReconsolidationJobDto {
+                slug: row.get(0)?,
+                title: row.get(1)?,
+                trigger: row.get(2)?,
+                status: row.get(3)?,
+                attempts: row.get(4)?,
+                available_at: row.get(5)?,
+                last_completed_at: row.get(6)?,
+                detail: row.get(7)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
 }
 
 pub fn get_knowledge_source_snapshot(id: String) -> Result<Option<SourceSnapshot>> {

@@ -329,6 +329,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeQueuePage dco_decode_knowledge_queue_page(dynamic raw);
 
   @protected
+  KnowledgeRelationDto dco_decode_knowledge_relation_dto(dynamic raw);
+
+  @protected
   KnowledgeRepairSource dco_decode_knowledge_repair_source(dynamic raw);
 
   @protected
@@ -454,6 +457,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<KnowledgeQueueItem> dco_decode_list_knowledge_queue_item(dynamic raw);
 
   @protected
+  List<KnowledgeRelationDto> dco_decode_list_knowledge_relation_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<KnowledgeRepairSource> dco_decode_list_knowledge_repair_source(
     dynamic raw,
   );
@@ -521,6 +529,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ReachabilityHint> dco_decode_list_reachability_hint(dynamic raw);
+
+  @protected
+  List<ReconsolidationJobDto> dco_decode_list_reconsolidation_job_dto(
+    dynamic raw,
+  );
 
   @protected
   List<RejectedSourceRow> dco_decode_list_rejected_source_row(dynamic raw);
@@ -720,6 +733,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReachabilityHint dco_decode_reachability_hint(dynamic raw);
+
+  @protected
+  ReconsolidationJobDto dco_decode_reconsolidation_job_dto(dynamic raw);
 
   @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
@@ -1176,6 +1192,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  KnowledgeRelationDto sse_decode_knowledge_relation_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KnowledgeRepairSource sse_decode_knowledge_repair_source(
     SseDeserializer deserializer,
   );
@@ -1355,6 +1376,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<KnowledgeRelationDto> sse_decode_list_knowledge_relation_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<KnowledgeRepairSource> sse_decode_list_knowledge_repair_source(
     SseDeserializer deserializer,
   );
@@ -1438,6 +1464,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ReachabilityHint> sse_decode_list_reachability_hint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ReconsolidationJobDto> sse_decode_list_reconsolidation_job_dto(
     SseDeserializer deserializer,
   );
 
@@ -1695,6 +1726,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReachabilityHint sse_decode_reachability_hint(SseDeserializer deserializer);
+
+  @protected
+  ReconsolidationJobDto sse_decode_reconsolidation_job_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
@@ -2772,6 +2808,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_knowledge_issue(raw.issues),
       cst_encode_knowledge_metadata(raw.metadata),
       cst_encode_page_consolidation_status(raw.consolidation),
+      cst_encode_list_knowledge_relation_dto(raw.relations),
     ].jsify()!;
   }
 
@@ -2823,6 +2860,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_64(raw.total),
       cst_encode_list_knowledge_queue_item(raw.items),
       cst_encode_bool(raw.hasMore),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_relation_dto(KnowledgeRelationDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.otherSlug),
+      cst_encode_String(raw.otherTitle),
+      cst_encode_String(raw.relation),
+      cst_encode_String(raw.origin),
+      cst_encode_opt_String(raw.note),
     ].jsify()!;
   }
 
@@ -3106,6 +3156,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_knowledge_relation_dto(List<KnowledgeRelationDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_knowledge_relation_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_knowledge_repair_source(
     List<KnowledgeRepairSource> raw,
   ) {
@@ -3231,6 +3287,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_reachability_hint(List<ReachabilityHint> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_reachability_hint).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_reconsolidation_job_dto(
+    List<ReconsolidationJobDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_reconsolidation_job_dto).toList().jsify()!;
   }
 
   @protected
@@ -3808,6 +3872,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return [
       cst_encode_String(raw.code),
       cst_encode_String(raw.address),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_reconsolidation_job_dto(ReconsolidationJobDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.trigger),
+      cst_encode_String(raw.status),
+      cst_encode_i_64(raw.attempts),
+      cst_encode_String(raw.availableAt),
+      cst_encode_opt_String(raw.lastCompletedAt),
+      cst_encode_opt_String(raw.detail),
     ].jsify()!;
   }
 
@@ -4769,6 +4848,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_knowledge_relation_dto(
+    KnowledgeRelationDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_knowledge_repair_source(
     KnowledgeRepairSource self,
     SseSerializer serializer,
@@ -4988,6 +5073,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_knowledge_relation_dto(
+    List<KnowledgeRelationDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_knowledge_repair_source(
     List<KnowledgeRepairSource> self,
     SseSerializer serializer,
@@ -5101,6 +5192,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_reachability_hint(
     List<ReachabilityHint> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_reconsolidation_job_dto(
+    List<ReconsolidationJobDto> self,
     SseSerializer serializer,
   );
 
@@ -5423,6 +5520,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_reconsolidation_job_dto(
+    ReconsolidationJobDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_record_list_sync_dataset_entry_dto_i_64(
     (List<SyncDatasetEntryDto>, PlatformInt64) self,
     SseSerializer serializer,
@@ -5647,6 +5750,20 @@ class RustLibWire implements BaseWire {
     entity_kind,
     entity_slug,
     alias,
+  );
+
+  void wire__crate__api__knowledge__add_knowledge_relation(
+    NativePortType port_,
+    String from_slug,
+    String to_slug,
+    String relation,
+    String? note,
+  ) => wasmModule.wire__crate__api__knowledge__add_knowledge_relation(
+    port_,
+    from_slug,
+    to_slug,
+    relation,
+    note,
   );
 
   void wire__crate__api__relations__add_relation(
@@ -6730,6 +6847,11 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__knowledge__list_knowledge_proposals(port_);
 
+  void wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs(
+    NativePortType port_,
+  ) => wasmModule
+      .wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs(port_);
+
   void wire__crate__api__knowledge__list_knowledge_repair_sources(
     NativePortType port_,
     String slug,
@@ -7090,6 +7212,16 @@ class RustLibWire implements BaseWire {
     String token,
   ) =>
       wasmModule.wire__crate__api__sync__release_sync_key_request(port_, token);
+
+  void wire__crate__api__knowledge__remove_knowledge_relation(
+    NativePortType port_,
+    String slug,
+    String relation_id,
+  ) => wasmModule.wire__crate__api__knowledge__remove_knowledge_relation(
+    port_,
+    slug,
+    relation_id,
+  );
 
   void wire__crate__api__conversations__rename_conversation(
     NativePortType port_,
@@ -7903,6 +8035,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String alias,
   );
 
+  external void wire__crate__api__knowledge__add_knowledge_relation(
+    NativePortType port_,
+    String from_slug,
+    String to_slug,
+    String relation,
+    String? note,
+  );
+
   external void wire__crate__api__relations__add_relation(
     NativePortType port_,
     String from_slug,
@@ -8628,6 +8768,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void
+  wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__knowledge__list_knowledge_repair_sources(
     NativePortType port_,
     String slug,
@@ -8896,6 +9041,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__sync__release_sync_key_request(
     NativePortType port_,
     String token,
+  );
+
+  external void wire__crate__api__knowledge__remove_knowledge_relation(
+    NativePortType port_,
+    String slug,
+    String relation_id,
   );
 
   external void wire__crate__api__conversations__rename_conversation(

@@ -180,6 +180,8 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("knowledge_page_sources", "local-knowledge-pipeline"),
     ("knowledge_proposals", "local-knowledge-pipeline"),
     ("knowledge_refresh_jobs", "local-knowledge-pipeline"),
+    ("knowledge_reconsolidation_jobs", "local-knowledge-pipeline"),
+    ("knowledge_relations", "local-knowledge-pipeline"),
     ("knowledge_review_decisions", "local-knowledge-pipeline"),
     ("knowledge_semantic_issues", "local-knowledge-pipeline"),
     ("knowledge_snapshot_metrics", "local-knowledge-pipeline"),

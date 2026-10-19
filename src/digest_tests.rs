@@ -864,7 +864,10 @@ fn reconsolidation_refuses_human_edited_page() {
             |r| Ok((r.get::<_, String>(0)?,)),
         )
         .unwrap();
-    assert_eq!(status, "succeeded", "跳过按 succeeded 登记受限枚举，说明走返回文案");
+    assert_eq!(
+        status, "succeeded",
+        "跳过按 succeeded 登记受限枚举，说明走返回文案"
+    );
 }
 
 #[test]
@@ -922,4 +925,398 @@ fn consolidation_status_derives_new_evidence_after_revision() {
             .unwrap()
     };
     assert!(new_evidence_after >= 0);
+}
+
+// ── P2 后台再汇总任务 + P3 关系网（提案 2026-10-19，2026-10-20）──
+
+fn draft(slug: &str, kind: &str, title: &str, content: &str, tags: Vec<String>) -> WikiPageDraft {
+    WikiPageDraft {
+        slug: slug.into(),
+        kind: kind.into(),
+        title: title.into(),
+        summary: String::new(),
+        content_md: content.into(),
+        tags,
+        source_event_ids: vec![],
+        status: "active".into(),
+        reason: "test".into(),
+        source_url: None,
+    }
+}
+
+#[test]
+fn reconsolidation_jobs_enqueue_on_evidence_delta_and_schedule() {
+    let t = TempStore::new();
+    let a1 = record(&t.store, "午饭后散步了");
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                source_event_ids: vec![a1.clone()],
+                tags: vec!["散步".into()],
+                ..draft(
+                    "habit/walk",
+                    "habit",
+                    "午饭后散步",
+                    "- 每天午饭后散步",
+                    vec![],
+                )
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    // 整理点旧、证据新：增量阈值分支
+    t.store
+        .connection
+        .execute(
+            "UPDATE wiki_revisions SET created_at='2026-09-01T00:00:00Z'",
+            [],
+        )
+        .unwrap();
+    let a2 = record(&t.store, "散了三十分钟");
+    let a3 = record(&t.store, "雨天也走了");
+    let a4 = record(&t.store, "今天没走");
+    t.store
+        .connection
+        .execute(
+            "UPDATE wiki_pages SET source_event_ids=?1 WHERE slug='habit/walk'",
+            [
+                serde_json::to_string(&vec![a1.clone(), a2.clone(), a3.clone(), a4.clone()])
+                    .unwrap(),
+            ],
+        )
+        .unwrap();
+    // 30 天分支：另一页 1 条新证据 + 整理点 40 天前
+    let b1 = record(&t.store, "咖啡豆见底");
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                source_event_ids: vec![b1],
+                ..draft("asset/coffee", "asset", "咖啡豆", "- 每月一包", vec![])
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    t.store
+        .connection
+        .execute(
+            "UPDATE wiki_revisions SET created_at='2026-09-10T00:00:00Z' WHERE page_id=(SELECT id FROM wiki_pages WHERE slug='asset/coffee')",
+            [],
+        )
+        .unwrap();
+    // 零新证据页：不排
+    t.store
+        .upsert_wiki_page(
+            &draft("method/sleep", "method", "睡眠法", "- 早睡", vec![]),
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    let now = chrono::Utc::now().to_rfc3339();
+    let enqueued = t.store.reconsolidation_enqueue_candidates(&now).unwrap();
+    assert_eq!(enqueued, 2, "增量页 + 30 天页各一条");
+    let jobs: Vec<(String, String)> = t
+        .store
+        .connection
+        .prepare("SELECT trigger, status FROM knowledge_reconsolidation_jobs ORDER BY trigger")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert!(jobs.contains(&("evidence_delta".into(), "pending".into())));
+    assert!(jobs.contains(&("scheduled".into(), "pending".into())));
+    // 幂等：不重复排队
+    assert_eq!(t.store.reconsolidation_enqueue_candidates(&now).unwrap(), 0);
+}
+
+#[test]
+fn reconsolidation_worker_processes_due_job() {
+    use crate::knowledge_background::run_knowledge_reconsolidation;
+    let t = TempStore::new();
+    let e1 = record(&t.store, "晨跑五公里");
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                source_event_ids: vec![e1],
+                ..draft("habit/run", "habit", "晨跑", "- 五公里", vec![])
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    t.store
+        .connection
+        .execute(
+            "UPDATE wiki_revisions SET created_at='2026-09-01T00:00:00Z'",
+            [],
+        )
+        .unwrap();
+    t.store
+        .reconsolidation_enqueue_candidates(&chrono::Utc::now().to_rfc3339())
+        .unwrap();
+    let provider = ScriptedProvider(|_| {
+        Ok(r#"[{"op":"update","kind":"habit","slug":"habit/run","title":"晨跑","summary":"五公里，周六配速提升","content":"- 五公里\n- 周六配速提升","tags":["跑步"],"source_event_ids":[],"reason":"后台增量修补"}]"#.into())
+    });
+    assert_eq!(
+        run_knowledge_reconsolidation(&t.store, &provider).unwrap(),
+        1
+    );
+    let page = t.store.get_wiki_page("habit/run").unwrap().unwrap();
+    assert!(page.content_md.contains("配速提升"));
+    let (status, detail): (String, Option<String>) = t
+        .store
+        .connection
+        .query_row(
+            "SELECT status, detail FROM knowledge_reconsolidation_jobs",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(status, "succeeded", "{detail:?}");
+    let last_evidence: i64 = t
+        .store
+        .connection
+        .query_row(
+            "SELECT last_evidence_count FROM knowledge_reconsolidation_jobs",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(last_evidence, 0, "完成瞬间无新增证据");
+}
+
+#[test]
+fn reconsolidation_worker_skips_human_edited_page_without_model() {
+    use crate::knowledge_background::run_knowledge_reconsolidation;
+    let t = TempStore::new();
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                source_event_ids: vec![],
+                ..draft("habit/run", "habit", "晨跑", "- 人工写的", vec![])
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    t.store
+        .connection
+        .execute(
+            "UPDATE wiki_pages SET human_edited_at=?1 WHERE slug='habit/run'",
+            [chrono::Utc::now().to_rfc3339()],
+        )
+        .unwrap();
+    t.store
+        .connection
+        .execute(
+            "INSERT INTO knowledge_reconsolidation_jobs(page_id, trigger, available_at) VALUES((SELECT id FROM wiki_pages WHERE slug='habit/run'), 'manual', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .unwrap();
+    let provider = ScriptedProvider(|_| panic!("人工编辑页不应调模型"));
+    assert_eq!(
+        run_knowledge_reconsolidation(&t.store, &provider).unwrap(),
+        0
+    );
+    let (status, detail): (String, Option<String>) = t
+        .store
+        .connection
+        .query_row(
+            "SELECT status, detail FROM knowledge_reconsolidation_jobs",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(status, "skipped");
+    assert!(detail.unwrap().contains("人工编辑保护"));
+}
+
+#[test]
+fn reconsolidation_failure_backs_off_with_retry() {
+    use crate::knowledge_background::run_knowledge_reconsolidation;
+    let t = TempStore::new();
+    let e1 = record(&t.store, "晨跑五公里");
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                source_event_ids: vec![e1],
+                ..draft("habit/run", "habit", "晨跑", "- 五公里", vec![])
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    t.store
+        .connection
+        .execute(
+            "UPDATE wiki_revisions SET created_at='2026-09-01T00:00:00Z'",
+            [],
+        )
+        .unwrap();
+    t.store
+        .reconsolidation_enqueue_candidates(&chrono::Utc::now().to_rfc3339())
+        .unwrap();
+    let provider = ScriptedProvider(|_| Err(anyhow::anyhow!("下游超时")));
+    assert_eq!(
+        run_knowledge_reconsolidation(&t.store, &provider).unwrap(),
+        0
+    );
+    let page = t.store.get_wiki_page("habit/run").unwrap().unwrap();
+    assert_eq!(page.content_md, "- 五公里", "失败保留原正文");
+    let (status, attempts, available_at): (String, i64, String) = t
+        .store
+        .connection
+        .query_row(
+            "SELECT status, attempts, available_at FROM knowledge_reconsolidation_jobs",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!((status.as_str(), attempts), ("retry", 1));
+    assert!(
+        chrono::DateTime::parse_from_rfc3339(&available_at).unwrap()
+            > chrono::Utc::now() + chrono::Duration::seconds(30),
+        "退避时间在未来：{available_at}"
+    );
+}
+
+#[test]
+fn mention_relations_derive_from_tags_and_retract() {
+    let t = TempStore::new();
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                source_event_ids: vec![],
+                tags: vec!["咖啡豆".into(), "重复项".into()],
+                ..draft("routine/morning", "routine", "早晨流程", "- 冲咖啡", vec![])
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                source_event_ids: vec![],
+                ..draft("asset/coffee", "asset", "咖啡豆", "- 每月一包", vec![])
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    let (added, removed) = t.store.rebuild_mention_relations().unwrap();
+    assert_eq!((added, removed), (1, 0));
+    let from: String = t
+        .store
+        .connection
+        .query_row(
+            "SELECT f.slug FROM knowledge_relations r JOIN wiki_pages f ON f.id=r.from_page_id",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(from, "routine/morning", "mentions 从提方指向被提方");
+    // 幂等 + 事实消失则边回撤
+    let (added, removed) = t.store.rebuild_mention_relations().unwrap();
+    assert_eq!((added, removed), (0, 0));
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                source_event_ids: vec![],
+                tags: vec!["晨间".into()],
+                ..draft("routine/morning", "routine", "早晨流程", "- 冲咖啡", vec![])
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    let (added, removed) = t.store.rebuild_mention_relations().unwrap();
+    assert_eq!((added, removed), (0, 1), "tag 摘除后派生边回撤");
+    // 人工边不受重建影响
+    t.store
+        .add_knowledge_relation("routine/morning", "asset/coffee", "related", None)
+        .unwrap();
+    let (added, removed) = t.store.rebuild_mention_relations().unwrap();
+    let human_edges: i64 = t
+        .store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM knowledge_relations WHERE origin='human'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(human_edges, 1);
+    assert_eq!((added, removed), (0, 0));
+}
+
+#[test]
+fn relation_add_and_remove_have_guards() {
+    let t = TempStore::new();
+    t.store
+        .upsert_wiki_page(
+            &draft("a/one", "topic", "一", "- 内容", vec![]),
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    t.store
+        .upsert_wiki_page(
+            &draft("a/two", "topic", "二", "- 内容", vec![]),
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    let id1 = t
+        .store
+        .add_knowledge_relation("a/one", "a/two", "related", Some("同主题".into()))
+        .unwrap();
+    // 幂等：重复添加返回既有边
+    let id2 = t
+        .store
+        .add_knowledge_relation("a/one", "a/two", "related", None)
+        .unwrap();
+    assert_eq!(id1, id2);
+    // 自环 / 未知页 / 派生边不可删
+    assert!(
+        t.store
+            .add_knowledge_relation("a/one", "a/one", "related", None)
+            .is_err()
+    );
+    assert!(
+        t.store
+            .add_knowledge_relation("a/one", "a/ghost", "related", None)
+            .is_err()
+    );
+    assert!(
+        t.store
+            .remove_knowledge_relation_from_page("a/one", "不存在的边")
+            .is_err()
+    );
+    // 人工边可删
+    t.store
+        .remove_knowledge_relation_from_page("a/one", &id1)
+        .unwrap();
+    let count: i64 = t
+        .store
+        .connection
+        .query_row("SELECT COUNT(*) FROM knowledge_relations", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(count, 0);
+    // 上限 12
+    for i in 0..12 {
+        let slug = format!("a/n{i}");
+        t.store
+            .upsert_wiki_page(
+                &draft(&slug, "topic", &format!("第{i}页"), "- x", vec![]),
+                ContentPolicy::Always,
+            )
+            .unwrap();
+        t.store
+            .add_knowledge_relation("a/one", &slug, "related", None)
+            .unwrap();
+    }
+    assert!(
+        t.store
+            .add_knowledge_relation("a/two", "a/one", "related", None)
+            .is_ok(),
+        "不同页各自计上限"
+    );
+    assert!(
+        t.store
+            .add_knowledge_relation("a/one", "a/two", "part_of", None)
+            .is_err(),
+        "同页第 13 条被拒"
+    );
 }

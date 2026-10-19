@@ -327,6 +327,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KnowledgeQueuePage dco_decode_knowledge_queue_page(dynamic raw);
 
   @protected
+  KnowledgeRelationDto dco_decode_knowledge_relation_dto(dynamic raw);
+
+  @protected
   KnowledgeRepairSource dco_decode_knowledge_repair_source(dynamic raw);
 
   @protected
@@ -452,6 +455,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<KnowledgeQueueItem> dco_decode_list_knowledge_queue_item(dynamic raw);
 
   @protected
+  List<KnowledgeRelationDto> dco_decode_list_knowledge_relation_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<KnowledgeRepairSource> dco_decode_list_knowledge_repair_source(
     dynamic raw,
   );
@@ -519,6 +527,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ReachabilityHint> dco_decode_list_reachability_hint(dynamic raw);
+
+  @protected
+  List<ReconsolidationJobDto> dco_decode_list_reconsolidation_job_dto(
+    dynamic raw,
+  );
 
   @protected
   List<RejectedSourceRow> dco_decode_list_rejected_source_row(dynamic raw);
@@ -718,6 +731,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReachabilityHint dco_decode_reachability_hint(dynamic raw);
+
+  @protected
+  ReconsolidationJobDto dco_decode_reconsolidation_job_dto(dynamic raw);
 
   @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
@@ -1174,6 +1190,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  KnowledgeRelationDto sse_decode_knowledge_relation_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KnowledgeRepairSource sse_decode_knowledge_repair_source(
     SseDeserializer deserializer,
   );
@@ -1353,6 +1374,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<KnowledgeRelationDto> sse_decode_list_knowledge_relation_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<KnowledgeRepairSource> sse_decode_list_knowledge_repair_source(
     SseDeserializer deserializer,
   );
@@ -1436,6 +1462,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ReachabilityHint> sse_decode_list_reachability_hint(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ReconsolidationJobDto> sse_decode_list_reconsolidation_job_dto(
     SseDeserializer deserializer,
   );
 
@@ -1693,6 +1724,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReachabilityHint sse_decode_reachability_hint(SseDeserializer deserializer);
+
+  @protected
+  ReconsolidationJobDto sse_decode_reconsolidation_job_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
@@ -2447,6 +2483,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_knowledge_relation_dto>
+  cst_encode_list_knowledge_relation_dto(List<KnowledgeRelationDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_knowledge_relation_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_knowledge_relation_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_knowledge_repair_source>
   cst_encode_list_knowledge_repair_source(List<KnowledgeRepairSource> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -2674,6 +2721,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_reachability_hint(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_reachability_hint(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_reconsolidation_job_dto>
+  cst_encode_list_reconsolidation_job_dto(List<ReconsolidationJobDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_reconsolidation_job_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_reconsolidation_job_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -4026,6 +4084,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       apiObj.consolidation,
       wireObj.consolidation,
     );
+    wireObj.relations = cst_encode_list_knowledge_relation_dto(
+      apiObj.relations,
+    );
   }
 
   @protected
@@ -4077,6 +4138,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.total = cst_encode_i_64(apiObj.total);
     wireObj.items = cst_encode_list_knowledge_queue_item(apiObj.items);
     wireObj.has_more = cst_encode_bool(apiObj.hasMore);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_knowledge_relation_dto(
+    KnowledgeRelationDto apiObj,
+    wire_cst_knowledge_relation_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.other_slug = cst_encode_String(apiObj.otherSlug);
+    wireObj.other_title = cst_encode_String(apiObj.otherTitle);
+    wireObj.relation = cst_encode_String(apiObj.relation);
+    wireObj.origin = cst_encode_String(apiObj.origin);
+    wireObj.note = cst_encode_opt_String(apiObj.note);
   }
 
   @protected
@@ -4484,6 +4558,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.code = cst_encode_String(apiObj.code);
     wireObj.address = cst_encode_String(apiObj.address);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_reconsolidation_job_dto(
+    ReconsolidationJobDto apiObj,
+    wire_cst_reconsolidation_job_dto wireObj,
+  ) {
+    wireObj.slug = cst_encode_String(apiObj.slug);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.trigger = cst_encode_String(apiObj.trigger);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.attempts = cst_encode_i_64(apiObj.attempts);
+    wireObj.available_at = cst_encode_String(apiObj.availableAt);
+    wireObj.last_completed_at = cst_encode_opt_String(apiObj.lastCompletedAt);
+    wireObj.detail = cst_encode_opt_String(apiObj.detail);
   }
 
   @protected
@@ -5456,6 +5545,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_knowledge_relation_dto(
+    KnowledgeRelationDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_knowledge_repair_source(
     KnowledgeRepairSource self,
     SseSerializer serializer,
@@ -5675,6 +5770,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_knowledge_relation_dto(
+    List<KnowledgeRelationDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_knowledge_repair_source(
     List<KnowledgeRepairSource> self,
     SseSerializer serializer,
@@ -5788,6 +5889,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_reachability_hint(
     List<ReachabilityHint> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_reconsolidation_job_dto(
+    List<ReconsolidationJobDto> self,
     SseSerializer serializer,
   );
 
@@ -6110,6 +6217,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_reconsolidation_job_dto(
+    ReconsolidationJobDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_record_list_sync_dataset_entry_dto_i_64(
     (List<SyncDatasetEntryDto>, PlatformInt64) self,
     SseSerializer serializer,
@@ -6353,9 +6466,9 @@ class RustLibWire implements BaseWire {
   }
 
   late final _cst_new_box_autoadd_boolPtr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Bool> Function(ffi.Bool)>>(
-        'frbgen_elsewhen_ui_cst_new_box_autoadd_bool',
-      );
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<ffi.Bool> Function(ffi.Bool)>
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_bool');
   late final _cst_new_box_autoadd_bool = _cst_new_box_autoadd_boolPtr
       .asFunction<ffi.Pointer<ffi.Bool> Function(bool)>();
 
@@ -7177,6 +7290,23 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_knowledge_queue_item> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_knowledge_relation_dto>
+  cst_new_list_knowledge_relation_dto(int len) {
+    return _cst_new_list_knowledge_relation_dto(len);
+  }
+
+  late final _cst_new_list_knowledge_relation_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_knowledge_relation_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_knowledge_relation_dto');
+  late final _cst_new_list_knowledge_relation_dto =
+      _cst_new_list_knowledge_relation_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_knowledge_relation_dto> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_knowledge_repair_source>
   cst_new_list_knowledge_repair_source(int len) {
     return _cst_new_list_knowledge_repair_source(len);
@@ -7496,6 +7626,23 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_reachability_hint> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_reconsolidation_job_dto>
+  cst_new_list_reconsolidation_job_dto(int len) {
+    return _cst_new_list_reconsolidation_job_dto(len);
+  }
+
+  late final _cst_new_list_reconsolidation_job_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_reconsolidation_job_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_reconsolidation_job_dto');
+  late final _cst_new_list_reconsolidation_job_dto =
+      _cst_new_list_reconsolidation_job_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_reconsolidation_job_dto> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_rejected_source_row>
   cst_new_list_rejected_source_row(int len) {
     return _cst_new_list_rejected_source_row(len);
@@ -7792,16 +7939,16 @@ class RustLibWire implements BaseWire {
   late final _dummy_method_to_enforce_bundling =
       _dummy_method_to_enforce_bundlingPtr.asFunction<int Function()>();
 
-  void store_dart_post_cobject(DartPostCObjectFnType ptr) {
+  void store_dart_post_cobject(int ptr) {
     return _store_dart_post_cobject(ptr);
   }
 
   late final _store_dart_post_cobjectPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(DartPostCObjectFnType)>>(
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>(
         'store_dart_post_cobject',
       );
   late final _store_dart_post_cobject = _store_dart_post_cobjectPtr
-      .asFunction<void Function(DartPostCObjectFnType)>();
+      .asFunction<void Function(int)>();
 
   void wire__crate__api__begin_url_input(
     int port_,
@@ -7869,7 +8016,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__chat_proposals__decide_chat_proposal =
       _wire__crate__api__chat_proposals__decide_chat_proposalPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_chat_review_request>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_chat_review_request>,
+              bool,
+            )
           >();
 
   void wire__crate__api__chat_proposals__edit_chat_proposal(
@@ -8952,7 +9103,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__conversations__set_conversation_archived =
       _wire__crate__api__conversations__set_conversation_archivedPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__conversations__update_pending_action_args(
@@ -9719,6 +9874,48 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__knowledge__add_knowledge_relation(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> from_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> to_slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> relation,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+  ) {
+    return _wire__crate__api__knowledge__add_knowledge_relation(
+      port_,
+      from_slug,
+      to_slug,
+      relation,
+      note,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__add_knowledge_relationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__add_knowledge_relation',
+      );
+  late final _wire__crate__api__knowledge__add_knowledge_relation =
+      _wire__crate__api__knowledge__add_knowledge_relationPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__knowledge__confirm_knowledge_source(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
@@ -10022,6 +10219,22 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__knowledge__list_knowledge_proposals =
       _wire__crate__api__knowledge__list_knowledge_proposalsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs(
+    int port_,
+  ) {
+    return _wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs(
+      port_,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__list_knowledge_reconsolidation_jobsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs',
+      );
+  late final _wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs =
+      _wire__crate__api__knowledge__list_knowledge_reconsolidation_jobsPtr
           .asFunction<void Function(int)>();
 
   void wire__crate__api__knowledge__list_knowledge_repair_sources(
@@ -10395,6 +10608,40 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__knowledge__remove_knowledge_relation(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> relation_id,
+  ) {
+    return _wire__crate__api__knowledge__remove_knowledge_relation(
+      port_,
+      slug,
+      relation_id,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__remove_knowledge_relationPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__remove_knowledge_relation',
+      );
+  late final _wire__crate__api__knowledge__remove_knowledge_relation =
+      _wire__crate__api__knowledge__remove_knowledge_relationPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__knowledge__resolve_knowledge_issue_with_revision(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> fingerprint,
@@ -10464,7 +10711,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__knowledge__resolve_knowledge_proposal =
       _wire__crate__api__knowledge__resolve_knowledge_proposalPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__knowledge__resolve_topic_organization(
@@ -10494,7 +10745,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__knowledge__resolve_topic_organization =
       _wire__crate__api__knowledge__resolve_topic_organizationPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__knowledge__tick_knowledge_insights(int port_) {
@@ -10898,7 +11153,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__knowledge_workflows__resolve_knowledge_batch =
       _wire__crate__api__knowledge_workflows__resolve_knowledge_batchPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_String>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_String>,
+              bool,
+            )
           >();
 
   void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
@@ -11198,7 +11457,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__mcp__set_mcp_server_enabled =
       _wire__crate__api__mcp__set_mcp_server_enabledPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__mcp__set_mcp_server_trusted(
@@ -11222,7 +11485,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__mcp__set_mcp_server_trusted =
       _wire__crate__api__mcp__set_mcp_server_trustedPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__mcp__test_mcp_server(
@@ -11362,7 +11629,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__page_marks__set_page_mark_active =
       _wire__crate__api__page_marks__set_page_mark_activePtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__provider_config__delete_ai_provider_config(
@@ -12070,7 +12341,9 @@ class RustLibWire implements BaseWire {
 
   late final _wire__crate__api__set_companion_prefsPtr =
       _lookup<
-        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool, ffi.Int64)>
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64, ffi.Bool, ffi.Int64)
+        >
       >('frbgen_elsewhen_ui_wire__crate__api__set_companion_prefs');
   late final _wire__crate__api__set_companion_prefs =
       _wire__crate__api__set_companion_prefsPtr
@@ -12101,7 +12374,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__set_event_recordability =
       _wire__crate__api__set_event_recordabilityPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__set_guidance_feedback(
@@ -12511,7 +12788,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__sync__create_owner_sync_invitation =
       _wire__crate__api__sync__create_owner_sync_invitationPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__sync__discard_sync_join_staging(
@@ -13610,7 +13891,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__todos__set_todo_reminder =
       _wire__crate__api__todos__set_todo_reminderPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__todos__snooze_reminder(
@@ -14089,7 +14374,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__user_skills__set_user_skill_enabled =
       _wire__crate__api__user_skills__set_user_skill_enabledPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__user_skills__set_user_skill_trusted(
@@ -14119,7 +14408,11 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__user_skills__set_user_skill_trusted =
       _wire__crate__api__user_skills__set_user_skill_trustedPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
           >();
 
   void wire__crate__api__user_skills__uninstall_user_skill(
@@ -14931,16 +15224,6 @@ final class DailyReviewResultKind extends ffi.Union {
 
 typedef DartPort = ffi.Int64;
 typedef DartDartPort = int;
-typedef DartPostCObjectFnType =
-    ffi.Pointer<ffi.NativeFunction<DartPostCObjectFnTypeFunction>>;
-typedef DartPostCObjectFnTypeFunction = ffi.Bool Function(
-  DartPort port_id,
-  ffi.Pointer<ffi.Void> message,
-);
-typedef DartDartPostCObjectFnTypeFunction = bool Function(
-  DartDartPort port_id,
-  ffi.Pointer<ffi.Void> message,
-);
 
 const int ENVELOPE_VERSION = 1;
 
@@ -16900,6 +17183,8 @@ final class wire_cst_knowledge_page_details extends ffi.Struct {
   external wire_cst_knowledge_metadata metadata;
 
   external wire_cst_page_consolidation_status consolidation;
+
+  external ffi.Pointer<wire_cst_list_knowledge_relation_dto> relations;
 }
 
 final class wire_cst_knowledge_proposal extends ffi.Struct {
@@ -17046,6 +17331,36 @@ final class wire_cst_knowledge_queue_page extends ffi.Struct {
     ..ref.total = total
     ..ref.items = items
     ..ref.has_more = has_more;
+}
+
+final class wire_cst_knowledge_relation_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> other_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> other_title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> relation;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> origin;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> note;
+
+  static ffi.Pointer<wire_cst_knowledge_relation_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> other_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> other_title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> relation,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> origin,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+  }) => $allocator<wire_cst_knowledge_relation_dto>()
+    ..ref.id = id
+    ..ref.other_slug = other_slug
+    ..ref.other_title = other_title
+    ..ref.relation = relation
+    ..ref.origin = origin
+    ..ref.note = note;
 }
 
 final class wire_cst_knowledge_repair_source extends ffi.Struct {
@@ -17720,6 +18035,21 @@ final class wire_cst_list_knowledge_queue_item extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_knowledge_relation_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_knowledge_relation_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_knowledge_relation_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_knowledge_relation_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_knowledge_relation_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_knowledge_repair_source extends ffi.Struct {
   external ffi.Pointer<wire_cst_knowledge_repair_source> ptr;
 
@@ -18016,6 +18346,21 @@ final class wire_cst_list_reachability_hint extends ffi.Struct {
     required ffi.Pointer<wire_cst_reachability_hint> ptr,
     required int len,
   }) => $allocator<wire_cst_list_reachability_hint>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_reconsolidation_job_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_reconsolidation_job_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_reconsolidation_job_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_reconsolidation_job_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_reconsolidation_job_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }
@@ -19006,6 +19351,45 @@ final class wire_cst_reachability_hint extends ffi.Struct {
   }) => $allocator<wire_cst_reachability_hint>()
     ..ref.code = code
     ..ref.address = address;
+}
+
+final class wire_cst_reconsolidation_job_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  @ffi.Int64()
+  external int attempts;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> available_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_completed_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> detail;
+
+  static ffi.Pointer<wire_cst_reconsolidation_job_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required int attempts,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> available_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_completed_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> detail,
+  }) => $allocator<wire_cst_reconsolidation_job_dto>()
+    ..ref.slug = slug
+    ..ref.title = title
+    ..ref.trigger = trigger
+    ..ref.status = status
+    ..ref.attempts = attempts
+    ..ref.available_at = available_at
+    ..ref.last_completed_at = last_completed_at
+    ..ref.detail = detail;
 }
 
 final class wire_cst_record_list_sync_dataset_entry_dto_i_64

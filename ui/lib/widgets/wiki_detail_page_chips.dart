@@ -270,3 +270,99 @@ class _RelationChip extends ConsumerWidget {
     );
   }
 }
+
+/// 相关页面 chip（知识关系网 P3）：点击跳对端页；人工边带删除 ×，
+/// 派生边（origin='citation'）只读——改 tags 让事实消失，边才消失。
+class RelatedPageChip extends StatelessWidget {
+  final KnowledgeRelationDto relation;
+  final String pageSlug;
+  final void Function(String slug, String title) onOpen;
+  final VoidCallback? onRemove;
+
+  const RelatedPageChip({
+    super.key,
+    required this.relation,
+    required this.pageSlug,
+    required this.onOpen,
+    required this.onRemove,
+  });
+
+  static const _labels = {
+    'related': '相关',
+    'mentions': '提及',
+    '被mentions': '被提及',
+    'part_of': '从属',
+    '被part_of': '包含本页',
+    'same_topic': '同主题',
+    'supports': '佐证',
+    '被supports': '被佐证',
+    'contradicts': '相悖',
+    '被contradicts': '被相悖',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _labels[relation.relation] ?? relation.relation;
+    final chip = InkWell(
+      onTap: () => onOpen(relation.otherSlug, relation.otherTitle),
+      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppTheme.surface2,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          border: Border.all(color: AppTheme.surface3),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 200),
+              child: Text(
+                relation.otherTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.accentPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (onRemove == null) return chip;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        chip,
+        InkWell(
+          onTap: onRemove,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          child: Padding(
+            padding: const EdgeInsets.all(2),
+            child: Icon(Icons.close, size: 12, color: AppTheme.textTertiary),
+          ),
+        ),
+      ],
+    );
+  }
+}

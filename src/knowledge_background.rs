@@ -1,7 +1,9 @@
 //! Automatic cognitive insights, with a persisted run ledger and bounded input.
 mod integration;
+mod reconsolidation;
 mod refresh;
 pub(crate) use refresh::run_knowledge_refresh;
+pub(crate) use reconsolidation::run_knowledge_reconsolidation;
 mod sources;
 use crate::ai::{insight::parse_insights, memory::ContextMessage, provider::AiProvider};
 use crate::knowledge::{context_text, record_usage, select_knowledge};

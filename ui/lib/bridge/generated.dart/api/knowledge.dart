@@ -16,7 +16,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wiki.dart';
 
 // These functions are ignored because they are not marked as `pub`: `store`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<List<KnowledgeRepairSource>> listKnowledgeRepairSources({
   required String slug,
@@ -102,6 +102,30 @@ Future<String> reconsolidateKnowledgePage({required String slug}) => RustLib
     .instance
     .api
     .crateApiKnowledgeReconsolidateKnowledgePage(slug: slug);
+
+/// 人工添加「相关页面」。校验在 storage 层（自环/上限/存在性，幂等）。
+Future<String> addKnowledgeRelation({
+  required String fromSlug,
+  required String toSlug,
+  required String relation,
+  String? note,
+}) => RustLib.instance.api.crateApiKnowledgeAddKnowledgeRelation(
+  fromSlug: fromSlug,
+  toSlug: toSlug,
+  relation: relation,
+  note: note,
+);
+
+Future<void> removeKnowledgeRelation({
+  required String slug,
+  required String relationId,
+}) => RustLib.instance.api.crateApiKnowledgeRemoveKnowledgeRelation(
+  slug: slug,
+  relationId: relationId,
+);
+
+Future<List<ReconsolidationJobDto>> listKnowledgeReconsolidationJobs() =>
+    RustLib.instance.api.crateApiKnowledgeListKnowledgeReconsolidationJobs();
 
 Future<SourceSnapshot?> getKnowledgeSourceSnapshot({required String id}) =>
     RustLib.instance.api.crateApiKnowledgeGetKnowledgeSourceSnapshot(id: id);
@@ -310,6 +334,9 @@ class KnowledgePageDetails {
   /// P1 可观测（提案 2026-10-19）：最近整理时间 + 其后新增证据数。
   final PageConsolidationStatus consolidation;
 
+  /// P3 导航面（提案 §7.4）：相关页面，展示前先惰性重建派生边。
+  final List<KnowledgeRelationDto> relations;
+
   const KnowledgePageDetails({
     required this.sourcePages,
     required this.outputPages,
@@ -319,6 +346,7 @@ class KnowledgePageDetails {
     required this.issues,
     required this.metadata,
     required this.consolidation,
+    required this.relations,
   });
 
   @override
@@ -330,7 +358,8 @@ class KnowledgePageDetails {
       proposals.hashCode ^
       issues.hashCode ^
       metadata.hashCode ^
-      consolidation.hashCode;
+      consolidation.hashCode ^
+      relations.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -344,7 +373,49 @@ class KnowledgePageDetails {
           proposals == other.proposals &&
           issues == other.issues &&
           metadata == other.metadata &&
-          consolidation == other.consolidation;
+          consolidation == other.consolidation &&
+          relations == other.relations;
+}
+
+/// 相关页面的关系边（P3 导航面载体）；origin='human' 才可删，
+/// 派生边（citation）去改页面 tags。
+class KnowledgeRelationDto {
+  final String id;
+  final String otherSlug;
+  final String otherTitle;
+  final String relation;
+  final String origin;
+  final String? note;
+
+  const KnowledgeRelationDto({
+    required this.id,
+    required this.otherSlug,
+    required this.otherTitle,
+    required this.relation,
+    required this.origin,
+    this.note,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      otherSlug.hashCode ^
+      otherTitle.hashCode ^
+      relation.hashCode ^
+      origin.hashCode ^
+      note.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is KnowledgeRelationDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          otherSlug == other.otherSlug &&
+          otherTitle == other.otherTitle &&
+          relation == other.relation &&
+          origin == other.origin &&
+          note == other.note;
 }
 
 class KnowledgeRepairSource {
@@ -433,6 +504,54 @@ class PageConsolidationStatus {
           runtimeType == other.runtimeType &&
           lastConsolidatedAt == other.lastConsolidatedAt &&
           newEvidence == other.newEvidence;
+}
+
+/// 再汇总队列观测（P2）：排队/重试/最近完成，接维护面板。
+class ReconsolidationJobDto {
+  final String slug;
+  final String title;
+  final String trigger;
+  final String status;
+  final PlatformInt64 attempts;
+  final String availableAt;
+  final String? lastCompletedAt;
+  final String? detail;
+
+  const ReconsolidationJobDto({
+    required this.slug,
+    required this.title,
+    required this.trigger,
+    required this.status,
+    required this.attempts,
+    required this.availableAt,
+    this.lastCompletedAt,
+    this.detail,
+  });
+
+  @override
+  int get hashCode =>
+      slug.hashCode ^
+      title.hashCode ^
+      trigger.hashCode ^
+      status.hashCode ^
+      attempts.hashCode ^
+      availableAt.hashCode ^
+      lastCompletedAt.hashCode ^
+      detail.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReconsolidationJobDto &&
+          runtimeType == other.runtimeType &&
+          slug == other.slug &&
+          title == other.title &&
+          trigger == other.trigger &&
+          status == other.status &&
+          attempts == other.attempts &&
+          availableAt == other.availableAt &&
+          lastCompletedAt == other.lastCompletedAt &&
+          detail == other.detail;
 }
 
 class SourceUpdatePreview {

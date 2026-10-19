@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 583834547;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1005541329;
 
 // Section: executor
 
@@ -104,6 +104,40 @@ fn wire__crate__api__entities__add_entity_alias_impl(
                             api_entity_kind,
                             api_entity_slug,
                             api_alias,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__add_knowledge_relation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    from_slug: impl CstDecode<String>,
+    to_slug: impl CstDecode<String>,
+    relation: impl CstDecode<String>,
+    note: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "add_knowledge_relation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_from_slug = from_slug.cst_decode();
+            let api_to_slug = to_slug.cst_decode();
+            let api_relation = relation.cst_decode();
+            let api_note = note.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::add_knowledge_relation(
+                            api_from_slug,
+                            api_to_slug,
+                            api_relation,
+                            api_note,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -3540,6 +3574,28 @@ fn wire__crate__api__knowledge__list_knowledge_proposals_impl(
         },
     )
 }
+fn wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_knowledge_reconsolidation_jobs",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::knowledge::list_knowledge_reconsolidation_jobs()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge__list_knowledge_repair_sources_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     slug: impl CstDecode<String>,
@@ -4831,6 +4887,34 @@ fn wire__crate__api__sync__release_sync_key_request_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::sync::release_sync_key_request(api_token)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__remove_knowledge_relation_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+    relation_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "remove_knowledge_relation",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            let api_relation_id = relation_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::remove_knowledge_relation(
+                            api_slug,
+                            api_relation_id,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -8310,6 +8394,8 @@ impl SseDecode for crate::api::knowledge::KnowledgePageDetails {
             <crate::storage::knowledge::KnowledgeMetadata>::sse_decode(deserializer);
         let mut var_consolidation =
             <crate::api::knowledge::PageConsolidationStatus>::sse_decode(deserializer);
+        let mut var_relations =
+            <Vec<crate::api::knowledge::KnowledgeRelationDto>>::sse_decode(deserializer);
         return crate::api::knowledge::KnowledgePageDetails {
             source_pages: var_sourcePages,
             output_pages: var_outputPages,
@@ -8319,6 +8405,7 @@ impl SseDecode for crate::api::knowledge::KnowledgePageDetails {
             issues: var_issues,
             metadata: var_metadata,
             consolidation: var_consolidation,
+            relations: var_relations,
         };
     }
 }
@@ -8404,6 +8491,26 @@ impl SseDecode for crate::knowledge::queue::KnowledgeQueuePage {
             total: var_total,
             items: var_items,
             has_more: var_hasMore,
+        };
+    }
+}
+
+impl SseDecode for crate::api::knowledge::KnowledgeRelationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_otherSlug = <String>::sse_decode(deserializer);
+        let mut var_otherTitle = <String>::sse_decode(deserializer);
+        let mut var_relation = <String>::sse_decode(deserializer);
+        let mut var_origin = <String>::sse_decode(deserializer);
+        let mut var_note = <Option<String>>::sse_decode(deserializer);
+        return crate::api::knowledge::KnowledgeRelationDto {
+            id: var_id,
+            other_slug: var_otherSlug,
+            other_title: var_otherTitle,
+            relation: var_relation,
+            origin: var_origin,
+            note: var_note,
         };
     }
 }
@@ -8961,6 +9068,20 @@ impl SseDecode for Vec<crate::knowledge::queue::KnowledgeQueueItem> {
     }
 }
 
+impl SseDecode for Vec<crate::api::knowledge::KnowledgeRelationDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::knowledge::KnowledgeRelationDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::knowledge::KnowledgeRepairSource> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9206,6 +9327,20 @@ impl SseDecode for Vec<crate::api::provider_reachability::ReachabilityHint> {
             ans_.push(
                 <crate::api::provider_reachability::ReachabilityHint>::sse_decode(deserializer),
             );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::knowledge::ReconsolidationJobDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::knowledge::ReconsolidationJobDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -10178,6 +10313,30 @@ impl SseDecode for crate::api::provider_reachability::ReachabilityHint {
         return crate::api::provider_reachability::ReachabilityHint {
             code: var_code,
             address: var_address,
+        };
+    }
+}
+
+impl SseDecode for crate::api::knowledge::ReconsolidationJobDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_slug = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_trigger = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_attempts = <i64>::sse_decode(deserializer);
+        let mut var_availableAt = <String>::sse_decode(deserializer);
+        let mut var_lastCompletedAt = <Option<String>>::sse_decode(deserializer);
+        let mut var_detail = <Option<String>>::sse_decode(deserializer);
+        return crate::api::knowledge::ReconsolidationJobDto {
+            slug: var_slug,
+            title: var_title,
+            trigger: var_trigger,
+            status: var_status,
+            attempts: var_attempts,
+            available_at: var_availableAt,
+            last_completed_at: var_lastCompletedAt,
+            detail: var_detail,
         };
     }
 }
@@ -12336,6 +12495,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::knowledge::KnowledgePageDetai
             self.issues.into_into_dart().into_dart(),
             self.metadata.into_into_dart().into_dart(),
             self.consolidation.into_into_dart().into_dart(),
+            self.relations.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -12435,6 +12595,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::queue::KnowledgeQueuePa
     for crate::knowledge::queue::KnowledgeQueuePage
 {
     fn into_into_dart(self) -> crate::knowledge::queue::KnowledgeQueuePage {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::knowledge::KnowledgeRelationDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.other_slug.into_into_dart().into_dart(),
+            self.other_title.into_into_dart().into_dart(),
+            self.relation.into_into_dart().into_dart(),
+            self.origin.into_into_dart().into_dart(),
+            self.note.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::knowledge::KnowledgeRelationDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::KnowledgeRelationDto>
+    for crate::api::knowledge::KnowledgeRelationDto
+{
+    fn into_into_dart(self) -> crate::api::knowledge::KnowledgeRelationDto {
         self
     }
 }
@@ -13111,6 +13296,33 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::provider_reachability::Reacha
     for crate::api::provider_reachability::ReachabilityHint
 {
     fn into_into_dart(self) -> crate::api::provider_reachability::ReachabilityHint {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::knowledge::ReconsolidationJobDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.slug.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.trigger.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.attempts.into_into_dart().into_dart(),
+            self.available_at.into_into_dart().into_dart(),
+            self.last_completed_at.into_into_dart().into_dart(),
+            self.detail.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::knowledge::ReconsolidationJobDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::ReconsolidationJobDto>
+    for crate::api::knowledge::ReconsolidationJobDto
+{
+    fn into_into_dart(self) -> crate::api::knowledge::ReconsolidationJobDto {
         self
     }
 }
@@ -14766,6 +14978,7 @@ impl SseEncode for crate::api::knowledge::KnowledgePageDetails {
             self.consolidation,
             serializer,
         );
+        <Vec<crate::api::knowledge::KnowledgeRelationDto>>::sse_encode(self.relations, serializer);
     }
 }
 
@@ -14814,6 +15027,18 @@ impl SseEncode for crate::knowledge::queue::KnowledgeQueuePage {
         <i64>::sse_encode(self.total, serializer);
         <Vec<crate::knowledge::queue::KnowledgeQueueItem>>::sse_encode(self.items, serializer);
         <bool>::sse_encode(self.has_more, serializer);
+    }
+}
+
+impl SseEncode for crate::api::knowledge::KnowledgeRelationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.other_slug, serializer);
+        <String>::sse_encode(self.other_title, serializer);
+        <String>::sse_encode(self.relation, serializer);
+        <String>::sse_encode(self.origin, serializer);
+        <Option<String>>::sse_encode(self.note, serializer);
     }
 }
 
@@ -15219,6 +15444,16 @@ impl SseEncode for Vec<crate::knowledge::queue::KnowledgeQueueItem> {
     }
 }
 
+impl SseEncode for Vec<crate::api::knowledge::KnowledgeRelationDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::knowledge::KnowledgeRelationDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::knowledge::KnowledgeRepairSource> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -15405,6 +15640,16 @@ impl SseEncode for Vec<crate::api::provider_reachability::ReachabilityHint> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::provider_reachability::ReachabilityHint>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::knowledge::ReconsolidationJobDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::knowledge::ReconsolidationJobDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -16099,6 +16344,20 @@ impl SseEncode for crate::api::provider_reachability::ReachabilityHint {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.code, serializer);
         <String>::sse_encode(self.address, serializer);
+    }
+}
+
+impl SseEncode for crate::api::knowledge::ReconsolidationJobDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.slug, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.trigger, serializer);
+        <String>::sse_encode(self.status, serializer);
+        <i64>::sse_encode(self.attempts, serializer);
+        <String>::sse_encode(self.available_at, serializer);
+        <Option<String>>::sse_encode(self.last_completed_at, serializer);
+        <Option<String>>::sse_encode(self.detail, serializer);
     }
 }
 
@@ -17557,6 +17816,7 @@ mod io {
                 issues: self.issues.cst_decode(),
                 metadata: self.metadata.cst_decode(),
                 consolidation: self.consolidation.cst_decode(),
+                relations: self.relations.cst_decode(),
             }
         }
     }
@@ -17608,6 +17868,19 @@ mod io {
                 total: self.total.cst_decode(),
                 items: self.items.cst_decode(),
                 has_more: self.has_more.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::KnowledgeRelationDto> for wire_cst_knowledge_relation_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::KnowledgeRelationDto {
+            crate::api::knowledge::KnowledgeRelationDto {
+                id: self.id.cst_decode(),
+                other_slug: self.other_slug.cst_decode(),
+                other_title: self.other_title.cst_decode(),
+                relation: self.relation.cst_decode(),
+                origin: self.origin.cst_decode(),
+                note: self.note.cst_decode(),
             }
         }
     }
@@ -18058,6 +18331,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::knowledge::KnowledgeRelationDto>>
+        for *mut wire_cst_list_knowledge_relation_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::knowledge::KnowledgeRelationDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::knowledge::KnowledgeRepairSource>>
         for *mut wire_cst_list_knowledge_repair_source
     {
@@ -18268,6 +18553,18 @@ mod io {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::provider_reachability::ReachabilityHint> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::knowledge::ReconsolidationJobDto>>
+        for *mut wire_cst_list_reconsolidation_job_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::knowledge::ReconsolidationJobDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18788,6 +19085,21 @@ mod io {
             crate::api::provider_reachability::ReachabilityHint {
                 code: self.code.cst_decode(),
                 address: self.address.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::ReconsolidationJobDto> for wire_cst_reconsolidation_job_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::ReconsolidationJobDto {
+            crate::api::knowledge::ReconsolidationJobDto {
+                slug: self.slug.cst_decode(),
+                title: self.title.cst_decode(),
+                trigger: self.trigger.cst_decode(),
+                status: self.status.cst_decode(),
+                attempts: self.attempts.cst_decode(),
+                available_at: self.available_at.cst_decode(),
+                last_completed_at: self.last_completed_at.cst_decode(),
+                detail: self.detail.cst_decode(),
             }
         }
     }
@@ -20232,6 +20544,7 @@ mod io {
                 issues: core::ptr::null_mut(),
                 metadata: Default::default(),
                 consolidation: Default::default(),
+                relations: core::ptr::null_mut(),
             }
         }
     }
@@ -20299,6 +20612,23 @@ mod io {
         }
     }
     impl Default for wire_cst_knowledge_queue_page {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_knowledge_relation_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                other_slug: core::ptr::null_mut(),
+                other_title: core::ptr::null_mut(),
+                relation: core::ptr::null_mut(),
+                origin: core::ptr::null_mut(),
+                note: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_relation_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -20760,6 +21090,25 @@ mod io {
         }
     }
     impl Default for wire_cst_reachability_hint {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_reconsolidation_job_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                slug: core::ptr::null_mut(),
+                title: core::ptr::null_mut(),
+                trigger: core::ptr::null_mut(),
+                status: core::ptr::null_mut(),
+                attempts: Default::default(),
+                available_at: core::ptr::null_mut(),
+                last_completed_at: core::ptr::null_mut(),
+                detail: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_reconsolidation_job_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -21414,6 +21763,19 @@ mod io {
         alias: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__entities__add_entity_alias_impl(port_, entity_kind, entity_slug, alias)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__add_knowledge_relation(
+        port_: i64,
+        from_slug: *mut wire_cst_list_prim_u_8_strict,
+        to_slug: *mut wire_cst_list_prim_u_8_strict,
+        relation: *mut wire_cst_list_prim_u_8_strict,
+        note: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__add_knowledge_relation_impl(
+            port_, from_slug, to_slug, relation, note,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -22651,6 +23013,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs(
+        port_: i64,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_repair_sources(
         port_: i64,
         slug: *mut wire_cst_list_prim_u_8_strict,
@@ -23086,6 +23455,15 @@ mod io {
         token: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__sync__release_sync_key_request_impl(port_, token)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__remove_knowledge_relation(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        relation_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__remove_knowledge_relation_impl(port_, slug, relation_id)
     }
 
     #[unsafe(no_mangle)]
@@ -24568,6 +24946,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_knowledge_relation_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_knowledge_relation_dto {
+        let wrap = wire_cst_list_knowledge_relation_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_knowledge_relation_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_knowledge_repair_source(
         len: i32,
     ) -> *mut wire_cst_list_knowledge_repair_source {
@@ -24831,6 +25223,20 @@ mod io {
         let wrap = wire_cst_list_reachability_hint {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_reachability_hint>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_reconsolidation_job_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_reconsolidation_job_dto {
+        let wrap = wire_cst_list_reconsolidation_job_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_reconsolidation_job_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -25714,6 +26120,7 @@ mod io {
         issues: *mut wire_cst_list_knowledge_issue,
         metadata: wire_cst_knowledge_metadata,
         consolidation: wire_cst_page_consolidation_status,
+        relations: *mut wire_cst_list_knowledge_relation_dto,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -25756,6 +26163,16 @@ mod io {
         total: i64,
         items: *mut wire_cst_list_knowledge_queue_item,
         has_more: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_relation_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        other_slug: *mut wire_cst_list_prim_u_8_strict,
+        other_title: *mut wire_cst_list_prim_u_8_strict,
+        relation: *mut wire_cst_list_prim_u_8_strict,
+        origin: *mut wire_cst_list_prim_u_8_strict,
+        note: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -26015,6 +26432,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_knowledge_relation_dto {
+        ptr: *mut wire_cst_knowledge_relation_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_knowledge_repair_source {
         ptr: *mut wire_cst_knowledge_repair_source,
         len: i32,
@@ -26131,6 +26554,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_reachability_hint {
         ptr: *mut wire_cst_reachability_hint,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_reconsolidation_job_dto {
+        ptr: *mut wire_cst_reconsolidation_job_dto,
         len: i32,
     }
     #[repr(C)]
@@ -26493,6 +26922,18 @@ mod io {
     pub struct wire_cst_reachability_hint {
         code: *mut wire_cst_list_prim_u_8_strict,
         address: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_reconsolidation_job_dto {
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        trigger: *mut wire_cst_list_prim_u_8_strict,
+        status: *mut wire_cst_list_prim_u_8_strict,
+        attempts: i64,
+        available_at: *mut wire_cst_list_prim_u_8_strict,
+        last_completed_at: *mut wire_cst_list_prim_u_8_strict,
+        detail: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -28226,8 +28667,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                8,
-                "Expected 8 elements, got {}",
+                9,
+                "Expected 9 elements, got {}",
                 self_.length()
             );
             crate::api::knowledge::KnowledgePageDetails {
@@ -28239,6 +28680,7 @@ mod web {
                 issues: self_.get(5).cst_decode(),
                 metadata: self_.get(6).cst_decode(),
                 consolidation: self_.get(7).cst_decode(),
+                relations: self_.get(8).cst_decode(),
             }
         }
     }
@@ -28323,6 +28765,30 @@ mod web {
                 total: self_.get(6).cst_decode(),
                 items: self_.get(7).cst_decode(),
                 has_more: self_.get(8).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::KnowledgeRelationDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::KnowledgeRelationDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                6,
+                "Expected 6 elements, got {}",
+                self_.length()
+            );
+            crate::api::knowledge::KnowledgeRelationDto {
+                id: self_.get(0).cst_decode(),
+                other_slug: self_.get(1).cst_decode(),
+                other_title: self_.get(2).cst_decode(),
+                relation: self_.get(3).cst_decode(),
+                origin: self_.get(4).cst_decode(),
+                note: self_.get(5).cst_decode(),
             }
         }
     }
@@ -28854,6 +29320,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::knowledge::KnowledgeRelationDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::knowledge::KnowledgeRelationDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::knowledge::KnowledgeRepairSource>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -29063,6 +29541,18 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::provider_reachability::ReachabilityHint> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::knowledge::ReconsolidationJobDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::knowledge::ReconsolidationJobDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29815,6 +30305,32 @@ mod web {
             crate::api::provider_reachability::ReachabilityHint {
                 code: self_.get(0).cst_decode(),
                 address: self_.get(1).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::ReconsolidationJobDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::ReconsolidationJobDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                8,
+                "Expected 8 elements, got {}",
+                self_.length()
+            );
+            crate::api::knowledge::ReconsolidationJobDto {
+                slug: self_.get(0).cst_decode(),
+                title: self_.get(1).cst_decode(),
+                trigger: self_.get(2).cst_decode(),
+                status: self_.get(3).cst_decode(),
+                attempts: self_.get(4).cst_decode(),
+                available_at: self_.get(5).cst_decode(),
+                last_completed_at: self_.get(6).cst_decode(),
+                detail: self_.get(7).cst_decode(),
             }
         }
     }
@@ -30783,6 +31299,19 @@ mod web {
         alias: String,
     ) {
         wire__crate__api__entities__add_entity_alias_impl(port_, entity_kind, entity_slug, alias)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__add_knowledge_relation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        from_slug: String,
+        to_slug: String,
+        relation: String,
+        note: Option<String>,
+    ) {
+        wire__crate__api__knowledge__add_knowledge_relation_impl(
+            port_, from_slug, to_slug, relation, note,
+        )
     }
 
     #[wasm_bindgen]
@@ -32040,6 +32569,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__knowledge__list_knowledge_reconsolidation_jobs_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge__list_knowledge_repair_sources(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         slug: String,
@@ -32491,6 +33027,15 @@ mod web {
         token: String,
     ) {
         wire__crate__api__sync__release_sync_key_request_impl(port_, token)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__remove_knowledge_relation(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+        relation_id: String,
+    ) {
+        wire__crate__api__knowledge__remove_knowledge_relation_impl(port_, slug, relation_id)
     }
 
     #[wasm_bindgen]
