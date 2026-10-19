@@ -1,17 +1,15 @@
 //! 自 wiki.rs 机械分段平移（行为零变化）。
 
-
-
 use crate::storage::{ContentPolicy, Store, WikiPage, WikiPageDraft};
+use crate::wiki::media_download::download_tweet_images;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use crate::wiki::media_download::download_tweet_images;
 // ── 外部来源导入：x.com 推文 → 知识库页面（kind=source） ────────────────
 
 /// fxtwitter API 响应（只取需要的字段）
 #[derive(Debug, Deserialize)]
-struct FxTwitterResponse {
+pub(crate) struct FxTwitterResponse {
     code: Option<i64>,
     message: Option<String>,
     tweet: Option<FxTweet>,
@@ -279,7 +277,7 @@ pub fn file_url_to_path(url: &str) -> Option<PathBuf> {
 /// - 普通推文：正文 = tweet.text
 /// - 文章型推文（tweet.text 只是 x.com/i/article/… 链接）：正文 = article.content.blocks 拼接，
 ///   标题 = article.title；无正文段落时回退到 tweet.text。
-fn parse_tweet_content(parsed: FxTwitterResponse) -> Result<FxTweetContent> {
+pub(crate) fn parse_tweet_content(parsed: FxTwitterResponse) -> Result<FxTweetContent> {
     if parsed.code != Some(200) {
         anyhow::bail!(
             "fxtwitter 返回错误: {}",

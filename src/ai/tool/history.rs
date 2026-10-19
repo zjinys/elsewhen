@@ -1,5 +1,6 @@
 //! Read-only access to exact chat originals; summaries are never citations.
-use super::{Tool, ToolContext, arg_str};
+use super::dispatch::arg_str;
+use super::{Tool, ToolContext};
 use anyhow::{Result, ensure};
 use serde_json::{Value, json};
 

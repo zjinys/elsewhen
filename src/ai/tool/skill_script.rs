@@ -9,7 +9,8 @@
 //! - 解释器按 shebang 解析，从 PATH 查找；环境变量仅白名单透传。
 //! - 超时 120s、输出截断 8KB；每次执行在事件日志留痕。
 
-use super::{Tool, ToolContext, ToolPolicy, arg_str, arg_str_opt};
+use super::dispatch::{arg_str, arg_str_opt};
+use super::{Tool, ToolContext, ToolPolicy};
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
@@ -105,7 +106,12 @@ impl RunSkillScriptTool {
                 return execute_confirmed(&data_dir, &action_args);
             }
             // 待确认动作：确认时按 args_json 原样执行，杜绝确认前后偷换内容
-            super::store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
+            super::write_tools::store_create_pending(
+                ctx.store,
+                ctx.conversation_id,
+                self.name(),
+                &action_args,
+            )?;
             let excerpt = resolved.body_chars.take(400).collect::<String>();
             // R8A：待确认≠完成。拦截结果用 err 形态（success=false），
             // 避免模型把「已登记待确认」转述成「已执行」。
@@ -206,9 +212,9 @@ pub fn build_command_display(resolved: &ResolvedScript, extra_args: &str) -> Str
 
 /// 确认后的真正执行入口（`execute_pending_action` 的 run_skill_script 分支）。
 pub fn execute_confirmed(data_dir: &Path, args: &Value) -> Result<String> {
-    let skill = super::arg_str(args, "skill")?;
-    let script = super::arg_str(args, "script")?;
-    let extra_args = super::arg_str_opt(args, "args").unwrap_or_default();
+    let skill = super::dispatch::arg_str(args, "skill")?;
+    let script = super::dispatch::arg_str(args, "script")?;
+    let extra_args = super::dispatch::arg_str_opt(args, "args").unwrap_or_default();
     let resolved = resolve_script(data_dir, &skill, &script)?;
 
     use std::process::{Command, Stdio};

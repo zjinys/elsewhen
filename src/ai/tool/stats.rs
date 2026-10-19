@@ -2,11 +2,11 @@
 //! 问题交给本地 SQL 聚合（统计本地算，AI 只解读），聚合实现在
 //! `crate::api::event_stats`（R3 周期报告管道复用同一层）。
 
+use super::dispatch::{arg_str, arg_str_opt};
+use super::{Tool, ToolContext, ToolPolicy};
+use crate::api::event_stats::{self, EventStatsQuery};
 use anyhow::Result;
 use serde_json::{Value, json};
-
-use super::{Tool, ToolContext, ToolPolicy, arg_str, arg_str_opt};
-use crate::api::event_stats::{self, EventStatsQuery};
 
 pub struct QueryEventStatsTool;
 

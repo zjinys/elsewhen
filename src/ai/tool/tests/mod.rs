@@ -1,6 +1,8 @@
 //! AI 工具行为与提议提交边界测试（从 mod.rs 内联外移）。
 
 use super::*;
+use crate::storage::ContentPolicy;
+use serde_json::{Value, json};
 
 // 公共测试辅助（原文件平移，pub(super) 供分组子文件复用）。
 pub(super) fn temp_db() -> (Store, std::path::PathBuf) {
