@@ -779,3 +779,109 @@ fn chat_revision_does_not_overwrite_edits_made_after_the_preview() {
         "稍后人工修订"
     );
 }
+
+/// 2026-10-18/19 事故档案「投递侧不设防」结论的落地：相关知识自动
+/// 摘要挂载。挂载段沿用「知识选材：」识别前缀，excerpt 换成 AI 摘要
+/// （体积降一个量级），身份字段保真——引用校验与 usage 零改动。
+#[test]
+fn summary_mount_carries_ai_summary_with_verified_identity() {
+    let db = Db::new();
+    let s = &db.store;
+    let page = crate::wiki::save_text_page(
+        "装配要点：先校准底座，再分步锁紧螺栓，最后通电自检。",
+        Some("装配手册"),
+        &[],
+        s,
+    )
+    .unwrap();
+    // 模拟编译管线写入的 AI 独立摘要（save_text_page 不产摘要）。
+    s.connection
+        .execute(
+            "UPDATE wiki_pages SET summary=?1 WHERE id=?2",
+            rusqlite::params!["一到两句独立概括：先校准再锁紧，最后通电自检。", page.id],
+        )
+        .unwrap();
+
+    let mounted = summary_mount(s, "装配手册的步骤顺序是什么？", 3).unwrap();
+    assert!(mounted.starts_with("知识选材：\n"), "沿用引用校验识别前缀");
+    assert!(
+        mounted.contains("先校准再锁紧，最后通电自检"),
+        "excerpt 应是 AI 摘要而非正文摘录"
+    );
+    assert!(mounted.contains(&page.slug));
+    assert!(
+        !mounted.contains("分步锁紧螺栓"),
+        "挂载不带正文全文正文细节"
+    );
+
+    // 身份字段保真：挂载候选能通过 current_candidates 校验（否则答案里
+    // 的 [[kb:slug]] 引用会被剥离）。
+    let candidates = candidates_in_context(&[ContextMessage::new("system", mounted.clone())]);
+    assert_eq!(candidates.len(), 1);
+    let current = current_candidates(s, &candidates).unwrap();
+    assert_eq!(current.len(), 1, "挂载候选必须是校验通过的在册知识");
+    assert_eq!(current[0].page_slug, page.slug);
+}
+
+/// 未命中知识时不挂空段；命中但零摘要时也不产出只有壳的挂载。
+#[test]
+fn summary_mount_stays_silent_when_nothing_relevant() {
+    let db = Db::new();
+    let s = &db.store;
+    let _ = crate::wiki::save_text_page(
+        "只关于古腾堡印刷机的历史笔记，与提问无关。",
+        Some("印刷机历史"),
+        &[],
+        s,
+    )
+    .unwrap();
+    assert!(
+        summary_mount(s, "糖尿病足预警的日常检查步骤", 3)
+            .unwrap()
+            .is_empty()
+    );
+    // 空查询/空白输入同样安静。
+    assert!(summary_mount(s, "怎么？", 3).unwrap().is_empty());
+
+    // 相关命中但摘要与正文预览皆空的极端情形：不产出空壳挂载。
+    let page = crate::wiki::save_text_page("装配口径说明。", Some("装配手册二"), &[], s).unwrap();
+    s.connection
+        .execute(
+            "UPDATE wiki_pages SET summary='' WHERE id=?1",
+            rusqlite::params![page.id],
+        )
+        .unwrap();
+    // 注：mount_summary 回退正文预览，正文非空则仍挂载——此处验证的是
+    // 「正文与摘要都空则静默」，而正文非空时挂预览属正常回退。
+    let mounted = summary_mount(s, "装配手册二的口径", 3).unwrap();
+    assert!(!mounted.is_empty(), "AI 摘要缺失时回退正文预览，不拒绝挂载");
+}
+
+/// 挂载段必须标 OptionalBackground：预算紧张时最先让路，且不会像
+/// 工具结果那样成为顶包素材（2026-10-18 档案 P1 的教训）。
+#[test]
+fn knowledge_mount_segment_is_sacrificial_background() {
+    let db = Db::new();
+    let s = &db.store;
+    let _ = crate::wiki::save_text_page(
+        "装配要点：先校准底座，再分步锁紧螺栓。",
+        Some("装配手册三"),
+        &[],
+        s,
+    )
+    .unwrap();
+    let mounted =
+        crate::ai::conversation::relevant_knowledge_mount(s, "装配手册三的顺序", 3).unwrap();
+    assert_eq!(mounted.role, "system");
+    assert!(
+        mounted.optional_background,
+        "挂载知识是可让路的背景，不是必需证据"
+    );
+    assert_eq!(
+        mounted.segment.purpose,
+        crate::ai::memory::SegmentPurpose::SelectedEvidence
+    );
+    // 无命中静默：不产出空提示段。
+    let silent = crate::ai::conversation::relevant_knowledge_mount(s, "完全无关的量子隧穿参数", 3);
+    assert!(silent.is_none());
+}

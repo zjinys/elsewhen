@@ -10,9 +10,9 @@
 > 5. 已完成的提案不留在「待实现」表里，移到「已完成（归档）」或直接删除行；状态以各 note 头部 `Status` 为准。
 
 - 建立日期：2026-10-04
-- 最后更新：2026-10-14（多设备同步收口；已实现提案物理归档）
+- 最后更新：2026-10-19（登记主对话流摘要管道永久失败事故；新增「记事本页」「定时提醒」两项提案）
 
-## 待实现（11 项）
+## 待实现（14 项）
 
 | Proposal | 缺失内容 | 优先级 |
 |---|---|---|
@@ -25,6 +25,9 @@
 | [save_knowledge_draft 来源发现死循环](notes/proposed/bug-fix/2026-10-08-save-draft-source-discovery-loop.md) | 错误消息指路 + list_wiki_pages 输出带 slug | 中 |
 | [Linux/Wayland 窗口位置记忆失效](notes/proposed/bug-fix/2026-10-10-window-geometry-wayland.md) | 关闭时补存已落地但仍不恢复；疑似 Wayland 下 setBounds position 被忽略，需补恢复侧诊断 | 中 |
 | [快速捕获切不到 CaptureScreen UI](notes/proposed/bug-fix/2026-10-10-quick-capture-no-ui-switch.md) | tray/单实例转发只改窗口外观不改 UI（渲染只认启动 config.mode）；需运行期 mode provider，全局快捷键 + tray 项存留待定 | 中 |
+| [主对话流摘要管道永久失败 → AI 忘记刚说的话](notes/incidents/2026-10-19-summary-pipeline-permanent-failure.md) | 每轮摘要失败（summary_ready 0 次）+ 降级砍掉最近轮原文 + 错误被 Err(_) 吞掉；P0：失败日志 + 最近 N 轮不可裁剪 + 诚实降级文案；P1：归并根节点失败点；P2：工具 schema 40K 瘦身 | 高 |
+| [记事本页（随手记，不经 AI）](notes/proposed/product/2026-10-19-notepad-memo-pages.md) | 方案待评审：新增用户自有 wiki kind `memo` + 记事本入口与快记追加，AI 永不改动；待定单/多页、Capture 落点、AI 读权限 | 中 |
+| [定时提醒（"20 分钟后提醒我"）](notes/proposed/architecture/2026-10-19-timed-reminders.md) | 方案待评审：**复用 `todos` 承载**（已有 `due_at`）+ 到期调度（挂 5s tick）+ 应用内/系统通知双通道 + 本地解析与 AI 工具；需本机触发去重表、加 `flutter_local_notifications` | 中 |
 | [Today 每日回顾工作台](notes/proposed/product/2026-09-20-today-daily-review-workbench.md) | 暂缓（后置） | 后置 |
 
 ## 进行中（0 项）

@@ -89,6 +89,14 @@ chat_runs/run_requests/** 是 `local-chat-execution-state` 数据集（snapshot.
 - **引用式补充材料**：新增 FRB API `compose_page_reference_supplement(slugs, request)`（校验页面存在 + 标识安全），客户端把生成文本作为用户消息提交；挂载时（`supplements.rs::context`）消息开头的 `@wiki(slug)` 行展开为「标题 + 摘要 + get_wiki_page 按需取回路径」，引用不存在的页面就地如实声明（「不得假设看到过它」），纯文本补充不受影响，24K 挂载上限与 fit 截断仍作为最后防线。从根上结束「挂知识库=整包全文」的形态：全文回到按需检索（工具）路径。
 - **测试**：`compilation_carries_ai_mount_summary_into_proposal_and_page`、`compilation_without_summary_falls_back_to_content_preview`、`v49_proposals_gain_empty_summary_column_without_touching_rows`、`page_reference_supplement_expands_summaries_and_discloses_missing`。全量 lib 836 过。
 
+### 投递侧不设防的统一结论与确定性摘要挂载（关联 [2026-10-19 事故](2026-10-19-summary-pipeline-permanent-failure.md)，已落地）
+复盘两次事故 + 本会话对话发现：**知识的编译侧一直在建设，投递侧从 2026-10 起是不设防的**——2026-10 的速度优化硬掉了每轮知识预载（固定 3.2k tokens），把「用不用知识」完全赌在模型的 search_knowledge_base 工具调用上。三次落败：①顶包轮检索成功了但结果被 progress_fallback 顶包，用户没看到知识；②手机端为保知识在场整包挂 27 页全文（用脚投票）；③主对话流出事轮模型忙于应对被砍历史，一次知识检索都没有。工具 schema 40K 占窗口 2/3，为 wiki 付的窗口租金换回 0 投递。
+落地（折中重建，不是回到 3.2k 整包预载）：
+- `knowledge.rs::summary_mount`：对当前用户问题 `select_knowledge`，最多 3 页、总字符封顶 3000，excerpt 换成 AI 摘要（`mount_summary`）；沿用「知识选材：」JSON 包装，`candidates_in_context` 引用校验与 usage 记录零改动（`current_candidates` 只比对身份字段，excerpt 可安全替换——已测验证）。
+- `conversation.rs::relevant_knowledge_mount`：挂载段标 `SelectedEvidence / KnowledgeSelection / OptionalBackground`——预算紧张时最先让路，且不像工具结果那样成为顶包素材。
+- 测试：`summary_mount_carries_ai_summary_with_verified_identity`、`summary_mount_stays_silent_when_nothing_relevant`、`knowledge_mount_segment_is_sacrificial_background`。全量 lib 839 过。
+- 排队：工具 schema 瘦身（40K→<10K，关联 10-19 档案 P2）；reports 侧栏（让「搜过什么、引用了什么」可见）。
+
 ### 待办
 1. Linux 复现实锤（第三节脚本不变；顶包路径应已无法复现，改为验证失败消息出现且检索内容只在 run 记录里；超长补充材料现走截断挂载，验证不再出现「必要上下文超过预算」拒绝整轮）
 2. reports 侧栏/折叠卡片（Flutter UI 层）：给失败轮的工具结果一个非聊天流出口

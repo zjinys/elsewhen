@@ -10,6 +10,26 @@ use super::memory::{
     ContextMessage, MemoryProvider, OmissionPolicy, SegmentOrigin, SegmentPurpose, SimpleMemory,
     estimate_tokens,
 };
+/// 把相关知识摘要包成可选背景段；无命中返回 None（不挂空没损失）。
+/// 段在引用校验/usage 里与 search 结果一视同仁，因为沿用同一个
+/// 「知识选材：」识别前缀。
+pub(crate) fn relevant_knowledge_mount(
+    store: &Store,
+    query: &str,
+    max_pages: usize,
+) -> Option<ContextMessage> {
+    let mounted = crate::knowledge::summary_mount(store, query, max_pages).ok()?;
+    if mounted.is_empty() {
+        return None;
+    }
+    Some(ContextMessage::new("system", mounted).with_segment(
+        SegmentPurpose::SelectedEvidence,
+        SegmentOrigin::KnowledgeSelection,
+        None,
+        OmissionPolicy::OptionalBackground,
+    ))
+}
+
 use super::provider::{AiProvider, AiReply, OllamaProvider, OpenAiCompatibleProvider, TokenUsage};
 use super::tool::{ToolCall, ToolPolicy, ToolRegistry, ToolResultMsg, dispatch_with_knowledge};
 use crate::storage::{RuleStatus, Store};
@@ -315,6 +335,18 @@ fn generate_with_provider_configs(
         "system",
         crate::knowledge::CITATION_INSTRUCTIONS,
     ));
+
+    // 相关知识的确定性摘要挂载（2026-10-18/19 事故档案「投递侧不设防」
+    // 结论的落地）：不赌模型自觉检索，也不回到 3.2k 整包预载——只挂
+    // 少量 AI 摘要（OptionalBackground，预算紧张时最先让路，且不会像
+    // 工具结果那样变成顶包素材）。
+    if let Some(mounted) = relevant_knowledge_mount(
+        store,
+        last_user.as_ref().map(|m| m.content.as_str()).unwrap_or(""),
+        3,
+    ) {
+        context.push(mounted);
+    }
 
     // The provider budgets the complete request, including dynamic context and tools.
     // Recover the original task from persisted history even if the memory window
