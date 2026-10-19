@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 import 'app_pressable.dart';
 
 import '../models/wiki_page.dart';
+import '../bridge/api.dart' as api;
 import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
+import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../providers/review_provider.dart';
 import '../screens/settings_screen.dart';
@@ -450,6 +452,17 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                     ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
               final recent = filtered.take(_kRecentVisiblePages).toList();
 
+              // 孵化中（摘录闭环，提案 2026-10-19）独立置顶分组：导入后
+              // 不入编不召回，必须有一个「待定论」库位，否则闭环走不动。
+              // 纳入/丢弃（详见页动作）后随 opinion 非 null 自然离开此组。
+              final incubating =
+                  filtered
+                      .where(
+                        (page) =>
+                            (page.kind == 'source' || page.kind == 'note') &&
+                            page.opinion == null,
+                      )
+                      .toList();
               // 平铺列表：只按最近更新排序，不再按主题/来源分组（用户反馈分组
               // 没必要，反而割裂浏览）。
               return Column(
@@ -486,6 +499,44 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                     child: ListView(
                       padding: const EdgeInsets.only(bottom: AppTheme.space1),
                       children: [
+                        if (incubating.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppTheme.space3,
+                              AppTheme.space2,
+                              AppTheme.space2,
+                              AppTheme.space1,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.egg_outlined,
+                                  size: 13,
+                                  color: AppTheme.accentMuted,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '孵化中 ${incubating.length} 条 · 待定论',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          for (final page in incubating)
+                            _WikiPageItem(
+                              page: page,
+                              isSelected: page.slug == selectedSlug,
+                              onTap: () {
+                                openWikiPageTab(ref, page);
+                              },
+                            ),
+                          const _RejectedSourcesTile(),
+                          const Divider(height: AppTheme.space3),
+                        ],
                         for (final page in recent)
                           _WikiPageItem(
                             page: page,
@@ -820,6 +871,123 @@ class _ReviewNavSummary extends ConsumerWidget {
             },
           ),
       ],
+    );
+  }
+}
+
+/// 「已否定」折叠区（负知识一等公民，提案 2026-10-19）：身份 + 否定原因
+/// 只读列表，懒加载（展开才查询）。与孵化分组同色系，不放主列表。
+class _RejectedSourcesTile extends ConsumerStatefulWidget {
+  const _RejectedSourcesTile();
+
+  @override
+  ConsumerState<_RejectedSourcesTile> createState() =>
+      _RejectedSourcesTileState();
+}
+
+class _RejectedSourcesTileState extends ConsumerState<_RejectedSourcesTile> {
+  Future<List<api.RejectedSourceRow>>? _future;
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: AppTheme.space3),
+        childrenPadding: const EdgeInsets.only(
+          left: AppTheme.space4,
+          right: AppTheme.space2,
+          bottom: AppTheme.space1,
+        ),
+        iconColor: AppTheme.textTertiary,
+        collapsedIconColor: AppTheme.textTertiary,
+        title: Row(
+          children: [
+            Icon(Icons.block_outlined, size: 13, color: AppTheme.textTertiary),
+            const SizedBox(width: 6),
+            Text(
+              '已否定（负知识）',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textTertiary,
+              ),
+            ),
+          ],
+        ),
+        onExpansionChanged: (open) {
+          if (open && _future == null) {
+            setState(() {
+              _future = ref
+                  .read(knowledgeRepositoryProvider)
+                  .rejectedSources();
+            });
+          }
+        },
+        children: [
+          FutureBuilder<List<api.RejectedSourceRow>>(
+            future: _future,
+            builder: (context, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return const Padding(
+                  padding: EdgeInsets.all(AppTheme.space2),
+                  child: SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+              final rows = snap.data ?? const [];
+              if (rows.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
+                  child: Text(
+                    '还没有否定的来源。',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final row in rows)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.space1),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            row.title ?? row.identity,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                          if (row.rejectReason.isNotEmpty)
+                            Text(
+                              row.rejectReason,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textTertiary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
