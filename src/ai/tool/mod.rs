@@ -307,11 +307,19 @@ impl ToolRegistry {
                 description: t.description().to_string(),
                 parameters: t.parameters_schema(),
             })
-            .chain(self.mcp_tools.iter().map(|t| ToolSpec {
-                name: t.name.clone(),
-                description: t.description.clone(),
-                parameters: t.parameters.clone(),
-            }))
+            // R2A：MCP 工具与内置延迟工具同构——未启用（enable_tools 登记）
+            // 不进 tools 字段，只以 catalog 形式出现在 enable_tools 花名册里；
+            // defer_tools=false（旧协议）保持全量注入。
+            .chain(
+                self.mcp_tools
+                    .iter()
+                    .filter(|t| !self.defer_tools || enabled.contains(&t.name))
+                    .map(|t| ToolSpec {
+                        name: t.name.clone(),
+                        description: t.description.clone(),
+                        parameters: t.parameters.clone(),
+                    }),
+            )
             .collect()
     }
 
@@ -339,9 +347,10 @@ impl ToolRegistry {
             name: "enable_tools".to_string(),
             description: format!(
                 "按需加载技能包（一次可多个），调用后返回技能使用说明与其打包工具的完整参数定义，\
-                 同一轮稍后即可调用这些工具。可用技能包：\n{}{}",
+                 同一轮稍后即可调用这些工具。可用技能包：\n{}{}{}",
                 self.skill_roster_text(),
                 user_skills_roster(),
+                self.mcp_catalog_text(),
             ),
             parameters: serde_json::json!({
                 "type":"object",
@@ -370,6 +379,73 @@ impl ToolRegistry {
         out
     }
 
+    /// MCP 工具 catalog（R2A，参考 opencode codemode）：未启用的 MCP 工具
+    /// 不进 tools 字段，只在 enable_tools 花名册里按 server 分组渲染
+    /// 「签名 // 首行描述（120 字符截断）」，整体设 2000 token 内联预算，
+    /// 装不下的只计数（enable 后可看完整定义）。
+    const MAX_CATALOG_TOKENS: usize = 2000;
+
+    pub fn mcp_catalog_text(&self) -> String {
+        if self.mcp_tools.is_empty() {
+            return String::new();
+        }
+        use std::collections::BTreeMap;
+        let mut groups: BTreeMap<&str, Vec<&crate::ai::mcp::McpToolInfo>> = BTreeMap::new();
+        for tool in &self.mcp_tools {
+            let server = tool
+                .name
+                .strip_prefix(crate::ai::mcp::MCP_PREFIX)
+                .and_then(|rest| rest.split("__").next())
+                .unwrap_or_default();
+            groups.entry(server).or_default().push(tool);
+        }
+        let mut out = String::from("\n第三方 MCP 工具（调用前必须先 enable_tools 登记全名）：\n");
+        let mut used = super::budget::text_tokens("deepseek-flash", &out);
+        let mut truncated = 0usize;
+        for (server, tools) in &groups {
+            let header = format!("- {server}（{} 个工具）：\n", tools.len());
+            used += crate::ai::budget::text_tokens("deepseek-flash", &header);
+            out.push_str(&header);
+            for tool in tools {
+                let line = self.catalog_line(tool);
+                let line_cost = super::budget::text_tokens("deepseek-flash", &line);
+                if used + line_cost > Self::MAX_CATALOG_TOKENS {
+                    truncated += 1;
+                    continue;
+                }
+                used += line_cost;
+                out.push_str(&line);
+            }
+        }
+        if truncated > 0 {
+            out.push_str(&format!(
+                "  …（还有 {truncated} 个工具未列出；enable_tools 登记全名后返回完整定义）\n"
+            ));
+        }
+        out
+    }
+
+    /// 单个工具的 catalog 行：短名 + 参数列表 // 首行描述（120 字符截断）。
+    fn catalog_line(&self, tool: &crate::ai::mcp::McpToolInfo) -> String {
+        let short = tool.name.rsplit("__").next().unwrap_or(&tool.name);
+        let params: Vec<String> = tool
+            .parameters
+            .get("properties")
+            .and_then(|p| p.as_object())
+            .map(|props| props.keys().cloned().collect())
+            .unwrap_or_default();
+        let first_line = tool
+            .description
+            .lines()
+            .find(|l| !l.trim().is_empty())
+            .unwrap_or("")
+            .trim()
+            .chars()
+            .take(120)
+            .collect::<String>();
+        format!("  - {}({}) // {}\n", short, params.join(", "), first_line)
+    }
+
     /// 处理 enable_tools 调用：按技能包 id 登记（激活包内全部延迟工具），
     /// 回传方法论说明 + 每个工具的名字/描述/完整参数定义。
     pub fn enable_result(
@@ -381,6 +457,7 @@ impl ToolRegistry {
         let mut tools_included = Vec::new();
         let mut unknown = Vec::new();
         let mut user_skill_bodies = Vec::new();
+        let mut mcp_schemas = Vec::new();
         let data_dir = crate::config::AppConfig::load()
             .map(|cfg| cfg.data_dir)
             .ok();
@@ -393,6 +470,20 @@ impl ToolRegistry {
                         user_skill_bodies.push(format!("【用户技能 {id}】\n{body}"));
                         continue;
                     }
+                }
+            }
+        }
+        for id in skill_ids {
+            // R2A：MCP 全名（mcp__<server>__<tool>）逐个登记，回传完整 schema
+            if id.starts_with(crate::ai::mcp::MCP_PREFIX) {
+                if let Some(tool) = self.mcp_tools.iter().find(|t| &t.name == id) {
+                    enabled.insert(id.clone());
+                    mcp_schemas.push(format!(
+                        "== MCP 工具 {} 已启用 ==\n{}\n参数 JSON Schema：{}\n\n",
+                        tool.name, tool.description, tool.parameters
+                    ));
+                } else {
+                    unknown.push(id.clone());
                 }
             }
         }
@@ -438,6 +529,9 @@ impl ToolRegistry {
         for body in &user_skill_bodies {
             text.push_str(body);
             text.push('\n');
+        }
+        for schema in &mcp_schemas {
+            text.push_str(schema);
         }
         if !unknown.is_empty() {
             text.push_str(&format!(

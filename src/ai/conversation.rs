@@ -1131,6 +1131,19 @@ fn run_agent_loop_inner(
                     results.push(ToolResultMsg::ok(call, text));
                     continue;
                 }
+                // R2A 守卫：MCP 工具默认延迟加载，未启用（enable_tools 登记）
+                // 不执行，回错指路（与内置延迟工具对称）。
+                if call.name.starts_with(super::mcp::MCP_PREFIX)
+                    && !enabled_tools.contains(&call.name)
+                {
+                    let text = format!(
+                        "MCP 工具 {} 未启用（第三方工具默认延迟加载）。请先调用 enable_tools，参数 skills 传入 [\"{}\"] 登记后再调用。",
+                        call.name, call.name
+                    );
+                    context.push(ContextMessage::tool_result(call.id.clone(), text.clone()));
+                    results.push(ToolResultMsg::err(call, text));
+                    continue;
+                }
                 let result = dispatch_for_turn(
                     call,
                     registry,
@@ -1190,6 +1203,21 @@ fn run_agent_loop_inner(
                         format!("工具「enable_tools」执行结果：{}", text),
                     ));
                     results.push(ToolResultMsg::ok(&call, text));
+                    continue;
+                }
+                // R2A 守卫（文本信封路径，同上）。
+                if call.name.starts_with(super::mcp::MCP_PREFIX)
+                    && !enabled_tools.contains(&call.name)
+                {
+                    let text = format!(
+                        "MCP 工具 {} 未启用（第三方工具默认延迟加载）。请先调用 enable_tools，参数 skills 传入 [\"{}\"] 登记后再调用。",
+                        call.name, call.name
+                    );
+                    context.push(ContextMessage::new(
+                        "system",
+                        format!("工具「{}」执行结果：{}", call.name, text),
+                    ));
+                    results.push(ToolResultMsg::err(&call, text));
                     continue;
                 }
                 let result = dispatch_for_turn(
