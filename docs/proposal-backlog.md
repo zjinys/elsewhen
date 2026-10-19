@@ -26,6 +26,7 @@
 | [Linux/Wayland 窗口位置记忆失效](notes/proposed/bug-fix/2026-10-10-window-geometry-wayland.md) | 关闭时补存已落地但仍不恢复；疑似 Wayland 下 setBounds position 被忽略，需补恢复侧诊断 | 中 |
 | [快速捕获切不到 CaptureScreen UI](notes/proposed/bug-fix/2026-10-10-quick-capture-no-ui-switch.md) | tray/单实例转发只改窗口外观不改 UI（渲染只认启动 config.mode）；需运行期 mode provider，全局快捷键 + tray 项存留待定 | 中 |
 | [主对话流摘要管道永久失败 → AI 忘记刚说的话](notes/incidents/2026-10-19-summary-pipeline-permanent-failure.md) | 每轮摘要失败（summary_ready 0 次）+ 降级砍掉最近轮原文 + 错误被 Err(_) 吞掉；P0：失败日志 + 最近 N 轮不可裁剪 + 诚实降级文案；P1：归并根节点失败点；P2：工具 schema 40K 瘦身 | 高 |
+| [上下文预算与工具注入修复路线图](roadmap/2026-10-19-context-budget-and-tool-injection-roadmap.md) | 统一修复计划：R1 测量校准 → R2 工具瘦身 → R3 审批续跑闭环 → R4 超限兜底；含顺序理由与红线 | 高 |
 | [Gitea MCP 工具调用失效与上下文超限](notes/incidents/2026-10-19-mcp-gitea-tool-call-review-and-budget-incident.md) | 现象：未受信拦截伪成功致 AI 承诺、确认后无恢复续跑闭环、回执 raw JSON 糊在弹窗、受信后 53 个工具 Schema 40KB+字节退化估算打爆 64K 上下文。待修复 P0/P1/P2 | 高 |
 | [MCP 工具接入延迟加载与按需暴露](notes/proposed/architecture/2026-10-19-mcp-tools-deferred-injection.md) | 方案已定：L1 花名册常驻 enable_tools 描述 + L2 按工具全名激活注入；复用 defer/enabled_tools 框架；tools/list 结果缓存；事故场景验收指标明确 | 高 |
 | [非 GPT 模型 token 估算校准](notes/proposed/architecture/2026-10-19-token-estimation-calibration.md) | 方案已定：L0 族分词器 + L1 校准字节比率（JSON 3.5/中文 1.2-1.5）+ L2 保守兑底 + provider 级 ratio 覆盖逃生门；保守方向不破 | 高 |
