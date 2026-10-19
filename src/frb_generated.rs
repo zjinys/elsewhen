@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 685807422;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 269209900;
 
 // Section: executor
 
@@ -2802,6 +2802,29 @@ fn wire__crate__api__sync__install_sync_key_impl(
                             api_key,
                             api_protected_revision,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__knowledge_health_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    days_lookback: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "knowledge_health",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_days_lookback = days_lookback.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::knowledge_health(api_days_lookback)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -7903,6 +7926,56 @@ impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
     }
 }
 
+impl SseDecode for crate::knowledge::KnowledgeHealthReport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_generatedAt = <String>::sse_decode(deserializer);
+        let mut var_windowDays = <i64>::sse_decode(deserializer);
+        let mut var_proposalsPending = <i64>::sse_decode(deserializer);
+        let mut var_proposalsAccepted = <i64>::sse_decode(deserializer);
+        let mut var_proposalsRejected = <i64>::sse_decode(deserializer);
+        let mut var_backgroundRunsRecent = <i64>::sse_decode(deserializer);
+        let mut var_backgroundRunsFailedRecent = <i64>::sse_decode(deserializer);
+        let mut var_pagesActive = <i64>::sse_decode(deserializer);
+        let mut var_pagesArchived = <i64>::sse_decode(deserializer);
+        let mut var_pagesWithoutSummary = <i64>::sse_decode(deserializer);
+        let mut var_pagesStale = <i64>::sse_decode(deserializer);
+        let mut var_pagesNeverSurfaced = <i64>::sse_decode(deserializer);
+        let mut var_mountEventsRecent = <i64>::sse_decode(deserializer);
+        let mut var_mountPagesRecent = <i64>::sse_decode(deserializer);
+        let mut var_usageRecordsRecent = <i64>::sse_decode(deserializer);
+        let mut var_citedPagesRecent = <i64>::sse_decode(deserializer);
+        let mut var_searchCallsRecent = <i64>::sse_decode(deserializer);
+        let mut var_pageFetchCallsRecent = <i64>::sse_decode(deserializer);
+        let mut var_summaryReadyRecent = <i64>::sse_decode(deserializer);
+        let mut var_summaryUnavailableRecent = <i64>::sse_decode(deserializer);
+        let mut var_lastSummaryError = <Option<String>>::sse_decode(deserializer);
+        return crate::knowledge::KnowledgeHealthReport {
+            generated_at: var_generatedAt,
+            window_days: var_windowDays,
+            proposals_pending: var_proposalsPending,
+            proposals_accepted: var_proposalsAccepted,
+            proposals_rejected: var_proposalsRejected,
+            background_runs_recent: var_backgroundRunsRecent,
+            background_runs_failed_recent: var_backgroundRunsFailedRecent,
+            pages_active: var_pagesActive,
+            pages_archived: var_pagesArchived,
+            pages_without_summary: var_pagesWithoutSummary,
+            pages_stale: var_pagesStale,
+            pages_never_surfaced: var_pagesNeverSurfaced,
+            mount_events_recent: var_mountEventsRecent,
+            mount_pages_recent: var_mountPagesRecent,
+            usage_records_recent: var_usageRecordsRecent,
+            cited_pages_recent: var_citedPagesRecent,
+            search_calls_recent: var_searchCallsRecent,
+            page_fetch_calls_recent: var_pageFetchCallsRecent,
+            summary_ready_recent: var_summaryReadyRecent,
+            summary_unavailable_recent: var_summaryUnavailableRecent,
+            last_summary_error: var_lastSummaryError,
+        };
+    }
+}
+
 impl SseDecode for crate::storage::knowledge::KnowledgeIssue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11783,6 +11856,48 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge_digest::KnowledgeDi
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::knowledge::KnowledgeHealthReport {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.generated_at.into_into_dart().into_dart(),
+            self.window_days.into_into_dart().into_dart(),
+            self.proposals_pending.into_into_dart().into_dart(),
+            self.proposals_accepted.into_into_dart().into_dart(),
+            self.proposals_rejected.into_into_dart().into_dart(),
+            self.background_runs_recent.into_into_dart().into_dart(),
+            self.background_runs_failed_recent
+                .into_into_dart()
+                .into_dart(),
+            self.pages_active.into_into_dart().into_dart(),
+            self.pages_archived.into_into_dart().into_dart(),
+            self.pages_without_summary.into_into_dart().into_dart(),
+            self.pages_stale.into_into_dart().into_dart(),
+            self.pages_never_surfaced.into_into_dart().into_dart(),
+            self.mount_events_recent.into_into_dart().into_dart(),
+            self.mount_pages_recent.into_into_dart().into_dart(),
+            self.usage_records_recent.into_into_dart().into_dart(),
+            self.cited_pages_recent.into_into_dart().into_dart(),
+            self.search_calls_recent.into_into_dart().into_dart(),
+            self.page_fetch_calls_recent.into_into_dart().into_dart(),
+            self.summary_ready_recent.into_into_dart().into_dart(),
+            self.summary_unavailable_recent.into_into_dart().into_dart(),
+            self.last_summary_error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::knowledge::KnowledgeHealthReport
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::KnowledgeHealthReport>
+    for crate::knowledge::KnowledgeHealthReport
+{
+    fn into_into_dart(self) -> crate::knowledge::KnowledgeHealthReport {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgeIssue {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -14144,6 +14259,33 @@ impl SseEncode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseEncode for crate::knowledge::KnowledgeHealthReport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.generated_at, serializer);
+        <i64>::sse_encode(self.window_days, serializer);
+        <i64>::sse_encode(self.proposals_pending, serializer);
+        <i64>::sse_encode(self.proposals_accepted, serializer);
+        <i64>::sse_encode(self.proposals_rejected, serializer);
+        <i64>::sse_encode(self.background_runs_recent, serializer);
+        <i64>::sse_encode(self.background_runs_failed_recent, serializer);
+        <i64>::sse_encode(self.pages_active, serializer);
+        <i64>::sse_encode(self.pages_archived, serializer);
+        <i64>::sse_encode(self.pages_without_summary, serializer);
+        <i64>::sse_encode(self.pages_stale, serializer);
+        <i64>::sse_encode(self.pages_never_surfaced, serializer);
+        <i64>::sse_encode(self.mount_events_recent, serializer);
+        <i64>::sse_encode(self.mount_pages_recent, serializer);
+        <i64>::sse_encode(self.usage_records_recent, serializer);
+        <i64>::sse_encode(self.cited_pages_recent, serializer);
+        <i64>::sse_encode(self.search_calls_recent, serializer);
+        <i64>::sse_encode(self.page_fetch_calls_recent, serializer);
+        <i64>::sse_encode(self.summary_ready_recent, serializer);
+        <i64>::sse_encode(self.summary_unavailable_recent, serializer);
+        <Option<String>>::sse_encode(self.last_summary_error, serializer);
     }
 }
 
@@ -16850,6 +16992,34 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::knowledge::KnowledgeHealthReport> for wire_cst_knowledge_health_report {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::knowledge::KnowledgeHealthReport {
+            crate::knowledge::KnowledgeHealthReport {
+                generated_at: self.generated_at.cst_decode(),
+                window_days: self.window_days.cst_decode(),
+                proposals_pending: self.proposals_pending.cst_decode(),
+                proposals_accepted: self.proposals_accepted.cst_decode(),
+                proposals_rejected: self.proposals_rejected.cst_decode(),
+                background_runs_recent: self.background_runs_recent.cst_decode(),
+                background_runs_failed_recent: self.background_runs_failed_recent.cst_decode(),
+                pages_active: self.pages_active.cst_decode(),
+                pages_archived: self.pages_archived.cst_decode(),
+                pages_without_summary: self.pages_without_summary.cst_decode(),
+                pages_stale: self.pages_stale.cst_decode(),
+                pages_never_surfaced: self.pages_never_surfaced.cst_decode(),
+                mount_events_recent: self.mount_events_recent.cst_decode(),
+                mount_pages_recent: self.mount_pages_recent.cst_decode(),
+                usage_records_recent: self.usage_records_recent.cst_decode(),
+                cited_pages_recent: self.cited_pages_recent.cst_decode(),
+                search_calls_recent: self.search_calls_recent.cst_decode(),
+                page_fetch_calls_recent: self.page_fetch_calls_recent.cst_decode(),
+                summary_ready_recent: self.summary_ready_recent.cst_decode(),
+                summary_unavailable_recent: self.summary_unavailable_recent.cst_decode(),
+                last_summary_error: self.last_summary_error.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::storage::knowledge::KnowledgeIssue> for wire_cst_knowledge_issue {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::storage::knowledge::KnowledgeIssue {
@@ -19419,6 +19589,38 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_knowledge_health_report {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                generated_at: core::ptr::null_mut(),
+                window_days: Default::default(),
+                proposals_pending: Default::default(),
+                proposals_accepted: Default::default(),
+                proposals_rejected: Default::default(),
+                background_runs_recent: Default::default(),
+                background_runs_failed_recent: Default::default(),
+                pages_active: Default::default(),
+                pages_archived: Default::default(),
+                pages_without_summary: Default::default(),
+                pages_stale: Default::default(),
+                pages_never_surfaced: Default::default(),
+                mount_events_recent: Default::default(),
+                mount_pages_recent: Default::default(),
+                usage_records_recent: Default::default(),
+                cited_pages_recent: Default::default(),
+                search_calls_recent: Default::default(),
+                page_fetch_calls_recent: Default::default(),
+                summary_ready_recent: Default::default(),
+                summary_unavailable_recent: Default::default(),
+                last_summary_error: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_health_report {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_knowledge_issue {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -21590,6 +21792,14 @@ mod io {
         protected_revision: i64,
     ) {
         wire__crate__api__sync__install_sync_key_impl(port_, token, key, protected_revision)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__knowledge_health(
+        port_: i64,
+        days_lookback: i64,
+    ) {
+        wire__crate__api__knowledge__knowledge_health_impl(port_, days_lookback)
     }
 
     #[unsafe(no_mangle)]
@@ -24721,6 +24931,31 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_health_report {
+        generated_at: *mut wire_cst_list_prim_u_8_strict,
+        window_days: i64,
+        proposals_pending: i64,
+        proposals_accepted: i64,
+        proposals_rejected: i64,
+        background_runs_recent: i64,
+        background_runs_failed_recent: i64,
+        pages_active: i64,
+        pages_archived: i64,
+        pages_without_summary: i64,
+        pages_stale: i64,
+        pages_never_surfaced: i64,
+        mount_events_recent: i64,
+        mount_pages_recent: i64,
+        usage_records_recent: i64,
+        cited_pages_recent: i64,
+        search_calls_recent: i64,
+        page_fetch_calls_recent: i64,
+        summary_ready_recent: i64,
+        summary_unavailable_recent: i64,
+        last_summary_error: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_knowledge_issue {
         fingerprint: *mut wire_cst_list_prim_u_8_strict,
         page_slug: *mut wire_cst_list_prim_u_8_strict,
@@ -27106,6 +27341,45 @@ mod web {
                     error: self_.get(2).cst_decode(),
                 },
                 _ => unreachable!(),
+            }
+        }
+    }
+    impl CstDecode<crate::knowledge::KnowledgeHealthReport>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::knowledge::KnowledgeHealthReport {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                21,
+                "Expected 21 elements, got {}",
+                self_.length()
+            );
+            crate::knowledge::KnowledgeHealthReport {
+                generated_at: self_.get(0).cst_decode(),
+                window_days: self_.get(1).cst_decode(),
+                proposals_pending: self_.get(2).cst_decode(),
+                proposals_accepted: self_.get(3).cst_decode(),
+                proposals_rejected: self_.get(4).cst_decode(),
+                background_runs_recent: self_.get(5).cst_decode(),
+                background_runs_failed_recent: self_.get(6).cst_decode(),
+                pages_active: self_.get(7).cst_decode(),
+                pages_archived: self_.get(8).cst_decode(),
+                pages_without_summary: self_.get(9).cst_decode(),
+                pages_stale: self_.get(10).cst_decode(),
+                pages_never_surfaced: self_.get(11).cst_decode(),
+                mount_events_recent: self_.get(12).cst_decode(),
+                mount_pages_recent: self_.get(13).cst_decode(),
+                usage_records_recent: self_.get(14).cst_decode(),
+                cited_pages_recent: self_.get(15).cst_decode(),
+                search_calls_recent: self_.get(16).cst_decode(),
+                page_fetch_calls_recent: self_.get(17).cst_decode(),
+                summary_ready_recent: self_.get(18).cst_decode(),
+                summary_unavailable_recent: self_.get(19).cst_decode(),
+                last_summary_error: self_.get(20).cst_decode(),
             }
         }
     }
@@ -30644,6 +30918,14 @@ mod web {
         protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
         wire__crate__api__sync__install_sync_key_impl(port_, token, key, protected_revision)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__knowledge_health(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        days_lookback: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__knowledge__knowledge_health_impl(port_, days_lookback)
     }
 
     #[wasm_bindgen]

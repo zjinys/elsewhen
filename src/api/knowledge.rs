@@ -1,7 +1,7 @@
 //! Knowledge sources, review and provenance. Writes are explicit GUI commands;
 //! background digest and model tools never call the confirmation endpoints.
 use super::*;
-use crate::knowledge::KnowledgeCitation;
+use crate::knowledge::{KnowledgeCitation, KnowledgeHealthReport};
 use crate::storage::{KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, SourceSnapshot};
 
 fn store() -> Result<Store> {
@@ -197,6 +197,12 @@ pub fn get_knowledge_source_snapshot(id: String) -> Result<Option<SourceSnapshot
 
 pub fn list_knowledge_proposals() -> Result<Vec<KnowledgeProposal>> {
     store()?.knowledge_proposals(None)
+}
+
+/// 知识系统健康巡检（不做 UI，先可被问到：FRB 直连）。
+/// 对应 2026-10-18/19 事故复盘：每个环节的异动要能被定位。
+pub fn knowledge_health(days_lookback: i64) -> Result<KnowledgeHealthReport> {
+    crate::knowledge::health_report(&store()?, days_lookback)
 }
 pub fn list_knowledge_issues() -> Result<Vec<KnowledgeIssue>> {
     store()?.knowledge_issues(None)

@@ -224,15 +224,13 @@ pub(crate) fn render_mark_text(
     mark: &crate::storage::PageMark,
 ) -> Result<(String, String)> {
     let node = store
-        .summary_node_by_id(
-            &mark.conversation_id,
-            &mark.summary_node_id,
-        )?
+        .summary_node_by_id(&mark.conversation_id, &mark.summary_node_id)?
         .context("翻篇标记引用的摘要节点不存在")?;
     store.validate_history_spans(&mark.conversation_id, &node.spans)?;
     let body = match &mark.override_json {
         Some(json) => {
-            let body: SummaryBody = serde_json::from_str(json).context("标记覆盖不是合法摘要 JSON")?;
+            let body: SummaryBody =
+                serde_json::from_str(json).context("标记覆盖不是合法摘要 JSON")?;
             body.validate().context("标记覆盖未通过摘要校验")?;
             body
         }
@@ -243,7 +241,11 @@ pub(crate) fn render_mark_text(
     let last = node.spans.last().context("摘要范围为空")?;
     let text = format!(
         "【已翻篇的历史摘要，覆盖边界前全部对话；不是原文或来源证据，可能遗漏信息】\nsummary_id={}；覆盖首条 message_id={} 到末条 message_id={}，共 {} 个连续字符范围。需要精确数值、原话或出处时回读原始消息，不能把本摘要作为 Wiki 引用。\n{}",
-        node.id, first.message_id, last.message_id, node.spans.len(), body_json,
+        node.id,
+        first.message_id,
+        last.message_id,
+        node.spans.len(),
+        body_json,
     );
     Ok((text, body_json))
 }
@@ -268,9 +270,7 @@ pub(crate) fn generate_page_mark(
     };
     let selected = &history[..=position];
     ensure!(
-        selected
-            .iter()
-            .any(|m| m.role == "user"),
+        selected.iter().any(|m| m.role == "user"),
         "翻篇边界前没有用户消息，无可摘要内容"
     );
     let mut builder = Builder {
@@ -443,15 +443,25 @@ pub(crate) fn apply_summary(
                 json!({"requests":builder.requests,"cache_hits":builder.cache_hits,"covered_messages":selected.len(),"strategy":STRATEGY}),
             )?;
         }
-        Err(_) => {
+        Err(error) => {
             // Completed leaf nodes remain reusable; an incomplete root is never
-            // injected. No raw provider error or user text enters diagnostics.
+            // injected. P0-a（2026-10-19 档案）：此前真实错误被丢弃，一个
+            // 确定性 bug 伪装成「偶发不可用」每轮重试数周。归并/校验错误
+            // 是结构性信息（节点数、span 边界、校验名），截断后入事件供
+            // 健康巡检分组定位；不记录用户原文，也不进对话内容。
+            let detail: String = {
+                let mut text = error.to_string();
+                if text.chars().count() > 500 {
+                    text = text.chars().take(500).collect();
+                }
+                text
+            };
             context.push(ContextMessage::new("system", "较早历史的派生摘要尚未完成或已失效；后续预算选材可能省略旧轮，不得声称已完整记住全部历史。")
                 .with_segment(SegmentPurpose::BudgetNotice, SegmentOrigin::Application, None, OmissionPolicy::Required));
             super::generation::event(
                 store,
                 "summary_unavailable",
-                json!({"requests":builder.requests,"cache_hits":builder.cache_hits,"reason":"incomplete_or_invalid_basis","strategy":STRATEGY}),
+                json!({"requests":builder.requests,"cache_hits":builder.cache_hits,"reason":"incomplete_or_invalid_basis","detail":detail,"strategy":STRATEGY}),
             )?;
         }
     }

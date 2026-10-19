@@ -802,7 +802,12 @@ fn summary_mount_carries_ai_summary_with_verified_identity() {
         )
         .unwrap();
 
-    let mounted = summary_mount(s, "装配手册的步骤顺序是什么？", 3).unwrap();
+    let (mounted, slugs) = summary_mount(s, "装配手册的步骤顺序是什么？", 3).unwrap();
+    assert_eq!(
+        slugs,
+        vec![page.slug.clone()],
+        "slug 列表供 knowledge_mounted 事件"
+    );
     assert!(mounted.starts_with("知识选材：\n"), "沿用引用校验识别前缀");
     assert!(
         mounted.contains("先校准再锁紧，最后通电自检"),
@@ -838,10 +843,11 @@ fn summary_mount_stays_silent_when_nothing_relevant() {
     assert!(
         summary_mount(s, "糖尿病足预警的日常检查步骤", 3)
             .unwrap()
+            .0
             .is_empty()
     );
     // 空查询/空白输入同样安静。
-    assert!(summary_mount(s, "怎么？", 3).unwrap().is_empty());
+    assert!(summary_mount(s, "怎么？", 3).unwrap().0.is_empty());
 
     // 相关命中但摘要与正文预览皆空的极端情形：不产出空壳挂载。
     let page = crate::wiki::save_text_page("装配口径说明。", Some("装配手册二"), &[], s).unwrap();
@@ -853,7 +859,7 @@ fn summary_mount_stays_silent_when_nothing_relevant() {
         .unwrap();
     // 注：mount_summary 回退正文预览，正文非空则仍挂载——此处验证的是
     // 「正文与摘要都空则静默」，而正文非空时挂预览属正常回退。
-    let mounted = summary_mount(s, "装配手册二的口径", 3).unwrap();
+    let (mounted, _) = summary_mount(s, "装配手册二的口径", 3).unwrap();
     assert!(!mounted.is_empty(), "AI 摘要缺失时回退正文预览，不拒绝挂载");
 }
 
@@ -884,4 +890,104 @@ fn knowledge_mount_segment_is_sacrificial_background() {
     // 无命中静默：不产出空提示段。
     let silent = crate::ai::conversation::relevant_knowledge_mount(s, "完全无关的量子隧穿参数", 3);
     assert!(silent.is_none());
+}
+
+/// 健康巡检：各环节数字能反映真实库况（2026-10-19 教训：没有仪表盘，
+/// 坏环节静默坏数周）。纯查询，不写业务状态。
+#[test]
+fn health_report_counts_reflect_pipeline_state() {
+    let db = Db::new();
+    let s = &db.store;
+    // 库存：一页无摘要（降级面）、一页有 AI 摘要
+    let plain = crate::wiki::save_text_page("装配要点：先校准再锁紧。", Some("装配手册四"), &[], s)
+        .unwrap();
+    let summarized =
+        crate::wiki::save_text_page("糖尿病足的日常检查要点。", Some("糖尿病足"), &[], s).unwrap();
+    s.connection
+        .execute(
+            "UPDATE wiki_pages SET summary=?1 WHERE id=?2",
+            rusqlite::params!["独立摘要：每日检查足部。", summarized.id],
+        )
+        .unwrap();
+    // 模拟旧数据：无摘要行计入降级面（save_text_page 本身会填预览）
+    s.connection
+        .execute(
+            "UPDATE wiki_pages SET summary='' WHERE id=?1",
+            rusqlite::params![plain.id],
+        )
+        .unwrap();
+    // 编译积压：一条 pending 建议
+    let original = source(s, "https://example.com/health", "用于健康报告的来源页");
+    let _proposal = propose_knowledge(s, &original.slug, "method", &compile_stub()).unwrap();
+    // 采用：一条 usage（cited 引用 plain 页）
+    s.connection
+        .execute(
+            "INSERT INTO knowledge_usage(id,task,owner_id,candidates_json,cited_json,created_at)
+             VALUES ('u1','conversation','o','[]',?1,?2)",
+            rusqlite::params![
+                format!(r#"[{{"page_slug":"{}"}}]"#, plain.id),
+                chrono::Utc::now().to_rfc3339()
+            ],
+        )
+        .unwrap();
+    // 摘要管线事件环境：最小 FK 链 conversation → message → run
+    let now = chrono::Utc::now().to_rfc3339();
+    s.connection
+        .execute(
+            "INSERT INTO conversations(id,created_at,updated_at) VALUES ('c-health',?1,?1)",
+            [&now],
+        )
+        .unwrap();
+    s.connection
+        .execute(
+            "INSERT INTO messages(id,conversation_id,role,content,created_at) VALUES ('m-health','c-health','user','问',?1)",
+            [&now],
+        )
+        .unwrap();
+    s.connection
+        .execute(
+            "INSERT INTO chat_runs(id,request_key,conversation_id,input_message_id,input_hash,status,executor_id,lease_until,created_at,updated_at) VALUES ('run-health','rk-health','c-health','m-health','h','running','owner',?2,?1,?1)",
+            [
+                &now,
+                &(chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339(),
+            ],
+        )
+        .unwrap();
+    s.append_chat_run_event(
+        "run-health",
+        "owner",
+        "summary_unavailable",
+        &serde_json::json!({"reason":"incomplete_or_invalid_basis","detail":"没有可摘要的历史"}),
+    )
+    .unwrap();
+    s.append_chat_run_event(
+        "run-health",
+        "owner",
+        "summary_ready",
+        &serde_json::json!({}),
+    )
+    .unwrap();
+
+    let report = health_report(s, 30).unwrap();
+    assert!(
+        report.pages_active >= 2,
+        "至少包含两张笔记页（source 帮手另有来源页）"
+    );
+    assert_eq!(
+        report.pages_without_summary, 1,
+        "无摘要笔记页计入降级面（source 页有预览不在内）"
+    );
+    assert_eq!(report.proposals_pending, 1);
+    assert_eq!(report.usage_records_recent, 1);
+    assert_eq!(report.cited_pages_recent, 1);
+    assert_eq!(report.summary_unavailable_recent, 1);
+    assert_eq!(report.summary_ready_recent, 1);
+    assert_eq!(
+        report.last_summary_error.as_deref(),
+        Some("没有可摘要的历史"),
+        "P0-a：真实错误留痕供巡检定位"
+    );
+    // 被 usage 引用过的 plain 页不算「从未露面」；糖尿病足页（无摘要、
+    // 无挂载、无引用）与 source 帮手的来源页共 2 页断点
+    assert_eq!(report.pages_never_surfaced, 2);
 }

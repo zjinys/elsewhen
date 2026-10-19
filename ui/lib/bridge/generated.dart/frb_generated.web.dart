@@ -305,6 +305,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  KnowledgeHealthReport dco_decode_knowledge_health_report(dynamic raw);
+
+  @protected
   KnowledgeIssue dco_decode_knowledge_issue(dynamic raw);
 
   @protected
@@ -1122,6 +1125,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeDigestTickResult sse_decode_knowledge_digest_tick_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeHealthReport sse_decode_knowledge_health_report(
     SseDeserializer deserializer,
   );
 
@@ -2651,6 +2659,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
 
     throw Exception('unreachable');
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_health_report(KnowledgeHealthReport raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.generatedAt),
+      cst_encode_i_64(raw.windowDays),
+      cst_encode_i_64(raw.proposalsPending),
+      cst_encode_i_64(raw.proposalsAccepted),
+      cst_encode_i_64(raw.proposalsRejected),
+      cst_encode_i_64(raw.backgroundRunsRecent),
+      cst_encode_i_64(raw.backgroundRunsFailedRecent),
+      cst_encode_i_64(raw.pagesActive),
+      cst_encode_i_64(raw.pagesArchived),
+      cst_encode_i_64(raw.pagesWithoutSummary),
+      cst_encode_i_64(raw.pagesStale),
+      cst_encode_i_64(raw.pagesNeverSurfaced),
+      cst_encode_i_64(raw.mountEventsRecent),
+      cst_encode_i_64(raw.mountPagesRecent),
+      cst_encode_i_64(raw.usageRecordsRecent),
+      cst_encode_i_64(raw.citedPagesRecent),
+      cst_encode_i_64(raw.searchCallsRecent),
+      cst_encode_i_64(raw.pageFetchCallsRecent),
+      cst_encode_i_64(raw.summaryReadyRecent),
+      cst_encode_i_64(raw.summaryUnavailableRecent),
+      cst_encode_opt_String(raw.lastSummaryError),
+    ].jsify()!;
   }
 
   @protected
@@ -4596,6 +4632,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_knowledge_health_report(
+    KnowledgeHealthReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_knowledge_issue(
     KnowledgeIssue self,
     SseSerializer serializer,
@@ -6336,6 +6378,14 @@ class RustLibWire implements BaseWire {
     token,
     key,
     protected_revision,
+  );
+
+  void wire__crate__api__knowledge__knowledge_health(
+    NativePortType port_,
+    JSAny days_lookback,
+  ) => wasmModule.wire__crate__api__knowledge__knowledge_health(
+    port_,
+    days_lookback,
   );
 
   void wire__crate__api__knowledge_workflows__knowledge_reading_state(
@@ -8215,6 +8265,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String token,
     JSAny key,
     JSAny protected_revision,
+  );
+
+  external void wire__crate__api__knowledge__knowledge_health(
+    NativePortType port_,
+    JSAny days_lookback,
   );
 
   external void wire__crate__api__knowledge_workflows__knowledge_reading_state(

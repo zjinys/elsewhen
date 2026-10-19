@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 685807422;
+  int get rustContentHash => 269209900;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -550,6 +550,10 @@ abstract class RustLibApi extends BaseApi {
     required String token,
     required List<int> key,
     required PlatformInt64 protectedRevision,
+  });
+
+  Future<KnowledgeHealthReport> crateApiKnowledgeKnowledgeHealth({
+    required PlatformInt64 daysLookback,
   });
 
   Future<String> crateApiKnowledgeWorkflowsKnowledgeReadingState({
@@ -4444,6 +4448,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "install_sync_key",
     argNames: ["token", "key", "protectedRevision"],
   );
+
+  @override
+  Future<KnowledgeHealthReport> crateApiKnowledgeKnowledgeHealth({
+    required PlatformInt64 daysLookback,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_i_64(daysLookback);
+          return wire.wire__crate__api__knowledge__knowledge_health(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_knowledge_health_report,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeKnowledgeHealthConstMeta,
+        argValues: [daysLookback],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeKnowledgeHealthConstMeta =>
+      const TaskConstMeta(
+        debugName: "knowledge_health",
+        argNames: ["daysLookback"],
+      );
 
   @override
   Future<String> crateApiKnowledgeWorkflowsKnowledgeReadingState({
@@ -10095,6 +10129,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KnowledgeHealthReport dco_decode_knowledge_health_report(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 21)
+      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
+    return KnowledgeHealthReport(
+      generatedAt: dco_decode_String(arr[0]),
+      windowDays: dco_decode_i_64(arr[1]),
+      proposalsPending: dco_decode_i_64(arr[2]),
+      proposalsAccepted: dco_decode_i_64(arr[3]),
+      proposalsRejected: dco_decode_i_64(arr[4]),
+      backgroundRunsRecent: dco_decode_i_64(arr[5]),
+      backgroundRunsFailedRecent: dco_decode_i_64(arr[6]),
+      pagesActive: dco_decode_i_64(arr[7]),
+      pagesArchived: dco_decode_i_64(arr[8]),
+      pagesWithoutSummary: dco_decode_i_64(arr[9]),
+      pagesStale: dco_decode_i_64(arr[10]),
+      pagesNeverSurfaced: dco_decode_i_64(arr[11]),
+      mountEventsRecent: dco_decode_i_64(arr[12]),
+      mountPagesRecent: dco_decode_i_64(arr[13]),
+      usageRecordsRecent: dco_decode_i_64(arr[14]),
+      citedPagesRecent: dco_decode_i_64(arr[15]),
+      searchCallsRecent: dco_decode_i_64(arr[16]),
+      pageFetchCallsRecent: dco_decode_i_64(arr[17]),
+      summaryReadyRecent: dco_decode_i_64(arr[18]),
+      summaryUnavailableRecent: dco_decode_i_64(arr[19]),
+      lastSummaryError: dco_decode_opt_String(arr[20]),
+    );
+  }
+
+  @protected
   KnowledgeIssue dco_decode_knowledge_issue(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -13111,6 +13176,57 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  KnowledgeHealthReport sse_decode_knowledge_health_report(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_generatedAt = sse_decode_String(deserializer);
+    var var_windowDays = sse_decode_i_64(deserializer);
+    var var_proposalsPending = sse_decode_i_64(deserializer);
+    var var_proposalsAccepted = sse_decode_i_64(deserializer);
+    var var_proposalsRejected = sse_decode_i_64(deserializer);
+    var var_backgroundRunsRecent = sse_decode_i_64(deserializer);
+    var var_backgroundRunsFailedRecent = sse_decode_i_64(deserializer);
+    var var_pagesActive = sse_decode_i_64(deserializer);
+    var var_pagesArchived = sse_decode_i_64(deserializer);
+    var var_pagesWithoutSummary = sse_decode_i_64(deserializer);
+    var var_pagesStale = sse_decode_i_64(deserializer);
+    var var_pagesNeverSurfaced = sse_decode_i_64(deserializer);
+    var var_mountEventsRecent = sse_decode_i_64(deserializer);
+    var var_mountPagesRecent = sse_decode_i_64(deserializer);
+    var var_usageRecordsRecent = sse_decode_i_64(deserializer);
+    var var_citedPagesRecent = sse_decode_i_64(deserializer);
+    var var_searchCallsRecent = sse_decode_i_64(deserializer);
+    var var_pageFetchCallsRecent = sse_decode_i_64(deserializer);
+    var var_summaryReadyRecent = sse_decode_i_64(deserializer);
+    var var_summaryUnavailableRecent = sse_decode_i_64(deserializer);
+    var var_lastSummaryError = sse_decode_opt_String(deserializer);
+    return KnowledgeHealthReport(
+      generatedAt: var_generatedAt,
+      windowDays: var_windowDays,
+      proposalsPending: var_proposalsPending,
+      proposalsAccepted: var_proposalsAccepted,
+      proposalsRejected: var_proposalsRejected,
+      backgroundRunsRecent: var_backgroundRunsRecent,
+      backgroundRunsFailedRecent: var_backgroundRunsFailedRecent,
+      pagesActive: var_pagesActive,
+      pagesArchived: var_pagesArchived,
+      pagesWithoutSummary: var_pagesWithoutSummary,
+      pagesStale: var_pagesStale,
+      pagesNeverSurfaced: var_pagesNeverSurfaced,
+      mountEventsRecent: var_mountEventsRecent,
+      mountPagesRecent: var_mountPagesRecent,
+      usageRecordsRecent: var_usageRecordsRecent,
+      citedPagesRecent: var_citedPagesRecent,
+      searchCallsRecent: var_searchCallsRecent,
+      pageFetchCallsRecent: var_pageFetchCallsRecent,
+      summaryReadyRecent: var_summaryReadyRecent,
+      summaryUnavailableRecent: var_summaryUnavailableRecent,
+      lastSummaryError: var_lastSummaryError,
+    );
   }
 
   @protected
@@ -16738,6 +16854,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_64(events, serializer);
         sse_encode_String(error, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_knowledge_health_report(
+    KnowledgeHealthReport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.generatedAt, serializer);
+    sse_encode_i_64(self.windowDays, serializer);
+    sse_encode_i_64(self.proposalsPending, serializer);
+    sse_encode_i_64(self.proposalsAccepted, serializer);
+    sse_encode_i_64(self.proposalsRejected, serializer);
+    sse_encode_i_64(self.backgroundRunsRecent, serializer);
+    sse_encode_i_64(self.backgroundRunsFailedRecent, serializer);
+    sse_encode_i_64(self.pagesActive, serializer);
+    sse_encode_i_64(self.pagesArchived, serializer);
+    sse_encode_i_64(self.pagesWithoutSummary, serializer);
+    sse_encode_i_64(self.pagesStale, serializer);
+    sse_encode_i_64(self.pagesNeverSurfaced, serializer);
+    sse_encode_i_64(self.mountEventsRecent, serializer);
+    sse_encode_i_64(self.mountPagesRecent, serializer);
+    sse_encode_i_64(self.usageRecordsRecent, serializer);
+    sse_encode_i_64(self.citedPagesRecent, serializer);
+    sse_encode_i_64(self.searchCallsRecent, serializer);
+    sse_encode_i_64(self.pageFetchCallsRecent, serializer);
+    sse_encode_i_64(self.summaryReadyRecent, serializer);
+    sse_encode_i_64(self.summaryUnavailableRecent, serializer);
+    sse_encode_opt_String(self.lastSummaryError, serializer);
   }
 
   @protected

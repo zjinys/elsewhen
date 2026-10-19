@@ -1,6 +1,6 @@
 # 事故档案：主对话流摘要管道永久失败 → AI「忘记」三分钟前的承诺
 
-**日期**：2026-10-19　**状态**：根因已定位到模块级（摘要归并确定性失败 + 降级砍近轮 + 错误吞噬）；P0-a/c 未动，P0-b 部分达成（相关知识确定性摘要挂载已落地，但 get_wiki_page 取回的全链预算测试待补）；尚未修复
+**日期**：2026-10-19　**状态**：根因已定位到模块级；P0-a 已落地（真实错误入事件，含脱敏截断）、知识健康巡检已落地（FRB `knowledge_health`，纯 Rust 无 UI）；P0-b 最近轮 Required 保留、P0-c 诚实降级文案、P1 归并根节点修复未动；P1 归并根节点失败点待 P0-a 拿到 detail 后定位
 **涉及代码**：`src/ai/summary.rs`（apply_summary / Builder::build）、`src/ai/memory.rs`（preselection_earlier_turn）、`src/ai/budget.rs`（whole_earlier_turn 裁剪）
 **关联事故**：与 [2026-10-18 顶包事故](2026-10-18-intent-bypass-progress-fallback.md) 同一会话（93196d4f「主对话流」）的预算问题家族，但触发机制不同——那次是 run 失败后 progress_fallback 顶包，这次是摘要失败后静默砍历史。
 
@@ -32,6 +32,10 @@
    - 「前面的对话内容我这边没有留存」正是 :449 那句免责声明的转述。
 
 ## 三、根因分解（按修复优先级）
+
+### P0-a 与健康巡检（2026-10-19 晚已落地）
+- **P0-a**：`summary.rs` 的 `Err(_)` → 捕获错误，`to_string()` 截 500 字符记入 `summary_unavailable` 事件的 `detail` 字段（归并/校验错误是结构性信息，不含用户原文）；下次复现即可拿到真实失败点（P1 的前提）。测试：`health_report_counts_reflect_pipeline_state` 断言 `last_summary_error` 能读到 detail。
+- **健康巡检**（链路八个环节的仪表盘，纯查询）：`knowledge.rs::health_report` + FRB `knowledge_health(days_lookback)`。覆盖：编译（建议 pending/accepted/rejected、后台任务成功/失败）、库存（活跃/归档/无摘要降级面/stale/从未露面）、投递采用（knowledge_mounted 事件数与去重页数、usage 记录、被引页数）、增强通道（search/get_wiki_page 调用、summary_ready/unavailable、最近一次真实错误）。投递留痕：确定性摘要挂载新增 `knowledge_mounted` 事件（`relevant_knowledge_mount`，run 身份未就绪时自然空操作）。缺 instrument 的环节后续补事件即可，SQL 已聚合。
 
 ### 根因 A（体验杀手）：降级路径不区分「老历史」和「最近几轮」
 预算紧张时裁剪策略把 segment 10–16（最近 3 轮对话原文）与 332 条老历史同等对待，按 `whole_earlier_turn` 从新到旧砍。摘要失败 + 40K 工具 schema 挤压 → 连 AI 三分钟前自己的承诺都保不住。

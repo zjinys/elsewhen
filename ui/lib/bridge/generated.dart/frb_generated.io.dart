@@ -303,6 +303,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  KnowledgeHealthReport dco_decode_knowledge_health_report(dynamic raw);
+
+  @protected
   KnowledgeIssue dco_decode_knowledge_issue(dynamic raw);
 
   @protected
@@ -1120,6 +1123,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeDigestTickResult sse_decode_knowledge_digest_tick_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeHealthReport sse_decode_knowledge_health_report(
     SseDeserializer deserializer,
   );
 
@@ -3873,6 +3881,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_knowledge_health_report(
+    KnowledgeHealthReport apiObj,
+    wire_cst_knowledge_health_report wireObj,
+  ) {
+    wireObj.generated_at = cst_encode_String(apiObj.generatedAt);
+    wireObj.window_days = cst_encode_i_64(apiObj.windowDays);
+    wireObj.proposals_pending = cst_encode_i_64(apiObj.proposalsPending);
+    wireObj.proposals_accepted = cst_encode_i_64(apiObj.proposalsAccepted);
+    wireObj.proposals_rejected = cst_encode_i_64(apiObj.proposalsRejected);
+    wireObj.background_runs_recent = cst_encode_i_64(
+      apiObj.backgroundRunsRecent,
+    );
+    wireObj.background_runs_failed_recent = cst_encode_i_64(
+      apiObj.backgroundRunsFailedRecent,
+    );
+    wireObj.pages_active = cst_encode_i_64(apiObj.pagesActive);
+    wireObj.pages_archived = cst_encode_i_64(apiObj.pagesArchived);
+    wireObj.pages_without_summary = cst_encode_i_64(apiObj.pagesWithoutSummary);
+    wireObj.pages_stale = cst_encode_i_64(apiObj.pagesStale);
+    wireObj.pages_never_surfaced = cst_encode_i_64(apiObj.pagesNeverSurfaced);
+    wireObj.mount_events_recent = cst_encode_i_64(apiObj.mountEventsRecent);
+    wireObj.mount_pages_recent = cst_encode_i_64(apiObj.mountPagesRecent);
+    wireObj.usage_records_recent = cst_encode_i_64(apiObj.usageRecordsRecent);
+    wireObj.cited_pages_recent = cst_encode_i_64(apiObj.citedPagesRecent);
+    wireObj.search_calls_recent = cst_encode_i_64(apiObj.searchCallsRecent);
+    wireObj.page_fetch_calls_recent = cst_encode_i_64(
+      apiObj.pageFetchCallsRecent,
+    );
+    wireObj.summary_ready_recent = cst_encode_i_64(apiObj.summaryReadyRecent);
+    wireObj.summary_unavailable_recent = cst_encode_i_64(
+      apiObj.summaryUnavailableRecent,
+    );
+    wireObj.last_summary_error = cst_encode_opt_String(apiObj.lastSummaryError);
+  }
+
+  @protected
   void cst_api_fill_to_wire_knowledge_issue(
     KnowledgeIssue apiObj,
     wire_cst_knowledge_issue wireObj,
@@ -5255,6 +5299,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_knowledge_digest_tick_result(
     KnowledgeDigestTickResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_health_report(
+    KnowledgeHealthReport self,
     SseSerializer serializer,
   );
 
@@ -9717,6 +9767,21 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
+
+  void wire__crate__api__knowledge__knowledge_health(
+    int port_,
+    int days_lookback,
+  ) {
+    return _wire__crate__api__knowledge__knowledge_health(port_, days_lookback);
+  }
+
+  late final _wire__crate__api__knowledge__knowledge_healthPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__knowledge_health',
+      );
+  late final _wire__crate__api__knowledge__knowledge_health =
+      _wire__crate__api__knowledge__knowledge_healthPtr
+          .asFunction<void Function(int, int)>();
 
   void wire__crate__api__knowledge__list_knowledge_background_runs(int port_) {
     return _wire__crate__api__knowledge__list_knowledge_background_runs(port_);
@@ -16184,6 +16249,115 @@ final class wire_cst_knowledge_digest_tick_result extends ffi.Struct {
   external int tag;
 
   external KnowledgeDigestTickResultKind kind;
+}
+
+final class wire_cst_knowledge_health_report extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> generated_at;
+
+  @ffi.Int64()
+  external int window_days;
+
+  @ffi.Int64()
+  external int proposals_pending;
+
+  @ffi.Int64()
+  external int proposals_accepted;
+
+  @ffi.Int64()
+  external int proposals_rejected;
+
+  @ffi.Int64()
+  external int background_runs_recent;
+
+  @ffi.Int64()
+  external int background_runs_failed_recent;
+
+  @ffi.Int64()
+  external int pages_active;
+
+  @ffi.Int64()
+  external int pages_archived;
+
+  @ffi.Int64()
+  external int pages_without_summary;
+
+  @ffi.Int64()
+  external int pages_stale;
+
+  @ffi.Int64()
+  external int pages_never_surfaced;
+
+  @ffi.Int64()
+  external int mount_events_recent;
+
+  @ffi.Int64()
+  external int mount_pages_recent;
+
+  @ffi.Int64()
+  external int usage_records_recent;
+
+  @ffi.Int64()
+  external int cited_pages_recent;
+
+  @ffi.Int64()
+  external int search_calls_recent;
+
+  @ffi.Int64()
+  external int page_fetch_calls_recent;
+
+  @ffi.Int64()
+  external int summary_ready_recent;
+
+  @ffi.Int64()
+  external int summary_unavailable_recent;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_summary_error;
+
+  static ffi.Pointer<wire_cst_knowledge_health_report> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> generated_at,
+    required int window_days,
+    required int proposals_pending,
+    required int proposals_accepted,
+    required int proposals_rejected,
+    required int background_runs_recent,
+    required int background_runs_failed_recent,
+    required int pages_active,
+    required int pages_archived,
+    required int pages_without_summary,
+    required int pages_stale,
+    required int pages_never_surfaced,
+    required int mount_events_recent,
+    required int mount_pages_recent,
+    required int usage_records_recent,
+    required int cited_pages_recent,
+    required int search_calls_recent,
+    required int page_fetch_calls_recent,
+    required int summary_ready_recent,
+    required int summary_unavailable_recent,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_summary_error,
+  }) => $allocator<wire_cst_knowledge_health_report>()
+    ..ref.generated_at = generated_at
+    ..ref.window_days = window_days
+    ..ref.proposals_pending = proposals_pending
+    ..ref.proposals_accepted = proposals_accepted
+    ..ref.proposals_rejected = proposals_rejected
+    ..ref.background_runs_recent = background_runs_recent
+    ..ref.background_runs_failed_recent = background_runs_failed_recent
+    ..ref.pages_active = pages_active
+    ..ref.pages_archived = pages_archived
+    ..ref.pages_without_summary = pages_without_summary
+    ..ref.pages_stale = pages_stale
+    ..ref.pages_never_surfaced = pages_never_surfaced
+    ..ref.mount_events_recent = mount_events_recent
+    ..ref.mount_pages_recent = mount_pages_recent
+    ..ref.usage_records_recent = usage_records_recent
+    ..ref.cited_pages_recent = cited_pages_recent
+    ..ref.search_calls_recent = search_calls_recent
+    ..ref.page_fetch_calls_recent = page_fetch_calls_recent
+    ..ref.summary_ready_recent = summary_ready_recent
+    ..ref.summary_unavailable_recent = summary_unavailable_recent
+    ..ref.last_summary_error = last_summary_error;
 }
 
 final class wire_cst_knowledge_issue extends ffi.Struct {

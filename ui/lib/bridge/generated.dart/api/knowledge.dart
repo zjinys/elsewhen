@@ -102,6 +102,14 @@ Future<SourceSnapshot?> getKnowledgeSourceSnapshot({required String id}) =>
 Future<List<KnowledgeProposal>> listKnowledgeProposals() =>
     RustLib.instance.api.crateApiKnowledgeListKnowledgeProposals();
 
+/// 知识系统健康巡检（不做 UI，先可被问到：FRB 直连）。
+/// 对应 2026-10-18/19 事故复盘：每个环节的异动要能被定位。
+Future<KnowledgeHealthReport> knowledgeHealth({
+  required PlatformInt64 daysLookback,
+}) => RustLib.instance.api.crateApiKnowledgeKnowledgeHealth(
+  daysLookback: daysLookback,
+);
+
 Future<List<KnowledgeIssue>> listKnowledgeIssues() =>
     RustLib.instance.api.crateApiKnowledgeListKnowledgeIssues();
 

@@ -18,10 +18,17 @@ pub(crate) fn relevant_knowledge_mount(
     query: &str,
     max_pages: usize,
 ) -> Option<ContextMessage> {
-    let mounted = crate::knowledge::summary_mount(store, query, max_pages).ok()?;
+    let (mounted, slugs) = crate::knowledge::summary_mount(store, query, max_pages).ok()?;
     if mounted.is_empty() {
         return None;
     }
+    // 投递留痕：健康巡检的 mount_events_recent / mount_pages_recent 依
+    // 赖于此（run 身份未就绪时 event 自然空操作）。
+    let _ = super::generation::event(
+        store,
+        "knowledge_mounted",
+        serde_json::json!({ "pages": slugs }),
+    );
     Some(ContextMessage::new("system", mounted).with_segment(
         SegmentPurpose::SelectedEvidence,
         SegmentOrigin::KnowledgeSelection,
