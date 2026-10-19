@@ -229,6 +229,29 @@ impl RequestPolicies {
         self.messages.insert(index, policy);
     }
 
+    /// 找到还能被截断的最大补充材料（TaskSupplement）的下标。
+    /// 只碰纯文本（Plain）消息：多模态数组与工具消息不动。
+    fn largest_trimable_supplement(&self, messages: &[Value]) -> Option<usize> {
+        let mut best: Option<(usize, usize)> = None;
+        for (i, policy) in self.messages.iter().enumerate() {
+            if policy.segment.purpose != SegmentPurpose::TaskSupplement
+                || policy.native_exchange != exchanges::MessageExchange::Plain
+            {
+                continue;
+            }
+            let trimable = messages
+                .get(i)
+                .and_then(|m| m["content"].as_str())
+                .and_then(supplement_halved)
+                .map(|halved| halved.chars().count())
+                .unwrap_or(0);
+            if trimable > 0 && best.is_none_or(|(_, n)| trimable > n) {
+                best = Some((i, trimable));
+            }
+        }
+        best.map(|(i, _)| i)
+    }
+
     pub(crate) fn fit(
         &mut self,
         model: &str,
@@ -305,6 +328,31 @@ impl RequestPolicies {
                 };
                 self.pruned_tool_results = pruned;
                 if pruned > 0 && input_tokens(model, request) < before {
+                    continue;
+                }
+            }
+            // 碍轮之前先截断补充材料（2026-10-18 事故「预算前移」）：补充材料
+            // 是唯一可以无损重取的必要段（原文保存在输入队列记录），手机端曾
+            // 一次挂 27 页全文导致整轮被拒、用户看不到任何回答。截断挂载并
+            // 如实声明优于拒绝整轮；每次砰掉最大的超限材料的一半，直到回到
+            // 预算内或材料已到保留下限。
+            let supplement_index = {
+                let messages = request["messages"].as_array().expect("request messages");
+                self.largest_trimable_supplement(messages)
+            };
+            if let Some(index) = supplement_index {
+                let messages = request["messages"]
+                    .as_array_mut()
+                    .expect("request messages");
+                let content = messages[index]["content"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string();
+                if let Some(halved) = supplement_halved(&content) {
+                    messages[index]["content"] = serde_json::Value::String(halved.clone());
+                    if let Some(policy) = self.messages.get_mut(index) {
+                        policy.segment.version = crate::storage::knowledge::content_hash(&halved);
+                    }
                     continue;
                 }
             }
@@ -394,6 +442,23 @@ fn prune_old_tool_results(messages: &mut [Value], keep: usize) -> usize {
         }
     }
     replaced
+}
+
+/// 补充材料截断声明的固定尾巴（strip 用，勿改动文案）。
+const SUPPLEMENT_HALVED_SUFFIX: &str = "……\n【补充材料因超过请求预算被截断；以上只是部分内容，不得当作全文使用。需要完整材料请缩小范围或分批重新提供。】";
+
+/// 超预算时截断挂载：把最大的补充材料砰半后（含截断声明）返回。
+/// 已到保留下限（砰半后不足 2000 字符）则返回 None，交给后续路径处理。
+fn supplement_halved(content: &str) -> Option<String> {
+    let body = content
+        .strip_suffix(SUPPLEMENT_HALVED_SUFFIX)
+        .unwrap_or(content);
+    let total = body.chars().count();
+    if total / 2 < 2000 {
+        return None;
+    }
+    let head: String = body.chars().take(total / 2).collect();
+    Some(format!("{head}{SUPPLEMENT_HALVED_SUFFIX}"))
 }
 
 pub fn text_tokens(model: &str, text: &str) -> usize {
@@ -919,10 +984,16 @@ mod tests {
             .expect("超长会话应在报错前完成降级");
         let limit = input_limit(window, output).unwrap();
         assert!(tokens_before > limit, "构造负载应确实触发降级路径");
-        assert!(tokens_after <= limit, "降级后应入预算：{tokens_after} ≤ {limit}");
+        assert!(
+            tokens_after <= limit,
+            "降级后应入预算：{tokens_after} ≤ {limit}"
+        );
         // 装配报告第一手值（非事后从 wire 反推）：占位化确实发生过。
         let first_hand_pruned = policies.pruned_tool_results;
-        assert!(first_hand_pruned > 0, "占位化应参与降级，实现为 0 说明顺序回归");
+        assert!(
+            first_hand_pruned > 0,
+            "占位化应参与降级，实现为 0 说明顺序回归"
+        );
 
         let sent = &request["messages"];
         let arr = sent.as_array().unwrap();
@@ -938,9 +1009,9 @@ mod tests {
             let call_id = tool_msg["tool_call_id"].as_str().unwrap_or("");
             let paired = arr[..*idx].iter().any(|m| {
                 m["role"] == "assistant"
-                    && m["tool_calls"]
-                        .as_array()
-                        .is_some_and(|calls| calls.iter().any(|c| c["id"].as_str() == Some(call_id)))
+                    && m["tool_calls"].as_array().is_some_and(|calls| {
+                        calls.iter().any(|c| c["id"].as_str() == Some(call_id))
+                    })
             });
             assert!(
                 paired,
@@ -950,7 +1021,9 @@ mod tests {
         let kept_raw = tool_messages
             .iter()
             .filter(|(_, m)| {
-                m["content"].as_str().is_some_and(|c| c.contains("知识库存档的段落"))
+                m["content"]
+                    .as_str()
+                    .is_some_and(|c| c.contains("知识库存档的段落"))
             })
             .count();
         let pruned = tool_messages
@@ -972,6 +1045,60 @@ mod tests {
         assert!(
             kept_raw <= 3,
             "「保留最近 3」的语义必须守住：kept_raw={kept_raw}"
+        );
+    }
+
+    /// 2026-10-18 事故「预算前移」：超限的补充材料（TaskSupplement）应在
+    /// 砍历史轮之前先截断挂载，而不是拒绝整轮；截断后带如实声明，当前
+    /// 问题与历史轮完整保留。
+    #[test]
+    fn oversized_supplement_is_truncated_instead_of_rejecting_the_turn() {
+        use crate::ai::memory::ContextMessage;
+        let body = "用户带进来的素材段落，包含术语定义与出处。".repeat(4000);
+        let context_messages = vec![
+            ContextMessage::new("system", "基线规则"),
+            ContextMessage::new("user", "第一问"),
+            ContextMessage::new("assistant", "第一答"),
+            ContextMessage::new("user", "当前问题：请基于补充材料继续"),
+            ContextMessage::new("system", body).with_segment(
+                SegmentPurpose::TaskSupplement,
+                SegmentOrigin::StoredMessage,
+                Some("input-1"),
+                OmissionPolicy::Required,
+            ),
+        ];
+        let original_chars = context_messages.last().unwrap().content.chars().count();
+        let mut request = serde_json::json!({ "messages": context_messages.iter()
+            .map(|m| serde_json::json!({"role": m.role, "content": m.content}))
+            .collect::<Vec<_>>() });
+        let mut policies = RequestPolicies::from_context(&context_messages);
+        policies
+            .fit("gpt-4o", &mut request, 6000, 512)
+            .expect("截断挂载后应回到预算内，而不是拒绝整轮");
+        let msgs = request["messages"].as_array().unwrap();
+        // 截断先于砍轮发生：历史轮与当前问题未被損坏
+        assert!(msgs.contains(&serde_json::json!({"role":"user","content":"第一问"})));
+        assert!(msgs.iter().any(|m| {
+            m["content"]
+                .as_str()
+                .is_some_and(|c| c.contains("当前问题：请基于补充材料继续"))
+        }));
+        // 补充材料被截断且带如实声明
+        let mounted = msgs
+            .iter()
+            .find(|m| {
+                m["role"] == "system"
+                    && m["content"]
+                        .as_str()
+                        .is_some_and(|c| c.contains("素材段落"))
+            })
+            .expect("补充材料应仍在（截断挂载而非丢弃）");
+        let content = mounted["content"].as_str().unwrap();
+        assert!(content.contains("因超过请求预算被截断"));
+        let mounted_chars = content.chars().count();
+        assert!(
+            mounted_chars < original_chars,
+            "截断必须实际发生：{mounted_chars} vs {original_chars}"
         );
     }
 }

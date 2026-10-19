@@ -14,10 +14,25 @@ fn valid_basis(input: &ChatSupplement) -> bool {
     ) == input.basis
 }
 
-fn context(input: &ChatSupplement) -> ContextMessage {
+/// 挂载预检上限（2026-10-18 事故「预算前移」）：补充材料由客户端提交，
+/// 曾被整包挂载（手机 v48 一次挂 27 页全文）直接把请求顶爆。这里给单条
+/// 补充一个宽松上限，超限截断并在材料内如实声明；完整原文仍在输入队列
+/// 记录里，未丢失。预算内的最终把关仍在各 Provider 的 fit。
+const SUPPLEMENT_MOUNT_CHAR_LIMIT: usize = 24000;
+const SUPPLEMENT_MOUNT_TRUNCATED: &str = "\n……【补充材料过长，已按挂载上限截断：以上只是部分内容，不得当作全文使用；完整原文保存在输入队列记录中，需要完整材料请分批或缩小范围重新提供。】";
+
+fn clipped(content: &str) -> String {
+    if content.chars().count() <= SUPPLEMENT_MOUNT_CHAR_LIMIT {
+        return content.to_string();
+    }
+    let head: String = content.chars().take(SUPPLEMENT_MOUNT_CHAR_LIMIT).collect();
+    format!("{head}{SUPPLEMENT_MOUNT_TRUNCATED}")
+}
+
+pub(crate) fn context(input: &ChatSupplement) -> ContextMessage {
     ContextMessage::new("system", format!(
         "【用户显式补充当前任务】\n以下是用户已保存的补充要求，发送时间 {}，只在安全工具轮边界加入（显式重试沿用），不改变原问题及其发送时间。它不构成任何业务动作或规则的确认；现有草稿如需改变必须重新生成并审阅。\n{}",
-        input.created_at, input.content,
+        input.created_at, clipped(&input.content),
     )).with_segment(SegmentPurpose::TaskSupplement, SegmentOrigin::StoredMessage,
         Some(&input.input_id), OmissionPolicy::Required)
 }

@@ -161,3 +161,33 @@ fn supplements_enter_only_the_request_after_a_completed_tool_exchange() {
         }
     }
 }
+
+/// 2026-10-18 事故「预算前移」：客户端可能整包挂载超大材料（手机 v48 曾
+/// 一次挂 27 页全文）。挂载视图必须先截到上限内并如实声明；原文不受影响。
+#[test]
+fn giant_supplement_is_clipped_with_honest_marker_at_mount() {
+    let input = crate::storage::chat_supplements::ChatSupplement {
+        queue_id: 1,
+        input_id: "m1".into(),
+        content: "素材段落，包含术语定义与出处标注。".repeat(8000),
+        created_at: "2026-10-18T00:00:00Z".into(),
+        basis: String::new(),
+        context_json: "{}".into(),
+    };
+    let original_chars = input.content.chars().count();
+    let message = super::super::supplements::context(&input);
+    let content = message.content;
+    assert!(
+        content.chars().count() < original_chars,
+        "挂载视图必须小于原文（截断发生）"
+    );
+    assert!(content.contains("已按挂载上限截断"), "截断必须带如实声明");
+    // 常规尺寸不受影响
+    let small = crate::storage::chat_supplements::ChatSupplement {
+        content: "把报告只保留项目相关部分。".into(),
+        ..input.clone()
+    };
+    let small_message = super::super::supplements::context(&small);
+    assert!(small_message.content.contains("把报告只保留项目相关部分。"));
+    assert!(!small_message.content.contains("已按挂载上限截断"));
+}

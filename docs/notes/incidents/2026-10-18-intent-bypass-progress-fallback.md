@@ -77,12 +77,16 @@ chat_runs/run_requests/** 是 `local-chat-execution-state` 数据集（snapshot.
 - **P1-B 运行失败可见**（`generation.rs`）：run 落终态失败后，追加一条诚实失败消息到对话流、挂在本轮输入上（budget→"必要上下文超过预算…"；生成错误→对应文案）。独立于终态写入：中途崩溃退化为现状（只有 failed run 记录），不会卡死状态；cancelled 不写（用户自己停的）。
 - **测试**：continuity_tests 补齐事故对应三例——`automatic_failure_fallback_never_passes_tool_results_off_as_an_answer`（失败路由只产失败消息，检索结果不出现）、`only_explicit_progress_questions_may_report_known_results`（显式追问才产结果报告）、`failure_notice_quotes_request_and_admits_unfulfilled_promise`（确认后的失败点名未兑现承诺并引用原请求）；原 `fallback_renders_found_knowledge_without_exposing_protocol_json` 改写为断言不顶包。
 
+### 预算前移（原预案第 3 条，已落地）
+- **挂载预检上限**（`supplements.rs`）：单条补充材料在生成挂载视图时截到 24K 字符以内，超限部分用诚实声明收尾（「已按挂载上限截断：以上只是部分内容，不得当作全文使用；完整原文保存在输入队列记录中」）。针对手机 v48 一次挂 27 页全文的形态：原文不丢，挂载不再顶爆请求。
+- **fit 内截断挂载取代拒绝整轮**（`budget.rs`）：请求超预算时，降级顺序变为「可选背景移除 → 早期工具结果占位 → **补充材料砰半截断** → 砍历史轮 → 才报错」。补充材料（TaskSupplement）是唯一可以无损重取的必要段（原文在输入队列记录），因此在砰历史轮之前先截；截断带固定声明「因超过请求预算被截断…不得当作全文使用」。只有当前问题本身超限时才仍然报错。
+- **测试**：`oversized_supplement_is_truncated_instead_of_rejecting_the_turn`（fit 超限补充材料截断挂载、历史轮与当前问题完整保留、带如实声明）、`giant_supplement_is_clipped_with_honest_marker_at_mount`（挂载视图截到上限内且原文不变，常规尺寸不受影响）。全量 lib 测试 832 过。
+
 ### 待办
-1. Linux 复现实锤（第三节脚本不变；顶包路径应已无法复现，改为验证失败消息出现且检索内容只在 run 记录里）
-2. **预算前移**（原预案第 3 条）：组装前预检、知识库 Top-K 截断挂载——本次未动，budget 闸门拒绝整轮的行为仍在，只是失败可见了
-3. reports 侧栏/折叠卡片（Flutter UI 层）：给失败轮的工具结果一个非聊天流出口
-4. 手机 APK 重打（含 wire 修复 f534b4f 与本次修复）
-5. 补一个 run 级 E2E 集成测试（execute 失败→消息落库）——本次手工推演，由复现脚本覆盖
+1. Linux 复现实锤（第三节脚本不变；顶包路径应已无法复现，改为验证失败消息出现且检索内容只在 run 记录里；超长补充材料现走截断挂载，验证不再出现「必要上下文超过预算」拒绝整轮）
+2. reports 侧栏/折叠卡片（Flutter UI 层）：给失败轮的工具结果一个非聊天流出口
+3. 手机 APK 重打（含 wire 修复 f534b4f 与本次修复）
+4. 补一个 run 级 E2E 集成测试（execute 失败→消息落库）——本次手工推演，由复现脚本覆盖
 
 ## 四、本轮已完成的相关修复（已推送 origin/main f534b4f）
 - `sync_wire_identity_content_conflict` 死结：acknowledged 同 id 重封（nonce 随机→密文必变）按幂等跳过 + 审计日志；provider dirty 清除接受已确认信封为送达。事故后果：手机消息上行被堵约 4 小时（provider:b149240c 重发循环）。
