@@ -315,7 +315,7 @@ pub(crate) use tool_protocol::{
 
 // 仅供测试链路使用的转发（release 构建不产生 unused 警告）
 #[cfg(test)]
-pub(crate) use agent::{assistant_continuation, run_agent_loop_inner};
+pub(crate) use agent::{assistant_continuation, note_web_search_intent, run_agent_loop_inner};
 #[cfg(test)]
 pub(crate) use claim_detection::broad_write_claim;
 #[cfg(test)]

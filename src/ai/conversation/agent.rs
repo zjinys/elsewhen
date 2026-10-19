@@ -49,6 +49,55 @@ pub(crate) fn assistant_continuation(reply: AiReply) -> ContextMessage {
     message.reasoning_content = reply.reasoning_content;
     message
 }
+
+/// 外网搜索意图接线（激活 `web_search::intent` 的启发式）：仅当**本轮最新
+/// 用户文本**命中搜索信号时，push 一条 system 提示；其余情况零干扰——纪律
+/// 仍是「不自行断定用户要搜」。
+///
+/// 提示按信号强度取两档：
+/// * `Direct`（搜一下/网上查…）：强提示。未启用 → 指向「设置 → 外网搜索」
+///   且明确要求不装作已搜、不编造；已启用但延迟未登记 → 指向 enable_tools；
+///   已启用且常驻注入（defer_tools=false 旧协议）→ 模型本可直接调，不注入。
+/// * 仅 `Timely`（最新/今天/新闻…）：弱提示——「整理今天的事件」这类本地
+///   时间任务同样命中这些词，只提示先判本地/外网，不得断言要联网。
+///
+/// 注入点在进入多轮循环之前，每轮 agent 循环只注一次（failover 重试各带
+/// 各的 attempt_context，克隆自同一基底，不会重复叠加）。
+pub(crate) fn note_web_search_intent(
+    context: &mut Vec<ContextMessage>,
+    registry: &ToolRegistry,
+    store: &Store,
+) {
+    let Some(last_user) = context.iter().rev().find(|m| m.role == "user") else {
+        return;
+    };
+    let Some(signal) = crate::web_search::search_signal(&last_user.content) else {
+        return;
+    };
+    use crate::web_search::SearchSignal;
+    let note = match signal {
+        SearchSignal::Direct => match store.web_search_config() {
+            Ok(cfg) if !cfg.enabled => Some(
+                "用户本轮输入显式要求外网搜索，但外网搜索尚未启用。请如实告知：需在「设置 → 外网搜索」开启并配置引擎（SearxNG 免 API key）后才能联网搜；不要装作已搜索，更不要编造搜索结果。"
+                    .to_string(),
+            ),
+            Ok(cfg) if cfg.enabled && registry.is_deferred("web_search") && registry.defer_tools() => Some(
+                "用户本轮输入显式要求外网搜索。外网搜索已启用但 web_search 工具尚未登记：请先调用 enable_tools（skills 传入 [\"web_search\"]），下一轮即可调用 web_search 获取结果，并按来源如实引用。"
+                    .to_string(),
+            ),
+            // 已启用且非延迟协议：模型本可直接调用，无需额外提示。
+            _ => None,
+        },
+        SearchSignal::Timely => Some(
+            "用户文本含时效词（如最新/今天），先判断这是查本地记录任务还是需要外网最新信息：本地内容（事件/待办/对话/知识页）优先用本地工具；仅当确需外网信息时才使用 web_search（未启用会得到如实说明，届时向用户传达设置路径），不要为本地任务联网，也不要编造检索结果。"
+                .to_string(),
+        ),
+    };
+    if let Some(note) = note {
+        debug_eprintln!("[agent] web_search 意图命中（{signal:?}）→ 注入前置提示");
+        context.push(ContextMessage::new("system", note));
+    }
+}
 pub(crate) fn run_agent_loop_inner(
     provider: &dyn AiProvider,
     provider_name: &str,
@@ -99,6 +148,7 @@ pub(crate) fn run_agent_loop_inner(
     let mut empty_retries_used = 0usize;
     let mut rounds_used = 0usize;
     let tool_names = registry.all_names();
+    note_web_search_intent(context, registry, store);
 
     for _round in 0..MAX_TOOL_ROUNDS {
         super::generation::check(store)?;

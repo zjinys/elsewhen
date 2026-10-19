@@ -15,6 +15,16 @@ pub(crate) fn urlencoding_simple(s: &str) -> String {
     out
 }
 
+/// 搜索信号的强度分级：注入提示的语气据此取强/弱两档。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchSignal {
+    /// 直接指令（搜一下/网上查/帮我查…）：用户显式要求搜索。
+    Direct,
+    /// 仅时效词（最新/今天/新闻…）：**可能**需要外网；但「整理今天的事件」
+    /// 这类本地时间任务同样命中，只能作弱提示，不得断言用户要联网。
+    Timely,
+}
+
 /// 用户文本是否显式表达了「需要外网搜索」的意图。
 ///
 /// 设计原则（与你的需求讨论一致）：触发来自**用户输入的明确信号**，不靠模型自评
@@ -22,9 +32,14 @@ pub(crate) fn urlencoding_simple(s: &str) -> String {
 /// （搜一下/网上查/查一下）、明确要外网搜索。拿不准时由模型反问用户是否要搜（见
 /// system prompt），而不是自行断定。
 pub fn user_text_wants_search(text: &str) -> bool {
+    search_signal(text).is_some()
+}
+
+/// 分级版意图判定（供 agent 注入按强弱取语气）。
+pub(crate) fn search_signal(text: &str) -> Option<SearchSignal> {
     let t = text.trim();
     if t.is_empty() {
-        return false;
+        return None;
     }
     // 否定词优先：用户明确说「别搜/不用查」时不触发，即使句里有「最新」。
     const NEGATIVE: &[&str] = &[
@@ -38,7 +53,7 @@ pub fn user_text_wants_search(text: &str) -> bool {
         "别上网",
     ];
     if NEGATIVE.iter().any(|w| t.contains(w)) {
-        return false;
+        return None;
     }
     // 直接指令：让 AI 去搜/去查。
     const COMMAND: &[&str] = &[
@@ -60,7 +75,7 @@ pub fn user_text_wants_search(text: &str) -> bool {
         "联网查",
     ];
     if COMMAND.iter().any(|w| t.contains(w)) {
-        return true;
+        return Some(SearchSignal::Direct);
     }
     // 时效/资讯词：暗示需要当下、模型训练数据之外的信息。
     const TIMELY: &[&str] = &[
@@ -84,5 +99,8 @@ pub fn user_text_wants_search(text: &str) -> bool {
         "现在怎么样",
         "现状",
     ];
-    TIMELY.iter().any(|w| t.contains(w))
+    if TIMELY.iter().any(|w| t.contains(w)) {
+        return Some(SearchSignal::Timely);
+    }
+    None
 }

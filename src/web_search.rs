@@ -112,8 +112,8 @@ pub use engines::{BraveEngine, SearxngEngine, TavilyEngine, build_engine, engine
 #[cfg(test)]
 pub(crate) use engines::{parse_brave_response, parse_searxng_response, parse_tavily_response};
 pub(crate) use fetch::{fetch_direct, fetch_via_doh};
-pub(crate) use intent::urlencoding_simple;
 pub use intent::user_text_wants_search;
+pub(crate) use intent::{SearchSignal, search_signal, urlencoding_simple};
 
 #[cfg(test)]
 mod tests;

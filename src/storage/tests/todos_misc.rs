@@ -247,6 +247,24 @@ fn guidance_feedback_records_clears_and_fails_closed() {
     );
 }
 #[test]
+fn memo_same_title_recreate_reuses_slug_and_overwrites_content() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    // 记事本单页语义的基础：同 slug 同标题重复建档**复用同一页**（unique_slug
+    // 语义），UI 侧才能用固定标题做「点击即 ensure」。
+    let first = store
+        .create_wiki_page("memo", "记事本", "第一条快记", &[])
+        .unwrap();
+    let second = store.create_wiki_page("memo", "记事本", "", &[]).unwrap();
+    assert_eq!(second.slug, first.slug);
+    // ⚠️ 语义锁定：upsert(Always) 对已存在页**会用新 draft 覆盖正文**——
+    // 这正是 UI ensure 必须「先查（getWikiPage）后建」的原因：页面已存在时
+    // 不得再调 create，否则空正文会清掉快记历史。
+    let reread = store.get_wiki_page(&first.slug).unwrap().unwrap();
+    assert_eq!(reread.content_md, "");
+    assert_eq!(reread.title, "记事本");
+}
+#[test]
 fn memo_append_is_single_transaction_and_syncs() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();

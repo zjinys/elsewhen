@@ -375,3 +375,90 @@ fn missing_tool_call_does_not_misreport_normal_replies() {
         vec![]
     )));
 }
+
+// ── 外网搜索意图接线（note_web_search_intent）──────────────────────
+
+fn agent_store() -> (crate::storage::Store, std::path::PathBuf) {
+    temporary_database()
+}
+
+fn agent_registry(defer: bool) -> crate::ai::tool::ToolRegistry {
+    if defer {
+        crate::ai::tool::ToolRegistry::deferred_runtime()
+    } else {
+        crate::ai::tool::ToolRegistry::default()
+    }
+}
+
+fn intent_system_notes(context: &[ContextMessage]) -> Vec<String> {
+    context
+        .iter()
+        .filter(|m| m.role == "system" && m.content.contains("外网搜索"))
+        .map(|m| m.content.clone())
+        .collect()
+}
+
+#[test]
+fn web_search_intent_disabled_pushes_honest_guidance() {
+    let (store, path) = agent_store();
+    let registry = agent_registry(true);
+    // 默认配置（未启用）
+    let mut context = vec![ContextMessage::new("user", "帮我搜一下最近的 Rust 新闻")];
+    crate::ai::conversation::note_web_search_intent(&mut context, &registry, &store);
+    let notes = intent_system_notes(&context);
+    assert_eq!(notes.len(), 1);
+    assert!(notes[0].contains("尚未启用"), "未启用 → 指向设置页");
+    assert!(notes[0].contains("不要装作已搜索"), "必须带不编造纪律");
+    drop(path);
+}
+
+#[test]
+fn web_search_intent_enabled_deferred_points_at_enable_tools() {
+    let (store, path) = agent_store();
+    store
+        .save_web_search_config(true, "tavily", "", "k-test", 5)
+        .unwrap();
+    let registry = agent_registry(true);
+    let mut context = vec![ContextMessage::new("user", "上网查查这个模型的参数规模")];
+    crate::ai::conversation::note_web_search_intent(&mut context, &registry, &store);
+    let notes = intent_system_notes(&context);
+    assert_eq!(notes.len(), 1);
+    assert!(
+        notes[0].contains("enable_tools"),
+        "已启用但延迟 → 指向 enable_tools 登记"
+    );
+    drop(path);
+}
+
+#[test]
+fn web_search_intent_absent_marks_nothing() {
+    let (store, path) = agent_store();
+    store
+        .save_web_search_config(true, "tavily", "", "k-test", 5)
+        .unwrap();
+    let registry = agent_registry(true);
+    // 否定词优先 + 无触发词的两类文本都不打扰
+    let mut context = vec![ContextMessage::new("user", "别搜了，先帮我整理一下笔记")];
+    crate::ai::conversation::note_web_search_intent(&mut context, &registry, &store);
+    assert!(intent_system_notes(&context).is_empty(), "否定词优先不触发");
+    let mut context = vec![ContextMessage::new("user", "整理一下今天的事件")];
+    crate::ai::conversation::note_web_search_intent(&mut context, &registry, &store);
+    assert!(intent_system_notes(&context).is_empty(), "非意图文本零注入");
+    drop(path);
+}
+
+#[test]
+fn web_search_intent_enabled_eager_protocol_injects_nothing() {
+    let (store, path) = agent_store();
+    store
+        .save_web_search_config(true, "tavily", "", "k-test", 5)
+        .unwrap();
+    let registry = agent_registry(false);
+    let mut context = vec![ContextMessage::new("user", "搜一下今天的新闻")];
+    crate::ai::conversation::note_web_search_intent(&mut context, &registry, &store);
+    assert!(
+        intent_system_notes(&context).is_empty(),
+        "常驻注入协议下模型本可直接调，无需提示"
+    );
+    drop(path);
+}
