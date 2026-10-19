@@ -12269,8 +12269,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WikiPageMetaDto dco_decode_wiki_page_meta_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 14)
-      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    if (arr.length != 15)
+      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
     return WikiPageMetaDto(
       id: dco_decode_String(arr[0]),
       slug: dco_decode_String(arr[1]),
@@ -12286,6 +12286,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       updatedAt: dco_decode_String(arr[11]),
       sourceUrl: dco_decode_opt_String(arr[12]),
       area: dco_decode_String(arr[13]),
+      opinion: dco_decode_opt_String(arr[14]),
     );
   }
 
@@ -16306,6 +16307,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_updatedAt = sse_decode_String(deserializer);
     var var_sourceUrl = sse_decode_opt_String(deserializer);
     var var_area = sse_decode_String(deserializer);
+    var var_opinion = sse_decode_opt_String(deserializer);
     return WikiPageMetaDto(
       id: var_id,
       slug: var_slug,
@@ -16321,6 +16323,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       updatedAt: var_updatedAt,
       sourceUrl: var_sourceUrl,
       area: var_area,
+      opinion: var_opinion,
     );
   }
 
@@ -19446,5 +19449,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.updatedAt, serializer);
     sse_encode_opt_String(self.sourceUrl, serializer);
     sse_encode_String(self.area, serializer);
+    sse_encode_opt_String(self.opinion, serializer);
   }
 }

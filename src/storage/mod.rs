@@ -306,6 +306,10 @@ pub struct WikiPageMeta {
     pub updated_at: String,
     pub source_url: Option<String>,
     pub area: String,
+    /// 孵化定论（摘录闭环 2026-10-20）：NULL=孵化中（source/note 待定
+    /// 论），endorse/reject=已定论。非 source/note kind 恒 NULL——侧栏
+    /// 按钮只对素材/人工 kind 出现。
+    pub opinion: Option<String>,
 }
 
 pub(crate) fn map_wiki_page_meta(row: &rusqlite::Row) -> rusqlite::Result<WikiPageMeta> {
@@ -325,6 +329,7 @@ pub(crate) fn map_wiki_page_meta(row: &rusqlite::Row) -> rusqlite::Result<WikiPa
         updated_at: row.get(11)?,
         source_url: row.get(12)?,
         area: row.get(13)?,
+        opinion: row.get(14)?,
     })
 }
 
@@ -332,7 +337,7 @@ pub(crate) fn map_wiki_page_meta(row: &rusqlite::Row) -> rusqlite::Result<WikiPa
 /// 顺序必须与 `map_wiki_page_meta` 的按位取值（0..=13）严格一致。
 pub(crate) const WIKI_PAGE_META_COLS: &str = "id, slug, kind, title, summary, tags, \
      evidence_count, first_seen_at, last_seen_at, status, created_at, updated_at, source_url, \
-     COALESCE(area, 'insight')";
+     COALESCE(area, 'insight'), opinion";
 
 /// wiki 页面（LLM wiki 知识库的一页，markdown 正文，derived data）
 #[derive(Debug, Clone)]

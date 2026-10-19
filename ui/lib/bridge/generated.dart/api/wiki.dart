@@ -277,6 +277,9 @@ class WikiPageMetaDto {
   final String? sourceUrl;
   final String area;
 
+  /// 孵化定论：NULL=孵化中（source/note 待定论）；endorse/reject 已定。
+  final String? opinion;
+
   const WikiPageMetaDto({
     required this.id,
     required this.slug,
@@ -292,6 +295,7 @@ class WikiPageMetaDto {
     required this.updatedAt,
     this.sourceUrl,
     required this.area,
+    this.opinion,
   });
 
   @override
@@ -309,7 +313,8 @@ class WikiPageMetaDto {
       createdAt.hashCode ^
       updatedAt.hashCode ^
       sourceUrl.hashCode ^
-      area.hashCode;
+      area.hashCode ^
+      opinion.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -329,5 +334,6 @@ class WikiPageMetaDto {
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
           sourceUrl == other.sourceUrl &&
-          area == other.area;
+          area == other.area &&
+          opinion == other.opinion;
 }

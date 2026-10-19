@@ -4964,6 +4964,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
     wireObj.source_url = cst_encode_opt_String(apiObj.sourceUrl);
     wireObj.area = cst_encode_String(apiObj.area);
+    wireObj.opinion = cst_encode_opt_String(apiObj.opinion);
   }
 
   @protected
@@ -20118,6 +20119,8 @@ final class wire_cst_wiki_page_meta_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> area;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> opinion;
+
   static ffi.Pointer<wire_cst_wiki_page_meta_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -20134,6 +20137,7 @@ final class wire_cst_wiki_page_meta_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_url,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> area,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> opinion,
   }) => $allocator<wire_cst_wiki_page_meta_dto>()
     ..ref.id = id
     ..ref.slug = slug
@@ -20148,5 +20152,6 @@ final class wire_cst_wiki_page_meta_dto extends ffi.Struct {
     ..ref.created_at = created_at
     ..ref.updated_at = updated_at
     ..ref.source_url = source_url
-    ..ref.area = area;
+    ..ref.area = area
+    ..ref.opinion = opinion;
 }

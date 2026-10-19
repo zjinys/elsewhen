@@ -2255,7 +2255,7 @@ fn list_wiki_page_metas_bounded_and_derivative_free() {
         .unwrap();
     let count: i64 = stmt.column_count().try_into().unwrap();
     stmt.finalize().unwrap();
-    assert_eq!(count, 14, "meta 列清单 = 14 列（无 content_md）");
+    assert_eq!(count, 15, "meta 列清单 = 15 列（无 content_md；含孵化 opinion）");
 
     let _ = std::fs::remove_file(path);
 }

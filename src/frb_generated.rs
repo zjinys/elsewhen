@@ -10906,6 +10906,7 @@ impl SseDecode for crate::api::wiki::WikiPageMetaDto {
         let mut var_updatedAt = <String>::sse_decode(deserializer);
         let mut var_sourceUrl = <Option<String>>::sse_decode(deserializer);
         let mut var_area = <String>::sse_decode(deserializer);
+        let mut var_opinion = <Option<String>>::sse_decode(deserializer);
         return crate::api::wiki::WikiPageMetaDto {
             id: var_id,
             slug: var_slug,
@@ -10921,6 +10922,7 @@ impl SseDecode for crate::api::wiki::WikiPageMetaDto {
             updated_at: var_updatedAt,
             source_url: var_sourceUrl,
             area: var_area,
+            opinion: var_opinion,
         };
     }
 }
@@ -13902,6 +13904,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::wiki::WikiPageMetaDto {
             self.updated_at.into_into_dart().into_dart(),
             self.source_url.into_into_dart().into_dart(),
             self.area.into_into_dart().into_dart(),
+            self.opinion.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -16500,6 +16503,7 @@ impl SseEncode for crate::api::wiki::WikiPageMetaDto {
         <String>::sse_encode(self.updated_at, serializer);
         <Option<String>>::sse_encode(self.source_url, serializer);
         <String>::sse_encode(self.area, serializer);
+        <Option<String>>::sse_encode(self.opinion, serializer);
     }
 }
 
@@ -19187,6 +19191,7 @@ mod io {
                 updated_at: self.updated_at.cst_decode(),
                 source_url: self.source_url.cst_decode(),
                 area: self.area.cst_decode(),
+                opinion: self.opinion.cst_decode(),
             }
         }
     }
@@ -21275,6 +21280,7 @@ mod io {
                 updated_at: core::ptr::null_mut(),
                 source_url: core::ptr::null_mut(),
                 area: core::ptr::null_mut(),
+                opinion: core::ptr::null_mut(),
             }
         }
     }
@@ -26751,6 +26757,7 @@ mod io {
         updated_at: *mut wire_cst_list_prim_u_8_strict,
         source_url: *mut wire_cst_list_prim_u_8_strict,
         area: *mut wire_cst_list_prim_u_8_strict,
+        opinion: *mut wire_cst_list_prim_u_8_strict,
     }
 }
 #[cfg(not(target_family = "wasm"))]
@@ -30519,8 +30526,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                14,
-                "Expected 14 elements, got {}",
+                15,
+                "Expected 15 elements, got {}",
                 self_.length()
             );
             crate::api::wiki::WikiPageMetaDto {
@@ -30538,6 +30545,7 @@ mod web {
                 updated_at: self_.get(11).cst_decode(),
                 source_url: self_.get(12).cst_decode(),
                 area: self_.get(13).cst_decode(),
+                opinion: self_.get(14).cst_decode(),
             }
         }
     }

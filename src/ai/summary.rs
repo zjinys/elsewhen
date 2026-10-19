@@ -606,6 +606,12 @@ pub(crate) fn background_preheat_with(
     model: &str,
     budget: usize,
 ) -> Result<i64> {
+    // 三个预算数当成一组调：MAX_REQUESTS（批内 64）×~2 ≈
+    // MAX_TICK_REQUESTS（tick 128）保证冷启动树 2 批建完；6 是批数防御
+    // 上限。三数一致由 pct 语义保证，单独动任何一个都会改变熔断行为。
+    // 已知饿隙：预算检查在批前（不在批中），单批超发最多一个
+    // MAX_REQUESTS——当前 64/128 最坏 192 请求/tick，可接受；若
+    // MAX_REQUESTS 将来调大需重估。
     const MAX_TICK_REQUESTS: usize = 128;
     const MAX_BATCHES: usize = 6;
     let tick_started = chrono::Utc::now().to_rfc3339();

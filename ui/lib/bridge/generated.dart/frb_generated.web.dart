@@ -4281,6 +4281,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.updatedAt),
       cst_encode_opt_String(raw.sourceUrl),
       cst_encode_String(raw.area),
+      cst_encode_opt_String(raw.opinion),
     ].jsify()!;
   }
 

@@ -20,6 +20,8 @@ pub struct WikiPageMetaDto {
     pub updated_at: String,
     pub source_url: Option<String>,
     pub area: String,
+    /// 孵化定论：NULL=孵化中（source/note 待定论）；endorse/reject 已定。
+    pub opinion: Option<String>,
 }
 
 impl From<crate::storage::WikiPageMeta> for WikiPageMetaDto {
@@ -39,6 +41,7 @@ impl From<crate::storage::WikiPageMeta> for WikiPageMetaDto {
             updated_at: m.updated_at,
             source_url: m.source_url,
             area: m.area,
+            opinion: m.opinion,
         }
     }
 }
