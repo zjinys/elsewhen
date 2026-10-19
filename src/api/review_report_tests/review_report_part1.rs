@@ -8,8 +8,7 @@ fn windows_and_due_gate_follow_period_end_anchor() {
     assert_eq!(start, NaiveDate::from_ymd_opt(2026, 3, 2).unwrap());
     assert_eq!(end, sunday);
     // 月窗口：月末锚 → 自然月。
-    let (ms, me) =
-        report_window("month", NaiveDate::from_ymd_opt(2026, 2, 28).unwrap()).unwrap();
+    let (ms, me) = report_window("month", NaiveDate::from_ymd_opt(2026, 2, 28).unwrap()).unwrap();
     assert_eq!(
         (ms, me),
         (

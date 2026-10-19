@@ -61,7 +61,7 @@ mod period_stats;
 mod records;
 mod review_flow;
 
-pub use analysis_queue::*;
+pub(crate) use analysis_queue::*;
 pub use analysis_schema::*;
 pub use companion_flow::*;
 pub use period_stats::*;

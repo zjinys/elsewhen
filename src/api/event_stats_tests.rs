@@ -325,3 +325,4 @@ fn samples_newest_first_and_truncated() {
     assert_eq!(outcome.samples.len(), 12);
     assert_eq!(outcome.samples[0].text.chars().count(), 240, "原文超长截断");
     assert!(outcome.samples[1].text.contains("第1次散步"));
+}

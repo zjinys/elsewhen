@@ -2,7 +2,8 @@ use super::*;
 
 #[test]
 fn ollama_response_parses_eval_counts() {
-    let json = r#"{"message":{"content":"hi"},"model":"llama3","prompt_eval_count":20,"eval_count":8}"#;
+    let json =
+        r#"{"message":{"content":"hi"},"model":"llama3","prompt_eval_count":20,"eval_count":8}"#;
     let resp: OllamaResponse = serde_json::from_str(json).unwrap();
     assert_eq!(resp.model.as_deref(), Some("llama3"));
     assert_eq!(resp.prompt_eval_count, Some(20));
