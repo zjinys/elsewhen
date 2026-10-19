@@ -4258,6 +4258,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.headers_json = cst_encode_String(apiObj.headersJson);
     wireObj.enabled = cst_encode_bool(apiObj.enabled);
     wireObj.trusted = cst_encode_bool(apiObj.trusted);
+    wireObj.allow_readonly_auto = cst_encode_bool(apiObj.allowReadonlyAuto);
   }
 
   @protected
@@ -6466,9 +6467,9 @@ class RustLibWire implements BaseWire {
   }
 
   late final _cst_new_box_autoadd_boolPtr =
-      _lookup<
-        ffi.NativeFunction<ffi.Pointer<ffi.Bool> Function(ffi.Bool)>
-      >('frbgen_elsewhen_ui_cst_new_box_autoadd_bool');
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Bool> Function(ffi.Bool)>>(
+        'frbgen_elsewhen_ui_cst_new_box_autoadd_bool',
+      );
   late final _cst_new_box_autoadd_bool = _cst_new_box_autoadd_boolPtr
       .asFunction<ffi.Pointer<ffi.Bool> Function(bool)>();
 
@@ -7939,16 +7940,16 @@ class RustLibWire implements BaseWire {
   late final _dummy_method_to_enforce_bundling =
       _dummy_method_to_enforce_bundlingPtr.asFunction<int Function()>();
 
-  void store_dart_post_cobject(int ptr) {
+  void store_dart_post_cobject(DartPostCObjectFnType ptr) {
     return _store_dart_post_cobject(ptr);
   }
 
   late final _store_dart_post_cobjectPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>(
+      _lookup<ffi.NativeFunction<ffi.Void Function(DartPostCObjectFnType)>>(
         'store_dart_post_cobject',
       );
   late final _store_dart_post_cobject = _store_dart_post_cobjectPtr
-      .asFunction<void Function(int)>();
+      .asFunction<void Function(DartPostCObjectFnType)>();
 
   void wire__crate__api__begin_url_input(
     int port_,
@@ -8016,11 +8017,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__chat_proposals__decide_chat_proposal =
       _wire__crate__api__chat_proposals__decide_chat_proposalPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_chat_review_request>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_chat_review_request>, bool)
           >();
 
   void wire__crate__api__chat_proposals__edit_chat_proposal(
@@ -9103,11 +9100,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__conversations__set_conversation_archived =
       _wire__crate__api__conversations__set_conversation_archivedPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__conversations__update_pending_action_args(
@@ -10711,11 +10704,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__knowledge__resolve_knowledge_proposal =
       _wire__crate__api__knowledge__resolve_knowledge_proposalPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__knowledge__resolve_topic_organization(
@@ -10745,11 +10734,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__knowledge__resolve_topic_organization =
       _wire__crate__api__knowledge__resolve_topic_organizationPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__knowledge__tick_knowledge_insights(int port_) {
@@ -11153,11 +11138,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__knowledge_workflows__resolve_knowledge_batch =
       _wire__crate__api__knowledge_workflows__resolve_knowledge_batchPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_String>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_String>, bool)
           >();
 
   void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
@@ -11436,6 +11417,36 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_mcp_server_dto>)
           >();
 
+  void wire__crate__api__mcp__set_mcp_server_allow_readonly_auto(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    bool allow,
+  ) {
+    return _wire__crate__api__mcp__set_mcp_server_allow_readonly_auto(
+      port_,
+      id,
+      allow,
+    );
+  }
+
+  late final _wire__crate__api__mcp__set_mcp_server_allow_readonly_autoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__mcp__set_mcp_server_allow_readonly_auto',
+      );
+  late final _wire__crate__api__mcp__set_mcp_server_allow_readonly_auto =
+      _wire__crate__api__mcp__set_mcp_server_allow_readonly_autoPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
   void wire__crate__api__mcp__set_mcp_server_enabled(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -11457,11 +11468,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__mcp__set_mcp_server_enabled =
       _wire__crate__api__mcp__set_mcp_server_enabledPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__mcp__set_mcp_server_trusted(
@@ -11485,11 +11492,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__mcp__set_mcp_server_trusted =
       _wire__crate__api__mcp__set_mcp_server_trustedPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__mcp__test_mcp_server(
@@ -11629,11 +11632,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__page_marks__set_page_mark_active =
       _wire__crate__api__page_marks__set_page_mark_activePtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__provider_config__delete_ai_provider_config(
@@ -12341,9 +12340,7 @@ class RustLibWire implements BaseWire {
 
   late final _wire__crate__api__set_companion_prefsPtr =
       _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(ffi.Int64, ffi.Bool, ffi.Int64)
-        >
+        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool, ffi.Int64)>
       >('frbgen_elsewhen_ui_wire__crate__api__set_companion_prefs');
   late final _wire__crate__api__set_companion_prefs =
       _wire__crate__api__set_companion_prefsPtr
@@ -12374,11 +12371,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__set_event_recordability =
       _wire__crate__api__set_event_recordabilityPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__set_guidance_feedback(
@@ -12788,11 +12781,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__sync__create_owner_sync_invitation =
       _wire__crate__api__sync__create_owner_sync_invitationPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__sync__discard_sync_join_staging(
@@ -13891,11 +13880,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__todos__set_todo_reminder =
       _wire__crate__api__todos__set_todo_reminderPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__todos__snooze_reminder(
@@ -14374,11 +14359,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__user_skills__set_user_skill_enabled =
       _wire__crate__api__user_skills__set_user_skill_enabledPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__user_skills__set_user_skill_trusted(
@@ -14408,11 +14389,7 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__user_skills__set_user_skill_trusted =
       _wire__crate__api__user_skills__set_user_skill_trustedPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
   void wire__crate__api__user_skills__uninstall_user_skill(
@@ -15224,6 +15201,16 @@ final class DailyReviewResultKind extends ffi.Union {
 
 typedef DartPort = ffi.Int64;
 typedef DartDartPort = int;
+typedef DartPostCObjectFnType =
+    ffi.Pointer<ffi.NativeFunction<DartPostCObjectFnTypeFunction>>;
+typedef DartPostCObjectFnTypeFunction = ffi.Bool Function(
+  DartPort port_id,
+  ffi.Pointer<ffi.Void> message,
+);
+typedef DartDartPostCObjectFnTypeFunction = bool Function(
+  DartDartPort port_id,
+  ffi.Pointer<ffi.Void> message,
+);
 
 const int ENVELOPE_VERSION = 1;
 
@@ -18715,6 +18702,9 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
   @ffi.Bool()
   external bool trusted;
 
+  @ffi.Bool()
+  external bool allow_readonly_auto;
+
   static ffi.Pointer<wire_cst_mcp_server_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -18728,6 +18718,7 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> headers_json,
     required bool enabled,
     required bool trusted,
+    required bool allow_readonly_auto,
   }) => $allocator<wire_cst_mcp_server_dto>()
     ..ref.id = id
     ..ref.name = name
@@ -18739,7 +18730,8 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
     ..ref.url = url
     ..ref.headers_json = headers_json
     ..ref.enabled = enabled
-    ..ref.trusted = trusted;
+    ..ref.trusted = trusted
+    ..ref.allow_readonly_auto = allow_readonly_auto;
 }
 
 final class wire_cst_mcp_tool_dto extends ffi.Struct {

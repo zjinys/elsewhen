@@ -7,7 +7,7 @@
 //! 激活过滤与 trusted 置 0 兑现（见 snapshot apply）。
 
 use super::Store;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use rusqlite::params;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -30,6 +30,10 @@ pub struct McpServerConfig {
     /// 不再创建 pending-action 审批卡。MCP server 是第三方代码，开启
     /// 即视为用户自担风险（设置页有明示）。
     pub trusted: bool,
+    /// 只读免审批白名单（迁移 53）：true 时该 server 下
+    /// annotations.readOnlyHint=true 的工具调用跳过逐次审批直执行，
+    /// 仍留事件痕迹。默认 0；不进快照同步域（本机策略）。
+    pub allow_readonly_auto: bool,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -74,7 +78,12 @@ fn validate_env(env: &serde_json::Value) -> Result<()> {
     if !env.is_object() {
         bail!("env 必须是字符串到字符串的对象");
     }
-    if env.as_object().unwrap().iter().any(|(k, v)| !v.is_string() || k.is_empty()) {
+    if env
+        .as_object()
+        .unwrap()
+        .iter()
+        .any(|(k, v)| !v.is_string() || k.is_empty())
+    {
         bail!("env 必须是字符串到字符串的对象");
     }
     Ok(())
@@ -84,9 +93,12 @@ fn validate_headers(headers: &serde_json::Value) -> Result<()> {
     if !headers.is_object() {
         bail!("headers 必须是字符串到字符串的对象");
     }
-    if headers.as_object().unwrap().iter().any(|(k, v)| {
-        !v.is_string() || k.is_empty()
-    }) {
+    if headers
+        .as_object()
+        .unwrap()
+        .iter()
+        .any(|(k, v)| !v.is_string() || k.is_empty())
+    {
         bail!("headers 必须是字符串到字符串的对象");
     }
     Ok(())
@@ -95,7 +107,7 @@ fn validate_headers(headers: &serde_json::Value) -> Result<()> {
 impl Store {
     pub fn list_mcp_servers(&self) -> Result<Vec<McpServerConfig>> {
         let mut statement = self.connection.prepare(
-            "SELECT id,name,platform,transport,command,args_json,env_json,url,headers_json,enabled,trusted,created_at,updated_at
+            "SELECT id,name,platform,transport,command,args_json,env_json,url,headers_json,enabled,trusted,allow_readonly_auto,created_at,updated_at
              FROM mcp_servers ORDER BY created_at ASC, id ASC",
         )?;
         let rows = statement.query_map([], |row| {
@@ -111,8 +123,9 @@ impl Store {
                 headers_json: row.get(8)?,
                 enabled: row.get::<_, i64>(9)? != 0,
                 trusted: row.get::<_, i64>(10)? != 0,
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
+                allow_readonly_auto: row.get::<_, i64>(11)? != 0,
+                created_at: row.get(12)?,
+                updated_at: row.get(13)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -130,10 +143,7 @@ impl Store {
     }
 
     pub fn get_mcp_server(&self, id: &str) -> Result<Option<McpServerConfig>> {
-        Ok(self
-            .list_mcp_servers()?
-            .into_iter()
-            .find(|s| s.id == id))
+        Ok(self.list_mcp_servers()?.into_iter().find(|s| s.id == id))
     }
 
     /// 新建或更新。id 为 None 则新建；(name, platform) 唯一（同一名 server
@@ -190,8 +200,7 @@ impl Store {
         let args: serde_json::Value =
             serde_json::from_str(args_json).context("args 不是合法 JSON")?;
         validate_args(&args)?;
-        let env: serde_json::Value =
-            serde_json::from_str(env_json).context("env 不是合法 JSON")?;
+        let env: serde_json::Value = serde_json::from_str(env_json).context("env 不是合法 JSON")?;
         validate_env(&env)?;
         let now = chrono::Utc::now().to_rfc3339();
         match id {
@@ -221,9 +230,7 @@ impl Store {
                     .ok();
                 if let Some(other) = existing {
                     if Some(other.as_str()) != id {
-                        bail!(
-                            "已存在同名同平台的 MCP 服务器「{name}」（platform={platform}）"
-                        );
+                        bail!("已存在同名同平台的 MCP 服务器「{name}」（platform={platform}）");
                     }
                 }
                 let new_id = uuid::Uuid::new_v4().to_string();
@@ -265,6 +272,20 @@ impl Store {
         let updated = self.connection.execute(
             "UPDATE mcp_servers SET trusted=?2, updated_at=?3 WHERE id=?1",
             params![id, trusted as i64, chrono::Utc::now().to_rfc3339()],
+        )?;
+        if updated == 0 {
+            bail!("未找到 MCP 服务器（id={id}）");
+        }
+        super::super::ai::mcp::invalidate_server(id);
+        Ok(())
+    }
+
+    /// 只读免审批白名单开关（迁移 53；事故 2026-10-19 P0 建议的落地
+    /// 前提）。变更后缓存即时失效。
+    pub fn set_mcp_server_allow_readonly_auto(&self, id: &str, allow: bool) -> Result<()> {
+        let updated = self.connection.execute(
+            "UPDATE mcp_servers SET allow_readonly_auto=?2, updated_at=?3 WHERE id=?1",
+            params![id, allow as i64, chrono::Utc::now().to_rfc3339()],
         )?;
         if updated == 0 {
             bail!("未找到 MCP 服务器（id={id}）");
@@ -339,73 +360,170 @@ mod tests {
         let store = fixture();
         let linux = save(&store, "fs-a", "linux", "stdio", "npx", true);
         // 非法平台标签拒绝。
-        assert!(store.save_mcp_server(None, "fs-b", "android", "stdio", "cmd", "[]", "{}", "", "{}", true, false).is_err());
+        assert!(
+            store
+                .save_mcp_server(
+                    None, "fs-b", "android", "stdio", "cmd", "[]", "{}", "", "{}", true, false
+                )
+                .is_err()
+        );
         // 同名同平台冲突拒绝。
-        assert!(store.save_mcp_server(None, "fs-a", "linux", "stdio", "other", "[]", "{}", "", "{}", true, false).is_err());
+        assert!(
+            store
+                .save_mcp_server(
+                    None, "fs-a", "linux", "stdio", "other", "[]", "{}", "", "{}", true, false
+                )
+                .is_err()
+        );
         // 同名不同平台变体允许（stdio 各平台命令不同是常态）。
-        let win = store.save_mcp_server(None, "fs-a", "windows", "stdio", "npx.cmd", "[]", "{}", "", "{}", true, false).unwrap();
+        let win = store
+            .save_mcp_server(
+                None, "fs-a", "windows", "stdio", "npx.cmd", "[]", "{}", "", "{}", true, false,
+            )
+            .unwrap();
         assert_ne!(win, linux);
         // 激活过滤：all 行恒适用；停用不激活。当前平台断言与值域一致。
         store.set_mcp_server_enabled(&win, false).unwrap();
         let active = store.list_active_mcp_servers().unwrap();
         assert!(active.iter().all(|s| s.enabled));
-        assert!(matches!(current_platform(), "linux" | "macos" | "windows" | "android" | "ios" | "unknown"));
+        assert!(matches!(
+            current_platform(),
+            "linux" | "macos" | "windows" | "android" | "ios" | "unknown"
+        ));
         let all_id = save(&store, "remote", "all", "streamable-http", "", true);
         let all_row = store.get_mcp_server(&all_id).unwrap().unwrap();
         assert!(all_row.platform_matches_current(), "all 行必须恒适用");
-        assert!(!active.iter().any(|s| s.id == win), "停用/不适用平台的行不得激活");
+        assert!(
+            !active.iter().any(|s| s.id == win),
+            "停用/不适用平台的行不得激活"
+        );
     }
 
-    fn save(store: &Store, name: &str, platform: &str, transport: &str, command: &str, enabled: bool) -> String {
-        let url = if transport == "streamable-http" { "https://mcp.example.com/mcp" } else { "" };
-        store.save_mcp_server(
-            None, name, platform, transport, command, "[]", "{}", url, "{}", enabled, false,
-        ).unwrap()
+    fn save(
+        store: &Store,
+        name: &str,
+        platform: &str,
+        transport: &str,
+        command: &str,
+        enabled: bool,
+    ) -> String {
+        let url = if transport == "streamable-http" {
+            "https://mcp.example.com/mcp"
+        } else {
+            ""
+        };
+        store
+            .save_mcp_server(
+                None, name, platform, transport, command, "[]", "{}", url, "{}", enabled, false,
+            )
+            .unwrap()
     }
 
     #[test]
     fn mcp_server_validation_rejects_bad_input() {
         let store = fixture();
         // 名称带非法字符（会污染合成工具名）。
-        assert!(store
-            .save_mcp_server(None, "bad name", "all", "stdio", "cmd", "[]", "{}", "", "{}", true, false)
-            .is_err());
+        assert!(
+            store
+                .save_mcp_server(
+                    None, "bad name", "all", "stdio", "cmd", "[]", "{}", "", "{}", true, false
+                )
+                .is_err()
+        );
         // transport 只认 stdio / streamable-http。
-        assert!(store
-            .save_mcp_server(
-                None, "ok-name", "all", "websocket", "cmd", "[]", "{}", "", "{}", true, false
-            )
-            .is_err());
+        assert!(
+            store
+                .save_mcp_server(
+                    None,
+                    "ok-name",
+                    "all",
+                    "websocket",
+                    "cmd",
+                    "[]",
+                    "{}",
+                    "",
+                    "{}",
+                    true,
+                    false
+                )
+                .is_err()
+        );
         // args 不是字符串数组。
-        assert!(store
-            .save_mcp_server(
-                None, "ok-name", "all", "stdio", "cmd", r#"["-y",3]"#, "{}", "", "{}", true, false
-            )
-            .is_err());
+        assert!(
+            store
+                .save_mcp_server(
+                    None,
+                    "ok-name",
+                    "all",
+                    "stdio",
+                    "cmd",
+                    r#"["-y",3]"#,
+                    "{}",
+                    "",
+                    "{}",
+                    true,
+                    false
+                )
+                .is_err()
+        );
         // stdio 命令为空。
-        assert!(store
-            .save_mcp_server(
-                None, "ok-name", "all", "stdio", "  ", "[]", "{}", "", "{}", true, false
-            )
-            .is_err());
+        assert!(
+            store
+                .save_mcp_server(
+                    None, "ok-name", "all", "stdio", "  ", "[]", "{}", "", "{}", true, false
+                )
+                .is_err()
+        );
         // streamable-http 需要 http(s) URL。
-        assert!(store
-            .save_mcp_server(
-                None, "ok-name", "all", "streamable-http", "", "[]", "{}", "ftp://x", "{}", true, false
-            )
-            .is_err());
+        assert!(
+            store
+                .save_mcp_server(
+                    None,
+                    "ok-name",
+                    "all",
+                    "streamable-http",
+                    "",
+                    "[]",
+                    "{}",
+                    "ftp://x",
+                    "{}",
+                    true,
+                    false
+                )
+                .is_err()
+        );
         // streamable-http 不吃本地命令。
-        assert!(store
-            .save_mcp_server(
-                None, "ok-name", "all", "streamable-http", "npx", "[]", "{}",
-                "https://mcp.example.com/mcp", "{}", true, false
-            )
-            .is_err());
+        assert!(
+            store
+                .save_mcp_server(
+                    None,
+                    "ok-name",
+                    "all",
+                    "streamable-http",
+                    "npx",
+                    "[]",
+                    "{}",
+                    "https://mcp.example.com/mcp",
+                    "{}",
+                    true,
+                    false
+                )
+                .is_err()
+        );
         // 合法远程配置落地且 url 原样保存。
         let id = store
             .save_mcp_server(
-                None, "remote", "all", "streamable-http", "", "[]", "{}",
-                "https://mcp.example.com/mcp", r#"{"Authorization":"Bearer t"}"#, true, false,
+                None,
+                "remote",
+                "all",
+                "streamable-http",
+                "",
+                "[]",
+                "{}",
+                "https://mcp.example.com/mcp",
+                r#"{"Authorization":"Bearer t"}"#,
+                true,
+                false,
             )
             .unwrap();
         let listed = store.get_mcp_server(&id).unwrap().unwrap();

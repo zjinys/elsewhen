@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1005541329;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1056880788;
 
 // Section: executor
 
@@ -5989,6 +5989,32 @@ fn wire__crate__api__knowledge_workflows__set_knowledge_reading_state_impl(
         },
     )
 }
+fn wire__crate__api__mcp__set_mcp_server_allow_readonly_auto_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    allow: impl CstDecode<bool>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_mcp_server_allow_readonly_auto",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_allow = allow.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::mcp::set_mcp_server_allow_readonly_auto(api_id, api_allow)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__mcp__set_mcp_server_enabled_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
@@ -9634,6 +9660,7 @@ impl SseDecode for crate::api::mcp::McpServerDto {
         let mut var_headersJson = <String>::sse_decode(deserializer);
         let mut var_enabled = <bool>::sse_decode(deserializer);
         let mut var_trusted = <bool>::sse_decode(deserializer);
+        let mut var_allowReadonlyAuto = <bool>::sse_decode(deserializer);
         return crate::api::mcp::McpServerDto {
             id: var_id,
             name: var_name,
@@ -9646,6 +9673,7 @@ impl SseDecode for crate::api::mcp::McpServerDto {
             headers_json: var_headersJson,
             enabled: var_enabled,
             trusted: var_trusted,
+            allow_readonly_auto: var_allowReadonlyAuto,
         };
     }
 }
@@ -12795,6 +12823,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::mcp::McpServerDto {
             self.headers_json.into_into_dart().into_dart(),
             self.enabled.into_into_dart().into_dart(),
             self.trusted.into_into_dart().into_dart(),
+            self.allow_readonly_auto.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -15867,6 +15896,7 @@ impl SseEncode for crate::api::mcp::McpServerDto {
         <String>::sse_encode(self.headers_json, serializer);
         <bool>::sse_encode(self.enabled, serializer);
         <bool>::sse_encode(self.trusted, serializer);
+        <bool>::sse_encode(self.allow_readonly_auto, serializer);
     }
 }
 
@@ -18801,6 +18831,7 @@ mod io {
                 headers_json: self.headers_json.cst_decode(),
                 enabled: self.enabled.cst_decode(),
                 trusted: self.trusted.cst_decode(),
+                allow_readonly_auto: self.allow_readonly_auto.cst_decode(),
             }
         }
     }
@@ -20756,6 +20787,7 @@ mod io {
                 headers_json: core::ptr::null_mut(),
                 enabled: Default::default(),
                 trusted: Default::default(),
+                allow_readonly_auto: Default::default(),
             }
         }
     }
@@ -23900,6 +23932,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__mcp__set_mcp_server_allow_readonly_auto(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        allow: bool,
+    ) {
+        wire__crate__api__mcp__set_mcp_server_allow_readonly_auto_impl(port_, id, allow)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__mcp__set_mcp_server_enabled(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
@@ -26699,6 +26740,7 @@ mod io {
         headers_json: *mut wire_cst_list_prim_u_8_strict,
         enabled: bool,
         trusted: bool,
+        allow_readonly_auto: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -29815,8 +29857,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                11,
-                "Expected 11 elements, got {}",
+                12,
+                "Expected 12 elements, got {}",
                 self_.length()
             );
             crate::api::mcp::McpServerDto {
@@ -29831,6 +29873,7 @@ mod web {
                 headers_json: self_.get(8).cst_decode(),
                 enabled: self_.get(9).cst_decode(),
                 trusted: self_.get(10).cst_decode(),
+                allow_readonly_auto: self_.get(11).cst_decode(),
             }
         }
     }
@@ -33469,6 +33512,15 @@ mod web {
         state: String,
     ) {
         wire__crate__api__knowledge_workflows__set_knowledge_reading_state_impl(port_, slug, state)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__mcp__set_mcp_server_allow_readonly_auto(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        allow: bool,
+    ) {
+        wire__crate__api__mcp__set_mcp_server_allow_readonly_auto_impl(port_, id, allow)
     }
 
     #[wasm_bindgen]

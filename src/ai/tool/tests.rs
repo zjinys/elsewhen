@@ -1056,6 +1056,7 @@ fn mcp_tool(server: &str, raw: &str, desc_len: usize) -> crate::ai::mcp::McpTool
             "properties":{"owner":{"type":"string"},"repo":{"type":"string"}},
             "required":["owner","repo"]
         }),
+        read_only_hint: false,
     }
 }
 

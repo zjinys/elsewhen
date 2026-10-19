@@ -32,6 +32,10 @@ pub struct McpServerDto {
     /// 免审批开关（迁移 47）：true 时工具调用直接执行，不再弹审批卡。
     #[serde(default)]
     pub trusted: bool,
+    /// 只读免审批白名单（迁移 53）：true 时该 server 下
+    /// annotations.readOnlyHint=true 的工具调用跳过逐次审批直执行。
+    #[serde(default)]
+    pub allow_readonly_auto: bool,
 }
 
 fn default_true() -> bool {
@@ -72,6 +76,7 @@ pub fn list_mcp_servers() -> Result<Vec<McpServerDto>> {
             headers_json: s.headers_json,
             enabled: s.enabled,
             trusted: s.trusted,
+            allow_readonly_auto: s.allow_readonly_auto,
         })
         .collect())
 }
@@ -127,7 +132,10 @@ pub fn save_mcp_server(server: McpServerDto) -> Result<String> {
     )?;
     record_mcp_audit(
         if is_new { "create" } else { "update" },
-        &format!("name={} platform={platform} trusted={}", server.name, server.trusted),
+        &format!(
+            "name={} platform={platform} trusted={}",
+            server.name, server.trusted
+        ),
     );
     Ok(id)
 }
@@ -142,8 +150,20 @@ pub fn delete_mcp_server(id: String) -> Result<()> {
 pub fn set_mcp_server_enabled(id: String, enabled: bool) -> Result<()> {
     let store = store_from_config()?;
     store.set_mcp_server_enabled(&id, enabled)?;
+    record_mcp_audit(if enabled { "enable" } else { "disable" }, &id);
+    Ok(())
+}
+
+/// 只读免审批白名单开关（迁移 53）：按 server 显式打开，不盲信上游标注。
+pub fn set_mcp_server_allow_readonly_auto(id: String, allow: bool) -> Result<()> {
+    let store = store_from_config()?;
+    store.set_mcp_server_allow_readonly_auto(&id, allow)?;
     record_mcp_audit(
-        if enabled { "enable" } else { "disable" },
+        if allow {
+            "allow-readonly-auto"
+        } else {
+            "disallow-readonly-auto"
+        },
         &id,
     );
     Ok(())
@@ -153,10 +173,7 @@ pub fn set_mcp_server_trusted(id: String, trusted: bool) -> Result<()> {
     let store = store_from_config()?;
     store.set_mcp_server_trusted(&id, trusted)?;
     // 免审批开关最该留痕：这是对第三方代码信任边界的显式放宽。
-    record_mcp_audit(
-        if trusted { "trust" } else { "untrust" },
-        &id,
-    );
+    record_mcp_audit(if trusted { "trust" } else { "untrust" }, &id);
     Ok(())
 }
 
@@ -179,6 +196,7 @@ pub fn test_mcp_server(server: McpServerDto) -> Result<Vec<McpToolDto>> {
         headers_json: server.headers_json.clone(),
         enabled: true,
         trusted: false,
+        allow_readonly_auto: false,
         created_at: String::new(),
         updated_at: String::new(),
     };

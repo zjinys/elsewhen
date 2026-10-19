@@ -805,7 +805,7 @@ pub(crate) fn dispatch_with_knowledge(
                     servers
                         .into_iter()
                         .find(|s| s.name == server_name)
-                        .map(|s| (s.transport, s.trusted))
+                        .map(|s| (s.transport, s.trusted, s.allow_readonly_auto))
                 });
                 if server_info.is_none() {
                     return ToolResultMsg::err(
@@ -816,7 +816,29 @@ pub(crate) fn dispatch_with_knowledge(
                     );
                 }
                 // trusted=1：跳过审批直接执行，错误同样以结果文本返回。
-                if server_info.map(|(_, trusted)| trusted).unwrap_or(false) {
+                // 只读白名单（迁移 53）：server 显式开了 allow_readonly_auto
+                // 且该工具带上游 annotations.readOnlyHint 才免逐次审批——
+                // 不盲信任一单一来源；免审批不等于无痕，仍记事件。
+                let auto_readonly = server_info.as_ref().map_or(false, |(_, _, allow)| {
+                    *allow
+                        && registry
+                            .mcp_tools()
+                            .iter()
+                            .any(|t| t.name == call.name && t.read_only_hint)
+                });
+                if server_info.map_or(false, |(_, trusted, _)| trusted) || auto_readonly {
+                    // 免审批不等于无痕：先写独立执行审计（会话外留痕）。
+                    crate::ai::mcp::record_exec_audit(
+                        if auto_readonly {
+                            "readonly-auto-execute"
+                        } else {
+                            "trusted-execute"
+                        },
+                        &format!(
+                            "tool={} conversation={} readonly_hint={}",
+                            call.name, conversation_id, auto_readonly
+                        ),
+                    );
                     return match crate::ai::mcp::call_tool(store, &call.name, &call.arguments) {
                         Ok(output) => ToolResultMsg::ok(call, output),
                         Err(e) => ToolResultMsg::err(call, e),

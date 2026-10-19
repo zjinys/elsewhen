@@ -25,6 +25,15 @@ Future<void> setMcpServerEnabled({required String id, required bool enabled}) =>
       enabled: enabled,
     );
 
+/// 只读免审批白名单开关（迁移 53）：按 server 显式打开，不盲信上游标注。
+Future<void> setMcpServerAllowReadonlyAuto({
+  required String id,
+  required bool allow,
+}) => RustLib.instance.api.crateApiMcpSetMcpServerAllowReadonlyAuto(
+  id: id,
+  allow: allow,
+);
+
 Future<void> setMcpServerTrusted({required String id, required bool trusted}) =>
     RustLib.instance.api.crateApiMcpSetMcpServerTrusted(
       id: id,
@@ -63,6 +72,10 @@ class McpServerDto {
   /// 免审批开关（迁移 47）：true 时工具调用直接执行，不再弹审批卡。
   final bool trusted;
 
+  /// 只读免审批白名单（迁移 53）：true 时该 server 下
+  /// annotations.readOnlyHint=true 的工具调用跳过逐次审批直执行。
+  final bool allowReadonlyAuto;
+
   const McpServerDto({
     required this.id,
     required this.name,
@@ -75,6 +88,7 @@ class McpServerDto {
     required this.headersJson,
     required this.enabled,
     required this.trusted,
+    required this.allowReadonlyAuto,
   });
 
   @override
@@ -89,7 +103,8 @@ class McpServerDto {
       url.hashCode ^
       headersJson.hashCode ^
       enabled.hashCode ^
-      trusted.hashCode;
+      trusted.hashCode ^
+      allowReadonlyAuto.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -106,7 +121,8 @@ class McpServerDto {
           url == other.url &&
           headersJson == other.headersJson &&
           enabled == other.enabled &&
-          trusted == other.trusted;
+          trusted == other.trusted &&
+          allowReadonlyAuto == other.allowReadonlyAuto;
 }
 
 class McpToolDto {

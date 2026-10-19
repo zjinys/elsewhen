@@ -1090,6 +1090,13 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> setMcpServerTrusted({required String id, required bool trusted}) =>
       api.setMcpServerTrusted(id: id, trusted: trusted);
 
+  /// 只读免审批白名单（迁移 53）：仅对该服务器下标了 readOnlyHint 的
+  /// 工具免逐次审批；不盲信上游标注，开关由用户按服务器显式打开。
+  Future<void> setMcpServerAllowReadonlyAuto({
+    required String id,
+    required bool allow,
+  }) => api.setMcpServerAllowReadonlyAuto(id: id, allow: allow);
+
   /// 连通性测试：拉起进程走握手并取回工具清单。
   Future<List<api.McpToolDto>> testMcpServer(api.McpServerDto server) =>
       api.testMcpServer(server: server);

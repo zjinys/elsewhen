@@ -3444,6 +3444,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.headersJson),
       cst_encode_bool(raw.enabled),
       cst_encode_bool(raw.trusted),
+      cst_encode_bool(raw.allowReadonlyAuto),
     ].jsify()!;
   }
 
@@ -7632,6 +7633,16 @@ class RustLibWire implements BaseWire {
         state,
       );
 
+  void wire__crate__api__mcp__set_mcp_server_allow_readonly_auto(
+    NativePortType port_,
+    String id,
+    bool allow,
+  ) => wasmModule.wire__crate__api__mcp__set_mcp_server_allow_readonly_auto(
+    port_,
+    id,
+    allow,
+  );
+
   void wire__crate__api__mcp__set_mcp_server_enabled(
     NativePortType port_,
     String id,
@@ -9292,6 +9303,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     String state,
+  );
+
+  external void wire__crate__api__mcp__set_mcp_server_allow_readonly_auto(
+    NativePortType port_,
+    String id,
+    bool allow,
   );
 
   external void wire__crate__api__mcp__set_mcp_server_enabled(

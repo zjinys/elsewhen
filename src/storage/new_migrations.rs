@@ -168,6 +168,7 @@ mod tests {
                 "50-clip-incubation-gate",
                 "51-todo-reminder-fires",
                 "52-knowledge-reconsolidation-relations",
+                "53-mcp-allow-readonly-auto",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -199,7 +200,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 52, "五十二条迁移跑完，user_version 应为 52");
+        assert_eq!(version, 53, "五十三条迁移跑完，user_version 应为 53");
         assert_eq!(
             latest_version().unwrap(),
             version,

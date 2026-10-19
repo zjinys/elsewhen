@@ -16,7 +16,10 @@ full_dep: true
 dart_root: ui
 
 # ⚠️ 重新生成桥接代码时，必须让 ffigen 找到 stdbool.h：
-#   CPATH=/usr/lib/clang/22/include flutter_rust_bridge_codegen generate
+#   CPATH=/usr/lib/clang/23/include flutter_rust_bridge_codegen generate
+#   （路径里的 23 是 clang 大版本，随系统升级变化；先 ls /usr/lib/clang/*/include/stdbool.h
+#   确认实际目录。2026-10-19 曾因 clang 22→23 升级后仍传旧路径，ffigen 找不到
+#   stdbool.h，产出 83 处 Pointer<bool> 毒化 typedef，靠上面 grep 自检发现。）
 # 否则 libclang 解析 C 头失败，会在 frb_generated.io.dart 里生成污染性的
 # `typedef bool = ffi.NativeFunction<...>`，导致全部 bool 类型编译报错。
 #
