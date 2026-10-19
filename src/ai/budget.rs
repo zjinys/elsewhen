@@ -537,8 +537,6 @@ fn is_cjk(ch: char) -> bool {
         | 0xF900..=0xFAFF // 兼容汉字
     )
 }
-#[cfg(test)]
-#[cfg(test)]
 
 /// 上下文窗口的保守默认（provider 未显式配置时）。
 /// 收录门槛与 rikkahub request-dialect 同理：主流模型族 + 官方文档口径，
