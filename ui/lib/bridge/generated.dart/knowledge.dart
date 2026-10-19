@@ -62,6 +62,108 @@ class KnowledgeCitation {
           eventIds == other.eventIds;
 }
 
+/// 知识系统健康巡检（2026-10-19 事故的教训：坏的环节在静默坏，
+/// 因为没人看仪表盘）。每个环节一个比率/计数，异动即定位。
+/// 纯查询，无副作用；窗口外的历史不计入 recent 字段。
+class KnowledgeHealthReport {
+  final String generatedAt;
+  final PlatformInt64 windowDays;
+  final PlatformInt64 proposalsPending;
+  final PlatformInt64 proposalsAccepted;
+  final PlatformInt64 proposalsRejected;
+  final PlatformInt64 backgroundRunsRecent;
+  final PlatformInt64 backgroundRunsFailedRecent;
+  final PlatformInt64 pagesActive;
+  final PlatformInt64 pagesArchived;
+  final PlatformInt64 pagesWithoutSummary;
+  final PlatformInt64 pagesStale;
+  final PlatformInt64 pagesNeverSurfaced;
+  final PlatformInt64 mountEventsRecent;
+  final PlatformInt64 mountPagesRecent;
+  final PlatformInt64 usageRecordsRecent;
+  final PlatformInt64 citedPagesRecent;
+  final PlatformInt64 searchCallsRecent;
+  final PlatformInt64 pageFetchCallsRecent;
+  final PlatformInt64 summaryReadyRecent;
+  final PlatformInt64 summaryUnavailableRecent;
+  final String? lastSummaryError;
+
+  const KnowledgeHealthReport({
+    required this.generatedAt,
+    required this.windowDays,
+    required this.proposalsPending,
+    required this.proposalsAccepted,
+    required this.proposalsRejected,
+    required this.backgroundRunsRecent,
+    required this.backgroundRunsFailedRecent,
+    required this.pagesActive,
+    required this.pagesArchived,
+    required this.pagesWithoutSummary,
+    required this.pagesStale,
+    required this.pagesNeverSurfaced,
+    required this.mountEventsRecent,
+    required this.mountPagesRecent,
+    required this.usageRecordsRecent,
+    required this.citedPagesRecent,
+    required this.searchCallsRecent,
+    required this.pageFetchCallsRecent,
+    required this.summaryReadyRecent,
+    required this.summaryUnavailableRecent,
+    this.lastSummaryError,
+  });
+
+  @override
+  int get hashCode =>
+      generatedAt.hashCode ^
+      windowDays.hashCode ^
+      proposalsPending.hashCode ^
+      proposalsAccepted.hashCode ^
+      proposalsRejected.hashCode ^
+      backgroundRunsRecent.hashCode ^
+      backgroundRunsFailedRecent.hashCode ^
+      pagesActive.hashCode ^
+      pagesArchived.hashCode ^
+      pagesWithoutSummary.hashCode ^
+      pagesStale.hashCode ^
+      pagesNeverSurfaced.hashCode ^
+      mountEventsRecent.hashCode ^
+      mountPagesRecent.hashCode ^
+      usageRecordsRecent.hashCode ^
+      citedPagesRecent.hashCode ^
+      searchCallsRecent.hashCode ^
+      pageFetchCallsRecent.hashCode ^
+      summaryReadyRecent.hashCode ^
+      summaryUnavailableRecent.hashCode ^
+      lastSummaryError.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is KnowledgeHealthReport &&
+          runtimeType == other.runtimeType &&
+          generatedAt == other.generatedAt &&
+          windowDays == other.windowDays &&
+          proposalsPending == other.proposalsPending &&
+          proposalsAccepted == other.proposalsAccepted &&
+          proposalsRejected == other.proposalsRejected &&
+          backgroundRunsRecent == other.backgroundRunsRecent &&
+          backgroundRunsFailedRecent == other.backgroundRunsFailedRecent &&
+          pagesActive == other.pagesActive &&
+          pagesArchived == other.pagesArchived &&
+          pagesWithoutSummary == other.pagesWithoutSummary &&
+          pagesStale == other.pagesStale &&
+          pagesNeverSurfaced == other.pagesNeverSurfaced &&
+          mountEventsRecent == other.mountEventsRecent &&
+          mountPagesRecent == other.mountPagesRecent &&
+          usageRecordsRecent == other.usageRecordsRecent &&
+          citedPagesRecent == other.citedPagesRecent &&
+          searchCallsRecent == other.searchCallsRecent &&
+          pageFetchCallsRecent == other.pageFetchCallsRecent &&
+          summaryReadyRecent == other.summaryReadyRecent &&
+          summaryUnavailableRecent == other.summaryUnavailableRecent &&
+          lastSummaryError == other.lastSummaryError;
+}
+
 class SourceReference {
   final String snapshotId;
   final String title;
