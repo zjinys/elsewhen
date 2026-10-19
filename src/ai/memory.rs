@@ -489,6 +489,31 @@ pub fn compress_context(context: &mut Vec<ContextMessage>, max_tokens: usize) {
     compress_context_for_model(context, max_tokens, "gpt-4");
 }
 
+/// R5 确定性压形：装不下的较早历史轮降级为「骨架」——assistant 长回复
+/// 留头 220 字、工具结果留头 160 字，用户消息与协议字段（tool_calls 的
+/// id/name 配对）原样。不做模型调用（前台零延迟）；真正的语义纪要归
+/// 翻篇摘要管线（apply_summary → PageMark）。压形后 content 与库内原文
+/// 不再逐字一致，摘要管线的 complete_originals 护栏会自然跳过这些轮，
+/// 避免把压形文本当全源再摘要。
+fn degrade_turn(
+    turn: &[ContextMessage],
+    estimate_tokens: &dyn Fn(&str) -> usize,
+) -> Vec<ContextMessage> {
+    turn.iter()
+        .map(|message| {
+            if message.role == "user" || estimate_tokens(&message.content) < 400 {
+                return message.clone();
+            }
+            let keep = if message.role == "tool" { 160 } else { 220 };
+            let mut content: String = message.content.chars().take(keep).collect();
+            content.push_str("…[后文已按预算压缩，完整原文见会话记录]");
+            let mut degraded = message.clone();
+            degraded.content = content;
+            degraded
+        })
+        .collect()
+}
+
 pub(crate) fn compress_context_for_model(
     context: &mut Vec<ContextMessage>,
     max_tokens: usize,
@@ -616,6 +641,27 @@ pub(crate) fn compress_context_for_model(
             })
             .sum();
         if cost > remaining {
+            // R5：先尝试确定性压形再放弃——assistant/工具长消息大头被
+            // 摘成骨架后常常能装下，模型在意的「做过什么」维度得以保留；
+            // 仍装不下才整体交给 fit 层 fail-fast（诚实失败）。
+            let tail = &history[start..];
+            let degraded = degrade_turn(tail, &estimate_tokens);
+            let degraded_cost: usize = degraded.iter().map(|m| estimate_tokens(&m.content)).sum();
+            if degraded_cost >= cost || degraded_cost > remaining {
+                break;
+            }
+            for message in tail {
+                segments::note_omission(
+                    &mut omissions,
+                    &message.segment,
+                    model,
+                    estimate_tokens(&message.content),
+                    "preselection_degraded_turn",
+                );
+            }
+            remaining -= degraded_cost;
+            kept.push(degraded);
+            history.truncate(start);
             break;
         }
         remaining -= cost;
@@ -631,8 +677,12 @@ pub(crate) fn compress_context_for_model(
                 "preselection_earlier_turn",
             );
         }
-        // Truncated excerpts are not semantic summaries. C06 owns independently
-        // persisted summaries; until then explicitly disclose omitted history.
+        // R8B：占位符显式给出被裁规模，模型知道「哪些内容不在」，不凭
+        // 印象补全；截选不是语义摘要——语义纪要归 C06 翻篇管线。
+        let omitted_marker = format!(
+            "（前文省略：{} 条较早的历史消息未装入本轮上下文；只保留了你最近的活动，请勿凭记忆补全这段被省略的内容，被问到时应说明记不全）",
+            history.len()
+        );
         rebuilt.push(ContextMessage::new("system", omitted_marker).with_segment(
             SegmentPurpose::BudgetNotice,
             SegmentOrigin::Application,
@@ -960,7 +1010,7 @@ mod tests {
         assert!(
             context
                 .iter()
-                .any(|m| m.content.contains("自动压缩") || m.content.contains("已省略"))
+                .any(|m| m.content.contains("自动压缩") || m.content.contains("前文省略"))
         );
         // 10-19 P0-b 后整体不再承诺 ≤ 预算（最近交换+当前硬保留）；改为
         // 验证省略发生在最近交换之前、且被省略内容不再出现。
@@ -1405,4 +1455,28 @@ mod tests {
         let (_, _, events_guide) = TOOL_GUIDES[3];
         assert!(events_guide.contains("list_events_by_date"));
     }
+}
+
+// R5+R8B：压形装填与占位符计数（在 compress_context_for_model 内）
+#[test]
+fn compress_degrades_oversized_turns_instead_of_dropping() {
+    // 长答复轮压形后应保留骨架（头 220 字 + 尾注）且装入预算，
+    // 用户消息原文不动；被裁内容以「前文省略」占位符披露规模。
+    let mut context = vec![
+        ContextMessage::new("system", "core"),
+        ContextMessage::new("user", "很久前的输入 ".repeat(20)),
+        ContextMessage::new("assistant", "很早的长答复 ".repeat(120)),
+        ContextMessage::new("user", "输入一 ".repeat(20)),
+        ContextMessage::new("assistant", "长答复内容 ".repeat(300)),
+        ContextMessage::new("user", "当前问题"),
+    ];
+    compress_context(&mut context, 900);
+    let assistant = context
+        .iter()
+        .find(|m| m.role == "assistant" && m.content.contains("长答复"))
+        .expect("assistant 骨架应保留");
+    assert!(assistant.content.contains("后文已按预算压缩"));
+    assert!(assistant.content.chars().count() < 400, "应被压短");
+    // 当前问题与最近原文完好
+    assert!(context.iter().any(|m| m.content == "当前问题"));
 }
