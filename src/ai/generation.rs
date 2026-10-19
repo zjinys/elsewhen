@@ -288,10 +288,23 @@ pub(crate) fn execute(
                 .downcast_ref::<super::budget::RequestBudgetError>()
                 .is_some()
             {
-                (
-                    "budget",
-                    "本轮必要上下文超过预算；输入已保存，请缩小任务范围",
-                )
+                // R2.5：长会话的压缩是分批树式推进（节点缓存跨次复用），
+                // 预热未收敛时本地拒绝只是「还没压完」，不是永久死局；
+                // 只有最近两轮+当前输入自身就超窗的会话才真的无解。
+                let history_len: i64 = store
+                    .connection
+                    .query_row(
+                        "SELECT COUNT(*) FROM messages WHERE conversation_id=?1",
+                        [run.conversation_id.clone()],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
+                let text = if history_len > 40 {
+                    "本轮上下文超过预算：会话较长，摘要压缩尚未收敛，重试本条输入通常可恢复（历史不会丢失）；若反复失败，可开新对话或手动翻篇"
+                } else {
+                    "本轮必要上下文超过预算；输入已保存，请缩小任务范围或拆分输入"
+                };
+                ("budget", text)
             } else {
                 // Never persist raw provider bodies/URLs/arguments in diagnostics.
                 (
