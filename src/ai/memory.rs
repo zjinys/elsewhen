@@ -1,7 +1,7 @@
 use super::tool::ToolCall;
-use serde_json::json;
 use crate::storage::Store;
 use anyhow::Result;
+use serde_json::json;
 
 mod segments;
 pub use segments::{
@@ -520,6 +520,20 @@ pub(crate) fn compress_context_for_model(
 
     // Keep complete user exchanges. An assistant's native calls and their tool
     // results must never be separated by preliminary memory selection.
+    //
+    // 10-19 档案 P0-b（根因 A）：最近一个完整交换无条件保留（加上当前
+    // 轮即 fit 侧「最近两轮不可省略」的同一口径），不参与预算装填。出事
+    // 会话里 preselection 只留 7 条，模型不承认 3 分钟前刚做的确认
+    // （invisible turn，run 还标 completed）。装不下就整体交给 fit 层
+    // fail-fast（诚实失败），好过静默失忆后幻觉。
+    let mut recent = Vec::new();
+    for _ in 0..1 {
+        if history.is_empty() {
+            break;
+        }
+        let start = history.iter().rposition(|m| m.role == "user").unwrap_or(0);
+        recent.push(history.split_off(start));
+    }
     let mut kept = Vec::new();
     while !history.is_empty() {
         let start = history.iter().rposition(|m| m.role == "user").unwrap_or(0);
@@ -568,6 +582,10 @@ pub(crate) fn compress_context_for_model(
         ));
     }
     for turn in kept.into_iter().rev() {
+        rebuilt.extend(turn);
+    }
+    // recent[0] 是更早的交换、recent[1]（若有）紧贴当前轮，按时间序展开。
+    for turn in recent.into_iter().rev() {
         rebuilt.extend(turn);
     }
     rebuilt.extend(current);
@@ -790,37 +808,69 @@ mod tests {
 
     #[test]
     fn preliminary_selection_never_keeps_an_orphan_tool_result() {
+        // 10-19 P0-b：最近两个交换无条件保留，可被省略的历史必须比它们更老。
+        let early_call = ToolCall::new("early_lookup", serde_json::json!({}));
         let call = ToolCall::new("lookup", serde_json::json!({}));
         let mut context = vec![
             ContextMessage::new("system", "rules"),
+            ContextMessage::new("user", "early question ".repeat(400)),
+            ContextMessage::assistant_with_tool_calls(
+                String::new(),
+                vec![early_call.clone()],
+                None,
+            ),
+            ContextMessage::tool_result(early_call.id.clone(), "early result".into()),
+            ContextMessage::new("user", "middle question ".repeat(400)),
+            ContextMessage::new("assistant", "middle answer"),
             ContextMessage::new("user", "old question ".repeat(400)),
             ContextMessage::assistant_with_tool_calls(String::new(), vec![call.clone()], None),
             ContextMessage::tool_result(call.id, "tiny result".into()),
             ContextMessage::new("user", "current"),
         ];
         compress_context_for_model(&mut context, 100, "gpt-4o");
+        // 早期交换（含它的工具消息）整组消失，绝不落单
+        assert!(!context.iter().any(|m| m.content.contains("early result")));
         assert!(
-            !context
+            !context.iter().any(|m| m
+                .tool_calls
+                .as_ref()
+                .is_some_and(|calls| calls.iter().any(|c| c.id == early_call.id))),
+            "省略的交换不得留下孤儿 tool 调用"
+        );
+        // 最近一个交换连同工具结果完整保留
+        assert!(
+            context
                 .iter()
-                .any(|m| m.role == "tool" || m.tool_calls.is_some())
+                .any(|m| m.role == "tool" && m.content == "tiny result")
         );
         assert_eq!(context.last().unwrap().content, "current");
     }
 
     #[test]
     fn unknown_model_preselection_uses_bytes_and_drops_optional_first() {
+        // 10-19 P0-b：hello 交换是最近第二交换（不可省略）；字节 vs token
+        // 估算的差异改用更早的大轮展示：已知模型按 CJK 2 字符/token 估
+        // 得下、未知模型按字节估得上。
         let original = vec![
             ContextMessage::new("system", "rules"),
+            ContextMessage::new("user", "背景材料极长 ".repeat(50)),
+            ContextMessage::new("assistant", "背景答复"),
             ContextMessage::new("user", "hello ".repeat(80)),
             ContextMessage::new("assistant", "answer"),
             ContextMessage::new("user", "current"),
         ];
         let mut known = original.clone();
         let mut unknown = original;
-        compress_context_for_model(&mut known, 250, "gpt-4o");
-        compress_context_for_model(&mut unknown, 250, "unknown-model");
+        compress_context_for_model(&mut known, 600, "gpt-4o");
+        compress_context_for_model(&mut unknown, 600, "unknown-model");
+        assert!(known.iter().any(|m| m.content.starts_with("背景材料极长")));
+        assert!(
+            !unknown
+                .iter()
+                .any(|m| m.content.starts_with("背景材料极长"))
+        );
         assert!(known.iter().any(|m| m.content.starts_with("hello")));
-        assert!(!unknown.iter().any(|m| m.content.starts_with("hello")));
+        assert!(unknown.iter().any(|m| m.content.starts_with("hello")));
         let mut background = ContextMessage::new("system", "optional".repeat(400));
         background.optional_background = true;
         known.insert(1, background);
@@ -831,8 +881,11 @@ mod tests {
 
     #[test]
     fn compress_context_preserves_system_and_latest_turns() {
+        // 10-19 P0-b：最近两个交换硬保留，被省略的历史放在它们之前。
         let mut context = vec![
             ContextMessage::new("system", "system prompt"),
+            ContextMessage::new("user", "更早的历史 ".repeat(200)),
+            ContextMessage::new("assistant", "更早的答复 ".repeat(200)),
             ContextMessage::new("user", "很早以前的背景 ".repeat(80)),
             ContextMessage::new("assistant", "很早以前的回答 ".repeat(80)),
             ContextMessage::new("user", "当前问题"),
@@ -850,13 +903,14 @@ mod tests {
                 .iter()
                 .any(|m| m.content.contains("自动压缩") || m.content.contains("已省略"))
         );
+        // 10-19 P0-b 后整体不再承诺 ≤ 预算（最近交换+当前硬保留）；改为
+        // 验证省略发生在最近交换之前、且被省略内容不再出现。
         assert!(
-            context
+            !context
                 .iter()
-                .map(|m| estimate_tokens(&m.content))
-                .sum::<usize>()
-                <= 40
+                .any(|m| m.content.contains("更早的历史") || m.content.contains("更早的答复"))
         );
+        assert!(context.iter().any(|m| m.content.contains("很早以前的背景")));
     }
 
     #[test]

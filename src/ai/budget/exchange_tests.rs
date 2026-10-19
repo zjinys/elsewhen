@@ -86,6 +86,8 @@ fn malformed_native_exchanges_fail_before_any_budget_trimming() {
 
 #[test]
 fn trimming_removes_whole_exchanges_and_preserves_current_evidence() {
+    // 10-19 P0-b：最近两轮（old 交换+当前）不可省略；可被整组删除的是
+    // 它们之前的垫轮。
     let protected = vec![
         json!({"role":"user","content":"current question"}),
         json!({"role":"system","content":"required evidence"}),
@@ -95,7 +97,14 @@ fn trimming_removes_whole_exchanges_and_preserves_current_evidence() {
     ];
     let mut messages = vec![
         json!({"role":"system","content":"rules"}),
-        json!({"role":"user","content":"old".repeat(3000)}),
+        json!({"role":"user","content":"ancient".repeat(2000)}),
+        call(&["ancient-a", "ancient-b"]),
+        result("ancient-a"),
+        result("ancient-b"),
+        json!({"role":"assistant","content":"ancient answer"}),
+        json!({"role":"user","content":"older".repeat(2000)}),
+        json!({"role":"assistant","content":"older answer"}),
+        json!({"role":"user","content":"old".repeat(80)}),
         call(&["old-a", "old-b"]),
         result("old-a"),
         result("old-b"),
@@ -106,8 +115,12 @@ fn trimming_removes_whole_exchanges_and_preserves_current_evidence() {
     fit_request("unknown", &mut request, 2048, 256).unwrap();
     let messages = request["messages"].as_array().unwrap();
     assert_eq!(&messages[messages.len() - protected.len()..], &protected);
-    assert!(!request.to_string().contains("old-a"));
-    assert!(!request.to_string().contains("old-b"));
+    // 垫轮整组消失（含其工具消息，无孤儿）；最近第二交换完整保留
+    assert!(!request.to_string().contains("ancient-a"));
+    assert!(!request.to_string().contains("older answer"));
+    let tail = &messages[messages.len() - protected.len() - 6..];
+    assert!(tail.iter().any(|m| m["content"] == "old".repeat(80)));
+    assert!(request.to_string().contains("old-a"));
 }
 
 #[test]

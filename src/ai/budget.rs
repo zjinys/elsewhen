@@ -365,8 +365,12 @@ impl RequestPolicies {
                 .filter(|(_, m)| m["role"] == "user")
                 .map(|(i, _)| i)
                 .collect();
-            if turns.len() <= 1 {
-                return Err(RequestBudgetError(format!("请求输入约 {count} token，超过当前输入预算 {limit}（窗口 {window}，输出预留 {output}）；当前问题与必要上下文未截断，请检查 Provider 窗口或减少附带上下文")).into());
+            // 10-19 档案 P0-b（根因 A）：最近两个交换不可裁剪。只保当前轮
+            // 时模型不知道上一轮刚完成的承诺（出事的 340 条会话里 preselection
+            // 与砍轮只剩 7 条，「invisible turn」直接 completed 幻觉）。宁可
+            // 在此 fail-fast 走诚实失败，也不交付一个注定失忆的 run。
+            if turns.len() <= 2 {
+                return Err(RequestBudgetError(format!("请求输入约 {count} token，超过当前输入预算 {limit}（窗口 {window}，输出预留 {output}）；最近两轮对话不可省略，无法再压缩——请检查 Provider 窗口或减少附带上下文")).into());
             }
             // Remove whole earlier user/assistant/tool groups. Required system
             // evidence survives; temporal hints follow their owner instead.
@@ -757,26 +761,15 @@ mod tests {
                 .iter()
                 .any(|m| m["content"] == middle_hint)
         );
-        policies.fit("unknown", &mut request, 2000, 256).unwrap();
-        let messages = request["messages"].as_array().unwrap();
+        // 10-19 档案 P0-b：只剩两轮时退步重试不可再砍——省略会复现
+        // 「invisible turn」失忆事故，此时必须诚实失败而不是交付幻觉。
+        let error = policies
+            .fit("unknown", &mut request, 2000, 256)
+            .unwrap_err();
         assert!(
-            !messages
-                .iter()
-                .any(|m| m["content"] == oldest_hint || m["content"] == middle_hint)
+            error.to_string().contains("最近两轮对话不可省略"),
+            "实际错误：{error}"
         );
-        assert!(messages.iter().any(|m| m["content"] == latest_hint));
-        assert_eq!(&messages[messages.len() - 3..], exchange.as_slice());
-        assert_eq!(messages.len(), policies.messages.len());
-        assert_eq!(
-            messages
-                .iter()
-                .filter(|m| m["content"]
-                    .as_str()
-                    .is_some_and(|c| c.starts_with("较早对话因")))
-                .count(),
-            1
-        );
-        assert!(!request.to_string().contains("time_reminder\""));
     }
 
     #[test]
@@ -791,16 +784,33 @@ mod tests {
             background,
             ContextMessage::new("user", "old".repeat(3000)),
             hint,
+            // 10-19 P0-b：最近两轮不可砍，砍轮目标必须是 old 轮；垫一轮
+            // 小的让省略后仍能回到预算内。
+            ContextMessage::new("user", "垫轮".repeat(4)),
+            ContextMessage::new("assistant", "垫答"),
             ContextMessage::new("user", "latest"),
             ContextMessage::new("system", "evidence"),
         ];
         let mut policies = RequestPolicies::from_context(&context);
         let mut request = serde_json::json!({"messages":context.iter().map(|m| serde_json::json!({"role":m.role,"content":m.content})).collect::<Vec<_>>()});
-        policies.fit("unknown", &mut request, 2048, 256).unwrap();
+        policies.fit("unknown", &mut request, 2600, 256).unwrap();
         assert!(!request.to_string().contains("old hint"));
         assert!(request.to_string().contains("evidence"));
         assert!(request.to_string().contains("latest"));
-        policies.fit("unknown", &mut request, 1536, 256).unwrap();
+        let messages = request["messages"].as_array().unwrap();
+        assert_eq!(
+            messages
+                .iter()
+                .filter(|m| m["content"]
+                    .as_str()
+                    .is_some_and(|c| c.contains("较早对话因")))
+                .count(),
+            1
+        );
+        // 退步重试装不下剩余两轮（579 token > 预算）时砍轮撞上
+        // 「最近两轮不可省略」→ 诚实失败，而不是把上一轮也吞掉。
+        let error = policies.fit("unknown", &mut request, 512, 64).unwrap_err();
+        assert!(error.to_string().contains("最近两轮对话不可省略"));
         assert_eq!(
             request["messages"].as_array().unwrap().len(),
             policies.messages.len()
@@ -884,8 +894,11 @@ mod tests {
 
     #[test]
     fn full_request_counts_tools_and_preserves_current_exchange() {
-        let schema = "嵌套参数描述：日期、条件、原文。".repeat(80);
-        let mut req = serde_json::json!({"messages":[{"role":"system","content":"系统要求"},{"role":"user","content":"旧话题".repeat(1200)},{"role":"assistant","content":"旧回答"},{"role":"user","content":"当前问题"},{"role":"assistant","content":"","tool_calls":[{"id":"a","function":{"name":"search","arguments":"{}"}}]},{"role":"tool","content":"结果","tool_call_id":"a"}],"tools":[{"parameters":{"description":schema}}]});
+        // 10-19 P0-b 之后旧话题轮可被砍但最近两轮（空回答工具轮+当前）不可；
+        // schema 缩到砍完旧轮后能回到预算内。
+        let schema = "嵌套参数描述：日期、条件、原文。".repeat(48);
+        // 三轮构造：更早轮可砍，最近两轮（旧一轮+当前）受 10-19 P0-b 保护。
+        let mut req = serde_json::json!({"messages":[{"role":"system","content":"系统要求"},{"role":"user","content":"更早话题".repeat(400)},{"role":"assistant","content":"更早回答"},{"role":"user","content":"旧话题".repeat(400)},{"role":"assistant","content":"旧回答"},{"role":"user","content":"当前问题"},{"role":"assistant","content":"","tool_calls":[{"id":"a","function":{"name":"search","arguments":"{}"}}]},{"role":"tool","content":"结果","tool_call_id":"a"}],"tools":[{"parameters":{"description":schema}}]});
         let bare = input_tokens("gpt-4o", &req["messages"]);
         assert!(input_tokens("gpt-4o", &req) > bare);
         let count = fit_request("gpt-4o", &mut req, 4096, 512).unwrap();
