@@ -1,7 +1,7 @@
 # 定时提醒（"20 分钟后提醒我"，复用 todos 承载）
 
 - 日期：2026-10-19
-- 状态：proposed（方案待评审；承载方式已定为**复用 `todos`**；2026-10-19 存储设计评审已通过，评审结论见 §8）
+- 状态：已实现（2026-10-19 评审通过见 §8；落地见 §9 完成证据）
 - 范围：复用 `todos`（已有 `due_at`）承载提醒 + 到期调度 + 双通道触达（应用内 + 系统通知）+ 本地解析与 AI 工具两条输入
 - 性质：**不新增业务表**；新增本机触发去重状态 + Flutter 通知依赖；`todos` 如需加列要同步改快照
 - 关联：[规则触发即时提醒](../../../CLAUDE.md)、[FR-PES-001 个人事件记录](../../../requirements/product/FR-PES-001-个人事件记录与状态管理.md)、[多设备同步](../../../roadmap/2026-10-03-multi-device-sync-roadmap.md)
@@ -117,3 +117,15 @@
 3. **解析回显确认**：本地解析走轻确认卡片，不静默创建——见 §4.5。
 
 另补：migration 50 顺手建 `idx_todos_due` 部分索引（§4.1）；手机端建议上 scheduled notification（§4.4/§6.6）。
+
+## 9. 完成证据（2026-10-19 落地）
+
+- **承载**：migration `50-todo-reminder-fires/up.sql` 加 `todos.reminder INTEGER` + 设备本地表 `todo_reminder_fires` + 部分索引 `idx_todos_due`；版本推进到 50（`new_migrations.rs` 断言同步）。
+- **到期弹出**：`Store::due_reminders/record_reminder_fire/confirm_reminder/snooze_reminder`（`src/storage/reminders.rs`）。snooze = due_at 推后 + fire 行删除，**同一事务**（评审 3.1：修掉重响丢失）。确认=完成。`set_todo_reminder` 校验过去时刻/缺 due_at 诚实拒绝。
+- **触发调度**：`pop_due_reminders` 挂在 Flutter 5s 后台 tick `_wakeAnalysisWorker` **最前**，独立 try/catch 故障隔离（评审 3.3：提醒 tick 失败绝不影响分析/消化/同步）。
+- **本机表快照登记**：`todo_reminder_fires` 列入 `SNAPSHOT_EXCLUDED_TABLES`，原因 `local-event-reminders`（评审 2.2）；`todo.reminder` 走快照 QUERY / 导出校验 / apply INSERT 三处 + `mutable.rs`/`object_conflicts.rs`/`protocol.rs` 同步（评审 2.1）。
+- **双通道触达**：应用内 `ReminderBanner`（挂 _NowStatus 状态栏下方，单条独占一条，完成/+10分钟/关闭）。系统通知通道（flutter_local_notifications）留作后续增量。
+- **本地解析**：`src/ai/reminder_parse.rs` 确定性解析（相对时长/明早今晚/口语 N 点/HH:MM，已过推明天），7 单测；FRB `parse_reminder_time` 供确认卡回显。解析不出返回 None → 客户端回显「无法确定时间」，绝不静默乱猜（评审 3.4）。
+- **AI 工具**：`create_reminder`（`src/ai/tool/mod.rs`），WriteConfirm 确认闸，必须带 due_at，确认时过去时间拒绝（不静默改期），复用 create_todo 确认提交 + `reminder=true`。
+- **验证**：`cargo test --offline` 849 全过（含 reminder/memo/parse 专项单测）；`ui` `fvm flutter test` 403 全过；`./scripts/regen.sh` 桥接 hash 校验一致；`fvm flutter analyze` 无新增 issue。
+- **提交**：`0665af1 feat: memo 记事本 + 定时提醒`（分支 `feat/memo-and-reminders-20261019`）。

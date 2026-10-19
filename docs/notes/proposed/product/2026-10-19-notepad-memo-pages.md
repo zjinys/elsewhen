@@ -1,7 +1,7 @@
 # 记事本页（随手记想法，不经 AI）
 
 - 日期：2026-10-19
-- 状态：proposed（方案待评审；2026-10-19 存储设计评审已通过，评审结论见 §8）
+- 状态：已实现（2026-10-19 评审通过见 §8；落地见 §9 完成证据）
 - 范围：新增用户自有 wiki 页类型 `memo` + 记事本入口与快记追加；**不**新增事件 / 分析 / 知识消化管线
 - 性质：wiki 页类型扩展 + 交互入口，不涉及同步协议演进（复用 `wiki_pages` 快照）
 - 关联：[FR-PES-004 LLM-Wiki 知识库闭环](../../../requirements/product/FR-PES-004-LLM-Wiki知识库闭环.md)、[docs/llm-wiki.md](../../../llm-wiki.md)、[LLM Wiki 维护（schema v7/v8/v9）](../../../CLAUDE.md)
@@ -99,3 +99,13 @@
 3. AI 读取只走引用式、不整页挂载，防 24K 截断线——见 §3 页面语义与 §6.3。
 
 **临时绕过无关**：本提案与 [2026-10-19 摘要管道事故](../../incidents/2026-10-19-summary-pipeline-permanent-failure.md) 无耦合，可独立落地。
+
+## 9. 完成证据（2026-10-19 落地）
+
+- **承载**：`memo` 加入 `WIKI_KINDS`（`src/wiki.rs`）。三层 kind 白名单隔离：AI 可写 `validate_digest_kind()` **排除 memo**；digest 上下文 `select_context_pages` 过滤 memo；memo 走人类专属层（评审 3.3）。
+- **写纪律**：`Store::create_wiki_page`（slug `memo/{slugify(title)}`，status confirmed）+ `Store::append_wiki_page_content`（**单事务**读-拼-写，8k 追加 / 64k 总量上限，source/note 只读拒绝）。追加置位 human_edited_at → digest 不整篇覆盖（评审 3.2 修正 A：允许 digest 给 memo 补摘要但不整篇覆盖）。
+- **AI 只读**：memo 不进 AI 可写白名单；AI 引用 memo 时按「用户提供参考」标注，不入证据链（评审 3.4）。
+- **Flutter 入口**：`_NowStatus` 状态栏 + 移动端标题栏均加「记事」入口（`openNotepadDialog`）；`notepad_view.dart` 提供列表（按更新时间倒序）+ 详情 + **快记框**（回车/按钮即追加，单事务连击不丢写）+ 「打开完整详情」复用知识页 tab。
+- **同步**：memo 复用 `wiki_pages` 快照（评审 2：免快照改动）；`SyncRecordKind` 白名单在 `sync_record_wiki_page` 已随 kind 放行。
+- **验证**：`cargo test --offline` 849 全过（含 `memo_append_is_single_transaction_and_syncs`/`memo_append_rejects_source_and_oversize` 专项）；`ui` `fvm flutter test` 403 全过；`fvm flutter analyze` 无新增 issue。
+- **提交**：`0665af1 feat: memo 记事本 + 定时提醒`（分支 `feat/memo-and-reminders-20261019`）。
