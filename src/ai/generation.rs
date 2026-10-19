@@ -503,110 +503,12 @@ pub(crate) fn tool_result_payload(
 }
 
 #[cfg(test)]
-mod honest_tests {
-    use super::*;
-    use crate::storage::Store;
-
-    fn fixture() -> (Store, ChatRun, String) {
-        let dir =
-            std::env::temp_dir().join(format!("elsewhen-honest-prefix-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let store = Store::open(&dir.join("test.db")).unwrap();
-        crate::storage::Store::mark_initialized(&dir.join("test.db")).unwrap();
-        let conversation = store.create_conversation(None, None).unwrap();
-        let input = store
-            .send_message(&conversation, "user", "第一问", None)
-            .unwrap();
-        let run = store
-            .create_chat_run(
-                &conversation,
-                &input,
-                &uuid::Uuid::new_v4().to_string(),
-                "owner",
-            )
-            .unwrap();
-        (store, run, conversation)
-    }
-
-    #[test]
-    fn completed_reply_carries_honest_prefix_when_summary_unavailable() {
-        // 10-19 档案 P0-c：completed run 里用户必须直接看到「背景摘要
-        // 不可用」，不再依赖模型转述 system 免责声明。
-        let (store, run, _conversation) = fixture();
-        let plain = honest_summary_degradation(&store, &run.id, "正常回复".into());
-        assert_eq!(plain, "正常回复", "无事件时不加前缀");
-        store
-            .append_chat_run_event(
-                &run.id,
-                "owner",
-                "summary_unavailable",
-                &serde_json::json!({"reason":"incomplete_or_invalid_basis","detail":"没有可摘要的历史"}),
-            )
-            .unwrap();
-        let degraded = honest_summary_degradation(&store, &run.id, "模型回答".into());
-        assert!(degraded.contains("背景摘要不可用"));
-        assert!(degraded.ends_with("模型回答"), "前缀在回复之首");
-        // 不走 failure_leave——P1-A 指纹不因此污染
-        assert!(!degraded.contains("失败通知"));
-    }
-}
-
-/// usage 锚定（proposal 2026-10-19-token-estimation-calibration §3.0）：
-/// 键=(conversation_id, model)，值=(真实 prompt_tokens, 当时启发式估)。
-/// 只在真实 > 启发式（低估）时记录；进程内缓存，重启即回落启发式——
-/// 锚定是优化不是安全依赖，宁高不低红线不受影响。
-static USAGE_UNDERESTIMATE: std::sync::LazyLock<
-    std::sync::Mutex<std::collections::HashMap<(String, String), (u64, usize)>>,
-> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
-
-fn record_underestimate(conversation_id: &str, model: &str, real: u64, heuristic: usize) {
-    if model.is_empty() || heuristic == 0 || real <= heuristic as u64 {
-        return;
-    }
-    // 会话级单槽：只保留最近一次配对，模型换挡或翻篇后自然被新值覆盖。
-    USAGE_UNDERESTIMATE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .insert(
-            (conversation_id.to_string(), model.to_string()),
-            (real, heuristic),
-        );
-}
-
-/// 预算收紧系数：最近一次低估比（real/heuristic），clamp [1.0, 1.5]。
-/// 比率越大说明启发式对该 provider 的分词偏差越大；无记录返回 1.0。
-pub(crate) fn usage_underestimate_ratio(conversation_id: &str, model: &str) -> f64 {
-    USAGE_UNDERESTIMATE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .get(&(conversation_id.to_string(), model.to_string()))
-        .map(|(real, heuristic)| (*real as f64 / *heuristic as f64).clamp(1.0, 1.5))
-        .unwrap_or(1.0)
-}
-
 #[cfg(test)]
-mod usage_anchor_tests {
-    use super::*;
+#[path = "generation/honest_tests.rs"]
+mod honest_tests;
 
-    #[test]
-    fn anchor_records_only_underestimates_and_clamps() {
-        // 高估（真实 < 启发式）不记录：宁高不低，锚定只负责上调修正。
-        record_underestimate("conv-anchor", "m1", 100, 400);
-        assert_eq!(usage_underestimate_ratio("conv-anchor", "m1"), 1.0);
+#[path = "generation/underestimate.rs"]
+mod underestimate;
 
-        // 低估记录：真实 1500 / 启发式 1000 = 1.5。
-        record_underestimate("conv-anchor", "m1", 1500, 1000);
-        assert_eq!(usage_underestimate_ratio("conv-anchor", "m1"), 1.5);
-
-        // 严重低估也 clamp 到 1.5（预算最多收紧三分之一）。
-        record_underestimate("conv-anchor", "m2", 9000, 1000);
-        assert_eq!(usage_underestimate_ratio("conv-anchor", "m2"), 1.5);
-
-        // 轻微低估落在区间内且按原比率生效。
-        record_underestimate("conv-anchor", "m3", 1050, 1000);
-        assert!((usage_underestimate_ratio("conv-anchor", "m3") - 1.05).abs() < 1e-9);
-
-        // 其他会话/模型不受影响。
-        assert_eq!(usage_underestimate_ratio("conv-other", "m1"), 1.0);
-    }
-}
+use underestimate::record_underestimate;
+pub(crate) use underestimate::usage_underestimate_ratio;
