@@ -160,10 +160,11 @@ mod tests {
                 "42-network-proxy",
                 "43-pruned-tool-results",
                 "44-mcp-servers",
-        "45-mcp-streamable-http",
-        "46-conversation-page-marks",
-        "47-mcp-trusted",
-        "48-mcp-platform",
+                "45-mcp-streamable-http",
+                "46-conversation-page-marks",
+                "47-mcp-trusted",
+                "48-mcp-platform",
+                "49-knowledge-ai-summary",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -195,7 +196,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 48, "四十八条迁移跑完，user_version 应为 48");
+        assert_eq!(version, 49, "四十九条迁移跑完，user_version 应为 49");
         assert_eq!(
             latest_version().unwrap(),
             version,
@@ -373,6 +374,29 @@ mod tests {
             })
             .unwrap();
         assert_eq!(decisions, 0);
+    }
+
+    #[test]
+    fn v49_proposals_gain_empty_summary_column_without_touching_rows() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrations()
+            .unwrap()
+            .to_version(&mut connection, 48)
+            .unwrap();
+        connection.execute("INSERT INTO knowledge_proposals(id,dedupe_key,target_slug,kind,title,content_md,reason,created_at)
+            VALUES ('v49','v49','method/old','method','旧建议','旧正文','manual','2026-10-18')", []).unwrap();
+        initialize(&mut connection).unwrap();
+        let summary: String = connection
+            .query_row(
+                "SELECT summary FROM knowledge_proposals WHERE id='v49'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            summary, "",
+            "迁移只加列：存量建议摘要为空，应用时退回正文预览"
+        );
     }
 
     #[test]

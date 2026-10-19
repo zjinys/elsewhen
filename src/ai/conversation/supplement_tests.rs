@@ -175,7 +175,15 @@ fn giant_supplement_is_clipped_with_honest_marker_at_mount() {
         context_json: "{}".into(),
     };
     let original_chars = input.content.chars().count();
-    let message = super::super::supplements::context(&input);
+    let path = std::env::temp_dir().join(format!(
+        "elsewhen-supplement-mount-test-{}.db",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let store = crate::storage::Store::open(&path).unwrap();
+    let message = super::super::supplements::context(&store, &input);
     let content = message.content;
     assert!(
         content.chars().count() < original_chars,
@@ -187,7 +195,61 @@ fn giant_supplement_is_clipped_with_honest_marker_at_mount() {
         content: "把报告只保留项目相关部分。".into(),
         ..input.clone()
     };
-    let small_message = super::super::supplements::context(&small);
+    let small_message = super::super::supplements::context(&store, &small);
     assert!(small_message.content.contains("把报告只保留项目相关部分。"));
     assert!(!small_message.content.contains("已按挂载上限截断"));
+}
+
+/// 2026-10-18「预算前移」：引用式补充材料（消息开头 @wiki(slug) 行）在挂载
+/// 时展开为每页 AI 摘要 + get_wiki_page 取回路径，不再携带全文；引用不存在
+/// 的页面就地如实声明。
+#[test]
+fn page_reference_supplement_expands_summaries_and_discloses_missing() {
+    let path = std::env::temp_dir().join(format!(
+        "elsewhen-supplement-ref-test-{}.db",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let store = crate::storage::Store::open(&path).unwrap();
+    let mut body = "手册要点：先校准，再装配。\n".to_string();
+    for i in 0..40 {
+        body.push_str(&format!("第{i}段细节长文正文不应进挂载。", i = i));
+    }
+    let page = crate::wiki::save_text_page(&body, Some("装配手册"), &[], &store).unwrap();
+    let missing = format!("note-absent{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let input = crate::storage::chat_supplements::ChatSupplement {
+        queue_id: 1,
+        input_id: "m1".into(),
+        content: format!(
+            "@wiki({})\n@wiki({missing})\n请基于这些页面继续修订方案",
+            page.slug
+        ),
+        created_at: "2026-10-19T00:00:00Z".into(),
+        basis: String::new(),
+        context_json: "{}".into(),
+    };
+    let message = super::super::supplements::context(&store, &input);
+    let content = message.content;
+    // 每页挂摘要 + 取回路径，不带全文（正文末段必须缺席）
+    assert!(content.contains(&page.title), "应展开页面标题");
+    assert!(content.contains("全文未挂载"));
+    assert!(content.contains("get_wiki_page"));
+    assert!(
+        !content.contains("第39段细节长文正文不应进挂载。"),
+        "挂载视图不得携带全文末段"
+    );
+    // 缺失页如实声明，用户原话保留
+    assert!(content.contains(&missing));
+    assert!(content.contains("不存在或已删除"));
+    assert!(content.contains("用户原话：请基于这些页面继续修订方案"));
+    // 纯文本补充不受影响：没有引用行时原样挂载
+    let plain = crate::storage::chat_supplements::ChatSupplement {
+        content: "普通补充说明".into(),
+        ..input.clone()
+    };
+    let plain_message = super::super::supplements::context(&store, &plain);
+    assert!(plain_message.content.contains("普通补充说明"));
+    assert!(!plain_message.content.contains("知识引用展开"));
 }

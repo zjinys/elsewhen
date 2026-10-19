@@ -131,6 +131,43 @@ fn compilation_requires_confirmation_and_rejection_is_durable() {
     assert!(s.resolve_knowledge_proposal(&id, true).is_err());
 }
 
+/// 2026-10-18 事故「预算前移」配套：编译让 AI 一并产出挂载摘要，
+/// 建议与落库页面都带独立成立的摘要；挂载不再只有整篇正文可选。
+#[test]
+fn compilation_carries_ai_mount_summary_into_proposal_and_page() {
+    let db = Db::new();
+    let s = &db.store;
+    let original = source(s, "https://example.com/sum", "SQLite 事务确保提交原子性");
+    let summary = "一到两句独立概括：并发写入下先开事务再提交，保证落库原子。";
+    let stub = Stub(
+        format!(
+            r#"{{"title":"事务落库方法","summary":"{summary}","content_md":"很长的正文，与摘要不同。","applicable_when":"并发写入","reason":"来源提供了事务边界"}}"#
+        )
+        .into(),
+    );
+    let id = propose_knowledge(s, &original.slug, "method", &stub).unwrap();
+    let proposal = &s.knowledge_proposals(None).unwrap()[0];
+    assert_eq!(proposal.summary, summary, "建议表应存 AI 摘要");
+    let page = s.resolve_knowledge_proposal(&id, true).unwrap().unwrap();
+    assert_eq!(
+        page.summary, summary,
+        "页面挂载摘要应是 AI 摘要，而非正文预览"
+    );
+}
+
+/// 旧契约（无 summary 字段）不炸：退回正文前 120 字符预览。
+#[test]
+fn compilation_without_summary_falls_back_to_content_preview() {
+    let db = Db::new();
+    let s = &db.store;
+    let original = source(s, "https://example.com/view", "SQLite 事务确保提交原子性");
+    let id = propose_knowledge(s, &original.slug, "method", &compile_stub()).unwrap();
+    let proposal = &s.knowledge_proposals(None).unwrap()[0];
+    assert_eq!(proposal.summary, "先开启事务，再提交写入。");
+    let page = s.resolve_knowledge_proposal(&id, true).unwrap().unwrap();
+    assert_eq!(page.summary, "先开启事务，再提交写入。");
+}
+
 #[test]
 fn accepted_method_has_exact_provenance_and_explicit_rule_promotion() {
     let db = Db::new();

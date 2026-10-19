@@ -92,6 +92,8 @@ pub struct KnowledgeProposal {
     pub kind: String,
     pub title: String,
     pub content_md: String,
+    /// AI 编译产出的挂载摘要（迁移 49 前的建议行为空，应用时退回正文预览）
+    pub summary: String,
     pub applicable_when: String,
     pub snapshot_ids: Vec<String>,
     pub event_ids: Vec<String>,
@@ -520,9 +522,9 @@ impl Store {
         ));
         self.connection.execute(
             "INSERT OR IGNORE INTO knowledge_proposals
-            (id,dedupe_key,page_id,target_slug,kind,title,content_md,applicable_when,
+            (id,dedupe_key,page_id,target_slug,kind,title,content_md,summary,applicable_when,
              snapshot_ids,event_ids,base_hash,reason,created_at,origin,base_state)
-            VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
+            VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)",
             params![
                 Uuid::new_v4().to_string(),
                 key,
@@ -531,6 +533,7 @@ impl Store {
                 draft.kind,
                 draft.title,
                 draft.content_md,
+                draft.summary,
                 applicable_when,
                 serde_json::to_string(&source_keys)?,
                 serde_json::to_string(&event_keys)?,
@@ -592,7 +595,7 @@ impl Store {
         id: Option<&str>,
     ) -> Result<Vec<KnowledgeProposal>> {
         let mut stmt = self.connection.prepare("SELECT k.id,k.page_id,COALESCE(p.slug,k.target_slug),k.kind,k.title,
-            k.content_md,k.applicable_when,k.snapshot_ids,k.event_ids,k.base_hash,k.reason,k.status,k.created_at
+            k.content_md,k.applicable_when,k.snapshot_ids,k.event_ids,k.base_hash,k.reason,k.status,k.created_at,k.summary
             FROM knowledge_proposals k LEFT JOIN wiki_pages p ON p.id=k.page_id
             WHERE (?2 IS NULL OR k.id=?2) AND (?1 IS NULL OR p.slug=?1 OR k.target_slug=?1 OR EXISTS (
                 SELECT 1 FROM json_each(k.snapshot_ids) j JOIN knowledge_snapshots s ON s.id=j.value
@@ -615,6 +618,7 @@ impl Store {
                     reason: r.get(10)?,
                     status: r.get(11)?,
                     created_at: r.get(12)?,
+                    summary: r.get(13)?,
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -823,7 +827,11 @@ impl Store {
                 slug: proposal.target_slug.clone(),
                 kind: proposal.kind.clone(),
                 title: proposal.title.clone(),
-                summary: proposal.content_md.chars().take(120).collect(),
+                summary: if proposal.summary.trim().is_empty() {
+                    proposal.content_md.chars().take(120).collect()
+                } else {
+                    proposal.summary.chars().take(240).collect()
+                },
                 content_md: proposal.content_md.clone(),
                 tags,
                 source_event_ids: proposal.event_ids.clone(),

@@ -70,6 +70,9 @@ class KnowledgeProposal {
   final String kind;
   final String title;
   final String contentMd;
+
+  /// AI 编译产出的挂载摘要（迁移 49 前的建议行为空，应用时退回正文预览）
+  final String summary;
   final String applicableWhen;
   final List<String> snapshotIds;
   final List<String> eventIds;
@@ -85,6 +88,7 @@ class KnowledgeProposal {
     required this.kind,
     required this.title,
     required this.contentMd,
+    required this.summary,
     required this.applicableWhen,
     required this.snapshotIds,
     required this.eventIds,
@@ -102,6 +106,7 @@ class KnowledgeProposal {
       kind.hashCode ^
       title.hashCode ^
       contentMd.hashCode ^
+      summary.hashCode ^
       applicableWhen.hashCode ^
       snapshotIds.hashCode ^
       eventIds.hashCode ^
@@ -121,6 +126,7 @@ class KnowledgeProposal {
           kind == other.kind &&
           title == other.title &&
           contentMd == other.contentMd &&
+          summary == other.summary &&
           applicableWhen == other.applicableWhen &&
           snapshotIds == other.snapshotIds &&
           eventIds == other.eventIds &&

@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1197457818;
+  int get rustContentHash => 685807422;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -196,6 +196,11 @@ abstract class RustLibApi extends BaseApi {
   Future<AppUpdateDto> crateApiSyncCheckAppUpdate({required String relayUrl});
 
   Future<CompanionRevisitDto?> crateApiCheckCompanionRevisit();
+
+  Future<String> crateApiWikiComposePageReferenceSupplement({
+    required List<String> slugs,
+    required String request,
+  });
 
   Future<String> crateApiConversationsConfirmKnowledgeDraft({
     required String conversationId,
@@ -1790,6 +1795,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCheckCompanionRevisitConstMeta =>
       const TaskConstMeta(debugName: "check_companion_revisit", argNames: []);
+
+  @override
+  Future<String> crateApiWikiComposePageReferenceSupplement({
+    required List<String> slugs,
+    required String request,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_list_String(slugs);
+          var arg1 = cst_encode_String(request);
+          return wire.wire__crate__api__wiki__compose_page_reference_supplement(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiComposePageReferenceSupplementConstMeta,
+        argValues: [slugs, request],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiComposePageReferenceSupplementConstMeta =>
+      const TaskConstMeta(
+        debugName: "compose_page_reference_supplement",
+        argNames: ["slugs", "request"],
+      );
 
   @override
   Future<String> crateApiConversationsConfirmKnowledgeDraft({
@@ -10104,8 +10142,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   KnowledgeProposal dco_decode_knowledge_proposal(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
     return KnowledgeProposal(
       id: dco_decode_String(arr[0]),
       pageId: dco_decode_opt_String(arr[1]),
@@ -10113,13 +10151,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       kind: dco_decode_String(arr[3]),
       title: dco_decode_String(arr[4]),
       contentMd: dco_decode_String(arr[5]),
-      applicableWhen: dco_decode_String(arr[6]),
-      snapshotIds: dco_decode_list_String(arr[7]),
-      eventIds: dco_decode_list_String(arr[8]),
-      baseHash: dco_decode_opt_String(arr[9]),
-      reason: dco_decode_String(arr[10]),
-      status: dco_decode_String(arr[11]),
-      createdAt: dco_decode_String(arr[12]),
+      summary: dco_decode_String(arr[6]),
+      applicableWhen: dco_decode_String(arr[7]),
+      snapshotIds: dco_decode_list_String(arr[8]),
+      eventIds: dco_decode_list_String(arr[9]),
+      baseHash: dco_decode_opt_String(arr[10]),
+      reason: dco_decode_String(arr[11]),
+      status: dco_decode_String(arr[12]),
+      createdAt: dco_decode_String(arr[13]),
     );
   }
 
@@ -13138,6 +13177,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_kind = sse_decode_String(deserializer);
     var var_title = sse_decode_String(deserializer);
     var var_contentMd = sse_decode_String(deserializer);
+    var var_summary = sse_decode_String(deserializer);
     var var_applicableWhen = sse_decode_String(deserializer);
     var var_snapshotIds = sse_decode_list_String(deserializer);
     var var_eventIds = sse_decode_list_String(deserializer);
@@ -13152,6 +13192,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       kind: var_kind,
       title: var_title,
       contentMd: var_contentMd,
+      summary: var_summary,
       applicableWhen: var_applicableWhen,
       snapshotIds: var_snapshotIds,
       eventIds: var_eventIds,
@@ -16749,6 +16790,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.kind, serializer);
     sse_encode_String(self.title, serializer);
     sse_encode_String(self.contentMd, serializer);
+    sse_encode_String(self.summary, serializer);
     sse_encode_String(self.applicableWhen, serializer);
     sse_encode_list_String(self.snapshotIds, serializer);
     sse_encode_list_String(self.eventIds, serializer);

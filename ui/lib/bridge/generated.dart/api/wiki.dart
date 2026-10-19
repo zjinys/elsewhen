@@ -98,6 +98,19 @@ Future<bool> deleteWikiPage({required String slug}) =>
 Future<WikiExportResultDto> exportWikiMarkdown({required String outDir}) =>
     RustLib.instance.api.crateApiWikiExportWikiMarkdown(outDir: outDir);
 
+/// 生成「知识引用式」补充材料文本。客户端把它作为用户消息内容提交
+/// （配合 enqueue_chat_supplement / 常规输入流均可）；挂载时服务端只把
+/// 每页展开为 AI 摘要 + 取回路径（get_wiki_page 工具按 slug 按需读全文），
+/// 不再整包携带 content_md——2026-10-18 事故「预算前移」的挂载侧规范。
+/// request 是用户对这批页面的真实要求（可为空）。
+Future<String> composePageReferenceSupplement({
+  required List<String> slugs,
+  required String request,
+}) => RustLib.instance.api.crateApiWikiComposePageReferenceSupplement(
+  slugs: slugs,
+  request: request,
+);
+
 /// 知识库 Markdown 导出结果。
 class WikiExportResultDto {
   final String outDir;

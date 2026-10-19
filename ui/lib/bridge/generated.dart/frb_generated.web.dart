@@ -2698,6 +2698,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.kind),
       cst_encode_String(raw.title),
       cst_encode_String(raw.contentMd),
+      cst_encode_String(raw.summary),
       cst_encode_String(raw.applicableWhen),
       cst_encode_list_String(raw.snapshotIds),
       cst_encode_list_String(raw.eventIds),
@@ -5629,6 +5630,16 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__check_companion_revisit(NativePortType port_) =>
       wasmModule.wire__crate__api__check_companion_revisit(port_);
 
+  void wire__crate__api__wiki__compose_page_reference_supplement(
+    NativePortType port_,
+    JSAny slugs,
+    String request,
+  ) => wasmModule.wire__crate__api__wiki__compose_page_reference_supplement(
+    port_,
+    slugs,
+    request,
+  );
+
   void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,
     String conversation_id,
@@ -7722,6 +7733,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__check_companion_revisit(NativePortType port_);
+
+  external void wire__crate__api__wiki__compose_page_reference_supplement(
+    NativePortType port_,
+    JSAny slugs,
+    String request,
+  );
 
   external void wire__crate__api__conversations__confirm_knowledge_draft(
     NativePortType port_,

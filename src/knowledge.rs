@@ -42,6 +42,17 @@ fn shorten(text: &str, max: usize) -> String {
     text.chars().take(max).collect()
 }
 
+/// 挂载摘要：AI 产出的 summary 优先（截到 240 字符上限内），空则退回
+/// 正文前 120 字符预览。挂载与 select_knowledge 共用该字段。
+fn mount_summary(summary: &str, content_md: &str) -> String {
+    let trimmed = summary.trim();
+    if trimmed.is_empty() {
+        shorten(content_md, 120)
+    } else {
+        shorten(trimmed, 240)
+    }
+}
+
 fn query_terms(query: &str) -> Vec<String> {
     let query = shorten(query, 3000).to_lowercase();
     let mut terms = Vec::new();
@@ -511,6 +522,8 @@ struct Compilation {
     #[serde(default)]
     title: String,
     #[serde(default)]
+    summary: String,
+    #[serde(default)]
     content_md: String,
     #[serde(default)]
     applicable_when: String,
@@ -539,6 +552,7 @@ fn parse_compilation(text: &str, automatic: bool, revision: bool) -> Result<Comp
     }
     if result.title.trim().is_empty()
         || result.title.chars().count() > 150
+        || result.summary.chars().count() > 300
         || result.content_md.trim().is_empty()
         || result.content_md.chars().count() > 5000
         || result.applicable_when.chars().count() > 600
@@ -731,7 +745,8 @@ fn build_proposal(
     };
     let prompt=format!("任务：{kind}。从给定来源提炼或审阅知识；方法、案例、规律必须说明适用条件，不将外部文章当作用户经历。
 如为审阅，指出可能的矛盾/过期信息及其依据，只是待审建议；保留人工编辑的有效内容。仅使用本次给定的有效证据；已移除的来源不再支持任何结论，不得沿用旧页中仅靠被移除来源的说法。上游知识包含人工纠正，应据此复核当前页。
-仅返回 JSON：{{\"title\":string,\"content_md\":string,\"applicable_when\":string,\"reason\":string}}。
+仅返回 JSON：{{\"title\":string,\"summary\":string,\"content_md\":string,\"applicable_when\":string,\"reason\":string}}。
+summary 是这页的挂载摘要：一到两句概括正文讲了什么、何时有用（最多 200 字），须是独立成立的概括，不得照抄正文开头。
 禁止输出 strength 或规则权限；禁止杜撰来源。正文最多 5000 字，适用条件最多 600 字，理由最多 500 字。
 标题应说明提炼后的具体知识，不照抄原料标题。{classify}
 当前页（仅供比较，不能取代证据）：{}\n\n证据：{}",shorten(&existing.as_ref().unwrap_or(&page).content_md,4000),shorten(&evidence,12000));
@@ -816,7 +831,9 @@ fn build_proposal(
             .map(|p| p.kind.clone())
             .unwrap_or_else(|| kind.into()),
         title: result.title,
-        summary: shorten(&result.content_md, 120),
+        // 挂载摘要优先用 AI 产物（prompt 要求一到两句独立概括）；旧契约/空值
+        // 退回正文前 120 字符预览。不该再让整篇正文成为挂载唯一选项。
+        summary: mount_summary(&result.summary, &result.content_md),
         content_md: result.content_md,
         tags: vec!["编译知识".into()],
         source_event_ids: event_ids,

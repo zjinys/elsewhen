@@ -255,3 +255,34 @@ pub fn export_wiki_markdown(out_dir: String) -> Result<WikiExportResultDto> {
     let exported = store.export_wiki_markdown(std::path::Path::new(&out_dir))? as i64;
     Ok(WikiExportResultDto { out_dir, exported })
 }
+
+/// 生成「知识引用式」补充材料文本。客户端把它作为用户消息内容提交
+/// （配合 enqueue_chat_supplement / 常规输入流均可）；挂载时服务端只把
+/// 每页展开为 AI 摘要 + 取回路径（get_wiki_page 工具按 slug 按需读全文），
+/// 不再整包携带 content_md——2026-10-18 事故「预算前移」的挂载侧规范。
+/// request 是用户对这批页面的真实要求（可为空）。
+pub fn compose_page_reference_supplement(slugs: Vec<String>, request: String) -> Result<String> {
+    for slug in &slugs {
+        anyhow::ensure!(
+            !slug.trim().is_empty()
+                && slug
+                    .chars()
+                    .all(|c| !c.is_whitespace() && c != '(' && c != ')'),
+            "页面标识含不支持字符：{slug}"
+        );
+    }
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    for slug in &slugs {
+        store
+            .get_wiki_page(slug)
+            .with_context(|| format!("引用的页面不存在或已删除：{slug}"))?;
+    }
+    let mut lines: Vec<String> = slugs.iter().map(|s| format!("@wiki({s})")).collect();
+    let request = request.trim();
+    if !request.is_empty() {
+        lines.push(String::new());
+        lines.push(request.to_string());
+    }
+    Ok(lines.join("\n"))
+}

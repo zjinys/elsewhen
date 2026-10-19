@@ -82,6 +82,13 @@ chat_runs/run_requests/** 是 `local-chat-execution-state` 数据集（snapshot.
 - **fit 内截断挂载取代拒绝整轮**（`budget.rs`）：请求超预算时，降级顺序变为「可选背景移除 → 早期工具结果占位 → **补充材料砰半截断** → 砍历史轮 → 才报错」。补充材料（TaskSupplement）是唯一可以无损重取的必要段（原文在输入队列记录），因此在砰历史轮之前先截；截断带固定声明「因超过请求预算被截断…不得当作全文使用」。只有当前问题本身超限时才仍然报错。
 - **测试**：`oversized_supplement_is_truncated_instead_of_rejecting_the_turn`（fit 超限补充材料截断挂载、历史轮与当前问题完整保留、带如实声明）、`giant_supplement_is_clipped_with_honest_marker_at_mount`（挂载视图截到上限内且原文不变，常规尺寸不受影响）。全量 lib 测试 832 过。
 
+### 挂载摘要层（预算前移第二步，已落地）
+事故根因之一：`wiki_pages.summary` 当时只是正文前 120 字符的机械预览，挂载时没有「更短的独立版」可用，客户端只能整包携带 `content_md`。本轮把摘要变成真产物：
+- **AI 生成摘要**（`knowledge.rs`）：编译契约新增 `summary` 字段（一到两句独立概括，最多 200 字，不得照拷正文开头）；落库优先用 AI 摘要，旧契约/空值退回正文预览。字数超限按既有模式触发一次修正重试。
+- **建议表随行携带**（迁移 49）：`knowledge_proposals` 新增 `summary` 列（存量行为空，应用时退回预览），编译建议与后台自动建议两条路径都把摘要带进 `wiki_pages`。frb 绑定已重新生成（Dart 全量 403 测试过，`flutter analyze` 无新问题）。
+- **引用式补充材料**：新增 FRB API `compose_page_reference_supplement(slugs, request)`（校验页面存在 + 标识安全），客户端把生成文本作为用户消息提交；挂载时（`supplements.rs::context`）消息开头的 `@wiki(slug)` 行展开为「标题 + 摘要 + get_wiki_page 按需取回路径」，引用不存在的页面就地如实声明（「不得假设看到过它」），纯文本补充不受影响，24K 挂载上限与 fit 截断仍作为最后防线。从根上结束「挂知识库=整包全文」的形态：全文回到按需检索（工具）路径。
+- **测试**：`compilation_carries_ai_mount_summary_into_proposal_and_page`、`compilation_without_summary_falls_back_to_content_preview`、`v49_proposals_gain_empty_summary_column_without_touching_rows`、`page_reference_supplement_expands_summaries_and_discloses_missing`。全量 lib 836 过。
+
 ### 待办
 1. Linux 复现实锤（第三节脚本不变；顶包路径应已无法复现，改为验证失败消息出现且检索内容只在 run 记录里；超长补充材料现走截断挂载，验证不再出现「必要上下文超过预算」拒绝整轮）
 2. reports 侧栏/折叠卡片（Flutter UI 层）：给失败轮的工具结果一个非聊天流出口

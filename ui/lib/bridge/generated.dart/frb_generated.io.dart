@@ -3918,6 +3918,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.kind = cst_encode_String(apiObj.kind);
     wireObj.title = cst_encode_String(apiObj.title);
     wireObj.content_md = cst_encode_String(apiObj.contentMd);
+    wireObj.summary = cst_encode_String(apiObj.summary);
     wireObj.applicable_when = cst_encode_String(apiObj.applicableWhen);
     wireObj.snapshot_ids = cst_encode_list_String(apiObj.snapshotIds);
     wireObj.event_ids = cst_encode_list_String(apiObj.eventIds);
@@ -13891,6 +13892,40 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__wiki__compose_page_reference_supplement(
+    int port_,
+    ffi.Pointer<wire_cst_list_String> slugs,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> request,
+  ) {
+    return _wire__crate__api__wiki__compose_page_reference_supplement(
+      port_,
+      slugs,
+      request,
+    );
+  }
+
+  late final _wire__crate__api__wiki__compose_page_reference_supplementPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_String>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__wiki__compose_page_reference_supplement',
+      );
+  late final _wire__crate__api__wiki__compose_page_reference_supplement =
+      _wire__crate__api__wiki__compose_page_reference_supplementPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_String>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__wiki__create_wiki_derivative(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> based_on_slug,
@@ -16220,6 +16255,8 @@ final class wire_cst_knowledge_proposal extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> summary;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> applicable_when;
 
   external ffi.Pointer<wire_cst_list_String> snapshot_ids;
@@ -16242,6 +16279,7 @@ final class wire_cst_knowledge_proposal extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> content_md,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> summary,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> applicable_when,
     required ffi.Pointer<wire_cst_list_String> snapshot_ids,
     required ffi.Pointer<wire_cst_list_String> event_ids,
@@ -16256,6 +16294,7 @@ final class wire_cst_knowledge_proposal extends ffi.Struct {
     ..ref.kind = kind
     ..ref.title = title
     ..ref.content_md = content_md
+    ..ref.summary = summary
     ..ref.applicable_when = applicable_when
     ..ref.snapshot_ids = snapshot_ids
     ..ref.event_ids = event_ids

@@ -149,6 +149,7 @@ void main() {
       targetSlug: 'method/one',
       kind: 'method',
       title: '方法修订',
+      summary: '',
       contentMd: '正文',
       applicableWhen: '条件',
       snapshotIds: [],
