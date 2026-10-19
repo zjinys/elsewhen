@@ -182,7 +182,7 @@
 | R2A | ✅ 完成 | 未启用 MCP 不进 tools 字段；catalog 2K 预算；tools/list 缓存指纹键+TTL（`949d0b2`）；未注册 MCP 直放侧门已堵；Round 0 tools_tokens 推断 ~2K（53 工具不再进 tools 字段） |
 | R2B | ⚠️ 部分完成 | SYSTEM_PROMPT_BASE 4,407→2,710 字（~5.9K tokens@新口径），**未达 < 3K**；偏差声明：余量主体是行为安全纪律（草拟确认制/素材锁定/铁律），削减需产品决策。TOOL_GUIDES 分节+独立第二条 message 已落地；base 前缀稳定对 prefix cache 友好；pi 式增量 diff 下发未落地（前缀稳定结构已就位） |
 | R2.5 | ✅ 完成 | 侦察确认分批压缩与跨次收敛已存在（树式 build+节点缓存+preheat）；死局文案区分「压缩未收敛可重试」vs「缩小范围」；未造新批量器 |
-| R3 | ⚠️ 部分完成 | 审批续跑已落地（`9e4f0a8`：注入自明续跑指令+三重封顶）；**回执弹窗摘要化（不再 raw JSON）未提及、readOnlyHint 只读免审批未落地** |
+| R3 | ✅ 完成 | 审批续跑已落地（`9e4f0a8`：注入自明续跑指令+三重封顶）；回执摘要化已落地（审阅弹窗/处理记录/批量结果三处长回执折叠预览+展开，SelectableText 保留可复制）；readOnlyHint 只读免审批已落地（迁移 53：server 级 `allow_readonly_auto` 白名单默认关 + 上游 `annotations.readOnlyHint` 双边生效才直执行，免审批仍写执行审计 `mcp/.audit.log`，白名单关或注解缺失均回审批流；设置页 MCP 区独立锁形开关，含风险文案） |
 | R4 | ✅ 完成 | upstream_context_window_rejection 检测+窗口减半重试已在；收口为重试耗尽后的可诊断语义错误 |
 | R5 | ✅ 完成 | `degrade_turn` 确定性压形：assistant/工具长消息降骨架（头 220/160 字），用户消息与协议配对原样；压形仍装不下才诚实失败；complete_originals 护栏防误标全源 |
 | R6 | ✅ 完成（核实达成） | 摘要纪要已是 Required 常驻段（Summary segment + PageMark 持久化 + 80% 触发线 + preheat 追赶），未新增代码 |
@@ -193,7 +193,5 @@
 ### 未落地项清单（后续候选）
 
 1. **R2B stable_setup < 3K**：余量主体是行为安全纪律文案，削减需产品决策；可虑把「情绪回应」与「个人经验规则库引导」从 base 移到按需注入（仅在用户分享经历时注入）。
-2. **R3 回执弹窗摘要化**：仍 raw JSON 整段糊出（事故档案 P0 第二处），未在本轮实施记录中出现。
-3. **R3 readOnlyHint 只读免审批**：未落地；落地时需 server 配置级白名单（Gitea `list_issues` 未标 readOnlyHint，不能盲信上游标注）。
-4. **R2B 增量 diff 下发**：前缀稳定结构已就位，pi 式 sections diff 机制未落地——对 prefix cache 命中率有进一步提升空间。
-5. **R8E 幻觉后验检测**：明确不立项（理由见上表）。
+2. **R2B 增量 diff 下发**：前缀稳定结构已就位，pi 式 sections diff 机制未落地——对 prefix cache 命中率有进一步提升空间。
+3. **R8E 幻觉后验检测**：明确不立项（理由见上表）。
