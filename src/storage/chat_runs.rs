@@ -262,6 +262,19 @@ impl Store {
         Ok(())
     }
 
+    /// usage 锚定用：run 归属的会话 id（不存在返回 None）。
+    pub(crate) fn chat_run_conversation(&self, run: &str) -> Option<String> {
+        self.connection
+            .query_row(
+                "SELECT conversation_id FROM chat_runs WHERE id=?1",
+                [run],
+                |r| r.get::<_, String>(0),
+            )
+            .optional()
+            .ok()
+            .flatten()
+    }
+
     pub(crate) fn renew_chat_run(&self, run: &str, owner: &str) -> Result<bool> {
         Ok(self.connection.execute("UPDATE chat_runs SET lease_until=?1 WHERE id=?2 AND executor_id=?3 AND status IN ('preparing','running') AND lease_until>?4",params![deadline(),run,owner,chrono::Utc::now().to_rfc3339()])?==1)
     }

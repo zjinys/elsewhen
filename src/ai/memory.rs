@@ -659,7 +659,6 @@ pub(crate) fn compress_context_for_model(
                     "preselection_degraded_turn",
                 );
             }
-            remaining -= degraded_cost;
             kept.push(degraded);
             history.truncate(start);
             break;

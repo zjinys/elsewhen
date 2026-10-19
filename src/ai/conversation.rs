@@ -518,6 +518,14 @@ fn generate_with_provider_configs(
                 .and_then(|id| summary_configs.get(id))
                 .map(|(model, basis)| (model.as_str(), basis.as_str()))
                 .unwrap_or((&fallback_model, &fallback_basis));
+            // usage 锚定（R1 调序项）：本会话最近一次「真实 prompt_tokens /
+            // 当时启发式估」>1 说明启发式对该 provider 低估，按比率收紧
+            // 有效预算，宁高不低；无锚定记录时比率为 1.0，行为不变。
+            let budget = {
+                let underestimate =
+                    super::generation::usage_underestimate_ratio(conversation_id, model);
+                ((budget as f64 / underestimate) as usize).max(1)
+            };
             super::summary::apply_summary(
                 store,
                 conversation_id,

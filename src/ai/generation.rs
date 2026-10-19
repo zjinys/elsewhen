@@ -55,7 +55,10 @@ pub(crate) fn shutdown(path: &Path) -> Result<usize> {
         }
         if store.check_chat_run_owner(id, owner).is_ok() {
             if let Some(run) = store.chat_run_metadata(id)? {
-                let _ = store.cancel_chat_run(&run.conversation_id, id);
+                let _ = store.cancel_chat_run(
+                    &store.chat_run_conversation(&run.id).unwrap_or_default(),
+                    id,
+                );
             }
         }
     }
@@ -150,6 +153,10 @@ fn request_on_channel(
         event(store, "phase", json!({"phase":"summarizing"}))?;
     }
     let mut draft = draft::DraftBuffer::default();
+    // usage 锚定：捕获发送前启发式对整个 payload 的最终估（Budget 事件），
+    // 与真实 prompt_tokens 配对成「低估比」，后续同会话预算按其收紧。
+    let last_estimate = std::sync::Arc::new(std::sync::Mutex::new(None::<usize>));
+    let estimate_sink = std::sync::Arc::clone(&last_estimate);
     let reply = provider.generate_observed(messages, tools, &mut |notification| {
         if let Err(error) = check(store) {
             while let Some(text) = draft.take_checkpoint(true) {
@@ -163,6 +170,8 @@ fn request_on_channel(
                 if publish_draft { draft.push(delta); }
             }
             super::provider::ProviderEvent::Budget { attempt, trigger, report } => {
+                let est = report.input_tokens_after;
+                *estimate_sink.lock().unwrap_or_else(|e| e.into_inner()) = Some(est);
                 event(store, "request_budget", json!({"request_id":request,"attempt":attempt,"trigger":trigger,"report":report}))?;
             }
         }
@@ -189,6 +198,20 @@ fn request_on_channel(
                     .map(|u| (u.prompt_tokens, u.completion_tokens)),
                 reply.usage.as_ref().and_then(|u| u.prompt_cached_tokens),
             )?;
+            // usage 锚定（方案 C，进程内）：低估（真实 > 启发式）才记录，
+            // 比率作为预算收紧系数；高估方向不记——宁高不低，低估漏
+            // 放由 R4 上游拒绝 + 窗口自适应重试兕底，这里负责少让它发生。
+            if let (Some(usage), Some(est)) = (
+                reply.usage.as_ref(),
+                *last_estimate.lock().unwrap_or_else(|e| e.into_inner()),
+            ) {
+                record_underestimate(
+                    &store.chat_run_conversation(&run.id).unwrap_or_default(),
+                    reply.model.as_deref().unwrap_or(""),
+                    usage.prompt_tokens,
+                    est,
+                );
+            }
         }
         Err(_) => {
             store.finish_chat_request(&run.id, &run.owner, &request, "failed", None, None, None)?;
@@ -512,5 +535,65 @@ mod honest_tests {
         assert!(degraded.ends_with("模型回答"), "前缀在回复之首");
         // 不走 failure_leave——P1-A 指纹不因此污染
         assert!(!degraded.contains("失败通知"));
+    }
+}
+
+/// usage 锚定（proposal 2026-10-19-token-estimation-calibration §3.0）：
+/// 键=(conversation_id, model)，值=(真实 prompt_tokens, 当时启发式估)。
+/// 只在真实 > 启发式（低估）时记录；进程内缓存，重启即回落启发式——
+/// 锚定是优化不是安全依赖，宁高不低红线不受影响。
+static USAGE_UNDERESTIMATE: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<(String, String), (u64, usize)>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+fn record_underestimate(conversation_id: &str, model: &str, real: u64, heuristic: usize) {
+    if model.is_empty() || heuristic == 0 || real <= heuristic as u64 {
+        return;
+    }
+    // 会话级单槽：只保留最近一次配对，模型换挡或翻篇后自然被新值覆盖。
+    USAGE_UNDERESTIMATE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(
+            (conversation_id.to_string(), model.to_string()),
+            (real, heuristic),
+        );
+}
+
+/// 预算收紧系数：最近一次低估比（real/heuristic），clamp [1.0, 1.5]。
+/// 比率越大说明启发式对该 provider 的分词偏差越大；无记录返回 1.0。
+pub(crate) fn usage_underestimate_ratio(conversation_id: &str, model: &str) -> f64 {
+    USAGE_UNDERESTIMATE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(&(conversation_id.to_string(), model.to_string()))
+        .map(|(real, heuristic)| (*real as f64 / *heuristic as f64).clamp(1.0, 1.5))
+        .unwrap_or(1.0)
+}
+
+#[cfg(test)]
+mod usage_anchor_tests {
+    use super::*;
+
+    #[test]
+    fn anchor_records_only_underestimates_and_clamps() {
+        // 高估（真实 < 启发式）不记录：宁高不低，锚定只负责上调修正。
+        record_underestimate("conv-anchor", "m1", 100, 400);
+        assert_eq!(usage_underestimate_ratio("conv-anchor", "m1"), 1.0);
+
+        // 低估记录：真实 1500 / 启发式 1000 = 1.5。
+        record_underestimate("conv-anchor", "m1", 1500, 1000);
+        assert_eq!(usage_underestimate_ratio("conv-anchor", "m1"), 1.5);
+
+        // 严重低估也 clamp 到 1.5（预算最多收紧三分之一）。
+        record_underestimate("conv-anchor", "m2", 9000, 1000);
+        assert_eq!(usage_underestimate_ratio("conv-anchor", "m2"), 1.5);
+
+        // 轻微低估落在区间内且按原比率生效。
+        record_underestimate("conv-anchor", "m3", 1050, 1000);
+        assert!((usage_underestimate_ratio("conv-anchor", "m3") - 1.05).abs() < 1e-9);
+
+        // 其他会话/模型不受影响。
+        assert_eq!(usage_underestimate_ratio("conv-other", "m1"), 1.0);
     }
 }
