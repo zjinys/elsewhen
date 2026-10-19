@@ -1,0 +1,111 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:elsewhen_ui/bridge/api.dart' as api;
+import 'package:elsewhen_ui/models/wiki_page.dart';
+import 'package:elsewhen_ui/providers/knowledge_provider.dart';
+import 'package:elsewhen_ui/widgets/knowledge_panel.dart';
+
+import 'knowledge_flow_test.dart' show FakeKnowledge;
+
+/// 孵化闭环 Flutter 侧（提案 2026-10-19 UI 段）：判据口径、详情页动作、
+/// 已定论徽标。分组渲染依赖私有侧栏组件，判据由 [isIncubatingPage] 单一
+/// 口径承载并在此直接单测。
+void main() {
+  const incubating = api.WikiPageDto(
+    id: 'page',
+    slug: 'source/one',
+    kind: 'source',
+    title: '原文',
+    summary: '',
+    contentMd: '新版本',
+    tags: [],
+    sourceEventIds: [],
+    evidenceCount: 0,
+    firstSeenAt: '2026-09-29',
+    lastSeenAt: '2026-09-29',
+    status: 'active',
+    createdAt: '2026-09-29',
+    updatedAt: '2026-09-29',
+    area: 'imported',
+  );
+
+  Future<void> pump(WidgetTester tester, KnowledgeRepository repo, api.WikiPageDto page) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [knowledgeRepositoryProvider.overrideWithValue(repo)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: KnowledgePageActions(
+                page: WikiPage.fromDto(page),
+                onShowSources: () {},
+                onShowOutputs: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+  }
+
+  testWidgets('判据口径：素材待定论才是孵化中，已定论与非素材都不是', (tester) async {
+    expect(isIncubatingPage('source', null), isTrue);
+    expect(isIncubatingPage('note', null), isTrue);
+    expect(isIncubatingPage('source', 'endorse'), isFalse);
+    expect(isIncubatingPage('note', 'reject'), isFalse);
+    // 非素材 kind 恒 false（insight/派生稿没有孵化态）
+    expect(isIncubatingPage('method', null), isFalse);
+    expect(isIncubatingPage('insight', null), isFalse);
+  });
+
+  testWidgets('孵化中的素材页显示纳入/丢弃动作；纳入调用 endorse', (tester) async {
+    final repo = FakeKnowledge();
+    await pump(tester, repo, incubating);
+    expect(find.text('纳入知识'), findsOneWidget);
+    expect(find.text('丢弃'), findsOneWidget);
+    expect(repo.decisionCall, isNull);
+    await tester.tap(find.text('纳入知识'));
+    await tester.pumpAndSettle();
+    expect(repo.decisionCall, ('endorse', ''));
+    expect(repo.decisionCall, isNotNull);
+  });
+
+  testWidgets('丢弃需要原因输入，空原因不提交', (tester) async {
+    final repo = FakeKnowledge();
+    await pump(tester, repo, incubating);
+    await tester.tap(find.text('丢弃'));
+    await tester.pumpAndSettle();
+    // 空原因确认 = 放弃，不调用
+    await tester.tap(find.text('丢弃').last);
+    await tester.pumpAndSettle();
+    expect(repo.decisionCall, isNull);
+    // 重新打开输入原因
+    await tester.tap(find.byIcon(Icons.block_outlined));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '来源内容自相矛盾');
+    await tester.tap(find.text('丢弃').last);
+    await tester.pumpAndSettle();
+    expect(repo.decisionCall, ('reject', '来源内容自相矛盾'));
+  });
+
+  testWidgets('已定论显示状态徽标，不再出现纳入/丢弃动作', (tester) async {
+    final repo = FakeKnowledge();
+    await pump(
+      tester,
+      repo,
+      const api.WikiPageDto(
+        id: 'page', slug: 'source/one', kind: 'source', title: '原文',
+        summary: '', contentMd: '', tags: [], sourceEventIds: [],
+        evidenceCount: 0, firstSeenAt: '2026-09-29', lastSeenAt: '2026-09-29',
+        status: 'active', createdAt: '2026-09-29', updatedAt: '2026-09-29',
+        area: 'imported', opinion: 'endorse',
+      ),
+    );
+    expect(find.text('已纳入知识'), findsOneWidget);
+    expect(find.text('纳入知识'), findsNothing);
+    expect(find.text('丢弃'), findsNothing);
+    expect(repo.decisionCall, isNull);
+  });
+}

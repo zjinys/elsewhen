@@ -256,7 +256,7 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
   @override
   Widget build(BuildContext context) {
     final material = ['source', 'note'].contains(widget.page.kind);
-    final incubating = material && widget.page.opinion == null;
+    final incubating = isIncubatingPage(widget.page.kind, widget.page.opinion);
     final style = TextButton.styleFrom(
       minimumSize: const Size(0, 36),
       padding: const EdgeInsets.symmetric(horizontal: 10),

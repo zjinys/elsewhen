@@ -62,6 +62,8 @@ const compiledPage = api.WikiPageDto(
 
 class FakeKnowledge extends KnowledgeRepository {
   final decisions = <bool>[];
+  /// 孵化定论调用的记录：(decision, reason)；null=未调用。
+  (String, String)? decisionCall;
   bool fail = false;
   int saves = 0;
   bool returnPage = false;
@@ -132,6 +134,12 @@ class FakeKnowledge extends KnowledgeRepository {
     decisions.add(accept);
     if (fail) throw Exception('来源已更新，请重新生成建议');
     return accept && returnPage ? page : null;
+  }
+
+  @override
+  Future<api.WikiPageDto> decideSource(String slug, String decision, String reason) async {
+    decisionCall = (decision, reason);
+    return page;
   }
 
   @override

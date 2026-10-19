@@ -458,9 +458,7 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
               final incubating =
                   filtered
                       .where(
-                        (page) =>
-                            (page.kind == 'source' || page.kind == 'note') &&
-                            page.opinion == null,
+                        (page) => isIncubatingPage(page.kind, page.opinion),
                       )
                       .toList();
               // 平铺列表：只按最近更新排序，不再按主题/来源分组（用户反馈分组

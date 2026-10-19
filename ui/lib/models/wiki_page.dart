@@ -188,9 +188,15 @@ class WikiPageMeta implements WikiPageRef {
   int get hashCode => slug.hashCode;
 }
 
+/// 孵化判据（摘录闭环，提案 2026-10-19）的单一口径：素材 kind（source/
+/// note）待定论（opinion 未定）。侧栏孵化分组与详情页动作按钮共用；
+/// 非素材 kind（insight/派生稿）恒 false。
+bool isIncubatingPage(String kind, String? opinion) {
+  return (kind == 'source' || kind == 'note') && opinion == null;
+}
+
 /// 展示 helper（两态共用）：只依赖元数据字段面。
-extension WikiPageRefX on WikiPageRef {
-  /// kind 的中文展示名
+extension WikiPageRefX on WikiPageRef {  /// kind 的中文展示名
   String get kindLabel {
     const labels = {
       'profile': '档案',
