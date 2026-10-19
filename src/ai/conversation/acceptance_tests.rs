@@ -2,7 +2,7 @@
 use super::*;
 use crate::{ai::provider::OpenAiCompatibleConfig, event::NewEvent};
 use chrono::{Local, TimeZone};
-use serde_json::json;
+use serde_json::{Value, json};
 
 #[path = "acceptance_workflows.rs"]
 mod workflows;

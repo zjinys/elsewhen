@@ -1,7 +1,9 @@
 //! Real-model quality checks are explicitly ignored in ordinary test runs.
 use super::*;
+use crate::ai::tool::ToolRegistry;
 use crate::storage::{ContentPolicy, WikiPageDraft, chat_page_tasks::PageTask};
 use anyhow::{Context, ensure};
+use serde_json::{Value, json};
 
 #[path = "acceptance_controls.rs"]
 mod controls;

@@ -1,10 +1,13 @@
 //! Explicit live-endpoint control checks; never run by the ordinary test suite.
 use super::*;
+use crate::ai::provider::{AiProvider, AiReply};
+use crate::ai::tool::{ToolCall, ToolRegistry, ToolResultMsg};
 use crate::ai::{
     generation::RunIdentity,
     provider::{OpenAiCompatibleProvider, ProviderEvent},
     tool::ToolSpec,
 };
+use serde_json::{Value, json};
 use std::cell::Cell;
 
 struct ControlledProvider<'a> {

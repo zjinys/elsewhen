@@ -1,4 +1,7 @@
 use super::*;
+use crate::ai::provider::{AiProvider, AiReply};
+use crate::ai::tool::ToolCall;
+use crate::storage::Store;
 use serde_json::json;
 use std::cell::Cell;
 
