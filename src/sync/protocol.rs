@@ -452,6 +452,9 @@ pub struct TodoRecord {
     pub status: String,
     pub priority: String,
     pub due_at: Option<String>,
+    /// 提醒标记（migration 50 新增）。旧版本对端发来的 op 没有本字段，默认 false。
+    #[serde(default)]
+    pub reminder: bool,
     pub related_event_id: Option<String>,
     pub related_wiki_slug: Option<String>,
     pub note: Option<String>,

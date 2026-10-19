@@ -10,9 +10,9 @@
 > 5. 已完成的提案不留在「待实现」表里，移到「已完成（归档）」或直接删除行；状态以各 note 头部 `Status` 为准。
 
 - 建立日期：2026-10-04
-- 最后更新：2026-10-19（登记主对话流摘要管道永久失败事故；新增「记事本页」「定时提醒」「摘录孵化闭环」「知识页持续更新与关系网」四项提案）
+- 最后更新：2026-10-19（登记主对话流摘要管道永久失败事故；新增「摘录孵化闭环」「知识页持续更新与关系网」两项提案；「记事本页」「定时提醒」落地移交收尾）
 
-## 待实现（16 项）
+## 待实现（14 项）
 
 | Proposal | 缺失内容 | 优先级 |
 |---|---|---|
@@ -26,8 +26,6 @@
 | [Linux/Wayland 窗口位置记忆失效](notes/proposed/bug-fix/2026-10-10-window-geometry-wayland.md) | 关闭时补存已落地但仍不恢复；疑似 Wayland 下 setBounds position 被忽略，需补恢复侧诊断 | 中 |
 | [快速捕获切不到 CaptureScreen UI](notes/proposed/bug-fix/2026-10-10-quick-capture-no-ui-switch.md) | tray/单实例转发只改窗口外观不改 UI（渲染只认启动 config.mode）；需运行期 mode provider，全局快捷键 + tray 项存留待定 | 中 |
 | [主对话流摘要管道永久失败 → AI 忘记刚说的话](notes/incidents/2026-10-19-summary-pipeline-permanent-failure.md) | 每轮摘要失败（summary_ready 0 次）+ 降级砍掉最近轮原文 + 错误被 Err(_) 吞掉；P0：失败日志 + 最近 N 轮不可裁剪 + 诚实降级文案；P1：归并根节点失败点；P2：工具 schema 40K 瘦身 | 高 |
-| [记事本页（随手记，不经 AI）](notes/proposed/product/2026-10-19-notepad-memo-pages.md) | 方案待评审：新增用户自有 wiki kind `memo` + 记事本入口与快记追加，AI 永不改动；待定单/多页、Capture 落点、AI 读权限 | 中 |
-| [定时提醒（"20 分钟后提醒我"）](notes/proposed/architecture/2026-10-19-timed-reminders.md) | 方案待评审：**复用 `todos` 承载**（已有 `due_at`）+ 到期调度（挂 5s tick）+ 应用内/系统通知双通道 + 本地解析与 AI 工具；需本机触发去重表、加 `flutter_local_notifications` | 中 |
 | [摘录孵化闭环（讨论 → 纳入知识 / 丢弃为负知识）](notes/proposed/product/2026-10-19-clip-incubation-and-negative-knowledge.md) | 方案已定待实施：孵化闸门（`opinion IS NULL`=孵化中，仅对 source/note 收紧缺省语义，不参与编译/召回）+ AI 只在派生稿上改 + 纳入前须先采用一版派生稿 + 丢弃写 `knowledge_sources.reject_reason` 并 archived 留痕（不做撤销否定、素材库独立分组）；需统一参与谓词、回填存量、把 `knowledge_sources` 移入快照 carried | 中 |
 | [知识页持续更新与关系网](notes/proposed/architecture/2026-10-19-knowledge-page-reconsolidation-and-relations.md) | 方案待评审：消化选页改「相关性优先」+ 提示词/slug 纪律 + 页级再汇总 job + `knowledge_relations` 语义关系网（关系只扩上下文 / 排队复核，不自动改写邻居） | 中 |
 | [Today 每日回顾工作台](notes/proposed/product/2026-09-20-today-daily-review-workbench.md) | 暂缓（后置） | 后置 |
@@ -38,10 +36,12 @@
 |---|---|
 | [多设备同步](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | **开发关闭（2026-10-14，`e9254d1`）**：S00–S05 全部交付；基线 `f7f6e74`（迁移 34、快照 v3，Rust 711 / Flutter 372 / analyze 0 error）。唯一阻塞项为 S06 真人双设备门禁——按[人工测试路线 M0–M7](roadmap/2026-10-14-sync-manual-test-roadmap.md) 执行后回填 [S06 清单](roadmap/2026-10-14-s06-human-gate-checklist.md)。历史证据见 [Handoff §1–§31b](roadmap/2026-10-07-multi-device-sync-handoff.md) |
 
-## 收尾（2 项）
+## 收尾（4 项）
 
 | Proposal | 现状 |
 |---|---|
+| [记事本页（随手记，不经 AI）](notes/proposed/product/2026-10-19-notepad-memo-pages.md) | 已实现（2026-10-19，`0665af1`）：`memo` kind + 三层白名单隔离（AI 可写排除 / digest 上下文排除 / 人类专属）+ `create_wiki_page` / 单事务 `append_wiki_page_content`；Flutter 记事本入口 + 快记框。基线 Rust **849** / Flutter **403** / analyze 0 error。剩余：真人 GUI 验收；系统通知通道与 Capture 落点为后续增量 |
+| [定时提醒（"20 分钟后提醒我"）](notes/proposed/architecture/2026-10-19-timed-reminders.md) | 已实现（2026-10-19，`0665af1`）：migration 51 加 `todos.reminder` + 设备本地 `todo_reminder_fires`；pop 挂 5s tick 最前（故障隔离）；snooze = due_at 推后 + fire 删除（单事务）；本地解析（7 单测）+ `create_reminder` AI 工具（确认闸）。基线 Rust **849** / Flutter **403** / analyze 0 error。剩余：真人 GUI 验收；`flutter_local_notifications` 系统通知为后续增量 |
 | [多设备同步](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | 开发关闭（2026-10-14，`e9254d1`）：S00–S05 交付，基线 `f7f6e74`（迁移 34、快照 v3，Rust **711** / Flutter **372** / analyze 0 error）。唯一阻塞项为 S06 真人门禁——按[人工测试路线 M0–M7](roadmap/2026-10-14-sync-manual-test-roadmap.md) 执行后回填 [S06 清单](roadmap/2026-10-14-s06-human-gate-checklist.md)；证据见 [Handoff §1–§31b](roadmap/2026-10-07-multi-device-sync-handoff.md) |
 | [AI 对话体验](notes/proposed/architecture/2026-09-30-ai-chat-experience.md) | C00–C09 工程 + 合成场景完成；真人 GUI 签收移交[人工验收 roadmap](roadmap/2026-10-04-ai-chat-manual-acceptance-roadmap.md)（S1–S6） |
 

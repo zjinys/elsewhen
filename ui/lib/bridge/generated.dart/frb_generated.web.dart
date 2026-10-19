@@ -232,6 +232,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviationReportDto dco_decode_deviation_report_dto(dynamic raw);
 
   @protected
+  DueReminderDto dco_decode_due_reminder_dto(dynamic raw);
+
+  @protected
   EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw);
 
   @protected
@@ -395,6 +398,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw);
+
+  @protected
+  List<DueReminderDto> dco_decode_list_due_reminder_dto(dynamic raw);
 
   @protected
   List<EmotionTagDto> dco_decode_list_emotion_tag_dto(dynamic raw);
@@ -1050,6 +1056,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DueReminderDto sse_decode_due_reminder_dto(SseDeserializer deserializer);
+
+  @protected
   EmotionTagDto sse_decode_emotion_tag_dto(SseDeserializer deserializer);
 
   @protected
@@ -1263,6 +1272,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeviationReportDto> sse_decode_list_deviation_report_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DueReminderDto> sse_decode_list_due_reminder_dto(
     SseDeserializer deserializer,
   );
 
@@ -2364,6 +2378,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_due_reminder_dto(DueReminderDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.todoId),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.dueAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_emotion_tag_dto(EmotionTagDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2968,6 +2992,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_deviation_report_dto(List<DeviationReportDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_deviation_report_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_due_reminder_dto(List<DueReminderDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_due_reminder_dto).toList().jsify()!;
   }
 
   @protected
@@ -4069,6 +4099,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.status),
       cst_encode_String(raw.priority),
       cst_encode_opt_String(raw.dueAt),
+      cst_encode_bool(raw.reminder),
       cst_encode_opt_String(raw.relatedEventId),
       cst_encode_opt_String(raw.relatedWikiSlug),
       cst_encode_opt_String(raw.note),
@@ -4560,6 +4591,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_due_reminder_dto(
+    DueReminderDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_emotion_tag_dto(EmotionTagDto self, SseSerializer serializer);
 
   @protected
@@ -4838,6 +4875,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_deviation_report_dto(
     List<DeviationReportDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_due_reminder_dto(
+    List<DueReminderDto> self,
     SseSerializer serializer,
   );
 
@@ -5624,6 +5667,18 @@ class RustLibWire implements BaseWire {
     invitation_id,
   );
 
+  void wire__crate__api__wiki__append_wiki_page_content(
+    NativePortType port_,
+    String slug,
+    String append_md,
+    String reason,
+  ) => wasmModule.wire__crate__api__wiki__append_wiki_page_content(
+    port_,
+    slug,
+    append_md,
+    reason,
+  );
+
   void wire__crate__api__sync__approve_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
@@ -5769,6 +5824,16 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__sync__confirm_processor_takeover(port_);
 
+  void wire__crate__api__todos__confirm_reminder(
+    NativePortType port_,
+    String todo_id,
+    String device_id,
+  ) => wasmModule.wire__crate__api__todos__confirm_reminder(
+    port_,
+    todo_id,
+    device_id,
+  );
+
   void wire__crate__api__sync__confirm_sync_enrollment(
     NativePortType port_,
     String role,
@@ -5863,6 +5928,7 @@ class RustLibWire implements BaseWire {
     String? priority,
     String? related_wiki_slug,
     String? note,
+    bool reminder,
   ) => wasmModule.wire__crate__api__todos__create_todo(
     port_,
     title,
@@ -5870,6 +5936,7 @@ class RustLibWire implements BaseWire {
     priority,
     related_wiki_slug,
     note,
+    reminder,
   );
 
   void wire__crate__api__wiki__create_wiki_derivative(
@@ -5884,6 +5951,18 @@ class RustLibWire implements BaseWire {
     content_type,
     title,
     content_md,
+  );
+
+  void wire__crate__api__wiki__create_wiki_page(
+    NativePortType port_,
+    String title,
+    String content_md,
+    JSAny tags,
+  ) => wasmModule.wire__crate__api__wiki__create_wiki_page(
+    port_,
+    title,
+    content_md,
+    tags,
   );
 
   void wire__crate__api__db_maintenance__database_stats(NativePortType port_) =>
@@ -6829,6 +6908,11 @@ class RustLibWire implements BaseWire {
     String id,
   ) => wasmModule.wire__crate__api__todos__open_todo_work_item(port_, id);
 
+  void wire__crate__api__todos__parse_reminder_time(
+    NativePortType port_,
+    String text,
+  ) => wasmModule.wire__crate__api__todos__parse_reminder_time(port_, text);
+
   void wire__crate__api__chat_runs__pause_chat_input_queue(
     NativePortType port_,
     String conversation_id,
@@ -6836,6 +6920,11 @@ class RustLibWire implements BaseWire {
     port_,
     conversation_id,
   );
+
+  void wire__crate__api__todos__pop_due_reminders(
+    NativePortType port_,
+    String device_id,
+  ) => wasmModule.wire__crate__api__todos__pop_due_reminders(port_, device_id);
 
   void wire__crate__api__knowledge__prepare_knowledge_restore(
     NativePortType port_,
@@ -7435,6 +7524,16 @@ class RustLibWire implements BaseWire {
     String mode,
   ) => wasmModule.wire__crate__api__rules__set_rule_trigger_mode(port_, mode);
 
+  void wire__crate__api__todos__set_todo_reminder(
+    NativePortType port_,
+    String id,
+    bool reminder,
+  ) => wasmModule.wire__crate__api__todos__set_todo_reminder(
+    port_,
+    id,
+    reminder,
+  );
+
   void wire__crate__api__user_skills__set_user_skill_enabled(
     NativePortType port_,
     String id,
@@ -7464,6 +7563,18 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__chat_runs__shutdown_chat_runs(NativePortType port_) =>
       wasmModule.wire__crate__api__chat_runs__shutdown_chat_runs(port_);
+
+  void wire__crate__api__todos__snooze_reminder(
+    NativePortType port_,
+    String todo_id,
+    JSAny minutes,
+    String device_id,
+  ) => wasmModule.wire__crate__api__todos__snooze_reminder(
+    port_,
+    todo_id,
+    minutes,
+    device_id,
+  );
 
   void wire__crate__api__chat_runs__start_chat_run(
     NativePortType port_,
@@ -7786,6 +7897,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String invitation_id,
   );
 
+  external void wire__crate__api__wiki__append_wiki_page_content(
+    NativePortType port_,
+    String slug,
+    String append_md,
+    String reason,
+  );
+
   external void wire__crate__api__sync__approve_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
@@ -7879,6 +7997,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__todos__confirm_reminder(
+    NativePortType port_,
+    String todo_id,
+    String device_id,
+  );
+
   external void wire__crate__api__sync__confirm_sync_enrollment(
     NativePortType port_,
     String role,
@@ -7940,6 +8064,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? priority,
     String? related_wiki_slug,
     String? note,
+    bool reminder,
   );
 
   external void wire__crate__api__wiki__create_wiki_derivative(
@@ -7948,6 +8073,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content_type,
     String title,
     String content_md,
+  );
+
+  external void wire__crate__api__wiki__create_wiki_page(
+    NativePortType port_,
+    String title,
+    String content_md,
+    JSAny tags,
   );
 
   external void wire__crate__api__db_maintenance__database_stats(
@@ -8622,9 +8754,19 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__todos__parse_reminder_time(
+    NativePortType port_,
+    String text,
+  );
+
   external void wire__crate__api__chat_runs__pause_chat_input_queue(
     NativePortType port_,
     String conversation_id,
+  );
+
+  external void wire__crate__api__todos__pop_due_reminders(
+    NativePortType port_,
+    String device_id,
   );
 
   external void wire__crate__api__knowledge__prepare_knowledge_restore(
@@ -8999,6 +9141,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String mode,
   );
 
+  external void wire__crate__api__todos__set_todo_reminder(
+    NativePortType port_,
+    String id,
+    bool reminder,
+  );
+
   external void wire__crate__api__user_skills__set_user_skill_enabled(
     NativePortType port_,
     String id,
@@ -9019,6 +9167,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__chat_runs__shutdown_chat_runs(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__todos__snooze_reminder(
+    NativePortType port_,
+    String todo_id,
+    JSAny minutes,
+    String device_id,
   );
 
   external void wire__crate__api__chat_runs__start_chat_run(

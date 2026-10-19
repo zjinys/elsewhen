@@ -272,14 +272,15 @@ impl Store {
         related_event_id: Option<&str>,
         related_wiki_slug: Option<&str>,
         note: Option<&str>,
+        reminder: bool,
     ) -> Result<Todo> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
         let tx = self.begin_write_transaction()?;
         self.connection.execute(
-        "INSERT INTO todos (id, title, status, priority, due_at, related_event_id, related_wiki_slug, note, created_at, updated_at)
-         VALUES (?1, ?2, 'open', ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
-        params![id, title, priority, due_at, related_event_id, related_wiki_slug, note, now],
+        "INSERT INTO todos (id, title, status, priority, due_at, related_event_id, related_wiki_slug, note, reminder, created_at, updated_at)
+         VALUES (?1, ?2, 'open', ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
+        params![id, title, priority, due_at, related_event_id, related_wiki_slug, note, reminder as i64, now],
     )?;
         self.sync_record_todo(&id, false)?;
         if let Some(tx) = tx {
@@ -291,6 +292,7 @@ impl Store {
             status: TodoStatus::Open,
             priority: priority.to_string(),
             due_at: due_at.map(|s| s.to_string()),
+            reminder,
             related_event_id: related_event_id.map(|s| s.to_string()),
             related_wiki_slug: related_wiki_slug.map(|s| s.to_string()),
             note: note.map(|s| s.to_string()),
@@ -301,9 +303,9 @@ impl Store {
 
     pub fn list_todos(&self, status_filter: Option<&str>) -> Result<Vec<Todo>> {
         let sql = match status_filter {
-        Some(_) => "SELECT id, title, status, priority, due_at, related_event_id, related_wiki_slug, note, created_at, updated_at
+        Some(_) => "SELECT id, title, status, priority, due_at, reminder, related_event_id, related_wiki_slug, note, created_at, updated_at
                     FROM todos WHERE status = ?1 ORDER BY created_at DESC",
-        None => "SELECT id, title, status, priority, due_at, related_event_id, related_wiki_slug, note, created_at, updated_at
+        None => "SELECT id, title, status, priority, due_at, reminder, related_event_id, related_wiki_slug, note, created_at, updated_at
                 FROM todos WHERE status != 'archived' ORDER BY status, created_at DESC",
     };
         let mut statement = self.connection.prepare(sql)?;
@@ -314,11 +316,12 @@ impl Store {
                 status: TodoStatus::parse(&row.get::<_, String>(2)?),
                 priority: row.get(3)?,
                 due_at: row.get(4)?,
-                related_event_id: row.get(5)?,
-                related_wiki_slug: row.get(6)?,
-                note: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
+                reminder: row.get::<_, i64>(5)? != 0,
+                related_event_id: row.get(6)?,
+                related_wiki_slug: row.get(7)?,
+                note: row.get(8)?,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
             })
         };
         let rows = match status_filter {
@@ -340,16 +343,17 @@ impl Store {
                 status: TodoStatus::parse(&row.get::<_, String>(2)?),
                 priority: row.get(3)?,
                 due_at: row.get(4)?,
-                related_event_id: row.get(5)?,
-                related_wiki_slug: row.get(6)?,
-                note: row.get(7)?,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
+                reminder: row.get::<_, i64>(5)? != 0,
+                related_event_id: row.get(6)?,
+                related_wiki_slug: row.get(7)?,
+                note: row.get(8)?,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
             })
         };
         self.connection
             .query_row(
-                "SELECT id, title, status, priority, due_at, related_event_id,
+                "SELECT id, title, status, priority, due_at, reminder, related_event_id,
                     related_wiki_slug, note, created_at, updated_at
              FROM todos WHERE id = ?1",
                 [id],

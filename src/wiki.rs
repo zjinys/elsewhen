@@ -39,7 +39,17 @@ pub const WIKI_KINDS: &[&str] = &[
     "method",
     "case",
     "principle",
+    // 记事本（人类专属，无 migration）：memo 只能经 create_wiki_page 建档；
+    // 正文追加必须走单事务 append_wiki_page_content，不走读-改-写乐观锁路径
+    // （评审已通过，见 notes/proposed/product/2026-10-19-notepad-memo-pages.md §8）。
+    "memo",
 ];
+
+/// AI 消化（digest）可写的 kind。memo 被明确排除：它是人类专属的
+/// 记事本，digest 的整篇覆盖写回不能碰（评审 D1）。
+pub fn validate_digest_kind(kind: &str) -> bool {
+    WIKI_KINDS.contains(&kind) && kind != "memo"
+}
 
 /// 认知推微生成时要导航的页面类型（镜像四透镜的取材范围）
 pub const INSIGHT_KINDS: &[&str] = &[
@@ -1362,7 +1372,16 @@ fn build_digest_user_prompt(
     out.push_str("\n当前 wiki 索引：\n");
     out.push_str(&index);
 
-    let context = select_context_pages(pages, WIKI_KINDS, max_chars);
+    // memo 全文不进 digest 上下文（只留给「知识引用式」按需挂载，评审 D3）。
+    let context = select_context_pages(
+        pages,
+        &WIKI_KINDS
+            .iter()
+            .copied()
+            .filter(|k| *k != "memo")
+            .collect::<Vec<_>>(),
+        max_chars,
+    );
     if !context.is_empty() {
         out.push_str("\n相关现有页面全文（合并/更新时参考）：\n");
         for p in &context {
@@ -1467,7 +1486,7 @@ fn digest_batch_drafts(
 
 /// 单条提议 → 页面草案。来源编号必须全部落在本批且非空，禁止零来源页。
 fn proposal_to_draft(p: &DigestProposal, events: &[EventRecord]) -> Result<WikiPageDraft> {
-    if !validate_kind(&p.kind) || !validate_slug(&p.slug) || p.content.trim().is_empty() {
+    if !validate_digest_kind(&p.kind) || !validate_slug(&p.slug) || p.content.trim().is_empty() {
         anyhow::bail!("提议不合法：kind={} slug={}", p.kind, p.slug);
     }
     if p.source_event_ids.is_empty() {

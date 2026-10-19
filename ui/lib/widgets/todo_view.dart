@@ -394,9 +394,15 @@ class _TodoItem extends StatelessWidget {
                                 ),
                               ),
                             ),
+                          if (todo.reminder)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Icon(Icons.alarm,
+                                  size: 13, color: AppTheme.accentPrimary),
+                            ),
                           if (todo.dueAt != null && todo.dueAt!.isNotEmpty)
                             Text(
-                              '截止 ${_fmtDate(todo.dueAt!)}',
+                              '${todo.reminder ? "提醒" : "截止"} ${_fmtDate(todo.dueAt!)}',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: AppTheme.textTertiary,
@@ -505,6 +511,7 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
   late final TextEditingController _note;
   late final TextEditingController _due;
   late String _priority;
+  late bool _reminder;
   bool _saving = false;
 
   @override
@@ -514,6 +521,7 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
     _note = TextEditingController(text: widget.todo.note ?? '');
     _due = TextEditingController(text: widget.todo.dueAt ?? '');
     _priority = widget.todo.priority;
+    _reminder = widget.todo.reminder;
   }
 
   @override
@@ -538,6 +546,11 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
         priority: _priority,
         dueAt: due.isEmpty ? null : due,
       );
+      // 提醒开关独立于 dueAt：开/关单独调 setTodoReminder，
+      // 校验（过去时间/缺 due_at 拒绝）由 Rust 侧诚实报错。
+      if (_reminder != widget.todo.reminder) {
+        await repo.setTodoReminder(widget.todo.id, _reminder);
+      }
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
@@ -586,6 +599,24 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
               style: TextStyle(color: AppTheme.textPrimary),
               cursorColor: AppTheme.accentPrimary,
               decoration: _inputDecoration('截止日期（可选，YYYY-MM-DD，留空清除）'),
+            ),
+            const SizedBox(height: AppTheme.space2),
+            // 定时提醒开关（评审：需要明确到期时刻）
+            Row(
+              children: [
+                Icon(Icons.alarm, size: 16, color: AppTheme.accentPrimary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '到期提醒（到时弹横幅/通知）',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                ),
+                Switch(
+                  value: _reminder,
+                  onChanged: (v) => setState(() => _reminder = v),
+                ),
+              ],
             ),
             const SizedBox(height: AppTheme.space3),
             Text(

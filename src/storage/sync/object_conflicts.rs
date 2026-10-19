@@ -256,13 +256,13 @@ impl Store {
                 } else {
                     // 采纳远端编辑：整行采纳；行已删除则复活（未删态）。
                     self.connection.execute(
-                        "INSERT INTO todos(id,title,status,priority,due_at,related_event_id,related_wiki_slug,note,created_at,updated_at) \
-                         VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10) \
+                        "INSERT INTO todos(id,title,status,priority,due_at,reminder,related_event_id,related_wiki_slug,note,created_at,updated_at) \
+                         VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11) \
                          ON CONFLICT(id) DO UPDATE SET title=excluded.title,status=excluded.status,priority=excluded.priority, \
-                         due_at=excluded.due_at,related_event_id=excluded.related_event_id,related_wiki_slug=excluded.related_wiki_slug, \
+                         due_at=excluded.due_at,reminder=excluded.reminder,related_event_id=excluded.related_event_id,related_wiki_slug=excluded.related_wiki_slug, \
                          note=excluded.note,updated_at=excluded.updated_at",
                         params![todo.id, todo.title, todo.status, todo.priority, todo.due_at,
-                                todo.related_event_id, todo.related_wiki_slug, todo.note,
+                                todo.reminder as i64, todo.related_event_id, todo.related_wiki_slug, todo.note,
                                 todo.created_at, todo.updated_at],
                     )?;
                 }

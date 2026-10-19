@@ -682,6 +682,7 @@ fn update_todo_edits_fields_and_clears_optionals() {
             None,
             None,
             Some("原始说明"),
+            false,
         )
         .unwrap();
 
@@ -733,6 +734,7 @@ fn work_item_link_is_lazy_idempotent_and_keeps_completed_history() {
             None,
             None,
             Some("先收集约束"),
+            false,
         )
         .unwrap();
 
@@ -769,7 +771,7 @@ fn get_todo_includes_archived_history_for_on_demand_migration() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();
     let todo = store
-        .create_todo("归档后仍可讨论", "normal", None, None, None, None)
+        .create_todo("归档后仍可讨论", "normal", None, None, None, None, false)
         .unwrap();
     store
         .update_todo_status(&todo.id, TodoStatus::Archived)
@@ -1027,6 +1029,7 @@ fn entity_merge_and_undo_preserve_sources_and_restore_rows() {
             Some(&event_id),
             Some("person/李四-a"),
             None,
+            false,
         )
         .unwrap();
 
@@ -2299,4 +2302,110 @@ fn network_proxy_save_load_roundtrip_and_validation() {
     // 失败保存不落库（仍是 off）
     let s = store.network_settings().unwrap();
     assert_eq!(s.proxy_mode, "off");
+}
+
+#[test]
+fn memo_append_is_single_transaction_and_syncs() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    let page = store
+        .create_wiki_page("memo", "想法收集", "第一条", &[])
+        .unwrap();
+    assert_eq!(page.kind, "memo");
+    assert!(page.slug.starts_with("memo/"));
+
+    let appended = store
+        .append_wiki_page_content(&page.slug, "第二条", "快记")
+        .unwrap();
+    assert!(appended.content_md.contains("第一条"));
+    assert!(appended.content_md.contains("第二条"));
+    // 追加置位人工持有（digest 不整篇覆盖）
+    assert!(appended.human_edited_at.is_some());
+
+    // memo 不进 digest 的可写 kind
+    assert!(crate::wiki::validate_digest_kind("insight"));
+    assert!(!crate::wiki::validate_digest_kind("memo"));
+}
+
+#[test]
+fn memo_append_rejects_source_and_oversize() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    // 素材页只读
+    let draft = crate::storage::WikiPageDraft {
+        slug: "note-x".into(),
+        kind: "note".into(),
+        title: "x".into(),
+        summary: String::new(),
+        content_md: "body".into(),
+        tags: vec![],
+        source_event_ids: vec![],
+        status: "confirmed".into(),
+        reason: "t".into(),
+        source_url: None,
+    };
+    store
+        .upsert_wiki_page(&draft, crate::storage::ContentPolicy::Always)
+        .unwrap();
+    assert!(store.append_wiki_page_content("note-x", "y", "").is_err());
+    // 空追加拒绝
+    let memo = store.create_wiki_page("memo", "m", "a", &[]).unwrap();
+    assert!(store.append_wiki_page_content(&memo.slug, "   ", "").is_err());
+}
+
+#[test]
+fn reminder_pop_confirm_snooze_roundtrip() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    let past = (chrono::Utc::now() - chrono::Duration::minutes(1)).to_rfc3339();
+    let todo = store
+        .create_todo("喝水", "normal", Some(&past), None, None, None, true)
+        .unwrap();
+
+    // 到期弹出（本机未触发）
+    let due = store
+        .due_reminders(&chrono::Utc::now().to_rfc3339(), "dev-a")
+        .unwrap();
+    assert_eq!(due.len(), 1);
+    assert_eq!(due[0].todo_id, todo.id);
+    // 普通待办（reminder=false）不弹
+    let plain = store
+        .create_todo("普通", "normal", Some(&past), None, None, None, false)
+        .unwrap();
+    let due = store
+        .due_reminders(&chrono::Utc::now().to_rfc3339(), "dev-a")
+        .unwrap();
+    assert!(due.iter().all(|d| d.todo_id != plain.id));
+
+    // 记录 fire 后不再重弹
+    store.record_reminder_fire(&todo.id, "dev-a").unwrap();
+    let due = store
+        .due_reminders(&chrono::Utc::now().to_rfc3339(), "dev-a")
+        .unwrap();
+    assert!(due.is_empty(), "fire 后同设备不重弹");
+    // 另一台设备仍能弹（本机表不同步）
+    let due = store
+        .due_reminders(&chrono::Utc::now().to_rfc3339(), "dev-b")
+        .unwrap();
+    assert_eq!(due.len(), 1);
+
+    // snooze：due_at 推后 + fire 行删除（同事务）→ 之后可在新时刻重响
+    store.snooze_reminder(&todo.id, 10, "dev-a").unwrap();
+    let t = store.get_todo(&todo.id).unwrap().unwrap();
+    assert!(t.due_at.unwrap() > chrono::Utc::now().to_rfc3339());
+    // 未到新时刻不弹
+    let due = store
+        .due_reminders(&chrono::Utc::now().to_rfc3339(), "dev-a")
+        .unwrap();
+    assert!(due.is_empty());
+    // 到了新时刻（fire 已删）能重弹——这是评审 3.1 修掉的关键 bug
+    let future = (chrono::Utc::now() + chrono::Duration::minutes(11)).to_rfc3339();
+    let due = store.due_reminders(&future, "dev-a").unwrap();
+    assert_eq!(due.len(), 1, "snooze 后 fire 已清，新时刻必须重响");
+
+    // 确认 = 完成 + 清 fire
+    store.record_reminder_fire(&todo.id, "dev-a").unwrap();
+    store.confirm_reminder(&todo.id, "dev-a").unwrap();
+    let t = store.get_todo(&todo.id).unwrap().unwrap();
+    assert_eq!(t.status, crate::storage::TodoStatus::Done);
 }

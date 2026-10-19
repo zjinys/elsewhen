@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1797153393;
+  int get rustContentHash => 443204983;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -146,6 +146,12 @@ abstract class RustLibApi extends BaseApi {
     required String role,
     required String operationId,
     required String invitationId,
+  });
+
+  Future<WikiPageDto> crateApiWikiAppendWikiPageContent({
+    required String slug,
+    required String appendMd,
+    required String reason,
   });
 
   Future<SyncKeyCommitDto> crateApiSyncApproveOwnerSyncInvitation({
@@ -220,6 +226,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSyncConfirmProcessorTakeover();
 
+  Future<void> crateApiTodosConfirmReminder({
+    required String todoId,
+    required String deviceId,
+  });
+
   Future<SyncEnrollmentStateDto> crateApiSyncConfirmSyncEnrollment({
     required String role,
     required String operationId,
@@ -271,6 +282,7 @@ abstract class RustLibApi extends BaseApi {
     String? priority,
     String? relatedWikiSlug,
     String? note,
+    required bool reminder,
   });
 
   Future<WikiPageDto> crateApiWikiCreateWikiDerivative({
@@ -278,6 +290,12 @@ abstract class RustLibApi extends BaseApi {
     required String contentType,
     required String title,
     required String contentMd,
+  });
+
+  Future<WikiPageDto> crateApiWikiCreateWikiPage({
+    required String title,
+    required String contentMd,
+    required List<String> tags,
   });
 
   Future<DatabaseStatsDto> crateApiDbMaintenanceDatabaseStats();
@@ -766,8 +784,14 @@ abstract class RustLibApi extends BaseApi {
 
   Future<WikiPageDto> crateApiTodosOpenTodoWorkItem({required String id});
 
+  Future<String?> crateApiTodosParseReminderTime({required String text});
+
   Future<void> crateApiChatRunsPauseChatInputQueue({
     required String conversationId,
+  });
+
+  Future<List<DueReminderDto>> crateApiTodosPopDueReminders({
+    required String deviceId,
   });
 
   Future<String> crateApiKnowledgePrepareKnowledgeRestore({
@@ -1063,6 +1087,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiRulesSetRuleTriggerMode({required String mode});
 
+  Future<void> crateApiTodosSetTodoReminder({
+    required String id,
+    required bool reminder,
+  });
+
   Future<void> crateApiUserSkillsSetUserSkillEnabled({
     required String id,
     required bool enabled,
@@ -1079,6 +1108,12 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<int> crateApiChatRunsShutdownChatRuns();
+
+  Future<void> crateApiTodosSnoozeReminder({
+    required String todoId,
+    required PlatformInt64 minutes,
+    required String deviceId,
+  });
 
   Future<ChatRunDto> crateApiChatRunsStartChatRun({
     required String conversationId,
@@ -1436,6 +1471,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "advance_sync_enrollment",
         argNames: ["role", "operationId", "invitationId"],
+      );
+
+  @override
+  Future<WikiPageDto> crateApiWikiAppendWikiPageContent({
+    required String slug,
+    required String appendMd,
+    required String reason,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          var arg1 = cst_encode_String(appendMd);
+          var arg2 = cst_encode_String(reason);
+          return wire.wire__crate__api__wiki__append_wiki_page_content(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiAppendWikiPageContentConstMeta,
+        argValues: [slug, appendMd, reason],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiAppendWikiPageContentConstMeta =>
+      const TaskConstMeta(
+        debugName: "append_wiki_page_content",
+        argNames: ["slug", "appendMd", "reason"],
       );
 
   @override
@@ -1969,6 +2040,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiTodosConfirmReminder({
+    required String todoId,
+    required String deviceId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(todoId);
+          var arg1 = cst_encode_String(deviceId);
+          return wire.wire__crate__api__todos__confirm_reminder(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTodosConfirmReminderConstMeta,
+        argValues: [todoId, deviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTodosConfirmReminderConstMeta =>
+      const TaskConstMeta(
+        debugName: "confirm_reminder",
+        argNames: ["todoId", "deviceId"],
+      );
+
+  @override
   Future<SyncEnrollmentStateDto> crateApiSyncConfirmSyncEnrollment({
     required String role,
     required String operationId,
@@ -2257,6 +2361,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     String? priority,
     String? relatedWikiSlug,
     String? note,
+    required bool reminder,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2266,6 +2371,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg2 = cst_encode_opt_String(priority);
           var arg3 = cst_encode_opt_String(relatedWikiSlug);
           var arg4 = cst_encode_opt_String(note);
+          var arg5 = cst_encode_bool(reminder);
           return wire.wire__crate__api__todos__create_todo(
             port_,
             arg0,
@@ -2273,6 +2379,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             arg2,
             arg3,
             arg4,
+            arg5,
           );
         },
         codec: DcoCodec(
@@ -2280,7 +2387,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiTodosCreateTodoConstMeta,
-        argValues: [title, dueAt, priority, relatedWikiSlug, note],
+        argValues: [title, dueAt, priority, relatedWikiSlug, note, reminder],
         apiImpl: this,
       ),
     );
@@ -2288,7 +2395,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTodosCreateTodoConstMeta => const TaskConstMeta(
     debugName: "create_todo",
-    argNames: ["title", "dueAt", "priority", "relatedWikiSlug", "note"],
+    argNames: [
+      "title",
+      "dueAt",
+      "priority",
+      "relatedWikiSlug",
+      "note",
+      "reminder",
+    ],
   );
 
   @override
@@ -2329,6 +2443,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "create_wiki_derivative",
         argNames: ["basedOnSlug", "contentType", "title", "contentMd"],
       );
+
+  @override
+  Future<WikiPageDto> crateApiWikiCreateWikiPage({
+    required String title,
+    required String contentMd,
+    required List<String> tags,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(title);
+          var arg1 = cst_encode_String(contentMd);
+          var arg2 = cst_encode_list_String(tags);
+          return wire.wire__crate__api__wiki__create_wiki_page(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiCreateWikiPageConstMeta,
+        argValues: [title, contentMd, tags],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiCreateWikiPageConstMeta => const TaskConstMeta(
+    debugName: "create_wiki_page",
+    argNames: ["title", "contentMd", "tags"],
+  );
 
   @override
   Future<DatabaseStatsDto> crateApiDbMaintenanceDatabaseStats() {
@@ -6112,6 +6261,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "open_todo_work_item", argNames: ["id"]);
 
   @override
+  Future<String?> crateApiTodosParseReminderTime({required String text}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(text);
+          return wire.wire__crate__api__todos__parse_reminder_time(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTodosParseReminderTimeConstMeta,
+        argValues: [text],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTodosParseReminderTimeConstMeta =>
+      const TaskConstMeta(debugName: "parse_reminder_time", argNames: ["text"]);
+
+  @override
   Future<void> crateApiChatRunsPauseChatInputQueue({
     required String conversationId,
   }) {
@@ -6139,6 +6310,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "pause_chat_input_queue",
         argNames: ["conversationId"],
+      );
+
+  @override
+  Future<List<DueReminderDto>> crateApiTodosPopDueReminders({
+    required String deviceId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(deviceId);
+          return wire.wire__crate__api__todos__pop_due_reminders(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_due_reminder_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTodosPopDueRemindersConstMeta,
+        argValues: [deviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTodosPopDueRemindersConstMeta =>
+      const TaskConstMeta(
+        debugName: "pop_due_reminders",
+        argNames: ["deviceId"],
       );
 
   @override
@@ -8101,6 +8299,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiTodosSetTodoReminder({
+    required String id,
+    required bool reminder,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_bool(reminder);
+          return wire.wire__crate__api__todos__set_todo_reminder(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTodosSetTodoReminderConstMeta,
+        argValues: [id, reminder],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTodosSetTodoReminderConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_todo_reminder",
+        argNames: ["id", "reminder"],
+      );
+
+  @override
   Future<void> crateApiUserSkillsSetUserSkillEnabled({
     required String id,
     required bool enabled,
@@ -8218,6 +8449,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiChatRunsShutdownChatRunsConstMeta =>
       const TaskConstMeta(debugName: "shutdown_chat_runs", argNames: []);
+
+  @override
+  Future<void> crateApiTodosSnoozeReminder({
+    required String todoId,
+    required PlatformInt64 minutes,
+    required String deviceId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(todoId);
+          var arg1 = cst_encode_i_64(minutes);
+          var arg2 = cst_encode_String(deviceId);
+          return wire.wire__crate__api__todos__snooze_reminder(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTodosSnoozeReminderConstMeta,
+        argValues: [todoId, minutes, deviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTodosSnoozeReminderConstMeta =>
+      const TaskConstMeta(
+        debugName: "snooze_reminder",
+        argNames: ["todoId", "minutes", "deviceId"],
+      );
 
   @override
   Future<ChatRunDto> crateApiChatRunsStartChatRun({
@@ -9807,6 +10074,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DueReminderDto dco_decode_due_reminder_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return DueReminderDto(
+      todoId: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      dueAt: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
   EmotionTagDto dco_decode_emotion_tag_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -10522,6 +10802,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_deviation_report_dto).toList();
+  }
+
+  @protected
+  List<DueReminderDto> dco_decode_list_due_reminder_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_due_reminder_dto).toList();
   }
 
   @protected
@@ -11756,19 +12042,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TodoDto dco_decode_todo_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return TodoDto(
       id: dco_decode_String(arr[0]),
       title: dco_decode_String(arr[1]),
       status: dco_decode_String(arr[2]),
       priority: dco_decode_String(arr[3]),
       dueAt: dco_decode_opt_String(arr[4]),
-      relatedEventId: dco_decode_opt_String(arr[5]),
-      relatedWikiSlug: dco_decode_opt_String(arr[6]),
-      note: dco_decode_opt_String(arr[7]),
-      createdAt: dco_decode_String(arr[8]),
-      updatedAt: dco_decode_String(arr[9]),
+      reminder: dco_decode_bool(arr[5]),
+      relatedEventId: dco_decode_opt_String(arr[6]),
+      relatedWikiSlug: dco_decode_opt_String(arr[7]),
+      note: dco_decode_opt_String(arr[8]),
+      createdAt: dco_decode_String(arr[9]),
+      updatedAt: dco_decode_String(arr[10]),
     );
   }
 
@@ -12772,6 +13059,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       byProject: var_byProject,
       byActivity: var_byActivity,
       deviations: var_deviations,
+    );
+  }
+
+  @protected
+  DueReminderDto sse_decode_due_reminder_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_todoId = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_dueAt = sse_decode_String(deserializer);
+    return DueReminderDto(
+      todoId: var_todoId,
+      title: var_title,
+      dueAt: var_dueAt,
     );
   }
 
@@ -13808,6 +14108,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <DeviationReportDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_deviation_report_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DueReminderDto> sse_decode_list_due_reminder_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DueReminderDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_due_reminder_dto(deserializer));
     }
     return ans_;
   }
@@ -15697,6 +16011,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_status = sse_decode_String(deserializer);
     var var_priority = sse_decode_String(deserializer);
     var var_dueAt = sse_decode_opt_String(deserializer);
+    var var_reminder = sse_decode_bool(deserializer);
     var var_relatedEventId = sse_decode_opt_String(deserializer);
     var var_relatedWikiSlug = sse_decode_opt_String(deserializer);
     var var_note = sse_decode_opt_String(deserializer);
@@ -15708,6 +16023,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       status: var_status,
       priority: var_priority,
       dueAt: var_dueAt,
+      reminder: var_reminder,
       relatedEventId: var_relatedEventId,
       relatedWikiSlug: var_relatedWikiSlug,
       note: var_note,
@@ -16652,6 +16968,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_due_reminder_dto(
+    DueReminderDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.todoId, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.dueAt, serializer);
+  }
+
+  @protected
   void sse_encode_emotion_tag_dto(
     EmotionTagDto self,
     SseSerializer serializer,
@@ -17389,6 +17716,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_deviation_report_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_due_reminder_dto(
+    List<DueReminderDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_due_reminder_dto(item, serializer);
     }
   }
 
@@ -18899,6 +19238,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.status, serializer);
     sse_encode_String(self.priority, serializer);
     sse_encode_opt_String(self.dueAt, serializer);
+    sse_encode_bool(self.reminder, serializer);
     sse_encode_opt_String(self.relatedEventId, serializer);
     sse_encode_opt_String(self.relatedWikiSlug, serializer);
     sse_encode_opt_String(self.note, serializer);

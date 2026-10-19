@@ -160,8 +160,8 @@ fn long_history_gets_a_cached_non_destructive_summary_and_keeps_recent_turns() {
     assert!(requests > 0 && requests <= MAX_REQUESTS);
     // 第二次走生产装配路径：第一次摘要成功即固化 auto 翻篇标记，重跑
     // 直接读标记跳过边界前原文（零新请求，比节点级缓存更强的复用）。
-    let mut second = crate::ai::memory::prepare_uncompressed_context(&conversation, &store)
-        .unwrap();
+    let mut second =
+        crate::ai::memory::prepare_uncompressed_context(&conversation, &store).unwrap();
     assert_eq!(
         provider.requests.get(),
         requests,
@@ -552,14 +552,17 @@ mod page_marks {
         assert!(mark.active);
         assert_eq!(mark.kind, "manual");
 
-        let context = crate::ai::memory::prepare_uncompressed_context(&conversation, &store)
-            .unwrap();
+        let context =
+            crate::ai::memory::prepare_uncompressed_context(&conversation, &store).unwrap();
         let texts: Vec<&str> = context.iter().map(|m| m.content.as_str()).collect();
         let summary_message = texts
             .iter()
             .find(|t| t.contains("已翻篇的历史摘要"))
             .expect("翻篇摘要应注入装配");
-        assert!(summary_message.contains(boundary.as_str()), "摘要应标注覆盖边界");
+        assert!(
+            summary_message.contains(boundary.as_str()),
+            "摘要应标注覆盖边界"
+        );
         // 边界前原文确定性跳过；边界后消息完整保留。
         assert!(texts.iter().all(|t| !t.contains("historical background")));
         assert!(
@@ -567,10 +570,7 @@ mod page_marks {
             "边界后原文必须保留"
         );
         let context_chars: usize = texts.iter().map(|t| t.chars().count()).sum();
-        assert!(
-            context_chars < full_history / 2,
-            "翻篇后装配体积应显著下降"
-        );
+        assert!(context_chars < full_history / 2, "翻篇后装配体积应显著下降");
     }
 
     #[test]
@@ -608,7 +608,10 @@ mod page_marks {
         .unwrap();
 
         let invalid = r#"{"goals":[],"constraints":[],"facts":[],"decisions":[],"unfinished":[]}"#;
-        assert!(store.save_page_mark_override(&mark_id, invalid).is_err(), "空摘要必须被校验挡下");
+        assert!(
+            store.save_page_mark_override(&mark_id, invalid).is_err(),
+            "空摘要必须被校验挡下"
+        );
         assert!(store.save_page_mark_override(&mark_id, "not json").is_err());
 
         let edited = json!({
@@ -642,8 +645,8 @@ mod page_marks {
         .unwrap();
         store.set_page_mark_active(&mark_id, false).unwrap();
         assert!(store.active_page_mark(&conversation).unwrap().is_none());
-        let context = crate::ai::memory::prepare_uncompressed_context(&conversation, &store)
-            .unwrap();
+        let context =
+            crate::ai::memory::prepare_uncompressed_context(&conversation, &store).unwrap();
         assert!(
             context
                 .iter()
@@ -683,7 +686,10 @@ mod page_marks {
         )
         .unwrap();
         assert_ne!(old, new);
-        assert!(!store.page_mark_by_id(&old).unwrap().unwrap().active, "旧 auto 必须失活（每话题只留最新一份）");
+        assert!(
+            !store.page_mark_by_id(&old).unwrap().unwrap().active,
+            "旧 auto 必须失活（每话题只留最新一份）"
+        );
         assert!(store.page_mark_by_id(&new).unwrap().unwrap().active);
         // 同一边界重复翻篇要被显式拒绝，不静默重建。
         let error = super::generate_page_mark(
@@ -735,14 +741,19 @@ mod page_marks {
                 .clone()
         };
         let run = store
-            .create_chat_run(&conversation, &input_id, "stale-mark-drill", "fixture-owner")
+            .create_chat_run(
+                &conversation,
+                &input_id,
+                "stale-mark-drill",
+                "fixture-owner",
+            )
             .unwrap();
         store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
             id: run.id.clone(),
             owner: "fixture-owner".into(),
         });
-        let context = crate::ai::memory::prepare_uncompressed_context(&conversation, &store)
-            .unwrap();
+        let context =
+            crate::ai::memory::prepare_uncompressed_context(&conversation, &store).unwrap();
         assert!(
             context
                 .iter()
@@ -750,7 +761,9 @@ mod page_marks {
             "边界失效必须退回全原文"
         );
         assert!(
-            !context.iter().any(|m| m.content.contains("已翻篇的历史摘要")),
+            !context
+                .iter()
+                .any(|m| m.content.contains("已翻篇的历史摘要")),
             "失效标记的摘要不得再注入"
         );
         crate::ai::memory::prepare_uncompressed_context(&conversation, &store).unwrap();
@@ -784,13 +797,23 @@ mod page_marks {
         assert!(store.page_mark_by_id(&mark_id).unwrap().unwrap().active);
         // 标记生效后第二篇增长：complete_originals 守护不应挡住新篇摘要。
         store
-            .send_message(&conversation, "user", &"new page growth ".repeat(3000), None)
+            .send_message(
+                &conversation,
+                "user",
+                &"new page growth ".repeat(3000),
+                None,
+            )
             .unwrap();
         store
             .send_message(&conversation, "assistant", "新篇答复", None)
             .unwrap();
         store
-            .send_message(&conversation, "user", &"new page growth 2 ".repeat(3000), None)
+            .send_message(
+                &conversation,
+                "user",
+                &"new page growth 2 ".repeat(3000),
+                None,
+            )
             .unwrap();
         store
             .send_message(&conversation, "assistant", "新篇第二轮答复", None)
@@ -799,8 +822,8 @@ mod page_marks {
             .send_message(&conversation, "user", "新篇当前问题", None)
             .unwrap();
         let provider = FakeProvider::new(boundary_reply());
-        let mut messages = crate::ai::memory::prepare_uncompressed_context(&conversation, &store)
-            .unwrap();
+        let mut messages =
+            crate::ai::memory::prepare_uncompressed_context(&conversation, &store).unwrap();
         super::apply_summary(
             &store,
             &conversation,

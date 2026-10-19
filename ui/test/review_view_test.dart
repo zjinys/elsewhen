@@ -42,6 +42,7 @@ void main() {
         status: 'open',
         priority: 'normal',
         dueAt: null,
+        reminder: false,
         relatedEventId: null,
         relatedWikiSlug: null,
         note: null,

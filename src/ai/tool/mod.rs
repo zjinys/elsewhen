@@ -104,8 +104,10 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
         instructions: "使用要点：\n\
             - 仅在用户明确要求记录待办、或出现明确的承诺性事项（截止日期、应许动作）时创建。\n\
             - 标题写清动作与对象，避免模糊描述。\n\
-            - 一般疑问、想法、临时话题不要建待办；查询已有待办用常驻的 list_todos。",
-        tools: &["create_todo"],
+            - 一般疑问、想法、临时话题不要建待办；查询已有待办用常驻的 list_todos。\n\
+            - 用户要在未来某个时刻被提醒（「X 点提醒我」「明早提醒」）时用 create_reminder，\n\
+              它必须带明确到期时间，确认卡片回显已解析时间，确认才建条。",
+        tools: &["create_todo", "create_reminder"],
     },
     SkillDefinition {
         id: "people-graph",
@@ -273,6 +275,7 @@ impl ToolRegistry {
             Box::new(SaveKnowledgeDraftTool),
             Box::new(ListTodosTool),
             Box::new(CreateTodoTool),
+            Box::new(CreateReminderTool),
             Box::new(ProposePeopleRelationsTool),
             Box::new(BatchExtractPeopleRelationsTool),
             Box::new(ListEventsByDateTool),
@@ -1474,6 +1477,57 @@ impl Tool for CreateTodoTool {
     }
 }
 
+/// 提议一条提醒（确认后创建；评审 3.4：必须带 due_at，确认卡回显已解析时间）
+struct CreateReminderTool;
+impl Tool for CreateReminderTool {
+    fn name(&self) -> &'static str {
+        "create_reminder"
+    }
+    fn description(&self) -> &'static str {
+        "为需要在未来某个时刻提醒用户的事创建一条提醒。必须给出明确的到期时间（ISO 时间）。调用后进入待确认状态，确认卡片回显解析出的时间，用户确认才建条；确认时若时间已过会原样拒绝，绝不静默改期。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type":"object",
+            "properties":{
+                "title":{"type":"string","description":"提醒内容，必填"},
+                "due_at":{"type":"string","description":"到期时间（RFC3339 / ISO 时间），必填"},
+                "note":{"type":"string","description":"补充说明，可选"}
+            },
+            "required":["title","due_at"],
+            "additionalProperties":false
+        })
+    }
+    fn deferred(&self) -> bool {
+        true
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let title = arg_str(args, "title")?;
+        let due_at = arg_str(args, "due_at")?;
+        // 入库前先把时间验成 RFC3339，避免「确认时才炸」浪费一轮确认。
+        let parsed = chrono::DateTime::parse_from_rfc3339(&due_at)
+            .map_err(|_| anyhow::anyhow!("due_at 不是有效 RFC3339 时间：{due_at}"))?;
+        if parsed <= chrono::Utc::now() {
+            anyhow::bail!("due_at 已过（{due_at}），请给一个未来的时间");
+        }
+        let action_args = json!({
+            "title": title.clone(),
+            "due_at": due_at.clone(),
+            "priority": "normal",
+            "related_wiki_slug": null,
+            "note": arg_str_opt(args, "note"),
+            "reminder": true,
+        });
+        store_create_pending(ctx.store, ctx.conversation_id, "create_todo", &action_args)?;
+        Ok(format!(
+            "已为你草拟一条提醒（待确认，尚未创建）：\n「{title}」，提醒时间 {due_at}\n—— 确认卡片上核对时间，点接受才会建条。"
+        ))
+    }
+}
+
 // ── 联系人关系工具 ───────────────────────────────────────────────
 
 /// 把对话里识别出的「联系人 + 人↔事情/项目」关系草拟下来（确认后才建档存关系）
@@ -2174,6 +2228,22 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             let priority = arg_str_opt(&args, "priority").unwrap_or_else(|| "normal".to_string());
             let related_wiki_slug = arg_str_opt(&args, "related_wiki_slug");
             let note = arg_str_opt(&args, "note");
+            let reminder = args
+                .get("reminder")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            // 确认门纪律（评审 3.2）：若确认时 due_at 已过则原样拒绝，
+            // 禁止静默改期——向用户如实报出，让其重新确认一个未来时间。
+            if reminder {
+                let due = due_at
+                    .as_deref()
+                    .ok_or_else(|| anyhow::anyhow!("提醒必须带有到期时间"))?;
+                let parsed = chrono::DateTime::parse_from_rfc3339(due)
+                    .map_err(|_| anyhow::anyhow!("提醒时间不是有效时间格式：{due}"))?;
+                if parsed <= chrono::Utc::now() {
+                    anyhow::bail!("该提醒的时间已过期（{due}），请确认一个新的未来时间");
+                }
+            }
             let t = store.create_todo(
                 &title,
                 &priority,
@@ -2181,6 +2251,7 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 None,
                 related_wiki_slug.as_deref(),
                 note.as_deref(),
+                reminder,
             )?;
             let due = due_at.map(|d| format!("，截止 {d}")).unwrap_or_default();
             Ok(format!("已创建待办「{}」{due}。", t.title))

@@ -87,6 +87,29 @@ Future<WikiPageDto> setWikiOpinion({required String slug, String? opinion}) =>
       opinion: opinion,
     );
 
+/// 创建记事本（kind=memo 唯一建档入口；评审 3.3：无 migration，复用 wiki_pages）。
+/// 标题重复时 slug 自动加后缀，与 unique_slug 同语义。
+Future<WikiPageDto> createWikiPage({
+  required String title,
+  required String contentMd,
+  required List<String> tags,
+}) => RustLib.instance.api.crateApiWikiCreateWikiPage(
+  title: title,
+  contentMd: contentMd,
+  tags: tags,
+);
+
+/// 追加记事本正文（快记框唯一写入口；评审 3.1：必须单事务读-拼-写）。
+Future<WikiPageDto> appendWikiPageContent({
+  required String slug,
+  required String appendMd,
+  required String reason,
+}) => RustLib.instance.api.crateApiWikiAppendWikiPageContent(
+  slug: slug,
+  appendMd: appendMd,
+  reason: reason,
+);
+
 /// 删除 Wiki 页面（人工主题页；同步库内先捕获 deleted 变更再物理删除，
 /// 对端迟到编辑会形成 `wiki_page_deleted` 冲突候选）。页面不存在时返回
 /// false（幂等）。
