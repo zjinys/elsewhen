@@ -54,6 +54,9 @@ class WikiPage implements WikiPageRef {
   final String area;
   final String? basedOn;
   final String? contentType;
+  /// 孵化定论（提案 2026-10-19）：null=孵化中（source/note 待定论），
+  /// 'endorse'/'reject' 已定。非素材 kind 恒 null。
+  final String? opinion;
 
   const WikiPage({
     required this.id,
@@ -74,6 +77,7 @@ class WikiPage implements WikiPageRef {
     required this.area,
     this.basedOn,
     this.contentType,
+    this.opinion,
   });
 
   factory WikiPage.fromDto(api.WikiPageDto dto) {
@@ -96,6 +100,7 @@ class WikiPage implements WikiPageRef {
       area: dto.area,
       basedOn: dto.basedOn,
       contentType: dto.contentType,
+      opinion: dto.opinion,
     );
   }
 }
@@ -135,6 +140,8 @@ class WikiPageMeta implements WikiPageRef {
   final String? sourceUrl;
   @override
   final String area;
+  /// 孵化定论：null=孵化中；'endorse'/'reject' 已定（非素材 kind 恒 null）。
+  final String? opinion;
 
   const WikiPageMeta({
     required this.id,
@@ -151,6 +158,7 @@ class WikiPageMeta implements WikiPageRef {
     required this.updatedAt,
     this.sourceUrl,
     required this.area,
+    this.opinion,
   });
 
   factory WikiPageMeta.fromDto(api.WikiPageMetaDto dto) {
@@ -169,6 +177,7 @@ class WikiPageMeta implements WikiPageRef {
       updatedAt: DateTime.parse(dto.updatedAt).toLocal(),
       sourceUrl: dto.sourceUrl,
       area: dto.area,
+      opinion: dto.opinion,
     );
   }
 
