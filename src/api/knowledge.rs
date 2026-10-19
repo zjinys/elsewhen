@@ -105,12 +105,16 @@ pub fn tick_knowledge_insights() -> Result<i64> {
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         return Ok(0);
     };
+    // P1 追赶修复：长会话摘要后台预热（发生在知识任务之前——用户在
+    // 主对话流里等待的就是这批摘要，优先回血）。
+    let preheated = crate::ai::summary::background_preheat(&store)?;
     crate::knowledge::reading::advance(&store, &provider)?;
     let refreshed = crate::knowledge_background::run_knowledge_refresh(&store, &provider)?;
     let compiled =
         crate::knowledge_background::run_automatic_source_compilation(&store, &provider)?;
     let integrated = crate::knowledge_background::run_automatic_integration(&store, &provider)?;
-    Ok(refreshed
+    Ok(preheated
+        + refreshed
         + compiled
         + integrated
         + crate::knowledge_background::run_automatic_insights(&store, &provider)?)

@@ -11,12 +11,17 @@ use crate::storage::{
     knowledge::content_hash,
 };
 use anyhow::{Context, Result, ensure};
+use rusqlite::OptionalExtension;
 use serde_json::json;
 use std::{collections::HashSet, time::Instant};
 
 const STRATEGY: &str = "chat-summary-v1";
 const CHUNK_CHARS: usize = 2048;
-const MAX_REQUESTS: usize = 16;
+// P1（2026-10-19 摘要事故诊断）：340 条消息冷启动需约 163 个节点，
+// 16 请求/轮意味着 11 个生成轮且用户侧全程零可见收益（预案一诊断）。
+// 64 让冷启动约 3 轮建出根节点，随后回落稳态——auto mark 滚动后每轮
+// 只需个位数调用。后台预热（background_summary_preheat）复用同上限。
+const MAX_REQUESTS: usize = 64;
 const MAX_SPANS: usize = 8192;
 const NODE_TOKEN_LIMIT: usize = 1800;
 const GROUP_TOKEN_LIMIT: usize = 12000;
@@ -470,3 +475,89 @@ pub(crate) fn apply_summary(
 
 #[cfg(test)]
 mod tests;
+
+/// P1 追赶修复（2026-10-19 摘要事故诊断，预案一 option b）：后台空闲时
+/// 把长会话的摘要树向前推进一批，让「冷启动收敛」不再消耗用户的生成
+/// 轮（诊断结论：340 条消息需 ~163 个节点，16 请求/轮 = 11 轮全程无
+/// 可见收益）。返回本批落库的摘要节点数；0 表示本轮无事可做。
+///
+/// 触发判据：最近一次摘要事件所属的会话（无论成败——成功建出 mark 后
+/// `apply_summary` 因边界 drain 自然退化为近尾稳态，额外调用无害）。
+/// 前台有进行中的 run 时本轮完全跳过，绝不与用户生成并发抢渠道。
+pub(crate) fn background_preheat(store: &Store) -> Result<i64> {
+    // 会话：最近活跃的（生产事故会话即全库最近活跃）；小会话会在
+    // apply_summary 的早退闸（user 轮不足 / selected 过小 / 未过触发
+    // 线）直接返回，代价可忽略。
+    let conversation: Option<String> = store
+        .connection
+        .query_row(
+            "SELECT conversation_id FROM messages GROUP BY conversation_id
+             ORDER BY MAX(created_at) DESC LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let Some(conversation) = conversation else {
+        return Ok(0);
+    };
+    let active: bool = store.connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM chat_runs WHERE conversation_id=?1 AND status IN ('pending','running'))",
+        [&conversation], |r| r.get(0))?;
+    if active {
+        return Ok(0);
+    }
+    // 生产同参 provider/basis/model/budget；None（Ollama 主渠道或无可用
+    // 配置）时静默跳过——预热是尽力而为的优化，不构成可报错路径。
+    let Some((provider, name, basis, model, budget)) =
+        super::conversation::primary_summary_provider(store)?
+    else {
+        return Ok(0);
+    };
+    background_preheat_with(
+        store,
+        &conversation,
+        provider.as_ref(),
+        &name,
+        &basis,
+        &model,
+        budget,
+    )
+    .map_err(|error| {
+        eprintln!("摘要预热失败（下个 tick 续跑）：{error:#}");
+        error
+    })
+}
+
+/// 可注入 provider 的实现体（测试用 FakeProvider 直接驱动）。
+pub(crate) fn background_preheat_with(
+    store: &Store,
+    conversation: &str,
+    provider: &dyn AiProvider,
+    name: &str,
+    basis: &str,
+    model: &str,
+    budget: usize,
+) -> Result<i64> {
+    let mut context = super::memory::prepare_uncompressed_context(conversation, store)?;
+    let before: i64 =
+        store
+            .connection
+            .query_row("SELECT COUNT(*) FROM chat_summary_nodes", [], |r| r.get(0))?;
+    // 失败已由 apply_summary 内部留痕（P0-a detail + P0-c 前缀通道），
+    // 后台不重复记账也不上抛——下个 tick 继续以已落库叶节点续跑。
+    let _ = apply_summary(
+        store,
+        conversation,
+        provider,
+        name,
+        basis,
+        model,
+        budget,
+        &mut context,
+    );
+    let after: i64 =
+        store
+            .connection
+            .query_row("SELECT COUNT(*) FROM chat_summary_nodes", [], |r| r.get(0))?;
+    Ok((after - before).max(0))
+}

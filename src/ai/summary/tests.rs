@@ -453,7 +453,10 @@ fn cancellation_and_real_history_edits_prevent_injection() {
 #[test]
 fn incomplete_bounded_work_keeps_leaf_cache_without_claiming_full_coverage() {
     let (_temp, store, conversation) = fixture();
-    for _ in 0..45 {
+    // 上限 64 后 45 条消息一轮就能建完（约 15 个请求）；200 条让全量
+    // build 需求（约 90+ 请求）超出单轮配额，维持「撞顶后留下叶缓存、
+    // 第二轮续跑」的测试意图。
+    for _ in 0..200 {
         store
             .send_message(&conversation, "user", &"historical ".repeat(500), None)
             .unwrap();
@@ -1017,4 +1020,71 @@ fn p1_chase_dynamics_experiment() {
             println!("全库节点总数：{total}");
         }
     }
+}
+
+use std::io::{Read as _, Write as _};
+
+#[test]
+fn background_preheat_advances_summary_tree_outside_generation_turns() {
+    // P1 追赶修复(b)：后台 tick 以生产同参参数推进摘要树，用户生成轮
+    // 零消耗。provider 注入（FakeProvider），HTTP 链路留给解锁态验收。
+    let dir = std::env::temp_dir().join(format!("elsewhen-preheat-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let store = Store::open(&dir.join("preheat.db")).unwrap();
+    let conversation = store
+        .create_conversation(Some("预热 fixture"), None)
+        .unwrap();
+    let pad = "历史细节与随访决定，保证上下文足够大。".repeat(20);
+    for round in 0..12 {
+        store
+            .send_message(
+                &conversation,
+                "user",
+                &format!("第{round}轮提问：{pad}"),
+                None,
+            )
+            .unwrap();
+        store
+            .send_message(
+                &conversation,
+                "assistant",
+                &format!("第{round}轮回答：{pad}"),
+                None,
+            )
+            .unwrap();
+    }
+    let provider = FakeProvider::new(good_reply());
+    let nodes_before: i64 = store
+        .connection
+        .query_row("SELECT COUNT(*) FROM chat_summary_nodes", [], |r| r.get(0))
+        .unwrap();
+    // 生产同款 budget 尺度（window 128K 级）：触发线必然被 12 轮上下文跨过。
+    let advanced = background_preheat_with(
+        &store,
+        &conversation,
+        &provider,
+        "mock",
+        "mock-basis",
+        "gpt-4o",
+        8_000,
+    )
+    .unwrap();
+    let nodes_after: i64 = store
+        .connection
+        .query_row("SELECT COUNT(*) FROM chat_summary_nodes", [], |r| r.get(0))
+        .unwrap();
+    assert!(advanced > 0, "预热应推进至少一个摘要节点");
+    assert_eq!(nodes_after - nodes_before, advanced);
+    // auto mark 已建：二次预热走边界 drain 后的早退/稳态小批，不重算全史。
+    let mark: i64 = store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM conversation_page_marks WHERE kind='auto'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(mark > 0, "预热成功后应固化为 auto 翻篇标记");
+    drop(store);
+    let _ = std::fs::remove_dir_all(&dir);
 }

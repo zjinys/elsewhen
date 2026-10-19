@@ -145,6 +145,70 @@ pub fn generate_conversation_reply(
     super::generation::generate_sync(conversation_id, store, config)
 }
 
+/// P1 追赶修复（2026-10-19 摘要事故诊断 option b）：把生产生成链路的
+/// 「主 provider + 摘要参数」复刻成后台预热直接消费的形态。
+/// provider_basis 必须与 generate_with_provider_configs 的 summary_configs
+/// 完全一致——摘要 build 的缓存键按 basis 过滤，错位的 basis 会建出
+/// 一套生产命不中的节点，白烧请求。返回 (provider, name, basis, model, budget)。
+/// 只取 OpenAI-compatible 且首序配置（生产 failover 的第一尝试）；
+/// Ollama 主渠道不适合后台静默预热（拉本地模型），跳过。
+pub(crate) fn primary_summary_provider(
+    store: &Store,
+) -> Result<
+    Option<(
+        Box<dyn super::provider::AiProvider>,
+        String,
+        String,
+        String,
+        usize,
+    )>,
+> {
+    let Some(config) = store
+        .list_ai_provider_configs_for_runtime()?
+        .into_iter()
+        .find(|p| p.provider_type == "openai-compatible" && p.is_active)
+    else {
+        return Ok(None);
+    };
+    let basis = crate::storage::knowledge::content_hash(&format!(
+        "{}|{}|{}|{:?}|{:?}|{}",
+        config.id,
+        config.base_url,
+        config.model,
+        config.max_tokens,
+        config.context_window,
+        config.temperature
+    ));
+    let window = config
+        .context_window
+        .map(|v| v as usize)
+        .unwrap_or_else(|| super::budget::default_window(&config.model));
+    let output = config.max_tokens.unwrap_or(4096) as usize;
+    // 生产 selection_budget = window - output - window/20 - tool_reserve；
+    // tool_reserve 是 21 个工具 schema 的实测规模（≈40K）。budget 只影响
+    // 触发线与 allowance 校验，不进缓存键，近似无害。
+    const TOOL_RESERVE: usize = 40_000;
+    let budget = window
+        .saturating_sub(output + window / 20 + TOOL_RESERVE)
+        .max(1);
+    let provider =
+        super::provider::OpenAiCompatibleProvider::new(super::provider::OpenAiCompatibleConfig {
+            base_url: config.base_url,
+            api_key: config.api_key,
+            model: config.model.clone(),
+            temperature: config.temperature as f32,
+            max_tokens: config.max_tokens.map(|v| v as u32),
+            context_window: config.context_window.map(|v| v as u32),
+        })?;
+    Ok(Some((
+        Box::new(provider),
+        config.name,
+        basis,
+        config.model,
+        budget,
+    )))
+}
+
 pub(crate) fn generate_conversation_reply_core(
     conversation_id: &str,
     store: &Store,
