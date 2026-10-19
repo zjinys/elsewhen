@@ -23,11 +23,12 @@ use crate::sync::{
 pub(crate) use super::hash;
 
 mod apply;
+mod decode;
 mod exporter;
 mod import;
 mod records;
 
-pub(crate) use apply::FrameDecoder;
+pub(crate) use decode::{FrameDecoder, domain_table, hex_to_vec, validate_json_arg};
 pub(crate) use exporter::{chunk_header, hex, valid_hash};
 pub(crate) use records::*;
 
