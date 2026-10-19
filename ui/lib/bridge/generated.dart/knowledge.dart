@@ -88,6 +88,13 @@ class KnowledgeHealthReport {
   final PlatformInt64 summaryUnavailableRecent;
   final String? lastSummaryError;
 
+  /// 孵化中页（source/note 页 opinion IS NULL 且非归档）——导入后 stockpile，
+  /// 长期高企说明「讨论 → 定论」闭环走不动
+  final PlatformInt64 pagesIncubating;
+
+  /// 负知识条数（knowledge_sources.opinion='reject'）
+  final PlatformInt64 negativeSources;
+
   const KnowledgeHealthReport({
     required this.generatedAt,
     required this.windowDays,
@@ -110,6 +117,8 @@ class KnowledgeHealthReport {
     required this.summaryReadyRecent,
     required this.summaryUnavailableRecent,
     this.lastSummaryError,
+    required this.pagesIncubating,
+    required this.negativeSources,
   });
 
   @override
@@ -134,7 +143,9 @@ class KnowledgeHealthReport {
       pageFetchCallsRecent.hashCode ^
       summaryReadyRecent.hashCode ^
       summaryUnavailableRecent.hashCode ^
-      lastSummaryError.hashCode;
+      lastSummaryError.hashCode ^
+      pagesIncubating.hashCode ^
+      negativeSources.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -161,7 +172,9 @@ class KnowledgeHealthReport {
           pageFetchCallsRecent == other.pageFetchCallsRecent &&
           summaryReadyRecent == other.summaryReadyRecent &&
           summaryUnavailableRecent == other.summaryUnavailableRecent &&
-          lastSummaryError == other.lastSummaryError;
+          lastSummaryError == other.lastSummaryError &&
+          pagesIncubating == other.pagesIncubating &&
+          negativeSources == other.negativeSources;
 }
 
 class SourceReference {

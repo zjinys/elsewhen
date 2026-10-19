@@ -186,6 +186,23 @@ Future<List<KnowledgeCitation>> getMessageKnowledgeCitations({
   messageId: messageId,
 );
 
+/// 「已否定」列表（负知识一等公民，提案 2026-10-19）：身份 + 否定原因，
+/// 导入提示与 AI 读面共用这张表；reason 为空表示存量否定行（无原因）。
+Future<List<RejectedSourceRow>> listRejectedSources() =>
+    RustLib.instance.api.crateApiKnowledgeListRejectedSources();
+
+/// 摘录定论：纳入（endorse，要求已采用派生稿）或丢弃为负知识（reject，
+/// 必填原因）。见 `knowledge::workflows::decide_source`。
+Future<WikiPageDto> decideKnowledgeSource({
+  required String slug,
+  required String decision,
+  required String reason,
+}) => RustLib.instance.api.crateApiKnowledgeDecideKnowledgeSource(
+  slug: slug,
+  decision: decision,
+  reason: reason,
+);
+
 Future<SourceUpdatePreview> previewKnowledgeSource({
   required String sourceUrl,
   required String contentMd,
@@ -390,11 +407,15 @@ class SourceUpdatePreview {
   final String? previousSnapshotId;
   final bool changed;
 
+  /// 同 identity 来源曾被否定时携带「你否定过这条来源：原因」，否则 None。
+  final String? priorRejection;
+
   const SourceUpdatePreview({
     this.existingSlug,
     this.previousContent,
     this.previousSnapshotId,
     required this.changed,
+    this.priorRejection,
   });
 
   @override
@@ -402,7 +423,8 @@ class SourceUpdatePreview {
       existingSlug.hashCode ^
       previousContent.hashCode ^
       previousSnapshotId.hashCode ^
-      changed.hashCode;
+      changed.hashCode ^
+      priorRejection.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -412,5 +434,6 @@ class SourceUpdatePreview {
           existingSlug == other.existingSlug &&
           previousContent == other.previousContent &&
           previousSnapshotId == other.previousSnapshotId &&
-          changed == other.changed;
+          changed == other.changed &&
+          priorRejection == other.priorRejection;
 }

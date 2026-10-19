@@ -319,6 +319,24 @@ pub struct SourceUpdatePreview {
     pub previous_content: Option<String>,
     pub previous_snapshot_id: Option<String>,
     pub changed: bool,
+    /// 同 identity 来源曾被否定时携带「你否定过这条来源：原因」，否则 None。
+    pub prior_rejection: Option<String>,
+}
+
+/// 「已否定」列表（负知识一等公民，提案 2026-10-19）：身份 + 否定原因，
+/// 导入提示与 AI 读面共用这张表；reason 为空表示存量否定行（无原因）。
+pub fn list_rejected_sources() -> Result<Vec<crate::storage::knowledge::RejectedSourceRow>> {
+    store()?.rejected_sources()
+}
+
+/// 摘录定论：纳入（endorse，要求已采用派生稿）或丢弃为负知识（reject，
+/// 必填原因）。见 `knowledge::workflows::decide_source`。
+pub fn decide_knowledge_source(
+    slug: String,
+    decision: String,
+    reason: String,
+) -> Result<WikiPageDto> {
+    Ok(crate::knowledge::workflows::decide_source(&store()?, &slug, &decision, &reason)?.into())
 }
 
 pub fn preview_knowledge_source(
@@ -332,6 +350,9 @@ pub fn preview_knowledge_source(
         .map(|p| store.source_history(&p.slug))
         .transpose()?
         .and_then(|s| s.into_iter().next());
+    // 再导入同源提示（负知识读面之一）：identity 命中已否定来源时，
+    // 客户端在确认前亮出「你否定过这条来源 + 原因」，避免否定被静默绕过。
+    let prior_rejection = store.rejection_for_source(Some(&source_url), content_md.trim())?;
     Ok(SourceUpdatePreview {
         existing_slug: existing.map(|p| p.slug),
         previous_content: snapshot.as_ref().map(|s| s.content_md.clone()),
@@ -339,6 +360,7 @@ pub fn preview_knowledge_source(
         changed: snapshot
             .as_ref()
             .is_some_and(|s| s.content_md != content_md.trim()),
+        prior_rejection,
     })
 }
 

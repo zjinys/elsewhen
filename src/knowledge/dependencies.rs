@@ -50,7 +50,7 @@ fn page_by_id(store: &Store, id: &str) -> Result<WikiPage> {
 pub(crate) fn stale(store: &Store, page_id: &str) -> Result<bool> {
     Ok(store.connection.query_row("WITH RECURSIVE parents(id) AS (SELECT ?1 UNION SELECT d.upstream_id FROM knowledge_dependencies d JOIN parents p ON d.page_id=p.id)
         SELECT EXISTS(SELECT 1 FROM knowledge_dependencies d JOIN parents a ON a.id=d.page_id JOIN wiki_pages p ON p.id=d.upstream_id
-        WHERE d.basis_epoch IS NULL OR d.basis_epoch<>p.knowledge_epoch OR p.status='archived' OR p.opinion='reject')",[page_id],|r|r.get(0))?)
+        WHERE d.basis_epoch IS NULL OR d.basis_epoch<>p.knowledge_epoch OR p.status='archived' OR (p.kind IN ('source','note') AND COALESCE(p.opinion,'')<>'endorse'))",[page_id],|r|r.get(0))?)
 }
 
 /// Upgrade known v8 hashes once. Unknown historical bases remain unknown.

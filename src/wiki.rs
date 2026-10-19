@@ -838,6 +838,11 @@ pub fn save_text_page_with_kind(
         source_url: None,
     };
     let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
+    // 随手记生而入册（摘录孵化闭环，提案 2026-10-19 评审澄清）：进孵化
+    // 闸门的只有导入流（confirm_knowledge_source）——用户「存下来就是
+    // 我的知识」，不属于「握取内容等定论」的心智。缺省 endorse，走
+    // set_wiki_opinion 双写通道（wiki_pages + knowledge_sources 同进退）。
+    store.set_wiki_opinion(&outcome.page.slug, Some("endorse"))?;
     Ok(outcome.page)
 }
 

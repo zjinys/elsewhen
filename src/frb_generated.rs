@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 269209900;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1797153393;
 
 // Section: executor
 
@@ -1016,6 +1016,37 @@ fn wire__crate__api__chat_proposals__decide_chat_proposal_impl(
                         let output_ok = crate::api::chat_proposals::decide_chat_proposal(
                             api_request,
                             api_accept,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__decide_knowledge_source_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+    decision: impl CstDecode<String>,
+    reason: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "decide_knowledge_source",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            let api_decision = decision.cst_decode();
+            let api_reason = reason.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::decide_knowledge_source(
+                            api_slug,
+                            api_decision,
+                            api_reason,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -3743,6 +3774,27 @@ fn wire__crate__api__rules__list_recent_rule_hits_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::rules::list_recent_rule_hits(api_limit)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__knowledge__list_rejected_sources_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_rejected_sources",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::knowledge::list_rejected_sources()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -7950,6 +8002,8 @@ impl SseDecode for crate::knowledge::KnowledgeHealthReport {
         let mut var_summaryReadyRecent = <i64>::sse_decode(deserializer);
         let mut var_summaryUnavailableRecent = <i64>::sse_decode(deserializer);
         let mut var_lastSummaryError = <Option<String>>::sse_decode(deserializer);
+        let mut var_pagesIncubating = <i64>::sse_decode(deserializer);
+        let mut var_negativeSources = <i64>::sse_decode(deserializer);
         return crate::knowledge::KnowledgeHealthReport {
             generated_at: var_generatedAt,
             window_days: var_windowDays,
@@ -7972,6 +8026,8 @@ impl SseDecode for crate::knowledge::KnowledgeHealthReport {
             summary_ready_recent: var_summaryReadyRecent,
             summary_unavailable_recent: var_summaryUnavailableRecent,
             last_summary_error: var_lastSummaryError,
+            pages_incubating: var_pagesIncubating,
+            negative_sources: var_negativeSources,
         };
     }
 }
@@ -8902,6 +8958,20 @@ impl SseDecode for Vec<crate::api::provider_reachability::ReachabilityHint> {
             ans_.push(
                 <crate::api::provider_reachability::ReachabilityHint>::sse_decode(deserializer),
             );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::storage::knowledge::RejectedSourceRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::storage::knowledge::RejectedSourceRow>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -9861,6 +9931,28 @@ impl SseDecode for (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
     }
 }
 
+impl SseDecode for crate::storage::knowledge::RejectedSourceRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_slug = <Option<String>>::sse_decode(deserializer);
+        let mut var_title = <Option<String>>::sse_decode(deserializer);
+        let mut var_identity = <String>::sse_decode(deserializer);
+        let mut var_sourceKind = <String>::sse_decode(deserializer);
+        let mut var_locator = <Option<String>>::sse_decode(deserializer);
+        let mut var_rejectReason = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        return crate::storage::knowledge::RejectedSourceRow {
+            slug: var_slug,
+            title: var_title,
+            identity: var_identity,
+            source_kind: var_sourceKind,
+            locator: var_locator,
+            reject_reason: var_rejectReason,
+            created_at: var_createdAt,
+        };
+    }
+}
+
 impl SseDecode for crate::api::relations::RelationDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9982,11 +10074,13 @@ impl SseDecode for crate::api::knowledge::SourceUpdatePreview {
         let mut var_previousContent = <Option<String>>::sse_decode(deserializer);
         let mut var_previousSnapshotId = <Option<String>>::sse_decode(deserializer);
         let mut var_changed = <bool>::sse_decode(deserializer);
+        let mut var_priorRejection = <Option<String>>::sse_decode(deserializer);
         return crate::api::knowledge::SourceUpdatePreview {
             existing_slug: var_existingSlug,
             previous_content: var_previousContent,
             previous_snapshot_id: var_previousSnapshotId,
             changed: var_changed,
+            prior_rejection: var_priorRejection,
         };
     }
 }
@@ -11882,6 +11976,8 @@ impl flutter_rust_bridge::IntoDart for crate::knowledge::KnowledgeHealthReport {
             self.summary_ready_recent.into_into_dart().into_dart(),
             self.summary_unavailable_recent.into_into_dart().into_dart(),
             self.last_summary_error.into_into_dart().into_dart(),
+            self.pages_incubating.into_into_dart().into_dart(),
+            self.negative_sources.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -12711,6 +12807,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::provider_reachability::Reacha
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::RejectedSourceRow {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.slug.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.identity.into_into_dart().into_dart(),
+            self.source_kind.into_into_dart().into_dart(),
+            self.locator.into_into_dart().into_dart(),
+            self.reject_reason.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::storage::knowledge::RejectedSourceRow
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::RejectedSourceRow>
+    for crate::storage::knowledge::RejectedSourceRow
+{
+    fn into_into_dart(self) -> crate::storage::knowledge::RejectedSourceRow {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::relations::RelationDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -12842,6 +12964,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::knowledge::SourceUpdatePrevie
             self.previous_content.into_into_dart().into_dart(),
             self.previous_snapshot_id.into_into_dart().into_dart(),
             self.changed.into_into_dart().into_dart(),
+            self.prior_rejection.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -14286,6 +14409,8 @@ impl SseEncode for crate::knowledge::KnowledgeHealthReport {
         <i64>::sse_encode(self.summary_ready_recent, serializer);
         <i64>::sse_encode(self.summary_unavailable_recent, serializer);
         <Option<String>>::sse_encode(self.last_summary_error, serializer);
+        <i64>::sse_encode(self.pages_incubating, serializer);
+        <i64>::sse_encode(self.negative_sources, serializer);
     }
 }
 
@@ -14947,6 +15072,16 @@ impl SseEncode for Vec<crate::api::provider_reachability::ReachabilityHint> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::provider_reachability::ReachabilityHint>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::storage::knowledge::RejectedSourceRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::storage::knowledge::RejectedSourceRow>::sse_encode(item, serializer);
         }
     }
 }
@@ -15634,6 +15769,19 @@ impl SseEncode for (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
     }
 }
 
+impl SseEncode for crate::storage::knowledge::RejectedSourceRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.slug, serializer);
+        <Option<String>>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.identity, serializer);
+        <String>::sse_encode(self.source_kind, serializer);
+        <Option<String>>::sse_encode(self.locator, serializer);
+        <String>::sse_encode(self.reject_reason, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
 impl SseEncode for crate::api::relations::RelationDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -15708,6 +15856,7 @@ impl SseEncode for crate::api::knowledge::SourceUpdatePreview {
         <Option<String>>::sse_encode(self.previous_content, serializer);
         <Option<String>>::sse_encode(self.previous_snapshot_id, serializer);
         <bool>::sse_encode(self.changed, serializer);
+        <Option<String>>::sse_encode(self.prior_rejection, serializer);
     }
 }
 
@@ -17017,6 +17166,8 @@ mod io {
                 summary_ready_recent: self.summary_ready_recent.cst_decode(),
                 summary_unavailable_recent: self.summary_unavailable_recent.cst_decode(),
                 last_summary_error: self.last_summary_error.cst_decode(),
+                pages_incubating: self.pages_incubating.cst_decode(),
+                negative_sources: self.negative_sources.cst_decode(),
             }
         }
     }
@@ -17760,6 +17911,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::storage::knowledge::RejectedSourceRow>>
+        for *mut wire_cst_list_rejected_source_row
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::RejectedSourceRow> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::relations::RelationDto>> for *mut wire_cst_list_relation_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::relations::RelationDto> {
@@ -18261,6 +18424,20 @@ mod io {
             (self.field0.cst_decode(), self.field1.cst_decode())
         }
     }
+    impl CstDecode<crate::storage::knowledge::RejectedSourceRow> for wire_cst_rejected_source_row {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::RejectedSourceRow {
+            crate::storage::knowledge::RejectedSourceRow {
+                slug: self.slug.cst_decode(),
+                title: self.title.cst_decode(),
+                identity: self.identity.cst_decode(),
+                source_kind: self.source_kind.cst_decode(),
+                locator: self.locator.cst_decode(),
+                reject_reason: self.reject_reason.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::relations::RelationDto> for wire_cst_relation_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::relations::RelationDto {
@@ -18341,6 +18518,7 @@ mod io {
                 previous_content: self.previous_content.cst_decode(),
                 previous_snapshot_id: self.previous_snapshot_id.cst_decode(),
                 changed: self.changed.cst_decode(),
+                prior_rejection: self.prior_rejection.cst_decode(),
             }
         }
     }
@@ -19613,6 +19791,8 @@ mod io {
                 summary_ready_recent: Default::default(),
                 summary_unavailable_recent: Default::default(),
                 last_summary_error: core::ptr::null_mut(),
+                pages_incubating: Default::default(),
+                negative_sources: Default::default(),
             }
         }
     }
@@ -20192,6 +20372,24 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_rejected_source_row {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                slug: core::ptr::null_mut(),
+                title: core::ptr::null_mut(),
+                identity: core::ptr::null_mut(),
+                source_kind: core::ptr::null_mut(),
+                locator: core::ptr::null_mut(),
+                reject_reason: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_rejected_source_row {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_relation_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -20291,6 +20489,7 @@ mod io {
                 previous_content: core::ptr::null_mut(),
                 previous_snapshot_id: core::ptr::null_mut(),
                 changed: Default::default(),
+                prior_rejection: core::ptr::null_mut(),
             }
         }
     }
@@ -21172,6 +21371,16 @@ mod io {
         accept: bool,
     ) {
         wire__crate__api__chat_proposals__decide_chat_proposal_impl(port_, request, accept)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__decide_knowledge_source(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        decision: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__decide_knowledge_source_impl(port_, slug, decision, reason)
     }
 
     #[unsafe(no_mangle)]
@@ -22109,6 +22318,13 @@ mod io {
         limit: i64,
     ) {
         wire__crate__api__rules__list_recent_rule_hits_impl(port_, limit)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__list_rejected_sources(
+        port_: i64,
+    ) {
+        wire__crate__api__knowledge__list_rejected_sources_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -24128,6 +24344,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_rejected_source_row(
+        len: i32,
+    ) -> *mut wire_cst_list_rejected_source_row {
+        let wrap = wire_cst_list_rejected_source_row {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_rejected_source_row>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_relation_dto(
         len: i32,
     ) -> *mut wire_cst_list_relation_dto {
@@ -24953,6 +25183,8 @@ mod io {
         summary_ready_recent: i64,
         summary_unavailable_recent: i64,
         last_summary_error: *mut wire_cst_list_prim_u_8_strict,
+        pages_incubating: i64,
+        negative_sources: i64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -25394,6 +25626,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_rejected_source_row {
+        ptr: *mut wire_cst_rejected_source_row,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_relation_dto {
         ptr: *mut wire_cst_relation_dto,
         len: i32,
@@ -25749,6 +25987,17 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_rejected_source_row {
+        slug: *mut wire_cst_list_prim_u_8_strict,
+        title: *mut wire_cst_list_prim_u_8_strict,
+        identity: *mut wire_cst_list_prim_u_8_strict,
+        source_kind: *mut wire_cst_list_prim_u_8_strict,
+        locator: *mut wire_cst_list_prim_u_8_strict,
+        reject_reason: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_relation_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         from_slug: *mut wire_cst_list_prim_u_8_strict,
@@ -25811,6 +26060,7 @@ mod io {
         previous_content: *mut wire_cst_list_prim_u_8_strict,
         previous_snapshot_id: *mut wire_cst_list_prim_u_8_strict,
         changed: bool,
+        prior_rejection: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -27354,8 +27604,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                21,
-                "Expected 21 elements, got {}",
+                23,
+                "Expected 23 elements, got {}",
                 self_.length()
             );
             crate::knowledge::KnowledgeHealthReport {
@@ -27380,6 +27630,8 @@ mod web {
                 summary_ready_recent: self_.get(18).cst_decode(),
                 summary_unavailable_recent: self_.get(19).cst_decode(),
                 last_summary_error: self_.get(20).cst_decode(),
+                pages_incubating: self_.get(21).cst_decode(),
+                negative_sources: self_.get(22).cst_decode(),
             }
         }
     }
@@ -28267,6 +28519,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::storage::knowledge::RejectedSourceRow>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::RejectedSourceRow> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::relations::RelationDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -29000,6 +29264,31 @@ mod web {
             (self_.get(0).cst_decode(), self_.get(1).cst_decode())
         }
     }
+    impl CstDecode<crate::storage::knowledge::RejectedSourceRow>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::storage::knowledge::RejectedSourceRow {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                7,
+                "Expected 7 elements, got {}",
+                self_.length()
+            );
+            crate::storage::knowledge::RejectedSourceRow {
+                slug: self_.get(0).cst_decode(),
+                title: self_.get(1).cst_decode(),
+                identity: self_.get(2).cst_decode(),
+                source_kind: self_.get(3).cst_decode(),
+                locator: self_.get(4).cst_decode(),
+                reject_reason: self_.get(5).cst_decode(),
+                created_at: self_.get(6).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::relations::RelationDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -29137,8 +29426,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                4,
-                "Expected 4 elements, got {}",
+                5,
+                "Expected 5 elements, got {}",
                 self_.length()
             );
             crate::api::knowledge::SourceUpdatePreview {
@@ -29146,6 +29435,7 @@ mod web {
                 previous_content: self_.get(1).cst_decode(),
                 previous_snapshot_id: self_.get(2).cst_decode(),
                 changed: self_.get(3).cst_decode(),
+                prior_rejection: self_.get(4).cst_decode(),
             }
         }
     }
@@ -30291,6 +30581,16 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__decide_knowledge_source(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+        decision: String,
+        reason: String,
+    ) {
+        wire__crate__api__knowledge__decide_knowledge_source_impl(port_, slug, decision, reason)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__decline_knowledge_draft(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
@@ -31245,6 +31545,13 @@ mod web {
         limit: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
         wire__crate__api__rules__list_recent_rule_hits_impl(port_, limit)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__list_rejected_sources(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__knowledge__list_rejected_sources_impl(port_)
     }
 
     #[wasm_bindgen]

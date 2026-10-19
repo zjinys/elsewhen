@@ -81,7 +81,7 @@ pub use digest::{
     DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
 };
 pub use goals::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
-pub use knowledge::{KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, SourceSnapshot};
+pub use knowledge::{KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, RejectedSourceRow, SourceSnapshot};
 pub use web_search::{DohMode, NetworkSettings, WebSearchConfig};
 
 // Conversation and Message summary structs

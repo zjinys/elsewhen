@@ -73,9 +73,9 @@ fn source_is_current(store: &Store, source: &SourceSnapshot) -> Result<bool> {
         .map(|s| store.get_wiki_page(s))
         .transpose()?
         .flatten();
-    Ok(source.opinion.as_deref() != Some("reject")
+    Ok(source.opinion.as_deref() == Some("endorse")
         && latest(store, &source.source_id)?.id == source.id
-        && page.is_some_and(|p| p.status != "archived" && p.opinion.as_deref() != Some("reject")))
+        && page.is_some_and(|p| crate::knowledge::participating(&p)))
 }
 
 fn topic_slug(title: &str) -> String {

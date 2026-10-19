@@ -695,15 +695,12 @@ pub(crate) fn dispatch_with_knowledge(
                     .strip_prefix(crate::ai::mcp::MCP_PREFIX)
                     .and_then(|rest| rest.split("__").next())
                     .unwrap_or_default();
-                let server_info = store
-                    .list_active_mcp_servers()
-                    .ok()
-                    .and_then(|servers| {
-                        servers
-                            .into_iter()
-                            .find(|s| s.name == server_name)
-                            .map(|s| (s.transport, s.trusted))
-                    });
+                let server_info = store.list_active_mcp_servers().ok().and_then(|servers| {
+                    servers
+                        .into_iter()
+                        .find(|s| s.name == server_name)
+                        .map(|s| (s.transport, s.trusted))
+                });
                 if server_info.is_none() {
                     return ToolResultMsg::err(
                         call,
@@ -865,8 +862,12 @@ impl Tool for GetWikiPageTool {
             .store
             .get_wiki_page(&slug)?
             .context("没有找到该知识页")?;
-        let citation =
-            crate::knowledge::citation_for_page(ctx.store, &page, "用户明确打开此页".into(), 2400)?;
+        let citation = crate::knowledge::citation_for_page_explicit(
+            ctx.store,
+            &page,
+            "用户明确打开此页".into(),
+            2400,
+        )?;
         match citation {
             Some(citation) => crate::knowledge::tool_context(&[citation]),
             None => Ok(json!({"knowledge_candidates":[],"unverified_page":{

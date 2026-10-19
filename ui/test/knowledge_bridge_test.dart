@@ -24,6 +24,9 @@ void main() {
       sourceKind: 'webpage',
       tags: [],
     );
+    // 孵化闸门（摘录孵化闭环）：新导入从孵化开始；本测试关注更新链路，
+    // 先把来源纳入（相当于 closed-loop 定论 endorse）再走编译/引用。
+    await api.setWikiOpinion(slug: page.slug, opinion: 'endorse');
     final preview = await api.previewKnowledgeSource(
       sourceUrl: '$url#section',
       contentMd: '新原文',
@@ -227,6 +230,8 @@ void main() {
       sourceKind: 'webpage',
       tags: [],
     );
+    // 同上：孵化闸门下先定论纳入，自动化整理再进管线。
+    await api.setWikiOpinion(slug: automaticSource.slug, opinion: 'endorse');
     final before = requests.length;
     expect(await api.tickKnowledgeInsights(), 1);
     final automaticDetails = await api.getKnowledgePageDetails(

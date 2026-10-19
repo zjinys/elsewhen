@@ -102,7 +102,7 @@ fn next_node(store: &Store, source: &SourceSnapshot) -> Result<Option<Node>> {
 
 fn current(store: &Store, source: &SourceSnapshot) -> Result<bool> {
     Ok(store.connection.query_row("SELECT EXISTS(SELECT 1 FROM knowledge_snapshots s JOIN knowledge_sources o ON o.id=s.source_id JOIN knowledge_source_pages m ON m.source_id=o.id JOIN wiki_pages p ON p.id=m.page_id
-        WHERE s.id=?1 AND COALESCE(o.opinion,'')<>'reject' AND p.status<>'archived' AND s.version=(SELECT MAX(version) FROM knowledge_snapshots WHERE source_id=s.source_id))",[&source.id],|r|r.get(0))?)
+        WHERE s.id=?1 AND COALESCE(o.opinion,'')='endorse' AND p.status<>'archived' AND s.version=(SELECT MAX(version) FROM knowledge_snapshots WHERE source_id=s.source_id))",[&source.id],|r|r.get(0))?)
 }
 
 pub(crate) fn advance(store: &Store, provider: &dyn AiProvider) -> Result<i64> {

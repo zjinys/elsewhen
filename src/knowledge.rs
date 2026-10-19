@@ -38,6 +38,25 @@ pub struct KnowledgeCitation {
     pub event_ids: Vec<String>,
 }
 
+/// 孵化闸门（提案 2026-10-19-clip-incubation-and-negative-knowledge）：
+/// `source`/`note` 页的 `opinion` 缺省语义由「NULL=缺省认可」收紧为
+/// 「NULL=孵化中」。闸门只拦**自动投递**（素材编译、知识召回、引用挂载、
+/// 依据校验）；**按需读取**（get_wiki_page 工具、用户显式 @wiki 引用、
+/// 派生稿采用核对）豁免——用户显式意志高于孵化状态。
+pub fn participating(page: &WikiPage) -> bool {
+    page.status != "archived"
+        && (page.kind != "source" && page.kind != "note"
+            || page.opinion.as_deref() == Some("endorse"))
+}
+
+/// 同谓词的 SQL 形态（`alias` 为 wiki_pages 的表别名或表名）。
+pub(crate) fn sql_participating(alias: &str) -> String {
+    format!(
+        "({alias}.status<>'archived' AND ({alias}.kind NOT IN ('source','note') \
+         OR {alias}.opinion='endorse'))"
+    )
+}
+
 fn shorten(text: &str, max: usize) -> String {
     text.chars().take(max).collect()
 }
@@ -160,7 +179,7 @@ pub fn select_knowledge(
         .collect::<Vec<_>>()
         .join("+");
     let sql = format!(
-        "SELECT {} FROM wiki_pages WHERE status!='archived' AND COALESCE(opinion,'')!='reject'
+        "SELECT {} FROM wiki_pages WHERE status!='archived' AND (kind NOT IN ('source','note') OR opinion='endorse')
         AND ({predicates}) ORDER BY ({score}) DESC,last_seen_at DESC,id LIMIT 80",
         crate::storage::WIKI_PAGE_COLS
     );
@@ -224,14 +243,38 @@ pub fn select_knowledge(
     Ok(selected)
 }
 
+/// 造引用的默认通道：孵化闸门生效（自动投递路径：召回、挂载、依赖核验、
+/// 维护）。孵化中（source/note 页 opinion 为 NULL）不产出引用。
 pub fn citation_for_page(
     store: &Store,
     page: &WikiPage,
     reason: String,
     excerpt_limit: usize,
 ) -> Result<Option<KnowledgeCitation>> {
+    citation_for_page_inner(store, page, reason, excerpt_limit, false)
+}
+
+/// 造引用的显式意志通道：豁免孵化闸门（用户明确打开页面、派生稿采用前
+/// 核对）。仍排除归档与否定页——显式意志不推翻已做的决定。
+pub fn citation_for_page_explicit(
+    store: &Store,
+    page: &WikiPage,
+    reason: String,
+    excerpt_limit: usize,
+) -> Result<Option<KnowledgeCitation>> {
+    citation_for_page_inner(store, page, reason, excerpt_limit, true)
+}
+
+fn citation_for_page_inner(
+    store: &Store,
+    page: &WikiPage,
+    reason: String,
+    excerpt_limit: usize,
+    allow_incubating: bool,
+) -> Result<Option<KnowledgeCitation>> {
     if page.status == "archived"
         || page.opinion.as_deref() == Some("reject")
+        || (!allow_incubating && !participating(page))
         || dependencies::stale(store, &page.id)?
     {
         return Ok(None);
@@ -412,6 +455,12 @@ pub struct KnowledgeHealthReport {
     pub summary_ready_recent: i64,
     pub summary_unavailable_recent: i64,
     pub last_summary_error: Option<String>,
+    // 闸门（摘录孵化闭环，2026-10-20）：待定论库存与负知识体量
+    /// 孵化中页（source/note 页 opinion IS NULL 且非归档）——导入后 stockpile，
+    /// 长期高企说明「讨论 → 定论」闭环走不动
+    pub pages_incubating: i64,
+    /// 负知识条数（knowledge_sources.opinion='reject'）
+    pub negative_sources: i64,
 }
 
 pub fn health_report(store: &Store, days_lookback: i64) -> Result<KnowledgeHealthReport> {
@@ -555,6 +604,22 @@ pub fn health_report(store: &Store, days_lookback: i64) -> Result<KnowledgeHealt
         page_fetch_calls_recent,
         summary_ready_recent,
         summary_unavailable_recent,
+        pages_incubating: store
+            .connection
+            .query_row(
+                "SELECT COUNT(*) FROM wiki_pages WHERE status!='archived' AND kind IN ('source','note') AND opinion IS NULL",
+                [],
+                |r| r.get::<_, i64>(0),
+            )
+            .unwrap_or(0),
+        negative_sources: store
+            .connection
+            .query_row(
+                "SELECT COUNT(*) FROM knowledge_sources WHERE opinion='reject'",
+                [],
+                |r| r.get::<_, i64>(0),
+            )
+            .unwrap_or(0),
         last_summary_error,
     })
 }
@@ -891,8 +956,9 @@ fn build_proposal(
             .flatten()
             .is_some_and(|p| p.status != "archived");
         anyhow::ensure!(active, "来源已归档，请选择有效来源");
-        if source.opinion.as_deref() == Some("reject") {
-            bail!("来源已被标为不认可，不能作为新知识的正面依据");
+        // 孵化闸门：来源未纳入（孵化中或已否定）都不得作正面依据。
+        if source.opinion.as_deref() != Some("endorse") {
+            bail!("来源尚未纳入（孵化中或已否定），不能作为新知识的依据");
         }
     }
     let mut evidence = upstream_context;

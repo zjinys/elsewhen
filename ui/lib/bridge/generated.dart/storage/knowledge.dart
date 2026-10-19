@@ -136,6 +136,51 @@ class KnowledgeProposal {
           createdAt == other.createdAt;
 }
 
+/// 「已否定」列表的行（负知识一等公民，提案 2026-10-19）：身份 + 否定
+/// 原因；title/slug 来自共享该 identity 的首个页面，仅为展示面。
+class RejectedSourceRow {
+  final String? slug;
+  final String? title;
+  final String identity;
+  final String sourceKind;
+  final String? locator;
+  final String rejectReason;
+  final String createdAt;
+
+  const RejectedSourceRow({
+    this.slug,
+    this.title,
+    required this.identity,
+    required this.sourceKind,
+    this.locator,
+    required this.rejectReason,
+    required this.createdAt,
+  });
+
+  @override
+  int get hashCode =>
+      slug.hashCode ^
+      title.hashCode ^
+      identity.hashCode ^
+      sourceKind.hashCode ^
+      locator.hashCode ^
+      rejectReason.hashCode ^
+      createdAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RejectedSourceRow &&
+          runtimeType == other.runtimeType &&
+          slug == other.slug &&
+          title == other.title &&
+          identity == other.identity &&
+          sourceKind == other.sourceKind &&
+          locator == other.locator &&
+          rejectReason == other.rejectReason &&
+          createdAt == other.createdAt;
+}
+
 class SourceSnapshot {
   final String id;
   final String sourceId;

@@ -13,7 +13,7 @@ pub(crate) fn run_knowledge_refresh(store: &Store, provider: &dyn AiProvider) ->
     store.connection.execute("INSERT INTO knowledge_refresh_jobs(page_id,requested_at,available_at,review_only,dependency_epoch)
         SELECT p.id,?1,?1,1,(SELECT SUM(u.knowledge_epoch+1) FROM knowledge_dependencies d JOIN wiki_pages u ON u.id=d.upstream_id WHERE d.page_id=p.id)
         FROM knowledge_stale_dependencies st JOIN wiki_pages p ON p.id=st.page_id
-        WHERE p.status<>'archived' AND COALESCE(p.opinion,'')<>'reject'
+        WHERE p.status<>'archived' AND (p.kind NOT IN ('source','note') OR p.opinion='endorse')
         AND NOT EXISTS(SELECT 1 FROM knowledge_dependencies d JOIN knowledge_stale_dependencies parent ON parent.page_id=d.upstream_id WHERE d.page_id=p.id)
         ON CONFLICT(page_id) DO UPDATE SET review_only=1,dependency_epoch=excluded.dependency_epoch,
         status='pending',generation=knowledge_refresh_jobs.generation+1,attempts=0,available_at=excluded.available_at
@@ -22,10 +22,10 @@ pub(crate) fn run_knowledge_refresh(store: &Store, provider: &dyn AiProvider) ->
     // made while the app was stopped. Accepted/rejected proposal history is kept.
     store.connection.execute("UPDATE knowledge_refresh_jobs AS j SET status='pending',generation=generation+1,attempts=0,available_at=?1,detail='来源重新可用，已恢复更新检查'
         WHERE j.status='skipped'
-        AND EXISTS(SELECT 1 FROM wiki_pages p WHERE p.id=j.page_id AND p.status<>'archived' AND COALESCE(p.opinion,'')<>'reject')
+        AND EXISTS(SELECT 1 FROM wiki_pages p WHERE p.id=j.page_id AND p.status<>'archived' AND (p.kind NOT IN ('source','note') OR p.opinion='endorse'))
         AND EXISTS(SELECT 1 FROM knowledge_page_sources k JOIN knowledge_snapshots s ON s.id=k.snapshot_id WHERE k.page_id=j.page_id AND s.version<(SELECT MAX(version) FROM knowledge_snapshots WHERE source_id=s.source_id))
         AND NOT EXISTS(SELECT 1 FROM knowledge_page_sources k JOIN knowledge_snapshots s ON s.id=k.snapshot_id JOIN knowledge_sources o ON o.id=s.source_id
-            WHERE k.page_id=j.page_id AND (o.opinion='reject' OR NOT EXISTS(SELECT 1 FROM knowledge_source_pages m JOIN wiki_pages p ON p.id=m.page_id WHERE m.source_id=o.id AND p.status<>'archived')))", [now.to_rfc3339()])?;
+            WHERE k.page_id=j.page_id AND (COALESCE(o.opinion,'')<>'endorse' OR NOT EXISTS(SELECT 1 FROM knowledge_source_pages m JOIN wiki_pages p ON p.id=m.page_id WHERE m.source_id=o.id AND p.status<>'archived')))", [now.to_rfc3339()])?;
     let candidates=store.connection.prepare("SELECT page_id,generation FROM knowledge_refresh_jobs WHERE status IN ('pending','running','retry') AND julianday(available_at)<=julianday(?1) ORDER BY requested_at,page_id LIMIT 64")?
         .query_map([now.to_rfc3339()],|r|Ok((r.get::<_,String>(0)?,r.get::<_,i64>(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
     for (id, generation) in candidates {
@@ -36,11 +36,11 @@ pub(crate) fn run_knowledge_refresh(store: &Store, provider: &dyn AiProvider) ->
                     r.get(0)
                 })?;
         let page = store.get_wiki_page(&slug)?.context("待更新页面不存在")?;
-        if page.status == "archived" || page.opinion.as_deref() == Some("reject") {
-            store.connection.execute("UPDATE knowledge_refresh_jobs SET status='skipped',detail='页面已归档或被拒绝，保留人工决定' WHERE page_id=?1 AND generation=?2",params![id,generation])?;
+        if !crate::knowledge::participating(&page) {
+            store.connection.execute("UPDATE knowledge_refresh_jobs SET status='skipped',detail='页面已归档、孵化中或被拒绝，保留人工决定' WHERE page_id=?1 AND generation=?2",params![id,generation])?;
             continue;
         }
-        let blocked:bool=store.connection.query_row("SELECT EXISTS(SELECT 1 FROM knowledge_dependencies d JOIN wiki_pages u ON u.id=d.upstream_id WHERE d.page_id=?1 AND (u.status='archived' OR u.opinion='reject' OR u.id IN (SELECT page_id FROM knowledge_stale_dependencies)))",[&id],|r|r.get(0))?;
+        let blocked:bool=store.connection.query_row("SELECT EXISTS(SELECT 1 FROM knowledge_dependencies d JOIN wiki_pages u ON u.id=d.upstream_id WHERE d.page_id=?1 AND (u.status='archived' OR (u.kind IN ('source','note') AND COALESCE(u.opinion,'')<>'endorse') OR u.id IN (SELECT page_id FROM knowledge_stale_dependencies)))",[&id],|r|r.get(0))?;
         if blocked {
             store.connection.execute("UPDATE knowledge_refresh_jobs SET available_at=?2,detail='等待上游知识修复与确认' WHERE page_id=?1",params![id,(now+chrono::Duration::minutes(1)).to_rfc3339()])?;
             continue;
@@ -55,10 +55,10 @@ pub(crate) fn run_knowledge_refresh(store: &Store, provider: &dyn AiProvider) ->
                 .map(|s| store.get_wiki_page(s))
                 .transpose()?
                 .flatten();
-            if snapshot.opinion.as_deref() == Some("reject")
+            if snapshot.opinion.as_deref() != Some("endorse")
                 || origin.is_none_or(|p| p.status == "archived")
             {
-                store.connection.execute("UPDATE knowledge_refresh_jobs SET status='skipped',detail='来源被拒绝或归档，保留当前知识与核对提示' WHERE page_id=?1 AND generation=?2",params![id,generation])?;
+                store.connection.execute("UPDATE knowledge_refresh_jobs SET status='skipped',detail='来源未纳入或归档，保留当前知识与核对提示' WHERE page_id=?1 AND generation=?2",params![id,generation])?;
                 ready = false;
                 break;
             }

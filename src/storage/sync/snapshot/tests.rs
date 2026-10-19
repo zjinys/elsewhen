@@ -1139,14 +1139,35 @@ fn mcp_server_snapshot_strips_credentials_and_trust_and_local_rows_win() {
     let make = |name: &str, platform: &str, transport: &str, command: &str, url: &str| {
         a.store
             .save_mcp_server(
-                None, name, platform, transport, command, "[]", "{}", url,
-                r#"{"Authorization":"Bearer SECRET"}"#, true, true,
+                None,
+                name,
+                platform,
+                transport,
+                command,
+                "[]",
+                "{}",
+                url,
+                r#"{"Authorization":"Bearer SECRET"}"#,
+                true,
+                true,
             )
             .unwrap()
     };
     let _local = make("fs-variant", "linux", "stdio", "npx", "");
-    let remote = make("remote-mcp", "all", "streamable-http", "", "https://mcp.example.com/mcp");
-    let fresh = make("fresh-remote", "all", "streamable-http", "", "https://fresh.example.com/mcp");
+    let remote = make(
+        "remote-mcp",
+        "all",
+        "streamable-http",
+        "",
+        "https://mcp.example.com/mcp",
+    );
+    let fresh = make(
+        "fresh-remote",
+        "all",
+        "streamable-http",
+        "",
+        "https://fresh.example.com/mcp",
+    );
     let key = ContentKey::generate().unwrap();
     let signer = DeviceIdentity::generate().unwrap();
     let id = Uuid::new_v4().to_string();
@@ -1154,8 +1175,17 @@ fn mcp_server_snapshot_strips_credentials_and_trust_and_local_rows_win() {
     // 接收端先自建同 (name,platform) 行（trusted=1、自己的 URL）——本机获胜。
     b.store
         .save_mcp_server(
-            None, "remote-mcp", "all", "streamable-http", "", "[]", "{}",
-            "https://my-own.example.com/mcp", "{}", true, true,
+            None,
+            "remote-mcp",
+            "all",
+            "streamable-http",
+            "",
+            "[]",
+            "{}",
+            "https://my-own.example.com/mcp",
+            "{}",
+            true,
+            true,
         )
         .unwrap();
     b.store.begin_snapshot_import(&id, "a", 1).unwrap();
@@ -1187,4 +1217,79 @@ fn mcp_server_snapshot_strips_credentials_and_trust_and_local_rows_win() {
     // 同步到达的行不含 headers（fresh 行的对照面已验证 trusted=0）。
     let all_synced = servers.iter().find(|s| s.id == fresh).unwrap();
     assert_eq!(all_synced.url, "https://fresh.example.com/mcp");
+}
+
+#[test]
+fn snapshot_carries_negative_knowledge_to_new_devices() {
+    // 摘录孵化闭环（migration 50）：负知识（identity + 否定原因）必须跨
+    // 设备——「你否定过这条来源」的提示在新设备上仍然成立。
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    let page = a
+        .store
+        .upsert_wiki_page(
+            &crate::storage::WikiPageDraft {
+                slug: "source-neg".into(),
+                kind: "source".into(),
+                title: "跑步治愈关节炎".into(),
+                summary: "跑步治愈关节炎".into(),
+                content_md: "跑步治愈关节炎".into(),
+                tags: vec![],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "test import".into(),
+                source_url: Some("https://example.com/neg".into()),
+            },
+            crate::storage::ContentPolicy::Always,
+        )
+        .unwrap()
+        .page;
+    a.store
+        .set_wiki_opinion(&page.slug, Some("reject"))
+        .unwrap();
+    a.store
+        .connection
+        .execute(
+            "UPDATE knowledge_sources SET reject_reason='伪科学，已辟谣' WHERE id IN
+             (SELECT source_id FROM knowledge_source_pages WHERE page_id=?1)",
+            [&page.id],
+        )
+        .unwrap();
+
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let id = Uuid::new_v4().to_string();
+    let (chunks, manifest) = export(&a.store, "b", &id, &key, &signer);
+    b.store.begin_snapshot_import(&id, "a", 1).unwrap();
+    stage(&b.store, &id, "a", &chunks, &key, &signer.public_key());
+    assert!(
+        b.store
+            .publish_snapshot(&id, "a", 1, &manifest, &key, &signer.public_key())
+            .unwrap()
+    );
+    let rows: Vec<(String, Option<String>, Option<String>)> = b
+        .store
+        .connection
+        .prepare(
+            "SELECT identity,opinion,reject_reason FROM knowledge_sources WHERE opinion='reject'",
+        )
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert!(
+        rows.iter()
+            .any(|(_, _, reason)| reason.as_deref() == Some("伪科学，已辟谣")),
+        "负知识原因必须随快照到达新设备；实际 {rows:?}"
+    );
+    // wiki_pages 行也断层台判定源：同步后的 B 端能指导台账提示
+    let hit = b
+        .store
+        .rejection_for_source(Some("https://example.com/neg"), "跑步治愈关节炎")
+        .unwrap();
+    assert_eq!(hit.as_deref(), Some("伪科学，已辟谣"));
 }

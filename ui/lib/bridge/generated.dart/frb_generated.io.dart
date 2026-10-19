@@ -515,6 +515,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ReachabilityHint> dco_decode_list_reachability_hint(dynamic raw);
 
   @protected
+  List<RejectedSourceRow> dco_decode_list_rejected_source_row(dynamic raw);
+
+  @protected
   List<RelationDto> dco_decode_list_relation_dto(dynamic raw);
 
   @protected
@@ -710,6 +713,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
   dco_decode_record_list_sync_dataset_entry_dto_i_64(dynamic raw);
+
+  @protected
+  RejectedSourceRow dco_decode_rejected_source_row(dynamic raw);
 
   @protected
   RelationDto dco_decode_relation_dto(dynamic raw);
@@ -1417,6 +1423,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<RejectedSourceRow> sse_decode_list_rejected_source_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<RelationDto> sse_decode_list_relation_dto(SseDeserializer deserializer);
 
   @protected
@@ -1664,6 +1675,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
   sse_decode_record_list_sync_dataset_entry_dto_i_64(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RejectedSourceRow sse_decode_rejected_source_row(
     SseDeserializer deserializer,
   );
 
@@ -2624,6 +2640,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_reachability_hint(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_reachability_hint(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_rejected_source_row>
+  cst_encode_list_rejected_source_row(List<RejectedSourceRow> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_rejected_source_row(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_rejected_source_row(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3914,6 +3941,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       apiObj.summaryUnavailableRecent,
     );
     wireObj.last_summary_error = cst_encode_opt_String(apiObj.lastSummaryError);
+    wireObj.pages_incubating = cst_encode_i_64(apiObj.pagesIncubating);
+    wireObj.negative_sources = cst_encode_i_64(apiObj.negativeSources);
   }
 
   @protected
@@ -4408,6 +4437,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_rejected_source_row(
+    RejectedSourceRow apiObj,
+    wire_cst_rejected_source_row wireObj,
+  ) {
+    wireObj.slug = cst_encode_opt_String(apiObj.slug);
+    wireObj.title = cst_encode_opt_String(apiObj.title);
+    wireObj.identity = cst_encode_String(apiObj.identity);
+    wireObj.source_kind = cst_encode_String(apiObj.sourceKind);
+    wireObj.locator = cst_encode_opt_String(apiObj.locator);
+    wireObj.reject_reason = cst_encode_String(apiObj.rejectReason);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_relation_dto(
     RelationDto apiObj,
     wire_cst_relation_dto wireObj,
@@ -4490,6 +4533,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       apiObj.previousSnapshotId,
     );
     wireObj.changed = cst_encode_bool(apiObj.changed);
+    wireObj.prior_rejection = cst_encode_opt_String(apiObj.priorRejection);
   }
 
   @protected
@@ -5675,6 +5719,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_rejected_source_row(
+    List<RejectedSourceRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_relation_dto(
     List<RelationDto> self,
     SseSerializer serializer,
@@ -5983,6 +6033,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_record_list_sync_dataset_entry_dto_i_64(
     (List<SyncDatasetEntryDto>, PlatformInt64) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_rejected_source_row(
+    RejectedSourceRow self,
     SseSerializer serializer,
   );
 
@@ -7344,6 +7400,23 @@ class RustLibWire implements BaseWire {
       _cst_new_list_reachability_hintPtr
           .asFunction<
             ffi.Pointer<wire_cst_list_reachability_hint> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_rejected_source_row>
+  cst_new_list_rejected_source_row(int len) {
+    return _cst_new_list_rejected_source_row(len);
+  }
+
+  late final _cst_new_list_rejected_source_rowPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_rejected_source_row> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_rejected_source_row');
+  late final _cst_new_list_rejected_source_row =
+      _cst_new_list_rejected_source_rowPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_rejected_source_row> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_relation_dto> cst_new_list_relation_dto(int len) {
@@ -9602,6 +9675,44 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__knowledge__decide_knowledge_source(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> decision,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+  ) {
+    return _wire__crate__api__knowledge__decide_knowledge_source(
+      port_,
+      slug,
+      decision,
+      reason,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__decide_knowledge_sourcePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__decide_knowledge_source',
+      );
+  late final _wire__crate__api__knowledge__decide_knowledge_source =
+      _wire__crate__api__knowledge__decide_knowledge_sourcePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__knowledge__dismiss_knowledge_issue(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> fingerprint,
@@ -9956,6 +10067,18 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
+
+  void wire__crate__api__knowledge__list_rejected_sources(int port_) {
+    return _wire__crate__api__knowledge__list_rejected_sources(port_);
+  }
+
+  late final _wire__crate__api__knowledge__list_rejected_sourcesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__list_rejected_sources',
+      );
+  late final _wire__crate__api__knowledge__list_rejected_sources =
+      _wire__crate__api__knowledge__list_rejected_sourcesPtr
+          .asFunction<void Function(int)>();
 
   void wire__crate__api__knowledge__list_topic_organizations(
     int port_,
@@ -16313,6 +16436,12 @@ final class wire_cst_knowledge_health_report extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_summary_error;
 
+  @ffi.Int64()
+  external int pages_incubating;
+
+  @ffi.Int64()
+  external int negative_sources;
+
   static ffi.Pointer<wire_cst_knowledge_health_report> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> generated_at,
@@ -16336,6 +16465,8 @@ final class wire_cst_knowledge_health_report extends ffi.Struct {
     required int summary_ready_recent,
     required int summary_unavailable_recent,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_summary_error,
+    required int pages_incubating,
+    required int negative_sources,
   }) => $allocator<wire_cst_knowledge_health_report>()
     ..ref.generated_at = generated_at
     ..ref.window_days = window_days
@@ -16357,7 +16488,9 @@ final class wire_cst_knowledge_health_report extends ffi.Struct {
     ..ref.page_fetch_calls_recent = page_fetch_calls_recent
     ..ref.summary_ready_recent = summary_ready_recent
     ..ref.summary_unavailable_recent = summary_unavailable_recent
-    ..ref.last_summary_error = last_summary_error;
+    ..ref.last_summary_error = last_summary_error
+    ..ref.pages_incubating = pages_incubating
+    ..ref.negative_sources = negative_sources;
 }
 
 final class wire_cst_knowledge_issue extends ffi.Struct {
@@ -17519,6 +17652,21 @@ final class wire_cst_list_reachability_hint extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_rejected_source_row extends ffi.Struct {
+  external ffi.Pointer<wire_cst_rejected_source_row> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_rejected_source_row> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_rejected_source_row> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_rejected_source_row>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_relation_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_relation_dto> ptr;
 
@@ -18494,6 +18642,40 @@ final class wire_cst_record_list_sync_dataset_entry_dto_i_64
     ..ref.field1 = field1;
 }
 
+final class wire_cst_rejected_source_row extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> identity;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> locator;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reject_reason;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  static ffi.Pointer<wire_cst_rejected_source_row> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> identity,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> locator,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> reject_reason,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+  }) => $allocator<wire_cst_rejected_source_row>()
+    ..ref.slug = slug
+    ..ref.title = title
+    ..ref.identity = identity
+    ..ref.source_kind = source_kind
+    ..ref.locator = locator
+    ..ref.reject_reason = reject_reason
+    ..ref.created_at = created_at;
+}
+
 final class wire_cst_relation_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
 
@@ -18685,17 +18867,21 @@ final class wire_cst_source_update_preview extends ffi.Struct {
   @ffi.Bool()
   external bool changed;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> prior_rejection;
+
   static ffi.Pointer<wire_cst_source_update_preview> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> existing_slug,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> previous_content,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> previous_snapshot_id,
     required bool changed,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> prior_rejection,
   }) => $allocator<wire_cst_source_update_preview>()
     ..ref.existing_slug = existing_slug
     ..ref.previous_content = previous_content
     ..ref.previous_snapshot_id = previous_snapshot_id
-    ..ref.changed = changed;
+    ..ref.changed = changed
+    ..ref.prior_rejection = prior_rejection;
 }
 
 final class wire_cst_suggestion_feedback extends ffi.Struct {

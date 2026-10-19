@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 269209900;
+  int get rustContentHash => -1797153393;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -285,6 +285,12 @@ abstract class RustLibApi extends BaseApi {
   Future<ChatDecisionDto> crateApiChatProposalsDecideChatProposal({
     required ChatReviewRequest request,
     required bool accept,
+  });
+
+  Future<WikiPageDto> crateApiKnowledgeDecideKnowledgeSource({
+    required String slug,
+    required String decision,
+    required String reason,
   });
 
   Future<void> crateApiConversationsDeclineKnowledgeDraft({
@@ -697,6 +703,8 @@ abstract class RustLibApi extends BaseApi {
   Future<List<RuleHitDto>> crateApiRulesListRecentRuleHits({
     required PlatformInt64 limit,
   });
+
+  Future<List<RejectedSourceRow>> crateApiKnowledgeListRejectedSources();
 
   Future<List<RelationDto>> crateApiRelationsListRelations();
 
@@ -2374,6 +2382,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "decide_chat_proposal",
         argNames: ["request", "accept"],
+      );
+
+  @override
+  Future<WikiPageDto> crateApiKnowledgeDecideKnowledgeSource({
+    required String slug,
+    required String decision,
+    required String reason,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          var arg1 = cst_encode_String(decision);
+          var arg2 = cst_encode_String(reason);
+          return wire.wire__crate__api__knowledge__decide_knowledge_source(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_wiki_page_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeDecideKnowledgeSourceConstMeta,
+        argValues: [slug, decision, reason],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeDecideKnowledgeSourceConstMeta =>
+      const TaskConstMeta(
+        debugName: "decide_knowledge_source",
+        argNames: ["slug", "decision", "reason"],
       );
 
   @override
@@ -5553,6 +5597,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "list_recent_rule_hits",
         argNames: ["limit"],
       );
+
+  @override
+  Future<List<RejectedSourceRow>> crateApiKnowledgeListRejectedSources() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__knowledge__list_rejected_sources(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_rejected_source_row,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeListRejectedSourcesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeListRejectedSourcesConstMeta =>
+      const TaskConstMeta(debugName: "list_rejected_sources", argNames: []);
 
   @override
   Future<List<RelationDto>> crateApiRelationsListRelations() {
@@ -10132,8 +10197,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   KnowledgeHealthReport dco_decode_knowledge_health_report(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 21)
-      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
+    if (arr.length != 23)
+      throw Exception('unexpected arr length: expect 23 but see ${arr.length}');
     return KnowledgeHealthReport(
       generatedAt: dco_decode_String(arr[0]),
       windowDays: dco_decode_i_64(arr[1]),
@@ -10156,6 +10221,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       summaryReadyRecent: dco_decode_i_64(arr[18]),
       summaryUnavailableRecent: dco_decode_i_64(arr[19]),
       lastSummaryError: dco_decode_opt_String(arr[20]),
+      pagesIncubating: dco_decode_i_64(arr[21]),
+      negativeSources: dco_decode_i_64(arr[22]),
     );
   }
 
@@ -10686,6 +10753,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<ReachabilityHint> dco_decode_list_reachability_hint(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_reachability_hint).toList();
+  }
+
+  @protected
+  List<RejectedSourceRow> dco_decode_list_rejected_source_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_rejected_source_row).toList();
   }
 
   @protected
@@ -11331,6 +11404,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RejectedSourceRow dco_decode_rejected_source_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return RejectedSourceRow(
+      slug: dco_decode_opt_String(arr[0]),
+      title: dco_decode_opt_String(arr[1]),
+      identity: dco_decode_String(arr[2]),
+      sourceKind: dco_decode_String(arr[3]),
+      locator: dco_decode_opt_String(arr[4]),
+      rejectReason: dco_decode_String(arr[5]),
+      createdAt: dco_decode_String(arr[6]),
+    );
+  }
+
+  @protected
   RelationDto dco_decode_relation_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -11421,13 +11511,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SourceUpdatePreview dco_decode_source_update_preview(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return SourceUpdatePreview(
       existingSlug: dco_decode_opt_String(arr[0]),
       previousContent: dco_decode_opt_String(arr[1]),
       previousSnapshotId: dco_decode_opt_String(arr[2]),
       changed: dco_decode_bool(arr[3]),
+      priorRejection: dco_decode_opt_String(arr[4]),
     );
   }
 
@@ -13204,6 +13295,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_summaryReadyRecent = sse_decode_i_64(deserializer);
     var var_summaryUnavailableRecent = sse_decode_i_64(deserializer);
     var var_lastSummaryError = sse_decode_opt_String(deserializer);
+    var var_pagesIncubating = sse_decode_i_64(deserializer);
+    var var_negativeSources = sse_decode_i_64(deserializer);
     return KnowledgeHealthReport(
       generatedAt: var_generatedAt,
       windowDays: var_windowDays,
@@ -13226,6 +13319,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       summaryReadyRecent: var_summaryReadyRecent,
       summaryUnavailableRecent: var_summaryUnavailableRecent,
       lastSummaryError: var_lastSummaryError,
+      pagesIncubating: var_pagesIncubating,
+      negativeSources: var_negativeSources,
     );
   }
 
@@ -14173,6 +14268,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <ReachabilityHint>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_reachability_hint(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<RejectedSourceRow> sse_decode_list_rejected_source_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RejectedSourceRow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_rejected_source_row(deserializer));
     }
     return ans_;
   }
@@ -15134,6 +15243,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RejectedSourceRow sse_decode_rejected_source_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_slug = sse_decode_opt_String(deserializer);
+    var var_title = sse_decode_opt_String(deserializer);
+    var var_identity = sse_decode_String(deserializer);
+    var var_sourceKind = sse_decode_String(deserializer);
+    var var_locator = sse_decode_opt_String(deserializer);
+    var var_rejectReason = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    return RejectedSourceRow(
+      slug: var_slug,
+      title: var_title,
+      identity: var_identity,
+      sourceKind: var_sourceKind,
+      locator: var_locator,
+      rejectReason: var_rejectReason,
+      createdAt: var_createdAt,
+    );
+  }
+
+  @protected
   RelationDto sse_decode_relation_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -15251,11 +15383,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_previousContent = sse_decode_opt_String(deserializer);
     var var_previousSnapshotId = sse_decode_opt_String(deserializer);
     var var_changed = sse_decode_bool(deserializer);
+    var var_priorRejection = sse_decode_opt_String(deserializer);
     return SourceUpdatePreview(
       existingSlug: var_existingSlug,
       previousContent: var_previousContent,
       previousSnapshotId: var_previousSnapshotId,
       changed: var_changed,
+      priorRejection: var_priorRejection,
     );
   }
 
@@ -16883,6 +17017,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.summaryReadyRecent, serializer);
     sse_encode_i_64(self.summaryUnavailableRecent, serializer);
     sse_encode_opt_String(self.lastSummaryError, serializer);
+    sse_encode_i_64(self.pagesIncubating, serializer);
+    sse_encode_i_64(self.negativeSources, serializer);
   }
 
   @protected
@@ -17670,6 +17806,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_rejected_source_row(
+    List<RejectedSourceRow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_rejected_source_row(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_relation_dto(
     List<RelationDto> self,
     SseSerializer serializer,
@@ -18446,6 +18594,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_rejected_source_row(
+    RejectedSourceRow self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.slug, serializer);
+    sse_encode_opt_String(self.title, serializer);
+    sse_encode_String(self.identity, serializer);
+    sse_encode_String(self.sourceKind, serializer);
+    sse_encode_opt_String(self.locator, serializer);
+    sse_encode_String(self.rejectReason, serializer);
+    sse_encode_String(self.createdAt, serializer);
+  }
+
+  @protected
   void sse_encode_relation_dto(RelationDto self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -18523,6 +18686,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.previousContent, serializer);
     sse_encode_opt_String(self.previousSnapshotId, serializer);
     sse_encode_bool(self.changed, serializer);
+    sse_encode_opt_String(self.priorRejection, serializer);
   }
 
   @protected

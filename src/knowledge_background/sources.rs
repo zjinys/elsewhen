@@ -52,7 +52,7 @@ pub(super) fn run_source_task(
          JOIN wiki_pages p ON p.id=m.page_id JOIN knowledge_sources origin ON origin.id=m.source_id
          JOIN knowledge_snapshots s ON s.source_id=m.source_id
          LEFT JOIN failures f ON f.input_key=s.id
-         WHERE p.kind IN ('source','note') AND p.status<>'archived' AND COALESCE(origin.opinion,'')<>'reject'
+         WHERE p.kind IN ('source','note') AND p.status<>'archived' AND origin.opinion='endorse'
          AND s.version=(SELECT MAX(version) FROM knowledge_snapshots WHERE source_id=m.source_id)
          AND (length(s.content_md)<=1400 OR EXISTS(SELECT 1 FROM knowledge_source_readings reading WHERE reading.snapshot_id=s.id AND reading.strategy_version=?5 AND reading.is_root=1))
          AND NOT EXISTS(SELECT 1 FROM knowledge_background_runs r

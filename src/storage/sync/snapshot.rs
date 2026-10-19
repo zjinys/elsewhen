@@ -31,12 +31,15 @@ pub(crate) const SNAPSHOT_CARRIED_DIRS: &[&str] = &["tweet_images"];
 /// 标签分发失败会整份拒收，所以跨 v2/v3 隔离是真实的、必须显式 bump——
 /// 与「wire 枚举加变体不 bump」不同（那边是 append-only 可被旧端忽略）。
 /// v5：新增 Record::McpServer（迁移 48 平台标签方案的同步面）。
+/// v6：新增 Record::KnowledgeSource（摘录孵化闭环）：负知识（identity +
+/// opinion + reject_reason）跨设备可见——「你否定过这条来源」的提示
+/// 必须在新设备上仍然成立。
 /// 同步语义：定义随人走，激活看平台——stdio 的 platform 变体不再导致
 /// 整表排除；行上不含 headers（凭据不离本机）与 trusted（信任是本机
 /// 事实，apply 强制置 0 回到逐次审批）。新增 serde 变体后旧端标签分发
 /// 失败会整份拒收，跨 v4/v5 必须显式 bump——与 wire 枚举不同（那边
 /// append-only 可被旧端忽略）。
-pub(crate) const SNAPSHOT_VERSION: u32 = 5;
+pub(crate) const SNAPSHOT_VERSION: u32 = 6;
 
 /// 随快照携带的表。QUERIES 必须真实覆盖这里的每一张（覆盖性由门禁测试
 /// `snapshot_carries_every_table_or_explicitly_excludes_it` 兜住：新增表不登记
@@ -75,6 +78,9 @@ pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
     // MCP 定义（迁移 48 平台标签方案）：随快照携带，apply 不含 headers 与
     // trusted（见 Record::McpServer 文档）。
     "mcp_servers",
+    // 负知识（摘录孵化闭环）：identity/opinion/reject_reason 是「记住我
+    // 否定过」的最小面，快照表很小；判定 wiki_pages.opinion 本就同步。
+    "knowledge_sources",
 ];
 
 pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
@@ -101,7 +107,6 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // 本机事实，落表强制置 0）。若未来要回到 per-device，必须连同
     // Record::McpServer 与门禁测试一起撤。
     // ("mcp_servers", "per-device-execution-environment"),
-
     ("ai_provider_sync_order", "rebuilt-by-provider-bundle-apply"),
     ("analysis_jobs", "per-device-sync-state"),
     ("sync_operation_fragment_outbox", "per-device-sync-state"),
@@ -178,7 +183,6 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("knowledge_snapshots", "local-knowledge-pipeline"),
     ("knowledge_source_pages", "local-knowledge-pipeline"),
     ("knowledge_source_readings", "local-knowledge-pipeline"),
-    ("knowledge_sources", "local-knowledge-pipeline"),
     ("knowledge_topic_plan_pages", "local-knowledge-pipeline"),
     ("knowledge_topic_plans", "local-knowledge-pipeline"),
     ("knowledge_topic_replacements", "local-knowledge-pipeline"),
@@ -435,6 +439,19 @@ enum Record {
         created_at: String,
         updated_at: String,
     },
+    /// 负知识台账（摘录孵化闭环，migration 50）：identity 同源识别 +
+    /// 否定原因。kind/locator 仅作展示面；接收端 upsert 保守（已有行不
+    /// 覆盖 opinion——台账是导入事实，本机导入时间线更可信）。
+    KnowledgeSource {
+        id: String,
+        identity: String,
+        /// tag 与字段同名冲突，沿用 WikiPage 变体的 page_kind 先例
+        source_kind: String,
+        locator: Option<String>,
+        opinion: Option<String>,
+        reject_reason: Option<String>,
+        created_at: String,
+    },
 }
 
 // rowid is only a cursor inside this one pinned source view, never a replicated
@@ -470,6 +487,9 @@ const QUERIES: &[&str] = &[
     // MCP 定义（迁移 48）：headers_json 不导出（凭据不离本机）；trusted
     // 同理不入快照——apply 时强制置 0。
     "SELECT rowid,json_object('kind','mcp_server','id',id,'name',name,'platform',platform,'transport',transport,'command',command,'args_json',args_json,'env_json',env_json,'url',url,'enabled',json(CASE WHEN enabled=1 THEN 'true' ELSE 'false' END),'created_at',created_at,'updated_at',updated_at) FROM mcp_servers WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    // 负知识（摘录孵化闭环）：reject_reason 跨设备（接收端提示「你否定过
+    // 这条来源」）；opinion 与 wiki_pages 双写外的台账面。
+    "SELECT rowid,json_object('kind','knowledge_source','id',id,'identity',identity,'source_kind',kind,'locator',locator,'opinion',opinion,'reject_reason',reject_reason,'created_at',created_at) FROM knowledge_sources WHERE rowid>?1 ORDER BY rowid LIMIT 1",
 ];
 
 pub(crate) struct SnapshotExporter {
@@ -1598,6 +1618,51 @@ impl Store {
                     ],
                 )?;
             }
+            Record::KnowledgeSource {
+                id,
+                identity,
+                source_kind,
+                locator,
+                opinion,
+                reject_reason,
+                created_at,
+            } => {
+                // 负知识台账（migration 50）：id 形态与 opinion 值域闘门;
+                // 本机获胜（INSERT OR IGNORE）：台账是导入事实，同 identity
+                // 本机已导入时不被远端行覆写；纯「否定决定」随行到达。
+                ensure!(
+                    validate_id(id).is_ok(),
+                    "sync_snapshot_knowledge_source_invalid"
+                );
+                ensure!(
+                    !identity.is_empty(),
+                    "sync_snapshot_knowledge_source_invalid"
+                );
+                ensure!(
+                    matches!(source_kind.as_str(), "webpage" | "tweet" | "file" | "text"),
+                    "sync_snapshot_knowledge_source_invalid"
+                );
+                ensure!(
+                    opinion
+                        .as_deref()
+                        .is_none_or(|o| o == "endorse" || o == "reject"),
+                    "sync_snapshot_knowledge_source_invalid"
+                );
+                self.connection.execute(
+                    "INSERT OR IGNORE INTO knowledge_sources
+                        (id,identity,kind,locator,opinion,reject_reason,created_at)
+                     VALUES(?1,?2,?3,?4,?5,?6,?7)",
+                    params![
+                        id,
+                        identity,
+                        &source_kind,
+                        locator,
+                        opinion,
+                        reject_reason,
+                        created_at
+                    ],
+                )?;
+            }
             Record::Member {
                 device_id,
                 stream_id,
@@ -1764,8 +1829,7 @@ impl Store {
 
 /// MCP 快照行的 args_json/env_json 有效性闸门（数组或对象，非法即拒）。
 fn validate_json_arg(text: &str, code: &'static str) -> Result<()> {
-    let value: serde_json::Value =
-        serde_json::from_str(text).map_err(|_| anyhow::anyhow!(code))?;
+    let value: serde_json::Value = serde_json::from_str(text).map_err(|_| anyhow::anyhow!(code))?;
     ensure!(value.is_array() || value.is_object(), code);
     Ok(())
 }

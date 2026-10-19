@@ -806,7 +806,8 @@ impl Store {
     /// 素材页观点评价（素材唯一的交互入口）。
     ///
     /// - 仅允许采集素材 kind（source/note），非素材页拒绝；
-    /// - `None` = 清空回未表态（读取时按缺省认可 'endorse' 处理）；
+    /// - `None` = 清空回未表态；对 `source`/`note` 页即回到「孵化中」
+    ///   （2026-10-20 起缺省语义收紧：NULL 不参与编译与自动召回）；
     ///   `Some("endorse")`/`Some("reject")` = 认可 / 不认可；
     /// - 不改变正文、不置位 `human_edited_at`，只写 wiki_log 审计。
     pub fn set_wiki_opinion(&self, slug: &str, opinion: Option<&str>) -> Result<WikiPage> {

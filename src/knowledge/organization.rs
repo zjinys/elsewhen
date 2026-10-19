@@ -123,7 +123,7 @@ pub fn prepare(
         ensure!(!bases.iter().any(|(s, _)| s == slug), "不能重复选择主题");
         let p = store.get_wiki_page(slug)?.context("主题不存在")?;
         ensure!(
-            p.kind == "topic" && p.status != "archived" && p.opinion.as_deref() != Some("reject"),
+            p.kind == "topic" && p.status != "archived" && super::participating(&p),
             "只整理有效的共享主题，原文与个人规则保持独立"
         );
         let basis = super::authoring::revision_basis(store, &p)?;

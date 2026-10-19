@@ -165,6 +165,7 @@ mod tests {
                 "47-mcp-trusted",
                 "48-mcp-platform",
                 "49-knowledge-ai-summary",
+                "50-clip-incubation-gate",
             ],
             "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
         );
@@ -196,7 +197,7 @@ mod tests {
         let version: i64 = connection
             .query_row("PRAGMA main.user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 49, "四十九条迁移跑完，user_version 应为 49");
+        assert_eq!(version, 50, "五十条迁移跑完，user_version 应为 50");
         assert_eq!(
             latest_version().unwrap(),
             version,

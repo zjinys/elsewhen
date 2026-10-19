@@ -116,6 +116,9 @@ void main() {
           tags: ['IP', '内容生产'],
         ),
       );
+      // 孵化闸门（摘录孵化闭环）：新导入从孵化开始；本测试关注跨资料
+      // 主题整理管线，先把来源定论纳入再触发编译。
+      await api.setWikiOpinion(slug: originals.last.slug, opinion: 'endorse');
     }
     expect(await api.tickKnowledgeInsights(), 3);
     final topics = (await repo.listWikiPages())

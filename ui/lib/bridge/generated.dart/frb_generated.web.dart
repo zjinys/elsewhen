@@ -517,6 +517,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ReachabilityHint> dco_decode_list_reachability_hint(dynamic raw);
 
   @protected
+  List<RejectedSourceRow> dco_decode_list_rejected_source_row(dynamic raw);
+
+  @protected
   List<RelationDto> dco_decode_list_relation_dto(dynamic raw);
 
   @protected
@@ -712,6 +715,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
   dco_decode_record_list_sync_dataset_entry_dto_i_64(dynamic raw);
+
+  @protected
+  RejectedSourceRow dco_decode_rejected_source_row(dynamic raw);
 
   @protected
   RelationDto dco_decode_relation_dto(dynamic raw);
@@ -1419,6 +1425,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<RejectedSourceRow> sse_decode_list_rejected_source_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<RelationDto> sse_decode_list_relation_dto(SseDeserializer deserializer);
 
   @protected
@@ -1666,6 +1677,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   (List<SyncDatasetEntryDto>, PlatformInt64)
   sse_decode_record_list_sync_dataset_entry_dto_i_64(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RejectedSourceRow sse_decode_rejected_source_row(
     SseDeserializer deserializer,
   );
 
@@ -2686,6 +2702,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_i_64(raw.summaryReadyRecent),
       cst_encode_i_64(raw.summaryUnavailableRecent),
       cst_encode_opt_String(raw.lastSummaryError),
+      cst_encode_i_64(raw.pagesIncubating),
+      cst_encode_i_64(raw.negativeSources),
     ].jsify()!;
   }
 
@@ -3174,6 +3192,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_reachability_hint(List<ReachabilityHint> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_reachability_hint).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_rejected_source_row(List<RejectedSourceRow> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_rejected_source_row).toList().jsify()!;
   }
 
   @protected
@@ -3751,6 +3775,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_rejected_source_row(RejectedSourceRow raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_opt_String(raw.slug),
+      cst_encode_opt_String(raw.title),
+      cst_encode_String(raw.identity),
+      cst_encode_String(raw.sourceKind),
+      cst_encode_opt_String(raw.locator),
+      cst_encode_String(raw.rejectReason),
+      cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_relation_dto(RelationDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -3830,6 +3868,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_opt_String(raw.previousContent),
       cst_encode_opt_String(raw.previousSnapshotId),
       cst_encode_bool(raw.changed),
+      cst_encode_opt_String(raw.priorRejection),
     ].jsify()!;
   }
 
@@ -5004,6 +5043,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_rejected_source_row(
+    List<RejectedSourceRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_relation_dto(
     List<RelationDto> self,
     SseSerializer serializer,
@@ -5312,6 +5357,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_record_list_sync_dataset_entry_dto_i_64(
     (List<SyncDatasetEntryDto>, PlatformInt64) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_rejected_source_row(
+    RejectedSourceRow self,
     SseSerializer serializer,
   );
 
@@ -5846,6 +5897,18 @@ class RustLibWire implements BaseWire {
     port_,
     request,
     accept,
+  );
+
+  void wire__crate__api__knowledge__decide_knowledge_source(
+    NativePortType port_,
+    String slug,
+    String decision,
+    String reason,
+  ) => wasmModule.wire__crate__api__knowledge__decide_knowledge_source(
+    port_,
+    slug,
+    decision,
+    reason,
   );
 
   void wire__crate__api__conversations__decline_knowledge_draft(
@@ -6656,6 +6719,10 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     JSAny limit,
   ) => wasmModule.wire__crate__api__rules__list_recent_rule_hits(port_, limit);
+
+  void wire__crate__api__knowledge__list_rejected_sources(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__knowledge__list_rejected_sources(port_);
 
   void wire__crate__api__relations__list_relations(NativePortType port_) =>
       wasmModule.wire__crate__api__relations__list_relations(port_);
@@ -7893,6 +7960,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool accept,
   );
 
+  external void wire__crate__api__knowledge__decide_knowledge_source(
+    NativePortType port_,
+    String slug,
+    String decision,
+    String reason,
+  );
+
   external void wire__crate__api__conversations__decline_knowledge_draft(
     NativePortType port_,
     String conversation_id,
@@ -8455,6 +8529,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__rules__list_recent_rule_hits(
     NativePortType port_,
     JSAny limit,
+  );
+
+  external void wire__crate__api__knowledge__list_rejected_sources(
+    NativePortType port_,
   );
 
   external void wire__crate__api__relations__list_relations(
