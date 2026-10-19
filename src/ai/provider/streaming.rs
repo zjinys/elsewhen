@@ -307,6 +307,16 @@ pub(super) fn generate(
                     trigger = "upstream_context_window_rejection";
                     continue;
                 }
+                if crate::ai::budget::is_context_overflow(status.as_u16(), &error_body) {
+                    // R4：预算重试（窗口减半重算 fit）仍未通过——配置的
+                    // context_window 严重虚高或硬上限就是放不下。用可
+                    // 诊断的语义错误替代泛化 HTTP 400，收尾层与人工排查
+                    // 才能区分「溢出死了」与「网关坏了」。
+                    bail!(
+                        "Provider 上下文窗口不足：窗口自适应重试后仍被上游拒绝（HTTP {}）",
+                        status.as_u16()
+                    );
+                }
                 // Only an explicit unsupported-stream signal authorizes one fallback.
                 if !protocol_retry
                     && matches!(status.as_u16(), 400 | 422)
