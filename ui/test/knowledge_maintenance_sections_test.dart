@@ -56,6 +56,10 @@ class MaintenanceFake extends KnowledgeRepository {
           applicableWhen: '',
           strength: 'reference',
         ),
+        consolidation: api.PageConsolidationStatus(
+          lastConsolidatedAt: null,
+          newEvidence: 0,
+        ),
       );
   @override
   Future<List<api.KnowledgeReviewRecord>> history(

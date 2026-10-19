@@ -79,6 +79,9 @@ class KnowledgeRepository {
       api.listKnowledgeWorkQueue(offset: offset, status: status);
   Future<api.KnowledgePageDetails> details(String slug) =>
       api.getKnowledgePageDetails(slug: slug);
+  /// 手动「重新整理此页」（提案 P1）：单页再汇总，同步返回结果说明。
+  Future<String> reconsolidate(String slug) =>
+      api.reconsolidateKnowledgePage(slug: slug);
   Future<List<api.KnowledgeProposal>> proposals() =>
       api.listKnowledgeProposals();
   Future<List<api.KnowledgeIssue>> issues() => api.listKnowledgeIssues();

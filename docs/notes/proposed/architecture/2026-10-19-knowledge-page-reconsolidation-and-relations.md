@@ -1,7 +1,14 @@
 # 知识页持续更新与关系网
 
 - 日期：2026-10-19
-- 状态：proposed → **P0 已实施**（2026-10-20 评审采纳，分期推进）。
+- 状态：proposed → **P0/P1 已实施**（2026-10-20 评审采纳，分期推进）。
+  P1 落面：`page_consolidation_status` 派生读（最近整理=wiki_revisions
+  最新时间、新增证据=来源事件晚于该点个数，不加列不动快照版本）+
+  `reconsolidate_page` 手动重整理 worker（preservation 铁律提示词、
+  人工编辑页直接拒绝、账本 task='page-reconsolidation'）+ 详情 API
+  consolidation 字段 + 详情页「重新整理此页」按钮与观测行。P2 的
+  证据增量/时间触发后台化直接复用 `reconsolidate_page`（签名不变，
+  provider 注入）。
   已落地：A 相关性选页（`select_context_pages_for_events`，词项打分，
   evidence 只做平票裁定——缺陷①主因已修）；B 提示词纪律 + 代码侧同义
   新建改写（kind+归一化标题+tag 重合才转 update，宁漏判不误并）；

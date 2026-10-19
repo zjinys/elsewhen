@@ -685,6 +685,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   OrganizedTopic dco_decode_organized_topic(dynamic raw);
 
   @protected
+  PageConsolidationStatus dco_decode_page_consolidation_status(dynamic raw);
+
+  @protected
   PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw);
 
   @protected
@@ -1645,6 +1648,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   OrganizedTopic sse_decode_organized_topic(SseDeserializer deserializer);
+
+  @protected
+  PageConsolidationStatus sse_decode_page_consolidation_status(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer);
@@ -4014,6 +4022,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.proposals = cst_encode_list_knowledge_proposal(apiObj.proposals);
     wireObj.issues = cst_encode_list_knowledge_issue(apiObj.issues);
     cst_api_fill_to_wire_knowledge_metadata(apiObj.metadata, wireObj.metadata);
+    cst_api_fill_to_wire_page_consolidation_status(
+      apiObj.consolidation,
+      wireObj.consolidation,
+    );
   }
 
   @protected
@@ -4276,6 +4288,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.applicable_when = cst_encode_String(apiObj.applicableWhen);
     wireObj.snapshot_ids = cst_encode_list_String(apiObj.snapshotIds);
     wireObj.event_ids = cst_encode_list_String(apiObj.eventIds);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_page_consolidation_status(
+    PageConsolidationStatus apiObj,
+    wire_cst_page_consolidation_status wireObj,
+  ) {
+    wireObj.last_consolidated_at = cst_encode_opt_String(
+      apiObj.lastConsolidatedAt,
+    );
+    wireObj.new_evidence = cst_encode_i_64(apiObj.newEvidence);
   }
 
   @protected
@@ -6020,6 +6043,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_organized_topic(
     OrganizedTopic self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_page_consolidation_status(
+    PageConsolidationStatus self,
     SseSerializer serializer,
   );
 
@@ -10337,6 +10366,33 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
+          >();
+
+  void wire__crate__api__knowledge__reconsolidate_knowledge_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+  ) {
+    return _wire__crate__api__knowledge__reconsolidate_knowledge_page(
+      port_,
+      slug,
+    );
+  }
+
+  late final _wire__crate__api__knowledge__reconsolidate_knowledge_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__knowledge__reconsolidate_knowledge_page',
+      );
+  late final _wire__crate__api__knowledge__reconsolidate_knowledge_page =
+      _wire__crate__api__knowledge__reconsolidate_knowledge_pagePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
   void wire__crate__api__knowledge__resolve_knowledge_issue_with_revision(
@@ -16842,6 +16898,8 @@ final class wire_cst_knowledge_page_details extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_knowledge_issue> issues;
 
   external wire_cst_knowledge_metadata metadata;
+
+  external wire_cst_page_consolidation_status consolidation;
 }
 
 final class wire_cst_knowledge_proposal extends ffi.Struct {
@@ -18581,6 +18639,21 @@ final class wire_cst_organized_topic extends ffi.Struct {
     ..ref.applicable_when = applicable_when
     ..ref.snapshot_ids = snapshot_ids
     ..ref.event_ids = event_ids;
+}
+
+final class wire_cst_page_consolidation_status extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_consolidated_at;
+
+  @ffi.Int64()
+  external int new_evidence;
+
+  static ffi.Pointer<wire_cst_page_consolidation_status> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_consolidated_at,
+    required int new_evidence,
+  }) => $allocator<wire_cst_page_consolidation_status>()
+    ..ref.last_consolidated_at = last_consolidated_at
+    ..ref.new_evidence = new_evidence;
 }
 
 final class wire_cst_page_guidance_dto extends ffi.Struct {

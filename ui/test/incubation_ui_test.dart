@@ -90,6 +90,18 @@ void main() {
     expect(repo.decisionCall, ('reject', '来源内容自相矛盾'));
   });
 
+  testWidgets('手动重整理按钮调用 reconsolidate 并原位显示结果', (tester) async {
+    final repo = FakeKnowledge();
+    await pump(tester, repo, incubating);
+    // 观测行来自 details(fake 返回 2026-10-19 一条新证据)
+    expect(find.textContaining('最近整理'), findsOneWidget);
+    expect(find.textContaining('新增证据 1 条'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.autorenew));
+    await tester.pumpAndSettle();
+    expect(repo.reconsolidations, ['source/one']);
+    expect(find.textContaining('已重整'), findsOneWidget);
+  });
+
   testWidgets('已定论显示状态徽标，不再出现纳入/丢弃动作', (tester) async {
     final repo = FakeKnowledge();
     await pump(

@@ -190,6 +190,28 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
     }
   }
 
+  /// 手动重整理（提案 P1）：单页再汇总，原位显示结果；详情随之刷新。
+  Future<void> _reconsolidate() async {
+    setState(() {
+      _busy = true;
+      _failure = null;
+    });
+    try {
+      final result = await ref
+          .read(knowledgeRepositoryProvider)
+          .reconsolidate(widget.page.slug);
+      if (!mounted) return;
+      setState(() => _failure = result);
+      _refresh(ref, widget.page.slug);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _failure = _error(error, context: '重整理', showDetail: true));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _confirmReject() async {
     final controller = TextEditingController();
     final reason = await showDialog<String>(
@@ -257,6 +279,11 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
   Widget build(BuildContext context) {
     final material = ['source', 'note'].contains(widget.page.kind);
     final incubating = isIncubatingPage(widget.page.kind, widget.page.opinion);
+    // P1 可观测：派生读最近整理/新增证据；详情未就绪或失败时静默隐藏。
+    final consolidation = ref
+        .watch(knowledgeDetailsProvider(widget.page.slug))
+        .value
+        ?.consolidation;
     final style = TextButton.styleFrom(
       minimumSize: const Size(0, 36),
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -350,6 +377,21 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
             onPressed: () => _propose('revision'),
             icon: const Icon(Icons.fact_check_outlined, size: 16),
             label: const Text('检查更新'),
+          ),
+        // 手动重整理（提案 P1）：全量来源重看后增量修补，人工页会被拒。
+        if (!_busy)
+          TextButton.icon(
+            style: style,
+            onPressed: _reconsolidate,
+            icon: const Icon(Icons.autorenew, size: 16),
+            label: const Text('重新整理此页'),
+          ),
+        if (consolidation != null)
+          Text(
+            '最近整理 '
+            '${consolidation.lastConsolidatedAt == null ? '未知' : _shortTime(consolidation.lastConsolidatedAt!)}'
+            ' · 新增证据 ${consolidation.newEvidence} 条',
+            style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
           ),
         if (_failure != null) Text(_failure!),
         if (_failure != null && !_busy)

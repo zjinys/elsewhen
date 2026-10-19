@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 443204983;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 583834547;
 
 // Section: executor
 
@@ -4722,6 +4722,30 @@ fn wire__crate__api__reanalyze_event_impl(
         },
     )
 }
+fn wire__crate__api__knowledge__reconsolidate_knowledge_page_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "reconsolidate_knowledge_page",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_slug = slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::knowledge::reconsolidate_knowledge_page(api_slug)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__record_event_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     raw_text: impl CstDecode<String>,
@@ -8284,6 +8308,8 @@ impl SseDecode for crate::api::knowledge::KnowledgePageDetails {
             <Vec<crate::storage::knowledge::KnowledgeIssue>>::sse_decode(deserializer);
         let mut var_metadata =
             <crate::storage::knowledge::KnowledgeMetadata>::sse_decode(deserializer);
+        let mut var_consolidation =
+            <crate::api::knowledge::PageConsolidationStatus>::sse_decode(deserializer);
         return crate::api::knowledge::KnowledgePageDetails {
             source_pages: var_sourcePages,
             output_pages: var_outputPages,
@@ -8292,6 +8318,7 @@ impl SseDecode for crate::api::knowledge::KnowledgePageDetails {
             proposals: var_proposals,
             issues: var_issues,
             metadata: var_metadata,
+            consolidation: var_consolidation,
         };
     }
 }
@@ -9884,6 +9911,18 @@ impl SseDecode for crate::knowledge::organization::OrganizedTopic {
             applicable_when: var_applicableWhen,
             snapshot_ids: var_snapshotIds,
             event_ids: var_eventIds,
+        };
+    }
+}
+
+impl SseDecode for crate::api::knowledge::PageConsolidationStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_lastConsolidatedAt = <Option<String>>::sse_decode(deserializer);
+        let mut var_newEvidence = <i64>::sse_decode(deserializer);
+        return crate::api::knowledge::PageConsolidationStatus {
+            last_consolidated_at: var_lastConsolidatedAt,
+            new_evidence: var_newEvidence,
         };
     }
 }
@@ -12296,6 +12335,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::knowledge::KnowledgePageDetai
             self.proposals.into_into_dart().into_dart(),
             self.issues.into_into_dart().into_dart(),
             self.metadata.into_into_dart().into_dart(),
+            self.consolidation.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -12766,6 +12806,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::organization::Organized
     for crate::knowledge::organization::OrganizedTopic
 {
     fn into_into_dart(self) -> crate::knowledge::organization::OrganizedTopic {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::knowledge::PageConsolidationStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.last_consolidated_at.into_into_dart().into_dart(),
+            self.new_evidence.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::knowledge::PageConsolidationStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::PageConsolidationStatus>
+    for crate::api::knowledge::PageConsolidationStatus
+{
+    fn into_into_dart(self) -> crate::api::knowledge::PageConsolidationStatus {
         self
     }
 }
@@ -14701,6 +14762,10 @@ impl SseEncode for crate::api::knowledge::KnowledgePageDetails {
         <Vec<crate::storage::knowledge::KnowledgeProposal>>::sse_encode(self.proposals, serializer);
         <Vec<crate::storage::knowledge::KnowledgeIssue>>::sse_encode(self.issues, serializer);
         <crate::storage::knowledge::KnowledgeMetadata>::sse_encode(self.metadata, serializer);
+        <crate::api::knowledge::PageConsolidationStatus>::sse_encode(
+            self.consolidation,
+            serializer,
+        );
     }
 }
 
@@ -15853,6 +15918,14 @@ impl SseEncode for crate::knowledge::organization::OrganizedTopic {
         <String>::sse_encode(self.applicable_when, serializer);
         <Vec<String>>::sse_encode(self.snapshot_ids, serializer);
         <Vec<String>>::sse_encode(self.event_ids, serializer);
+    }
+}
+
+impl SseEncode for crate::api::knowledge::PageConsolidationStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.last_consolidated_at, serializer);
+        <i64>::sse_encode(self.new_evidence, serializer);
     }
 }
 
@@ -17483,6 +17556,7 @@ mod io {
                 proposals: self.proposals.cst_decode(),
                 issues: self.issues.cst_decode(),
                 metadata: self.metadata.cst_decode(),
+                consolidation: self.consolidation.cst_decode(),
             }
         }
     }
@@ -18534,6 +18608,17 @@ mod io {
                 applicable_when: self.applicable_when.cst_decode(),
                 snapshot_ids: self.snapshot_ids.cst_decode(),
                 event_ids: self.event_ids.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::PageConsolidationStatus>
+        for wire_cst_page_consolidation_status
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::PageConsolidationStatus {
+            crate::api::knowledge::PageConsolidationStatus {
+                last_consolidated_at: self.last_consolidated_at.cst_decode(),
+                new_evidence: self.new_evidence.cst_decode(),
             }
         }
     }
@@ -20146,6 +20231,7 @@ mod io {
                 proposals: core::ptr::null_mut(),
                 issues: core::ptr::null_mut(),
                 metadata: Default::default(),
+                consolidation: Default::default(),
             }
         }
     }
@@ -20480,6 +20566,19 @@ mod io {
         }
     }
     impl Default for wire_cst_organized_topic {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_page_consolidation_status {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                last_consolidated_at: core::ptr::null_mut(),
+                new_evidence: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_page_consolidation_status {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -22947,6 +23046,14 @@ mod io {
         event_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__reanalyze_event_impl(port_, event_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__reconsolidate_knowledge_page(
+        port_: i64,
+        slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__knowledge__reconsolidate_knowledge_page_impl(port_, slug)
     }
 
     #[unsafe(no_mangle)]
@@ -25606,6 +25713,7 @@ mod io {
         proposals: *mut wire_cst_list_knowledge_proposal,
         issues: *mut wire_cst_list_knowledge_issue,
         metadata: wire_cst_knowledge_metadata,
+        consolidation: wire_cst_page_consolidation_status,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -26242,6 +26350,12 @@ mod io {
         applicable_when: *mut wire_cst_list_prim_u_8_strict,
         snapshot_ids: *mut wire_cst_list_String,
         event_ids: *mut wire_cst_list_String,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_page_consolidation_status {
+        last_consolidated_at: *mut wire_cst_list_prim_u_8_strict,
+        new_evidence: i64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -28112,8 +28226,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                7,
-                "Expected 7 elements, got {}",
+                8,
+                "Expected 8 elements, got {}",
                 self_.length()
             );
             crate::api::knowledge::KnowledgePageDetails {
@@ -28124,6 +28238,7 @@ mod web {
                 proposals: self_.get(4).cst_decode(),
                 issues: self_.get(5).cst_decode(),
                 metadata: self_.get(6).cst_decode(),
+                consolidation: self_.get(7).cst_decode(),
             }
         }
     }
@@ -29424,6 +29539,26 @@ mod web {
                 applicable_when: self_.get(2).cst_decode(),
                 snapshot_ids: self_.get(3).cst_decode(),
                 event_ids: self_.get(4).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge::PageConsolidationStatus>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge::PageConsolidationStatus {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::knowledge::PageConsolidationStatus {
+                last_consolidated_at: self_.get(0).cst_decode(),
+                new_evidence: self_.get(1).cst_decode(),
             }
         }
     }
@@ -32316,6 +32451,14 @@ mod web {
         event_id: String,
     ) {
         wire__crate__api__reanalyze_event_impl(port_, event_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__knowledge__reconsolidate_knowledge_page(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        slug: String,
+    ) {
+        wire__crate__api__knowledge__reconsolidate_knowledge_page_impl(port_, slug)
     }
 
     #[wasm_bindgen]

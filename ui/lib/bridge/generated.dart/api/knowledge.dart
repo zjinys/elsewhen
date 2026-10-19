@@ -16,7 +16,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'wiki.dart';
 
 // These functions are ignored because they are not marked as `pub`: `store`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<List<KnowledgeRepairSource>> listKnowledgeRepairSources({
   required String slug,
@@ -95,6 +95,13 @@ Future<List<KnowledgeBackgroundRunDto>> listKnowledgeBackgroundRuns() =>
 
 Future<KnowledgePageDetails> getKnowledgePageDetails({required String slug}) =>
     RustLib.instance.api.crateApiKnowledgeGetKnowledgePageDetails(slug: slug);
+
+/// 手动「重新整理此页」（提案 P1，2026-10-20）：单页再汇总，同步返回结果
+/// 说明（按钮原地展示）。走知识后台渠道（digest_provider 渠道纪律）。
+Future<String> reconsolidateKnowledgePage({required String slug}) => RustLib
+    .instance
+    .api
+    .crateApiKnowledgeReconsolidateKnowledgePage(slug: slug);
 
 Future<SourceSnapshot?> getKnowledgeSourceSnapshot({required String id}) =>
     RustLib.instance.api.crateApiKnowledgeGetKnowledgeSourceSnapshot(id: id);
@@ -300,6 +307,9 @@ class KnowledgePageDetails {
   final List<KnowledgeIssue> issues;
   final KnowledgeMetadata metadata;
 
+  /// P1 可观测（提案 2026-10-19）：最近整理时间 + 其后新增证据数。
+  final PageConsolidationStatus consolidation;
+
   const KnowledgePageDetails({
     required this.sourcePages,
     required this.outputPages,
@@ -308,6 +318,7 @@ class KnowledgePageDetails {
     required this.proposals,
     required this.issues,
     required this.metadata,
+    required this.consolidation,
   });
 
   @override
@@ -318,7 +329,8 @@ class KnowledgePageDetails {
       history.hashCode ^
       proposals.hashCode ^
       issues.hashCode ^
-      metadata.hashCode;
+      metadata.hashCode ^
+      consolidation.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -331,7 +343,8 @@ class KnowledgePageDetails {
           history == other.history &&
           proposals == other.proposals &&
           issues == other.issues &&
-          metadata == other.metadata;
+          metadata == other.metadata &&
+          consolidation == other.consolidation;
 }
 
 class KnowledgeRepairSource {
@@ -399,6 +412,27 @@ class KnowledgeRevisionDto {
           contentMd == other.contentMd &&
           reason == other.reason &&
           createdAt == other.createdAt;
+}
+
+class PageConsolidationStatus {
+  final String? lastConsolidatedAt;
+  final PlatformInt64 newEvidence;
+
+  const PageConsolidationStatus({
+    this.lastConsolidatedAt,
+    required this.newEvidence,
+  });
+
+  @override
+  int get hashCode => lastConsolidatedAt.hashCode ^ newEvidence.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PageConsolidationStatus &&
+          runtimeType == other.runtimeType &&
+          lastConsolidatedAt == other.lastConsolidatedAt &&
+          newEvidence == other.newEvidence;
 }
 
 class SourceUpdatePreview {

@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 443204983;
+  int get rustContentHash => 583834547;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -848,6 +848,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<bool> crateApiReanalyzeEvent({required String eventId});
+
+  Future<String> crateApiKnowledgeReconsolidateKnowledgePage({
+    required String slug,
+  });
 
   Future<EventDto> crateApiRecordEvent({required String rawText});
 
@@ -6726,6 +6730,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "reanalyze_event", argNames: ["eventId"]);
 
   @override
+  Future<String> crateApiKnowledgeReconsolidateKnowledgePage({
+    required String slug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(slug);
+          return wire.wire__crate__api__knowledge__reconsolidate_knowledge_page(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiKnowledgeReconsolidateKnowledgePageConstMeta,
+        argValues: [slug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiKnowledgeReconsolidateKnowledgePageConstMeta =>
+      const TaskConstMeta(
+        debugName: "reconsolidate_knowledge_page",
+        argNames: ["slug"],
+      );
+
+  @override
   Future<EventDto> crateApiRecordEvent({required String rawText}) {
     return handler.executeNormal(
       NormalTask(
@@ -10537,8 +10571,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   KnowledgePageDetails dco_decode_knowledge_page_details(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return KnowledgePageDetails(
       sourcePages: dco_decode_list_wiki_page_dto(arr[0]),
       outputPages: dco_decode_list_wiki_page_dto(arr[1]),
@@ -10547,6 +10581,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       proposals: dco_decode_list_knowledge_proposal(arr[4]),
       issues: dco_decode_list_knowledge_issue(arr[5]),
       metadata: dco_decode_knowledge_metadata(arr[6]),
+      consolidation: dco_decode_page_consolidation_status(arr[7]),
     );
   }
 
@@ -11482,6 +11517,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       applicableWhen: dco_decode_String(arr[2]),
       snapshotIds: dco_decode_list_String(arr[3]),
       eventIds: dco_decode_list_String(arr[4]),
+    );
+  }
+
+  @protected
+  PageConsolidationStatus dco_decode_page_consolidation_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return PageConsolidationStatus(
+      lastConsolidatedAt: dco_decode_opt_String(arr[0]),
+      newEvidence: dco_decode_i_64(arr[1]),
     );
   }
 
@@ -13667,6 +13714,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_proposals = sse_decode_list_knowledge_proposal(deserializer);
     var var_issues = sse_decode_list_knowledge_issue(deserializer);
     var var_metadata = sse_decode_knowledge_metadata(deserializer);
+    var var_consolidation = sse_decode_page_consolidation_status(deserializer);
     return KnowledgePageDetails(
       sourcePages: var_sourcePages,
       outputPages: var_outputPages,
@@ -13675,6 +13723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       proposals: var_proposals,
       issues: var_issues,
       metadata: var_metadata,
+      consolidation: var_consolidation,
     );
   }
 
@@ -15295,6 +15344,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       applicableWhen: var_applicableWhen,
       snapshotIds: var_snapshotIds,
       eventIds: var_eventIds,
+    );
+  }
+
+  @protected
+  PageConsolidationStatus sse_decode_page_consolidation_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_lastConsolidatedAt = sse_decode_opt_String(deserializer);
+    var var_newEvidence = sse_decode_i_64(deserializer);
+    return PageConsolidationStatus(
+      lastConsolidatedAt: var_lastConsolidatedAt,
+      newEvidence: var_newEvidence,
     );
   }
 
@@ -17387,6 +17449,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_knowledge_proposal(self.proposals, serializer);
     sse_encode_list_knowledge_issue(self.issues, serializer);
     sse_encode_knowledge_metadata(self.metadata, serializer);
+    sse_encode_page_consolidation_status(self.consolidation, serializer);
   }
 
   @protected
@@ -18744,6 +18807,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.applicableWhen, serializer);
     sse_encode_list_String(self.snapshotIds, serializer);
     sse_encode_list_String(self.eventIds, serializer);
+  }
+
+  @protected
+  void sse_encode_page_consolidation_status(
+    PageConsolidationStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.lastConsolidatedAt, serializer);
+    sse_encode_i_64(self.newEvidence, serializer);
   }
 
   @protected

@@ -687,6 +687,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   OrganizedTopic dco_decode_organized_topic(dynamic raw);
 
   @protected
+  PageConsolidationStatus dco_decode_page_consolidation_status(dynamic raw);
+
+  @protected
   PageGuidanceDto dco_decode_page_guidance_dto(dynamic raw);
 
   @protected
@@ -1647,6 +1650,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   OrganizedTopic sse_decode_organized_topic(SseDeserializer deserializer);
+
+  @protected
+  PageConsolidationStatus sse_decode_page_consolidation_status(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PageGuidanceDto sse_decode_page_guidance_dto(SseDeserializer deserializer);
@@ -2763,6 +2771,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_knowledge_proposal(raw.proposals),
       cst_encode_list_knowledge_issue(raw.issues),
       cst_encode_knowledge_metadata(raw.metadata),
+      cst_encode_page_consolidation_status(raw.consolidation),
     ].jsify()!;
   }
 
@@ -3622,6 +3631,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.applicableWhen),
       cst_encode_list_String(raw.snapshotIds),
       cst_encode_list_String(raw.eventIds),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_page_consolidation_status(PageConsolidationStatus raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_opt_String(raw.lastConsolidatedAt),
+      cst_encode_i_64(raw.newEvidence),
     ].jsify()!;
   }
 
@@ -5342,6 +5360,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_page_consolidation_status(
+    PageConsolidationStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_page_guidance_dto(
     PageGuidanceDto self,
     SseSerializer serializer,
@@ -7038,6 +7062,14 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String event_id,
   ) => wasmModule.wire__crate__api__reanalyze_event(port_, event_id);
+
+  void wire__crate__api__knowledge__reconsolidate_knowledge_page(
+    NativePortType port_,
+    String slug,
+  ) => wasmModule.wire__crate__api__knowledge__reconsolidate_knowledge_page(
+    port_,
+    slug,
+  );
 
   void wire__crate__api__record_event(NativePortType port_, String raw_text) =>
       wasmModule.wire__crate__api__record_event(port_, raw_text);
@@ -8839,6 +8871,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__reanalyze_event(
     NativePortType port_,
     String event_id,
+  );
+
+  external void wire__crate__api__knowledge__reconsolidate_knowledge_page(
+    NativePortType port_,
+    String slug,
   );
 
   external void wire__crate__api__record_event(

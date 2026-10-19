@@ -64,6 +64,8 @@ class FakeKnowledge extends KnowledgeRepository {
   final decisions = <bool>[];
   /// 孵化定论调用的记录：(decision, reason)；null=未调用。
   (String, String)? decisionCall;
+  /// 手动重整理调用记录。
+  final reconsolidations = <String>[];
   bool fail = false;
   int saves = 0;
   bool returnPage = false;
@@ -104,6 +106,10 @@ class FakeKnowledge extends KnowledgeRepository {
         applicableWhen: '多步写入',
         strength: 'reference',
       ),
+      consolidation: const api.PageConsolidationStatus(
+        lastConsolidatedAt: '2026-10-19T10:00:00Z',
+        newEvidence: 1,
+      ),
     );
   }
 
@@ -140,6 +146,12 @@ class FakeKnowledge extends KnowledgeRepository {
   Future<api.WikiPageDto> decideSource(String slug, String decision, String reason) async {
     decisionCall = (decision, reason);
     return page;
+  }
+
+  @override
+  Future<String> reconsolidate(String slug) async {
+    reconsolidations.add(slug);
+    return '已重整：正文按全部 1 条来源事件增量修补';
   }
 
   @override

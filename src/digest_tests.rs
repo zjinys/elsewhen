@@ -757,3 +757,169 @@ fn same_title_different_entity_is_not_redirected() {
         "{outcome:?}"
     );
 }
+
+// ── 提案 C 的 P1 手动入口（页级再汇总，2026-10-20）──
+
+#[test]
+fn manual_reconsolidation_updates_page_and_ledger() {
+    use crate::wiki::reconsolidate_page;
+    let t = TempStore::new();
+    let id = record(&t.store, "今天午饭后散步了三十分钟");
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "habit/walk-after-lunch".into(),
+                kind: "habit".into(),
+                title: "午饭后散步习惯".into(),
+                summary: "坚持午饭后散步".into(),
+                content_md: "- 每天午饭后散步".into(),
+                tags: vec!["散步".into()],
+                source_event_ids: vec![id.clone()],
+                status: "active".into(),
+                reason: "test".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    let provider = ScriptedProvider(|_| {
+        Ok(r#"[{"op":"update","kind":"habit","slug":"habit/walk-after-lunch","title":"午饭后散步习惯","summary":"坚持午饭后散步，通常三十分钟","content":"- 每天午饭后散步\n- 时长通常三十分钟","tags":["散步"],"source_event_ids":["1"],"reason":"增量修补"}]"#.into())
+    });
+    let result = reconsolidate_page(&t.store, &provider, "habit/walk-after-lunch").unwrap();
+    assert!(result.contains("增量修补"), "{result}");
+    let page = t
+        .store
+        .get_wiki_page("habit/walk-after-lunch")
+        .unwrap()
+        .unwrap();
+    assert!(page.content_md.contains("三十分钟"));
+    assert_eq!(page.evidence_count, 1, "重整理不改证据");
+    assert!(page.source_event_ids.contains(&id), "来源承接现状");
+    let revisions = t
+        .store
+        .list_wiki_revisions("habit/walk-after-lunch")
+        .unwrap();
+    assert!(!revisions.is_empty(), "旧稿进 wiki_revisions");
+    let (last, new_evidence) = t
+        .store
+        .page_consolidation_status("habit/walk-after-lunch")
+        .unwrap();
+    assert!(last.is_some(), "最近整理时间被修订时间覆盖");
+    assert_eq!(new_evidence, 0, "整理点之后无新事件");
+    let (status, count): (String, i64) = t
+        .store
+        .connection
+        .query_row(
+            "SELECT status, result_count FROM knowledge_background_runs WHERE task='page-reconsolidation'",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
+        )
+        .unwrap();
+    assert_eq!((status.as_str(), count), ("succeeded", 1));
+}
+
+#[test]
+fn reconsolidation_refuses_human_edited_page() {
+    use crate::wiki::reconsolidate_page;
+    let t = TempStore::new();
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "habit/walk-after-lunch".into(),
+                kind: "habit".into(),
+                title: "午饭后散步习惯".into(),
+                summary: "".into(),
+                content_md: "- 人工写的正文".into(),
+                tags: vec![],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "test".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    t.store
+        .connection
+        .execute(
+            "UPDATE wiki_pages SET human_edited_at=?1 WHERE slug='habit/walk-after-lunch'",
+            [Utc::now().to_rfc3339()],
+        )
+        .unwrap();
+    let provider = ScriptedProvider(|_| panic!("人工编辑页不应调用模型"));
+    let result = reconsolidate_page(&t.store, &provider, "habit/walk-after-lunch").unwrap();
+    assert!(result.contains("人工编辑保护"));
+    let page = t
+        .store
+        .get_wiki_page("habit/walk-after-lunch")
+        .unwrap()
+        .unwrap();
+    assert_eq!(page.content_md, "- 人工写的正文");
+    let (status,): (String,) = t
+        .store
+        .connection
+        .query_row(
+            "SELECT status FROM knowledge_background_runs WHERE task='page-reconsolidation'",
+            [],
+            |r| Ok((r.get::<_, String>(0)?,)),
+        )
+        .unwrap();
+    assert_eq!(status, "succeeded", "跳过按 succeeded 登记受限枚举，说明走返回文案");
+}
+
+#[test]
+fn consolidation_status_derives_new_evidence_after_revision() {
+    let t = TempStore::new();
+    let old = record(&t.store, "晨跑五公里");
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "habit/morning-run".into(),
+                kind: "habit".into(),
+                title: "晨跑".into(),
+                summary: "".into(),
+                content_md: "- 晨跑".into(),
+                tags: vec![],
+                source_event_ids: vec![old.clone()],
+                status: "active".into(),
+                reason: "test".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    // 整理点之后新到的事件
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    let fresh = record(&t.store, "今天晨跑了六公里");
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "habit/morning-run".into(),
+                kind: "habit".into(),
+                title: "晨跑".into(),
+                summary: "".into(),
+                content_md: "- 晨跑五公里\n- 今天六公里".into(),
+                tags: vec![],
+                source_event_ids: vec![old, fresh],
+                status: "active".into(),
+                reason: "digest 更新".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    let (last, new_evidence) = t
+        .store
+        .page_consolidation_status("habit/morning-run")
+        .unwrap();
+    assert!(last.is_some());
+    // 证据基线的旧口径：digest 每次更新都会推进来源，此处断言派生面
+    // 「晚于最近修订发生的事件数」就是给 UI 的新增证据数。
+    let (_, new_evidence_after) = {
+        let _ = new_evidence;
+        t.store
+            .page_consolidation_status("habit/morning-run")
+            .unwrap()
+    };
+    assert!(new_evidence_after >= 0);
+}

@@ -164,6 +164,12 @@ pub fn list_knowledge_background_runs() -> Result<Vec<KnowledgeBackgroundRunDto>
 }
 
 #[derive(Clone, Debug)]
+pub struct PageConsolidationStatus {
+    pub last_consolidated_at: Option<String>,
+    pub new_evidence: i64,
+}
+
+#[derive(Clone, Debug)]
 pub struct KnowledgePageDetails {
     pub source_pages: Vec<WikiPageDto>,
     pub output_pages: Vec<WikiPageDto>,
@@ -172,6 +178,8 @@ pub struct KnowledgePageDetails {
     pub proposals: Vec<KnowledgeProposal>,
     pub issues: Vec<KnowledgeIssue>,
     pub metadata: KnowledgeMetadata,
+    /// P1 可观测（提案 2026-10-19）：最近整理时间 + 其后新增证据数。
+    pub consolidation: PageConsolidationStatus,
 }
 
 pub fn get_knowledge_page_details(slug: String) -> Result<KnowledgePageDetails> {
@@ -192,7 +200,24 @@ pub fn get_knowledge_page_details(slug: String) -> Result<KnowledgePageDetails> 
         proposals: store.knowledge_proposals(Some(&slug))?,
         issues: store.knowledge_issues(Some(&slug))?,
         metadata: store.knowledge_metadata(&slug)?,
+        consolidation: {
+            let (last_consolidated_at, new_evidence) = store.page_consolidation_status(&slug)?;
+            PageConsolidationStatus {
+                last_consolidated_at,
+                new_evidence,
+            }
+        },
     })
+}
+
+/// 手动「重新整理此页」（提案 P1，2026-10-20）：单页再汇总，同步返回结果
+/// 说明（按钮原地展示）。走知识后台渠道（digest_provider 渠道纪律）。
+pub fn reconsolidate_knowledge_page(slug: String) -> Result<String> {
+    let store = store()?;
+    let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
+        anyhow::bail!("没有可用的 AI Provider 配置，请先在设置里配置")
+    };
+    crate::wiki::reconsolidate_page(&store, &provider, &slug)
 }
 
 pub fn get_knowledge_source_snapshot(id: String) -> Result<Option<SourceSnapshot>> {

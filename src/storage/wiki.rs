@@ -9,8 +9,8 @@ use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use super::{
-    ContentPolicy, RenameWikiOutcome, Store, WIKI_PAGE_COLS, WIKI_PAGE_META_COLS, WikiPage,
-    WikiPageDraft, WikiPageMeta, WikiUpsertOutcome, map_wiki_page, map_wiki_page_meta,
+    ContentPolicy, EventRecord, RenameWikiOutcome, Store, WIKI_PAGE_COLS, WIKI_PAGE_META_COLS,
+    WikiPage, WikiPageDraft, WikiPageMeta, WikiUpsertOutcome, map_wiki_page, map_wiki_page_meta,
 };
 
 impl Store {
@@ -1227,16 +1227,63 @@ impl Store {
             &content_md,
             &format!(
                 "[human] {}",
-                if reason.is_empty() { "追加快记" } else { reason }
+                if reason.is_empty() {
+                    "追加快记"
+                } else {
+                    reason
+                }
             ),
             None,
         )?;
-        self.append_wiki_log(&format!(
-            "人工追加正文：{slug}（+{append_chars} 字符）"
-        ))?;
+        self.append_wiki_log(&format!("人工追加正文：{slug}（+{append_chars} 字符）"))?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
         self.get_wiki_page(slug)?.context("追加保存后读取失败")
+    }
+
+    /// 页面整理观测（提案 P1「可观测」，2026-10-20）：最近一次正文整理 =
+    /// wiki_revisions 最新时间（digest 增量修补与手动重整理都写修订，天然覆盖）；
+    /// 新增证据 = 来源事件里晚于该点发生的个数。全部派生读、不新增列——
+    /// P2 的再汇总阈值若需要精确基线，再引入 last_consolidated_* 列。
+    /// 返回 (最近整理时间, 新增证据数)。
+    pub fn page_consolidation_status(&self, slug: &str) -> Result<(Option<String>, i64)> {
+        let last = self.connection.query_row(
+            "SELECT MAX(r.created_at) FROM wiki_revisions r \
+         JOIN wiki_pages p ON p.id = r.page_id WHERE p.slug = ?1",
+            [slug],
+            |row| row.get::<_, Option<String>>(0),
+        )?;
+        let new_evidence = match &last {
+            Some(ts) => self.connection.query_row(
+                "SELECT COUNT(*) FROM events e \
+             JOIN wiki_pages w ON w.slug = ?1 \
+             JOIN json_each(w.source_event_ids) je ON je.value = e.id \
+             WHERE e.recorded_at > ?2",
+                rusqlite::params![slug, ts],
+                |row| row.get(0),
+            )?,
+            None => 0,
+        };
+        Ok((last, new_evidence))
+    }
+
+    /// 某页全部来源事件原文（按记录时间升序）——页级再汇总的增量输入。
+    pub fn page_source_events(&self, slug: &str) -> Result<Vec<EventRecord>> {
+        let mut statement = self.connection.prepare(
+            "SELECT e.id, e.recorded_at, e.raw_text FROM events e \
+         JOIN wiki_pages w ON w.slug = ?1 \
+         JOIN json_each(w.source_event_ids) je ON je.value = e.id \
+         ORDER BY e.recorded_at",
+        )?;
+        let rows = statement.query_map([slug], |row| {
+            Ok(EventRecord {
+                id: row.get(0)?,
+                recorded_at: row.get(1)?,
+                raw_text: row.get(2)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
     }
 }
