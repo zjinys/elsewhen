@@ -107,8 +107,10 @@ impl RunSkillScriptTool {
             // 待确认动作：确认时按 args_json 原样执行，杜绝确认前后偷换内容
             super::store_create_pending(ctx.store, ctx.conversation_id, self.name(), &action_args)?;
             let excerpt = resolved.body_chars.take(400).collect::<String>();
-            Ok(format!(
-                "脚本已通过校验，等待你确认后执行：\n{command}\n\n脚本开头：\n{excerpt}\n\n在审阅卡点击接受后执行。"
+            // R8A：待确认≠完成。拦截结果用 err 形态（success=false），
+            // 避免模型把「已登记待确认」转述成「已执行」。
+            Err(anyhow::anyhow!(
+                "尚未执行，等待确认：脚本已通过校验并登记待用户确认。\n{command}\n\n脚本开头：\n{excerpt}\n\n用户在审阅卡点击接受后才会真正执行；在收到执行结果前，不得声称该脚本已成功运行。"
             ))
         }
     }
@@ -424,10 +426,7 @@ mod trust_tests {
         serde_json::json!({ "skill": "echo-skill", "script": "run.sh", "args": "hi" })
     }
 
-    fn ctx<'a>(
-        store: &'a crate::storage::Store,
-        conversation_id: &'a str,
-    ) -> ToolContext<'a> {
+    fn ctx<'a>(store: &'a crate::storage::Store, conversation_id: &'a str) -> ToolContext<'a> {
         ToolContext {
             store,
             conversation_id,
@@ -440,19 +439,18 @@ mod trust_tests {
     fn untrusted_skill_dispatch_creates_pending_action_with_sealed_args() {
         let (store, conversation_id, dir) = dispatch_env("untrusted");
         // 未 trust：走 pending，不直接执行。
-        let out = RunSkillScriptTool
+        // R8A：未 trust 拦截以 err 形态返回（模型不得把待确认当已完成）。
+        let err = RunSkillScriptTool
             .run_with_data_dir(&call(), &ctx(&store, &conversation_id), &dir)
-            .unwrap();
-        assert!(out.contains("等待你确认"), "got: {out}");
-        // 未执行：不含执行成功的完成态文案。
-        assert!(!out.contains("执行成功"));
+            .unwrap_err();
+        assert!(err.to_string().contains("等待确认"), "got: {err}");
+        assert!(err.to_string().contains("尚未执行"));
         let pending = store
             .pending_actions_for_conversation(&conversation_id)
             .unwrap();
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].action, "run_skill_script");
-        let sealed: serde_json::Value =
-            serde_json::from_str(&pending[0].args_json).unwrap();
+        let sealed: serde_json::Value = serde_json::from_str(&pending[0].args_json).unwrap();
         assert_eq!(sealed["skill"], "echo-skill");
         assert_eq!(sealed["script"], "run.sh");
         assert_eq!(sealed["args"], "hi");

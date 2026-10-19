@@ -833,10 +833,10 @@ pub(crate) fn dispatch_with_knowledge(
                         "mcp_tool_call",
                         &action_args,
                     ) {
-                        Ok(_) => ToolResultMsg::ok(
+                        Ok(_) => ToolResultMsg::err(
                             call,
                             format!(
-                                "工具 {} 已暂存待用户确认（MCP 服务器为第三方代码，执行前需要逐次审批）。在审阅卡点击接受后执行。",
+                                "尚未执行，等待确认：工具 {} 的执行请求已登记待用户确认（MCP 服务器为第三方代码，执行前需要逐次审批）。用户在审阅卡点击接受后才会真正执行；在收到执行结果前，不得声称该调用已成功或已完成。",
                                 call.name
                             ),
                         ),
