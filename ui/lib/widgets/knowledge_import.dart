@@ -17,6 +17,17 @@ Future<WikiPage?> saveKnowledgeImport(
       .read(knowledgeRepositoryProvider)
       .preview(fetch.sourceUrl, fetch.contentMd);
   if (!context.mounted) return null;
+  // 导入同源命中提示（负知识读面之二，提案 2026-10-19）：identity 命中
+  // 已否定来源时，确认前亮出「你否定过这条来源 + 原因」。重新导入是
+  // 重新纳入的唯一路径（reject → endorse 不可达），所以这里只知情
+  // 不拦截——用户明确选择「仍要保存」才继续，否定不被静默绕过。
+  if (preview.priorRejection != null) {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (context) => PriorRejectionDialog(reason: preview.priorRejection!),
+    );
+    if (proceed != true || !context.mounted) return null;
+  }
   if (preview.changed) {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -38,6 +49,38 @@ Future<WikiPage?> saveKnowledgeImport(
         expectedSnapshotId: preview.previousSnapshotId,
       );
   return WikiPage.fromDto(saved);
+}
+
+/// 导入命中负知识的知情确认：展示当时的否定原因，由用户决定是否重建。
+class PriorRejectionDialog extends StatelessWidget {
+  final String reason;
+  const PriorRejectionDialog({super.key, required this.reason});
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('此前否定过这条来源'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('你曾把这条来源丢弃为负知识，当时的原因：'),
+        const SizedBox(height: 8),
+        SelectableText(reason, style: const TextStyle(fontStyle: FontStyle.italic)),
+        const SizedBox(height: 8),
+        const Text('重新导入会重新入册并从孵化中重新开始；要继续吗？'),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(false),
+        child: const Text('取消'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.of(context).pop(true),
+        child: const Text('仍要保存'),
+      ),
+    ],
+  );
 }
 
 class SourceUpdateDialog extends StatelessWidget {

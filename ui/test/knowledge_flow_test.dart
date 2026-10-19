@@ -69,6 +69,9 @@ class FakeKnowledge extends KnowledgeRepository {
   bool fail = false;
   int saves = 0;
   bool returnPage = false;
+  /// 导入负知识命中（提案 2026-10-19 UI 段）：preview 口径控制。
+  String? priorRejection;
+  bool previewChanged = true;
   int proposeCalls = 0;
   String? expected;
   int detailsCalls = 0;
@@ -199,11 +202,12 @@ class FakeKnowledge extends KnowledgeRepository {
       );
   @override
   Future<api.SourceUpdatePreview> preview(String url, String content) async =>
-      const api.SourceUpdatePreview(
+      api.SourceUpdatePreview(
         existingSlug: 'source/one',
         previousContent: '旧版本',
         previousSnapshotId: 'version-one',
-        changed: true,
+        changed: previewChanged,
+        priorRejection: priorRejection,
       );
   @override
   Future<api.WikiPageDto> confirmSource({
