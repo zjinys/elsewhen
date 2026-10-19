@@ -1,7 +1,7 @@
 # 定时提醒（"20 分钟后提醒我"，复用 todos 承载）
 
 - 日期：2026-10-19
-- 状态：proposed（方案待评审；承载方式已定为**复用 `todos`**）
+- 状态：proposed（方案待评审；承载方式已定为**复用 `todos`**；2026-10-19 存储设计评审已通过，评审结论见 §8）
 - 范围：复用 `todos`（已有 `due_at`）承载提醒 + 到期调度 + 双通道触达（应用内 + 系统通知）+ 本地解析与 AI 工具两条输入
 - 性质：**不新增业务表**；新增本机触发去重状态 + Flutter 通知依赖；`todos` 如需加列要同步改快照
 - 关联：[规则触发即时提醒](../../../CLAUDE.md)、[FR-PES-001 个人事件记录](../../../requirements/product/FR-PES-001-个人事件记录与状态管理.md)、[多设备同步](../../../roadmap/2026-10-03-multi-device-sync-roadmap.md)
@@ -42,6 +42,7 @@
 - **本机触发去重状态**：新表 `todo_reminder_fires(todo_id PRIMARY KEY, fired_at TEXT, device_id TEXT)`，登记进 `SNAPSHOT_EXCLUDED_TABLES`，理由 `local-event-reminders`（与 `rule_hits` 同纪律：「在哪台设备响」是设备侧行为）。
   - 备选（更少表但要权衡）：给 `todos` 加同步列 `reminded_at`，首个触发的设备写入、其余设备跳过——实现简单，但语义变成"全局只弹一次"，与上面纪律不一致。
 - migration：下一个序号 **`50-…`**（现最大 `49-knowledge-ai-summary`），只装 `TODO_REMINDER_FIRES` 建表（与可选的 `todos.reminder` 列）。
+- **顺手建部分索引（评审补充）**：到期查询 `status='open' AND due_at IS NOT NULL AND due_at<=now` 不被现有 `idx_todos_status(status, created_at)` 覆盖；同一 migration 加 `CREATE INDEX idx_todos_due ON todos(status, due_at) WHERE due_at IS NOT NULL`，一行成本。
 
 ### 4.2 创建与 API
 
@@ -52,17 +53,25 @@
 ### 4.3 到期调度
 
 - 挂在既有 5s tick 的完整序列：每拍调用 `pop_due_reminders`，返回列表交给前端展示。
-- 幂等由 `todo_reminder_fires` 兜底：同一条只弹一次，直到用户"完成/稍后/忽略"。
+- **tick 内的位置与故障隔离（评审钉死，2026-10-19）**：
+  - `pop_due_reminders` **每拍最先跑**——提醒是延迟敏感（用户等「20 分钟后」），分析/消化是吞吐敏感；提醒检查是廉价索引查询，放最后会被前面慢步骤的退避连累；
+  - 提醒失败只跳过本拍提醒，**不 block** 后续分析序列；反之分析失败也不影响提醒。
+- **幂等与 snooze 的一致性（评审钉死，2026-10-19，原稿矛盾修正）**：`todo_reminder_fires` 以 `todo_id PRIMARY KEY` 记触发；
+  - **完成/忽略**：fire 记录保留 → 不重响 ✅；todo 的 `status` 只有用户点「完成」才变 `done`，「忽略」不改 status（fire 已记，本拍不再弹，todo 仍 open 留在列表）；
+  - **稍后（snooze）= 更新 `due_at` + 同一事务删除该 todo 的 fire 记录** → 到新点重响 ✅。**若只更新 `due_at` 不删 fire 记录，`due_at<=now AND 本机未触发过` 永假，snooze 后再也不响**——这是必须原子完成的两个写，缺一半就是「承诺蒸发」类静默 bug；
+  - **补弹语义（确认为期望行为）**：应用未运行/手机后台冻结时 tick 停了，fire 记录未写、`due_at` 已过——下次 tick（前台恢复）会补弹。这是本存储设计白拿的正确性，产品说明写为「应用没跑时错过的提醒，打开时补弹」。
 
 ### 4.4 触达（两者都要）
 
 - **应用内**：顶部横幅 / 弹窗（复用 `CompanionRevisitHint` 类的应用内提示形态），操作：完成 / 稍后再提醒 / 忽略。
 - **系统通知**：新增 `flutter_local_notifications`；前台走应用内、**最小化/失焦走系统通知**（按 `window_manager` 可见性分派）。
-- **诚实边界（写进产品说明）**：本地优先应用**不保证应用完全退出/关机后的提醒**——调度随应用运行（同现有后台 worker 模型）。要"系统守时"须常驻/开机自启，超首版范围（§7）。
+- **手机端分派（评审补充，建议）**：桌面端「最小化走系统通知」成立；手机端 App 退后台后 5s tick 会被系统冻结，靠自己 tick 的系统通知不可靠。建议首版手机端系统通知用 `flutter_local_notifications` 的 **scheduled notification**（创建提醒时把触发时刻注册给 OS，不靠自己 tick；本机 tick 只做应用内横幅与补弹兜底）——这样手机被杀/冻结也能响。是否首版就做 scheduled 见 §6.6。
+- **诚实边界（写进产品说明）**：本地优先应用**不保证应用完全退出/关机后的提醒**（若手机端上 scheduled notification，则手机端例外：OS 负责守时）——调度随应用运行（同现有后台 worker 模型）。要桌面"系统守时"须常驻/开机自启，超首版范围（§7）。应用没跑时错过的提醒，下次打开补弹（见 §4.3）。
 
 ### 4.5 输入路径（建议两条都做）
 
 - **本地确定性解析**（优先）：正规化 `N 分钟后 / N 小时后 / 明天 9 点 / 今天 18:00`；不依赖 AI、不排队、AI 未配置也能用。→ 生成一条 `due_at` 非空的待办。
+- **解析结果必须回显确认（评审钉死，2026-10-19）**：本地解析产出后显示可撤回的确认卡片（「好的，今天 18:40 提醒你」），而不是静默创建——解析错时区/日期的代价是提醒在错误时间响，比不响应更糟。本地解析走轻确认（一键撤回）；AI 工具走完整确认门（schema v10 explicit review）。
 - **AI 工具 `create_reminder`**（兜底）：仿 `create_todo`（`src/ai/tool/mod.rs:1435`，走确认门 `ToolPolicy`）处理"下周三下午"这类推算；用 `time_context` 的当前时间与本地时区换算 `due_at`。
 
 ### 4.6 同步归属
@@ -79,14 +88,32 @@
 
 ## 6. 待评审确定的问题
 
-1. **要不要 `reminder` 标记列**：带 `due_at` 的待办一律到点提醒（零加列），还是加列区分/过滤？
-2. **去重状态落点**：本机表 `todo_reminder_fires`（推荐，语义一致）还是 `todos.reminded_at`（更简、全局只弹一次）？
-3. **"稍后再提醒"**：要做吗（更新 `due_at`）？首版可只做完成/忽略。
-4. **系统通知依赖**：同意引入 `flutter_local_notifications` 吗？Linux 打包需补 `libnotify`。
-5. **默认落点**：本地解析优先、AI 工具兜底——确认。
+1. **要不要 `reminder` 标记列**：~~带 `due_at` 一律提醒（零加列）~~ → **已定（2026-10-19 评审）：加列** `reminder INTEGER NOT NULL DEFAULT 0`。存量仅 2 条 todo、行为风险近零，但加列让 UI 徽标/过滤有支点，且不把「到期就提醒」强加成 `due_at` 的全局语义；QUERY/apply 同步改 `snapshot.rs:455`/`:1383`。
+2. **去重状态落点**：~~待定~~ → **已定（2026-10-19 评审）：本机表 `todo_reminder_fires`**。多设备各弹各的，与 `rule_hits` 排除快照同纪律（`snapshot.rs:128` 判例原文「提醒在哪台设备响是设备侧行为」）。
+3. **"稍后再提醒"**：~~首版可只做完成/忽略~~ → **已定（2026-10-19 评审）：首版做，但只做「+10 分钟」一个按钮**（更新 `due_at` + 同事务删 fire 记录，见 §4.3），不做自由选时。「忽略」对定时提醒是坏操作（90% 真实意图是稍后）。
+4. **系统通知依赖**：同意引入 `flutter_local_notifications` 吗？Linux 打包需补 `libnotify`。→ **评审建议同意**；打包时检查 `package-appimage.sh` 是否需 bundle libnotify。
+5. **默认落点**：本地解析优先、AI 工具兜底——确认 ✅（回显确认要求见 §4.5）。
+6. **（新增）手机端系统通知形态**：首版是否上 scheduled notification（注册给 OS），还是接受「后台冻结时延迟到前台补弹」？**评审建议上 scheduled**——手机是提醒的主战场，「打开才补弹」对 20 分钟级提醒体验损失大。
 
 ## 7. 非目标（首版）
 
 - 不做重复/cron 提醒、不做日历集成。
-- 不做"应用完全退出后仍准时"的守护进程 / 开机自启。
+- 不做"应用完全退出后仍准时"的守护进程 / 开机自启（桌面端；手机端若上 scheduled notification 则由 OS 守时，见 §4.4/§6.6）。
 - 不把定时提醒混进 `rule_hits`（那是内容触发，语义不同；两者可并存但各自独立）。
+- 不动 Capture 浮窗落点；「Capture 多落点（事件/记事本/提醒）」与记事本提案的二期交集另立提案统一做（见 [2026-10-19-notepad-memo-pages §7](../product/2026-10-19-notepad-memo-pages.md)）。
+
+## 8. 存储设计评审结论（2026-10-19）
+
+**判定：合理，可以按方案 B（复用 todos）落地。** 依据（均已对代码核实）：
+
+1. **列形状精确匹配**：`due_at` 存触发时刻、`note` 存提醒正文、`status` 复用 open/done；存量仅 2 条 todo（1 条带 due_at 且已 done），行为变化风险近零。
+2. **同步已就绪**：`snapshot.rs:455` QUERY / `:1383` apply 全列搬运，加 `reminder` 列同步改这两处，快照门禁测试强制不能漏。
+3. **本机触发状态有判例**：`snapshot.rs:128-136` `rule_hits`/`companion_settings`/`guidance_feedback` 均以 `local-event-reminders` 排除快照，`todo_reminder_fires` 同纪律登记即可。
+
+**评审钉死的三条修正**（已回写正文）：
+
+1. **snooze 原子性**：更新 `due_at` 与删 fire 记录必须同事务，否则 snooze 后永不重响——见 §4.3。
+2. **tick 位置与故障隔离**：`pop_due_reminders` 每拍最先跑，失败不连坐分析序列——见 §4.3。
+3. **解析回显确认**：本地解析走轻确认卡片，不静默创建——见 §4.5。
+
+另补：migration 50 顺手建 `idx_todos_due` 部分索引（§4.1）；手机端建议上 scheduled notification（§4.4/§6.6）。
