@@ -115,6 +115,15 @@ impl Store {
         self.list_rules(Some(RuleStatus::Active), None)
     }
 
+    /// 已生效规则的数量（基座规模播报用；避免为计数拉全量行）。
+    pub fn count_active_rules(&self) -> Result<i64> {
+        Ok(self.connection.query_row(
+            "SELECT COUNT(*) FROM rules WHERE status='active'",
+            [],
+            |r| r.get(0),
+        )?)
+    }
+
     /// 设置/清除规则的触发配置（决策辅助 D1）。
     /// trigger_keywords 为 JSON 字符串数组或 None（None = 不参与预筛）。
     /// trigger_scene 枚举（capture/conversation/daily_review）或 None（全场景）。

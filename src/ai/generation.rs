@@ -287,7 +287,20 @@ pub(crate) fn execute(
             // 留存」正是当时的现状——前缀由装配层直接可见，不依赖转述。
             let content = honest_summary_degradation(store, &run.id, content);
             match store.finish_chat_run(&run.id, owner, "completed", Some(&content), None) {
-                Ok(_) => Ok(content),
+                Ok(_) => {
+                    // 对话影子校验预筛（迁移 54）：主回复落定后对当轮用户输入
+                    // 做确定性关键词预筛，命中落 pending，交后台 worker 做 LLM
+                    // 适用性判定。同步预筛毫秒级且内部吞错，不影响生成链路；
+                    // 影子校验绝不改写主回复、不向对话注入内容。
+                    if let Ok(Some(text)) = store.message_content(&run.input_message_id) {
+                        store.screen_chat_message(
+                            &run.conversation_id,
+                            &run.input_message_id,
+                            &text,
+                        );
+                    }
+                    Ok(content)
+                }
                 Err(error) => {
                     let _ = store.finish_chat_run(
                         &run.id,

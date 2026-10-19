@@ -155,3 +155,38 @@ pub fn list_recent_rule_hits(limit: i64) -> Result<Vec<RuleHitDto>> {
         .map(hit_dto)
         .collect())
 }
+
+/// 对话影子校验命中 DTO（迁移 54：聊天预筛 → 后台 LLM 判定）。
+#[derive(Clone, Debug)]
+pub struct ChatRuleHitDto {
+    pub id: String,
+    pub rule_id: String,
+    pub rule_content: String,
+    pub conversation_id: String,
+    pub input_message_id: String,
+    /// pending / applicable / excluded
+    pub status: String,
+    pub confidence: Option<f64>,
+    pub created_at: String,
+}
+
+/// 最近的对话影子命中（规则管理页审查面读用）。
+pub fn list_recent_chat_rule_hits(limit: i64) -> Result<Vec<ChatRuleHitDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let limit = limit.clamp(1, 200);
+    Ok(store
+        .recent_chat_rule_hits(limit)?
+        .into_iter()
+        .map(|h| ChatRuleHitDto {
+            id: h.id,
+            rule_id: h.rule_id,
+            rule_content: h.rule_content,
+            conversation_id: h.conversation_id,
+            input_message_id: h.input_message_id,
+            status: h.status,
+            confidence: h.confidence,
+            created_at: h.created_at,
+        })
+        .collect())
+}

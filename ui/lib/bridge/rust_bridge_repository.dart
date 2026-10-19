@@ -655,6 +655,10 @@ class RustBridgeRepository implements StorageRepository {
             .toList(),
       );
 
+  /// 最近的对话影子校验命中（迁移 54：聊天预筛 → 后台 LLM 判定）。
+  Future<List<api.ChatRuleHitDto>> listRecentChatRuleHits({int limit = 30}) =>
+      api.listRecentChatRuleHits(limit: limit);
+
   Future<Conversation> createConversation({String? title, String? tag}) async {
     final dto = await api.createConversation(title: title, tag: tag);
     return _fromConversationDto(dto);

@@ -170,3 +170,83 @@ fn shutdown_does_not_stop_another_executor() {
     drop(store);
     let _ = std::fs::remove_file(path);
 }
+
+/// 对话影子校验挂点（迁移 54）：主回复成功落库后，当轮用户输入自动过
+/// 关键词预筛，命中规则落 pending（本测试只验挂点接线：execute 完整链路
+/// 到 completed，pending 记录出现；判定阶段由 api::process_chat_rule_check_queue
+/// 的单测与 storage 层单测覆盖）。
+#[test]
+fn completed_reply_screens_user_input_for_shadow_hits() {
+    use std::io::{Read, Write};
+    let path =
+        std::env::temp_dir().join(format!("elsewhen-shadow-hook-{}.db", uuid::Uuid::new_v4()));
+    let store = Store::open(&path).unwrap();
+    Store::mark_initialized(&path).unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        let (mut socket, _) = listener.accept().unwrap();
+        let mut request = [0; 65536];
+        let _ = socket.read(&mut request);
+        let delta = r#"data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"已收到你的记录。"},"finish_reason":null}]}
+
+data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+
+"#;
+        let body = delta.replace(
+            r#"
+"#, "
+",
+        );
+        write!(
+            socket,
+            "HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Content-Length: {}
+
+{}",
+            body.len(),
+            body
+        )
+        .unwrap();
+        socket.flush().unwrap();
+    });
+    store
+        .upsert_ai_provider_config(&url, "gpt-4o", "synthetic-key")
+        .unwrap();
+    // 参与预筛的规则：关键词命中的应用输入。
+    let rule_id = store
+        .add_rule("X 项目联调要留痕", crate::storage::RuleStatus::Active, None)
+        .unwrap();
+    store
+        .connection
+        .execute(
+            "UPDATE rules SET trigger_keywords=?2 WHERE id=?1",
+            rusqlite::params![rule_id, r#"["X项目"]"#],
+        )
+        .unwrap();
+    let conversation = store.create_conversation(Some("shadow"), None).unwrap();
+    let input = store
+        .send_message(&conversation, "user", "今天推进 X项目 联调时踩了个坑", None)
+        .unwrap();
+    let run = start(&path, &conversation, &input, "request-key").unwrap();
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        let snapshot = store.chat_run(&run.id).unwrap().unwrap();
+        match snapshot.status.as_str() {
+            "completed" => break,
+            "failed" | "cancelled" => panic!("run ended early: {:?}", snapshot),
+            _ => {}
+        }
+        assert!(std::time::Instant::now() < until, "run did not finish");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let _ = server.join();
+    let hits = store.pending_chat_hits(10).unwrap();
+    assert_eq!(hits.len(), 1, "完成回复后应预筛出 pending 命中");
+    assert_eq!(hits[0].rule_id, rule_id);
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}

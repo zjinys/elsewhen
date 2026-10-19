@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1056880788;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1317381667;
 
 // Section: executor
 
@@ -3880,6 +3880,29 @@ fn wire__crate__api__sync__list_pending_sync_joins_impl(
         },
     )
 }
+fn wire__crate__api__rules__list_recent_chat_rule_hits_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    limit: impl CstDecode<i64>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_recent_chat_rule_hits",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_limit = limit.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::rules::list_recent_chat_rule_hits(api_limit)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__list_recent_events_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     days: impl CstDecode<i64>,
@@ -7453,6 +7476,30 @@ impl SseDecode for crate::api::chat_proposals::ChatReviewRequest {
     }
 }
 
+impl SseDecode for crate::api::rules::ChatRuleHitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_ruleId = <String>::sse_decode(deserializer);
+        let mut var_ruleContent = <String>::sse_decode(deserializer);
+        let mut var_conversationId = <String>::sse_decode(deserializer);
+        let mut var_inputMessageId = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_confidence = <Option<f64>>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        return crate::api::rules::ChatRuleHitDto {
+            id: var_id,
+            rule_id: var_ruleId,
+            rule_content: var_ruleContent,
+            conversation_id: var_conversationId,
+            input_message_id: var_inputMessageId,
+            status: var_status,
+            confidence: var_confidence,
+            created_at: var_createdAt,
+        };
+    }
+}
+
 impl SseDecode for crate::api::chat_runs::ChatRunDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8745,6 +8792,20 @@ impl SseDecode for Vec<crate::api::chat_runs::ChatQueuedInputDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::chat_runs::ChatQueuedInputDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::rules::ChatRuleHitDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::rules::ChatRuleHitDto>::sse_decode(
                 deserializer,
             ));
         }
@@ -11482,6 +11543,33 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::chat_proposals::ChatReviewReq
     for crate::api::chat_proposals::ChatReviewRequest
 {
     fn into_into_dart(self) -> crate::api::chat_proposals::ChatReviewRequest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::rules::ChatRuleHitDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.rule_id.into_into_dart().into_dart(),
+            self.rule_content.into_into_dart().into_dart(),
+            self.conversation_id.into_into_dart().into_dart(),
+            self.input_message_id.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.confidence.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::rules::ChatRuleHitDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::rules::ChatRuleHitDto>
+    for crate::api::rules::ChatRuleHitDto
+{
+    fn into_into_dart(self) -> crate::api::rules::ChatRuleHitDto {
         self
     }
 }
@@ -14407,6 +14495,20 @@ impl SseEncode for crate::api::chat_proposals::ChatReviewRequest {
     }
 }
 
+impl SseEncode for crate::api::rules::ChatRuleHitDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.rule_id, serializer);
+        <String>::sse_encode(self.rule_content, serializer);
+        <String>::sse_encode(self.conversation_id, serializer);
+        <String>::sse_encode(self.input_message_id, serializer);
+        <String>::sse_encode(self.status, serializer);
+        <Option<f64>>::sse_encode(self.confidence, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+    }
+}
+
 impl SseEncode for crate::api::chat_runs::ChatRunDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -15209,6 +15311,16 @@ impl SseEncode for Vec<crate::api::chat_runs::ChatQueuedInputDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::chat_runs::ChatQueuedInputDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::rules::ChatRuleHitDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::rules::ChatRuleHitDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -17233,6 +17345,21 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::rules::ChatRuleHitDto> for wire_cst_chat_rule_hit_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::rules::ChatRuleHitDto {
+            crate::api::rules::ChatRuleHitDto {
+                id: self.id.cst_decode(),
+                rule_id: self.rule_id.cst_decode(),
+                rule_content: self.rule_content.cst_decode(),
+                conversation_id: self.conversation_id.cst_decode(),
+                input_message_id: self.input_message_id.cst_decode(),
+                status: self.status.cst_decode(),
+                confidence: self.confidence.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::chat_runs::ChatRunDto> for wire_cst_chat_run_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::chat_runs::ChatRunDto {
@@ -18068,6 +18195,16 @@ mod io {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::chat_runs::ChatQueuedInputDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::rules::ChatRuleHitDto>> for *mut wire_cst_list_chat_rule_hit_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::rules::ChatRuleHitDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -19829,6 +19966,25 @@ mod io {
         }
     }
     impl Default for wire_cst_chat_review_request {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_chat_rule_hit_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                rule_id: core::ptr::null_mut(),
+                rule_content: core::ptr::null_mut(),
+                conversation_id: core::ptr::null_mut(),
+                input_message_id: core::ptr::null_mut(),
+                status: core::ptr::null_mut(),
+                confidence: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_chat_rule_hit_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -23143,6 +23299,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__list_recent_chat_rule_hits(
+        port_: i64,
+        limit: i64,
+    ) {
+        wire__crate__api__rules__list_recent_chat_rule_hits_impl(port_, limit)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_recent_events(
         port_: i64,
         days: i64,
@@ -24623,6 +24787,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_chat_rule_hit_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_chat_rule_hit_dto {
+        let wrap = wire_cst_list_chat_rule_hit_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_chat_rule_hit_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_chat_run_dto(
         len: i32,
     ) -> *mut wire_cst_list_chat_run_dto {
@@ -25676,6 +25854,18 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_chat_rule_hit_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        rule_id: *mut wire_cst_list_prim_u_8_strict,
+        rule_content: *mut wire_cst_list_prim_u_8_strict,
+        conversation_id: *mut wire_cst_list_prim_u_8_strict,
+        input_message_id: *mut wire_cst_list_prim_u_8_strict,
+        status: *mut wire_cst_list_prim_u_8_strict,
+        confidence: *mut f64,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_chat_run_dto {
         id: *mut wire_cst_list_prim_u_8_strict,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -26313,6 +26503,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_chat_queued_input_dto {
         ptr: *mut wire_cst_chat_queued_input_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_chat_rule_hit_dto {
+        ptr: *mut wire_cst_chat_rule_hit_dto,
         len: i32,
     }
     #[repr(C)]
@@ -27684,6 +27880,32 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::rules::ChatRuleHitDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::rules::ChatRuleHitDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                8,
+                "Expected 8 elements, got {}",
+                self_.length()
+            );
+            crate::api::rules::ChatRuleHitDto {
+                id: self_.get(0).cst_decode(),
+                rule_id: self_.get(1).cst_decode(),
+                rule_content: self_.get(2).cst_decode(),
+                conversation_id: self_.get(3).cst_decode(),
+                input_message_id: self_.get(4).cst_decode(),
+                status: self_.get(5).cst_decode(),
+                confidence: self_.get(6).cst_decode(),
+                created_at: self_.get(7).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::chat_runs::ChatRunDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -29043,6 +29265,18 @@ mod web {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::api::chat_runs::ChatQueuedInputDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
+    impl CstDecode<Vec<crate::api::rules::ChatRuleHitDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::rules::ChatRuleHitDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -32711,6 +32945,14 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__sync__list_pending_sync_joins_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__rules__list_recent_chat_rule_hits(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        limit: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__rules__list_recent_chat_rule_hits_impl(port_, limit)
     }
 
     #[wasm_bindgen]

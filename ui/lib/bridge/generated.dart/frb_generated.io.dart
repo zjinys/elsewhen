@@ -179,6 +179,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatReviewRequest dco_decode_chat_review_request(dynamic raw);
 
   @protected
+  ChatRuleHitDto dco_decode_chat_rule_hit_dto(dynamic raw);
+
+  @protected
   ChatRunDto dco_decode_chat_run_dto(dynamic raw);
 
   @protected
@@ -367,6 +370,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatQueuedInputDto> dco_decode_list_chat_queued_input_dto(dynamic raw);
+
+  @protected
+  List<ChatRuleHitDto> dco_decode_list_chat_rule_hit_dto(dynamic raw);
 
   @protected
   List<ChatRunDto> dco_decode_list_chat_run_dto(dynamic raw);
@@ -1006,6 +1012,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ChatRuleHitDto sse_decode_chat_rule_hit_dto(SseDeserializer deserializer);
+
+  @protected
   ChatRunDto sse_decode_chat_run_dto(SseDeserializer deserializer);
 
   @protected
@@ -1248,6 +1257,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatQueuedInputDto> sse_decode_list_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatRuleHitDto> sse_decode_list_chat_rule_hit_dto(
     SseDeserializer deserializer,
   );
 
@@ -2179,6 +2193,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_chat_queued_input_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_chat_queued_input_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_chat_rule_hit_dto>
+  cst_encode_list_chat_rule_hit_dto(List<ChatRuleHitDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_chat_rule_hit_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_chat_rule_hit_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3435,6 +3460,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.conversation_id = cst_encode_opt_String(apiObj.conversationId);
     wireObj.expected_version = cst_encode_i_64(apiObj.expectedVersion);
     wireObj.approval_token = cst_encode_String(apiObj.approvalToken);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_chat_rule_hit_dto(
+    ChatRuleHitDto apiObj,
+    wire_cst_chat_rule_hit_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.rule_id = cst_encode_String(apiObj.ruleId);
+    wireObj.rule_content = cst_encode_String(apiObj.ruleContent);
+    wireObj.conversation_id = cst_encode_String(apiObj.conversationId);
+    wireObj.input_message_id = cst_encode_String(apiObj.inputMessageId);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.confidence = cst_encode_opt_box_autoadd_f_64(apiObj.confidence);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
   }
 
   @protected
@@ -5294,6 +5334,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_chat_rule_hit_dto(
+    ChatRuleHitDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_chat_run_dto(ChatRunDto self, SseSerializer serializer);
 
   @protected
@@ -5617,6 +5663,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_chat_queued_input_dto(
     List<ChatQueuedInputDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_rule_hit_dto(
+    List<ChatRuleHitDto> self,
     SseSerializer serializer,
   );
 
@@ -6861,6 +6913,24 @@ class RustLibWire implements BaseWire {
       _cst_new_list_chat_queued_input_dtoPtr
           .asFunction<
             ffi.Pointer<wire_cst_list_chat_queued_input_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_chat_rule_hit_dto> cst_new_list_chat_rule_hit_dto(
+    int len,
+  ) {
+    return _cst_new_list_chat_rule_hit_dto(len);
+  }
+
+  late final _cst_new_list_chat_rule_hit_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_chat_rule_hit_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_chat_rule_hit_dto');
+  late final _cst_new_list_chat_rule_hit_dto =
+      _cst_new_list_chat_rule_hit_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_chat_rule_hit_dto> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_chat_run_dto> cst_new_list_chat_run_dto(int len) {
@@ -12177,6 +12247,21 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__rules__list_recent_chat_rule_hits(
+    int port_,
+    int limit,
+  ) {
+    return _wire__crate__api__rules__list_recent_chat_rule_hits(port_, limit);
+  }
+
+  late final _wire__crate__api__rules__list_recent_chat_rule_hitsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__rules__list_recent_chat_rule_hits',
+      );
+  late final _wire__crate__api__rules__list_recent_chat_rule_hits =
+      _wire__crate__api__rules__list_recent_chat_rule_hitsPtr
+          .asFunction<void Function(int, int)>();
+
   void wire__crate__api__rules__list_recent_rule_hits(int port_, int limit) {
     return _wire__crate__api__rules__list_recent_rule_hits(port_, limit);
   }
@@ -15746,6 +15831,44 @@ final class wire_cst_chat_review_request extends ffi.Struct {
     ..ref.approval_token = approval_token;
 }
 
+final class wire_cst_chat_rule_hit_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_content;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  external ffi.Pointer<ffi.Double> confidence;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  static ffi.Pointer<wire_cst_chat_rule_hit_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> rule_content,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> conversation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<ffi.Double> confidence,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+  }) => $allocator<wire_cst_chat_rule_hit_dto>()
+    ..ref.id = id
+    ..ref.rule_id = rule_id
+    ..ref.rule_content = rule_content
+    ..ref.conversation_id = conversation_id
+    ..ref.input_message_id = input_message_id
+    ..ref.status = status
+    ..ref.confidence = confidence
+    ..ref.created_at = created_at;
+}
+
 final class wire_cst_chat_run_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
 
@@ -17628,6 +17751,21 @@ final class wire_cst_list_chat_queued_input_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_chat_queued_input_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_chat_queued_input_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_chat_rule_hit_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_chat_rule_hit_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_chat_rule_hit_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_chat_rule_hit_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_chat_rule_hit_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }

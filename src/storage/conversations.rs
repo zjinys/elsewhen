@@ -504,6 +504,18 @@ impl Store {
             .map_err(Into::into)
     }
 
+    /// 单条消息文本（对话影子校验预筛用；消息不存在返回 None）。
+    pub fn message_content(&self, message_id: &str) -> Result<Option<String>> {
+        self.connection
+            .query_row(
+                "SELECT content FROM messages WHERE id = ?1",
+                [message_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
     // Get the message chain from root to a specific message
     pub fn get_message_chain(&self, message_id: &str) -> Result<Vec<MessageSummary>> {
         let mut chain = Vec::new();
@@ -542,8 +554,8 @@ mod display_order_tests {
 
     #[test]
     fn queued_replies_display_interleaved_with_their_inputs() {
-        let dir = std::env::temp_dir()
-            .join(format!("elsewhen-display-order-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("elsewhen-display-order-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = Store::open(&dir.join("test.db")).unwrap();
         store
@@ -557,8 +569,12 @@ mod display_order_tests {
 
         let conversation = store.create_conversation(None, None).unwrap();
         // 用户连发两条，回复随后逐条生成——提交时钟序为 A、B、答A、答B。
-        let a = store.send_message(&conversation, "user", "问A", None).unwrap();
-        let b = store.send_message(&conversation, "user", "问B", None).unwrap();
+        let a = store
+            .send_message(&conversation, "user", "问A", None)
+            .unwrap();
+        let b = store
+            .send_message(&conversation, "user", "问B", None)
+            .unwrap();
         let reply_a = store
             .send_message_with_input(&conversation, "assistant", "答A", None, Some(&a))
             .unwrap();

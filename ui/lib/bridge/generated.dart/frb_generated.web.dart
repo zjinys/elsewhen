@@ -181,6 +181,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatReviewRequest dco_decode_chat_review_request(dynamic raw);
 
   @protected
+  ChatRuleHitDto dco_decode_chat_rule_hit_dto(dynamic raw);
+
+  @protected
   ChatRunDto dco_decode_chat_run_dto(dynamic raw);
 
   @protected
@@ -369,6 +372,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatQueuedInputDto> dco_decode_list_chat_queued_input_dto(dynamic raw);
+
+  @protected
+  List<ChatRuleHitDto> dco_decode_list_chat_rule_hit_dto(dynamic raw);
 
   @protected
   List<ChatRunDto> dco_decode_list_chat_run_dto(dynamic raw);
@@ -1008,6 +1014,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ChatRuleHitDto sse_decode_chat_rule_hit_dto(SseDeserializer deserializer);
+
+  @protected
   ChatRunDto sse_decode_chat_run_dto(SseDeserializer deserializer);
 
   @protected
@@ -1250,6 +1259,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatQueuedInputDto> sse_decode_list_chat_queued_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ChatRuleHitDto> sse_decode_list_chat_rule_hit_dto(
     SseDeserializer deserializer,
   );
 
@@ -2203,6 +2217,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_chat_rule_hit_dto(ChatRuleHitDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.ruleId),
+      cst_encode_String(raw.ruleContent),
+      cst_encode_String(raw.conversationId),
+      cst_encode_String(raw.inputMessageId),
+      cst_encode_String(raw.status),
+      cst_encode_opt_box_autoadd_f_64(raw.confidence),
+      cst_encode_String(raw.createdAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_chat_run_dto(ChatRunDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2989,6 +3018,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_chat_queued_input_dto(List<ChatQueuedInputDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_chat_queued_input_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_chat_rule_hit_dto(List<ChatRuleHitDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_chat_rule_hit_dto).toList().jsify()!;
   }
 
   @protected
@@ -4597,6 +4632,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_chat_rule_hit_dto(
+    ChatRuleHitDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_chat_run_dto(ChatRunDto self, SseSerializer serializer);
 
   @protected
@@ -4920,6 +4961,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_chat_queued_input_dto(
     List<ChatQueuedInputDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_chat_rule_hit_dto(
+    List<ChatRuleHitDto> self,
     SseSerializer serializer,
   );
 
@@ -6936,6 +6983,14 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__sync__list_pending_sync_joins(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__list_pending_sync_joins(port_);
 
+  void wire__crate__api__rules__list_recent_chat_rule_hits(
+    NativePortType port_,
+    JSAny limit,
+  ) => wasmModule.wire__crate__api__rules__list_recent_chat_rule_hits(
+    port_,
+    limit,
+  );
+
   void wire__crate__api__list_recent_events(
     NativePortType port_,
     JSAny days,
@@ -8839,6 +8894,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__sync__list_pending_sync_joins(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__rules__list_recent_chat_rule_hits(
+    NativePortType port_,
+    JSAny limit,
   );
 
   external void wire__crate__api__list_recent_events(

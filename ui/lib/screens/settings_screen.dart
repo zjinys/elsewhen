@@ -77,6 +77,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   // 规则触发提醒（决策辅助 D1)：偏好模式 + 最近提醒列表
   String _ruleTriggerMode = 'instant';
   List<RuleHit> _recentRuleHits = [];
+  // 对话影子校验命中（迁移 54）：聊天轮预筛 → 后台 LLM 判定，只读审查面
+  List<api.ChatRuleHitDto> _recentChatRuleHits = [];
 
   /// 情感回访偏好（D6）：开关 + 频率上限（天）。加载失败保持默认且不阻塞。
   bool _companionRevisitEnabled = true;
@@ -499,10 +501,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final mode = await repo.getRuleTriggerMode();
       final hits = await repo.listRecentRuleHits(limit: 8);
+      // 对话影子命中独立读：失败只损失审查面展示，不影响规则列表。
+      final chatHits = await repo.listRecentChatRuleHits(limit: 20);
       if (!mounted) return;
       setState(() {
         _ruleTriggerMode = mode;
         _recentRuleHits = hits;
+        _recentChatRuleHits = chatHits;
       });
     } catch (e) {
       debugPrint('loadRuleTrigger failed: $e');
@@ -654,6 +659,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   /// 最近提醒（D6）：每条可标「有用 / 不相关」，再点一次即清除。
   /// 反馈只记录在本地命中行上，没有任何自动行为消费它。
+  /// 对话影子校验审查面（迁移 54）：展示聊天里预筛命中的规则与后台判定
+  /// 状态。只读展示——影子校验绝不改写对话，这里也不提供会反向影响对话
+  /// 的操作；excluded（判定不适用）默认收起不打扰。
+  Widget _buildChatRuleHits() {
+    String label(String status) => switch (status) {
+          'pending' => '判定中',
+          'applicable' => '已在对话遵守',
+          _ => '不适用',
+        };
+    IconData icon(String status) => status == 'applicable'
+        ? Icons.verified_outlined
+        : Icons.hourglass_top_outlined;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '对话中的规则场景（后台静默判定，不打扰对话）',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
+        const SizedBox(height: AppTheme.space2),
+        for (final hit in _recentChatRuleHits.where(
+          (h) => h.status != 'excluded',
+        ))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  icon(hit.status),
+                  size: 14,
+                  color: hit.status == 'applicable'
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textTertiary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '[${label(hit.status)}] ${hit.ruleContent}',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildRecentRuleHits() {
     final helpfulCount = _recentRuleHits
         .where((h) => h.feedback == 'helpful')
@@ -2506,6 +2564,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 if (_recentRuleHits.isNotEmpty) ...[
                   const SizedBox(height: AppTheme.space4),
                   _buildRecentRuleHits(),
+                ],
+                if (_recentChatRuleHits.any(
+                  (h) => h.status != 'excluded',
+                )) ...[
+                  const SizedBox(height: AppTheme.space4),
+                  _buildChatRuleHits(),
                 ],
                 ChatProposalReviewButton(
                   conversationId: null,

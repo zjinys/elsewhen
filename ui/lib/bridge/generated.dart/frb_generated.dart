@@ -102,7 +102,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1056880788;
+  int get rustContentHash => -1317381667;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -722,6 +722,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<SyncJoinEntryDto>> crateApiSyncListPendingSyncJoins();
+
+  Future<List<ChatRuleHitDto>> crateApiRulesListRecentChatRuleHits({
+    required PlatformInt64 limit,
+  });
 
   Future<List<EventSummaryDto>> crateApiListRecentEvents({
     required PlatformInt64 days,
@@ -5782,6 +5786,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_pending_sync_joins", argNames: []);
 
   @override
+  Future<List<ChatRuleHitDto>> crateApiRulesListRecentChatRuleHits({
+    required PlatformInt64 limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_i_64(limit);
+          return wire.wire__crate__api__rules__list_recent_chat_rule_hits(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_chat_rule_hit_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesListRecentChatRuleHitsConstMeta,
+        argValues: [limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesListRecentChatRuleHitsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_recent_chat_rule_hits",
+        argNames: ["limit"],
+      );
+
+  @override
   Future<List<EventSummaryDto>> crateApiListRecentEvents({
     required PlatformInt64 days,
     required PlatformInt64 limit,
@@ -9992,6 +10026,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ChatRuleHitDto dco_decode_chat_rule_hit_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return ChatRuleHitDto(
+      id: dco_decode_String(arr[0]),
+      ruleId: dco_decode_String(arr[1]),
+      ruleContent: dco_decode_String(arr[2]),
+      conversationId: dco_decode_String(arr[3]),
+      inputMessageId: dco_decode_String(arr[4]),
+      status: dco_decode_String(arr[5]),
+      confidence: dco_decode_opt_box_autoadd_f_64(arr[6]),
+      createdAt: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
   ChatRunDto dco_decode_chat_run_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -10946,6 +10998,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<ChatQueuedInputDto> dco_decode_list_chat_queued_input_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_chat_queued_input_dto).toList();
+  }
+
+  @protected
+  List<ChatRuleHitDto> dco_decode_list_chat_rule_hit_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_chat_rule_hit_dto).toList();
   }
 
   @protected
@@ -12983,6 +13041,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ChatRuleHitDto sse_decode_chat_rule_hit_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_ruleId = sse_decode_String(deserializer);
+    var var_ruleContent = sse_decode_String(deserializer);
+    var var_conversationId = sse_decode_String(deserializer);
+    var var_inputMessageId = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_confidence = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    return ChatRuleHitDto(
+      id: var_id,
+      ruleId: var_ruleId,
+      ruleContent: var_ruleContent,
+      conversationId: var_conversationId,
+      inputMessageId: var_inputMessageId,
+      status: var_status,
+      confidence: var_confidence,
+      createdAt: var_createdAt,
+    );
+  }
+
+  @protected
   ChatRunDto sse_decode_chat_run_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -14249,6 +14330,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <ChatQueuedInputDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_chat_queued_input_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ChatRuleHitDto> sse_decode_list_chat_rule_hit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ChatRuleHitDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_chat_rule_hit_dto(deserializer));
     }
     return ans_;
   }
@@ -17084,6 +17179,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_chat_rule_hit_dto(
+    ChatRuleHitDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.ruleId, serializer);
+    sse_encode_String(self.ruleContent, serializer);
+    sse_encode_String(self.conversationId, serializer);
+    sse_encode_String(self.inputMessageId, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.confidence, serializer);
+    sse_encode_String(self.createdAt, serializer);
+  }
+
+  @protected
   void sse_encode_chat_run_dto(ChatRunDto self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -17961,6 +18072,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_chat_queued_input_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_chat_rule_hit_dto(
+    List<ChatRuleHitDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_chat_rule_hit_dto(item, serializer);
     }
   }
 

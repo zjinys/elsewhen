@@ -10,6 +10,8 @@ pub mod import;
 pub mod knowledge;
 pub mod knowledge_digest;
 pub mod knowledge_workflows;
+pub mod mcp;
+pub mod page_marks;
 pub mod provider_config;
 pub mod provider_reachability;
 pub mod relations;
@@ -19,8 +21,6 @@ pub mod sync;
 pub mod theme;
 pub mod todos;
 pub mod tweet;
-pub mod mcp;
-pub mod page_marks;
 pub mod user_skills;
 pub mod web_search;
 pub mod wiki;
@@ -29,6 +29,7 @@ use crate::ai::memory::ContextMessage;
 use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
 use crate::event::NewEvent;
 use crate::storage::Store;
+use crate::storage::rule_triggers::PendingChatHit;
 use anyhow::{Context, Result};
 pub use chat_proposals::*;
 pub use chat_runs::*;
@@ -1424,7 +1425,71 @@ pub fn trigger_analysis() -> Result<AnalysisTriggerResult> {
             .context("analysis worker: recover interrupted jobs")
     })?;
     let processed = process_analysis_queue(&store, &provider)?;
-    Ok(AnalysisTriggerResult::Processed { count: processed })
+    // 对话影子校验判定阶段（迁移 54）：预筛在聊天生成链已落 pending，
+    // 这里用同一 provider 逐条判定适用性。失败不档其它队列（下轮重试）。
+    let judged = process_chat_rule_check_queue(&store, &provider)?;
+    Ok(AnalysisTriggerResult::Processed {
+        count: processed + judged,
+    })
+}
+
+/// 与 process_analysis_queue 同形态：封顶 20 条/轮、单条失败记更新不阻塞。
+/// 注：confidence 解析失败按 None（字段可选）。
+fn process_chat_rule_check_queue(store: &Store, provider: &dyn AiProvider) -> Result<i64> {
+    let Ok(hits) = store.pending_chat_hits(20) else {
+        return Ok(0);
+    };
+    let mut judged = 0i64;
+    for hit in hits {
+        let (applicable, confidence) = match build_judge_context(store, &hit)
+            .and_then(|context| {
+                provider
+                    .generate_reply(context)
+                    .map_err(|e| anyhow::anyhow!("影子判定调用失败：{e}"))
+            })
+            .and_then(|reply| parse_shadow_judgement(&reply.content))
+        {
+            Ok(pair) => pair,
+            Err(_error) => continue, // 下轮重试：pending 不动，不毒化其它轮次。
+        };
+        if store
+            .resolve_chat_hit(&hit.id, applicable, confidence)
+            .is_ok()
+        {
+            judged += 1;
+        }
+    }
+    Ok(judged)
+}
+
+/// 组装判定上下文（极简：系统纪律 + 规则 + 消息原文，封顶 4K tokens）。
+fn build_judge_context(_store: &Store, hit: &PendingChatHit) -> Result<Vec<ContextMessage>> {
+    let mut context = vec![
+        ContextMessage::new(
+            "system",
+            "你只输出严格 JSON 对象（含 applicable 布尔与 confidence 数字 0..1），不要 Markdown 围栏。判定不确定时宁可 applicable=false（宁缺毋滥）。",
+        ),
+        ContextMessage::new(
+            "user",
+            format!(
+                "判定下面的对话消息是否需要遵守这条个人经验规则。需要遵守/适用为 true；无关、纯属闲聊或规则不适用为 false。\n\n规则：{}\n\n消息：{}",
+                hit.rule_content, hit.message_text
+            ),
+        ),
+    ];
+    crate::knowledge::bound_model_context(&mut context, 4000)?;
+    Ok(context)
+}
+
+/// 解析影子判定回包（宽松：confidence 缺失按 None；applicable 缺失报错重试）。
+fn parse_shadow_judgement(content: &str) -> Result<(bool, Option<f64>)> {
+    let value: serde_json::Value = serde_json::from_str(content.trim())?;
+    let applicable = value
+        .get("applicable")
+        .and_then(serde_json::Value::as_bool)
+        .ok_or_else(|| anyhow::anyhow!("影子判定缺少 applicable 字段"))?;
+    let confidence = value.get("confidence").and_then(serde_json::Value::as_f64);
+    Ok((applicable, confidence))
 }
 
 fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i64> {
@@ -1865,6 +1930,55 @@ mod user_model_tests {
         assert_eq!(relations[0].from_slug, crate::wiki::slugify("李四"));
         assert_eq!(relations[0].to_slug, crate::wiki::slugify("网站改版"));
         assert_eq!(relations[0].confidence, 4);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn chat_shadow_queue_judges_pending_hits_and_skips_bad_payloads() {
+        let path = temporary_database();
+        let store = Store::open(&path).unwrap();
+        let rule_id = store
+            .add_rule("X 项目联调要留痕", crate::storage::RuleStatus::Active, None)
+            .unwrap();
+        store
+            .connection
+            .execute(
+                "UPDATE rules SET trigger_keywords=?2 WHERE id=?1",
+                rusqlite::params![rule_id, r#"["X项目"]"#],
+            )
+            .unwrap();
+        let conversation = store.create_conversation(None, None).unwrap();
+        let message_id = store
+            .send_message(&conversation, "user", "今天推进 X项目 联调时踩了个坑", None)
+            .unwrap();
+        store.screen_chat_message(&conversation, &message_id, "今天推进 X项目 联调时踩了个坑");
+        assert_eq!(store.pending_chat_hits(10).unwrap().len(), 1);
+
+        // 判定 provider 返回合规 JSON → pending 回填 applicable。
+        let good = AnalysisStub(Box::leak(
+            r#"{"applicable":true,"confidence":0.9}"#.to_string().into_boxed_str(),
+        ));
+        assert_eq!(process_chat_rule_check_queue(&store, &good).unwrap(), 1);
+        let hits = store.recent_chat_rule_hits(10).unwrap();
+        assert_eq!(hits[0].status, "applicable");
+        assert_eq!(hits[0].confidence, Some(0.9));
+
+        // 不合规回包（缺 applicable）：该条保持 pending 待下轮重试，不毒化。
+        store
+            .resolve_chat_hit(&format!("reset-{}", hits[0].id), true, None)
+            .ok();
+        store
+            .connection
+            .execute(
+                "UPDATE chat_rule_hits SET status='pending' WHERE id=?1",
+                rusqlite::params![hits[0].id],
+            )
+            .unwrap();
+        let bad = AnalysisStub(Box::leak("不是 JSON 的回复".to_string().into_boxed_str()));
+        assert_eq!(process_chat_rule_check_queue(&store, &bad).unwrap(), 0);
+        assert_eq!(store.pending_chat_hits(10).unwrap().len(), 1);
+
         drop(store);
         let _ = std::fs::remove_file(path);
     }

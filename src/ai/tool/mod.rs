@@ -900,7 +900,7 @@ impl Tool for ListRulesTool {
         "list_rules"
     }
     fn description(&self) -> &'static str {
-        "列出个人规则库中已生效的全部经验规则。"
+        "列出个人规则库中已生效的全部经验规则。在用户分享踩坑/教训/心得类经历、或回复需要对照既有经验规范时调用；规则库原文不随对话注入，需要时再查。"
     }
     fn parameters_schema(&self) -> Value {
         json!({"type":"object","properties":{},"additionalProperties":false})

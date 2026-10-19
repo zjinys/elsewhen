@@ -91,6 +91,10 @@ void main() {
       // 最近提醒读面可用（隔离库可能无命中，只验证接口与结构）
       final hits = await repo.listRecentRuleHits(limit: 5);
       expect(hits, isA<List<dynamic>>());
+
+      // 对话影子校验读面（迁移 54）：接口可用且返回结构正确列表
+      final chatHits = await repo.listRecentChatRuleHits(limit: 5);
+      expect(chatHits, isA<List<dynamic>>());
     } finally {
       await repo.deleteRule(ruleId);
     }

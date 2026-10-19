@@ -133,6 +133,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // 规则触发命中挂本地事件（events 不同步，提醒在哪台设备响是设备侧行为）；
     // 偏好开关同理。规则触发词字段随 rules 行携带。
     ("rule_hits", "local-event-reminders"),
+    // 对话影子校验命中（迁移 54）：预筛/判定记录挂本地会话与消息，
+    // messages 本身不同步，命中记录同样留在产生它的设备上（同 rule_hits）。
+    ("chat_rule_hits", "local-event-reminders"),
     // 定时提醒的本机触发去重（migration 50）：「提醒在哪台设备响是设备侧行为」，
     // 多设备各自弹各自的，不同步触发记录（与 rule_hits 同纪律）。
     ("todo_reminder_fires", "local-event-reminders"),

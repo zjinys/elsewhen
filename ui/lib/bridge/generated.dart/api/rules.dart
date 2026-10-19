@@ -8,7 +8,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `hit_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`
 
 /// 列出规则库（含已生效与待确认）
 Future<List<RuleDto>> listRules() =>
@@ -57,6 +57,61 @@ Future<void> setRuleHitFeedback({required String id, String? feedback}) =>
 /// 最近的即时提醒与聚合（今日提醒列表 / 每日回顾读面）。
 Future<List<RuleHitDto>> listRecentRuleHits({required PlatformInt64 limit}) =>
     RustLib.instance.api.crateApiRulesListRecentRuleHits(limit: limit);
+
+/// 最近的对话影子命中（规则管理页审查面读用）。
+Future<List<ChatRuleHitDto>> listRecentChatRuleHits({
+  required PlatformInt64 limit,
+}) => RustLib.instance.api.crateApiRulesListRecentChatRuleHits(limit: limit);
+
+/// 对话影子校验命中 DTO（迁移 54：聊天预筛 → 后台 LLM 判定）。
+class ChatRuleHitDto {
+  final String id;
+  final String ruleId;
+  final String ruleContent;
+  final String conversationId;
+  final String inputMessageId;
+
+  /// pending / applicable / excluded
+  final String status;
+  final double? confidence;
+  final String createdAt;
+
+  const ChatRuleHitDto({
+    required this.id,
+    required this.ruleId,
+    required this.ruleContent,
+    required this.conversationId,
+    required this.inputMessageId,
+    required this.status,
+    this.confidence,
+    required this.createdAt,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      ruleId.hashCode ^
+      ruleContent.hashCode ^
+      conversationId.hashCode ^
+      inputMessageId.hashCode ^
+      status.hashCode ^
+      confidence.hashCode ^
+      createdAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatRuleHitDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          ruleId == other.ruleId &&
+          ruleContent == other.ruleContent &&
+          conversationId == other.conversationId &&
+          inputMessageId == other.inputMessageId &&
+          status == other.status &&
+          confidence == other.confidence &&
+          createdAt == other.createdAt;
+}
 
 /// 个人经验规则 DTO
 class RuleDto {

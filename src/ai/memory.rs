@@ -149,7 +149,8 @@ const SYSTEM_PROMPT_BASE: &str = "你是「Elsewhen」——用户的个人事�
 
 个人经验规则库：
 - 用户常分享「踩坑 / 教训 / 心得」类经历，其中蕴含可复用、可执行的经验准则。
-- 生成回复前先对照下方规则库：已有类似规则就顺势引用并确认；确实值得固化且没有类似规则时，在回复末尾另起一行输出提议，格式严格如下（独占一行，不加多余符号）：
+- 用户分享这类经历、或回复需要引用既有经验规范时，先用 list_rules 工具查库再对照：已有类似规则就顺势引用并确认，不要凭记忆改写用户的既有规则。
+- 确实值得固化的新经验且库中可能没有同类规则时，在回复末尾另起一行输出提议，格式严格如下（独占一行，不加多余符号）：
 [规则提议]一条具体、第一人称、可指导未来行为的话
   规则要具体可执行（谁、什么场景、怎么做），不要写「要小心」「多注意」这类空话；提议必须紧贴这段经历，不要凑数。
 
@@ -305,18 +306,18 @@ fn build_system_context(store: &Store, conversation_id: &str) -> Result<Vec<Cont
             OmissionPolicy::Required,
         ),
     );
-    // 注入已生效的个人规则，让 AI 回复时对照检查
-    let active_rules = store.list_active_rules()?;
-    if active_rules.is_empty() {
-        prompt.push_str("\n\n个人规则库当前为空。");
+    // 规则库与主对话解耦（瘦身）：不再全量注入规则文本——规则库会持续增长，
+    // 全量注入会让基座随规则数线性膨胀。常驻只播报规模与查询方式；全文按
+    // 需经常驻 list_rules 工具获取（模型在触发场景自主查询）。
+    let rule_count = store.count_active_rules()?;
+    let rules_note = if rule_count == 0 {
+        "\n\n个人规则库当前为空。".to_string()
     } else {
-        prompt.push_str("\n\n个人规则库当前内容（回复时对照检查，已有类似规则就不要再次提议）：\n");
-        for rule in active_rules {
-            prompt.push_str("- ");
-            prompt.push_str(&rule.content);
-            prompt.push('\n');
-        }
-    }
+        format!(
+            "\n\n个人规则库现有 {rule_count} 条生效规则，回复需要引用既有经验规范时先用 list_rules 工具查询，再对照检查。"
+        )
+    };
+    prompt.push_str(&rules_note);
     context.push(ContextMessage::new("system", prompt).with_segment(
         SegmentPurpose::PersonalRules,
         SegmentOrigin::Rules,
@@ -1103,6 +1104,28 @@ mod tests {
     }
 
     #[test]
+    fn system_prompt_no_longer_carries_rule_corpus() {
+        let (store, conversation_id, path) = setup_store();
+        let rule_text = "和大型企业的人沟通重要事项必须留痕";
+        store
+            .add_rule(rule_text, crate::storage::RuleStatus::Active, None)
+            .unwrap();
+        let prompt = system_prompt_of(&store, &conversation_id);
+        // 规则库解耦瘦身：基座只播报规模与查询入口，规则原文不随对话注入
+        // （全文按需经 list_rules 工具获取），stable_setup 不随规则数膨胀。
+        assert!(
+            prompt.contains("个人规则库现有 1 条生效规则"),
+            "实际:\n{prompt}"
+        );
+        assert!(prompt.contains("list_rules"), "应指名查询工具");
+        assert!(
+            !prompt.contains(rule_text),
+            "规则原文不应再进基座，实际:\n{prompt}"
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn system_prompt_injects_active_goals_with_phase_labels() {
         use crate::storage::GoalPhase;
         let (store, conversation_id, path) = setup_store();
@@ -1162,8 +1185,8 @@ mod tests {
         use crate::storage::GoalPhase;
         let (store, conversation_id, path) = setup_store();
         store.create_goal("上线 v1", GoalPhase::Near).unwrap();
-        // 规则为空时注入的是「当前为空」那句，找不到带「对照检查」的措辞，
-        // 所以先建一条生效规则让两段都真实存在。
+        // 规则库解耦后注入的是「规模播报」那句（不再全量搬规则原文），
+        // 建一条生效规则让规模播报真实出现，两段都存在。
         store
             .add_rule("回复别用 emoji", crate::storage::RuleStatus::Active, None)
             .unwrap();
@@ -1171,7 +1194,7 @@ mod tests {
         let prompt = system_prompt_of(&store, &conversation_id);
         let goal_at = prompt.find("[近期]").expect("目标段应存在");
         let rule_at = prompt
-            .find("个人规则库当前内容（回复时对照检查")
+            .find("个人规则库现有 1 条生效规则")
             .expect("规则段应存在");
 
         // 目标段在规则段之前，且各自措辞不同
