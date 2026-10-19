@@ -14,13 +14,13 @@
 //!   存储层已限制为 `[A-Za-z0-9_-]+`，不产生歧义分隔。
 
 use crate::storage::Store;
-use anyhow::{anyhow, bail, Context as _, Result};
-use serde_json::{json, Value};
+use anyhow::{Context as _, Result, anyhow, bail};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
-use std::sync::mpsc::{channel, Sender};
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -67,7 +67,9 @@ impl McpSession {
             use std::os::unix::process::CommandExt;
             cmd.process_group(0);
         }
-        let mut child = cmd.spawn().map_err(|e| anyhow!("MCP 进程启动失败（{command}）：{e}"))?;
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| anyhow!("MCP 进程启动失败（{command}）：{e}"))?;
         let stdin = child.stdin.take().context("stdin 缺失")?;
         let stdout = child.stdout.take().context("stdout 缺失")?;
 
@@ -88,14 +90,15 @@ impl McpSession {
             .ok();
 
         let (notify_tx, notify_rx) = channel::<Value>();
-        let pending: Arc<Mutex<HashMap<i64, Sender<Value>>>> =
-            Arc::new(Mutex::new(HashMap::new()));
+        let pending: Arc<Mutex<HashMap<i64, Sender<Value>>>> = Arc::new(Mutex::new(HashMap::new()));
         let reader_pending = Arc::clone(&pending);
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
             for line in reader.lines() {
                 let Ok(line) = line else { break };
-                let Ok(message) = serde_json::from_str::<Value>(&line) else { continue };
+                let Ok(message) = serde_json::from_str::<Value>(&line) else {
+                    continue;
+                };
                 if let Some(id) = message.get("id").and_then(Value::as_i64) {
                     // 直接路由到等待中的 request；超时的请求已摘牌，send
                     // 失败即静默丢弃（副本回复，无泄漏）。
@@ -197,10 +200,9 @@ impl McpConn {
         match self {
             McpConn::Stdio(session) => {
                 let guard = session.lock().unwrap_or_else(|p| p.into_inner());
-                let _ = guard
-                    .stdin
-                    .send(json!({"jsonrpc":"2.0","method":method,"params":params}).to_string()
-                        + "\n");
+                let _ = guard.stdin.send(
+                    json!({"jsonrpc":"2.0","method":method,"params":params}).to_string() + "\n",
+                );
                 Ok(())
             }
             McpConn::Http(session) => session.notify(method, params),
@@ -210,9 +212,7 @@ impl McpConn {
     /// 活性检查：stdio 看子进程，HTTP 恒真（服务器自会报错）。
     fn is_alive(&mut self) -> bool {
         match self {
-            McpConn::Stdio(session) => {
-                session.lock().unwrap_or_else(|p| p.into_inner()).is_alive()
-            }
+            McpConn::Stdio(session) => session.lock().unwrap_or_else(|p| p.into_inner()).is_alive(),
             McpConn::Http(_) => true,
         }
     }
@@ -256,7 +256,11 @@ impl HttpSession {
         })
     }
 
-    fn build_request(&self, body: &Value, timeout: Duration) -> Result<reqwest::blocking::RequestBuilder> {
+    fn build_request(
+        &self,
+        body: &Value,
+        timeout: Duration,
+    ) -> Result<reqwest::blocking::RequestBuilder> {
         let mut req = self
             .client
             .post(&self.url)
@@ -326,9 +330,10 @@ impl HttpSession {
             }
             return Ok(None);
         }
-        Ok(Some(serde_json::from_str(&body_text).map_err(|e| {
-            anyhow!("MCP HTTP 响应不是合法 JSON：{e}")
-        })?))
+        Ok(Some(
+            serde_json::from_str(&body_text)
+                .map_err(|e| anyhow!("MCP HTTP 响应不是合法 JSON：{e}"))?,
+        ))
     }
 
     fn request(&mut self, method: &str, params: Value, timeout: Duration) -> Result<Value> {
@@ -346,7 +351,10 @@ impl HttpSession {
     }
 
     fn notify(&mut self, method: &str, params: Value) -> Result<()> {
-        self.post(json!({"jsonrpc":"2.0","method":method,"params":params}), Duration::from_secs(30))?;
+        self.post(
+            json!({"jsonrpc":"2.0","method":method,"params":params}),
+            Duration::from_secs(30),
+        )?;
         Ok(())
     }
 }
@@ -375,16 +383,21 @@ fn connect(
     server: &crate::storage::McpServerConfig,
 ) -> Result<std::sync::MutexGuard<'static, HashMap<String, McpConn>>> {
     let mut map = sessions().lock().unwrap_or_else(|p| p.into_inner());
-    if !map.get_mut(&server.id).map(McpConn::is_alive).unwrap_or(false) {
+    if !map
+        .get_mut(&server.id)
+        .map(McpConn::is_alive)
+        .unwrap_or(false)
+    {
         map.remove(&server.id);
         let conn = match server.transport.as_str() {
             "stdio" => {
-                let args: Vec<String> =
-                    serde_json::from_str(&server.args_json).unwrap_or_default();
+                let args: Vec<String> = serde_json::from_str(&server.args_json).unwrap_or_default();
                 let env: HashMap<String, String> =
                     serde_json::from_str(&server.env_json).unwrap_or_default();
                 McpConn::Stdio(Arc::new(Mutex::new(McpSession::spawn(
-                    &server.command, &args, &env,
+                    &server.command,
+                    &args,
+                    &env,
                 )?)))
             }
             _ => McpConn::Http(Box::new(HttpSession::new(server)?)),
@@ -432,23 +445,113 @@ pub fn list_tools_for_server(server: &crate::storage::McpServerConfig) -> Result
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_string(),
-            parameters: tool.get("inputSchema").cloned().unwrap_or_else(|| json!({"type":"object"})),
+            parameters: tool
+                .get("inputSchema")
+                .cloned()
+                .unwrap_or_else(|| json!({"type":"object"})),
         });
     }
     Ok(out)
 }
 
+/// tools/list 结果按 server 行的进程内缓存（proposal
+/// 2026-10-19-mcp-tools-deferred-injection §3.2）。键 = server 全量连接
+/// 配置的内容指纹：配置增删/启停/transport/命令/URL 任一变更，指纹即变，
+/// 旧行自然失效，无需显式失效钩子。不进同步域（本机运行时状态）。
+#[derive(Clone)]
+struct McpToolsCacheEntry {
+    tools: Vec<McpToolInfo>,
+    /// Some=上次拉取失败的显式错误（装配层继续走 mcp_errors 通道上报，
+    /// 绝不静默降级为空清单——红线：宁可显式失败不静默少工具）。
+    error: Option<String>,
+    fetched_at: std::time::Instant,
+}
+
+/// 成功行有效期：无 ToolsChanged 事件机制，TTL 是事件缺失下的保守兜底
+/// （远端新增工具最迟 5 分钟可见；指纹变更即时可见）。
+const MCP_TOOLS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(300);
+/// 失败行短 TTL：错误也缓存以免每轮生成都重打一遍挂掉的 server，
+/// 但很快放行重试，故障恢复不被长缓存拖住。
+const MCP_TOOLS_CACHE_ERROR_TTL: std::time::Duration = std::time::Duration::from_secs(30);
+
+static MCP_TOOLS_CACHE: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<String, McpToolsCacheEntry>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+fn mcp_server_fingerprint(server: &crate::storage::McpServerConfig) -> String {
+    crate::storage::knowledge::content_hash(&format!(
+        "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+        server.id,
+        server.name,
+        server.platform,
+        server.transport,
+        server.command,
+        server.args_json,
+        server.env_json,
+        server.url,
+        server.headers_json,
+        server.enabled
+    ))
+}
+
+fn mcp_tools_cache_lookup(fingerprint: &str) -> Option<(Vec<McpToolInfo>, Option<String>)> {
+    let cache = MCP_TOOLS_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    let entry = cache.get(fingerprint)?;
+    let ttl = if entry.error.is_some() {
+        MCP_TOOLS_CACHE_ERROR_TTL
+    } else {
+        MCP_TOOLS_CACHE_TTL
+    };
+    if entry.fetched_at.elapsed() > ttl {
+        return None;
+    }
+    Some((entry.tools.clone(), entry.error.clone()))
+}
+
+fn mcp_tools_cache_store(fingerprint: String, tools: Vec<McpToolInfo>, error: Option<String>) {
+    MCP_TOOLS_CACHE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(
+            fingerprint,
+            McpToolsCacheEntry {
+                tools,
+                error,
+                fetched_at: std::time::Instant::now(),
+            },
+        );
+}
+
 /// 汇总全部启用 server 的工具清单；单个 server 失败不拖垮其它 server，
 /// 失败原因进错误列表由装配层决定上报口径（红线上抛优于静默）。
+/// 每行结果按连接配置指纹缓存：成功行 5 分钟、失败行 30 秒，避免每轮
+/// 生成前对全部启用 server 逐个发 tools/list RPC 的固定延迟；server 配置
+/// 变更（增删/启停/传输参数）即时失效。
 pub fn available_tools(store: &Store) -> (Vec<McpToolInfo>, Vec<String>) {
     let mut tools = Vec::new();
     let mut errors = Vec::new();
     match store.list_active_mcp_servers() {
         Ok(servers) => {
             for server in servers {
+                let fingerprint = mcp_server_fingerprint(&server);
+                if let Some((cached, error)) = mcp_tools_cache_lookup(&fingerprint) {
+                    tools.extend(cached);
+                    if let Some(error) = error {
+                        errors.push(error);
+                    }
+                    continue;
+                }
                 match list_tools_for_server(&server) {
-                    Ok(mut list) => tools.append(&mut list),
-                    Err(error) => errors.push(format!("MCP「{}」：{error:#}", server.name)),
+                    Ok(mut list) => {
+                        tools.append(&mut list);
+                        mcp_tools_cache_store(fingerprint, tools.clone(), None);
+                    }
+                    Err(error) => {
+                        // 失败也留缓存行（带显式错误状态），错误继续上报。
+                        let message = format!("MCP「{}」：{error:#}", server.name);
+                        mcp_tools_cache_store(fingerprint, Vec::new(), Some(message.clone()));
+                        errors.push(message);
+                    }
                 }
             }
         }
@@ -481,8 +584,7 @@ pub fn call_tool(store: &Store, full_name: &str, arguments: &Value) -> Result<St
         let text = extract_text(&result).unwrap_or_default();
         bail!("MCP 工具返回错误：{text}");
     }
-    let text = extract_text(&result)
-        .unwrap_or_else(|| "(工具无文本输出)".to_string());
+    let text = extract_text(&result).unwrap_or_else(|| "(工具无文本输出)".to_string());
     Ok(truncate_result(text))
 }
 
@@ -513,6 +615,87 @@ fn truncate_result(text: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_tool(name: &str) -> McpToolInfo {
+        McpToolInfo {
+            name: format!("mcp__srv__{name}"),
+            server: "srv".into(),
+            server_id: "srv-id".into(),
+            raw_name: name.into(),
+            description: "demo".into(),
+            parameters: serde_json::json!({"type": "object"}),
+        }
+    }
+
+    fn sample_server(url: &str) -> crate::storage::McpServerConfig {
+        crate::storage::McpServerConfig {
+            id: "srv-id".into(),
+            name: "srv".into(),
+            platform: "all".into(),
+            transport: "streamable-http".into(),
+            command: String::new(),
+            args_json: "[]".into(),
+            env_json: "{}".into(),
+            url: url.into(),
+            headers_json: "{}".into(),
+            enabled: true,
+            trusted: false,
+            created_at: String::new(),
+            updated_at: String::new(),
+        }
+    }
+
+    /// 指纹必须覆盖全部连接配置：任一字段变更（启停/url/命令/环境）都
+    /// 产生新键，旧缓存自然失效——这是「配置变更即失效」的实现机制。
+    #[test]
+    fn fingerprint_changes_when_connection_config_changes() {
+        let base = mcp_server_fingerprint(&sample_server("http://a"));
+        assert_eq!(
+            base,
+            mcp_server_fingerprint(&sample_server("http://a")),
+            "同配置指纹稳定"
+        );
+        let variants = [
+            sample_server("http://b"),
+            {
+                let mut s = sample_server("http://a");
+                s.enabled = false;
+                s
+            },
+            {
+                let mut s = sample_server("http://a");
+                s.headers_json = r#"{"Authorization":"Bearer x"}"#.into();
+                s
+            },
+        ];
+        for variant in variants {
+            assert_ne!(
+                base,
+                mcp_server_fingerprint(&variant),
+                "配置变更必须改变指纹"
+            );
+        }
+    }
+
+    /// 缓存行往返：成功行返回工具、失败行把显式错误透传给装配层
+    /// （红线上抛优于静默——绝不把失败行读成空清单）。
+    #[test]
+    fn cache_roundtrip_keeps_error_rows_explicit() {
+        let key = "fp-roundtrip-error".to_string();
+        assert!(mcp_tools_cache_lookup(&key).is_none(), "未写入前未命中");
+        mcp_tools_cache_store(key.clone(), vec![sample_tool("echo")], None);
+        let (tools, error) = mcp_tools_cache_lookup(&key).expect("成功行命中");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].raw_name, "echo");
+        assert!(error.is_none());
+
+        let fail_key = "fp-roundtrip-fail".to_string();
+        let message = "MCP「srv」：连接被拒".to_string();
+        mcp_tools_cache_store(fail_key.clone(), Vec::new(), Some(message.clone()));
+        let (tools, error) = mcp_tools_cache_lookup(&fail_key).expect("失败行也命中");
+        assert!(tools.is_empty());
+        assert_eq!(error.as_deref(), Some(message.as_str()), "错误必须显式透传");
+    }
 
     /// 用真子进程走一遍协议：python3 起一个最小 jsonrpc echo server。
     /// 无 python3 的环境跳过（CI 兜底）。
@@ -605,7 +788,7 @@ for line in sys.stdin:
 #[cfg(test)]
 mod approval_tests {
     use super::*;
-    use crate::ai::tool::{dispatch, ToolCall, ToolRegistry};
+    use crate::ai::tool::{ToolCall, ToolRegistry, dispatch};
 
     /// 审批闭环：dispatch MCP 工具不直接执行 → 创建 pending_action →
     /// 用户确认后 execute_pending_action 才真正发起 tools/call。
@@ -634,17 +817,15 @@ for line in sys.stdin:
         result = {}
     print(json.dumps({"jsonrpc": "2.0", "id": msg['id'], "result": result}), flush=True)
 "#;
-        let dir = std::env::temp_dir().join(format!(
-            "elsewhen-mcp-approval-test-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("elsewhen-mcp-approval-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let script_path = dir.join("mcp_echo.py");
         std::fs::write(&script_path, script).unwrap();
         let server = crate::storage::McpServerConfig {
             id: "approval-server".into(),
             name: "approvalsrv".to_string(),
-        platform: "all".to_string(),
+            platform: "all".to_string(),
             transport: "stdio".into(),
             command: python,
             args_json: serde_json::to_string(&[script_path.to_string_lossy().to_string()]).unwrap(),
@@ -661,7 +842,21 @@ for line in sys.stdin:
         let store = crate::storage::Store::open(&db).unwrap();
         crate::storage::Store::mark_initialized(&db).unwrap();
         // call_tool 执行时从 mcp_servers 表查配置，先把 server 落库
-        store.save_mcp_server(None, &server.name, "all", &server.transport, &server.command, &server.args_json, &server.env_json, "", "{}", true, false).unwrap();
+        store
+            .save_mcp_server(
+                None,
+                &server.name,
+                "all",
+                &server.transport,
+                &server.command,
+                &server.args_json,
+                &server.env_json,
+                "",
+                "{}",
+                true,
+                false,
+            )
+            .unwrap();
         let conversation_id = store.create_conversation(None, None).unwrap();
 
         // dispatch 一个 MCP 工具调用（registry 为空 → 走 MCP sidecar 路由）
@@ -684,8 +879,7 @@ for line in sys.stdin:
             .unwrap();
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].action, "mcp_tool_call");
-        let args: serde_json::Value =
-            serde_json::from_str(&pending[0].args_json).unwrap();
+        let args: serde_json::Value = serde_json::from_str(&pending[0].args_json).unwrap();
         assert_eq!(args["full_name"], call.name);
         assert_eq!(args["arguments"]["text"], "hi");
 
@@ -723,10 +917,8 @@ for line in sys.stdin:
         result = {}
     print(json.dumps({"jsonrpc": "2.0", "id": msg['id'], "result": result}), flush=True)
 "#;
-        let dir = std::env::temp_dir().join(format!(
-            "elsewhen-mcp-trusted-test-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("elsewhen-mcp-trusted-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let script_path = dir.join("mcp_echo.py");
         std::fs::write(&script_path, script).unwrap();
@@ -852,7 +1044,7 @@ mod http_transport_tests {
         let server = crate::storage::McpServerConfig {
             id: "http-server".into(),
             name: "httpsrv".to_string(),
-        platform: "all".to_string(),
+            platform: "all".to_string(),
             transport: "streamable-http".into(),
             command: String::new(),
             args_json: "[]".into(),
@@ -872,12 +1064,23 @@ mod http_transport_tests {
 
         // tools/call 走同会话（session id 已缓存）+ Bearer 透传；call_tool
         // 从 store 查启用 server，先落库
-        let db = std::env::temp_dir()
-            .join(format!("elsewhen-mcp-http-{}.db", std::process::id()));
+        let db = std::env::temp_dir().join(format!("elsewhen-mcp-http-{}.db", std::process::id()));
         let store = crate::storage::Store::open(&db).unwrap();
         crate::storage::Store::mark_initialized(&db).unwrap();
         store
-            .save_mcp_server(None, &server.name, "all", &server.transport, &server.command, &server.args_json, &server.env_json, &server.url, &server.headers_json, true, false)
+            .save_mcp_server(
+                None,
+                &server.name,
+                "all",
+                &server.transport,
+                &server.command,
+                &server.args_json,
+                &server.env_json,
+                &server.url,
+                &server.headers_json,
+                true,
+                false,
+            )
             .unwrap();
         let result = call_tool(
             &store,
