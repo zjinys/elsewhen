@@ -1,7 +1,7 @@
 # MCP 工具接入延迟加载与按需暴露（工具 Schema 瘦身）
 
 - 日期：2026-10-19
-- 状态：proposed
+- 状态：核心已实施（2026-10-20：catalog 化+两层激活+调用拦截经 R2A；tools/list 缓存同日落——配置指纹键+TTL，未引入 ToolsChanged 事件，偏差见 roadmap 实施实录）
 - 范围：第三方 MCP server 工具在对话上下文中的注入策略；不改动内置工具 defer 机制与 skill 包的 L1/L2 结构
 - 性质：事故驱动的架构改进
 - 关联：[Gitea MCP 工具调用失效与上下文预算熔断事故档案](../../incidents/2026-10-19-mcp-gitea-tool-call-review-and-budget-incident.md)、[主对话流摘要管道永久失败事故（P2 工具 schema 40K 瘦身条目）](../../incidents/2026-10-19-summary-pipeline-permanent-failure.md)、[非 GPT 模型 token 估算校准提案](./2026-10-19-token-estimation-calibration.md)

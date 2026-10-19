@@ -1,8 +1,8 @@
 # 非 GPT 模型 token 估算校准（告别 text.len() 字节退化）
 
 - 日期：2026-10-19
-- 状态：proposed
-- 范围：`src/ai/budget.rs` 的 `text_tokens` / `input_tokens` 估算口径；不改请求裁剪策略与 input_limit 公式
+- 状态：已实施（2026-10-20；分层估算经 R1 落地，usage 锚定按方案 C 进程内单槽落地——低估值才记录并收紧预算，不落库、重启回落启发式；偏差见 roadmap 实施实录）
+ 范围：`src/ai/budget.rs` 的 `text_tokens` / `input_tokens` 估算口径；不改请求裁剪策略与 input_limit 公式
 - 性质：事故驱动的架构改进
 - 关联：[Gitea MCP 工具调用失效与上下文预算熔断事故档案](../../incidents/2026-10-19-mcp-gitea-tool-call-review-and-budget-incident.md)、[MCP 工具延迟加载提案](./2026-10-19-mcp-tools-deferred-injection.md)、[主对话流摘要管道永久失败事故](../../incidents/2026-10-19-summary-pipeline-permanent-failure.md)
 

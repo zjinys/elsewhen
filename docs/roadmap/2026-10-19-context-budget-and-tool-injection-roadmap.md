@@ -160,3 +160,14 @@
 
 - 基线：Rust **878 passed / 19 ignored**（+1）；release 零警告
 - 依赖重排说明：R8B 未依赖 R5 的模型版要点提取（用确定性压形先行，语义级要点留待摘要管线扩展）
+
+## 实施实录（终）：usage 锚定 / tools/list 缓存 / 孵化导入提示（2026-10-20 同日）
+
+| 项 | 落地 |
+|---|---|
+| usage 锚定（R1 调序项 / token-estimation-calibration §3.0） | 进程内单槽锚定：request_on_channel 发送前经 Budget 事件捕获启发式最终估，完成时与真实 prompt_tokens 配对；仅低估（真实>启发式）记录，clamp[1.0,1.5] 作预算收紧系数；高估方向永不记录（宁高不低），低估漏放仍由 R4 兜底。cached_tokens 不参与占窗口径。+1 测试 |
+| tools/list 缓存（mcp-tools-deferred-injection §3.2） | 连接配置内容指纹作键：增删/启停/传输/命令/URL/header 任一变更即时失效；成功行 TTL 5 分钟、失败行 30 秒且显式错误透传 mcp_errors（不静默降级为空花名册）；不进同步域。+2 测试 |
+| 孵化导入提示（clip-incubation §5 末块） | preview.priorRejection 的 UI 消费：PriorRejectionDialog 知情确认（取消不落库/仍要保存放行）；分组/页内动作/负知识折叠区为前序落地。+2 测试 |
+
+- 实施偏差：usage 锚定未落库（方案 C 进程内）——重启回落启发式属安全降级，省 migration 53；ToolsChanged 事件未引入（TTL 兜底），事件驱动 reconcile 留待有 server 进程长连接管理时一并做
+- 终态基线：**Rust 881 passed / 19 ignored；Dart 413 passed；release 零警告**
