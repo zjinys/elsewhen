@@ -1,6 +1,10 @@
 import 'dart:io';
 
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
+
+// 仓储便捷方法声明于 bridge 库的 part extension 中；扩展方法不随类型传递，
+// 测试文件只 import 本 helper 即可使用，故在此转发导出。
+export 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
