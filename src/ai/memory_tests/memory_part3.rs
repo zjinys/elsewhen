@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use super::*;
 
 /// 目标与规则语义必须分离：规则是「对照检查」，目标是「仅作背景」。

@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use super::*;
 
 /// D6 今日记忆真检索：当日事件注入为可选背景段；没有记录时不注入。
