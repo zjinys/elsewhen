@@ -171,3 +171,29 @@
 
 - 实施偏差：usage 锚定未落库（方案 C 进程内）——重启回落启发式属安全降级，省 migration 53；ToolsChanged 事件未引入（TTL 兜底），事件驱动 reconcile 留待有 server 进程长连接管理时一并做
 - 终态基线：**Rust 881 passed / 19 ignored；Dart 413 passed；release 零警告**
+
+## 验收对照实录（2026-10-20，逐条复核）
+
+测试基线实测：Rust **881 passed / 19 ignored**（115.66s）；Dart **413 passed**；release 零警告。
+
+| 期 | 状态 | 验收核对 |
+|---|---|---|
+| R1 | ✅ 完成 | 双基准达标（Gitea schema ~11K∈[8K,16K]；中文 1000 字 ~2.2K∈[1.8K,2.4K]）；保守方向不破；usage 锚定调序后已落地（`3c0b930`，进程内单槽、clamp[1.0,1.5]、只记低估不记高估） |
+| R2A | ✅ 完成 | 未启用 MCP 不进 tools 字段；catalog 2K 预算；tools/list 缓存指纹键+TTL（`949d0b2`）；未注册 MCP 直放侧门已堵；Round 0 tools_tokens 推断 ~2K（53 工具不再进 tools 字段） |
+| R2B | ⚠️ 部分完成 | SYSTEM_PROMPT_BASE 4,407→2,710 字（~5.9K tokens@新口径），**未达 < 3K**；偏差声明：余量主体是行为安全纪律（草拟确认制/素材锁定/铁律），削减需产品决策。TOOL_GUIDES 分节+独立第二条 message 已落地；base 前缀稳定对 prefix cache 友好；pi 式增量 diff 下发未落地（前缀稳定结构已就位） |
+| R2.5 | ✅ 完成 | 侦察确认分批压缩与跨次收敛已存在（树式 build+节点缓存+preheat）；死局文案区分「压缩未收敛可重试」vs「缩小范围」；未造新批量器 |
+| R3 | ⚠️ 部分完成 | 审批续跑已落地（`9e4f0a8`：注入自明续跑指令+三重封顶）；**回执弹窗摘要化（不再 raw JSON）未提及、readOnlyHint 只读免审批未落地** |
+| R4 | ✅ 完成 | upstream_context_window_rejection 检测+窗口减半重试已在；收口为重试耗尽后的可诊断语义错误 |
+| R5 | ✅ 完成 | `degrade_turn` 确定性压形：assistant/工具长消息降骨架（头 220/160 字），用户消息与协议配对原样；压形仍装不下才诚实失败；complete_originals 护栏防误标全源 |
+| R6 | ✅ 完成（核实达成） | 摘要纪要已是 Required 常驻段（Summary segment + PageMark 持久化 + 80% 触发线 + preheat 追赶），未新增代码 |
+| R7 | ⚠️ 部分完成 | TOOL_GUIDES 分节已落地（依赖 R2B）；base 仍 ~5.9K 超 3K；time_context 单条维护+循环节制已就位 |
+| R8A-D | ✅ 完成 | R8A 拦截改 err（`807e4ce`）；R8B 占位符规模披露（`704e27b`）；R8C 引用来源标注（`807e4ce`）；R8D 续跑指令写入「先纠正再说明」（`67d92ca`） |
+| R8E | ❌ 不立项 | 词面后验缺结构化成功记录索引支撑、误报率高、UI 标记属 Dart 层；现有接地注入（工具成败清单）已覆盖其防御面的生成侧 |
+
+### 未落地项清单（后续候选）
+
+1. **R2B stable_setup < 3K**：余量主体是行为安全纪律文案，削减需产品决策；可虑把「情绪回应」与「个人经验规则库引导」从 base 移到按需注入（仅在用户分享经历时注入）。
+2. **R3 回执弹窗摘要化**：仍 raw JSON 整段糊出（事故档案 P0 第二处），未在本轮实施记录中出现。
+3. **R3 readOnlyHint 只读免审批**：未落地；落地时需 server 配置级白名单（Gitea `list_issues` 未标 readOnlyHint，不能盲信上游标注）。
+4. **R2B 增量 diff 下发**：前缀稳定结构已就位，pi 式 sections diff 机制未落地——对 prefix cache 命中率有进一步提升空间。
+5. **R8E 幻觉后验检测**：明确不立项（理由见上表）。
