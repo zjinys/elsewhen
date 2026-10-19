@@ -34,6 +34,8 @@ class ReviewRepo extends ConversationRepository {
   bool stale = false;
   String? failId;
   String status = 'succeeded';
+  /// 回执口径控制：null=默认短回执；长回执用于折叠摘要测试。
+  String? receiptResult;
 
   @override
   Future<List<api.ChatProposalDto>> listChatProposals(
@@ -78,7 +80,7 @@ class ReviewRepo extends ConversationRepository {
       version: request.expectedVersion,
       decision: accept ? 'accept' : 'reject',
       status: accept ? status : 'declined',
-      result: '回执 ${request.proposalId}',
+      result: receiptResult ?? '回执 ${request.proposalId}',
       action: 'create_todo',
       argsJson: '{}',
     );
@@ -227,5 +229,46 @@ void main() {
     );
     expect(find.text('接受这项'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  // 回执摘要化（事故 2026-10-19 根因 1.3）：长回执折叠预览可展开，
+  // 短回执原样直显；完整内容保留可复制。
+  testWidgets('long receipts collapse to preview with expand action', (
+    tester,
+  ) async {
+    final repo = ReviewRepo()
+      ..receiptResult = ('数据行\n' * 60) + 'TAILMARKER';
+    await mount(
+      tester,
+      repo,
+      ChatProposalDetailDialog(proposal: proposal('A')),
+    );
+    await tester.tap(find.text('接受这项'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('展开完整回执'), findsOneWidget);
+    expect(find.textContaining('TAILMARKER'), findsNothing,
+        reason: '折叠态不糊全文尾部');
+    final expand = find.textContaining('展开完整回执');
+    await tester.ensureVisible(expand);
+    await tester.pumpAndSettle();
+    await tester.tap(expand, warnIfMissed: true);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('TAILMARKER'), findsOneWidget,
+        reason: '展开后全文可见');
+  });
+
+  testWidgets('short receipts render plainly without expand action', (
+    tester,
+  ) async {
+    final repo = ReviewRepo();
+    await mount(
+      tester,
+      repo,
+      ChatProposalDetailDialog(proposal: proposal('A')),
+    );
+    await tester.tap(find.text('接受这项'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('回执 A'), findsOneWidget);
+    expect(find.textContaining('展开完整回执'), findsNothing);
   });
 }

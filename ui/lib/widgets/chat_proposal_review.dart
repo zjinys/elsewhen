@@ -266,7 +266,7 @@ class _ChatProposalReviewDialogState
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    SelectableText(receipt.result),
+                                    _ReceiptText(receipt.result),
                                     const SizedBox(height: 12),
                                     _ProposalContent(
                                       argsJson: receipt.argsJson,
@@ -456,7 +456,7 @@ class _ChatProposalBatchDialogState
                     case final result?)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: SelectableText(result),
+                    child: _ReceiptText(result),
                   ),
               ],
               if (_finished) const Text('本次逐项处理结束，请查看每项结果。'),
@@ -619,7 +619,7 @@ class _ChatProposalDetailDialogState
                   _statusLabel(_receipt!.status),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                SelectableText(_receipt!.result),
+                _ReceiptText(_receipt!.result),
                 const Divider(),
               ],
               if (_error != null)
@@ -700,4 +700,46 @@ class _ChatProposalDetailDialogState
       ],
     ),
   );
+}
+
+/// 回执摘要化（事故 2026-10-19 根因 1.3）：弹窗/列表只做状态反馈，长回执
+/// （MCP 工具 raw JSON 动辄几十行）折叠预览，不糊正文；完整结果仍可展开
+/// 查看（SelectableText 保留可复制）。短回执原样直显。
+class _ReceiptText extends StatefulWidget {
+  final String result;
+  const _ReceiptText(this.result);
+
+  @override
+  State<_ReceiptText> createState() => _ReceiptTextState();
+}
+
+class _ReceiptTextState extends State<_ReceiptText> {
+  bool _expanded = false;
+
+  static const _previewLength = 200;
+
+  @override
+  Widget build(BuildContext context) {
+    final result = widget.result;
+    if (result.length <= _previewLength) {
+      return SelectableText(result);
+    }
+    final preview = _expanded
+        ? result
+        : '${result.substring(0, _previewLength)}…';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SelectableText(preview),
+        if (!_expanded)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => setState(() => _expanded = true),
+              child: Text('展开完整回执（全文 ${result.length} 字）'),
+            ),
+          ),
+      ],
+    );
+  }
 }
