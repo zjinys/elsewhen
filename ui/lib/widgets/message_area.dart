@@ -39,7 +39,6 @@ import 'markdown_view.dart';
 import 'knowledge_panel.dart';
 import 'todo_view.dart';
 import 'goal_view.dart';
-import 'notepad_view.dart';
 import 'reminder_banner.dart';
 
 // ── 消息区拆分为 part（行为零变化，见 message_area_parts/）──
@@ -196,20 +195,6 @@ void openTodoDialog(BuildContext context) {
   );
 }
 
-void openNotepadDialog(BuildContext context) {
-  _showAdaptivePanel(
-    context,
-    dialog: Dialog(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 580),
-        child: const SizedBox(width: 620, height: 580, child: NotepadView()),
-      ),
-    ),
-    sheetBuilder: (sheetContext) =>
-        _PanelSheet(title: '记事本', builder: (context) => const NotepadView()),
-  );
-}
-
 void openGoalDialog(BuildContext context) {
   _showAdaptivePanel(
     context,
@@ -345,7 +330,6 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           onOpenPageMarks: null,
           onOpenTodos: () => openTodoDialog(context),
           onOpenGoals: () => openGoalDialog(context),
-          onOpenNotepad: () => openNotepadDialog(context),
           onToggleSearch: () => ref
               .read(messageSearchVisibleProvider(selectedId).notifier)
               .set(!showSearch),

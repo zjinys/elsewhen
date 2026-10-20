@@ -250,11 +250,6 @@ class TodayTitleBarActions extends ConsumerWidget {
           onPressed: () => openTodoDialog(context),
         ),
         _TitleBarIconAction(
-          tooltip: '记事本',
-          icon: Icons.note_alt_outlined,
-          onPressed: () => openNotepadDialog(context),
-        ),
-        _TitleBarIconAction(
           tooltip: '待入库草稿（$draftCount）',
           icon: Icons.drafts_outlined,
           onPressed: () => openKnowledgeDraftsDialog(context),

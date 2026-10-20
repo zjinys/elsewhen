@@ -55,7 +55,6 @@ class _NowStatus extends ConsumerWidget {
   final VoidCallback? onOpenDrafts;
   final VoidCallback? onOpenTodos;
   final VoidCallback? onOpenGoals;
-  final VoidCallback? onOpenNotepad;
   final VoidCallback? onOpenPageMarks;
   final VoidCallback? onToggleSearch;
   final VoidCallback? onCopyAll;
@@ -67,7 +66,6 @@ class _NowStatus extends ConsumerWidget {
     this.onOpenPageMarks,
     this.onOpenTodos,
     this.onOpenGoals,
-    this.onOpenNotepad,
     this.onToggleSearch,
     this.onCopyAll,
   });
@@ -176,15 +174,6 @@ class _NowStatus extends ConsumerWidget {
                       onPressed: onOpenTodos,
                       icon: const Icon(Icons.check_circle_outlined, size: 16),
                       label: Text('待办${openTodos ?? 0}项'),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    TextButton.icon(
-                      onPressed: onOpenNotepad,
-                      icon: const Icon(Icons.note_alt_outlined, size: 16),
-                      label: const Text('记事'),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
