@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../models/wiki_page.dart';
-import '../providers/wiki_provider.dart';
 import '../utils/error_report.dart';
 
 T _repo<T>(Ref ref) => ref.read(storageRepositoryProvider) as T;
@@ -36,7 +35,7 @@ final notepadDetailProvider = FutureProvider<WikiPage?>((ref) async {
   return bridge.getWikiPage(kNotepadSlug);
 });
 
-/// 记事本面板：唯一知识页详情 + 快记框。
+/// 记事本面板：唯一知识页正文 + 快记框。
 class NotepadView extends ConsumerStatefulWidget {
   const NotepadView({super.key});
 
@@ -47,6 +46,10 @@ class NotepadView extends ConsumerStatefulWidget {
 class _NotepadViewState extends ConsumerState<NotepadView> {
   final _quickController = TextEditingController();
   bool _appending = false;
+  /// 乐观渲染：追加成功后 FFI 直接返回最新页内容，立即以此显示——
+  /// 不等 knowledgeRevision → provider 重查的刷新链（那条链要再开一次
+  /// 库连接，观感就是「写完半天不出字」）。
+  WikiPage? _latest;
 
   @override
   void dispose() {
@@ -57,84 +60,71 @@ class _NotepadViewState extends ConsumerState<NotepadView> {
   @override
   Widget build(BuildContext context) {
     final pageAsync = ref.watch(notepadDetailProvider);
+    final page = _latest ?? pageAsync.asData?.value;
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
-          child: Row(
-            children: [
-              Text('记事本',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-              const Spacer(),
-              // 打开完整详情（进入知识页 tab 的编辑/修订/AI 聊天全功能视图）
-              pageAsync.when(
-                data: (p) => p == null
-                    ? const SizedBox.shrink()
-                    : IconButton(
-                        tooltip: '打开完整详情',
-                        icon: const Icon(Icons.open_in_new, size: 18),
-                        onPressed: () => openWikiPageTab(ref, p),
-                      ),
-                loading: () => const SizedBox.shrink(),
-                error: (_, _) => const SizedBox.shrink(),
-              ),
-            ],
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text('记事本',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
           ),
         ),
         const Divider(height: 1),
         Expanded(
-          child: pageAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-              child: Text(reportUiError('读取记事本', e, showDetail: true)),
-            ),
-            data: (page) => page == null
-                ? const Center(child: Text('页面不存在'))
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: SelectableText(
-                        page.contentMd.isEmpty ? '（空，下面快记第一条）' : page.contentMd,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                  ),
-          ),
+          child: switch ((page == null, pageAsync.hasError)) {
+            // 尚未拿到任何数据：真正在加载或出错。
+            (true, true) => Center(
+                child: Text(reportUiError(
+                    '读取记事本', pageAsync.error!, showDetail: true))),
+            (true, false) => const Center(child: CircularProgressIndicator()),
+            // 已有数据（首查结果或乐观更新）：直接渲染，刷新链在后台对齐。
+            (false, _) => _pageBody(page!),
+          },
         ),
         const Divider(height: 1),
         // 快记框：回车/按钮即追加（单事务，连击不丢写）
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: TextField(
                   controller: _quickController,
                   minLines: 1,
                   maxLines: 4,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: '快记一条，回车追加…',
                     isDense: true,
-                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                   onSubmitted: (_) => _append(),
                 ),
               ),
               const SizedBox(width: 8),
-              IconButton.filled(
-                tooltip: '追加',
+              FilledButton.tonalIcon(
                 onPressed: _appending ? null : _append,
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
                 icon: _appending
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.send),
+                    : const Icon(Icons.edit_note, size: 18),
+                label: const Text('记一条'),
               ),
             ],
           ),
@@ -143,14 +133,39 @@ class _NotepadViewState extends ConsumerState<NotepadView> {
     );
   }
 
+  Widget _pageBody(WikiPage page) {
+    final content =
+        page.contentMd.isEmpty ? '（空，下面快记第一条）' : page.contentMd;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: SelectableText(
+          content,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ),
+    );
+  }
+
+  String _timestamp() {
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(now.month)}-${two(now.day)} ${two(now.hour)}:${two(now.minute)}';
+  }
+
   Future<void> _append() async {
     final text = _quickController.text.trim();
     if (text.isEmpty || _appending) return;
     setState(() => _appending = true);
     try {
       final bridge = ref._readRepo<RustBridgeRepository>();
-      await bridge.appendWikiPageContent(slug: kNotepadSlug, appendMd: text);
+      // 快记天生是时间线：入库即带时间戳（MM-dd HH:mm 内容）。
+      final updated = await bridge.appendWikiPageContent(
+          slug: kNotepadSlug, appendMd: '${_timestamp()} $text');
       _quickController.clear();
+      if (mounted) setState(() => _latest = updated);
+      // 后台仍触发全量刷新链对齐（同步/修订号），不阻塞观感。
       ref.invalidate(knowledgeRevisionProvider);
     } catch (e) {
       if (mounted) {
