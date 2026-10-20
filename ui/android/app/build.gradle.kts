@@ -71,4 +71,6 @@ flutter {
 // FileProvider（应用内升级：content:// 共享下载好的 APK 给系统安装器）。
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
+    // Android 12+ 启动页：windowSplashScreenIcon 等主题属性由该库提供
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }
