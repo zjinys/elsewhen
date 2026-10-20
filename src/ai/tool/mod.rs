@@ -514,6 +514,32 @@ impl ToolRegistry {
             }
         }
         for id in skill_ids {
+            // MCP 服务器名（如 gitea-mcp）：整组启用该 server 下全部工具。
+            // catalog 按 server 分组显示，模型按看到的组名回传属于合理行为。
+            if !id.starts_with(crate::ai::mcp::MCP_PREFIX) {
+                let group: Vec<_> = self
+                    .mcp_tools
+                    .iter()
+                    .filter(|t| {
+                        t.name
+                            .strip_prefix(crate::ai::mcp::MCP_PREFIX)
+                            .and_then(|rest| rest.split("__").next())
+                            == Some(id.as_str())
+                    })
+                    .collect();
+                if !group.is_empty() {
+                    for tool in group {
+                        enabled.insert(tool.name.clone());
+                        mcp_schemas.push(format!(
+                            "== MCP 工具 {} 已启用 ==\n{}\n参数 JSON Schema：{}\n\n",
+                            tool.name, tool.description, tool.parameters
+                        ));
+                    }
+                    continue;
+                }
+            }
+        }
+        for id in skill_ids {
             match BUILTIN_SKILLS.iter().find(|s| s.id == id) {
                 Some(skill) => {
                     activated_skills.push(format!("{}（{}）", skill.id, skill.title));
@@ -560,10 +586,25 @@ impl ToolRegistry {
             text.push_str(schema);
         }
         if !unknown.is_empty() {
-            text.push_str(&format!(
-                "未知的技能包：{}（可用技能包见 enable_tools 描述）。",
-                unknown.join("、")
-            ));
+            // 过滤掉已按服务器组名启用的 id——它们不是 unknown。
+            let truly_unknown: Vec<_> = unknown
+                .iter()
+                .filter(|id| {
+                    !self.mcp_tools.iter().any(|t| {
+                        t.name
+                            .strip_prefix(crate::ai::mcp::MCP_PREFIX)
+                            .and_then(|rest| rest.split("__").next())
+                            == Some(id.as_str())
+                    })
+                })
+                .cloned()
+                .collect();
+            if !truly_unknown.is_empty() {
+                text.push_str(&format!(
+                    "未知的技能包：{}（可用技能包见 enable_tools 描述；MCP 工具可传服务器名整组启用，或传全名 mcp__<服务器>__<工具> 单个启用）。",
+                    truly_unknown.join("、")
+                ));
+            }
         }
         text
     }

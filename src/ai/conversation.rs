@@ -195,6 +195,20 @@ fn missing_tool_call_response(reply: &AiReply) -> bool {
             Some("function_call") | Some("tool_calls")
         )
 }
+
+/// Agent 循环：最多 MAX_TOOL_ROUNDS 轮。
+/// - 首轮尝试原生 tool-calling（带 tools 清单）；失败则回落文本协议重试一次。
+/// - 原生返回 tool_calls → 回传 assistant(tool_calls) + 追加 tool 结果，进入下一轮。
+/// - 纯文本但含可解析调用 → 执行并进入下一轮。
+/// - 疑似想调但格式未知 → 回炉重发（最多 MAX_PROTOCOL_REPAIRS 次），绝不静默吞掉。
+/// - 无工具调用 → 写声明核验（标题→查库→本轮时间窗）→ 收敛，返回最终文本。
+/// Provider failover never removes an already committed event. Fixed input
+/// identities and durable results make retries idempotent instead of destructive.
+
+// Native reasoning endpoints require the original opaque reasoning alongside
+// assistant messages when a repair continues the same turn. It is never shown
+// as answer text; text_protocol_history removes it on an explicit fallback.
+
 fn dispatch_for_turn(
     call: &ToolCall,
     registry: &ToolRegistry,
@@ -281,7 +295,9 @@ pub(crate) enum ClaimVerdict {
     Unproven(Vec<String>),
 }
 
-pub(crate) use continuity::failure_notice;
+pub(crate) use continuity::{
+    FINAL_ANSWER_NUDGE, failure_notice, progress_fallback, unhelpful_failure_reply,
+};
 mod agent;
 mod claim_detection;
 mod content_chat;
@@ -314,10 +330,10 @@ pub(crate) use tool_protocol::{
 };
 
 // 仅供测试链路使用的转发（release 构建不产生 unused 警告）
-#[cfg(test)]
 pub(crate) use agent::{assistant_continuation, note_web_search_intent, run_agent_loop_inner};
 #[cfg(test)]
 pub(crate) use claim_detection::broad_write_claim;
+pub(crate) use continuity::FollowUp;
 #[cfg(test)]
 pub(crate) use parse_tools::{
     extract_one_tool_call, parse_dsml_tool_calls, parse_xml_tool_calls, strip_dsml_artifacts,

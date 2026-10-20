@@ -5,10 +5,10 @@ use super::{ContextMessage, ToolResultMsg, future_promise_detected};
 use crate::storage::Store;
 use anyhow::Result;
 
-pub(super) const FINAL_ANSWER_NUDGE: &str = "本轮必须向用户交付最终答复，不再调用工具或提出新动作。根据已经得到的结果说明：做完了什么、什么尚未完成、哪些草稿等待确认。需要生成文字时现在给出正文。不得只说我去做、稍等或稍后回复；结束这条回复后没有后台任务替你继续。没有可用结果时坦诚说明原任务尚未完成，保留原要求，不要要求用户重发，也不要把模型空回复等内部错误当作答复。";
+pub(crate) const FINAL_ANSWER_NUDGE: &str = "本轮必须向用户交付最终答复，不再调用工具或提出新动作。根据已经得到的结果说明：做完了什么、什么尚未完成、哪些草稿等待确认。需要生成文字时现在给出正文。不得只说我去做、稍等或稍后回复；结束这条回复后没有后台任务替你继续。没有可用结果时坦诚说明原任务尚未完成，保留原要求，不要要求用户重发，也不要把模型空回复等内部错误当作答复。";
 
 #[derive(Debug)]
-pub(super) struct FollowUp {
+pub(crate) struct FollowUp {
     pub request: String,
     previous_reply: String,
     pub unresolved: bool,
@@ -65,7 +65,7 @@ fn interrupted_reply(text: &str) -> bool {
         .any(|s| text.contains(s))
 }
 
-pub(super) fn unhelpful_failure_reply(text: &str) -> bool {
+pub(crate) fn unhelpful_failure_reply(text: &str) -> bool {
     let text = text.trim();
     text.chars().count() <= 180
         && ["抱歉", "对不起", "模型", "这次", "刚才"]
@@ -165,7 +165,7 @@ pub(super) fn excerpt(text: &str, limit: usize) -> String {
 /// ② 自动触发（模型没给出答复/运行失败）：只产出诚实失败消息，
 ///    工具检索结果一律不进用户消息流（留在 run 记录中，待 reports 侧栏承接），
 ///    否则就像事故里那样，知识库 dump 被当成回答，失败真相被淹没。
-pub(super) fn progress_fallback(
+pub(crate) fn progress_fallback(
     store: &Store,
     conversation_id: &str,
     context: &[ContextMessage],
