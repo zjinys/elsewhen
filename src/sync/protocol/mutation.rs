@@ -223,8 +223,13 @@ impl SyncMutation {
                         "sync_wiki_based_on_invalid"
                     );
                 }
+                // 删除墓碑允许「正常在用」的 status：active（AI 路径建档）
+                // 与 confirmed（memo 人类专属建档，见 lifecycle::create_wiki_page）。
+                // 页面删除是物理删，不存在终态 status；此校验只防把「已归档/已废
+                // 弃」语义的页再删一次造成对端误解。当前库内无归档 status，
+                // 故枚举即现状全集。
                 ensure!(
-                    !deleted || page.status == "active",
+                    !deleted || matches!(page.status.as_str(), "active" | "confirmed"),
                     "sync_wiki_delete_status_invalid"
                 );
             }

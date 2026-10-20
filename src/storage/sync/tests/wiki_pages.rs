@@ -193,6 +193,29 @@ fn wiki_page_business_delete_removes_row_and_replicates() {
     );
 }
 
+/// memo 人类专属建档页（status=confirmed）的业务删除必须同样能捕获与复制。
+/// 复现事故：sync 校验写死 status=="active"，删除 memo 页报
+/// sync_wiki_delete_status_invalid，UI 删除确认弹窗直接抛未捕获异常。
+#[test]
+fn memo_confirmed_page_delete_captures_and_replicates() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    // 走人类建档真路径：create_wiki_page(kind=memo) → status=confirmed。
+    let page = a
+        .store
+        .create_wiki_page("memo", "记事本", "第一行", &[])
+        .unwrap();
+    assert_eq!(page.status, "confirmed");
+    deliver(&a, &b);
+    assert!(b.store.get_wiki_page(&page.slug).unwrap().is_some());
+    // 业务删除：confirmed status 不再被删除校验拒绝。
+    assert!(a.store.delete_wiki_page(&page.slug).unwrap());
+    assert!(a.store.get_wiki_page(&page.slug).unwrap().is_none());
+    deliver(&a, &b);
+    assert!(b.store.get_wiki_page(&page.slug).unwrap().is_none());
+}
+
 #[test]
 fn wiki_page_rename_replicates_and_migrates_references() {
     let a = Database::new("a");
