@@ -4,6 +4,7 @@
     <style name="LaunchTheme" parent="Theme.SplashScreen">
         <!-- 深色系统：logo 底色，图标融入背景 -->
         <item name="windowSplashScreenBackground">#1b1c22</item>
+        <!-- 深色底：用完整 logo（深色方块融入背景，G 字亮色呈现） -->
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
         <item name="windowSplashScreenAnimationDuration">200</item>
         <item name="postSplashScreenTheme">@style/NormalTheme</item>
