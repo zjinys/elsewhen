@@ -789,7 +789,36 @@ pub(crate) fn dispatch_with_knowledge(
         None => {
             // 内置注册表未命中：MCP 工具（mcp__<server>__<tool>）走外部
             // 分发；错误同样以结果文本返回，不炸生成主链路。
-            if call.name.starts_with(crate::ai::mcp::MCP_PREFIX) {
+            // R2A catalog 显示短名（list_issues），模型在文本协议下可能
+            // 直接输出短名而非全名（mcp__gitea-mcp__list_issues）——
+            // 此处做短名→全名容错解析，避免「未知工具」假失败。
+            let resolved_name = if call.name.starts_with(crate::ai::mcp::MCP_PREFIX) {
+                Some(call.name.clone())
+            } else {
+                // 短名容错：在 MCP 工具列表里按短名唯一匹配
+                let matches: Vec<_> = registry
+                    .mcp_tools()
+                    .iter()
+                    .filter(|t| {
+                        t.name
+                            .rsplit("__")
+                            .next()
+                            .map_or(false, |short| short == call.name)
+                    })
+                    .collect();
+                if matches.len() == 1 {
+                    Some(matches[0].name.clone())
+                } else {
+                    None
+                }
+            };
+            if let Some(full_name) = resolved_name {
+                let call = ToolCall {
+                    id: call.id.clone(),
+                    name: full_name,
+                    arguments: call.arguments.clone(),
+                    raw_arguments: call.raw_arguments.clone(),
+                };
                 // MCP server 是第三方代码，默认走 pending-action 审批——
                 // 用户确认卡接受后才真正发起 tools/call，参数以确认时原样
                 // 执行（杜绝确认前后偷换内容）。拒绝则丢弃，不执行。
@@ -809,7 +838,7 @@ pub(crate) fn dispatch_with_knowledge(
                 });
                 if server_info.is_none() {
                     return ToolResultMsg::err(
-                        call,
+                        &call,
                         format!(
                             "MCP 服务器「{server_name}」未启用、删除或未适用当前平台，本次调用未执行。"
                         ),
@@ -840,8 +869,8 @@ pub(crate) fn dispatch_with_knowledge(
                         ),
                     );
                     return match crate::ai::mcp::call_tool(store, &call.name, &call.arguments) {
-                        Ok(output) => ToolResultMsg::ok(call, output),
-                        Err(e) => ToolResultMsg::err(call, e),
+                        Ok(output) => ToolResultMsg::ok(&call, output),
+                        Err(e) => ToolResultMsg::err(&call, e),
                     };
                 }
                 {
@@ -856,17 +885,23 @@ pub(crate) fn dispatch_with_knowledge(
                         &action_args,
                     ) {
                         Ok(_) => ToolResultMsg::err(
-                            call,
+                            &call,
                             format!(
                                 "尚未执行，等待确认：工具 {} 的执行请求已登记待用户确认（MCP 服务器为第三方代码，执行前需要逐次审批）。用户在审阅卡点击接受后才会真正执行；在收到执行结果前，不得声称该调用已成功或已完成。",
                                 call.name
                             ),
                         ),
-                        Err(e) => ToolResultMsg::err(call, e),
+                        Err(e) => ToolResultMsg::err(&call, e),
                     }
                 }
             } else {
-                ToolResultMsg::err(call, format!("未知工具：{}", call.name))
+                ToolResultMsg::err(
+                    &call,
+                    format!(
+                        "未知工具：{}；第三方 MCP 工具请先 enable_tools 登记全名（格式：mcp__<server>__<tool>），或使用 catalog 中显示的短名（需唯一匹配）",
+                        call.name
+                    ),
+                )
             }
         }
     }

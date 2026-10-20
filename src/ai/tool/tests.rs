@@ -199,6 +199,49 @@ fn registry_can_hide_record_event_for_auto_recorded_conversations() {
     assert!(!registry.prompt_block_for(false).contains("record_event"));
 }
 
+/// 短名容错：模型在文本协议下可能输出短名（list_issues）而非全名
+/// （mcp__gitea-mcp__list_issues），dispatch 应唯一匹配解析。
+#[test]
+fn dispatch_resolves_short_name_to_mcp_fullname() {
+    let (store, path) = temp_db();
+    let mut registry = ToolRegistry::deferred_runtime();
+    registry.set_mcp_tools(vec![mcp_tool("gitea-mcp", "list_issues", 1)]);
+    // 短名唯一匹配：应解析为全名并走 MCP 分发分支
+    // （测试环境无真实 MCP server 配置，走到「服务器未启用」即证明解析成功）
+    let call = ToolCall::new("list_issues", json!({}));
+    let result = dispatch(&call, &registry, &store, "conv-test");
+    drop(store);
+    let _ = std::fs::remove_file(path);
+    // 解析成功 = 不再是「未知工具」，而是 MCP 服务器层面的错误
+    assert!(
+        !result.content.contains("未知工具"),
+        "应解析为 MCP 全名而非未知工具：{}",
+        result.content
+    );
+    assert!(
+        result.content.contains("MCP 服务器") || result.content.contains("尚未执行"),
+        "{}",
+        result.content
+    );
+}
+
+/// 短名容错：多个 MCP server 有同名工具时不做猜测，报未知工具。
+#[test]
+fn dispatch_rejects_ambiguous_short_name() {
+    let (store, path) = temp_db();
+    let mut registry = ToolRegistry::deferred_runtime();
+    registry.set_mcp_tools(vec![
+        mcp_tool("gitea-mcp", "list_issues", 1),
+        mcp_tool("github-mcp", "list_issues", 1),
+    ]);
+    let call = ToolCall::new("list_issues", json!({}));
+    let result = dispatch(&call, &registry, &store, "conv-test");
+    drop(store);
+    let _ = std::fs::remove_file(path);
+    assert!(result.content.contains("未知工具"), "{}", result.content);
+    assert!(result.content.contains("唯一匹配"), "{}", result.content);
+}
+
 #[test]
 fn dispatch_unknown_tool_is_error_message() {
     let (store, path) = temp_db();
