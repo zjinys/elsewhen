@@ -1198,6 +1198,32 @@ fn enable_result_registers_mcp_fullnames() {
     assert!(!enabled.contains("mcp__gitea-mcp__nope"));
 }
 
+/// enable_result：服务器名（如 gitea-mcp）整组启用该 server 下全部工具。
+/// 复现事故：模型看到 catalog 分组名后传「gitea-mcp」，旧代码报「未知的技能包」。
+#[test]
+fn enable_result_registers_mcp_server_group() {
+    let mut registry = ToolRegistry::deferred_runtime();
+    registry.set_mcp_tools(vec![
+        mcp_tool("gitea-mcp", "list_issues", 1),
+        mcp_tool("gitea-mcp", "search_repos", 1),
+        mcp_tool("other-mcp", "read_file", 1),
+    ]);
+    let mut enabled = std::collections::HashSet::new();
+    let text = registry.enable_result(&["gitea-mcp".to_string()], &mut enabled);
+    assert!(enabled.contains("mcp__gitea-mcp__list_issues"));
+    assert!(enabled.contains("mcp__gitea-mcp__search_repos"));
+    // 只启用该组，不波及别的 server
+    assert!(!enabled.contains("mcp__other-mcp__read_file"));
+    // 组名不是 unknown——不应出现「未知的技能包：gitea-mcp」
+    assert!(
+        !text.contains("未知的技能包：gitea-mcp"),
+        "服务器组名不应报未知：{}",
+        text
+    );
+    assert!(text.contains("mcp__gitea-mcp__list_issues 已启用"));
+    assert!(text.contains("mcp__gitea-mcp__search_repos 已启用"));
+}
+
 // ── R3：审批续跑闭环 ──
 
 /// accept 成功 → 注入带确定性标记的续跑指令并入队生成；节流 2 条/5 分钟；

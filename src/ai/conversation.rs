@@ -1134,8 +1134,19 @@ fn run_agent_loop_inner(
                                 .collect()
                         })
                         .unwrap_or_default();
+                    super::generation::event(
+                        store,
+                        "tool_started",
+                        serde_json::json!({"call_id":call.id,"name":call.name}),
+                    )?;
                     let text = registry.enable_result(&names, &mut enabled_tools);
                     context.push(ContextMessage::tool_result(call.id.clone(), text.clone()));
+                    super::generation::event(
+                        store,
+                        "tool_result",
+                        serde_json::json!({"call_id":call.id,"name":call.name,"success":true,
+                            "content":text.clone(),"outcome":"read"}),
+                    )?;
                     results.push(ToolResultMsg::ok(call, text));
                     continue;
                 }
@@ -1205,11 +1216,22 @@ fn run_agent_loop_inner(
                                 .collect()
                         })
                         .unwrap_or_default();
+                    super::generation::event(
+                        store,
+                        "tool_started",
+                        serde_json::json!({"call_id":call.id,"name":call.name}),
+                    )?;
                     let text = registry.enable_result(&names, &mut enabled_tools);
                     context.push(ContextMessage::new(
                         "system",
                         format!("工具「enable_tools」执行结果：{}", text),
                     ));
+                    super::generation::event(
+                        store,
+                        "tool_result",
+                        serde_json::json!({"call_id":call.id,"name":call.name,"success":true,
+                            "content":text.clone(),"outcome":"read"}),
+                    )?;
                     results.push(ToolResultMsg::ok(&call, text));
                     continue;
                 }
