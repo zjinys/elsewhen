@@ -248,7 +248,18 @@ impl Store {
                 ],
             )?;
             self.sync_record_wiki_page(&page.id, false)?;
-            Self::record_wiki_revision_on(self, &page.id, &draft.content_md, &draft.reason, None)?;
+            // 空正文不落 revision：协议校验拒收空 revision
+            // （sync_wiki_revision_empty），空内容亦无信息量——页面本体已随
+            // WikiPageChanged 同步，快记追加后再有非空 revision。
+            if !draft.content_md.is_empty() {
+                Self::record_wiki_revision_on(
+                    self,
+                    &page.id,
+                    &draft.content_md,
+                    &draft.reason,
+                    None,
+                )?;
+            }
             let updated = self.get_wiki_page(&draft.slug)?.unwrap();
             crate::storage::knowledge::capture_source_on(&self.connection, &updated)?;
             Ok(WikiUpsertOutcome {
@@ -286,7 +297,11 @@ impl Store {
                 ],
             )?;
             self.sync_record_wiki_page(&id, false)?;
-            Self::record_wiki_revision_on(self, &id, &draft.content_md, &draft.reason, None)?;
+            // 同上：空正文（记事本建档即空页）不落 revision，否则协议校验
+            // sync_wiki_revision_empty 直接拒绝建档事务。
+            if !draft.content_md.is_empty() {
+                Self::record_wiki_revision_on(self, &id, &draft.content_md, &draft.reason, None)?;
+            }
             // 占位符引用的图片字节随页入库（文件在导入下载阶段已落盘）。
             let _ = self.ingest_wiki_page_assets();
             let page = self.get_wiki_page(&draft.slug)?.unwrap();

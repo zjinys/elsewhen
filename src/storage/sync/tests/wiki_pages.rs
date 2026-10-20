@@ -411,3 +411,38 @@ fn revision_arriving_on_deleted_head_stays_quiet() {
     assert_eq!(candidates, 1, "同一次编辑只在一个 op 上立案");
     assert_eq!(b.count("wiki_revisions"), 0, "已删页不复活历史行");
 }
+
+// 记事本建档即空正文（快记第一条之前），空 revision 无信息量且协议校验
+// 拒收（sync_wiki_revision_empty）；修复后空页建档不得炸捕获事务，页面本体
+// 仍随 WikiPageChanged 同步，快记追加后对端可见。
+#[test]
+fn memo_empty_content_creation_syncs_and_append_follows() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    // 修复前：空正文建档触发 sync_wiki_revision_empty，建档事务整体回滚。
+    let page = a
+        .store
+        .create_wiki_page("memo", "记事本", "", &[])
+        .expect("空正文建档必须成功");
+    capture_wiki(&a, &page.id);
+    deliver(&a, &b);
+    let synced = b.store.get_wiki_page(&page.slug).unwrap();
+    assert!(synced.is_some(), "空正文页本体必须随 WikiPageChanged 同步");
+    assert_eq!(synced.unwrap().content_md, "");
+    // 快记追加：非空 revision 正常捕获并到达对端。
+    a.store
+        .append_wiki_page_content(&page.slug, "买牛奶", "快记")
+        .unwrap();
+    capture_wiki(&a, &page.id);
+    deliver(&a, &b);
+    assert_eq!(
+        b.store
+            .get_wiki_page(&page.slug)
+            .unwrap()
+            .unwrap()
+            .content_md
+            .trim(),
+        "买牛奶"
+    );
+}
